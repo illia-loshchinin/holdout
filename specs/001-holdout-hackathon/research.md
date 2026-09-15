@@ -1,0 +1,177 @@
+# Research — 001-holdout-hackathon
+
+**Phase 0 output of `/speckit-plan`.** Each entry: **Decision** · **Rationale** · **Alternatives considered**. Items marked *confirm at spike* are decided here but must be validated by the risk spikes in `plan.md` before implementation depends on them; the fallback is named so a failed spike changes a line, not the plan.
+
+Resolves decision-record open items P3, P4, P5, P8, P10, P11 (plan-level parts).
+
+**Stack in one line:** Rust/Anchor program on devnet · **native Android app in Kotlin** (Jetpack Compose, Solana Mobile Kotlin SDKs, MediaPipe Tasks) · Kotlin/JVM crank sharing the app's core module · TypeScript + LiteSVM for program integration tests.
+
+---
+
+## R1 · On-chain program framework
+
+- **Decision:** Rust program built with **Anchor 1.0.x**, one program named `holdout`, deployed to **devnet**. Token CPIs go through Anchor's **token interface**, so the program works with either the classic SPL Token program or Token Extensions.
+- **Rationale:** Anchor 1.0 (April 2026) is the current stable line and ships LiteSVM as its default test backend (R2). One program keeps account relationships, PDAs and invariants in one place for a 13-day build. SKR is an SPL asset; the mock SKR mint is a classic SPL mint, and the token interface keeps the door open for Token Extensions (the Genesis Token uses them).
+- **Alternatives considered:** native Rust without Anchor (more boilerplate, slower to a correct IDL); several programs as in the archived PRD (cross-program invariants for no benefit); Pinocchio (less tooling, no time to absorb).
+
+## R2 · Contract testing and clock control
+
+- **Decision:** three layers, written **before** the logic they test (constitution VII):
+  1. **Pure settlement math** in a dependency-free Rust module (`programs/holdout/src/math/`), unit-tested against every vector in PRD §19 (V1–V22) plus property tests for the arithmetic invariants.
+  2. **Program integration tests** in **TypeScript on LiteSVM** with the Anchor-generated client, setting the Clock sysvar to jump to join cutoffs, deadlines and settlement. The randomised INV-1…INV-8 suite (acceptance criterion 7), including a 1,000-member cohort, runs here.
+  3. **Shared golden fixtures** (`fixtures/*.json`): account byte layouts, PDA derivations, instruction encodings and derived figures (breach, survivor counter, projected share) produced by the TypeScript tests and **replayed by the Kotlin `core` module's unit tests**, so the Kotlin client can never drift from the program.
+- **Rationale:** LiteSVM runs in-process with clock control, and every rule here is time-driven; Anchor's TypeScript tooling is the most mature place to test the program itself. Golden fixtures turn "two languages" into one source of truth.
+- **Alternatives considered:** `solana-test-validator` (slow, no clock control); Rust-only integration tests (fine, but the Anchor-generated TypeScript client makes fixture generation trivial); writing program tests in Kotlin (no LiteSVM bindings).
+
+## R3 · Mobile app stack
+
+- **Decision:** a **native Android app in Kotlin**, UI in **Jetpack Compose**, starting from Solana Mobile's **Kotlin Compose scaffold**. Wallet connection and signing through **Mobile Wallet Adapter (`mobile-wallet-adapter-clientlib-ktx`, 2.0.x)** — which reaches Seed Vault Wallet on Seeker and other MWA wallets on ordinary Android phones. Transactions built with Solana Mobile's **`web3-core`**, RPC via **`rpc-core`**, Anchor instruction data encoded with **kborsh**, following Solana Mobile's "Working with Anchor programs in Kotlin" guide. Target: Android 10+ (API 29), Seeker first. *Confirm at spike S1.*
+- **Rationale:** the camera pipeline is the product's magic, and native Kotlin gives MediaPipe and CameraX first-party, GPU-accelerated support with no bridge (R4). Solana Mobile maintains the Kotlin MWA, web3 and RPC libraries and a Compose scaffold, so wallet flows are first-class too. One language for app, device logic and crank (R12).
+- **Alternatives considered:** React Native + Expo (faster UI iteration, but pose detection through community Vision Camera plugins is the riskiest spike, and a TypeScript/Kotlin bridge sits on the hot path); Flutter (weak Solana Mobile support); sol4k as the Solana client (capable, but Solana Mobile's own libraries match MWA's types directly).
+
+## R4 · On-device pose estimation and rep counting
+
+- **Decision:** **MediaPipe Tasks Vision — Pose Landmarker** (BlazePose, 33 landmarks, `LIVE_STREAM` mode, **GPU delegate** with automatic CPU fallback) fed by **CameraX** `ImageAnalysis` (newest frame only, ~640×480). The rep rules (PRD §8.4: elbow angles, body line, 0.8–6 s cycle), the four pre-flight checks and the palm check live in a **pure Kotlin/JVM module** (`kotlin/repcounter`) that consumes landmark frames and has no Android dependency. *Confirm at spike S2:* model variant (Lite vs Full) chosen on measured FPS and landmark stability on a Seeker.
+- **Rationale:** MediaPipe's Android task library with CameraX is Google's reference path, with sample helpers for exactly this setup. Keeping rules in a JVM module makes them unit-testable against recorded landmark traces — including deliberate cheats — without a phone. No part of the pipeline has a network path, so frames never leave the device (constitution X).
+- **Alternatives considered:** ML Kit Pose Detection (fewer landmarks, no world coordinates); MoveNet via TFLite (17 keypoints — the body-line rule needs hips and ankles reliably); server inference (forbidden by constitution X).
+
+## R5 · Palm liveness
+
+- **Decision:** MediaPipe Tasks **Hand Landmarker** on the same CameraX stream: an open palm (five fingertips extended, palm facing the camera) held **3 continuous seconds**; **30-second timeout** back to pre-flight (FR-020). The hand model runs only during the liveness step and is closed before counting, so pose inference has the GPU to itself. *Confirm at spike S2.*
+- **Rationale:** same runtime, same frames; hand landmarks make "open palm facing the camera" a geometric rule in `repcounter` rather than a trained classifier.
+- **Alternatives considered:** pose wrist/hand landmarks only (too coarse to tell an open palm from a fist).
+
+## R6 · Banked progress and pending submissions on the device
+
+- **Decision:** **MMKV for Android** key-value storage. Keys are scoped by **wallet + cohort (or `challenge`) + day index**, so another wallet's or another day's progress is never read and expires by construction at the boundary. A block is **written synchronously before** the UI shows it as banked. A completed cohort day not yet landed is stored as a **pending submission** `{cohort, dayIndex, proofHash, completedAt}` and shown as "Done — tap to submit" (Phase 1). The daily streak is stored the same way, per wallet.
+- **Rationale:** MMKV writes are synchronous and survive process death — the "write before showing banked" guarantee (FR-023) — with no server (FR-024a).
+- **Alternatives considered:** Jetpack DataStore (asynchronous writes — a crash between count and write could show an unsaved block); Room (more setup than a handful of keys needs).
+- **Resolves:** P10.
+
+## R7 · Time on the device
+
+- **Decision:** every deadline, breach, lock and countdown is computed from **chain time** — the `unix_timestamp` in the Clock sysvar — read on app start, on resume, and after each confirmed transaction, then advanced with **`SystemClock.elapsedRealtime()`** (monotonic) between reads. The device wall clock is never used. Formulas live once in `kotlin/core` (`Derive.kt`), shared by app and crank and pinned by golden fixtures (R2).
+- **Rationale:** FR-017 and constitution II make chain time the only judge; a monotonic timer can't be moved by changing the phone's clock, and periodic re-sync bounds drift to seconds.
+- **Alternatives considered:** device clock (manipulable); a time server (a server, and still not chain time).
+
+## R8 · Reading chain state at 1,000 members
+
+- **Decision:** the app reads program accounts directly from a **devnet RPC endpoint** that supports `getProgramAccounts` filters (a hosted devnet RPC provider, with public devnet as fallback): memberships of one cohort via a `memcmp` filter on the cohort key and a `dataSlice` covering only the fields the roster and counters need; decoded in `core`, cached in memory, refreshed on resume and every 30 seconds while the cohort screen is visible. **No Holdout server or indexer.** Phase 2 league leaderboards read `Profile` accounts the same way.
+- **Rationale:** a 1,000-member cohort is ~100 KB of membership data — one call. The RPC node is chain infrastructure, not a Holdout service that decides or ranks anything (FR-060, FR-065).
+- **Alternatives considered:** a Holdout indexer (a server that could show unsupported figures); one websocket subscription per membership (1,000 subscriptions).
+- **Resolves:** P8.
+
+## R9 · Paging automation for 1,000-member cohorts
+
+- **Decision:** `record_forfeits`, `settle_count` and `open_cohort` are **permissionless**. Paged instructions take **(membership, profile) pairs in remaining accounts, up to 10 pairs per transaction** (tuned at spike S3 against the transaction size limit). Each membership carries its own processed flag, so pages can run **in any order and any number of times**. Settlement is split into `settle_count` (paged, order-independent; forfeits any still-unrecorded breach in the page first) and `settle_finalize` (one transaction, only once every member is counted).
+- **Rationale:** per-membership flags make idempotency and out-of-order paging structural rather than a cursor that must be advanced correctly (constitution VIII, acceptance criterion 7). A 1,000-member cohort needs ~100 short transactions per step — minutes for the crank, and anyone can run them.
+- **Alternatives considered:** a stored cursor (a crashed caller must resume exactly; two callers race); address lookup tables for bigger pages (unnecessary at this scale; revisit if S3 shows limits bite).
+
+## R10 · Exact settlement in constant time
+
+- **Decision:** because every stake in a cohort equals one of that cohort's **four** locked chip amounts (FR-055), `settle_count` accumulates **finisher counts per tier** alongside `total_finisher_stake` (`T`). `settle_finalize` computes, in constant time:
+  - `share_t = floor(pool × chip_t ÷ T)` for each tier `t`
+  - `remainder = pool − Σ_t count_t × share_t`, sent to the fee destination (FR-032a)
+  - with `T = 0`: `fee_half = floor(pool ÷ 2)`, `carry = pool − fee_half` (the odd unit goes to the carry-over, FR-037)
+  A claim pays `stake + share_tier`, read from the finalized cohort.
+- **Rationale:** the exact remainder normally needs every finisher's share; tier counters make it O(1) and give every member of a tier a byte-identical payout (acceptance criterion 3) with no iteration at claim.
+- **Alternatives considered:** storing each finisher's payout during counting (the pool isn't final until every forfeit is recorded); leaving the remainder in the pool (rejected by H11).
+
+## R11 · Opening cohorts on schedule
+
+- **Decision:** each league has a `LeagueConfig` holding `first_start` (a Monday 05:00 UTC), `cadence` (7 days), `duration_days`, `reps_per_day`, `day_length` and `next_index`. Cohort `i` starts at `first_start + i × cadence`, join cutoff `start − 3,600 s`. `open_cohort` is permissionless and succeeds only for `i == next_index` and, for `i > 0`, only once cohort `i − 1` has started; it copies the current chip set. **Test leagues** with non-default `day_length` are created only by the admin, only in builds with the `test-leagues` feature, and used on LiteSVM and on a separate **rehearsal** devnet deployment with its own program ID — never on the judged program, so judges never see a compressed cohort (FR-044, scope doc D-A). The judged leagues start **Monday 28 September 05:00 UTC**: cohort index 0 is cohort #3.
+- **Rationale:** the schedule is pure arithmetic on stored parameters, so no caller can pick a start time or chip set (FR-030a), and a late opening still yields the scheduled start (ES-15).
+- **Alternatives considered:** the Operator passing start times (a privileged, error-prone input); cron-only opening (a dead crank would stop the league).
+
+## R12 · Scheduler, scripted members and Operator tooling
+
+- **Decision:** one **Kotlin/JVM command-line tool** (`kotlin/crank`) that depends on the same `kotlin/core` module as the app:
+  - `crank run` — opens due cohorts, records forfeits for breached members, settles finished cohorts. Idempotent; `--dry-run` prints what it would do (scope doc D-F).
+  - `crank scripted` — drives scripted wallets: faucet claim, join, submit completed days early in each day, and stop submitting on each wallet's scheduled forfeit day.
+  - `crank chips publish` — Operator-only chip set publication (Phase 1: once at launch).
+  Packaged as a single runnable JAR, run every **10 minutes** as a **Fly.io scheduled machine** (scope doc D-F); a GitHub Actions scheduled workflow is the documented fallback. Anyone with the repo can run `crank run` by hand (FR-030a).
+- **Scripted member schedule (P5):** per cohort, **80 scripted wallets in each 7-day cohort and 60 in each 21-day cohort**, spread across the four tiers, with forfeit days from a fixed seeded schedule removing **4–8 % per day** in the first half and **1–3 % per day** after, and about **40 %** finishing. Scripted wallets join over the first days of each lobby so rosters look alive early. Their SKR stakes come from their own faucet claims under the same once-a-day rule as everyone (FR-043a); their SOL is a one-time Operator top-up, so they pay their own fees and never touch the faucet's SOL cap (R13).
+- **Scripted address list:** generated once, committed as `kotlin/core/src/main/resources/scripted-wallets.json` (public keys only), bundled into the app and copied into the README. Keypairs live only in the crank's secret store.
+- **Rationale:** the crank, scripted members and app share one Kotlin implementation of codecs, PDAs, instruction builders and derived figures — the production code paths never diverge. The schedule makes the survivor counter fall the way the home screen needs, without scripted members being special on-chain.
+- **Alternatives considered:** a TypeScript crank reusing the test client (two production client implementations to keep in sync); separate services per job.
+- **Resolves:** P5.
+
+## R13 · Faucet design, including a zero-SOL wallet
+
+- **Problem found in planning:** a brand-new wallet with **0 SOL cannot pay the fee** for any transaction, including its own faucet claim, and a program-derived address cannot pay transaction fees.
+- **Decision:**
+  - **Test SKR** is minted per claim by the program: the mock SKR mint's authority is a program address (`["mint_authority"]`), so the faucet never runs out of SKR. Amount: the current chip set's **$100-tier** amount.
+  - **Devnet SOL** comes from a program-owned **faucet vault** (`["faucet_vault"]`), pre-funded for the judging month. A claim **tops the recipient up to 0.02 SOL** — enough for membership and profile rent plus every fee of a 21-day cycle — and sends nothing if they already hold that much.
+  - **Fee bootstrap:** the app bundles a **devnet sponsor key** whose only use is paying the fee for `claim_faucet`. The instruction needs **no member signature** — the recipient is the connected wallet's address — so no partial signing through MWA is involved, and it reimburses the sponsor's fee and rent from the vault in the same instruction, so the sponsor's balance stays flat.
+  - **Limits enforced on-chain:** one claim per recipient per day (`Profile.last_faucet_day`) and a **global cap of 60 SOL-paying claims per day**, so a leaked sponsor key can drain at most one day's SOL allowance. Claims that only mint SKR are not capped. When the cap or vault is exhausted, `claim_faucet` fails with a specific error and the app shows ES-0b.
+  - **Scripted wallets** are pre-funded with SOL once by the Operator and pay their own fees, so their claims mint SKR only.
+  - **Sizing:** 60 × 31 days × 0.02 SOL ≈ **37 devnet SOL** worst case, pre-funded before 28 September.
+- **Rationale:** meets FR-042a — no server, no public faucet, no manual top-up — within Solana's fee rules. A sponsor key in the APK is a devnet-only trust gap: anyone can extract it, but it holds only a small float, cannot touch stakes, and the on-chain caps bound the damage.
+- **Must be documented** in the README's known weaknesses (constitution XI): "the faucet's fee sponsor key ships in the app; on-chain limits cap abuse to one day's faucet allowance."
+- **Alternatives considered:** the public devnet `requestAirdrop` for the first SOL (rate-limited and often failing — the reason H22 exists); a relayer server that co-signs (a server, rejected by H22); requiring members to bring devnet SOL (breaks FR-042a).
+- **Resolves:** P11.
+
+## R14 · Fee destination and privileged keys
+
+- **Decision:**
+  - `Config.fee_destination` is an SKR token account owned by a **treasury wallet** set at initialisation. It receives the 20 % forfeit fee, the no-finisher 50 % and rounding remainders.
+  - `Config.operator` may only `publish_chip_set`.
+  - `Config.admin` may only `initialize`, `set_flags` (the two gates) and `create_test_league`.
+  - **No instruction** lets any key move a held stake, a pool or a carry-over except the rule-driven instructions in `contracts/program-instructions.md`.
+- **Rationale:** constitution I — the contract is the only authority on funds; the only discretionary powers are the chip set and the documented flags.
+- **Alternatives considered:** fees to a program-owned treasury (nobody can spend them; nothing gained); an admin rescue withdrawal (violates constitution I).
+- **Resolves:** P4.
+
+## R15 · Chip set tooling (Phase 1 and 2)
+
+- **Decision:**
+  - **Phase 1:** `crank chips publish --rate <USD per SKR>` converts $10/$25/$50/$100 to SKR base units, rounded **down to the nearest 10 whole SKR** (minimum 10 SKR), and sends `publish_chip_set` once at launch. The rate is read by hand from a public SKR market price on launch day and recorded in the README — **never on-chain**, so the contract holds no fiat figure at all.
+  - **Phase 2:** the same command runs weekly on Mondays with `--if-drift 0.20`, fetching the rate from a public price API; with no rate it exits without publishing (FR-057).
+- **Rationale:** readable amounts; the contract never sees a price (constitution III); Phase 2 is pure tooling on an instruction Phase 1 already has.
+- **Alternatives considered:** an on-chain oracle (forbidden by constitution III).
+- **Resolves:** P3.
+
+## R16 · Completed-day proof
+
+- **Decision:** `submit_day` is signed by the member's wallet through MWA and carries a 32-byte `proof_hash` — SHA-256 of the day's verification summary (day index, rep count, block times, sitting count, model version). The hash is emitted in the `DayCompleted` event, not stored in an account.
+- **Rationale:** matches scope doc D-E (client-signed, documented trust gap) at zero storage cost; a future attestation signer can check traces without a migration.
+- **Alternatives considered:** an attestation account per day (rent for 21 days × 1,000 members, for a hash nothing verifies on devnet).
+
+## R17 · Genesis Token gate (flag off)
+
+- **Decision:** the gate check exists in `join_cohort` behind `genesis_gate_enabled` (false on devnet): when enabled it requires a Token Extensions account owned by the member, holding one token whose mint is a member of the Seeker Genesis Token group. The verification helper is unit-tested with a fake group; it is never exercised on devnet.
+- **Rationale:** constitution Hackathon Constraints — flags disable checks, never delete the logic.
+- **Alternatives considered:** omitting the check (violates the flag rule).
+
+## R18 · Recorded walkthrough
+
+- **Decision:** a screen recording of the real app on devnet — join, sittings, a forfeit, settlement, a claim — captured during cohorts #3–#4 and shipped **inside the APK** as a compressed MP4 (≤ 40 MB), played with **Media3 ExoPlayer**. Until the real recording exists, the screen says "Walkthrough recording in progress" — never a mock-up (FR-044).
+- **Rationale:** works offline for a judge, no video host.
+- **Alternatives considered:** streaming from a video host (external dependency); an animated mock (forbidden by FR-044).
+
+## R19 · Repository layout and tooling
+
+- **Decision:** one repository with three build systems, each doing one job:
+  - **Cargo workspace** — `programs/holdout` (Rust, Anchor).
+  - **npm** — `tests/` (TypeScript LiteSVM integration tests and fixture generation), Node 22 LTS.
+  - **Gradle (Kotlin DSL, version catalog)** — `kotlin/` with `core` (JVM library), `repcounter` (JVM library), `app` (Android application) and `crank` (JVM application).
+  Kotlin 2.x, JDK 17, JUnit 5 + Kotest assertions for JVM modules, Compose UI tests for key screens; ktlint + detekt; `cargo fmt` + Clippy.
+- **Rationale:** smallest setup that lets the app and crank share one Kotlin client while the program is tested with Anchor's native tooling.
+- **Alternatives considered:** Kotlin Multiplatform (no second target needs it); a TypeScript crank (see R12).
+
+---
+
+## Spikes that confirm this research
+
+| Spike | Confirms | Pass bar | If it fails |
+|---|---|---|---|
+| **S1 · Wallet on real hardware** | R3, R13 | The Kotlin Compose scaffold on a Seeker connects Seed Vault Wallet via MWA, signs and lands a devnet transaction; a sponsor-paid transaction built with `web3-core` lands too | Try another MWA wallet on a plain Android phone; if a library blocks, drop to sol4k for transaction building |
+| **S2 · Rep counting on real video** | R4, R5 | ≥ 15 FPS pose inference on a Seeker; correct count on 10 real push-up videos (≤ 1 miscounted rep in 25) and rejection of 3 cheat videos (half reps, sagging hips, too fast); open palm detected in normal indoor light | Lite model; lower analysis resolution; CPU delegate; relax thresholds with recorded evidence |
+| **S3 · Full cycle on a manipulated clock** | R1, R2, R9, R10 | On LiteSVM: open → join (incl. lobby place) → lock → daily submits → forfeits in out-of-order repeated pages → count → finalize with remainder → claim, for a 1,000-member cohort; vectors V1–V22 pass; Kotlin `core` replays the fixtures | Reduce page size; add address lookup tables |
+
+## Sources checked for this research (September 2026)
+
+- [LiteSVM — Anchor docs](https://www.anchor-lang.com/docs/testing/litesvm) · [Time travel testing with LiteSVM](https://rareskills.io/post/litesvm)
+- [Solana Mobile — Kotlin quickstart](https://docs.solanamobile.com/android-native/quickstart) · [Using Mobile Wallet Adapter (Kotlin)](https://docs.solanamobile.com/android-native/using_mobile_wallet_adapter) · [Working with Anchor programs in Kotlin](https://docs.solanamobile.com/android-native/using-anchor-programs) · [solana-kotlin-compose-scaffold](https://github.com/solana-mobile/solana-kotlin-compose-scaffold) · [mobile-wallet-adapter-clientlib-ktx](https://javadoc.io/doc/com.solanamobile/mobile-wallet-adapter-clientlib-ktx/latest/index.html)
+- [MediaPipe Pose Landmarker for Android](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker/android)
+- [SKR token launch (SPL asset)](https://thedefiant.io/news/tokens/solana-seeker-launches-skr-token-airdrop)
