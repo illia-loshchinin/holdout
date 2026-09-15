@@ -1,8 +1,10 @@
 # Holdout — demo scope cut and state machines
 
-**Version:** 1.5 · **Date:** 2026-09-15 · **Status:** D-A … D-I decided; §1, §3 and §4 synced to `specs/001-holdout-hackathon/spec.md`
+**Version:** 1.6 · **Date:** 2026-09-15 · **Status:** D-A … D-I decided; §1, §3 and §4 synced to `specs/001-holdout-hackathon/spec.md`
 
-> **Precedence.** The constitution (`.specify/memory/constitution.md`, v1.2.0) and the spec override this file; `holdout_decisions.md` (H1–H22) records why. Where this file and the spec disagree, the spec is right and this file is a bug. Decision IDs D1–D16 and O1–O12 cited below refer to the archived record at `docs/archive/holdout_decisions_pre-hackathon-spec_2026-09-15.md`.
+> **Precedence.** The constitution (`.specify/memory/constitution.md`, v1.2.0) and the spec override this file; `holdout_decisions.md` (H1–H23) records why. Where this file and the spec disagree, the spec is right and this file is a bug. Decision IDs D1–D16 and O1–O12 cited below refer to the archived record at `docs/archive/holdout_decisions_pre-hackathon-spec_2026-09-15.md`.
+
+**Changed in 1.6 (phasing, 15 Sept — spec §3a, H23):** four items are **Phase 2** — league leaderboards (F9), weekly chip re-pricing (S10), delivery of a held carry-over (§3.1), automatic offline submission (§3.3) — built only after the Phase 1 core works end to end and only before the 28 September freeze. Each has a Phase 1 stand-in, and the data Phase 2 needs is still recorded in Phase 1.
 
 **Changed in 1.5 (third clarify session of 15 Sept):** **wallet required before anything else**, daily challenge included (F10) · **in-app faucet** for test SKR and fee SOL, once per wallet per day, no server (F11, E21) · **scripted members are real wallets under the same rules**, published in the build (S8, D-E) · **offline sittings allowed**, completed days wait for network and count only if they land before the deadline (§3.3, E20) · **palm liveness times out after 30 seconds** back to pre-flight (§3.3; E11 resolved).
 
@@ -19,7 +21,7 @@
 | Companion file | Holds |
 |---|---|
 | `specs/001-holdout-hackathon/spec.md` | What the hackathon build does. Authoritative over this file. |
-| `holdout_decisions.md` | Why the build is what it is (H1–H22). Read before changing anything here. |
+| `holdout_decisions.md` | Why the build is what it is (H1–H23). Read before changing anything here. |
 | `holdout_v1_prd.md` | Product requirements for the hackathon build (v2.2): screens, copy, verification rules, settlement vectors. |
 | `archive/holdout_v1_prd_full-vision_2026-09-15.md` | The original full-vision PRD. **Bare §-references below (§5.3, §8.6, §9.3 Op6 …) point into this archive**, not into the current PRD. |
 | This file | Demo scope, state machines, blocking decisions, edge transitions the PRD does not cover. |
@@ -60,7 +62,7 @@ The rule: **a feature earns its place only if it appears in the video or is load
 | F6 | `join_cohort` / `leave_cohort` / `submit_session` / `tick_cohort` / `settle_cohort` / `claim_payout` on devnet, **SKR end to end** | The full money loop, honestly on-chain, with no swap and no oracle in it |
 | F7 | Seed Vault signing + MWA | The $10K Solana Mobile Stack prize depends on this being real |
 | F8 | Daily challenge + daily streak (off-chain, cosmetic, survives a forfeit) | The free habit loop anyone can run on day one (D-I, H2, H4) |
-| F9 | League leaderboards ranked by survival rate (min. 3 cohorts played), with cohorts played and league streak; cohort roster | Shows who is disciplined, from on-chain progress only (H17) |
+| F9 | **Phase 1:** cohort roster, and per-league progress recorded on-chain. **[Phase 2]** League leaderboards ranked by survival rate (min. 3 cohorts played), with cohorts played and league streak | Shows who is disciplined, from on-chain progress only (H17, H23) |
 | F10 | Wallet-first onboarding: connect a wallet before anything else, with a no-wallet explanation screen | Every surface keyed to a wallet from the first tap (H21) |
 | F11 | In-app faucet: test SKR for the top chip plus fee SOL for a 21-day cycle, once per wallet per day, pre-funded, no server | A judge with an empty wallet can stake in one tap; no public faucet on the critical path (H22) |
 
@@ -77,7 +79,7 @@ The rule: **a feature earns its place only if it appears in the video or is load
 | S7 | League gate | Feature flag `ladder_gate_enabled`, **off**; the 21-day unlock is still computed and recorded | None — named in the README |
 | S8 | Judging-period cohorts | Real-time cohorts populated by scripted members — **ordinary wallets run by automation under the same contract rules**: real test-SKR stakes, completed days, planned forfeits and finishes. Their forfeits fund real prizes. Their days are not camera-verified. Addresses published in the build; disclosed in app and README and labelled wherever they appear (H14, constitution XII) | None if labelled; deception if not |
 | S9 | Full-cycle demo | Recorded walkthrough inside the app, captured from the real app on devnet (H14) | None — it is a recording of the real thing |
-| S10 | Stake chip prices | Operator re-prices SKR chips weekly from an off-chain rate when drift exceeds 20% (H8) | None — named in the README as a trusted input |
+| S10 | Stake chip prices | **Phase 1:** Operator publishes one SKR chip set at launch from an off-chain rate. **[Phase 2]** re-prices weekly when drift exceeds 20% (H8, H23) | None — named in the README as a trusted input |
 
 ### 1.3 Cut entirely
 
@@ -243,11 +245,11 @@ stateDiagram-v2
 
 | Transition | Trigger | Guard | Effects |
 |---|---|---|---|
-| `[*] → Open` | anyone, `open_cohort` (keeper usually) | previous cohort of this league has started (weekly, Monday 05:00 UTC) | creates pool PDA; start, join cutoff (start − 1 h), `reps_per_day`, `duration_days`, `day_seconds`, boundary instant and the current chip set fixed permanently; receives any held carry-over for its league (FR-037a) |
+| `[*] → Open` | anyone, `open_cohort` (keeper usually) | previous cohort of this league has started (weekly, Monday 05:00 UTC) | creates pool PDA; start, join cutoff (start − 1 h), `reps_per_day`, `duration_days`, `day_seconds`, boundary instant and the current chip set fixed permanently; receives any held carry-over for its league (FR-037a) **[Phase 2]** |
 | `Open → Locked` | time | `now ≥ join_cutoff` | joins and leaves both refused from this instant; roster final |
 | `Locked → Running` | time | `now ≥ start_unix` | all `Pending` memberships become `Active` |
 | `Running → Settling` | time | final day deadline passed | no further completed day (`submit_session`) accepted |
-| `Settling → Settled` | anyone, `settle_cohort` (keeper usually; pageable) | all no-shows already forfeited by `tick_cohort` | writes `finisher_count` and `total_finisher_stake` **once**; rounds each share down and sends the rounding remainder to the fee destination, recorded on the cohort (FR-032a); with zero finishers, sends 50% of the pool to the fee destination and 50% as carry-over to the open cohort of the same league, or holds it if none is open (FR-037) |
+| `Settling → Settled` | anyone, `settle_cohort` (keeper usually; pageable) | all no-shows already forfeited by `tick_cohort` | writes `finisher_count` and `total_finisher_stake` **once**; rounds each share down and sends the rounding remainder to the fee destination, recorded on the cohort (FR-032a); with zero finishers, sends 50% of the pool to the fee destination and 50% as carry-over to the open cohort of the same league, or holds and records it on this cohort if none is open (FR-037, FR-037a — holding is Phase 1, later delivery Phase 2) |
 
 After `Settled` the only changes anywhere in the cohort are claims and the single delivery of a held carry-over (INV-6).
 
@@ -311,7 +313,7 @@ stateDiagram-v2
     Counting --> Completed : banked + current reps reach reps_per_day
     Completed --> Submitted : completed cohort day confirmed on chain before the deadline (challenge day: recorded on device)
     Completed --> WaitingForNetwork : cohort day completed with no connection
-    WaitingForNetwork --> Submitted : connection returns, submitted automatically, lands before the deadline
+    WaitingForNetwork --> Submitted : online again → member taps submit (Phase 1) / submitted automatically [Phase 2]; lands before the deadline
     WaitingForNetwork --> Expired : lands after the deadline, or never lands → breach
     Idle --> Expired : day deadline passes without Completed → banked reps stop counting
 ```
@@ -324,7 +326,7 @@ stateDiagram-v2
 | No pause limit; unlimited sittings until the deadline | spec FR-015, FR-024 | Banked progress is keyed to the day index, so it expires by construction at the boundary |
 | Never refuse a late start; warn in the last 10 minutes | spec FR-047, ES-3 | Warning on the start card and during `Counting` |
 | Palm liveness times out after 30 seconds | spec FR-020 | Tip, back to `Preflight`; unlimited retries; cancel anytime; banked reps untouched |
-| Sittings work offline; a completed cohort day waits for network | spec FR-024b, ES-3b | Warn before an offline cohort sitting and on offline completion; persist the pending day and submit it automatically on reconnect. Chain time decides — nothing on the device extends a deadline. A challenge day needs no network |
+| Sittings work offline; a completed cohort day waits for network | spec FR-024b, ES-3b | Warn before an offline cohort sitting and on offline completion; persist the pending day; once online, submit it on one tap (Phase 1) or automatically **[Phase 2]**. Chain time decides — nothing on the device extends a deadline. A challenge day needs no network |
 | A wallet is connected before any sitting | spec FR-001a | Banked progress and the daily streak are keyed to the connected wallet on this device |
 | Banked progress on the device only; nothing on-chain before `Completed` | spec FR-024a, ES-3a | A lost or wiped phone loses the day's banked reps |
 | One completed day per `day_index` | spec FR-025 | Contract-side idempotency; the client must also disable the CTA |

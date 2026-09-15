@@ -97,6 +97,8 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 ### H8. Stake chips: USD tiers, priced in SKR, checked weekly, locked per cohort
 
+> **Phasing (H23):** Phase 1 publishes one chip set at launch; the weekly check and re-pricing below are Phase 2.
+
 **Decided (OD-2, clarified and revised 2026-09-15):**
 
 - Four chips identified by USD tier: **$10 / $25 / $50 / $100**, the same tiers in both leagues.
@@ -259,6 +261,8 @@ Copy uses "prize", never "winnings", "returns", "yield" or "earnings"; never "be
 
 ### H17. Leaderboards rank on-chain progress only
 
+> **Phasing (H23):** league boards are Phase 2. The progress they read and the cohort roster are Phase 1.
+
 **Decided (2026-09-15):** of the extras in the scope doc — daily streak, leaderboards, share cards, badges — **only the daily streak and leaderboards** are in scope.
 
 - **League leaderboards**, one per league, built to show **who is disciplined**. Each member shows **survival rate** (cleared ÷ played), **cohorts played** (cleared + forfeited — running, locked and withdrawn cohorts don't count), **cohorts cleared**, and **current and best league streak**.
@@ -376,6 +380,26 @@ Copy uses "prize", never "winnings", "returns", "yield" or "earnings"; never "be
 **Rejected:** linking to public devnet SOL and mock-SKR faucets (members leave the app; public faucets are often rate-limited or down); an in-app SKR faucet plus sponsored fees (no SOL needed, but a service co-signs every transaction — a backend on the hot path).
 
 **Source:** spec FR-042a, ES-0a, ES-0b, acceptance criterion 16.
+
+### H23. Core first: Phase 1 and Phase 2, and the freeze stands
+
+**Decided (2026-09-15):** the spec is split into **Phase 1 (core)** and **Phase 2 (deferred)**, both inside spec 001. Phase 1 must work end to end on devnet before any Phase 2 work starts. Phase 2 items are built only if they can be finished **before the 28 September freeze**; anything unfinished is cut from the hackathon build and recorded here.
+
+| Phase 2 item | Phase 1 stand-in |
+|---|---|
+| League leaderboards (H17) | No league board screen; on-chain progress is still recorded from the first cohort, and the cohort roster ships in Phase 1 |
+| Weekly chip re-pricing (H8) | One chip set published at launch; publishing a new set is already possible, so re-pricing is tooling only |
+| Delivery of a held carry-over (H12) | Carry-over held and recorded on the settled cohort — nothing lost — but not yet moved into the next cohort |
+| Automatic offline submission (H18) | "Done — tap to submit" once online; every offline warning ships in Phase 1 |
+
+**Why:** after three clarify sessions the spec is more than 13 days of work. These four items are the ones cohort #3 doesn't need on its first day — nobody can be ranked until three cohorts have been played, a mock SKR price doesn't move, an open cohort almost always exists at settlement, and one tap after reconnecting is an acceptable first version — and each has a stand-in that keeps Phase 2 free of data migrations.
+
+**Rejected:**
+
+1. **Moving them to a later feature 002** — a smaller spec 001, but the data model would not be designed for them, and the constitution ties scope to spec 001.
+2. **Allowing Phase 2 to land after the freeze** — would change the app judges are already using, needing a new release mid-judging, and would break constitution Hackathon Constraints.
+
+**Source:** spec §3a, Clarifications; constitution Hackathon Constraints (feature freeze).
 
 ---
 
@@ -505,3 +529,4 @@ By decision, not by omission.
 | 2026-09-15 | `holdout_v1_prd.md` rewritten as v2.0, hackathon-only: every behaviour cited to the spec; test vectors recomputed in SKR with carry-over cases; three leagues, USDC, Jupiter, free cohorts, badges, share cards, referrals, Swelfie, geo-blocking, ToS, treasury policy, bonus matching and simulated economics removed. Original archived at `docs/archive/holdout_v1_prd_full-vision_2026-09-15.md`. New open item: where share-rounding dust finally goes (PRD V14). |
 | 2026-09-15 | Second `/speckit-clarify` session: automation permissionless (H19); no cohort size cap, built for 1,000 (H20); rounding remainder to the fee destination (H11, closes P9); counters and projected pool move at the deadline (H6); reps banked in blocks of 10 across sittings with re-verification every sitting, no pause limit and no late-start refusal (H18, closes P1). Spec gained FR-011a, FR-024a, FR-030a, FR-032a, FR-038a, ES-3a and acceptance criterion 15. PRD synced to v2.1 (new vectors V17–V19), scope doc to v1.4 (§3.3 rewritten, E17–E19). New open item P10. |
 | 2026-09-15 | Third `/speckit-clarify` session: wallet required first (H21); in-app server-free faucet, once per wallet per day (H22); scripted members are real wallets under the same rules, published in the build (H14); offline sittings with automatic submission, chain time still decides (H18); palm check times out after 30 seconds (H13, closes P2). Spec gained FR-001a, FR-024b, FR-042a, FR-043a, ES-0, ES-0a, ES-0b, ES-3b and acceptance criteria 16–18. PRD synced to v2.2 (faucet §6.1, offline §8.7, vectors V20–V22), scope doc to v1.5 (F10, F11, §3.3 waiting-for-network state, E11 resolved, E20–E22). P5 narrowed, P11 added. |
+| 2026-09-15 | Phasing (H23): league leaderboards, weekly chip re-pricing, delivery of a held carry-over and automatic offline submission moved to Phase 2 inside spec 001, each with a Phase 1 stand-in; Phase 2 only before the freeze. Spec gained §3a and FR-055a, with [Phase 2] markers; PRD v2.3 and scope doc v1.6 marked to match. |

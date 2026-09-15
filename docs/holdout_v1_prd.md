@@ -1,10 +1,12 @@
 # Holdout — product requirements (hackathon build)
 
-**Version:** 2.2 · **Date:** 2026-09-15 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
+**Version:** 2.3 · **Date:** 2026-09-15 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
+
+> **Phasing (spec §3a, decisions H23).** Four items are **Phase 2** — built only after the Phase 1 core works end to end, and only if done before the 28 September freeze: league leaderboards, weekly chip re-pricing, delivery of a held carry-over, and automatic offline submission. They are marked **[Phase 2]** below, each with its Phase 1 stand-in.
 
 > **What this file is.** The product-level detail behind `specs/001-holdout-hackathon/spec.md`: screens, copy, verification rules, settlement math, test vectors and glossary. It adds detail; it never adds scope. Every behaviour here traces to a spec requirement (cited as FR-/US-/ES-/INV-), and where this file and the spec disagree, **the spec is right and this file is a bug**.
 >
-> **Precedence:** `.specify/memory/constitution.md` (v1.2.0) → spec → `holdout_decisions.md` (H1–H22, the why) → `holdout_scope_and_state_machines.md` (state machines, edge cases) → this file.
+> **Precedence:** `.specify/memory/constitution.md` (v1.2.0) → spec → `holdout_decisions.md` (H1–H23, the why) → `holdout_scope_and_state_machines.md` (state machines, edge cases) → this file.
 >
 > **Not here, on purpose.** Stack, accounts, PDAs and instruction signatures belong to `plan.md`. The post-hackathon vision — three leagues, USDC pool, free cohorts, badges, share cards, referrals, Swelfie, geo-blocking, ToS, audit, treasury policy, cold-start matching, simulated economics — is archived verbatim at `archive/holdout_v1_prd_full-vision_2026-09-15.md`. Top-level section numbers match that archive, so an older reference like "§8" still lands on the same subject; subsection numbers do not.
 
@@ -238,7 +240,8 @@ Four chips, the same tiers in both leagues (FR-054):
 *SKR amounts are illustrative.*
 
 - **The contract validates SKR only and never reads a price** (FR-055, constitution III).
-- **Once a week**, at the 05:00 UTC boundary, the Operator checks the chip set against an off-chain rate and publishes a new one **only if the chips have drifted more than 20%** from their tiers (FR-056). If no rate is available, the current set stays (FR-057, ES-11).
+- **Phase 1:** the Operator publishes **one chip set at launch** from that day's rate, and every cohort locks it (FR-055a).
+- **[Phase 2] Once a week**, at the 05:00 UTC boundary, the Operator checks the chip set against an off-chain rate and publishes a new one **only if the chips have drifted more than 20%** from their tiers (FR-056). If no rate is available, the current set stays (FR-057, ES-11).
 - **Each cohort locks the chip set current at its creation** for its whole life. A new set applies only to cohorts created afterwards (FR-055, ES-10).
 - **Within one cohort, everyone on the same tier stakes identical SKR.** A stake never changes after join (FR-058).
 - USD labels are **always marked approximate** and never presented as what a member will receive; every amount staked or received is shown in SKR (FR-059, FR-039).
@@ -287,7 +290,7 @@ Checked on every settlement: `Σ payouts + remainder = Σ finisher stakes + pool
 | **Nobody forfeits** | Finishers get exactly their stake back, plus their share of any carry-over the cohort received. The app said this was possible before they joined. | ES-5, FR-041 |
 | **One finisher** | Stake plus the entire pool, carry-over included. | ES-6 |
 | **Nobody finishes** | 50% of the pool to the fee destination, 50% as **carry-over** into the next cohort of the same league that is still open for joining. Any indivisible remainder goes to the carry-over. Both amounts are recorded on the settled cohort. | FR-037, ES-7 |
-| **Nobody finishes, no cohort of that league open** | The carry-over is held against the settled cohort and delivered **exactly once** when the league's next cohort opens. It never enters a cohort that has started. | FR-037a, ES-7a |
+| **Nobody finishes, no cohort of that league open** | The carry-over is held and recorded against the settled cohort (Phase 1) and delivered **exactly once** when the league's next cohort opens **[Phase 2]**. It never enters a cohort that has started. | FR-037a, ES-7a |
 | **A cohort that received carry-over also has no finishers** | The same 50/50 rule applies to its whole pool, carry-over included. | ES-7b |
 | **Scheduler misses a run** | Transfers and leaderboards lag; the survivor counter, projected pool and roster do not. No outcome changes, no member in breach can submit meanwhile, and any wallet can record the forfeits and settle instead. | ES-8, FR-030a, FR-038a |
 | **Shares don't divide exactly** | Every share rounds down; the remainder goes to the fee destination at settlement. | FR-032a |
@@ -376,7 +379,12 @@ When the rep target is reached:
       [ start anyway ]
 ```
 
-When the day completes offline, it is kept on the phone and the home screen shows **"Done — waiting for network · 2h 09m left"**. The app submits it automatically as soon as it has a connection; the member never redoes anything. If it lands before the deadline, the day counts. If it lands after, it doesn't — **nothing on the phone can extend a deadline**, and the member is in breach exactly as if they hadn't finished.
+When the day completes offline, it is kept on the phone and the member never redoes anything.
+
+- **Phase 1:** once the app is online again, the home screen shows **"Done — tap to submit · 2h 09m left"**; one tap submits it.
+- **[Phase 2]** The app submits it automatically as soon as it has a connection, showing **"Done — waiting for network · 2h 09m left"** until it lands.
+
+Either way: If it lands before the deadline, the day counts. If it lands after, it doesn't — **nothing on the phone can extend a deadline**, and the member is in breach exactly as if they hadn't finished.
 
 **Known weakness:** the completed-day proof is **client-signed** — a rooted phone could forge it. Named in the README with the real fix: a server-side attestation signer (constitution XI).
 
@@ -425,7 +433,7 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 | Operation | Who | What it does |
 |---|---|---|
 | **open cohort** | **Anyone** (usually the Scheduler) | Once a league's current cohort has started, opens its next one with every parameter and the current chip set fixed; delivers any held carry-over for that league. Does nothing if not due or already done |
-| **publish chip set** | **Operator only** | Weekly check; new set only on >20% drift; affects future cohorts only |
+| **publish chip set** | **Operator only** | Phase 1: once at launch. **[Phase 2]** weekly check, new set only on >20% drift. Always affects future cohorts only |
 | **join cohort** | Member | While the cohort is `Open`; stake must equal one of that cohort's chips; lobby-place rules (§5.2) |
 | **leave cohort** | Member | While `Open`; full refund |
 | **submit completed day** | Member | Once per day index, when the day's reps are done, while the cohort is `Running` and the member is not in breach |
@@ -472,7 +480,7 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 3a. **Get test tokens** — the in-app faucet (§6.1): test SKR and fee SOL, once a day. Variants: **already used today** (*"Available again in 6h 40m"*), **faucet can't pay out** (ES-0a, ES-0b)
 
 **Home**
-4. **Home** — the running cohort (§10.1a) if the member is in one; otherwise **today's daily challenge as the primary action** (FR-053). Daily streak always visible. Never empty, never *"come back later"*. **Waiting-for-network variant:** *"Done — waiting for network · 2h 09m left"* until a completed day lands (FR-024b)
+4. **Home** — the running cohort (§10.1a) if the member is in one; otherwise **today's daily challenge as the primary action** (FR-053). Daily streak always visible. Never empty, never *"come back later"*. **Offline-completion variant:** *"Done — tap to submit"* once online (Phase 1), or *"Done — waiting for network"* with automatic submission **[Phase 2]** (FR-024b)
 
 **Ladder and staking**
 5. **League ladder** — daily challenge, 7-day and 21-day leagues open, the 21-day requirement stated plainly, Human Flag as a locked rung (US-1)
@@ -488,7 +496,7 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 
 **Crowd and progress**
 11. **Cohort detail** — days remaining, own completion record, projected share, survivor history (US-7)
-12. **Leaderboards** — per league, plus the roster of a running cohort (§12.3, US-10)
+12. **Cohort roster** — members still standing, then forfeited members by days lasted, scripted members labelled (Phase 1, FR-062). **League leaderboards** **[Phase 2]** (§12.3, US-10)
 
 **Demo**
 13. **Walkthrough** — the recorded full cycle: join, daily reps, forfeit, settle, claim (US-9, FR-044)
@@ -563,7 +571,7 @@ Done at 25 — streak 1 — "Want money on it? Join a 7-day cohort."
 | Faucet can't pay out | *"The faucet can't send tokens right now."* The daily challenge and browsing stay available (ES-0b) |
 | Palm not detected for 30 seconds | *"Can't see your palm — try more light, and hold it flat toward the camera."* Back to pre-flight; retry or cancel (FR-020) |
 | Offline before a cohort sitting | *"You're offline. Today counts only if it reaches the network before the deadline — 2h 14m left."* **Start anyway** (FR-024b) |
-| Day completed offline | Home shows *"Done — waiting for network"* with the countdown; submitted automatically on reconnect. If it lands late, the forfeit screen (ES-3b) |
+| Day completed offline | Phase 1: home shows *"Done — tap to submit"* with the countdown once online. **[Phase 2]** *"Done — waiting for network"*, submitted automatically on reconnect. If it lands late, the forfeit screen (ES-3b) |
 | Pre-flight fails three times | Tip sheet with the common fixes |
 | App crashed mid-sitting | *"Your 10 banked reps are safe. 15 to go."* Reps since the last block are gone (ES-1) |
 | Sitting stopped part-way | *"17 done — 10 banked, 7 not kept."* Countdown to the deadline (ES-2) |
@@ -652,6 +660,8 @@ Thirteen screens (§10.1), each with every state it can be in.
 
 ### 12.3 Leaderboards
 
+> **Phasing:** the league boards in this section are **[Phase 2]**. In Phase 1, on-chain progress is recorded from the first cohort and the cohort roster ships; there is no league board screen.
+
 **Built to show who is disciplined**, entirely from on-chain progress — no server, nothing reported by a phone (FR-060, FR-065).
 
 ```
@@ -727,7 +737,8 @@ Constitution XIII, applied to every screen, notification and README line.
 | Settlement bug on devnet | High | Vectors (§19) and invariants as failing tests first; `day_seconds` rehearsal of full cycles |
 | Rate source unavailable at the weekly check | Low | Current chip set stays; joining never depends on a price |
 | Testers confused by the 05:00 UTC boundary | Medium | Countdown, never a date; last-10-minutes warning before and during every sitting |
-| Leaderboard reads too slow from chain | Medium | Read strategy decided at plan (decisions P8); never show unsupported figures |
+| Leaderboard reads too slow from chain | Medium | Read strategy decided at plan (decisions P8); never show unsupported figures. League boards are Phase 2; the roster read is Phase 1 |
+| Phase 1 overruns and leaves no room for Phase 2 | High | Expected and accepted: Phase 2 items are cut at the freeze with their Phase 1 stand-ins in place (spec §3a, H23) |
 | Feature freeze slips past 28 September | High | Scope fixed by the spec; additions only by amending it |
 
 ---
@@ -771,7 +782,7 @@ Cohort B (7-day): 5 members × 100, 1 forfeits → fee 20 → 80 + 600 carry-ove
 
 **V6 · odd pool split.** A no-finisher cohort's pool is 1,001 base units → **500** to the fee destination, **501** carry-over. The indivisible unit goes to the carry-over (FR-037).
 
-**V7 · no open cohort.** V5's cohort A settles while no 7-day cohort is open → the 600 is held against A and appears in the next 7-day cohort's pool **when it opens**, exactly once. A second delivery attempt changes nothing (FR-037a, INV-6).
+**V7 · no open cohort.** V5's cohort A settles while no 7-day cohort is open → the 600 is held and recorded against A (Phase 1) and **[Phase 2]** appears in the next 7-day cohort's pool **when it opens**, exactly once. A second delivery attempt changes nothing (FR-037a, INV-6).
 
 **V8 · carry-over, no finishers again.** Cohort B receives 600 carry-over, all 5 members forfeit → pool 400 + 600 = 1,000 → **500** fee, **500** carry-over onward (ES-7b).
 
