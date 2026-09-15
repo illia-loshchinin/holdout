@@ -2,7 +2,7 @@
 
 **Companion to `specs/001-holdout-hackathon/spec.md` and `.specify/memory/constitution.md` (v1.2.0).** The spec says *what to build*. The constitution says *what may never be violated*. This file says *why it is that way, what was tried and rejected, and what is still open* — so settled questions are not reopened by accident.
 
-**Precedence when documents disagree:** constitution → spec → this file → `holdout_scope_and_state_machines.md` → `holdout_v1_prd.md`. The PRD (v2.0) is the hackathon build's product companion to the spec — screens, copy, verification rules, settlement vectors; the original full-vision PRD is archived and is deliberately not what is being built.
+**Precedence when documents disagree:** constitution → spec → this file → `holdout_scope_and_state_machines.md` → `holdout_v1_prd.md`. The PRD (v2.2) is the hackathon build's product companion to the spec — screens, copy, verification rules, settlement vectors; the original full-vision PRD is archived and is deliberately not what is being built.
 
 **Rule of thumb:** before proposing a change to the mechanic, search this file. Most of it has been proposed before, and several things were adopted, reversed and adopted again in a single day.
 
@@ -207,6 +207,8 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 **Why no Firebase (scope doc D-G):** its jobs were session resume and a Merkle trace nothing verifies on devnet. Removing it removes an auth integration, a security-rules surface and a second source of truth.
 
+**Palm check failure (clarified 2026-09-15):** if no palm is detected within **30 seconds**, the app shows a tip (more light, palm flat toward the camera) and returns to the environment checks. Retries are unlimited, the member can cancel at any moment, and banked reps are never touched. **Why back to the checks rather than retrying the palm:** light and framing are the likely cause, so re-checking fixes the problem instead of looping on it. **Rejected:** 60 seconds and retry only the palm step (longer, and doesn't address the cause); three attempts then a 10-minute lockout (tighter against spoofing, but an honest member could miss the deadline).
+
 **Known weakness:** no audio anti-static-frame filter; the palm check covers it only partly. Named in the README with the fix beside it.
 
 **Source:** spec FR-019…FR-023, FR-022a, OD-3; constitution X.
@@ -221,7 +223,11 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 **`day_seconds` stays** (scope doc D-A) — as a testing and rehearsal tool, behind an admin guard, not as a judge-facing feature.
 
-**Source:** spec US-9, FR-043, FR-044; constitution XII.
+**Scripted members are real wallets under the same rules (clarified 2026-09-15).** Each is an ordinary wallet run by automation: it joins with a real test-SKR stake on a normal chip, submits completed days through the same path as anyone, and forfeits or finishes on a planned schedule. The contract has no idea which wallets are scripted. Their forfeits fund the prizes real members win, and a scripted finisher takes its share like anyone else. Their completed days are not camera-verified — part of the documented client-signed trust gap. The scripted wallet addresses are published in the build, so the app labels them with no server and anyone can check the labels.
+
+**Why:** it is the only option that keeps every figure on screen backed by on-chain state (FR-038a, FR-065), and it needs no special case in the contract or in the app's reads. **Rejected:** real wallets that always forfeit before the end (never takes a real prize share, but a crowd where no scripted member ever finishes is its own tell and skews every rate on the leaderboard); display-only scripted members added to counters off-chain (breaks FR-065 and puts fake figures next to real money).
+
+**Source:** spec US-9, FR-043, FR-043a, FR-044, FR-064, acceptance criterion 8; constitution XI, XII.
 
 ### H15. Deliberately cut for the demo
 
@@ -244,7 +250,7 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 | Banked reps stored on the device, editable on a rooted phone, lost with the phone (H18) | Covered by the attestation fix; cross-device progress post-hackathon (L9) |
 | No audio anti-spoofing filter | Reinstate audio check and rep condition together |
 | Off-chain rate source and weekly chip re-pricing by the Operator | Documented trust; on-chain chip governance post-hackathon |
-| Scripted members in judging-period cohorts | Disclosed in app and README |
+| Scripted members in judging-period cohorts — real wallets whose completed days are not camera-verified (H14) | Disclosed in app and README; addresses published in the build and labelled everywhere |
 | Devnet, mock SKR mint | Mainnet with real SKR |
 
 Copy uses "prize", never "winnings", "returns", "yield" or "earnings"; never "bet", "wager", "gamble", "odds" or "luck". Fiat is always approximate and never presented as what a member will receive. The app says it runs on a test network with a test token.
@@ -316,7 +322,11 @@ Copy uses "prize", never "winnings", "returns", "yield" or "earnings"; never "be
 
 **Supersedes:** spec FR-024 (bounded pause) and FR-047 (refusal) as first written; scope doc D-G's 15-minute bound; archived PRD §8.6 pause handling; open item P1.
 
-**Source:** spec US-3, US-5a, ES-1…ES-3a, FR-013, FR-015, FR-019, FR-020, FR-023…FR-025, FR-047, §8.3, acceptance criterion 15.
+**Offline (clarified 2026-09-15).** Sittings work with no connection: reps are verified and blocks bank offline. A completed cohort day counts only once its submission lands on-chain before the deadline, by chain time. The app warns plainly before a cohort sitting starts offline and again when a day completes offline, keeps the completed day on the phone, shows **"Done — waiting for network"**, and submits it automatically as soon as the app is back online. A daily-challenge day needs no connection at all.
+
+**Why:** constitution II and FR-017 make chain time the only judge, so nothing on the phone may extend a deadline — but the app can make the risk impossible to miss and remove every manual step between reconnecting and counting. **Rejected:** blocking cohort sittings while offline (would stop members doing reps that would have landed in time once they reconnected); accepting late submissions with an offline "finished in time" claim (the phone would decide a breach — contradicts FR-017 and constitution II).
+
+**Source:** spec US-3, US-5a, ES-1…ES-3b, FR-013, FR-015, FR-019, FR-020, FR-023…FR-025, FR-024b, FR-047, §8.3, acceptance criteria 15 and 18.
 
 ### H19. Automation is permissionless
 
@@ -342,6 +352,30 @@ Copy uses "prize", never "winnings", "returns", "yield" or "earnings"; never "be
 **Rejected:** a hard cap of 100 (too small for the story), 500 (arbitrary), or 2,000 as the test target (heavier paging and tests for nothing the demo shows).
 
 **Source:** spec FR-011a, acceptance criterion 7.
+
+### H21. Wallet first
+
+**Decided (clarified 2026-09-15):** connecting a wallet is the first step in the app and is **required before anything else is usable** — the daily challenge, the streak, cohorts, rosters and leaderboards included. A person without a wallet is told plainly that one is needed and how to get one. The daily streak is kept on the phone for the connected wallet.
+
+**Why:** one identity from the first tap, with no second path where a streak or progress exists without a wallet and later has to be attached to one; every screen is keyed to the member the contract knows.
+
+**What it costs, stated honestly:** a judge whose test phone has no Solana wallet sees only the connect screen until they install one. The README and the in-app walkthrough (H14) are what that judge has instead — so both must show the product fully without a wallet.
+
+**Rejected:** wallet optional, requested only when joining a cohort (lowest friction for the free challenge, but two identity paths — anonymous streaks that must later be tied to a wallet); wallet optional with a prompt after the first completed challenge (same split, softer).
+
+**Supersedes:** spec US-5a "any person with the app" and FR-048 "no entry condition of any kind" as first written.
+
+**Source:** spec FR-001a, ES-0, US-1, US-5a, US-9, US-10, FR-048, acceptance criterion 8.
+
+### H22. An in-app faucet, not public faucets
+
+**Decided (clarified 2026-09-15):** the app has an **in-app faucet**. One tap gives the connected wallet enough test SKR to stake the top chip ($100 tier) of any open cohort, plus enough devnet SOL to pay fees for a full 21-day cycle — join, every completed day, claim. **Once per wallet per day** (05:00 UTC boundary). **No server:** it is funded in advance for the whole judging month and needs no manual top-up. It is offered wherever a member lacks test SKR or fee SOL, and it never touches a stake, a pool or the fee destination.
+
+**Why:** a judge with an empty wallet is one tap from a real stake without leaving the app, and nothing depends on a public devnet faucet being up during the judging month. A server-free faucet keeps "no backend decides anything" true (H5, H19). The daily limit per wallet stops one wallet draining it.
+
+**Rejected:** linking to public devnet SOL and mock-SKR faucets (members leave the app; public faucets are often rate-limited or down); an in-app SKR faucet plus sponsored fees (no SOL needed, but a service co-signs every transaction — a backend on the hot path).
+
+**Source:** spec FR-042a, ES-0a, ES-0b, acceptance criterion 16.
 
 ---
 
@@ -385,6 +419,8 @@ Carried forward unchanged; full reasoning in the archive.
 | Nobody finishes → whole pool rolls forward as seed | PRD §7.4; scope doc E6 | H12 |
 | Audio as a pre-flight pill and rep condition | PRD §8.2, §8.4; scope doc E12 | H13 |
 | Firebase session state | PRD §8.6 | H13 |
+| Daily challenge open to "any person with the app", no entry condition | spec US-5a, FR-048 (first version) | H21 — wallet first |
+| Link out to a devnet faucet when a member has no test SKR | PRD v2.0 §10.4 | H22 — in-app faucet |
 | One session per day with a 15-minute pause bound; refusing to start with too little time left | spec FR-024, FR-047 (first version); scope doc D-G, §3.3 v1.3 | H18 — reps banked in blocks of 10 across sittings |
 | 10-rep checkpoints written on-chain | PRD §8.6 (original design, dropped 2026-05-22) | H18 — blocks banked on the device |
 | Operator opens cohorts; only the keeper records forfeits and settles | spec Actors (first version); scope doc D-F, §3.1 | H19 — permissionless |
@@ -427,15 +463,16 @@ By decision, not by omission.
 | # | Question | Notes |
 |---|---|---|
 | P1 | ~~Pause bound~~ | **Resolved 2026-09-15 by H18** — no pause bound; reps bank in blocks of 10 for the whole day. |
-| P2 | **Palm liveness failure path** | No timeout, attempt limit or exit is specified (scope doc E11). Suggested: 30 seconds, then "Try again" with a tip. A tester stuck on a camera screen is the first bug report. |
+| P2 | ~~Palm liveness failure path~~ | **Resolved 2026-09-15 by H13** — 30 seconds, tip, back to pre-flight, unlimited retries. |
 | P3 | **Weekly chip check: which weekday**, which rate source, and the rounding rule for "readable SKR amounts" | H8 fixes the policy, not these parameters. |
 | P4 | **Fee destination** | Where the 20% fee and the 50% no-finisher share land. |
-| P5 | **Scripted member behaviour** | How many members, how forfeits are spread, and how the disclosure reads in the app. |
+| P5 | **Scripted member behaviour** | *Model decided by H14 (real wallets, same rules).* Still open: how many per cohort, the forfeit and finish schedule, how their stakes are funded, and how the scripted-address list is published in the build. |
 | P6 | **Walkthrough recording** | Captured during cohort #3 or #4; must show a real claim transaction. |
 | P7 | ~~Scope doc drift~~ | **Done 2026-09-15** — scope doc v1.4 matches spec §8. |
 | P8 | **Reads at scale** | Reading up to 1,000 members' state from chain for rosters, leaderboards and the deadline-time survivor counter (H6, H20) — RPC limits, page size and caching are plan decisions; FR-065 only forbids showing unsupported figures. |
 | P9 | ~~Share-rounding dust~~ | **Resolved 2026-09-15 by H11** — remainder to the fee destination at settlement. |
-| P10 | **Banked-progress storage details** | Which device store, how a block is written atomically before "banked" is shown, and how banked progress is keyed so it expires at the boundary (H18). |
+| P10 | **Banked-progress storage details** | Which device store, how a block is written atomically before "banked" is shown, how banked progress is keyed to the wallet and day so it expires at the boundary, and how a completed day waiting for network is persisted and retried (H18, H21). |
+| P11 | **Faucet design** | How a server-free faucet holds devnet SOL and test SKR, enforces once per wallet per day, and is sized so it lasts the judging month without a top-up (H22). |
 
 ### Post-hackathon
 
@@ -467,3 +504,4 @@ By decision, not by omission.
 | 2026-09-15 | Docs synced to spec: `holdout_scope_and_state_machines.md` v1.3 (state machines, invariants, edge table, scope tables), README, and superseded banners on `holdout_v1_prd.md` and `_source_constitution_draft.md`. |
 | 2026-09-15 | `holdout_v1_prd.md` rewritten as v2.0, hackathon-only: every behaviour cited to the spec; test vectors recomputed in SKR with carry-over cases; three leagues, USDC, Jupiter, free cohorts, badges, share cards, referrals, Swelfie, geo-blocking, ToS, treasury policy, bonus matching and simulated economics removed. Original archived at `docs/archive/holdout_v1_prd_full-vision_2026-09-15.md`. New open item: where share-rounding dust finally goes (PRD V14). |
 | 2026-09-15 | Second `/speckit-clarify` session: automation permissionless (H19); no cohort size cap, built for 1,000 (H20); rounding remainder to the fee destination (H11, closes P9); counters and projected pool move at the deadline (H6); reps banked in blocks of 10 across sittings with re-verification every sitting, no pause limit and no late-start refusal (H18, closes P1). Spec gained FR-011a, FR-024a, FR-030a, FR-032a, FR-038a, ES-3a and acceptance criterion 15. PRD synced to v2.1 (new vectors V17–V19), scope doc to v1.4 (§3.3 rewritten, E17–E19). New open item P10. |
+| 2026-09-15 | Third `/speckit-clarify` session: wallet required first (H21); in-app server-free faucet, once per wallet per day (H22); scripted members are real wallets under the same rules, published in the build (H14); offline sittings with automatic submission, chain time still decides (H18); palm check times out after 30 seconds (H13, closes P2). Spec gained FR-001a, FR-024b, FR-042a, FR-043a, ES-0, ES-0a, ES-0b, ES-3b and acceptance criteria 16–18. PRD synced to v2.2 (faucet §6.1, offline §8.7, vectors V20–V22), scope doc to v1.5 (F10, F11, §3.3 waiting-for-network state, E11 resolved, E20–E22). P5 narrowed, P11 added. |

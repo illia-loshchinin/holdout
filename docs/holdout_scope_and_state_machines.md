@@ -1,8 +1,10 @@
 # Holdout — demo scope cut and state machines
 
-**Version:** 1.4 · **Date:** 2026-09-15 · **Status:** D-A … D-I decided; §1, §3 and §4 synced to `specs/001-holdout-hackathon/spec.md`
+**Version:** 1.5 · **Date:** 2026-09-15 · **Status:** D-A … D-I decided; §1, §3 and §4 synced to `specs/001-holdout-hackathon/spec.md`
 
-> **Precedence.** The constitution (`.specify/memory/constitution.md`, v1.2.0) and the spec override this file; `holdout_decisions.md` (H1–H20) records why. Where this file and the spec disagree, the spec is right and this file is a bug. Decision IDs D1–D16 and O1–O12 cited below refer to the archived record at `docs/archive/holdout_decisions_pre-hackathon-spec_2026-09-15.md`.
+> **Precedence.** The constitution (`.specify/memory/constitution.md`, v1.2.0) and the spec override this file; `holdout_decisions.md` (H1–H22) records why. Where this file and the spec disagree, the spec is right and this file is a bug. Decision IDs D1–D16 and O1–O12 cited below refer to the archived record at `docs/archive/holdout_decisions_pre-hackathon-spec_2026-09-15.md`.
+
+**Changed in 1.5 (third clarify session of 15 Sept):** **wallet required before anything else**, daily challenge included (F10) · **in-app faucet** for test SKR and fee SOL, once per wallet per day, no server (F11, E21) · **scripted members are real wallets under the same rules**, published in the build (S8, D-E) · **offline sittings allowed**, completed days wait for network and count only if they land before the deadline (§3.3, E20) · **palm liveness times out after 30 seconds** back to pre-flight (§3.3; E11 resolved).
 
 **Changed in 1.4 (second clarify session of 15 Sept):** the session machine (§3.3) is replaced by **sittings with reps banked in blocks of 10** for the whole day — no pause limit, no refusal to start late, pre-flight and palm liveness on every sitting · **opening, forfeiting and settling are permissionless** — the keeper is the usual caller, not a privileged one (D-F, §3.1, §3.2) · settlement **rounds shares down and sends the remainder to the fee destination** · survivor counter and projected pool count a breach at the deadline, before the forfeit is recorded · cohorts expected **up to 1,000 members**, no cap (D-G rewritten, E9 updated, E17–E19 added).
 
@@ -17,8 +19,8 @@
 | Companion file | Holds |
 |---|---|
 | `specs/001-holdout-hackathon/spec.md` | What the hackathon build does. Authoritative over this file. |
-| `holdout_decisions.md` | Why the build is what it is (H1–H20). Read before changing anything here. |
-| `holdout_v1_prd.md` | Product requirements for the hackathon build (v2.0): screens, copy, verification rules, settlement vectors. |
+| `holdout_decisions.md` | Why the build is what it is (H1–H22). Read before changing anything here. |
+| `holdout_v1_prd.md` | Product requirements for the hackathon build (v2.2): screens, copy, verification rules, settlement vectors. |
 | `archive/holdout_v1_prd_full-vision_2026-09-15.md` | The original full-vision PRD. **Bare §-references below (§5.3, §8.6, §9.3 Op6 …) point into this archive**, not into the current PRD. |
 | This file | Demo scope, state machines, blocking decisions, edge transitions the PRD does not cover. |
 
@@ -59,6 +61,8 @@ The rule: **a feature earns its place only if it appears in the video or is load
 | F7 | Seed Vault signing + MWA | The $10K Solana Mobile Stack prize depends on this being real |
 | F8 | Daily challenge + daily streak (off-chain, cosmetic, survives a forfeit) | The free habit loop anyone can run on day one (D-I, H2, H4) |
 | F9 | League leaderboards ranked by survival rate (min. 3 cohorts played), with cohorts played and league streak; cohort roster | Shows who is disciplined, from on-chain progress only (H17) |
+| F10 | Wallet-first onboarding: connect a wallet before anything else, with a no-wallet explanation screen | Every surface keyed to a wallet from the first tap (H21) |
+| F11 | In-app faucet: test SKR for the top chip plus fee SOL for a 21-day cycle, once per wallet per day, pre-funded, no server | A judge with an empty wallet can stake in one tap; no public faucet on the critical path (H22) |
 
 ### 1.2 Faked, seeded, or stubbed
 
@@ -71,7 +75,7 @@ The rule: **a feature earns its place only if it appears in the video or is load
 | S5 | Notifications | Manual Telegram push to cohort members | None — invisible in video |
 | S6 | Genesis Token gate | Feature flag `genesis_gate_enabled`, **off on devnet** | **Must be off**, or no tester without a Seeker can join |
 | S7 | League gate | Feature flag `ladder_gate_enabled`, **off**; the 21-day unlock is still computed and recorded | None — named in the README |
-| S8 | Judging-period cohorts | Real-time cohorts populated by scripted members, disclosed in app and README and labelled wherever they appear (H14, constitution XII) | None if labelled; deception if not |
+| S8 | Judging-period cohorts | Real-time cohorts populated by scripted members — **ordinary wallets run by automation under the same contract rules**: real test-SKR stakes, completed days, planned forfeits and finishes. Their forfeits fund real prizes. Their days are not camera-verified. Addresses published in the build; disclosed in app and README and labelled wherever they appear (H14, constitution XII) | None if labelled; deception if not |
 | S9 | Full-cycle demo | Recorded walkthrough inside the app, captured from the real app on devnet (H14) | None — it is a recording of the real thing |
 | S10 | Stake chip prices | Operator re-prices SKR chips weekly from an off-chain rate when drift exceeds 20% (H8) | None — named in the README as a trusted input |
 
@@ -170,6 +174,8 @@ Say the devnet framing plainly in the README. A judge who reads "devnet, mock SK
 **Recommendation for the demo.** Client-signed, `proof_hash` written to the `AttestationRegistry` exactly as specified, **and one honest paragraph in the README** naming this as the known trust gap with the v2 fix (server-side attestation signer, IPFS-pinned traces). Do not build a backend in 13 days.
 
 This is the one place where cutting a corner has real consequences, so it gets documented rather than quietly skipped. Judges reward a builder who names their own threat model.
+
+**Two more things sit inside the same trust gap (decided 2026-09-15):** scripted members' completed days are submitted by automation with no camera behind them (spec FR-043a), and banked reps plus any completed day waiting for network live on the device until submission (FR-024a, FR-024b). The README names all three together.
 
 ### D-F. Keeper
 
@@ -297,12 +303,16 @@ stateDiagram-v2
     Preflight --> Idle : environment check fails
     Preflight --> Liveness : all 4 checks green
     Liveness --> Countdown : palm held 3 continuous seconds
-    Liveness --> Idle : user cancels (see E11)
+    Liveness --> Preflight : no palm within 30 s → tip shown (retries unlimited)
+    Liveness --> Idle : user cancels
     Countdown --> Counting : 3 seconds elapse
     Counting --> Counting : 10th verified rep of a block → block banked on device
     Counting --> Idle : sitting ends (stop, app closed, crash) → reps short of a block discarded
     Counting --> Completed : banked + current reps reach reps_per_day
-    Completed --> Submitted : completed cohort day confirmed on chain (challenge day: recorded on device)
+    Completed --> Submitted : completed cohort day confirmed on chain before the deadline (challenge day: recorded on device)
+    Completed --> WaitingForNetwork : cohort day completed with no connection
+    WaitingForNetwork --> Submitted : connection returns, submitted automatically, lands before the deadline
+    WaitingForNetwork --> Expired : lands after the deadline, or never lands → breach
     Idle --> Expired : day deadline passes without Completed → banked reps stop counting
 ```
 
@@ -313,6 +323,9 @@ stateDiagram-v2
 | Reps short of the next block are discarded when a sitting ends | spec FR-024, ES-1, ES-2 | Tell the member how many weren't kept |
 | No pause limit; unlimited sittings until the deadline | spec FR-015, FR-024 | Banked progress is keyed to the day index, so it expires by construction at the boundary |
 | Never refuse a late start; warn in the last 10 minutes | spec FR-047, ES-3 | Warning on the start card and during `Counting` |
+| Palm liveness times out after 30 seconds | spec FR-020 | Tip, back to `Preflight`; unlimited retries; cancel anytime; banked reps untouched |
+| Sittings work offline; a completed cohort day waits for network | spec FR-024b, ES-3b | Warn before an offline cohort sitting and on offline completion; persist the pending day and submit it automatically on reconnect. Chain time decides — nothing on the device extends a deadline. A challenge day needs no network |
+| A wallet is connected before any sitting | spec FR-001a | Banked progress and the daily streak are keyed to the connected wallet on this device |
 | Banked progress on the device only; nothing on-chain before `Completed` | spec FR-024a, ES-3a | A lost or wiped phone loses the day's banked reps |
 | One completed day per `day_index` | spec FR-025 | Contract-side idempotency; the client must also disable the CTA |
 | Reps come from `Cohort.reps_per_day` | spec FR-014 | **Never a constant.** A running cohort's bar cannot move. The daily challenge is always 25. |
@@ -352,7 +365,7 @@ Found by drawing the machines. Each needed a decision before the code that touch
 | E8 | Pre-join refunds happen inside `tick_cohort` | §9.3 Op4.7 | **Dissolved by H10:** the lobby place is unconditional, so nothing is refunded at forfeiture or settlement. |
 | E9 | A day completes one second before the day boundary and confirms one second after | §5.3, §9.3 Op2.3 | **Resolved by spec FR-017, FR-047, ES-3:** the deadline is judged against chain time at submission, so that day is not complete. The app never refuses a late sitting but warns in the last 10 minutes that a late completion may not land in time. |
 | E10 | Cancelled cohort auto-enrols members into "next week's cohort" | §7.4 | **Cut for the demo (D-H)**; needs a design before mainnet. |
-| E11 | Palm liveness has no failure path | §8.3 | **Still open (decisions P2).** Success condition, no timeout, attempt limit or exit — a user whose palm is never detected is stuck on a camera screen. Suggest 30 seconds, then "Try again" with a tip, before the first tester meets it. |
+| E11 | Palm liveness has no failure path | §8.3 | **Resolved by spec FR-020:** after 30 seconds without a palm, a tip and back to pre-flight; unlimited retries, cancel anytime, banked reps untouched. |
 | E12 | **Cutting audio anti-cheat silently changes the rep rules** | §8.2 pill 5, §8.4 rule 4 | **Resolved by H13 / spec OD-3: both cut.** Four visual checks, visual rep rules only, no microphone. The weaker rule — no anti-static-frame audio filter — is named in the README. |
 | E13 | A cohort with per-member offsets would end at up to 27 different instants spanning ~26 hours, while `total_finisher_stake` is written once | §9.3 Op4 | **Dissolved by D-B.** With cohort-anchored windows a cohort has exactly one end instant and settlement has nothing to wait for. |
 | E14 | A staked 21-day cohort cannot settle before the submission deadline | D-I | **Dissolved by the revised D-I.** The staked 7-day cohort runs 28 Sep 05:00 – 5 Oct 05:00 UTC, inside the window, so the claim is filmed for real. |
@@ -361,6 +374,9 @@ Found by drawing the machines. Each needed a decision before the code that touch
 | E17 | The keeper's key or box is lost during the judging month | D-F | **Resolved by spec FR-030a:** opening, forfeiting and settling are permissionless, so anyone can crank; no caller can influence the result. |
 | E18 | Shares don't divide exactly, leaving dust in the pool forever | §9.3 Op5 | **Resolved by spec FR-032a:** each share rounds down; the remainder goes to the fee destination at settlement and is recorded. |
 | E19 | A member closes the app at 17 reps, or their phone dies | §8.6 | **Resolved by spec FR-024, ES-1:** 10 banked reps survive, 7 are discarded; the member returns any time before the deadline and re-verifies. |
+| E20 | A member completes a cohort day offline and reconnects around the deadline | spec §8.3 | **Resolved by spec FR-024b, ES-3b:** warned before and on completion; the day waits on the device and is submitted automatically on reconnect; it counts only if it lands before the deadline by chain time. |
+| E21 | A judge connects a fresh wallet with no SOL and no test SKR | spec US-9 | **Resolved by spec FR-042a, ES-0a, ES-0b:** one-tap in-app faucet, once per wallet per day, pre-funded, no server; a clear message if it can't pay out. |
+| E22 | A judge has no Solana wallet at all | spec US-1, US-9 | **Resolved by spec FR-001a, ES-0:** the app requires a wallet first and explains how to get one. Accepted cost: a judge without a wallet sees only that screen, the README and the recorded walkthrough. |
 
 ---
 
@@ -370,7 +386,7 @@ Found by drawing the machines. Each needed a decision before the code that touch
 2. **Spikes, 2–3 days, in parallel with nothing else.** Seed Vault signing on the real Seeker · MediaPipe rep counting against ten real videos, including deliberate cheating · Anchor localnet with manipulated clock and a `day_seconds = 60` cohort surviving a full cycle.
 3. **IDL-level contract spec.** PDA seeds, account layouts, instruction signatures, signer per instruction, error codes. Two to three pages, derived directly from §3 above. This is the artefact that becomes `lib.rs`.
 4. **Appendix A test vectors → Anchor test suite.** They are already written as vectors; convert them before the business logic exists, together with spec INV-1…INV-8 (§3.4).
-5. **Mocks for ten screens, not thirty** — home/cohort, daily challenge, ladder, stake confirm, lobby (open and locked), sitting (pre-flight, counting with banked blocks, stopped part-way, complete), claim, leaderboard and cohort roster, recorded walkthrough. Every state in §3.1, §3.2 and §3.3 must have a screen or be provably unreachable (constitution IX).
+5. **Mocks for twelve screens, not thirty** — connect wallet (with no-wallet variant), faucet, home/cohort (with waiting-for-network variant), daily challenge, ladder, stake confirm, lobby (open and locked), sitting (pre-flight, palm timeout, offline warning, counting with banked blocks, stopped part-way, complete), claim, leaderboard and cohort roster, recorded walkthrough. Every state in §3.1, §3.2 and §3.3 must have a screen or be provably unreachable (constitution IX).
 6. **NFR one-pager** — only budgets that change the architecture: inference FPS and battery over a three-minute sitting, cold start, RPC rate limits for reading 1,000-member rosters and leaderboards, the keeper's retry policy and page size, the settlement window, camera-frame privacy.
 
 ---

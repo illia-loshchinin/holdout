@@ -1,10 +1,10 @@
 # Holdout — product requirements (hackathon build)
 
-**Version:** 2.1 · **Date:** 2026-09-15 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
+**Version:** 2.2 · **Date:** 2026-09-15 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
 
 > **What this file is.** The product-level detail behind `specs/001-holdout-hackathon/spec.md`: screens, copy, verification rules, settlement math, test vectors and glossary. It adds detail; it never adds scope. Every behaviour here traces to a spec requirement (cited as FR-/US-/ES-/INV-), and where this file and the spec disagree, **the spec is right and this file is a bug**.
 >
-> **Precedence:** `.specify/memory/constitution.md` (v1.2.0) → spec → `holdout_decisions.md` (H1–H20, the why) → `holdout_scope_and_state_machines.md` (state machines, edge cases) → this file.
+> **Precedence:** `.specify/memory/constitution.md` (v1.2.0) → spec → `holdout_decisions.md` (H1–H22, the why) → `holdout_scope_and_state_machines.md` (state machines, edge cases) → this file.
 >
 > **Not here, on purpose.** Stack, accounts, PDAs and instruction signatures belong to `plan.md`. The post-hackathon vision — three leagues, USDC pool, free cohorts, badges, share cards, referrals, Swelfie, geo-blocking, ToS, audit, treasury policy, cold-start matching, simulated economics — is archived verbatim at `archive/holdout_v1_prd_full-vision_2026-09-15.md`. Top-level section numbers match that archive, so an older reference like "§8" still lands on the same subject; subsection numbers do not.
 
@@ -65,7 +65,7 @@ Holdout is a Solana Mobile fitness commitment app. Anyone can do a **free daily 
 
 | Actor | In this build |
 |---|---|
-| **Member** | Anyone with a Solana wallet and the app, identified by the wallet (FR-001). Real testers from cohort #3 onward, and judges. |
+| **Member** | Anyone with a Solana wallet connected to the app, identified by the wallet (FR-001). Real testers from cohort #3 onward, and judges — who need a wallet too (FR-001a). |
 | **Judge** | Installs cold, weeks after the last real cohort, and must immediately see the product working (US-9). |
 | **Scheduler** | Automation that normally records forfeits, settles cohorts and opens each league's next cohort. It holds **no special permission** — any wallet may do the same once a step is due (FR-030a). Never decides outcomes (constitution II). |
 | **Operator** | Publishes the SKR chip set after the weekly rate check (FR-056). The only privileged actor, and only for that. |
@@ -75,7 +75,9 @@ Holdout is a Solana Mobile fitness commitment app. Anyone can do a **free daily 
 - **No Seeker requirement.** The Genesis Token check is written but off (`genesis_gate_enabled = false`) because testers have no Seeker. Named in the README.
 - **No ladder gate.** Both leagues are joinable from first launch (`ladder_gate_enabled = false`, FR-003); the 21-day unlock is still computed and recorded (FR-003a).
 - **No geo-blocking, no terms-of-service screen** — out of scope for a devnet build with a test token (spec §3).
+- **Wallet first.** Connecting a wallet is the first thing the app asks for, and nothing — not even the daily challenge — is usable before it (FR-001a). A person without a wallet is told plainly that they need one and how to get one (ES-0). The daily streak is kept on the phone for the connected wallet.
 - **One wallet, one member.** No username, no password, no display name, no avatar. Leaderboards show a shortened wallet address (FR-063).
+- **Funds for testing come from the app.** An in-app faucet gives a connected wallet test SKR and devnet SOL once a day (§6.1, FR-042a), so nobody needs an outside faucet.
 - The app states on first run and on every staking screen that it runs on a **test network with a test token** (FR-042).
 
 ---
@@ -187,9 +189,27 @@ No refunds for missed days, technical problems during a sitting, or a bad enviro
 
 ### 6.1 SKR only
 
-Stakes, prize pools, payouts and the fee are **all SKR** (constitution IV). No USDC, no swap, no conversion path. On devnet the token is a **mock SKR mint** with a faucet.
+Stakes, prize pools, payouts and the fee are **all SKR** (constitution IV). No USDC, no swap, no conversion path. On devnet the token is a **mock SKR mint**.
 
 **Stated honestly in the app and README:** "finish and get your stake back" is true **in SKR**. The dollar value of that SKR can move during a cohort.
+
+#### The in-app faucet (FR-042a)
+
+```
+            GET TEST TOKENS
+
+      4,160 test SKR   enough for any $100 chip
+      devnet SOL       enough fees for a 21-day run
+
+            [ get them ]
+      once a day · test tokens have no value
+```
+
+- **One tap** gives the connected wallet enough test SKR for the top chip of any open cohort, plus enough devnet SOL to pay fees for a full 21-day cycle — join, every completed day, claim.
+- **Once per wallet per day**, resetting at the 05:00 UTC boundary.
+- **No server.** Funded in advance for the whole judging month; nobody tops it up by hand.
+- **Offered where it's needed** — on the stake screen, before submitting a completed day, before a claim — whenever the wallet lacks test SKR or fee SOL (ES-0a).
+- **If it can't pay out**, the app says so plainly, keeps the daily challenge and browsing available, and never blames the member (ES-0b).
 
 ### 6.2 The fee — one number, 20%
 
@@ -305,7 +325,7 @@ With all four pills green:
 
 An open palm held for 3 continuous seconds confirms a live person (FR-020). A 3-second countdown follows and counting begins. **At the start of every sitting, never mid-sitting** — mid-sitting prompts break the flow, and re-checking on each return is what stops one person banking the first 10 reps and another doing the rest.
 
-**Failure path — open (decisions P2).** The spec gives no timeout or exit. Proposed: after 30 seconds without a detected palm, show *"Try again"* with a tip and return to pre-flight. Confirm at plan.
+**If no palm is detected within 30 seconds** (FR-020): the app shows *"Can't see your palm — try more light, and hold it flat toward the camera"* and returns to the pre-flight checks, since light or framing is the likely cause. Retries are unlimited, the member can cancel at any moment, and banked reps are never touched.
 
 ### 8.4 Push-up rules
 
@@ -336,6 +356,7 @@ evening   ──  sitting 3:   5 reps   →  day complete at the 25th rep     do
 - **No pause limit.** The member comes back whenever they like before the deadline; every return starts with pre-flight and palm liveness again (§8.2, §8.3).
 - **On the device only.** No server, no Firebase, nothing on-chain until the day is complete (FR-024a). A lost or wiped phone loses that day's banked reps; the member can still do the whole day from zero on another device (ES-3a).
 - **Banked reps expire at the day's deadline** — they never carry into tomorrow (FR-016).
+- **Works offline.** Counting and banking need no connection (FR-024b). See §8.7 for what happens when a cohort day completes offline.
 - **At most one completed day is recorded per member per day** (FR-025).
 
 ### 8.7 Completion
@@ -343,8 +364,19 @@ evening   ──  sitting 3:   5 reps   →  day complete at the 25th rep     do
 When the rep target is reached:
 
 1. **Cohort day:** submitted on-chain for that day. It counts only if it lands before the deadline, by chain time (FR-013, ES-3). The survivor counter, prize figure and the member's day counter update (US-3).
-2. **Daily challenge:** recorded on the device and extends the streak. Nothing on-chain (FR-051).
+2. **Daily challenge:** recorded on the device and extends the streak. Nothing on-chain, no connection needed (FR-051).
 3. A **"Day 12 done"** celebration. No share card, no selfie (spec §3).
+
+**Offline (FR-024b, ES-3b).** A cohort sitting can run with no connection, but the app says so first:
+
+```
+      You're offline
+      Your reps will count only if today's day reaches
+      the network before the deadline — 2h 14m left.
+      [ start anyway ]
+```
+
+When the day completes offline, it is kept on the phone and the home screen shows **"Done — waiting for network · 2h 09m left"**. The app submits it automatically as soon as it has a connection; the member never redoes anything. If it lands before the deadline, the day counts. If it lands after, it doesn't — **nothing on the phone can extend a deadline**, and the member is in breach exactly as if they hadn't finished.
 
 **Known weakness:** the completed-day proof is **client-signed** — a rooted phone could forge it. Named in the README with the real fix: a server-side attestation signer (constitution XI).
 
@@ -358,6 +390,7 @@ When the rep target is reached:
 | Camera covered or off | Pre-flight requires a live, lit, full-body frame |
 | Hand the phone over between sittings | Every sitting re-runs pre-flight and palm liveness (FR-019, FR-020) — raises the bar, doesn't prove identity |
 | Someone else does all the reps | Not defended — one wallet is one member and the Genesis gate is off; documented |
+| Submit a completed day late, claiming it finished in time offline | Rejected — only chain time at submission counts (FR-017, FR-024b) |
 | Edit banked progress on the device | Not defended — banked reps are device-local and the completed-day proof is client-signed; documented |
 | Forge the on-device model output | Not defended — needs attested hardware; documented |
 
@@ -369,9 +402,11 @@ Accounts, PDAs, instruction signatures and framework belong to `plan.md`. This s
 
 ### 9.1 What lives on-chain
 
-Cohorts with their fixed parameters and locked chip set · memberships and held stakes · each cohort's prize pool and any held carry-over · the payout denominator, written once · each member's per-league progress (cleared, forfeited, current and longest league streak, the 21-day unlock) · the current chip set · the fee destination.
+Cohorts with their fixed parameters and locked chip set · memberships and held stakes · each cohort's prize pool and any held carry-over · the payout denominator, written once · each member's per-league progress (cleared, forfeited, current and longest league streak, the 21-day unlock) · the current chip set · the fee destination · the faucet's pre-funded test SKR and devnet SOL, and when each wallet last used it.
 
-**Not on-chain:** the daily streak, daily-challenge days, banked reps and anything else about an unfinished day, camera data. A cohort day goes on-chain only once it is complete.
+**Not on-chain:** the daily streak, daily-challenge days, banked reps and anything else about an unfinished day, a completed day still waiting for network, camera data. A cohort day goes on-chain only once it is complete and submitted.
+
+**Scripted members are ordinary on-chain members** — the contract has no idea which wallets are scripted (FR-043a).
 
 ### 9.2 Principles the contract must satisfy
 
@@ -397,6 +432,7 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 | **record forfeits** | **Anyone** (usually the Scheduler) | Materialises breaches: 20% fee, 80% to pool, progress updated; safe to repeat, safe to run late, pageable |
 | **settle cohort** | **Anyone** (usually the Scheduler) | After the final deadline: finishers counted, denominator written once, shares rounded down with the remainder to the fee destination, progress and unlock updated, 50/50 carry-over if nobody finished; pageable and resumable through `Settling` |
 | **claim payout** | Member | Transfers stake plus share; a second claim fails |
+| **use faucet** | Any connected wallet | Sends the fixed amount of test SKR and fee SOL; a second use by the same wallet before the next 05:00 UTC boundary fails; no server (FR-042a) |
 
 ### 9.4 Flags
 
@@ -412,10 +448,10 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 
 | Component | Role | Trust |
 |---|---|---|
-| **Mobile app** | UI, on-device verification, banked progress, daily streak, transaction signing, reading chain state for counters, rosters and leaderboards | Holds no authority over funds |
+| **Mobile app** | UI, on-device verification, banked progress, completed days waiting for network and their automatic submission, daily streak, transaction signing, reading chain state for counters, rosters and leaderboards | Holds no authority over funds, and cannot extend a deadline |
 | **Scheduler** | Opens cohorts on schedule, records forfeits, settles cohorts | No special permission — anyone could do its job; only materialises outcomes already true on-chain |
 | **Operator tooling** | Runs the weekly chip check against a rate source and publishes chip sets | Trusted for chip pricing only; named in README |
-| **Scripted members** | Populate judging-period cohorts; forfeit spread across each cohort | Disclosed and labelled everywhere (constitution XII) |
+| **Scripted members** | Ordinary wallets run by automation: join with a real test-SKR stake, submit completed days, forfeit or finish on a planned schedule spread across each cohort. Their forfeits fund real prizes; their finishes take a share (FR-043a) | Same contract rules as anyone. Their days are not camera-verified (part of the client-signed trust gap). Addresses published in the build, so the app labels them with no server (constitution XI, XII) |
 
 **No backend decides deadlines, outcomes or rankings** (H5, H17).
 
@@ -429,11 +465,14 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 
 **First run**
 1. **Welcome** — what Holdout is in three lines; *"Test network, test token."*
-2. **Connect wallet**
-3. **Disclosure** — judging-period cohorts include scripted members, labelled wherever they appear
+2. **Connect wallet** — required before anything else (FR-001a). **No-wallet variant:** *"Holdout needs a Solana wallet — even for the free daily challenge."* with how to get one (ES-0)
+3. **Disclosure** — judging-period cohorts include scripted members: real wallets playing by the same rules, labelled wherever they appear (FR-043a)
+
+**Funds**
+3a. **Get test tokens** — the in-app faucet (§6.1): test SKR and fee SOL, once a day. Variants: **already used today** (*"Available again in 6h 40m"*), **faucet can't pay out** (ES-0a, ES-0b)
 
 **Home**
-4. **Home** — the running cohort (§10.1a) if the member is in one; otherwise **today's daily challenge as the primary action** (FR-053). Daily streak always visible. Never empty, never *"come back later"*.
+4. **Home** — the running cohort (§10.1a) if the member is in one; otherwise **today's daily challenge as the primary action** (FR-053). Daily streak always visible. Never empty, never *"come back later"*. **Waiting-for-network variant:** *"Done — waiting for network · 2h 09m left"* until a completed day lands (FR-024b)
 
 **Ladder and staking**
 5. **League ladder** — daily challenge, 7-day and 21-day leagues open, the 21-day requirement stated plainly, Human Flag as a locked rung (US-1)
@@ -441,7 +480,7 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 7. **Lobby** — countdown to cutoff and start, live roster count, held stake, leave button (§5.2). **Locked variant:** joining closed, final roster, countdown to start (ES-12a)
 
 **Sitting**
-8. **Sitting** — start card (*"10 banked · 15 to go · 5h 12m left today"*) → pre-flight (four pills) → palm liveness → 3-second countdown → counting (camera, skeleton overlay, rep counter, banked blocks, form hint, time left today) → block banked (*"20 banked"*) → day complete. Variants: **stopped part-way** (*"17 done — 10 banked, 7 not kept. Come back any time before 5h 12m runs out."*), **reopened after a crash** (*"Your 10 banked reps are safe."*), **last 10 minutes** (warning on the start card and during counting, never a block — FR-047)
+8. **Sitting** — start card (*"10 banked · 15 to go · 5h 12m left today"*) → pre-flight (four pills) → palm liveness → 3-second countdown → counting (camera, skeleton overlay, rep counter, banked blocks, form hint, time left today) → block banked (*"20 banked"*) → day complete. Variants: **stopped part-way** (*"17 done — 10 banked, 7 not kept. Come back any time before 5h 12m runs out."*), **reopened after a crash** (*"Your 10 banked reps are safe."*), **last 10 minutes** (warning on the start card and during counting, never a block — FR-047), **palm not detected** (tip after 30 seconds, back to pre-flight — FR-020), **offline** (warning before a cohort sitting; *"Done — waiting for network"* on completion — FR-024b)
 
 **Outcomes**
 9. **Forfeit** — *"Your 21-day run ended on day 6. Your stake went to the members still standing. Your 9-day streak is still alive."* CTAs: **Do today's challenge** · **Join the next 7-day cohort** (US-4)
@@ -495,7 +534,7 @@ With no cohort running, the challenge is the hero:
 
 ```
 Open app (first run)
-  ↓  connect wallet · test-network notice · scripted-member disclosure
+  ↓  connect wallet (required — no wallet, no app) · test-network notice · scripted-member disclosure
 Home: today's challenge
   ↓  start
 Pre-flight → palm → countdown → push-ups (banked every 10)
@@ -504,7 +543,7 @@ Done at 25 — streak 1 — "Want money on it? Join a 7-day cohort."
    or stop early — "10 banked. Come back later today for 15 more."
 ```
 
-**Staking path:** Ladder → 7-day league → chip → confirm → sign → Lobby.
+**Staking path:** Ladder → 7-day league → chip → *(no test SKR? one-tap faucet)* → confirm → sign → Lobby.
 **Target:** a returning member opens the app and starts counting in under 90 seconds.
 
 ### 10.3 The daily loop
@@ -518,7 +557,13 @@ Done at 25 — streak 1 — "Want money on it? Join a 7-day cohort."
 
 | State | Screen |
 |---|---|
-| No test SKR | *"You need test SKR to stake."* Link to the devnet faucet. The daily challenge stays available. |
+| No wallet | *"Holdout needs a Solana wallet — even for the free daily challenge."* How to get one; nothing else available until connected (ES-0) |
+| No test SKR or fee SOL | The faucet sheet, in place — on the stake screen, before submitting a completed day, before a claim (ES-0a) |
+| Faucet already used today | *"You've had today's test tokens. Available again in 6h 40m."* (ES-0a) |
+| Faucet can't pay out | *"The faucet can't send tokens right now."* The daily challenge and browsing stay available (ES-0b) |
+| Palm not detected for 30 seconds | *"Can't see your palm — try more light, and hold it flat toward the camera."* Back to pre-flight; retry or cancel (FR-020) |
+| Offline before a cohort sitting | *"You're offline. Today counts only if it reaches the network before the deadline — 2h 14m left."* **Start anyway** (FR-024b) |
+| Day completed offline | Home shows *"Done — waiting for network"* with the countdown; submitted automatically on reconnect. If it lands late, the forfeit screen (ES-3b) |
 | Pre-flight fails three times | Tip sheet with the common fixes |
 | App crashed mid-sitting | *"Your 10 banked reps are safe. 15 to go."* Reps since the last block are gone (ES-1) |
 | Sitting stopped part-way | *"17 done — 10 banked, 7 not kept."* Countdown to the deadline (ES-2) |
@@ -630,7 +675,7 @@ Thirteen screens (§10.1), each with every state it can be in.
 - Below 3: **"not ranked yet"**, with figures and how many more cohorts they need (FR-060c). Percentages display as whole numbers.
 - **Cohort roster:** members still standing first, then forfeited members by how many days they lasted (FR-062).
 - **Shortened wallet addresses only. No stake, prize or payout amount — ever** (FR-063, constitution XIII).
-- **Scripted members are labelled** on every board and roster (FR-064, constitution XII).
+- **Scripted members are labelled** on every board and roster (FR-064, constitution XII). The label comes from the list of scripted wallet addresses published in the build, so it needs no server and anyone can check it (FR-043a). Scripted members' figures are real on-chain progress, not display padding.
 
 **Judging-month note:** in the 21-day league, 3 cohorts takes 9 weeks, so only scripted members can be ranked there during judging (H17).
 
@@ -674,6 +719,11 @@ Constitution XIII, applied to every screen, notification and README line.
 | Cohorts look empty during judging | High | Scripted members on the weekly schedule, forfeits spread across each cohort, labelled everywhere |
 | Scripted members read as deception | High | Disclosed on first run and in the README, labelled on every roster and board |
 | Wallet signing fails on real hardware | High | Risk spike before implementation |
+| Judges give up at "connect a wallet" | High | Wallet-first is deliberate (FR-001a); the no-wallet screen says plainly why and how to get one; the recorded walkthrough and README show the product without a wallet |
+| Faucet drained or empty during judging | Medium | Once per wallet per day; funded in advance for the whole month; a clear message if it can't pay out, with the daily challenge still available |
+| Members lose a day by finishing offline | Medium | Warning before an offline cohort sitting and on completion; automatic submission on reconnect |
+| Palm check fails for honest members | Medium | 30-second limit with a tip, back to pre-flight, unlimited retries, banked reps untouched |
+| Real finishers' prizes include scripted members' money | Low | By design and disclosed: scripted members are real wallets under the same rules (FR-043a) |
 | Settlement bug on devnet | High | Vectors (§19) and invariants as failing tests first; `day_seconds` rehearsal of full cycles |
 | Rate source unavailable at the weekly check | Low | Current chip set stays; joining never depends on a price |
 | Testers confused by the 05:00 UTC boundary | Medium | Countdown, never a date; last-10-minutes warning before and during every sitting |
@@ -744,6 +794,12 @@ Each share = floor(1,000 × 100 ÷ 300) = floor(333.33…) = **333** → payout 
 Σ shares 999 → **remainder 1** to the fee destination at settlement.
 **Check:** Σ payouts 1,299 + remainder 1 = 1,300 = 300 + 1,000. The fee destination receives 250 + 1 = 251 from this cohort.
 
+**V20 · late offline completion.** A 7-day member completes day 3 offline with 20 minutes left and reconnects 25 minutes later. The submission lands after the deadline → rejected; the member is in breach and forfeits exactly as in V16. In a second run they reconnect with 5 minutes left → the day counts (FR-024b, ES-3b).
+
+**V21 · faucet limit.** A fresh wallet uses the faucet → receives the fixed test SKR and fee SOL. A second use before the next 05:00 UTC boundary fails and moves nothing; a use after the boundary succeeds (FR-042a). The faucet never touches a stake, a pool or the fee destination.
+
+**V22 · scripted forfeits fund real prizes.** In V1, the 5 forfeiting members are scripted and the 5 finishers are real → each real finisher's payout is still 180. Swapping which members are scripted changes no amount (FR-043a).
+
 **V18 · permissionless steps.** With the Scheduler stopped, an unrelated wallet records V2's forfeits, settles it and opens the league's next cohort → state is byte-identical to the Scheduler doing it. The same wallet calling any step early, twice, or with other arguments changes nothing (FR-030a).
 
 **V19 · 1,000-member cohort.** 21-day cohort of 1,000 × 100 SKR, 400 forfeit → fee 8,000 → pool 32,000; 600 finishers, Σ 60,000 → share floor(32,000 × 100 ÷ 60,000) = floor(53.33…) = **53** → payout 153; Σ shares 31,800 → **remainder 200**. Processed in pages, run out of order and repeated, the result is identical (FR-011a). The remainder (200) is fewer units than there are finishers (600), as it always must be.
@@ -793,10 +849,12 @@ For every cohort: `fee = 0.20 × Σ forfeited`, taken at forfeit time. Cross-che
 | **Scheduler** | Automation that normally opens cohorts, records forfeits and settles cohorts. No special permission — anyone may do the same. Never decides outcomes |
 | **Operator** | Publishes the chip set after the weekly rate check. The only privileged actor |
 | **Permissionless step** | Opening a cohort, recording forfeits or settling: any wallet may trigger it once due, and nobody can influence its result |
-| **Scripted member** | An automated member populating judging-period cohorts. Disclosed and labelled everywhere |
+| **Scripted member** | An ordinary wallet run by automation in judging-period cohorts, under exactly the same contract rules. Its forfeits fund real prizes; its days are not camera-verified. Address published in the build; disclosed and labelled everywhere |
+| **Faucet** | The in-app source of test SKR and devnet fee SOL: once per wallet per day, funded in advance, no server |
+| **Waiting for network** | A completed cohort day kept on the phone until it can be submitted; it counts only if it lands before the deadline |
 | **Walkthrough** | The recording of a full cycle on the real app and devnet contract, inside the app |
 | **Pre-flight check** | Four visual environment checks before every sitting |
-| **Palm liveness** | An open palm held for 3 seconds at the start of every sitting |
+| **Palm liveness** | An open palm held for 3 seconds at the start of every sitting; after 30 seconds without one, a tip and back to pre-flight |
 
 ---
 
