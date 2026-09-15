@@ -1,0 +1,445 @@
+# Holdout — feature specification (hackathon build)
+
+**Date:** 2026-09-15 · **Status:** clarified, ready for `/speckit-plan` · **Target:** CLOCK IN submission, 9 Oct 2026
+
+> This IS the spec-kit feature spec for `001-holdout-hackathon`. All open decisions in §9 are resolved (see Clarifications). Next: `/speckit-plan`.
+> **This file describes *what* and *why* only.** Stack, accounts, PDAs, instruction signatures and framework choices belong in `plan.md`.
+> Governed by `.specify/memory/constitution.md`. Behavioural detail and the reasoning behind the cuts live in `docs/holdout_scope_and_state_machines.md`; screens, copy, verification rules and settlement test vectors for this build live in `docs/holdout_v1_prd.md`; the full post-hackathon product vision is archived in `docs/archive/holdout_v1_prd_full-vision_2026-09-15.md`, which this spec deliberately does **not** try to satisfy.
+
+---
+
+## 1. What this is
+
+A fitness commitment contract. A member stakes on themselves to complete a daily push-up obligation for the length of a fixed cohort. Everyone in a cohort starts and finishes together. Miss a day and the stake is forfeited into that cohort's prize pool; finish and take back the stake plus a share of what the quitters left behind.
+
+> Stake. Do your reps every day.
+> Miss a day and you lose your stake to everyone still standing.
+> Finish and you get your stake back plus a share of theirs.
+
+**Why it works as a product:** the cohort is visible and it shrinks. `189 / 312 still standing` is a number no rolling-join competitor can display, and it is the reason to open the app on a day when nothing else happened.
+
+**Why it is being built now:** a hackathon submission judged over a month on stickiness, UX, memorability and presentation — not a startup launch.
+
+---
+
+## Clarifications
+
+### Session 2026-09-15
+
+- Q: How does a judge see a full cycle (join → sessions → forfeit → settle → claim) without waiting days, while the home screen always shows a live, thinning cohort? (OD-4) → A: Real-time cohorts run continuously with disclosed scripted members; the full cycle is shown as a recorded walkthrough inside the app — watched, not performed.
+- Q: If nobody in a staked cohort finishes, where does that cohort's prize pool go? (OD-5) → A: At settlement, 50% goes to the fee destination and 50% carries over into the prize pool of the next cohort of the same league, as extra prize for its finishers.
+- Q: Should every reference to free cohorts and a "free league" be removed, leaving only the two staked leagues plus the daily challenge? → A: Yes — free cohorts are removed entirely; every cohort is staked, the no-stake path is the daily challenge, and the `Finished` membership state is dropped.
+- Q: Should audio be dropped from rep verification entirely — both the environment check and the rep condition? (OD-3) → A: Yes — drop both. Four environment checks, no audio rep condition, no microphone permission; documented in the README as a known weakness.
+- Q: What SKR amounts should the four stake chips have? (OD-2) → A: Chips are SKR amounts tracking $10 / $25 / $50 / $100. The Operator checks the rate weekly and re-prices only when it has drifted drastically. Each cohort locks in the chip set current at its creation, so members of the same cohort who pick the same tier stake identical SKR. The contract validates SKR only and never reads a price. *(Revised in-session from daily re-pricing applied to all open cohorts.)*
+- Q: When does registration for a league's next cohort open, and can a member still in a running cohort join it? → A: Every league opens its next cohort the moment its current one starts; cohorts start weekly on Monday 05:00 UTC. Joining and leaving both close at a join cutoff **1 hour before the start**, after which the cohort is `Locked` until it starts. A member may hold one lobby place alongside a running cohort, independent of how that cohort ends. *(Revised in-session: briefly specified as join and leave open until the start with no `Locked` state, then rolled back.)*
+- Q: Which extras beyond the core loop are in scope — daily streak, leaderboards, share cards, badges? → A: Only the daily streak (already specified) and leaderboards. Leaderboards rank on-chain progress only and exist to show discipline: per league, members are ranked by **survival rate** (cohorts cleared ÷ cohorts finished), among members with **at least 3 finished cohorts** in that league; cohorts played and league streak (consistency) are shown beside it. Each running cohort also has a roster. The daily streak stays personal and unranked. Share cards and badges are out of scope.
+- Q: Who may trigger recording forfeits, settling a finished cohort and opening the next scheduled cohort — anyone, or only the Scheduler's key? → A: Anyone. The Scheduler is the usual caller, not a privileged one; the caller can never choose a parameter, outcome or amount. Publishing the chip set stays Operator-only.
+- Q: What is the largest number of members a single cohort must support? → A: No limit is enforced; the expected size is up to 1,000 members per cohort, and the build is designed and tested for that.
+- Q: When finisher payouts are rounded down to the smallest SKR unit, where do the leftover units go? → A: At settlement, the total rounding remainder is computed and sent to the fee destination, and recorded on the cohort.
+- Q: At a day's deadline, should the survivor counter and projected prize change immediately for members who missed the day, or only once their forfeits are recorded? → A: Immediately. The survivor counter, projected pool, projected shares and cohort roster reflect every breach from the instant the deadline passes; claimable amounts come only from settlement.
+- Q: How long may a paused session wait before it's abandoned, and how much time must be left before a session may start? → A: Neither — there is no single session. Verified reps are **banked in blocks of 10** on the device and kept for the whole day, so a member can do 10 + 10 + 5 across the day in separate sittings. Reps short of the next block when a sitting ends are discarded. Every sitting re-runs the environment checks and palm liveness. The app never refuses a late start; it shows reps still needed and time left, and warns clearly in the last 10 minutes.
+
+---
+
+## 2. In scope
+
+| | |
+|---|---|
+| Exercise | Push-ups only |
+| Leagues | **Staked 7-day** (25 reps/day) → **staked 21-day** (25 reps/day) |
+| Free tier | **The daily challenge** — 25 reps, offered every day to everyone, no cohort, no stake, no prize. Builds a streak and nothing else. This is the habit product; the leagues sit on top of it. |
+| Progression | Clearing the staked 7-day league permanently unlocks the 21-day league. The 7-day league never closes — it is also the comeback path after a forfeit. |
+| Gating | **Off for the hackathon.** Both leagues are joinable from first launch. The unlock is still computed and recorded; only the check is disabled, by config flag. |
+| Asset | SKR, and only SKR — stakes, pool, payouts, fee |
+| Stakes | Four SKR chips tracking **$10 / $25 / $50 / $100**, checked weekly and re-priced only on drastic drift; locked per cohort at creation; the same tiers in both leagues *(§9 OD-2)* |
+| Fee | 20% of each forfeited stake |
+| Network | Devnet, test token |
+
+## 3. Out of scope
+
+Human Flag league (locked rung in the UI only) · **free cohorts of any league** · geo-blocking · terms of service · calibration flow · Swelfie · conditional pre-joining (a lobby place that depends on clearing the current cohort and is refunded automatically on forfeit — the unconditional lobby place of FR-006a is in scope) · cohort cancellation and minimum size · cold-start bonus matching · insurance fund · demotion · notification infrastructure (manual for the demo) · share cards · badges · a daily-streak leaderboard, or any leaderboard fed by a server · audio of any kind in verification — no audio environment check, no audio rep condition, no microphone access *(§9 OD-3)*.
+
+---
+
+## 4. Actors
+
+| Actor | Description |
+|---|---|
+| **Member** | A person with a wallet and the app. Joins cohorts, does their daily reps in one or more sittings, claims payouts. |
+| **Scheduler** | The automated actor that normally records missed days, settles finished cohorts and opens each league's next cohort on schedule. Holds no special permission — anyone may perform the same steps (FR-030a). Never decides outcomes — only records ones already true (constitution II). |
+| **Operator** | Once a week checks the off-chain rate and publishes a new SKR chip set if it has drifted drastically. The only privileged actor, and only for the chip set. |
+| **Judge** | Installs the app cold, weeks after the last real cohort, and must immediately see the product working (constitution XII). |
+
+---
+
+## 5. User scenarios
+
+### US-1 · First run
+
+**Given** a person has installed the app and has a wallet
+**When** they open it for the first time
+**Then** they connect their wallet, see the league ladder with both staked leagues open (the 21-day league's requirement stated plainly, but not enforced in this build — FR-003) and Human Flag as a locked rung, and can start today's daily challenge in one tap.
+
+### US-2 · Joining from the lobby
+
+**Given** a cohort is open for joining
+**When** the member joins
+**Then** their stake is taken and held separately from any prize pool, they appear in the roster immediately, and they see a countdown to the join cutoff and to the start, the live roster count, and an unconditional way to leave until joining closes.
+
+**And given** they leave before the join cutoff
+**Then** the full stake is returned with no deduction of any kind.
+
+### US-3 · A day's reps
+
+**Given** a member's cohort is running and today's reps are not yet done
+**When** they start a sitting
+**Then** the app checks the environment and refuses to start until every check passes, telling them exactly what to fix; verifies a live human is present; counts reps that meet the form rules and silently discards ones that do not; banks every block of 10 verified reps on the device; and the moment the banked total reaches the day's requirement, records the day as complete.
+
+**And given** they stop part-way — say after 10, then come back for 10 more, then 5
+**Then** each sitting starts with the checks and the liveness step again, banked blocks carry across sittings for the whole day, and reps short of the next block of 10 when a sitting ends are not kept.
+
+**And** the survivor counter, the prize figure and their own day counter update on completion.
+
+### US-4 · Missing a day
+
+**Given** a member has not completed today's reps
+**When** the day's deadline passes
+**Then** their stake is forfeited, 20% is taken as fee and the remainder is added to that cohort's prize pool, their league progress resets, and they are told what happened and offered today's daily challenge and the next 7-day cohort as the way back. Their daily streak is untouched (FR-052).
+
+**And** they cannot submit any further completed day for that cohort, whether or not the Scheduler has run yet.
+
+### US-5 · Qualifying
+
+**Given** a member completes all 7 days of a staked 7-day cohort
+**When** the cohort settles
+**Then** the 21-day unlock is recorded permanently, alongside the payout they were already owed. The 7-day league stays open to them — it does not close on a clear.
+
+**Note for this build:** the unlock is recorded but not enforced; both leagues are open to everyone from first launch (FR-003).
+
+### US-5a · The daily challenge
+
+**Given** any person with the app, on any day — in a cohort or not, staking or not
+**When** they open it
+**Then** today's challenge is there: 25 reps, the same verification and the same banking in blocks of 10 across sittings as a cohort day, no stake, no prize, no deadline beyond the day itself. Completing it extends their streak.
+
+**And** a member already in a cohort does not train twice — the cohort day is the day's challenge.
+
+**And** nothing is ever paid against a streak.
+
+### US-6 · Staking
+
+**Given** a member is joining a cohort of either league (both are open in this build — FR-003)
+**When** they choose their stake
+**Then** they choose one of the four chips — labelled by its USD tier ($10 / $25 / $50 / $100) and showing the exact SKR amount locked for this cohort, with the USD value marked approximate — and see the daily obligation, the time until joining closes and until the start, the duration, and the cohort's current prize pool including any carry-over already in it, and the plain statement that **if nobody drops out they get exactly their stake back** — plus their share of any carry-over, which is shown as a separate figure.
+
+### US-7 · Watching the crowd thin
+
+**Given** a member is in a running cohort
+**When** other members forfeit
+**Then** the survivor counter falls, the prize figure rises, and both are the largest things on the home screen. The member can see how many days remain, their own completion record, and their projected share.
+
+**And** both figures move at the day's deadline itself, for every member at once — not whenever a forfeit happens to be recorded (FR-038a).
+
+### US-8 · Settlement and claim
+
+**Given** a cohort has reached its end and the member completed every day
+**When** settlement occurs
+**Then** every finisher settles at the same moment on the same figures, and each is invited to claim their stake plus their proportional share of the pool. Claiming is a deliberate act the member performs, not an automatic deposit.
+
+### US-9 · A judge installs the app cold
+
+**Given** a person installs the app on any day during the judging month with no prior state
+**When** they open it
+**Then** there is a real-time cohort running with members visibly thinning, today's daily challenge is available to do immediately, and a recorded walkthrough inside the app shows a full cycle — join, session, forfeit, settle, claim — end to end without waiting days.
+
+**And** the app and README state plainly that the members of judging-period cohorts are scripted (constitution XI).
+
+### US-10 · Leaderboards
+
+**Given** any person with the app, in a cohort or not
+**When** they open a league's leaderboard
+**Then** they see who is disciplined: members ranked by the share of their cohorts they survived in that league, each shown with that survival percentage, how many cohorts they have played, how many they cleared, and their current and best league streak — built entirely from on-chain progress.
+
+**And** only members who have finished at least 3 cohorts in that league are ranked; everyone else is listed underneath as "not ranked yet", with their numbers visible and how many more cohorts they need. A member sees their own position or how far they are from being ranked.
+
+**And given** a member is in a running cohort
+**When** they open that cohort's roster
+**Then** members still standing are listed first and forfeited members follow, ordered by how many days they lasted.
+
+**And** no leaderboard shows or ranks any stake, prize or payout amount, and the daily streak appears on none of them.
+
+### Edge scenarios
+
+| # | Situation | Required behaviour |
+|---|---|---|
+| ES-1 | App crashes mid-sitting | Every banked block of 10 survives; reps since the last banked block are lost; the member continues from the banked total |
+| ES-2 | Member stops part-way through the day | Banked blocks are kept until the day's deadline; the member may return any number of times; reps short of the next block of 10 in the ended sitting are not kept. There is no pause limit |
+| ES-3 | Day's deadline passes mid-sitting, or with reps still missing | The day is not completed and banked reps for it no longer count; in a cohort the member is in breach. In the last 10 minutes the app warns before and during a sitting, but never refuses to start one |
+| ES-3a | Member's phone is lost, wiped or replaced mid-day | That day's banked progress is lost with the device; they can still complete the day from zero on another device before the deadline |
+| ES-4 | A member in breach tries to submit | Rejected, regardless of whether the Scheduler has run |
+| ES-5 | Nobody forfeits | Finishers get exactly their stake back plus their share of any carry-over the cohort received, and nothing more; the app must have said this was possible up front |
+| ES-6 | One finisher | Receives stake plus the entire pool, carry-over included |
+| ES-7 | Nobody finishes | At settlement, 50% of the pool goes to the fee destination and 50% carries over to the next cohort of the same league (FR-037) |
+| ES-7a | Nobody finishes and no cohort of that league is open | The carry-over is held, recorded on the settled cohort, and moves into the next cohort of that league when it opens |
+| ES-7b | A cohort that received a carry-over also has no finishers | The same 50/50 rule applies to its whole pool, carry-over included |
+| ES-8 | Scheduler misses a run | Transfers and leaderboards lag; the survivor counter, projected pool and roster do not (FR-038a); no outcome changes |
+| ES-9 | Member completes a day and immediately opens the app the next day | Sees the new day, not a stale completed state |
+| ES-10 | The rate moves sharply while a cohort is open for joining | That cohort's chip amounts do not change; every later joiner pays the same SKR per tier as earlier joiners. A new chip set, if triggered, applies only to cohorts created after it (FR-056) |
+| ES-11 | The rate source is unavailable at the weekly check | The current chip set stays in force; cohorts keep opening and joining continues uninterrupted (FR-057) |
+| ES-12 | A join or a leave is signed before the join cutoff but lands after it | Decided by chain time: a late join is rejected and nothing is taken; a late leave is rejected and the member stays in the cohort. The app tells the member which happened, and in the final minutes before the cutoff warns that a transaction may land too late |
+| ES-12a | A member opens a cohort during its locked hour | They see that joining has closed, the final roster count and the countdown to the start; no join or leave action is offered |
+| ES-13 | A member finishes day 7 and holds a lobby place in the cohort starting at that same instant | Their day-7 completion must land before the instant; at the instant the old cohort stops accepting completed days and the new one's day 1 begins, with a fresh count of banked reps. The old payout is claimable once it settles, independently of the new cohort |
+| ES-14 | A member forfeits their running cohort while holding a lobby place | The lobby place is untouched; it starts as normal unless the member leaves it |
+| ES-15 | The automated opening of a league's next cohort runs late | The league has no open lobby until it runs; the next cohort's start instant is still the scheduled Monday, and the daily challenge remains available (FR-053) |
+
+---
+
+## 6. Functional requirements
+
+### Access and progression
+
+- **FR-001** A member is identified by their wallet.
+- **FR-002** The 7-day league is joinable by anyone with a wallet and a stake. It is the entry point and it never closes — a member may enter it again after clearing it and after forfeiting it.
+- **FR-003** The 21-day league is gated on having cleared a 7-day cohort. **The gate is disabled for the hackathon build** (`ladder_gate_enabled = false`): both leagues are joinable from first launch so that anyone — a judge included — reaches the interesting league without first spending a week.
+- **FR-003a** The unlock is still computed and recorded on every 7-day clear even while the gate is off, so enabling it later is a one-flag change and never a migration.
+- **FR-004** The unlock is permanent and is never revoked, including after a forfeit.
+- **FR-005** Daily challenge days completed outside a cohort grant no unlock, no prize and no league progress — only the streak.
+- **FR-006** A member may be in at most one running cohort at a time.
+- **FR-006a** A member may additionally hold at most one lobby place (a `Pending` membership) at any time, including while in a running cohort, in either league. The lobby place is independent of the running cohort: finishing or forfeiting it changes nothing about the lobby place, which the member can still leave for a full refund until that cohort's join cutoff.
+- **FR-006b** A lobby place is accepted only in a cohort that starts no earlier than the final deadline of the member's running cohort, so a member never carries two daily obligations at once. A 7-day member can hold a place in the cohort starting the instant theirs ends; a 21-day member cannot hold a place in a cohort starting while theirs still runs.
+
+### Cohorts and the lobby
+
+- **FR-007** A cohort has a fixed start, a fixed join cutoff, a fixed duration, a fixed daily rep requirement, a fixed day length and a fixed chip set, all set at creation and immutable thereafter.
+- **FR-007a** Cohorts start weekly, on Monday at the 05:00 UTC boundary. Every league opens its next cohort for joining at the instant its current cohort starts, so each league has exactly one cohort open for joining at all times except the locked hour before each start. For the 21-day league this means up to three cohorts running at once. Opening is automated and needs no manual action (FR-043), and may be triggered by anyone once it is due (FR-030a).
+- **FR-008** A cohort accepts joins until its join cutoff, **1 hour before its start**, and starts for everyone at the same instant.
+- **FR-009** Until the join cutoff, a member may leave and receive a full refund, unconditionally.
+- **FR-010** From the join cutoff there is no way out and no refund; the roster is final and the daily obligation begins at the start. Whether a join or a leave landed before the cutoff is decided by chain time alone, never by when the member signed or by whether any automated process has run.
+- **FR-011** Every cohort is staked. A cohort holds each member's stake separately from the prize pool at all times.
+- **FR-011a** No maximum cohort size is enforced. The expected size is **up to 1,000 members**: recording forfeitures and settlement work in pages so that no single step depends on cohort size, and rosters and leaderboards remain correct at that size. The build is tested at 1,000 members; larger cohorts must still be correct, only untested.
+- **FR-054** There are four stake chips, identified by USD tier: $10, $25, $50 and $100. The same tiers apply to both leagues.
+- **FR-055** Every cohort copies the chip set current at its creation and keeps it for its whole life (FR-007). The contract accepts a join only for exactly one of that cohort's four SKR amounts, validates SKR only, and never reads a price.
+- **FR-056** Once a week, at a fixed day boundary (05:00 UTC), the Operator compares the current chip set against the off-chain rate. If the USD value of the chips has drifted by more than **20%** in either direction, the Operator publishes a new chip set, converting each USD tier to SKR at that rate and rounding to a readable SKR amount. Otherwise the current set stays. A new set applies only to cohorts created after it; it never changes a cohort that already exists.
+- **FR-057** If no rate is available at the weekly check, the current chip set stays in force. Opening cohorts and joining never depend on a price being available.
+- **FR-058** A member's stake is the SKR amount taken at join and never changes afterwards, whatever the rate does. Within one cohort, every member who chose the same tier holds an identical SKR stake; payouts remain proportional to stake (FR-032).
+- **FR-059** Every figure the member will actually stake or receive is shown in SKR. USD tier labels and USD equivalents are marked approximate and never presented as what the member will receive (FR-039).
+
+### The daily obligation
+
+- **FR-013** Each day of the cohort, the day's required reps must be verified before that day's deadline — in one sitting or several (FR-024).
+- **FR-014** The rep requirement is read from the cohort, never from a constant.
+- **FR-015** Unlimited retries within the same day.
+- **FR-016** No grace day, no postponement, no carry-forward. One missed day ends the cohort for that member.
+- **FR-017** A member is in breach the moment their current day's deadline passes without that day recorded as complete, independently of whether any automated process has run. Banked reps short of the requirement do not count.
+- **FR-018** A member in breach cannot submit a completed day.
+
+### Session verification
+
+- **FR-019** A sitting cannot begin until all four environment checks pass; each failure states what to fix. No environment check uses audio. The checks run again at the start of **every** sitting, not only the day's first.
+- **FR-020** Every sitting begins with a liveness check confirming a live human is present.
+- **FR-021** A rep counts only if it meets the form and timing rules, which are visual only; non-conforming reps are discarded with a hint rather than an error.
+- **FR-022** Camera frames are processed on the device and never transmitted or stored.
+- **FR-022a** The app never requests microphone access. The absence of an audio anti-spoofing filter is named in the README as a known weakness, with its real fix beside it (constitution XI).
+- **FR-023** Banked progress survives an app crash or restart.
+- **FR-024** Verified reps are **banked in blocks of 10**. A day's reps may be spread across any number of sittings before its deadline; banked blocks carry across sittings for that day only. The day is complete the moment the banked total plus the current sitting's verified reps reach the day's requirement, so the final block may be smaller than 10 (10 + 10 + 5). When a sitting ends for any reason, reps short of the next block of 10 are discarded. There is no pause limit.
+- **FR-024a** Banked progress is kept **on the device only**. Nothing is written on-chain until the day is complete; a lost or wiped device loses that day's unfinished progress (ES-3a).
+- **FR-025** At most one completed day is recorded per member per day.
+
+### Forfeiture
+
+- **FR-026** On breach, the member's entire stake is forfeited. No partial credit.
+- **FR-027** 20% of a forfeited stake is taken as fee; the remainder is added to that cohort's prize pool.
+- **FR-028** Forfeiture resets the member's league streak in that league and ends their participation in that cohort.
+- **FR-030** The automated process that records forfeitures is safe to run twice, and safe to run late.
+- **FR-030a** Recording forfeitures, settling a finished cohort, and opening a league's next cohort (with delivery of any held carry-over) are **permissionless**: any wallet may trigger them once they are due. The caller cannot choose or influence any parameter, outcome, recipient or amount — each step only does what on-chain state and the schedule already require, and does nothing if it is not yet due or already done. Publishing a chip set is the only Operator-restricted action.
+
+### Settlement and claim
+
+- **FR-031** Every member of a cohort settles on the same figures at the same moment.
+- **FR-032** A finisher's payout is their stake plus `pool × (their stake ÷ total stake of all finishers)`.
+- **FR-032a** Each finisher's share is rounded **down** to the smallest SKR unit. At settlement, the total rounding remainder — the pool minus the sum of all rounded-down shares, always fewer units than there are finishers — is sent to the fee destination and recorded on the cohort. After settlement the pool holds exactly the finishers' shares.
+- **FR-033** The payout denominator is computed once and never recomputed.
+- **FR-034** Payout is claimed by a deliberate member action, never deposited automatically.
+- **FR-035** An unclaimed payout remains claimable indefinitely.
+- **FR-037** If a cohort settles with no finishers, 50% of its prize pool goes to the fee destination and 50% is the **carry-over**, which is added to the prize pool of the next cohort of the same league that is still open for joining. Both amounts are recorded on the settled cohort. Any indivisible remainder goes to the carry-over, so nothing is lost to rounding.
+- **FR-037a** If no cohort of that league is open at settlement, the carry-over stays held and recorded against the settled cohort, and moves exactly once into the next cohort of that league when it opens. A carry-over never goes into a cohort that has already started.
+- **FR-037b** Carry-over received by a cohort is part of its prize pool and is shared among its finishers by the same formula as forfeited stakes (FR-032).
+
+### Display and honesty
+
+- **FR-038** The home screen of a running cohort leads with the survivor count and the live prize.
+- **FR-038a** The survivor count, projected prize pool, each member's projected share and the cohort roster treat a member as out **from the instant they are in breach** (FR-017), computed from on-chain state, whether or not the forfeit has been recorded. The projected pool includes the 80% of every breached stake not yet recorded. Recording the forfeit later changes none of these figures. Claimable amounts come only from settlement (FR-034), and league leaderboards count a forfeit once it is recorded (FR-065).
+- **FR-039** Fiat amounts are always marked approximate and are never presented as what the member will receive.
+- **FR-040** The app uses "prize" and never "winnings", "returns", "yield" or "earnings".
+- **FR-041** Before joining a staked cohort, the member is told that a cohort with no forfeitures pays no prize beyond any carry-over it has already received.
+- **FR-042** The app states that it runs on a test network with a test token.
+
+### The daily challenge and the streak
+
+- **FR-048** The app offers a daily challenge every day to every member — 25 reps, same exercise, same verification — with no stake, no cohort and no entry condition of any kind.
+- **FR-049** Completing the daily challenge extends the member's streak by one. A day passing with no completed day of any kind — challenge or cohort — breaks it; banked reps short of 25 do not keep it alive.
+- **FR-050** A completed cohort day counts as that day's challenge. A member never trains twice in one day to hold both a cohort and a streak.
+- **FR-051** The streak is cosmetic and personal. It unlocks nothing, gates nothing, appears on no leaderboard, and nothing is ever paid against it — which is why it needs no on-chain record and no economic anti-cheat.
+- **FR-052** A forfeit does not break the streak. Losing a stake and losing a habit are different failures and the app must not conflate them.
+- **FR-053** With no cohort running, the daily challenge is the home screen's primary action. The app is never empty and never says "come back Monday".
+
+### Leaderboards
+
+- **FR-060** Each league has a leaderboard built only from on-chain progress, with no server and no device-reported data. For each member it shows, for that league: **survival rate**, **cohorts played**, **cohorts cleared**, and **current and longest league streak**.
+- **FR-060a** **Cohorts played** counts cohorts of that league the member has finished — cleared or forfeited. A running cohort counts once it resolves — a forfeit once it is recorded, a clear once the cohort settles; a lobby place the member left, or a cohort still `Open` or `Locked`, never counts. **Survival rate** is cohorts cleared ÷ cohorts played.
+- **FR-060b** A member is **ranked** once they have played at least **3** cohorts in that league. Ranked members are ordered by survival rate, highest first, compared exactly rather than as rounded percentages; ties go to more cohorts played, then to longer longest league streak, then to whoever reached those figures first.
+- **FR-060c** Members with fewer than 3 cohorts played are listed below the ranked members as "not ranked yet", ordered by cohorts played and then survival rate, with their figures visible and the number of cohorts they still need. Survival rates are displayed as whole percentages.
+- **FR-061** A league streak is the number of consecutive cohorts of one league a member has cleared — the leaderboard's measure of consistency. A forfeit in that league resets the current league streak to zero (FR-028); the longest league streak never decreases.
+- **FR-062** Each running cohort has a roster view: members still standing first, then forfeited members ordered by how many days they lasted, most first.
+- **FR-063** Leaderboards identify members by shortened wallet address only, and never show or rank any stake, prize or payout amount.
+- **FR-064** Scripted members appear on leaderboards and rosters like any member and are labelled as scripted (FR-043).
+- **FR-065** Leaderboards may lag the chain while data loads, but never show a figure that on-chain state does not support.
+
+### Time
+
+- **FR-045** Every deadline in a cohort is a single instant, identical for every member. No member-specific clock, offset or locale exists anywhere in the system.
+- **FR-046** The app presents the obligation as time remaining, counting down, never as a calendar date. A member never has to work out which date a session belongs to.
+- **FR-047** Before every sitting the app shows the reps still needed today and the time left. It never refuses to start a sitting because time is short; in the **last 10 minutes** before the deadline it warns clearly, before and during the sitting, that unfinished reps will not count.
+
+### Demo integrity
+
+- **FR-043** At any moment during the judging period, a member installing the app finds at least one real-time cohort running and visibly populated, with no manual intervention for the whole month. Cohorts open on the weekly schedule (FR-007a) and are populated by scripted members whose forfeits are spread across the cohort so the survivor count visibly falls; the scripted membership is disclosed in the app and the README.
+- **FR-044** A full cycle — join, daily sessions, forfeiture, settlement, claim — can be watched without waiting days, as a recorded walkthrough available inside the app. The walkthrough is a recording of the real app against the real devnet contract, not a mock-up. There is no compressed or simulated cohort for judges.
+
+---
+
+## 7. Key entities
+
+| Entity | Holds | Notes |
+|---|---|---|
+| **League** | Duration, daily reps, its unlock requirement | Two exist, both staked. The daily challenge is not a league. |
+| **Cohort** | Its league, start, join cutoff (1 hour before start — joining and leaving both close), duration, daily reps, day length, its locked chip set (four SKR amounts), status, member count, prize pool, carry-over received, and — written once at settlement — finisher count, total finisher stake, the rounding remainder sent to the fee destination, and for a no-finisher cohort the fee taken, the carry-over sent and where it went (or that it is still held) | Parameters immutable after creation (FR-007) |
+| **Chip set** | The four USD tiers, the SKR amount for each, the rate it was priced at, and the boundary from which it applies | One current set shared by both leagues; replaced by the Operator only when the weekly check finds drift over 20% (FR-056). Each cohort keeps a copy of the set current at its creation. |
+| **Membership** | The member, the cohort, the SKR stake held, the chip tier chosen, days completed, status | The stake here is never pool money, and its SKR amount never changes after join (FR-058) |
+| **Progress** | Whether the member has qualified, and per league: cohorts cleared, cohorts forfeited, current league streak, longest league streak, and when these figures last changed | Qualification is permanent. The sole source for league leaderboards (FR-060). The daily streak is separate, off-chain, and not part of this entity. |
+| **Day progress** | Day index, banked reps (whole blocks of 10), verified reps in the current sitting, whether the day is complete | On the device only (FR-024a); a completed cohort day is recorded on-chain, a daily-challenge day never is |
+| **Sitting** | One continuous run of checks, liveness and counting | Any number per day; each one re-verifies (FR-019, FR-020) |
+
+---
+
+## 8. Behaviour: states and transitions
+
+### 8.1 Cohort
+
+`Open` → `Locked` → `Running` → `Settling` → `Settled`
+
+| From → To | Trigger | Meaning |
+|---|---|---|
+| `[*] → Open` | the league's current cohort starts (FR-007a) | joining and leaving open; chip set and all parameters fixed |
+| `Open → Locked` | join cutoff, 1 hour before start | joining and leaving both close; the roster is final |
+| `Locked → Running` | start instant | every lobby membership becomes active |
+| `Running → Settling` | final deadline | no further completed days accepted |
+| `Settling → Settled` | settlement completes | finisher count and denominator written once |
+
+`Settling` exists so that settlement can be resumed after an interruption without double-crediting anyone, and so no completed day can land against a day already scored.
+
+`Locked` exists so that "joining has closed but the cohort has not started" is a legal, visible state: the roster and member count are final for the last hour, and no join or leave can land in the same instant the obligation begins. All time-triggered transitions are derived from chain time and take effect whether or not any automated process has run.
+
+### 8.2 Membership
+
+`Pending` → `Active` → one of `Forfeited` / `ReadyToClaim` → `Claimed`, with `Withdrawn` reachable from `Pending`
+
+| From → To | Trigger | Guard |
+|---|---|---|
+| `[*] → Pending` | member joins | cohort `Open` (before its join cutoff); member holds no other `Pending` membership; cohort starts no earlier than the final deadline of any running membership (FR-006a, FR-006b) |
+| `Pending → Withdrawn` | member leaves | cohort `Open` (before its join cutoff) |
+| `Pending → Active` | start instant | — |
+| `Active → Forfeited` | deadline passes with the day incomplete | — |
+| `Active → ReadyToClaim` | settlement | every day completed |
+| `ReadyToClaim → Claimed` | member claims | — |
+
+Leaving the lobby is a transition out of `Pending`, not out of `Active`. A `Pending` membership is unaffected by any transition of the same member's running membership.
+
+### 8.3 Sitting and day progress
+
+A sitting: `Idle` → `Preflight` → `Liveness` → `Countdown` → `Counting`, then either back to `Idle` (sitting ended) or on to `Completed` → `Submitted`.
+
+| From → To | Trigger | Effect |
+|---|---|---|
+| `Idle → Preflight` | member starts a sitting | shows reps still needed and time left; warns in the last 10 minutes (FR-047) |
+| `Preflight → Idle` | an environment check fails | nothing banked changes |
+| `Preflight → Liveness → Countdown → Counting` | checks pass, live human confirmed | — |
+| within `Counting` | every 10th verified rep of the day | a block of 10 is banked on the device |
+| `Counting → Idle` | sitting ends — member stops, app closes or crashes | reps short of the next block of 10 are discarded; banked blocks kept for the day |
+| `Counting → Completed` | banked + current verified reps reach the day's requirement | the day is done |
+| `Completed → Submitted` | the completed cohort day is confirmed on-chain | day counter advances; a daily-challenge day is recorded on the device instead |
+
+Sittings may repeat without limit until the day's deadline, at which point that day's banked progress stops counting.
+
+### 8.4 Invariants
+
+- **INV-1** Held stakes plus the prize pool plus any held carry-over always equal the balance under custody.
+- **INV-2** Only forfeited stakes, and carry-over from a no-finisher cohort of the same league, ever enter a prize pool.
+- **INV-3** A member's completed days never exceed the days their cohort has reached.
+- **INV-4** Per member: at most one membership in a `Running` cohort, at most one `Pending` membership, and no `Pending` membership whose cohort starts before the final deadline of the member's running one — so no two daily obligations ever overlap.
+- **INV-5** The payout denominator is written exactly once.
+- **INV-6** After a cohort settles, the only changes possible anywhere in it are a claim, or the single delivery of a held carry-over (FR-037a).
+- **INV-7** Recording forfeitures and settling are both safe to repeat.
+- **INV-8** A member in breach cannot submit, regardless of automation state.
+
+---
+
+## 9. Open decisions
+
+All resolved as of 2026-09-15. Kept here as the decision record.
+
+### OD-1 · How a day's boundary is defined — **RESOLVED 2026-09-15**
+
+**Day N runs from `cohort_start + N × day_length` for every member alike.** There is no timezone anywhere in the system; the contract derives every deadline from chain time and asks nothing of any client.
+
+The boundary instant is **05:00 UTC** — chosen for Europe and the Americas together: Warsaw 07:00 and Kyiv 08:00, both before the common morning session; New York 01:00, dead of night; Los Angeles 22:00, which loses the last two evening hours and is the deliberate cost. Europe and US West have no mutually quiet hour — they are ten hours apart — so the only real choice was which side pays, and a boundary landing mid-morning in Kyiv would have been worse than one landing at 22:00 in Los Angeles.
+
+The boundary instant is a **property of the cohort**, so regional cohorts later are configuration, not redesign.
+
+Per-member local midnight, and the bounded-oracle pattern that would make it safe, are recorded in `docs/holdout_scope_and_state_machines.md` D-B for a global launch. Evaluating deadlines in a backend was considered and rejected there.
+
+### OD-2 · Stake chip amounts in SKR — **RESOLVED 2026-09-15: SKR chips tracking USD tiers, checked weekly, locked per cohort**
+
+Four chips tracking $10 / $25 / $50 / $100. The contract accepts and validates SKR amounts only and never reads a price (constitution III). Once a week the Operator checks the off-chain rate and publishes a new chip set only if the chips have drifted more than 20% from their USD tiers; if no rate is available, the current set stays. Each cohort locks in the chip set current at its creation, so two members of one cohort on the same tier always hold the same SKR stake. See FR-054…FR-059, ES-10, ES-11.
+
+The rate source and the Operator's re-pricing are trusted off-chain inputs and are named as such in the README (constitution XI).
+
+### OD-3 · Audio in rep verification — **RESOLVED 2026-09-15: dropped, both**
+
+The audio environment check and the audio rep condition are both removed. The environment check has four items, rep rules are visual only, and the app never asks for the microphone (FR-019, FR-021, FR-022a). The lost anti-spoofing filter is accepted for a devnet build with a test token and is documented in the README.
+
+### OD-4 · How a judge experiences a full cycle (FR-044) — **RESOLVED 2026-09-15: recorded walkthrough**
+
+Real-time cohorts run continuously through the judging month, populated by disclosed scripted members (FR-043). The full cycle is a recorded walkthrough inside the app, captured from the real app on devnet (FR-044). Compressed `day_seconds` cohorts remain a testing tool only and are not offered to judges.
+
+### OD-6 · One clock or two — **RESOLVED 2026-09-15: one clock**
+
+The streak day resets on the same instant as the cohort day. There is exactly one notion of "today" in the app, for money and for habit alike.
+
+Local-midnight streaks would have been safe — the streak is cosmetic and off-chain, so none of the reasons timezones were removed from the contract apply to it — but two notions of "today" in one app is a support burden that outweighs the gain. Revisit at launch, when the habit tier becomes the growth surface.
+
+### OD-5 · What happens to an unclaimed pool when nobody finishes (FR-037) — **RESOLVED 2026-09-15: split 50/50**
+
+At settlement, half goes to the fee destination and half carries over into the prize pool of the next cohort of the same league that is still open for joining. If none is open, the carry-over is held on the settled cohort until one opens. See FR-037…FR-037b, ES-7…ES-7b.
+
+---
+
+## 10. Acceptance criteria
+
+The build is done when all of the following are demonstrable on devnet:
+
+1. A member joins a 7-day cohort, completes 7 days of verified sessions, claims a payout, and the 21-day unlock is recorded. With the gate flag flipped on, an account without that unlock is refused a 21-day join.
+2. A member joins a staked cohort, misses a day, and their stake appears in the pool minus exactly 20%.
+3. A cohort settles once, and two finishers with equal stakes receive byte-identical payouts. In a cohort whose shares do not divide exactly, every share is rounded down, the remainder reaches the fee destination at settlement, and the sum of all claims equals total finisher stake plus pool minus that remainder, to the unit.
+4. A finisher claims and the funds arrive.
+5. Killing the automated process for a full day changes no outcome: on restart the same members are forfeited, the same payouts result, and no member in breach was able to submit in the interim. With the Scheduler still stopped, an unrelated wallet can record the forfeits, settle the cohort and open the next one, producing exactly the same state; the same wallet calling any of them early, twice, or with different arguments changes nothing.
+6. The published settlement vectors all pass as tests.
+7. All invariants INV-1…INV-8 hold under a randomised sequence of joins, sessions, misses and claims, including a cohort of 1,000 members whose forfeitures and settlement are processed across multiple pages — with pages run out of order and repeated — and whose roster and leaderboard entries match on-chain state.
+8. An app installed fresh, with no state, shows a live populated cohort. With the Scheduler stopped, one second after a day's deadline every device shows the survivor count, projected pool and roster already excluding the members who missed that day; recording their forfeits afterwards leaves every displayed figure unchanged.
+9. No instruction reads a price. The only place a rate is used is the Operator's off-chain weekly chip check; no fiat figure is an input to any on-chain branch, amount or validation.
+10. No camera frame leaves the device, verified by inspecting outbound traffic during a sitting.
+11. A staked cohort settles with no finishers: exactly 50% of its pool reaches the fee destination and the carry-over appears in the prize pool of the next open cohort of the same league — or, if none is open, is held and arrives when one opens — with nothing lost to rounding.
+12. With the rate moved less than 20%, the weekly check publishes nothing. With it moved more than 20%, a new chip set is published: cohorts created before it still accept only their original SKR amounts, a cohort created after it accepts only the new ones, and two members of one cohort on the same tier hold identical stakes. With the rate source switched off, the current set keeps working.
+13. A member in a running 7-day cohort takes a lobby place in the next 7-day cohort, finishes the first, and is active in the second from the instant the first ends. A join and a leave landing one second before a join cutoff both succeed, with a full refund on the leave; both are rejected one second after it, and the cohort shows as `Locked` until it starts. A member in a running 21-day cohort is refused a lobby place in a cohort that starts before theirs ends.
+14. On the 7-day leaderboard, derived from on-chain state with no server contacted: a member with 4 cleared of 4 played (streak 4) ranks above one with 9 cleared of 10 played; a member with 3 of 3 ranks below 4 of 4 on the cohorts-played tie-break; a member with 2 of 2 is listed under "not ranked yet" needing 1 more cohort; a forfeit drops a member's current streak to 0 and their survival rate accordingly while their best streak is kept. A member whose cohort is still running or locked has it counted in neither figure. No leaderboard shows an SKR or fiat amount or anyone's daily streak, and scripted members are labelled.
+15. A member completes a 25-rep cohort day in three sittings of 10, 10 and 5, each starting with the environment checks and palm liveness; the day is recorded on-chain only after the fifth rep of the last sitting. A sitting stopped after 17 reps keeps 10 banked and discards 7. Killing the app mid-sitting keeps every banked block. A sitting started 8 minutes before the deadline is allowed, with a visible warning; if the deadline passes with 20 banked, the day is incomplete and the member is in breach.
