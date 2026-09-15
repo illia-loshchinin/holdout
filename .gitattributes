@@ -1,0 +1,7 @@
+# Store text with LF in the repository and let Git pick native endings on checkout.
+* text=auto
+
+# Scripts run by bash or python must stay LF on every platform. A CRLF line ending
+# breaks bash with "$'\r': command not found", which would break every Spec Kit command.
+*.sh text eol=lf
+*.py text eol=lf
