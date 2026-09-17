@@ -53,7 +53,8 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 |---|---|
 | No wallet | Connect wallet — no-wallet variant (ES-0), with "Watch a full cycle (3 min)" opening the walkthrough player |
 | Wallet without test SKR or fee SOL | Faucet sheet; used-today and can't-pay-out variants (ES-0a, ES-0b) |
-| No cohort, daily challenge available | Home — challenge variant (FR-053) |
+| Wallet just connected, first run | Tour — three cards, skippable, re-openable (FR-067) |
+| No Holdout running, Daily 25 available | Home — Daily 25 variant, with the Holdouts open to join and what is at stake in each (FR-053) |
 | Cohort `Open`, member not joined | Ladder → Stake confirm |
 | Membership `Pending` in `Open` cohort | Lobby (with leave) |
 | Membership `Pending` in `Locked` cohort | Lobby — locked variant (ES-12a) |
@@ -68,7 +69,7 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 | `Claimed` | Cohort detail — claimed |
 | Any running cohort | Roster (FR-062) |
 | **[Phase 2]** League leaderboard | Leaderboards screen (US-10) |
-| Walkthrough | Walkthrough player, or "recording in progress" (R18). The **only** screen reachable before a wallet is connected (FR-001a); it plays a bundled file, so it needs no network and no wallet |
+| Walkthrough | Walkthrough player, or "recording in progress" (R18), reached from **About / for judges** and from a quiet link on the connect screen. The **only** screen reachable before a wallet is connected (FR-001a); it plays a bundled file, so it needs no network and no wallet |
 
 `Withdrawn` returns the member to the ladder with a refund confirmation; the cohort-level `Settled` state is shown in cohort detail.
 

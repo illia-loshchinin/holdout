@@ -13,7 +13,8 @@ Companion to `specs/001-holdout-hackathon/spec.md` (FR-044, FR-066), research R1
 | Output | Format | Where it goes |
 |---|---|---|
 | **Demo video** | 16:9, 1080p, about 3:00 | The submission, due 9 October 08:59 CEST. Judges score completion from it (FR-066) |
-| **In-app walkthrough** | 9:16, 720×1280, ~1.5 Mbps, ≈ 34 MB | Bundled in the final APK, played with Media3 ExoPlayer. Reachable from the connect screen **without a wallet** (FR-001a) |
+| **In-app walkthrough — for judges** | 9:16, 720×1280, ~1.5 Mbps, ≈ 34 MB | Bundled in the final APK, played with Media3 ExoPlayer. Lives in About plus a quiet connect-screen link, and plays **without a wallet** (FR-001a, H29) |
+| **Short explainer** | 9:16, ≤ 45 s, cut from the same footage | Card 2 of the first-run tour (FR-067). Ships in the same 7 October video drop; until then the tour is cards only |
 
 Both are cut from the same footage. Until they exist, the app says "Walkthrough recording in progress".
 
@@ -27,7 +28,7 @@ Screen numbers are the PRD's screen inventory (§10.1).
 | 0:08–0:20 | **The number** | Home (4): "14 / 20 still standing", prize rising | Home screen, day 4 |
 | 0:20–0:32 | **Open it cold** | App icon tapped → Welcome (1) → Connect wallet (2), with a glimpse of the no-wallet variant → Disclosure (3) | Fresh install, any day |
 | 0:32–0:44 | **Funding from zero** | Get test tokens (3a): one tap, test SKR and fee SOL arrive | A brand-new wallet |
-| 0:44–0:56 | **The free tier** | Ladder (5): daily challenge as the primary action, streak, two staked leagues, Human Flag locked | 27 Sep |
+| 0:44–0:56 | **The free tier** | Ladder (5): Daily 25 as the primary action, streak, two staked leagues, Human Flag locked | 27 Sep |
 | 0:56–1:12 | **Stake** | Stake confirm (6): chips $10–$100 with their SKR amounts, "if nobody drops out you get exactly your stake back", wallet approval | 27 Sep |
 | 1:12–1:22 | **Lobby and lock** | Lobby (7) counting down → locked variant, roster final | 27 Sep, then 28 Sep 04:00–05:00 UTC |
 | 1:22–1:52 | **A day's reps** | Sitting (8) end to end: start card → four pre-flight checks → palm → countdown → counting, with one rep rejected → "20 banked" → day complete → submitted | The best sitting, 28 Sep – 4 Oct |
@@ -58,7 +59,7 @@ Every Phase 1 screen appears at least once. Tick each one before the edit is loc
 | 10 Claim, and claimed | 2:16–2:36 |
 | 11 Cohort detail | 2:00 |
 | 12 Roster with labels | 1:56 |
-| Daily challenge and streak | 0:44 |
+| Daily 25 and streak | 0:44 |
 
 Screen 13 is the walkthrough player itself and is not filmed.
 
@@ -109,7 +110,7 @@ Keep it in this file or beside the footage; the README's "how to verify" section
 1. **Nothing shortened.** No rehearsal-deployment or compressed-day footage, in either export (FR-044).
 2. **Nothing re-enacted as if real.** Every on-chain moment on screen is a real transaction, and its signature is in the shot log.
 3. **Disclosure in the video itself:** devnet and test SKR, and that judging-period cohorts include labelled scripted members (constitution XI, XII; FR-066).
-4. **Wording** (constitution XIII): "prize", never "winnings", "returns", "yield" or "earnings"; never "bet", "wager", "odds". The app's word for taking the payout is **claim** — captions say claim, not withdrawal, because "withdrawn" means leaving a lobby before it starts.
+4. **Wording** (constitution XIII, H28): "prize", never "winnings", "returns", "yield" or "earnings"; never "bet", "wager", "odds". The app's word for taking the payout is **claim** — captions say claim, not withdrawal, because "withdrawn" means leaving a lobby before it starts. Captions use the members' names too: **the Daily 25** and **a Holdout**, and a lobby's money is **at stake**, never a prize.
 5. **Fiat is approximate.** Chips shown as "≈ $25".
 6. **Faces:** nobody appears without written consent (§9).
 

@@ -1,8 +1,10 @@
 # Holdout — demo scope cut and state machines
 
-**Version:** 1.6 · **Date:** 2026-09-15 · **Status:** D-A … D-I decided; §1, §3 and §4 synced to `specs/001-holdout-hackathon/spec.md`
+**Version:** 1.7 · **Date:** 2026-09-17 · **Status:** D-A … D-I decided; §1, §3 and §4 synced to `specs/001-holdout-hackathon/spec.md`
 
-> **Precedence.** The constitution (`.specify/memory/constitution.md`, v1.2.0) and the spec override this file; `holdout_decisions.md` (H1–H23) records why. Where this file and the spec disagree, the spec is right and this file is a bug. Decision IDs D1–D16 and O1–O12 cited below refer to the archived record at `docs/archive/holdout_decisions_pre-hackathon-spec_2026-09-15.md`.
+**Changed in 1.7 (17 Sept):** members' names adopted — **the Daily 25** and **a Holdout** (H28, spec §1a), with on-chain names unchanged · **first-run tour** added as F12 (FR-067) and the full-cycle walkthrough becomes judge-facing (H29) · guest mode proposed and dropped, so F10 wallet-first stands.
+
+> **Precedence.** The constitution (`.specify/memory/constitution.md`, v1.3.0) and the spec override this file; `holdout_decisions.md` (H1–H29) records why. Where this file and the spec disagree, the spec is right and this file is a bug. Decision IDs D1–D16 and O1–O12 cited below refer to the archived record at `docs/archive/holdout_decisions_pre-hackathon-spec_2026-09-15.md`.
 
 **Changed in 1.6 (phasing, 15 Sept — spec §3a, H23):** four items are **Phase 2** — league leaderboards (F9), weekly chip re-pricing (S10), delivery of a held carry-over (§3.1), automatic offline submission (§3.3) — built only after the Phase 1 core works end to end and only before the 28 September freeze. Each has a Phase 1 stand-in, and the data Phase 2 needs is still recorded in Phase 1.
 
@@ -21,8 +23,8 @@
 | Companion file | Holds |
 |---|---|
 | `specs/001-holdout-hackathon/spec.md` | What the hackathon build does. Authoritative over this file. |
-| `holdout_decisions.md` | Why the build is what it is (H1–H23). Read before changing anything here. |
-| `holdout_v1_prd.md` | Product requirements for the hackathon build (v2.2): screens, copy, verification rules, settlement vectors. |
+| `holdout_decisions.md` | Why the build is what it is (H1–H29). Read before changing anything here. |
+| `holdout_v1_prd.md` | Product requirements for the hackathon build (v2.6): screens, copy, verification rules, settlement vectors. |
 | `archive/holdout_v1_prd_full-vision_2026-09-15.md` | The original full-vision PRD. **Bare §-references below (§5.3, §8.6, §9.3 Op6 …) point into this archive**, not into the current PRD. |
 | This file | Demo scope, state machines, blocking decisions, edge transitions the PRD does not cover. |
 
@@ -61,9 +63,10 @@ The rule: **a feature earns its place only if it appears in the video or is load
 | F5 | League ladder screen | One screen, establishes the progression story |
 | F6 | `join_cohort` / `leave_cohort` / `submit_session` / `tick_cohort` / `settle_cohort` / `claim_payout` on devnet, **SKR end to end** | The full money loop, honestly on-chain, with no swap and no oracle in it |
 | F7 | Seed Vault signing + MWA | The $10K Solana Mobile Stack prize depends on this being real |
-| F8 | Daily challenge + daily streak (off-chain, cosmetic, survives a forfeit) | The free habit loop anyone can run on day one (D-I, H2, H4) |
+| F8 | The Daily 25 + daily streak (off-chain, cosmetic, survives a forfeit) | The free habit loop anyone can run on day one (D-I, H2, H4) |
 | F9 | **Phase 1:** cohort roster, and per-league progress recorded on-chain. **[Phase 2]** League leaderboards ranked by survival rate (min. 3 cohorts played), with cohorts played and league streak | Shows who is disciplined, from on-chain progress only (H17, H23) |
-| F10 | Wallet-first onboarding: connect a wallet before anything else, with a no-wallet explanation screen | Every surface keyed to a wallet from the first tap (H21) |
+| F10 | Wallet-first onboarding: connect a wallet before anything else, with a no-wallet explanation screen | Every surface keyed to a wallet from the first tap (H21). Guest mode was proposed and dropped, 2026-09-17 (H29) |
+| F12 | First-run tour: three cards after the wallet connects — the Daily 25, what a Holdout is, how reps are counted — skippable and re-openable; a short explainer video joins it once cohort #3 is filmed | A first-timer learns the rules in seconds; the 3-minute walkthrough becomes judge-facing (H28, H29, spec FR-067) |
 | F11 | In-app faucet: test SKR for the top chip plus fee SOL for a 21-day cycle, once per wallet per day, pre-funded, no server | A judge with an empty wallet can stake in one tap; no public faucet on the critical path (H22) |
 
 ### 1.2 Faked, seeded, or stubbed
@@ -201,7 +204,7 @@ This is the one place where cutting a corner has real consequences, so it gets d
 
 | Layer | What it is |
 |---|---|
-| **The daily challenge** | 25 reps, every day, free, for everyone. No cohort, no stake, no prize. Builds a streak. |
+| **The Daily 25** | 25 reps, every day, free, for everyone. No cohort, no stake, no prize. Builds a streak. |
 | **7-day league** | Staked. The entry rung and the comeback lane. Clearing it unlocks the 21-day. |
 | **21-day league** | Staked. Where the money is. |
 | Human Flag | Locked third rung in the UI only. |
@@ -220,7 +223,7 @@ This is the one place where cutting a corner has real consequences, so it gets d
 
 **It also fixes E14.** A staked 7-day cohort can start Monday 28 September 05:00 UTC and end Monday 5 October 05:00 UTC — inside the submission window. The full money loop, including the claim, can be filmed happening for real, which is what compressed time (D-A) was going to have to fake. D-A stays for testing and as a fallback, not as the demo's centrepiece.
 
-**What was given up:** the free qualifying route. Previously a free week earned the unlock (D2); now every route into the ladder is paid. Two notes on that. The "does this even work for my body, my camera, my room" objection is still answered for free by the daily challenge, which is the same session — so the conversion cliff is narrower than it looks. But the free-entry lane was also what made the product legal in jurisdictions where paid entry is not, and that argument is now gone; a launch-time concern, not a hackathon one.
+**What was given up:** the free qualifying route. Previously a free week earned the unlock (D2); now every route into the ladder is paid. Two notes on that. The "does this even work for my body, my camera, my room" objection is still answered for free by the Daily 25, which is the same session — so the conversion cliff is narrower than it looks. But the free-entry lane was also what made the product legal in jurisdictions where paid entry is not, and that argument is now gone; a launch-time concern, not a hackathon one.
 
 
 ---
@@ -330,7 +333,7 @@ stateDiagram-v2
 | A wallet is connected before any sitting | spec FR-001a | Banked progress and the daily streak are keyed to the connected wallet on this device |
 | Banked progress on the device only; nothing on-chain before `Completed` | spec FR-024a, ES-3a | A lost or wiped phone loses the day's banked reps |
 | One completed day per `day_index` | spec FR-025 | Contract-side idempotency; the client must also disable the CTA |
-| Reps come from `Cohort.reps_per_day` | spec FR-014 | **Never a constant.** A running cohort's bar cannot move. The daily challenge is always 25. |
+| Reps come from `Cohort.reps_per_day` | spec FR-014 | **Never a constant.** A running cohort's bar cannot move. The Daily 25 is always 25. |
 
 ### 3.4 Invariants
 
@@ -388,7 +391,7 @@ Found by drawing the machines. Each needed a decision before the code that touch
 2. **Spikes, 2–3 days, in parallel with nothing else.** Seed Vault signing on the real Seeker · MediaPipe rep counting against ten real videos, including deliberate cheating · Anchor localnet with manipulated clock and a `day_seconds = 60` cohort surviving a full cycle.
 3. **IDL-level contract spec.** PDA seeds, account layouts, instruction signatures, signer per instruction, error codes. Two to three pages, derived directly from §3 above. This is the artefact that becomes `lib.rs`.
 4. **Appendix A test vectors → Anchor test suite.** They are already written as vectors; convert them before the business logic exists, together with spec INV-1…INV-8 (§3.4).
-5. **Mocks for twelve screens, not thirty** — connect wallet (with no-wallet variant), faucet, home/cohort (with waiting-for-network variant), daily challenge, ladder, stake confirm, lobby (open and locked), sitting (pre-flight, palm timeout, offline warning, counting with banked blocks, stopped part-way, complete), claim, leaderboard and cohort roster, recorded walkthrough. Every state in §3.1, §3.2 and §3.3 must have a screen or be provably unreachable (constitution IX).
+5. **Mocks for twelve screens, not thirty** — connect wallet (with no-wallet variant), faucet, home/cohort (with waiting-for-network variant), Daily 25, ladder, stake confirm, lobby (open and locked), sitting (pre-flight, palm timeout, offline warning, counting with banked blocks, stopped part-way, complete), claim, leaderboard and cohort roster, recorded walkthrough. Every state in §3.1, §3.2 and §3.3 must have a screen or be provably unreachable (constitution IX).
 6. **NFR one-pager** — only budgets that change the architecture: inference FPS and battery over a three-minute sitting, cold start, RPC rate limits for reading 1,000-member rosters and leaderboards, the keeper's retry policy and page size, the settlement window, camera-frame privacy.
 
 ---

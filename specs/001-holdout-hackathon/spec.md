@@ -22,6 +22,18 @@ A fitness commitment contract. A member stakes on themselves to complete a daily
 
 ---
 
+## 1a. What members call things
+
+| Members read | The system stores | Notes |
+|---|---|---|
+| **The Daily 25** | no record on-chain; a device-local streak | The free tier: 25 push-ups, any day, alone, nothing staked (FR-048) |
+| **A Holdout** — "a 7-day Holdout", "a 21-day Holdout" | `Cohort`, in one of the two leagues | A staked run. "189 still standing in this Holdout" |
+| **Still standing** | memberships not in breach | Never "survivors left alive" or similar |
+| **At stake** | the sum of held stakes in a cohort | What a lobby shows. It is **not** a prize |
+| **Prize pool** | `Cohort.pool` | Only a running Holdout has one, because only forfeits create it (FR-041) |
+
+On-chain and technical names — `Cohort`, `LeagueConfig`, cohort index — are unchanged, so the data model, contracts and automation keep their vocabulary. This table is the mapping between the two.
+
 ## Clarifications
 
 ### Session 2026-09-15
@@ -52,6 +64,10 @@ A fitness commitment contract. A member stakes on themselves to complete a daily
 - Q: Once the judged program is deployed on devnet, may it still be upgraded to fix bugs while cohorts hold stakes, or should it be locked? → A: Upgradeable through judging, to fix defects only. An upgrade never changes the rules, parameters or stored layout of any existing cohort, membership or progress record, and the upgrade authority is named in the README as a known weakness.
 - Q: Must the hackathon build be published on the Solana dApp Store for real users? → A: No — the CLOCK IN rules do not require it by the submission deadline. The product launches as is on devnet and reaches judges as a signed APK with the submission. If it wins, it must be published on the dApp Store within 30 calendar days of the winners' announcement; that listing, and any mainnet launch, are post-hackathon work. *(Revised in-session once the official rules were read.)*
 - Q: How long must the devnet build keep running — live cohorts, the faucet and the scheduler? (FR-042a, FR-043) → A: Per the CLOCK IN rules, judging runs 10 October – 9 November 2026 and winners are announced on 10–11 November 2026 (the rules page gives both dates). The build stays live, with no manual intervention, from submission through **11 November 2026**.
+- Q: What do members call the free tier and a staked run? → A: **The Daily 25** and **a Holdout** (a 7-day Holdout, a 21-day Holdout). On-chain names stay as they are; §1a maps the two vocabularies.
+- Q: How does a first-timer learn what the app is? → A: A **three-card tour** right after the wallet connects — the Daily 25, what a Holdout is, and how reps are counted — skippable and re-openable later (FR-067). A short explainer video joins it once cohort #3 has been filmed.
+- Q: Who is the recorded full-cycle walkthrough for, now that first-timers have a tour? → A: **Judges.** It stays in the app as FR-044 requires, reachable from an About section and from a quiet link on the connect screen — the judge who cannot connect a devnet wallet — but it is not a member-facing feature.
+- Q: Should someone be able to use the app as a guest, doing the Daily 25 and watching Holdouts without a wallet? → A: No. Considered and dropped in this session; **connecting a wallet stays the first step** (FR-001a, H21 unchanged).
 - Q: With real beta testers available, are scripted members still needed to populate judging-period cohorts? (FR-043) → A: Real members come first; scripted wallets only top a cohort up to a minimum — **20 members for a 7-day cohort, 12 for a 21-day one** — so they fill gaps instead of forming the crowd. Once the minimum is reached, no further scripted wallet joins.
 - Q: Can the recorded walkthrough be watched before a wallet is connected? (FR-001a, FR-044) → A: Yes, and it is the only thing that can. The connect screen offers it, so a judge without a devnet wallet still sees the whole product; everything else still requires a wallet. The walkthrough runs the whole flow, from launching the app to the claim.
 - Q: What must the hackathon submission contain? → A: Per the CLOCK IN rules, before 9 October 2026 08:59 CEST: a functional Android APK that runs on a real device, a GitHub repository someone else can clone and run, a demo video of about three minutes, and a pitch deck. Judges score completion from the demo video and technical depth from the commit history; false or misleading submission materials disqualify, so scripted members and the test network are disclosed in the video and deck as well as in the app and README.
@@ -64,7 +80,7 @@ A fitness commitment contract. A member stakes on themselves to complete a daily
 |---|---|
 | Exercise | Push-ups only |
 | Leagues | **Staked 7-day** (25 reps/day) → **staked 21-day** (25 reps/day) |
-| Free tier | **The daily challenge** — 25 reps, offered every day to everyone, no cohort, no stake, no prize. Builds a streak and nothing else. This is the habit product; the leagues sit on top of it. |
+| Free tier | **The Daily 25** — 25 reps, offered every day to everyone, no cohort, no stake, no prize. Builds a streak and nothing else. This is the habit product; the leagues sit on top of it. |
 | Progression | Clearing the staked 7-day league permanently unlocks the 21-day league. The 7-day league never closes — it is also the comeback path after a forfeit. |
 | Gating | **Off for the hackathon.** Both leagues are joinable from first launch. The unlock is still computed and recorded; only the check is disabled, by config flag. |
 | Asset | SKR, and only SKR — stakes, pool, payouts, fee |
@@ -82,7 +98,7 @@ Human Flag league (locked rung in the UI only) · **free cohorts of any league**
 
 ## 3a. Phasing
 
-**Phase 1 — core.** Everything in this spec not listed below. It is the full money loop and the daily habit: wallet first, faucet, lobby with lock and lobby place, sittings with banked reps (including offline sittings with a manual submit), completed days, forfeits, settlement with rounding and carry-over into an open cohort, claim, the survivor counter and roster, the daily challenge and streak, scripted cohorts and the recorded walkthrough. **Phase 1 must work end to end on devnet before any Phase 2 work begins.**
+**Phase 1 — core.** Everything in this spec not listed below. It is the full money loop and the daily habit: wallet first, faucet, lobby with lock and lobby place, sittings with banked reps (including offline sittings with a manual submit), completed days, forfeits, settlement with rounding and carry-over into an open cohort, claim, the survivor counter and roster, the Daily 25 and streak, scripted cohorts and the recorded walkthrough. **Phase 1 must work end to end on devnet before any Phase 2 work begins.**
 
 **Phase 2 — deferred.** Built only after Phase 1 is complete, and only if it can be finished **before the 28 September feature freeze**. Any Phase 2 item not finished by then is cut from the hackathon build and recorded in `docs/holdout_decisions.md`; nothing lands after the freeze.
 
@@ -114,7 +130,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 **Given** a person has installed the app and has a wallet
 **When** they open it for the first time
-**Then** they connect their wallet before anything else is available (FR-001a), then see the league ladder with both staked leagues open (the 21-day league's requirement stated plainly, but not enforced in this build — FR-003) and Human Flag as a locked rung, and can start today's daily challenge in one tap.
+**Then** they connect their wallet before anything else is available (FR-001a), are walked through the three-card tour (FR-067), and then see the ladder with both Holdout lengths open (the 21-day league's requirement stated plainly, but not enforced in this build — FR-003) and Human Flag as a locked rung, and can start today's Daily 25 in one tap.
 
 ### US-2 · Joining from the lobby
 
@@ -140,7 +156,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 **Given** a member has not completed today's reps
 **When** the day's deadline passes
-**Then** their stake is forfeited, 20% is taken as fee and the remainder is added to that cohort's prize pool, their league progress resets, and they are told what happened and offered today's daily challenge and the next 7-day cohort as the way back. Their daily streak is untouched (FR-052).
+**Then** their stake is forfeited, 20% is taken as fee and the remainder is added to that cohort's prize pool, their league progress resets, and they are told what happened and offered today's Daily 25 and the next 7-day cohort as the way back. Their daily streak is untouched (FR-052).
 
 **And** they cannot submit any further completed day for that cohort, whether or not the Scheduler has run yet.
 
@@ -152,7 +168,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 **Note for this build:** the unlock is recorded but not enforced; both leagues are open to everyone from first launch (FR-003).
 
-### US-5a · The daily challenge
+### US-5a · The Daily 25
 
 **Given** any member with a connected wallet, on any day — in a cohort or not, staking or not
 **When** they open it
@@ -186,7 +202,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 **Given** a person installs the app on any day during judging (10 October – 9 November 2026) with no prior state
 **When** they open it and connect a wallet
-**Then** there is a real-time cohort running with members visibly thinning, today's daily challenge is available to do immediately, and a recorded walkthrough inside the app shows a full cycle — join, session, forfeit, settle, claim — end to end without waiting days.
+**Then** there is a real-time cohort running with members visibly thinning, today's Daily 25 is available to do immediately, and a recorded walkthrough inside the app shows a full cycle — join, session, forfeit, settle, claim — end to end without waiting days.
 
 **And** the app, the README, the demo video and the pitch deck state plainly that the members of judging-period cohorts are scripted (constitution XI, FR-066).
 
@@ -211,9 +227,9 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 | ES-1 | App crashes mid-sitting | Every banked block of 10 survives; reps since the last banked block are lost; the member continues from the banked total |
 | ES-2 | Member stops part-way through the day | Banked blocks are kept until the day's deadline; the member may return any number of times; reps short of the next block of 10 in the ended sitting are not kept. There is no pause limit |
 | ES-3 | Day's deadline passes mid-sitting, or with reps still missing | The day is not completed and banked reps for it no longer count; in a cohort the member is in breach. In the last 10 minutes the app warns before and during a sitting, but never refuses to start one |
-| ES-0 | A person without a wallet opens the app | They are told a wallet is required and how to get one, and offered the recorded walkthrough, which plays without one; nothing else — daily challenge included — is usable until a wallet is connected (FR-001a, FR-044) |
+| ES-0 | A person without a wallet opens the app | They are told a wallet is required and how to get one, and offered the recorded walkthrough, which plays without one; nothing else — Daily 25 included — is usable until a wallet is connected (FR-001a, FR-044) |
 | ES-0a | A member with no test SKR or no fee SOL tries to stake, submit a completed day or claim | The app offers the faucet in place (FR-042a); if they have already used it today, it says when it is next available |
-| ES-0b | The faucet cannot pay out | The app says so plainly, without blaming the member; the daily challenge and browsing remain available, and any transaction already signed is unaffected |
+| ES-0b | The faucet cannot pay out | The app says so plainly, without blaming the member; the Daily 25 and browsing remain available, and any transaction already signed is unaffected |
 | ES-3b | Member completes a cohort day with no connection | The app warns that the day counts only once it reaches the network before the deadline and shows the time left; it submits once a connection returns — by a single tap in Phase 1, automatically **[Phase 2]**. If it lands before the deadline the day counts; if not, the member is in breach exactly as if they had not finished (FR-024b) |
 | ES-3a | Member's phone is lost, wiped or replaced mid-day | That day's banked progress is lost with the device; they can still complete the day from zero on another device before the deadline |
 | ES-4 | A member in breach tries to submit | Rejected, regardless of whether the Scheduler has run |
@@ -230,7 +246,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 | ES-12a | A member opens a cohort during its locked hour | They see that joining has closed, the final roster count and the countdown to the start; no join or leave action is offered |
 | ES-13 | A member finishes day 7 and holds a lobby place in the cohort starting at that same instant | Their day-7 completion must land before the instant; at the instant the old cohort stops accepting completed days and the new one's day 1 begins, with a fresh count of banked reps. The old payout is claimable once it settles, independently of the new cohort |
 | ES-14 | A member forfeits their running cohort while holding a lobby place | The lobby place is untouched; it starts as normal unless the member leaves it |
-| ES-15 | The automated opening of a league's next cohort runs late | The league has no open lobby until it runs; the next cohort's start instant is still the scheduled Monday, and the daily challenge remains available (FR-053) |
+| ES-15 | The automated opening of a league's next cohort runs late | The league has no open lobby until it runs; the next cohort's start instant is still the scheduled Monday, and the Daily 25 remains available (FR-053) |
 | ES-16 | A contract defect is found while cohorts hold stakes | The fix is deployed to the same contract (FR-007b). Every existing cohort keeps its start, deadlines, chip set, members, stakes, completed days and pool; no member has to rejoin or resubmit |
 
 ---
@@ -240,12 +256,12 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 ### Access and progression
 
 - **FR-001** A member is identified by their wallet.
-- **FR-001a** Connecting a wallet is the first step in the app and is required before anything else is usable — the daily challenge, the streak, cohorts, rosters and leaderboards included. The **one exception is the recorded walkthrough** (FR-044), which plays from the connect screen without a wallet, so that a person who cannot connect one still sees the whole product. A person without a wallet is told plainly that one is needed and how to get one. The daily streak is kept on the device for the connected wallet.
+- **FR-001a** Connecting a wallet is the first step in the app and is required before anything else is usable — the Daily 25, the streak, cohorts, rosters and leaderboards included. The **one exception is the recorded walkthrough** (FR-044), which plays from the connect screen without a wallet, so that a person who cannot connect one still sees the whole product. A person without a wallet is told plainly that one is needed and how to get one. The daily streak is kept on the device for the connected wallet.
 - **FR-002** The 7-day league is joinable by anyone with a wallet and a stake. It is the entry point and it never closes — a member may enter it again after clearing it and after forfeiting it.
 - **FR-003** The 21-day league is gated on having cleared a 7-day cohort. **The gate is disabled for the hackathon build** (`ladder_gate_enabled = false`): both leagues are joinable from first launch so that anyone — a judge included — reaches the interesting league without first spending a week.
 - **FR-003a** The unlock is still computed and recorded on every 7-day clear even while the gate is off, so enabling it later is a one-flag change and never a migration.
 - **FR-004** The unlock is permanent and is never revoked, including after a forfeit.
-- **FR-005** Daily challenge days completed outside a cohort grant no unlock, no prize and no league progress — only the streak.
+- **FR-005** Daily 25 days completed outside a cohort grant no unlock, no prize and no league progress — only the streak.
 - **FR-006** A member may be in at most one running cohort at a time.
 - **FR-006a** A member may additionally hold at most one lobby place (a `Pending` membership) at any time, including while in a running cohort, in either league. The lobby place is independent of the running cohort: finishing or forfeiting it changes nothing about the lobby place, which the member can still leave for a full refund until that cohort's join cutoff.
 - **FR-006b** A lobby place is accepted only in a cohort that starts no earlier than the final deadline of the member's running cohort, so a member never carries two daily obligations at once. A 7-day member can hold a place in the cohort starting the instant theirs ends; a 21-day member cannot hold a place in a cohort starting while theirs still runs.
@@ -287,7 +303,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 - **FR-023** Banked progress survives an app crash or restart.
 - **FR-024** Verified reps are **banked in blocks of 10**. A day's reps may be spread across any number of sittings before its deadline; banked blocks carry across sittings for that day only. The day is complete the moment the banked total plus the current sitting's verified reps reach the day's requirement, so the final block may be smaller than 10 (10 + 10 + 5). When a sitting ends for any reason, reps short of the next block of 10 are discarded. There is no pause limit.
 - **FR-024a** Banked progress is kept **on the device only**. Nothing is written on-chain until the day is complete; a lost or wiped device loses that day's unfinished progress (ES-3a).
-- **FR-024b** Sittings work **without a connection**: reps are verified and blocks bank offline. A completed cohort day counts only once its submission lands on-chain before the deadline, judged by chain time (FR-017). Before a cohort sitting starts offline, and again when a day completes offline, the app warns plainly that the day will not count unless it reaches the network before the deadline, with the time left. A completed day waiting to be submitted is kept on the device and the member never redoes any reps. *Phase 1:* once the app is online again the home screen shows "Done — tap to submit" and a single tap submits it. **[Phase 2]** It is submitted automatically as soon as the app has a connection, with "Done — waiting for network" shown until it lands. Nothing on the device can extend or override a deadline. A daily-challenge day needs no connection at all.
+- **FR-024b** Sittings work **without a connection**: reps are verified and blocks bank offline. A completed cohort day counts only once its submission lands on-chain before the deadline, judged by chain time (FR-017). Before a cohort sitting starts offline, and again when a day completes offline, the app warns plainly that the day will not count unless it reaches the network before the deadline, with the time left. A completed day waiting to be submitted is kept on the device and the member never redoes any reps. *Phase 1:* once the app is online again the home screen shows "Done — tap to submit" and a single tap submits it. **[Phase 2]** It is submitted automatically as soon as the app has a connection, with "Done — waiting for network" shown until it lands. Nothing on the device can extend or override a deadline. A Daily 25 day needs no connection at all.
 - **FR-025** At most one completed day is recorded per member per day.
 
 ### Forfeiture
@@ -320,14 +336,15 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 - **FR-042** The app states that it runs on a test network with a test token.
 - **FR-042a** The app has an in-app **faucet**: one tap gives the connected wallet enough test SKR to stake the top chip ($100 tier) of any open cohort, plus enough devnet SOL to pay the transaction fees of a full 21-day cohort cycle — join, every completed day, and claim. Each wallet may use it **once per day** (day boundary 05:00 UTC). No server is involved: the faucet is funded in advance for the whole live period — through the winners' announcement on 11 November 2026 — and needs no manual top-up. It is offered wherever a member lacks test SKR or fee SOL, and the test tokens it gives have no value.
 
-### The daily challenge and the streak
+### The Daily 25 and the streak
 
-- **FR-048** The app offers a daily challenge every day to every member — 25 reps, same exercise, same verification — with no stake, no cohort and no entry condition beyond a connected wallet (FR-001a).
-- **FR-049** Completing the daily challenge extends the member's streak by one. A day passing with no completed day of any kind — challenge or cohort — breaks it; banked reps short of 25 do not keep it alive.
+- **FR-048** The app offers **the Daily 25** every day to every member — 25 reps, same exercise, same verification — with no stake, no Holdout and no entry condition beyond a connected wallet (FR-001a). It is named and presented as free.
+- **FR-049** Completing the Daily 25 extends the member's streak by one. A day passing with no completed day of any kind — challenge or cohort — breaks it; banked reps short of 25 do not keep it alive.
 - **FR-050** A completed cohort day counts as that day's challenge. A member never trains twice in one day to hold both a cohort and a streak.
 - **FR-051** The streak is cosmetic and personal. It unlocks nothing, gates nothing, appears on no leaderboard, and nothing is ever paid against it — which is why it needs no on-chain record and no economic anti-cheat.
 - **FR-052** A forfeit does not break the streak. Losing a stake and losing a habit are different failures and the app must not conflate them.
-- **FR-053** With no cohort running, the daily challenge is the home screen's primary action. The app is never empty and never says "come back Monday".
+- **FR-053** With no Holdout running, the Daily 25 is the home screen's primary action, and the Holdouts open to join are listed under it — each showing how many have joined, **what is at stake in it**, any carry-over it has already received, and how long joining stays open. The app is never empty and never says "come back Monday".
+- **FR-067** A member who has just connected a wallet for the first time is shown a **three-card tour**: the Daily 25, what a Holdout is (stake, miss a day and it goes to the people still standing, finish and share), and how reps are counted (camera on the device, blocks of 10). It can be skipped at any card and re-opened later from the app. A short explainer video joins the tour once it exists; until then the cards carry it alone, and no mock-up footage is ever used (FR-044).
 
 ### Leaderboards
 
@@ -353,7 +370,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 - **FR-043** At any moment from submission (9 October 2026) through the winners' announcement (11 November 2026), a member installing the app finds at least one real-time cohort running and visibly populated, with no manual intervention for that whole period. Cohorts open on the weekly schedule (FR-007a) and are filled **by real members first**: scripted members join only until a cohort reaches its league's minimum — **20 members for a 7-day cohort, 12 for a 21-day one** — and their forfeits are spread across the cohort so the survivor count visibly falls. The scripted membership is disclosed in the app, the README, the demo video and the pitch deck (FR-066).
 - **FR-043a** Scripted members are **ordinary wallets run by automation**, with no special treatment anywhere in the contract. Each joins with a real test-SKR stake on a normal chip, submits completed days through the same path as any member, and forfeits or finishes on a planned schedule. Their forfeits fund the prize pool real members win, and a scripted finisher takes its proportional share like anyone else. Every figure on screen therefore stays backed by on-chain state (FR-038a, FR-065). Their completed days are not camera-verified — this is named in the README as part of the client-signed trust gap (constitution XI). The set of scripted wallet addresses is public and fixed in the build, so labels (FR-064) need no server and anyone can check them. How many join is decided by the cohort's own membership: scripted wallets stop joining once the minimum of FR-043 is reached, and a scripted member already in a cohort never leaves to make room for a real one.
-- **FR-044** A full cycle — join, daily sessions, forfeiture, settlement, claim — can be watched without waiting days, as a recorded walkthrough available inside the app. The walkthrough is a recording of the real app against the judged devnet contract, taken from the **first judged 7-day cohort** (starts Monday 28 September 05:00 UTC, settles Monday 5 October 05:00 UTC). It runs the **whole flow in order — launching the app, connecting a wallet, the faucet, the ladder, staking, the lobby, a sitting, a completed day, the crowd thinning, a forfeit, settlement and the claim** — and shows that cohort's real settlement and a real claim. It plays from the connect screen without a wallet (FR-001a). It is never a mock-up and never recorded from a shortened-day cohort. The recording is added to the build submitted before 9 October — adding it is filming, not a feature change after the freeze; until it exists, the walkthrough screen says the recording is in progress. The same footage may serve as, or be cut from, the submission demo video (FR-066). There is no compressed or simulated cohort for judges.
+- **FR-044** A full cycle — join, daily sessions, forfeiture, settlement, claim — can be watched without waiting days, as a recorded walkthrough available inside the app. The walkthrough is a recording of the real app against the judged devnet contract, taken from the **first judged 7-day cohort** (starts Monday 28 September 05:00 UTC, settles Monday 5 October 05:00 UTC). It runs the **whole flow in order — launching the app, connecting a wallet, the faucet, the ladder, staking, the lobby, a sitting, a completed day, the crowd thinning, a forfeit, settlement and the claim** — and shows that cohort's real settlement and a real claim. It plays from the connect screen without a wallet (FR-001a). Its audience is **judges**, not members: members meet the product through the first-run tour (FR-067), so the walkthrough lives in an About section and behind a quiet link on the connect screen — the judge whose wallet cannot sign on devnet — and is never a member-facing call to action. It is never a mock-up and never recorded from a shortened-day cohort. The recording is added to the build submitted before 9 October — adding it is filming, not a feature change after the freeze; until it exists, the walkthrough screen says the recording is in progress. The same footage may serve as, or be cut from, the submission demo video (FR-066). There is no compressed or simulated cohort for judges.
 - **FR-066** The hackathon submission is made before **9 October 2026 08:59 CEST** — no late entries — and contains: a functional Android APK that installs and runs on a real device (not only a simulator); a GitHub repository with the full source that someone else can clone, build and run by following the README; a demo video of about **three minutes** showing the full cycle from the real app on devnet; and a pitch deck. Judges score completion from the demo video and technical depth from the repository's commit history. The submitted APK is assumed to be the build judges install, so app fixes after the deadline are not assumed to reach them; contract fixes can (FR-007b). Every submission material is accurate — scripted members, the test network and test token, and every weakness named in the README are never hidden in the video or deck — because false or misleading materials disqualify the entry.
 
 ---
@@ -362,12 +379,12 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 | Entity | Holds | Notes |
 |---|---|---|
-| **League** | Duration, daily reps, its unlock requirement | Two exist, both staked. The daily challenge is not a league. |
+| **League** | Duration, daily reps, its unlock requirement | Two exist, both staked. The Daily 25 is not a league. |
 | **Cohort** | Its league, start, join cutoff (1 hour before start — joining and leaving both close), duration, daily reps, day length, its locked chip set (four SKR amounts), status, member count, prize pool, carry-over received, and — written once at settlement — finisher count, total finisher stake, the rounding remainder sent to the fee destination, and for a no-finisher cohort the fee taken, the carry-over sent and where it went (or that it is still held) | Parameters immutable after creation (FR-007) |
 | **Chip set** | The four USD tiers, the SKR amount for each, the rate it was priced at, and the boundary from which it applies | One current set shared by both leagues; replaced by the Operator only when the weekly check finds drift over 20% (FR-056). Each cohort keeps a copy of the set current at its creation. |
 | **Membership** | The member, the cohort, the SKR stake held, the chip tier chosen, days completed, status | The stake here is never pool money, and its SKR amount never changes after join (FR-058) |
 | **Progress** | Whether the member has qualified, and per league: cohorts cleared, cohorts forfeited, current league streak, longest league streak, and when these figures last changed | Qualification is permanent. Recorded from Phase 1 even though league leaderboards (FR-060) are Phase 2 — so they need no migration. The daily streak is separate, off-chain, and not part of this entity. |
-| **Day progress** | Day index, banked reps (whole blocks of 10), verified reps in the current sitting, whether the day is complete | On the device only (FR-024a); a completed cohort day is recorded on-chain, a daily-challenge day never is |
+| **Day progress** | Day index, banked reps (whole blocks of 10), verified reps in the current sitting, whether the day is complete | On the device only (FR-024a); a completed cohort day is recorded on-chain, a Daily 25 day never is |
 | **Sitting** | One continuous run of checks, liveness and counting | Any number per day; each one re-verifies (FR-019, FR-020) |
 
 ---
@@ -419,7 +436,7 @@ A sitting: `Idle` → `Preflight` → `Liveness` → `Countdown` → `Counting`,
 | within `Counting` | every 10th verified rep of the day | a block of 10 is banked on the device |
 | `Counting → Idle` | sitting ends — member stops, app closes or crashes | reps short of the next block of 10 are discarded; banked blocks kept for the day |
 | `Counting → Completed` | banked + current verified reps reach the day's requirement | the day is done |
-| `Completed → Submitted` | the completed cohort day is confirmed on-chain | day counter advances; a daily-challenge day is recorded on the device instead |
+| `Completed → Submitted` | the completed cohort day is confirmed on-chain | day counter advances; a Daily 25 day is recorded on the device instead |
 
 Sittings may repeat without limit until the day's deadline, at which point that day's banked progress stops counting.
 

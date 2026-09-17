@@ -505,6 +505,32 @@ A fix that would need any of those is not deployed. The authority is named in th
 
 **Source:** PRD §11 (v2.5) and the §10.1a mocks; `specs/001-holdout-hackathon/contracts/android-app.md` §3a; constitution XIII (honest language is unaffected by the palette).
 
+### H28. The names members read: the Daily 25 and a Holdout
+
+**Decided (2026-09-17):** the free tier is **the Daily 25** and a staked run is **a Holdout** — "join a 7-day Holdout", "189 still standing in this Holdout". The product name becomes the unit of play.
+
+**On-chain and technical names do not change:** `Cohort`, `LeagueConfig` and cohort indexes stay, so the data model, contracts, crank and tests do not churn days before the freeze. Spec §1a maps the two vocabularies, and the PRD glossary repeats it.
+
+**Money wording that comes with it:** a lobby shows what is **at stake**; only a running Holdout has a **prize pool**, because only forfeits create one. The stake-confirm line stays as it is (FR-041).
+
+**Why:** "daily challenge" and "7-day league / cohort" never told anyone which one was free and solo and which one was staked and shared — the first screens read as one undifferentiated thing. Naming the run after the product makes every line of copy carry it.
+
+**Rejected:** "Daily 25 + Run" (plainer, loses the tie to the product name); "Daily 25 + Standoff" (more dramatic, more combative than a habit app wants); keeping "daily challenge" and "cohort" (no rename cost, but the original problem stays).
+
+**Source:** spec §1a, US-5a, FR-048, FR-053; PRD §10 screens and §20 glossary.
+
+### H29. First-timers get a tour; the walkthrough is for judges
+
+**Decided (2026-09-17):** the moment a wallet connects for the first time, the member gets a **three-card tour** — the Daily 25, what a Holdout is, how reps are counted — skippable and re-openable later (FR-067). A **short explainer video** joins it once cohort #3 has been filmed; until then the cards carry it alone, and no mock-up footage is ever used.
+
+The **3-minute full-cycle walkthrough is for judges**: it stays inside the app as FR-044 requires, reached from an About section and a quiet link on the connect screen, but it is no longer offered to members as a call to action.
+
+**Why:** a first-timer needs the rules in fifteen seconds, not a three-minute film of someone else's week. A judge needs the opposite, and one of them may have no devnet wallet at all — so the walkthrough stays reachable before connecting.
+
+**Guest mode considered and dropped (2026-09-17):** letting someone do the Daily 25 and watch Holdouts without a wallet was proposed and then withdrawn in the same session. **H21 stands** — connecting a wallet is still the first step — so there is no second identity path and no device-only streak to migrate later.
+
+**Source:** spec FR-067, FR-044, FR-001a, US-1, US-9; PRD screens 2, 2a and 13; `contracts/android-app.md` §5.
+
 ---
 
 ## 2. Still valid from the product-vision record
@@ -642,5 +668,6 @@ By decision, not by omission.
 | 2026-09-17 | Fourth `/speckit-clarify` session, using the official CLOCK IN rules. Decisions:<br>• The walkthrough comes only from cohort #3 and doubles as the demo video (H14, closes P6).<br>• The contract stays upgradeable for defect fixes only (H24).<br>• No dApp Store listing for submission; judging runs 10 October – 9 November; the build stays live through 11 November; the submission is an APK, a GitHub repository, a demo video of about three minutes and a pitch deck (H25).<br><br>The spec gained FR-007b, FR-066, ES-16 and acceptance criterion 19. |
 | 2026-09-17 | Constitution v1.3.0:<br>• XI: submission materials may not hide or contradict the README's weaknesses.<br>• XII: the real judging window and live period; scripted members disclosed in the demo video and pitch deck too.<br>• Hackathon Constraints add signed-APK distribution, the submission deliverables and deadline, and the defect-fix-only upgrade authority. |
 | 2026-09-17 | Crowd model changed (H14): real members first, with 5–7 beta testers recruited for cohort #3, and scripted wallets filling a cohort only to a floor of 20 (7-day) or 12 (21-day); pool cut from 260 to 56 wallets. The walkthrough shows the whole flow and plays before a wallet is connected — the only exception to FR-001a. Spec gained those changes in FR-001a, ES-0, FR-043, FR-043a, FR-044 and acceptance criterion 8. New doc `holdout_demo_video.md`: storyboard, screen checklist, recording workflow, shot log, filming calendar and the beta-test plan. |
+| 2026-09-17 | Names and onboarding (H28, H29): the free tier becomes **the Daily 25** and a staked run **a Holdout**, with on-chain names unchanged and spec §1a mapping them; a three-card first-run tour (FR-067); the full-cycle walkthrough becomes judge-facing; Holdouts open to join show what is at stake in them (FR-053). Guest mode proposed and dropped — H21 stands. PRD v2.6; prototype gained a tour artboard and rewritten first two screens. |
 | 2026-09-17 | Design direction set (H27): native-on-Seeker dark design system, tokens sampled from the Solana brand kit, Roboto plus JetBrains Mono, dynamic colour off, licensed brand fonts excluded. PRD §11 rewritten (v2.5) with colour, type, spacing, components, motion, accessibility and brand boundaries; §10.1a mocks annotated; app contract gained §3a Appearance. |
 | 2026-09-17 | Plan revised for the new dates:<br>• R12: scripted wallets in every cohort starting through 9 November, a pool of 260, and the crank running to 30 November.<br>• R13: SOL-paying faucet cap cut from 60 to 30 a day; worst case corrected to 0.024 SOL per claim; vault funded to 25 SOL by 8 October.<br>• R14: upgrade authority.<br>• R18: walkthrough from cohort #3 with finisher and forfeiter wallets.<br>• Delivery calendar re-planned from 17 September, with the judged launch on 22–23 September.<br><br>H16 gains the sponsor key and upgrade authority weaknesses; H17's 21-day ranking consequence corrected (nobody can be ranked there before 11 November); L10 and L11 added. |

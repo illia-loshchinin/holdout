@@ -6,15 +6,17 @@ Solana Mobile fitness commitment dApp. Built for the CLOCK IN hackathon, submiss
 
 ## What it is
 
-A free daily challenge — 25 push-ups, verified on-device — with two staked leagues on top:
+**The Daily 25** — 25 push-ups, free, verified on the phone — with staked **Holdouts** on top:
 
 | Layer | |
 |---|---|
-| Daily challenge | Free, every day, for everyone. Builds a personal streak. Unlocks nothing, pays nothing, and a forfeit doesn't break it. |
-| 7-day league | Staked. Entry rung and comeback lane. Never closes. |
-| 21-day league | Staked. Where the money is. |
+| The Daily 25 | Free, every day, for everyone. Builds a personal streak. Unlocks nothing, pays nothing, and a forfeit doesn't break it. |
+| 7-day Holdout | Staked. Entry rung and comeback lane. Never closes. |
+| 21-day Holdout | Staked. Where the money is. |
 
-You need a Solana wallet to use the app — even the free challenge. The app has a built-in faucet for test SKR and devnet fee SOL, once a day.
+A Holdout is a cohort of members who start and finish together; "Holdout" is what members read, `Cohort` is what the contract stores (spec §1a).
+
+You need a Solana wallet to use the app — even the Daily 25. The app has a built-in faucet for test SKR and devnet fee SOL, once a day.
 
 Cohorts start every Monday 05:00 UTC. Joining and leaving close 1 hour before the start. Miss a day and the stake is forfeited into that cohort's prize pool; finish and take back the stake plus a share of what the quitters left. Leaderboards rank members by discipline — the share of their cohorts they survived — never by money.
 
@@ -36,8 +38,8 @@ Named here on purpose (constitution XI). Each has its real fix beside it.
 | No audio anti-spoofing in rep verification | Microphone permission adds first-run friction and protects no real value on devnet | Reinstate the audio check and audio rep condition together |
 | Stake chips ($10 / $25 / $50 / $100) are priced in SKR by the Operator from an off-chain rate — once at launch, re-checked weekly in Phase 2 | The contract must never read a price | On-chain chip governance before real value is at stake |
 | Cohorts are filled by real members first; scripted members — real wallets under the same contract rules, whose forfeits fund real prizes and whose completed days are **not camera-verified** — top a cohort up only to a minimum (20 members in a 7-day cohort, 12 in a 21-day one) | A cohort must never be empty when someone installs the app during judging | Disclosed here, in the app, in the demo video and in the pitch deck; their addresses are published in the build and every scripted member is labelled wherever it appears |
-| A wallet is required before anything, even the free challenge | One identity from the first tap | The connect screen plays the recorded walkthrough without a wallet, so judges who cannot connect one still see the whole product |
-| The full cycle is shown as a recorded walkthrough in the app | A judge can't wait 7 days | It is a recording of the real app against the real devnet contract, taken from the first judged cohort |
+| A wallet is required before anything, even the Daily 25 | One identity from the first tap; guest mode was considered and dropped | The connect screen plays the recorded walkthrough without a wallet, so judges who cannot connect one still see the whole product |
+| The full cycle is shown as a recorded walkthrough in the app, for judges | A judge can't wait 7 days | It is a recording of the real app against the real devnet contract, taken from the first judged cohort. Members get a three-card tour instead |
 | The faucet's fee sponsor key ships inside the app | A wallet with zero SOL cannot pay for its own first transaction, and there is no server to sign for it | Anyone can extract the key, so the contract caps the damage: at most 30 SOL-paying claims a day and one claim per wallet a day. Real fix: no faucet on mainnet, or a rate-limited relayer |
 | The program keeps its upgrade authority during judging | A defect found while cohort #3 holds real test stakes must be fixable | Used only for defect fixes that change no existing cohort, account layout or fund movement. Real fix: revoke the authority once the contract is final |
 | Notifications are sent manually | No notification infrastructure in the build | Push notification service |

@@ -1,6 +1,8 @@
 # Holdout — product requirements (hackathon build)
 
-**Version:** 2.5 · **Date:** 2026-09-17 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
+**Version:** 2.6 · **Date:** 2026-09-17 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
+
+> **Changed in 2.6:** members' names for the two things — **the Daily 25** (free, solo) and **a Holdout** (a staked 7-day or 21-day run), mapped to the on-chain vocabulary in spec §1a · a **three-card first-run tour** (FR-067) as screen 0 · the recorded full-cycle walkthrough is **for judges**, moved to About plus a quiet connect-screen link · Holdouts open to join show **what is at stake** in them.
 
 > **Changed in 2.5:** §11 replaced by a **native-on-Seeker dark design system** — black canvas, Solana-palette tokens sampled from the brand kit, Roboto and JetBrains Mono instead of PP Mori, Seeker-style components, and brand boundaries (H27). The §10.1a mocks are annotated to match.
 
@@ -39,7 +41,7 @@
 
 ## 1. Summary
 
-Holdout is a Solana Mobile fitness commitment app. Anyone can do a **free daily challenge** — 25 push-ups verified on the device — and build a streak. On top of it sit **two staked leagues**: a member stakes SKR on themselves to do 25 push-ups every day for a fixed cohort of 7 or 21 days. Everyone in a cohort starts and finishes together. Miss a day and the stake is forfeited into that cohort's prize pool; finish and take back the stake plus a share of what the quitters left.
+Holdout is a Solana Mobile fitness commitment app. Anyone can do a **free Daily 25** — 25 push-ups verified on the device — and build a streak. On top of it sit **two staked leagues**: a member stakes SKR on themselves to do 25 push-ups every day for a fixed cohort of 7 or 21 days. Everyone in a cohort starts and finishes together. Miss a day and the stake is forfeited into that cohort's prize pool; finish and take back the stake plus a share of what the quitters left.
 
 > Stake. Do your reps every day.
 > Miss a day and you lose your stake to everyone still standing.
@@ -56,7 +58,7 @@ Holdout is a Solana Mobile fitness commitment app. Anyone can do a **free daily 
 | Fee | 0% entry, 35% slash | **One fee: 20% of forfeited stakes.** Finishers pay nothing |
 | Verification | Pose detection only | Pose detection + palm liveness + four-check pre-flight, all on-device |
 | Currency | WLD or USDC | **SKR only** — stakes, pool, payouts, fee |
-| Structure | 21-day, single tier | **Free daily challenge + staked 7-day and 21-day leagues** |
+| Structure | 21-day, single tier | **Free Daily 25 + staked 7-day and 21-day leagues** |
 | Pool | One shared pool | **One pool per cohort** |
 | Cohort timing | Rolling | **Fixed weekly starts** — a live survivor counter |
 | Day boundary | UTC | **One instant, 05:00 UTC, for everyone** — shown as a countdown |
@@ -81,7 +83,7 @@ Holdout is a Solana Mobile fitness commitment app. Anyone can do a **free daily 
 - **No Seeker requirement.** The Genesis Token check is written but off (`genesis_gate_enabled = false`) because testers have no Seeker. Named in the README.
 - **No ladder gate.** Both leagues are joinable from first launch (`ladder_gate_enabled = false`, FR-003); the 21-day unlock is still computed and recorded (FR-003a).
 - **No geo-blocking, no terms-of-service screen** — out of scope for a devnet build with a test token (spec §3).
-- **Wallet first.** Connecting a wallet is the first thing the app asks for, and nothing — not even the daily challenge — is usable before it (FR-001a). A person without a wallet is told plainly that they need one and how to get one (ES-0). The daily streak is kept on the phone for the connected wallet.
+- **Wallet first.** Connecting a wallet is the first thing the app asks for, and nothing — not even the Daily 25 — is usable before it (FR-001a). A person without a wallet is told plainly that they need one and how to get one (ES-0). The daily streak is kept on the phone for the connected wallet.
 - **One wallet, one member.** No username, no password, no display name, no avatar. Leaderboards show a shortened wallet address (FR-063).
 - **Funds for testing come from the app.** An in-app faucet gives a connected wallet test SKR and devnet SOL once a day (§6.1, FR-042a), so nobody needs an outside faucet.
 - The app states on first run and on every staking screen that it runs on a **test network with a test token** (FR-042).
@@ -94,14 +96,14 @@ Holdout is a Solana Mobile fitness commitment app. Anyone can do a **free daily 
 
 | Layer | Duration | Reps/day | Stake | Open to |
 |---|---|---|---|---|
-| **Daily challenge** | today | 25 | none | everyone, every day |
+| **Daily 25** | today | 25 | none | everyone, every day |
 | **7-day league** | 7 days | 25 | one of four chips | everyone; never closes |
 | **21-day league** | 21 days | 25 | one of four chips | requirement: clear a 7-day cohort — **stated, not enforced** in this build |
 | Human Flag | — | — | — | locked rung in the ladder UI only |
 
 - **The 7-day league never closes** — not after a clear, not after a forfeit. It is the entry rung and the way back (FR-002).
 - **The unlock is permanent** and never revoked, including after a forfeit (FR-004).
-- **The daily challenge is not a league.** It grants no unlock, no prize and no league progress — only the streak (FR-005).
+- **The Daily 25 is not a league.** It grants no unlock, no prize and no league progress — only the streak (FR-005).
 - **A completed cohort day counts as the day's challenge** — nobody trains twice (FR-050).
 
 ### 5.2 Fixed weekly cohorts
@@ -133,7 +135,7 @@ Holdout is a Solana Mobile fitness commitment app. Anyone can do a **free daily 
 - From the cutoff the cohort is **`Locked`**: the roster is final, no join or leave is offered, and the screen shows the final count and the countdown to the start (ES-12a).
 - **From the cutoff there is no way out and no refund** (FR-010).
 - A join or leave that is signed before the cutoff but **lands after it is rejected** by chain time; the app says which happened and warns in the final minutes before the cutoff (ES-12).
-- While waiting, the member can do the **daily challenge** and keep their streak running.
+- While waiting, the member can do the **Daily 25** and keep their streak running.
 
 #### A lobby place alongside a running cohort
 
@@ -165,7 +167,7 @@ When the forfeit is recorded — by the Scheduler or by anyone (FR-030a):
 - **20%** goes to the fee destination; **80%** joins that cohort's prize pool (FR-027).
 - The member's **league streak** in that league resets to zero and their participation ends (FR-028).
 - Their **daily streak is untouched** (FR-052).
-- The app tells them plainly what happened and offers **today's daily challenge and the open 7-day cohort** as the way back (US-4).
+- The app tells them plainly what happened and offers **today's Daily 25 and the open 7-day cohort** as the way back (US-4).
 
 ### 5.5 Progress
 
@@ -215,7 +217,7 @@ Stakes, prize pools, payouts and the fee are **all SKR** (constitution IV). No U
 - **Once per wallet per day**, resetting at the 05:00 UTC boundary.
 - **No server.** Funded in advance for the whole judging month; nobody tops it up by hand.
 - **Offered where it's needed** — on the stake screen, before submitting a completed day, before a claim — whenever the wallet lacks test SKR or fee SOL (ES-0a).
-- **If it can't pay out**, the app says so plainly, keeps the daily challenge and browsing available, and never blames the member (ES-0b).
+- **If it can't pay out**, the app says so plainly, keeps the Daily 25 and browsing available, and never blames the member (ES-0b).
 
 ### 6.2 The fee — one number, 20%
 
@@ -311,7 +313,7 @@ A **sitting** is one continuous run of checks, liveness and counting. A day's re
 - **On-device and live.** Camera frames are processed in real time and discarded — never transmitted, never stored, anywhere (FR-022, constitution X). Verified by inspecting outbound traffic (acceptance criterion 10).
 - **Visual only.** No audio check, no audio rep condition, no microphone permission (FR-022a).
 - **No human review, no flagging, no bounty.** The rep counter's verdict is final.
-- **Same verification everywhere** — cohort day and daily challenge alike, every sitting (US-5a).
+- **Same verification everywhere** — cohort day and Daily 25 alike, every sitting (US-5a).
 
 ### 8.2 Pre-flight environment check
 
@@ -345,7 +347,7 @@ A rep counts only when, within one rep cycle, all of these are detected (FR-021)
 
 A rep that misses a rule is **discarded silently with a hint** — *"Go lower"* · *"Keep your body straight"* · *"Slow down"* — never an error.
 
-The target is the cohort's reps per day, or 25 for the daily challenge. The pose model and the rep state machine on top of it are chosen in `plan.md`.
+The target is the cohort's reps per day, or 25 for the Daily 25. The pose model and the rep state machine on top of it are chosen in `plan.md`.
 
 ### 8.6 Banked progress
 
@@ -371,7 +373,7 @@ evening   ──  sitting 3:   5 reps   →  day complete at the 25th rep     do
 When the rep target is reached:
 
 1. **Cohort day:** submitted on-chain for that day. It counts only if it lands before the deadline, by chain time (FR-013, ES-3). The survivor counter, prize figure and the member's day counter update (US-3).
-2. **Daily challenge:** recorded on the device and extends the streak. Nothing on-chain, no connection needed (FR-051).
+2. **Daily 25:** recorded on the device and extends the streak. Nothing on-chain, no connection needed (FR-051).
 3. A **"Day 12 done"** celebration. No share card, no selfie (spec §3).
 
 **Offline (FR-024b, ES-3b).** A cohort sitting can run with no connection, but the app says so first:
@@ -416,7 +418,7 @@ Accounts, PDAs, instruction signatures and framework belong to `plan.md`. This s
 
 Cohorts with their fixed parameters and locked chip set · memberships and held stakes · each cohort's prize pool and any held carry-over · the payout denominator, written once · each member's per-league progress (cleared, forfeited, current and longest league streak, the 21-day unlock) · the current chip set · the fee destination · the faucet's pre-funded test SKR and devnet SOL, and when each wallet last used it.
 
-**Not on-chain:** the daily streak, daily-challenge days, banked reps and anything else about an unfinished day, a completed day still waiting for network, camera data. A cohort day goes on-chain only once it is complete and submitted.
+**Not on-chain:** the daily streak, Daily 25 days, banked reps and anything else about an unfinished day, a completed day still waiting for network, camera data. A cohort day goes on-chain only once it is complete and submitted.
 
 **Scripted members are ordinary on-chain members** — the contract has no idea which wallets are scripted (FR-043a).
 
@@ -477,17 +479,18 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 
 **First run**
 1. **Welcome** — what Holdout is in three lines; *"Test network, test token."*
-2. **Connect wallet** — required before anything else (FR-001a). It also carries **"Watch a full cycle (3 min)"**, which opens the walkthrough (13) with no wallet connected — the single exception to FR-001a. **No-wallet variant:** *"Holdout needs a Solana wallet — even for the free daily challenge."* with how to get one, and the same walkthrough link (ES-0)
-3. **Disclosure** — judging-period cohorts include scripted members: real wallets playing by the same rules, labelled wherever they appear (FR-043a)
+2. **Connect wallet** — required before anything else (FR-001a). The screen carries the promise in two lines (*"Stake on yourself. Prove it every day."*), one line each for **the Daily 25** and **a Holdout** so the free and staked paths are unmistakable, and the **live Holdouts**: a running one with its still-standing count and prize pool, the open one with how many have joined and what is at stake. Primary action **Connect wallet**; under it, quietly, *"No wallet yet?"* and *"For judges: full cycle, 3 min"*, which opens the walkthrough (13) with no wallet connected — the single exception to FR-001a. **No-wallet variant:** *"Holdout needs a Solana wallet — even for the free Daily 25."* with how to get one (ES-0)
+2a. **How it works** — the three-card first-run tour, shown once the wallet connects and re-openable later (FR-067): the Daily 25; what a Holdout is; how reps are counted on the device. Skippable at any card. A short explainer video joins it after cohort #3 is filmed
+3. **Disclosure** — Holdouts during judging include scripted members: real wallets playing by the same rules, labelled wherever they appear (FR-043a)
 
 **Funds**
 3a. **Get test tokens** — the in-app faucet (§6.1): test SKR and fee SOL, once a day. Variants: **already used today** (*"Available again in 6h 40m"*), **faucet can't pay out** (ES-0a, ES-0b)
 
 **Home**
-4. **Home** — the running cohort (§10.1a) if the member is in one; otherwise **today's daily challenge as the primary action** (FR-053). Daily streak always visible. Never empty, never *"come back later"*. **Offline-completion variant:** *"Done — tap to submit"* once online (Phase 1), or *"Done — waiting for network"* with automatic submission **[Phase 2]** (FR-024b)
+4. **Home** — the running Holdout (§10.1a) if the member is in one; otherwise **today's Daily 25 as the primary action**, with the Holdouts open to join underneath — each showing how many have joined, **what is at stake**, any carry-over, and the closing countdown (FR-053). Daily streak always visible. Never empty, never *"come back later"*. **Offline-completion variant:** *"Done — tap to submit"* once online (Phase 1), or *"Done — waiting for network"* with automatic submission **[Phase 2]** (FR-024b)
 
 **Ladder and staking**
-5. **League ladder** — daily challenge, 7-day and 21-day leagues open, the 21-day requirement stated plainly, Human Flag as a locked rung (US-1)
+5. **Ladder** — the Daily 25, then the 7-day and 21-day Holdouts both open, the 21-day requirement stated plainly, Human Flag as a locked rung (US-1)
 6. **Stake confirm** — league, chip picker (§6.3), daily obligation, duration, time until joining closes and until start, current prize pool with any carry-over shown separately, and: *"If nobody drops out, you get exactly your stake back."* Test-network notice (US-6, FR-041, FR-042)
 7. **Lobby** — countdown to cutoff and start, live roster count, held stake, leave button (§5.2). **Locked variant:** joining closed, final roster, countdown to start (ES-12a)
 
@@ -503,7 +506,7 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 12. **Cohort roster** — members still standing, then forfeited members by days lasted, scripted members labelled (Phase 1, FR-062). **League leaderboards** **[Phase 2]** (§12.3, US-10)
 
 **Demo**
-13. **Walkthrough** — the recorded full cycle, in order: launching the app, connecting a wallet, the faucet, the ladder, staking, the lobby, a sitting, a completed day, the crowd thinning, a forfeit, settlement and the claim (US-9, FR-044). Taken from cohort #3 on devnet, bundled in the APK, playable offline and without a wallet. Until it is recorded: *"Walkthrough recording in progress."* Storyboard and production detail: `holdout_demo_video.md`
+13. **Walkthrough — for judges** (About section plus the connect-screen link; members get the tour, 2a): the recorded full cycle, in order: launching the app, connecting a wallet, the faucet, the ladder, staking, the lobby, a sitting, a completed day, the crowd thinning, a forfeit, settlement and the claim (US-9, FR-044). Taken from cohort #3 on devnet, bundled in the APK, playable offline and without a wallet. Until it is recorded: *"Walkthrough recording in progress."* Storyboard and production detail: `holdout_demo_video.md`
 
 ### 10.1a The home screen
 
@@ -580,10 +583,10 @@ Done at 25 — streak 1 — "Want money on it? Join a 7-day cohort."
 
 | State | Screen |
 |---|---|
-| No wallet | *"Holdout needs a Solana wallet — even for the free daily challenge."* How to get one; nothing else available until connected (ES-0) |
+| No wallet | *"Holdout needs a Solana wallet — even for the free Daily 25."* How to get one; nothing else available until connected (ES-0) |
 | No test SKR or fee SOL | The faucet sheet, in place — on the stake screen, before submitting a completed day, before a claim (ES-0a) |
 | Faucet already used today | *"You've had today's test tokens. Available again in 6h 40m."* (ES-0a) |
-| Faucet can't pay out | *"The faucet can't send tokens right now."* The daily challenge and browsing stay available (ES-0b) |
+| Faucet can't pay out | *"The faucet can't send tokens right now."* The Daily 25 and browsing stay available (ES-0b) |
 | Palm not detected for 30 seconds | *"Can't see your palm — try more light, and hold it flat toward the camera."* Back to pre-flight; retry or cancel (FR-020) |
 | Offline before a cohort sitting | *"You're offline. Today counts only if it reaches the network before the deadline — 2h 14m left."* **Start anyway** (FR-024b) |
 | Day completed offline | Phase 1: home shows *"Done — tap to submit"* with the countdown once online. **[Phase 2]** *"Done — waiting for network"*, submitted automatically on reconnect. If it lands late, the forfeit screen (ES-3b) |
@@ -591,13 +594,13 @@ Done at 25 — streak 1 — "Want money on it? Join a 7-day cohort."
 | App crashed mid-sitting | *"Your 10 banked reps are safe. 15 to go."* Reps since the last block are gone (ES-1) |
 | Sitting stopped part-way | *"17 done — 10 banked, 7 not kept."* Countdown to the deadline (ES-2) |
 | Last 10 minutes of the day | *"8m left. 15 reps to go — reps not finished by the deadline won't count."* Shown on the start card and during counting; the sitting is always allowed (FR-047) |
-| Deadline passed with reps missing | In a cohort: the forfeit screen (§10.1 #9). Daily challenge: *"Yesterday ended at 20 of 25. Today starts fresh."* (ES-3) |
+| Deadline passed with reps missing | In a cohort: the forfeit screen (§10.1 #9). Daily 25: *"Yesterday ended at 20 of 25. Today starts fresh."* (ES-3) |
 | New or wiped phone mid-day | *"No banked reps on this device today. 25 to go."* (ES-3a) |
 | Join or leave landed after the cutoff | *"Joining closed before your transaction landed. Nothing was taken."* / *"Leaving closed before your transaction landed. You're in the cohort."* (ES-12) |
 | Cohort is locked | Final roster, countdown to start, no actions (ES-12a) |
 | Lobby place refused | *"This cohort starts before your 21-day run ends."* (FR-006b) |
 | Member in breach tries to submit | *"The deadline passed before your day was complete. Your run in this cohort has ended."* (ES-4) |
-| League's next cohort not open yet | *"The next cohort opens soon."* Daily challenge offered (ES-15) |
+| League's next cohort not open yet | *"The next cohort opens soon."* Daily 25 offered (ES-15) |
 
 ---
 
@@ -746,7 +749,7 @@ Thirteen screens (§10.1), each with every state it can be in. The four that car
 
 ### 12.2 The daily streak
 
-- Completing the daily challenge, or a cohort day, extends it by one; a day that ends without a completed day breaks it — banked reps short of 25 don't keep it alive (FR-049, FR-050).
+- Completing the Daily 25, or a cohort day, extends it by one; a day that ends without a completed day breaks it — banked reps short of 25 don't keep it alive (FR-049, FR-050).
 - It **resets on the same 05:00 UTC instant** as the cohort day — one notion of "today" (OD-6).
 - **Cosmetic and personal:** it unlocks nothing, gates nothing, and nothing is ever paid against it (FR-051).
 
@@ -829,7 +832,7 @@ Constitution XIII, applied to every screen, notification and README line.
 | Scripted members read as deception | High | Disclosed on first run and in the README, labelled on every roster and board |
 | Wallet signing fails on real hardware | High | Risk spike before implementation |
 | Judges give up at "connect a wallet" | High | Wallet-first is deliberate (FR-001a); the no-wallet screen says plainly why and how to get one, and offers the recorded walkthrough, which plays without a wallet and shows the whole product — as does the README |
-| Faucet drained or empty during judging | Medium | Once per wallet per day; funded in advance for the whole month; a clear message if it can't pay out, with the daily challenge still available |
+| Faucet drained or empty during judging | Medium | Once per wallet per day; funded in advance for the whole month; a clear message if it can't pay out, with the Daily 25 still available |
 | Members lose a day by finishing offline | Medium | Warning before an offline cohort sitting and on completion; automatic submission on reconnect |
 | Palm check fails for honest members | Medium | 30-second limit with a tip, back to pre-flight, unlimited retries, banked reps untouched |
 | Real finishers' prizes include scripted members' money | Low | By design and disclosed: scripted members are real wallets under the same rules (FR-043a) |
@@ -928,13 +931,15 @@ For every cohort: `fee = 0.20 × Σ forfeited`, taken at forfeit time. Cross-che
 
 | Term | Meaning |
 |---|---|
-| **Daily challenge** | 25 verified push-ups, free, every day, for everyone. Extends the daily streak. Not a league |
+| **The Daily 25** | What members call the free tier: 25 verified push-ups, every day, alone, nothing staked. Extends the daily streak. Written as "the daily challenge" before 2026-09-17 (H28) |
+| **A Holdout** | What members call a staked run — "a 7-day Holdout", "a 21-day Holdout". The system stores it as a `Cohort` in one of the two leagues; spec §1a maps the two vocabularies |
+| **At stake** | The sum of the stakes held in a Holdout. What a lobby shows, and never called a prize: only forfeits create a prize pool |
 | **Daily streak** | Days in a row with a completed day, challenge or cohort. On the device, cosmetic, survives a forfeit, never on a leaderboard |
 | **Sitting** | One continuous run of pre-flight, palm liveness and counting. A day can take any number of sittings; each re-verifies |
 | **Banked block** | 10 verified reps saved on the device the instant the 10th is counted. Kept until the day's deadline; reps short of a block are lost when a sitting ends |
 | **Completed day** | The banked total reaching the day's requirement. A cohort day is then recorded on-chain; a challenge day only on the device |
-| **League** | The 7-day or 21-day staked league, both 25 reps a day. Human Flag is a locked rung in the UI only |
-| **Cohort** | Members of one league who start and finish at the same instants. Starts weekly, Monday 05:00 UTC |
+| **League** | The 7-day or 21-day staked league, both 25 reps a day — a Holdout's length. Human Flag is a locked rung in the UI only |
+| **Cohort** | The stored name for a Holdout: members of one league who start and finish at the same instants. Starts weekly, Monday 05:00 UTC |
 | **Day boundary** | The single 05:00 UTC instant at which every cohort day, and the streak day, turns over |
 | **Join cutoff** | 1 hour before a cohort's start. Joining and leaving both close |
 | **Locked** | A cohort between its join cutoff and its start: roster final, no actions |
