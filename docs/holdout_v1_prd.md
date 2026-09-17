@@ -1,6 +1,8 @@
 # Holdout — product requirements (hackathon build)
 
-**Version:** 2.4 · **Date:** 2026-09-17 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
+**Version:** 2.5 · **Date:** 2026-09-17 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
+
+> **Changed in 2.5:** §11 replaced by a **native-on-Seeker dark design system** — black canvas, Solana-palette tokens sampled from the brand kit, Roboto and JetBrains Mono instead of PP Mori, Seeker-style components, and brand boundaries (H27). The §10.1a mocks are annotated to match.
 
 > **Changed in 2.4:** the recorded walkthrough plays from the connect screen **without a wallet** and runs the whole flow from launching the app to the claim (FR-001a, FR-044) · cohorts are filled by **real members first**, with scripted members topping up only to a floor of 20 (7-day) or 12 (21-day) (FR-043) · production detail for the video lives in `holdout_demo_video.md`.
 
@@ -508,17 +510,28 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 **The crowd is the product.** Fixed cohorts mean there is a crowd, and it visibly shrinks.
 
 ```
-      21-DAY · cohort 14 · day 12 of 21
+  ·············· black canvas, no app bar ··············
 
-                189 / 312
-              still standing
+      21-DAY · cohort 14 · day 12 of 21        ← label, tertiary
 
-         prize pool   48,200 SKR
-      your share now     255 SKR   ≈ $6
-      ▲ +17 SKR — three dropped since yesterday
+                189 / 312                      ← counter 56sp, white
+              still standing                   ← label, secondary
 
-          [ 10 banked · do 15 more ]
-          🔥 12        4h 06m left today
+      ┌───────────────────────────────────┐    ← card: surface/1, 24dp
+      │ prize pool          48,200 SKR    │      amounts in mono
+      │ your share now         255 SKR    │
+      │                        ≈ $6       │    ← tertiary, approximate
+      │ ▲ +17 SKR — three dropped since   │    ← success green
+      │   yesterday                       │
+      └───────────────────────────────────┘
+
+        [  10 banked · do 15 more  ]           ← white pill, black label
+             ◍ bank ring: 1 of 3 segments
+
+        🔥 12              4h 06m left today   ← mono, accent
+
+  ────────────────────────────────────────     ← nav: surface/2 + hairline
+     ⌂        ◎        ☰        ◍              ← active item = white pill
 ```
 
 1. **The survivor counter and the prize are the largest things on screen** (FR-038).
@@ -530,14 +543,14 @@ Supporting beats: halfway (*"day 11 of 21 — 189 still standing"*), endgame (*"
 With no cohort running, the challenge is the hero:
 
 ```
-              TODAY'S CHALLENGE
+              TODAY'S CHALLENGE               ← label, tertiary
 
-                  25
-               push-ups
+                  25                          ← counter 56sp, white
+               push-ups                       ← label, secondary
 
-              [ start ]
-      do them all now, or 10 at a time today
-         🔥 12-day streak · 4h 06m left today
+              [  start  ]                     ← white pill, black label
+      do them all now, or 10 at a time today  ← body, secondary
+         🔥 12-day streak · 4h 06m left today ← mono, accent
 ```
 
 ### 10.2 First reps in under three minutes
@@ -590,47 +603,131 @@ Done at 25 — streak 1 — "Want money on it? Join a 7-day cohort."
 
 ## 11. Design system
 
+**Direction: native on Seeker.** The app should look like it shipped with the device — black canvas, quiet chrome, the numbers carrying the screen — and be built from Solana's own palette, so nothing looks borrowed. Every value below is sampled from the Solana brand kit (`Color Palettes/Solana Brand Colors.png`, `Gradient/solanaGradient.png`).
+
+**Dark only.** One theme, no light variant, and **Material You dynamic colour is disabled** — brand colours are fixed.
+
 ### 11.1 Colour tokens
 
-| Token | Hex | Use |
-|---|---|---|
-| `bg/primary` | `#F6F6F5` | Main background (light) |
-| `bg/secondary` | `#FAFAF4` | Secondary surface |
-| `fg/primary` | `#10282C` | Primary text, headlines |
-| `fg/secondary` | `#0B3446` | Secondary text |
-| `surface/mint` | `#CFE6E4` | Cards |
-| `cta/primary` | `#0099FF` | Primary action (Seeker cyan) |
-| `accent/celebration` | `#FF6B47` | Completion and claim moments |
-| `accent/lime` | `#B8E62C` | Secondary celebration accent |
+**Canvas and surfaces** — pure black like the Seeker system UI, with surfaces tinted very slightly teal so cards separate without a shadow.
 
-Dark mode inverts the scheme (dark teal background, cream text); detailed dark tokens are set at design handoff.
+| Token | Value | Use |
+|---|---|---|
+| `canvas` | `#000000` | App background; the camera and walkthrough screens sit straight on it |
+| `surface/1` | `#0B1214` | Cards, list rows |
+| `surface/2` | `#121B1D` | Bottom nav, sheets, dialogs |
+| `surface/3` | `#1A2426` | Pressed states, chips, input fields |
+| `hairline` | `#FFFFFF` at 10% | 1dp borders — the only separation on black; no shadows anywhere |
+| `scrim` | `#000000` at 60% | Over the camera preview, so overlaid text stays legible |
+
+**Text**
+
+| Token | Value | Contrast on `canvas` | Use |
+|---|---|---|---|
+| `text/primary` | `#FFFFFF` | 21:1 | Numbers, headlines, body |
+| `text/secondary` | `#FFFFFF` at 70% | 11.3:1 | Captions under a number, supporting copy |
+| `text/tertiary` | `#FFFFFF` at 48% | 4.9:1 | Labels, inactive nav, metadata |
+
+**Brand and state** — from the Solana palette.
+
+| Token | Hex | Palette name | Contrast | Use |
+|---|---|---|---|---|
+| `accent` | `#80ECFF` | Tide Light | 15.4:1 | The interactive colour: links, selection, focus, progress, the skeleton overlay, countdowns |
+| `accent/strong` | `#00DAFF` | Tide | 12.5:1 | Rare emphasis on an accent surface |
+| `success` | `#14F195` | Solana Green | 14.0:1 | Still standing, day complete, claim, confirmed transactions |
+| `warning` | `#FF623A` | Coral | 7.0:1 | Forfeit, the last-10-minutes warning, faucet exhausted. Never a harsh red |
+| `celebration` | `#9945FF` | Solana Purple | 4.6:1 | Decoration only — never text under 24sp |
+| `gradient/solana` | `#9945FF` → `#14F195`, 45° | Solana Gradient | — | Reserved for two moments: day complete and claim success |
+| `onLight` | `#000000` | — | 21:1 | Label on the white pill button |
+
+Extra palette entries are available when a screen needs a second hue — Sky `#0075FF`, Charge `#FF40C0`, Kelp `#59FF36`, Beach `#D0E300` — but a screen uses at most one of them.
+
+**Material 3 mapping**, so the Compose theme is a transcription rather than a reinterpretation:
+
+| M3 slot | Token |
+|---|---|
+| `background` / `onBackground` | `canvas` / `text/primary` |
+| `surface` / `onSurface` | `surface/1` / `text/primary` |
+| `surfaceContainer` / `surfaceContainerHigh` | `surface/2` / `surface/3` |
+| `onSurfaceVariant` | `text/secondary` |
+| `primary` / `onPrimary` | `accent` / `#002731` |
+| `secondary` / `onSecondary` | `success` / `#00110A` |
+| `tertiary` | `celebration` |
+| `error` / `onError` | `warning` / `#1A0400` |
+| `outline` | `hairline` |
+| `inverseSurface` / `inverseOnSurface` | `#FFFFFF` / `onLight` (the primary button) |
 
 ### 11.2 Typography
 
-- **Display:** PP Mori
-- **Body:** Inter
-- Scale: 32 / 24 / 20 / 16 / 14 / 12 px
+**Roboto / Roboto Flex** — the Android system family, so the app matches the Seeker's own UI, nothing is bundled and no licence is needed. **JetBrains Mono** (open licence, bundled) carries amounts and countdowns, echoing the semi-mono numerals in Solana's brand type without licensing it.
 
-### 11.3 Direction
+| Style | Family, weight, size | Use |
+|---|---|---|
+| `counter` | Roboto Flex 300, 56sp, tracking −1%, **tabular** | The survivor counter, the rep count |
+| `display` | Roboto Flex 300, 40sp, tabular | Claim amount, streak |
+| `headline` | Roboto 500, 28sp | Screen titles |
+| `title` | Roboto 500, 20sp | Card titles, buttons |
+| `body` | Roboto 400, 16sp / 24 line | Copy |
+| `label` | Roboto 500, 13sp, tracking +2%, uppercase | Captions under numbers, nav labels, chips |
+| `amount` | JetBrains Mono 400, 20sp, tabular | SKR amounts, countdowns, wallet addresses |
 
-Premium consumer fitness — Apple Fitness, Calm, Strava — **not a DEX**.
+Tabular figures everywhere a number changes, so counters and timers never jitter.
 
-- No "swap", "bridge", "TVL" or "APY" anywhere
-- Large, confident type and generous whitespace
-- **The numbers are the hero:** survivor counter, prize, rep count, time left, streak
-- Celebration moments are illustrated, not crypto stickers
+### 11.3 Spacing, shape and depth
 
-### 11.5 Design workflow
+- **Spacing:** 4dp base; 20dp screen gutters; 20dp inside cards; 24dp between sections.
+- **Radius:** cards 24dp; sheets 28dp on top corners; chips 16dp; buttons and nav pill fully rounded.
+- **Depth:** none. No shadows on black — a surface level plus a hairline does the separating.
+- **Targets:** 48dp minimum, and the primary button is 56dp tall.
+
+### 11.4 Components
+
+Mirrored from the Seeker system so the app feels like part of it:
+
+| Component | Spec |
+|---|---|
+| **Bottom nav** | 64dp bar on `surface/2` with a hairline on top; the active item is a white rounded pill with a black icon; inactive icons `text/tertiary` |
+| **Primary button** | Full-width pill, 56dp, white fill, `onLight` label in `title` |
+| **Secondary button** | Same shape, transparent, `hairline` border, white label |
+| **Quiet action** | Text button in `accent`; `warning` when it is a leave or a stop |
+| **Card** | `surface/1`, 24dp radius, hairline, 20dp padding |
+| **Stat block** | A big `counter` or `display` number with a `label` caption under it — the Seeker's "1,000 SKR / your allocation" pattern, which is exactly how the survivor count and prize read |
+| **Tier chips** | Four across, `surface/3`, selected takes an `accent` border and an `accent` fill at 12% |
+| **Bank ring** | Progress ring around the rep count, 4dp `accent` stroke on a `hairline` track, one segment per banked block of 10 |
+| **Sheet** | `surface/2`, 28dp top radius, white 24% drag handle — used for the faucet and stake confirm |
+| **Roster row** | 56dp; address in `amount`; days lasted right-aligned; scripted members carry a `label` chip |
+| **Camera sitting** | Full-bleed preview, `scrim` at top and bottom, rep count in `counter` over it, skeleton overlay in `accent` at 80% |
+| **Countdown** | `amount` in `accent`, turning `warning` inside the last 10 minutes (FR-047) |
+
+### 11.5 Motion
+
+- 200 ms standard, 300 ms for anything entering the screen.
+- The survivor counter **rolls** to its new value rather than cutting — it is the product's one dramatic number.
+- Day complete and claim play a single `gradient/solana` sweep, about 900 ms, once. Nothing else in the app uses the gradient.
+- No confetti, no crypto stickers.
+
+### 11.6 Accessibility
+
+- Body text at or above 4.5:1 on its surface; numbers 24sp and above at or above 3:1. The table in §11.1 lists measured ratios.
+- `celebration` purple is decoration only — it fails small-text contrast on black.
+- 48dp targets, visible focus in `accent`, and text over the camera always sits on a `scrim`.
+
+### 11.7 Design workflow
 
 No designer for the build. Screens are prototyped, critiqued and handed off with Claude's design tooling:
 
-1. Mock the screen as an interactive prototype
+1. Prototype the screen as an interactive artifact built from these tokens
 2. Iterate until it feels right
 3. Design critique pass
 4. Accessibility pass (WCAG 2.1 AA: contrast, hit targets, focus)
-5. Handoff spec — tokens, states, spacing, motion
+5. Handoff — this section, plus the prototype, is what the Compose theme is written from
 
-Thirteen screens (§10.1), each with every state it can be in.
+Thirteen screens (§10.1), each with every state it can be in. The four that carry the demo video — home in a cohort, the sitting while counting, stake confirm, claim — are prototyped first.
+
+### 11.8 Brand boundaries
+
+- Solana's palette and gradient are used as colour; **ABC Diatype and ABC Diatype Semi-Mono are not** — they are licensed to Solana for Solana's own materials, so they are never bundled in the APK or committed to this repository.
+- The app's icon and wordmark are Holdout's own. Solana's logomark appears only where its brand guidelines allow, and nothing in the app or the store listing implies an official Solana or Seeker product.
 
 ---
 
@@ -655,10 +752,10 @@ Thirteen screens (§10.1), each with every state it can be in.
 
 | State | Visual |
 |---|---|
-| Active | Flame, number in cream, subtle pulse |
-| Extended today | Flame bursts, number flips up |
-| Broken | Cracked flame, number greys: *"Your 14-day streak broke. Start a new one today."* No save button — there is no grace day |
-| New personal best | Gold flame with a **PB** mark |
+| Active | Flame, number in `text/primary`, subtle pulse |
+| Extended today | Flame bursts, number flips up in `success` |
+| Broken | Cracked flame, number drops to `text/tertiary`: *"Your 14-day streak broke. Start a new one today."* No save button — there is no grace day |
+| New personal best | Flame in `celebration` purple with a **PB** mark |
 
 ### 12.3 Leaderboards
 

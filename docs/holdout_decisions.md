@@ -485,6 +485,26 @@ A fix that would need any of those is not deployed. The authority is named in th
 
 **Source:** plan Technical Context; research R3, R12, R19; scope doc D-F, D-G.
 
+### H27. The app looks native on the Seeker
+
+**Decided (2026-09-17):** the visual language is **dark, black-canvas and built from Solana's own palette**, so the app reads as part of the Seeker system rather than a web3 app ported to Android. It replaces the earlier light cream-and-mint direction.
+
+- **Colour lead — Seeker-native.** Black canvas, teal-tinted surfaces, **Tide Light `#80ECFF`** as the single interactive accent, white pill buttons. **Solana Green `#14F195`** marks success, still-standing and the claim; **Coral `#FF623A`** marks a forfeit or a warning; **Solana Purple `#9945FF`** and the green-to-purple gradient are kept for two celebration moments only. Every value is sampled from the brand kit, not eyeballed.
+- **Type — native.** System Roboto / Roboto Flex for all UI text with tabular figures, and **JetBrains Mono** (open licence) for amounts and countdowns, echoing Solana's semi-mono numerals.
+- **One theme.** Dark only, and Material You dynamic colour is off: brand colours never get recoloured by the device.
+- **Brand boundaries.** **ABC Diatype and ABC Diatype Semi-Mono are never bundled or committed** — they are licensed to Solana for Solana's own materials. The icon and wordmark are Holdout's own, and nothing implies an official Solana or Seeker product.
+
+**Why:** user experience and presentation are half the CLOCK IN rubric, and the surest way to look considered on a Seeker is to speak the device's own visual language. Solana's palette gives a ready, legible set of accents on black — the brand's Tide Light is already the pale cyan the Seeker UI uses for interaction. The earlier palette (`#F6F6F5` cream, mint cards, PP Mori) was designed for a light app and its display font is not licensed for commercial embedding.
+
+**Rejected:**
+1. **Solana-forward** — gradient headers and gradient buttons throughout. Strong brand association, but further from the system look and harder to keep legible.
+2. **Holdout-distinct** — our own accent on black, Solana colours only in "built on Solana" marks. More recognisable in a screenshot, less native on the device.
+3. **Bundling a free display pair (Inter + Space Grotesk)** — closer to Diatype's character, but roughly 1 MB of APK to look less native than the system font.
+4. **Licensing ABC Diatype** — exact Solana look, but it needs a commercial licence and the fonts must still stay out of a public repository.
+5. **Shipping light and dark** — about twice the design and screenshot work in the days remaining.
+
+**Source:** PRD §11 (v2.5) and the §10.1a mocks; `specs/001-holdout-hackathon/contracts/android-app.md` §3a; constitution XIII (honest language is unaffected by the palette).
+
 ---
 
 ## 2. Still valid from the product-vision record
@@ -622,4 +642,5 @@ By decision, not by omission.
 | 2026-09-17 | Fourth `/speckit-clarify` session, using the official CLOCK IN rules. Decisions:<br>• The walkthrough comes only from cohort #3 and doubles as the demo video (H14, closes P6).<br>• The contract stays upgradeable for defect fixes only (H24).<br>• No dApp Store listing for submission; judging runs 10 October – 9 November; the build stays live through 11 November; the submission is an APK, a GitHub repository, a demo video of about three minutes and a pitch deck (H25).<br><br>The spec gained FR-007b, FR-066, ES-16 and acceptance criterion 19. |
 | 2026-09-17 | Constitution v1.3.0:<br>• XI: submission materials may not hide or contradict the README's weaknesses.<br>• XII: the real judging window and live period; scripted members disclosed in the demo video and pitch deck too.<br>• Hackathon Constraints add signed-APK distribution, the submission deliverables and deadline, and the defect-fix-only upgrade authority. |
 | 2026-09-17 | Crowd model changed (H14): real members first, with 5–7 beta testers recruited for cohort #3, and scripted wallets filling a cohort only to a floor of 20 (7-day) or 12 (21-day); pool cut from 260 to 56 wallets. The walkthrough shows the whole flow and plays before a wallet is connected — the only exception to FR-001a. Spec gained those changes in FR-001a, ES-0, FR-043, FR-043a, FR-044 and acceptance criterion 8. New doc `holdout_demo_video.md`: storyboard, screen checklist, recording workflow, shot log, filming calendar and the beta-test plan. |
+| 2026-09-17 | Design direction set (H27): native-on-Seeker dark design system, tokens sampled from the Solana brand kit, Roboto plus JetBrains Mono, dynamic colour off, licensed brand fonts excluded. PRD §11 rewritten (v2.5) with colour, type, spacing, components, motion, accessibility and brand boundaries; §10.1a mocks annotated; app contract gained §3a Appearance. |
 | 2026-09-17 | Plan revised for the new dates:<br>• R12: scripted wallets in every cohort starting through 9 November, a pool of 260, and the crank running to 30 November.<br>• R13: SOL-paying faucet cap cut from 60 to 30 a day; worst case corrected to 0.024 SOL per claim; vault funded to 25 SOL by 8 October.<br>• R14: upgrade authority.<br>• R18: walkthrough from cohort #3 with finisher and forfeiter wallets.<br>• Delivery calendar re-planned from 17 September, with the judged launch on 22–23 September.<br><br>H16 gains the sponsor key and upgrade authority weaknesses; H17's 21-day ranking consequence corrected (nobody can be ranked there before 11 November); L10 and L11 added. |

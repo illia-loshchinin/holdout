@@ -34,6 +34,15 @@ Client: `com.solanamobile:mobile-wallet-adapter-clientlib-ktx` 2.2.0, used as in
 | Reconnect | Stored auth token reused on resume; `connect` again if it was revoked | — |
 | Disconnect | `walletAdapter.disconnect(sender)` | Returns to the connect screen |
 
+## 3a. Appearance
+
+| Item | Contract |
+|---|---|
+| Theme | **A single dark theme** built from the tokens in `docs/holdout_v1_prd.md` §11 — black canvas, Solana-palette accents. No light variant |
+| Dynamic colour | **Disabled.** Material You never recolours the app; brand colours are fixed |
+| Fonts | System Roboto / Roboto Flex for UI, JetBrains Mono (bundled, open licence) for amounts and countdowns. **No licensed brand font ships in the APK** (PRD §11.8) |
+| Camera and walkthrough screens | Designed for black: full-bleed preview or video, with a scrim behind any text |
+
 ## 4. Device storage
 
 MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; switching wallets shows that wallet's own streak and progress. Nothing in storage is trusted by the contract.
