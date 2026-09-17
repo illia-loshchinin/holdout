@@ -6,7 +6,7 @@
 
 ## Summary
 
-A fitness commitment app on Solana devnet: a free daily push-up challenge with a cosmetic streak, under two staked leagues (7-day and 21-day, 25 reps a day) where missed days forfeit stakes into a per-cohort prize pool that finishers claim. Everything that decides money lives in one **Rust/Anchor program**; every deadline is derived from chain time; automation is permissionless and idempotent. Members use a **native Android app in Kotlin** (Jetpack Compose, Mobile Wallet Adapter, MediaPipe Tasks on-device pose detection) that banks verified reps in blocks of 10 on the device and submits a completed day on-chain. A **Kotlin/JVM crank** shares the app's core module to open cohorts, record forfeits, settle, drive scripted members and publish chip sets. The contract is tested first in **TypeScript on LiteSVM** with clock control; golden fixtures keep the Kotlin client byte-compatible.
+A fitness commitment app on Solana devnet: **the Daily 25** — a free daily push-up set with a cosmetic streak — under staked **Holdouts** of 7 or 21 days, 25 reps a day (members' names; the contract stores them as cohorts in two leagues, spec §1a) where missed days forfeit stakes into a per-cohort prize pool that finishers claim. Everything that decides money lives in one **Rust/Anchor program**; every deadline is derived from chain time; automation is permissionless and idempotent. Members use a **native Android app in Kotlin** (Jetpack Compose, Mobile Wallet Adapter, MediaPipe Tasks on-device pose detection) that banks verified reps in blocks of 10 on the device and submits a completed day on-chain. A **Kotlin/JVM crank** shares the app's core module to open cohorts, record forfeits, settle, drive scripted members and publish chip sets. The contract is tested first in **TypeScript on LiteSVM** with clock control; golden fixtures keep the Kotlin client byte-compatible.
 
 Work follows the spec's phasing (spec §3a): **Phase 1** is the full loop and must work end to end before any **Phase 2** item (league leaderboards, weekly chip re-pricing, carry-over delivery, automatic offline submission) starts, and nothing lands after the 28 September freeze.
 
@@ -54,7 +54,7 @@ Work follows the spec's phasing (spec §3a): **Phase 1** is the full loop and mu
 - **Live period:** no manual intervention from submission through the winners' announcement on 11 November 2026 (FR-042a, FR-043).
 - **Upgrades:** the contract stays upgradeable for defect fixes only (FR-007b, R14).
 
-**Scale/Scope**: two leagues; weekly cohorts of up to 1,000 members each (up to three 21-day cohorts running at once); real members first, topped up by a fixed pool of 56 scripted wallets to a floor of 20 members per 7-day cohort and 12 per 21-day cohort (R12); about 13 app screens with variants (PRD §10.1); judging 10 October – 9 November 2026.
+**Scale/Scope**: two leagues; weekly cohorts of up to 1,000 members each (up to three 21-day cohorts running at once); real members first, topped up by a fixed pool of 56 scripted wallets to a floor of 20 members per 7-day cohort and 12 per 21-day cohort (R12); about 14 app screens with variants, the first-run tour included (PRD §10.1, FR-067); judging 10 October – 9 November 2026.
 
 No `NEEDS CLARIFICATION` items remain — all are resolved in [research.md](research.md).
 
@@ -72,7 +72,7 @@ No `NEEDS CLARIFICATION` items remain — all are resolved in [research.md](rese
 | **VI. One clock** | Single 05:00 UTC boundary from chain time; countdown, never dates | PASS | Cohort start aligned to Monday 05:00 UTC; `deadline_of` lands on the boundary; streak and faucet day use `floor((now − 18,000) ÷ 86,400)` |
 | **VII. Tests precede logic** (non-negotiable) | Vectors and invariants exist as failing tests before instructions | PASS | Delivery sequence step 1 writes `fixtures/settlement-vectors.json`, the Rust math tests and the invariant harness before any instruction body |
 | **VIII. Idempotent, chunkable automation** | Safe twice, safe paged, two callers harmless | PASS | Per-membership state and `counted` flags; pages in any order; permissionless (R9, FR-030a) |
-| **IX. Every state has a screen** | Each state reachable in UI or provably unreachable | PASS | State → screen table in contracts/android-app §5 |
+| **IX. Every state has a screen** | Each state reachable in UI or provably unreachable | PASS | State → screen table in contracts/android-app §5, first-run tour (FR-067) and the About/judges route included |
 | **X. Camera frames never leave the device** | No upload, persistence or server inference | PASS | Network egress limited to RPC and the local wallet (contracts/android-app §2); no `RECORD_AUDIO`; AC-10 traffic check |
 | **XI. Weaknesses documented** | Everything faked, stubbed, flagged or trusting is named in the README | PASS — **action required** | Two trust gaps the README must name, with their fixes: the faucet's fee **sponsor key ships in the APK** (R13), and the **program upgrade authority** is kept (R14). The demo video and pitch deck must not hide them (follow-ups below) |
 | **XII. The build demonstrates itself** | Live populated cohort any day of the live period; free challenge immediately; scripting disclosed in app, README, demo video and deck | PASS | Permissionless weekly opening; crank every 10 min; real members first, with scripted wallets filling each cohort only to its floor (R12); faucet funded to 11 November (R13); walkthrough from cohort #3 in the APK, shared with the demo video and playable before a wallet is connected (R18, FR-001a) |
@@ -145,7 +145,10 @@ kotlin/                             # Gradle root generated by `npx solana-mobil
 ├── app/                            # Android: Compose UI, CameraX + MediaPipe, MWA, MMKV
 │   └── src/main/kotlin/…/
 │       ├── wallet/  faucet/  home/  ladder/  lobby/  sitting/
-│       ├── cohort/  roster/  claim/  streak/  walkthrough/
+│       ├── cohort/  roster/  claim/  streak/
+│       ├── tour/                     # first-run cards, FR-067
+│       ├── about/                    # judges: walkthrough player, scripted list, weaknesses
+│       ├── ui/theme/                 # Color.kt, Type.kt, Shape.kt, Theme.kt — PRD §11 tokens
 │       └── leaderboard/            # [Phase 2]
 └── crank/                          # JVM CLI: run, scripted, chips, init, status
 

@@ -188,6 +188,7 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | `progress:{wallet}:{scope}:{dayIndex}` | `{banked, target, completedAt?}` | `scope` = cohort address or `challenge`; `banked` is a multiple of 10; **written before "banked" is shown** (FR-023, R6) |
 | `pending:{wallet}:{cohort}` | `{dayIndex, proofHash, completedAt}` | A completed cohort day not yet landed; Phase 1 "Done — tap to submit" (FR-024b) |
 | `streak:{wallet}` | `{current, longest, lastDay}` | `lastDay` = global day index `floor((chainNow − 18,000) ÷ 86,400)` (turns over at 05:00 UTC, OD-6); +1 when a day completes on `lastDay + 1`; reset when a day is skipped; untouched by forfeits (FR-049…FR-052) |
+| `tour:{wallet}` | `{seenVersion}` | The first-run tour has been completed or skipped by this wallet (FR-067). Absent = show it after connecting; the tour stays re-openable from the app whatever this holds |
 | *(bundled resource)* | JSON | Scripted wallet public keys from `kotlin/core/src/main/resources/scripted-wallets.json` (FR-043a) — read-only, not in MMKV |
 
 Nothing here is trusted by the contract: a completed day only counts once `submit_day` lands, and the streak is cosmetic.
@@ -206,5 +207,8 @@ Computed in `kotlin/core` (`Derive.kt`) from chain accounts and chain time only,
 | Roster | standing members first; then `Forfeited` or breached members by `days_lasted` descending (FR-062); scripted labels from the bundled list (FR-064) |
 | Time left today | `deadline_of(day_index) − chainNow` (FR-046) |
 | Warning window | Time left ≤ 600 s (FR-047) |
+| **At stake** (a Holdout open for joining) | `held_stake` — the sum of the stakes taken so far. Shown on the lobby card with the joined count (FR-053). Labelled "at stake", never "prize": an open cohort has no forfeits yet |
+| **Carry-over received** | `carry_over_in`, shown as its own line when it is non-zero (FR-037b) |
+| Time until joining closes | `join_cutoff − chainNow` (FR-008) |
 
 `member_count_at_start` = `member_count` read at or after `start` (the roster is final from the join cutoff, FR-010).

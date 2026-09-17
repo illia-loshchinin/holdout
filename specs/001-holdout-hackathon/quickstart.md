@@ -96,6 +96,12 @@ cd kotlin && ./gradlew :app:lint :app:checkNoAudioPermission
 
 **Expected:** lint passes; the manifest check confirms `RECORD_AUDIO` is absent (FR-022a).
 
+```bash
+cd kotlin && ./gradlew :app:testDevnetDebugUnitTest --tests '*ThemeTest*' --tests '*LobbyCardTest*'
+```
+
+**Expected:** the Compose theme carries the PRD §11 hex values with dynamic colour off, and a lobby card renders "at stake" with the joined count and any carry-over — never the word "prize" before a Holdout starts (FR-053, spec §1a).
+
 ## 5. Full cycle on a compressed clock (spike S3 / rehearsal)
 
 LiteSVM with a test build (`test-leagues` feature) and a test league with `day_length = 60`, the clock advanced by the test:
@@ -169,7 +175,7 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 5 | Crank killed a day; stranger cranks | *local*: stop crank, advance 1 day, run `crank run` from a different payer | Same forfeits and payouts as uninterrupted run; breached member's submit failed meanwhile |
 | 6 | Vectors | Section 3 | All V1–V22 pass |
 | 7 | Invariants at 1,000 members | Section 3 | Randomised suite green |
-| 8 | Fresh install; counters at the deadline | Devnet: install, play the walkthrough **without connecting**, then connect; stop crank before a boundary | Wallet asked first, with only the walkthrough available before it; cohort populated to at least its floor, scripted members labelled; one second after the deadline the counter already excludes non-submitters |
+| 8 | Fresh install; counters at the deadline | Devnet: install, play the walkthrough **without connecting**, then connect; stop crank before a boundary | Wallet asked first, with only the walkthrough available before it; the first-run tour appears once the wallet connects, skips cleanly and re-opens from About (FR-067); cohort populated to at least its floor, scripted members labelled; one second after the deadline the counter already excludes non-submitters |
 | 9 | No price read | Code search + test | No instruction reads a price; only `crank chips publish` uses a rate |
 | 10 | No frame leaves device | Proxy the phone, run a sitting | Only RPC traffic observed |
 | 11 | No finishers, carry-over | *local*: all forfeit; with and without an open next cohort | 50 % fee; carry-over in the open cohort, or held and recorded (delivery **[Phase 2]**) |

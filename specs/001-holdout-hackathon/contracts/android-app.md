@@ -69,6 +69,7 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 | `Claimed` | Cohort detail — claimed |
 | Any running cohort | Roster (FR-062) |
 | **[Phase 2]** League leaderboard | Leaderboards screen (US-10) |
+| About / for judges | Walkthrough player, the published scripted-wallet list, and the known weaknesses (FR-043a, FR-044, constitution XI) |
 | Walkthrough | Walkthrough player, or "recording in progress" (R18), reached from **About / for judges** and from a quiet link on the connect screen. The **only** screen reachable before a wallet is connected (FR-001a); it plays a bundled file, so it needs no network and no wallet |
 
 `Withdrawn` returns the member to the ladder with a refund confirmation; the cohort-level `Settled` state is shown in cohort detail.

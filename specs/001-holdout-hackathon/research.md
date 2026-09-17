@@ -232,6 +232,13 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
 
 ---
 
+## R20 · First-run tour and the design tokens in Compose
+
+- **Decision:** the tour (FR-067) is **three Compose pages in a `HorizontalPager`** inside `kotlin/app/.../tour/`, shown after the first successful connect and re-openable from the About route. A `tour:{wallet}` MMKV record marks it seen (data-model §4). It carries **no video dependency at the freeze**: the short explainer (R18) drops into card 2 when it exists, and the cards stand alone until then.
+- **Theme:** PRD §11 tokens are transcribed once into `ui/theme/` — `Color.kt`, `Type.kt`, `Shape.kt`, `Theme.kt` — as a single dark `ColorScheme` with **dynamic colour disabled**. System Roboto for UI; **JetBrains Mono bundled in `res/font/`** for amounts and countdowns. No other font ships.
+- **Rationale:** the tour is the only onboarding a member gets now that the walkthrough is judge-facing (H29), and it must be finished before the app slice ends on 26 September — a pager over three static pages is hours of work, not days. Keeping the tokens in one file makes the design freeze on 20 September enforceable.
+- **Alternatives considered:** a video-only explainer (nothing to ship at the freeze, since cohort #3 is not filmed until October); an interactive coach-mark overlay on the real screens (more code, and it fights the camera screens); Material You dynamic colour (recolours the brand on every device).
+
 ## Spikes that confirm this research
 
 | Spike | Confirms | Pass bar | If it fails |
