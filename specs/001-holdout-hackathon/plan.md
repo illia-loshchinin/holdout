@@ -12,24 +12,29 @@ Work follows the spec's phasing (spec §3a): **Phase 1** is the full loop and mu
 
 ## Technical Context
 
-**Language/Version**: Rust (toolchain required by Anchor 1.0.x) for the program; Kotlin 2.x on JDK 17 for the Android app, core library and crank; TypeScript on Node 22 LTS for program integration tests only.
+**Language/Version**: Rust ≥ 1.89 with Anchor 1.1.2 and Solana CLI 3.1.10 for the program; Kotlin 2.4.10 (JDK 21 daemon, Java 17 bytecode) for the Android app, core library and crank; TypeScript on Node 22 LTS for program integration tests only.
 
 **Primary Dependencies**:
-- **Program:** Anchor 1.0.x with the token interface (research R1).
-- **Android app:** Jetpack Compose, starting from Solana Mobile's Kotlin Compose scaffold; `mobile-wallet-adapter-clientlib-ktx` 2.0.x; Solana Mobile `web3-core` and `rpc-core`; kborsh; MediaPipe Tasks Vision (Pose Landmarker, Hand Landmarker); CameraX; MMKV for Android; Media3 ExoPlayer (R3–R6, R18).
-- **Tests:** LiteSVM with the Anchor TypeScript client (R2).
-- **Crank:** `kotlin/core` plus a CLI argument parser (R12).
+- **Program:** Anchor 1.1.2 with the token interface, `solana-*` crates on `^3` (research R1).
+- **Android app** — generated from the Solana Mobile CLI's **Kotlin Compose Minimal** template (R3):
+  - **Build:** AGP 9.3.2 with Gradle 9.7.1; Compose BOM 2026.08.00.
+  - **Solana:** `mobile-wallet-adapter-clientlib-ktx` 2.2.0, `web3-solana` 0.3.1, `multimult` 0.2.6, plus `rpc-core` (version pinned at scaffold).
+  - **Camera and device:** MediaPipe Tasks Vision (Pose Landmarker, Hand Landmarker), CameraX, MMKV for Android, Media3 ExoPlayer (R4–R6, R18).
+- **Tests:** `@solana/kit` with `@solana/kit-plugin-litesvm` (LiteSVM 1.3.x) and a Codama-generated Kit client; a Surfpool smoke suite before deploys (R2).
+- **Crank:** `kotlin/core` (`web3-solana`, `rpc-core`) plus a CLI argument parser (R12).
 
 **Storage**:
 - **On-chain:** program accounts — `Config`, `LeagueConfig`, `Cohort` and its vault, `Membership`, `Profile`, the faucet vault (data-model §1).
 - **Device:** MMKV key-value records for banked reps, pending submissions, streak and cached chain time (data-model §4). No server database.
 
 **Testing**:
-- **Program:** `cargo test` for the pure settlement math (PRD §19 vectors V1–V22 plus property tests); TypeScript + LiteSVM integration tests for every scenario, including the randomised INV-1…INV-8 suite at 1,000 members.
+- **Program:** `cargo test` for the pure settlement math (PRD §19 vectors V1–V22 plus property tests); Kit + LiteSVM integration tests for every scenario, including the randomised INV-1…INV-8 suite at 1,000 members; a Surfpool smoke run (`anchor test`) with time travel before each devnet deploy.
 - **Kotlin:** JUnit 5 for `core` (golden fixture replay) and `repcounter` (recorded landmark traces, including cheats); Compose UI tests for key screens.
 - **Manual device checks:** quickstart §8.
 
-**Target Platform**: Solana devnet; Android 10+ (API 29), primary device Solana Seeker with Seed Vault Wallet; the crank on a JVM (Fly.io scheduled machine).
+**Target Platform**: Solana devnet; Android 8.0+ (minSdk 26, target/compile SDK 37, matching the template), primary device Solana Seeker with Seed Vault Wallet; the crank on a JVM (Fly.io scheduled machine).
+
+**Development environment**: Windows 11 with **WSL2 (Ubuntu 24.04)** for everything Solana — Rust, Anchor, Solana CLI, LiteSVM and Surfpool have no native Windows binaries (GLIBC ≥ 2.39 required). Android Studio on Windows for the app. Agent-run Anchor and Surfpool commands use `NO_DNA=1`.
 
 **Project Type**: Mobile app with an on-chain program and a CLI automation tool (no web backend).
 
@@ -96,8 +101,13 @@ specs/001-holdout-hackathon/
 ### Source Code (repository root)
 
 ```text
+Anchor.toml                         # anchor 1.1.2; [test] runner = surfpool (smoke only)
+Cargo.toml / Cargo.lock             # workspace; lock committed (compatibility matrix)
+.agents/skills/solana-dev/          # solana-dev skill (npx skills add …), linked into .claude/skills
+skills-lock.json
+
 programs/holdout/
-├── Cargo.toml                      # features: test-leagues
+├── Cargo.toml                      # anchor-lang/anchor-spl 1.1.2, solana-* ^3; features: test-leagues
 └── src/
     ├── lib.rs
     ├── state/                      # config.rs, league.rs, cohort.rs, membership.rs, profile.rs
@@ -110,16 +120,23 @@ programs/holdout/
     ├── events.rs
     └── errors.rs
 
-tests/                              # TypeScript, LiteSVM
-├── package.json
+idl/holdout.json                    # Anchor IDL from the build
+
+tests/                              # TypeScript (runs in WSL2): Kit + LiteSVM
+├── package.json                    # @solana/kit, @solana/kit-plugin-litesvm, litesvm, codama, vitest
+├── clients/holdout/                # Codama-generated Kit client (committed)
 ├── helpers/                        # clock control, cohort builders, invariant checker
+├── smoke/                          # Surfpool + time travel, run before devnet deploys
 ├── scenarios/                      # one file per acceptance criterion (contract side)
 ├── invariants/                     # randomised INV-1…INV-8, 1,000-member cohort
 └── fixtures/generate.ts            # writes ../fixtures/*.json
 
 fixtures/                           # committed golden JSON (contracts/program-instructions §7)
 
-kotlin/                             # Gradle root (Kotlin DSL, version catalog)
+kotlin/                             # Gradle root generated by `npx solana-mobile@latest create`
+│                                   # (Kotlin Compose Minimal); stray root dependencies removed
+├── settings.gradle.kts             # include(":app", ":core", ":repcounter", ":crank")
+├── gradle/libs.versions.toml       # the only place versions live
 ├── core/                           # JVM: account codecs, PDAs, instruction builders,
 │                                   # Derive.kt, RPC reads, scripted-wallets.json
 ├── repcounter/                     # JVM: pre-flight checks, palm rule, push-up state machine
@@ -134,7 +151,7 @@ kotlin/                             # Gradle root (Kotlin DSL, version catalog)
 fly.toml                            # crank scheduled machine
 ```
 
-**Structure Decision**: one repository, three build systems with one job each. **Cargo** builds the program. **npm** exists only to test the program on LiteSVM and generate the fixtures. **Gradle** builds everything that runs in production off-chain — the Android app and the crank — sharing `kotlin/core` so there is exactly one client implementation, pinned to the program by committed fixtures.
+**Structure Decision**: one repository, three build systems with one job each. **Cargo** builds the program (WSL2). **npm** exists only to test the program on LiteSVM, generate the Codama client and generate the fixtures (WSL2). **Gradle** — seeded from the Solana Mobile CLI template — builds everything that runs in production off-chain: the Android app and the crank, sharing `kotlin/core` so there is exactly one Kotlin client implementation, pinned to the program by committed fixtures.
 
 ## Delivery sequence
 
@@ -157,6 +174,8 @@ Sized against the scope doc's calendar (§0) and the spec's phasing. Each step e
 - **Decision record:** mark P3, P4, P5, P8, P10 and P11 resolved by research R15, R14, R12, R8, R6 and R13; record the switch to a native Kotlin app.
 - **Scope doc D-F and D-G:** note the Kotlin crank and MMKV for Android.
 - **Before 20 Sep:** gather ~40 devnet SOL for the faucet vault (R13).
+- **Before spike S1:** set up WSL2 Ubuntu 24.04 with Rust, Solana CLI 3.1.10, Anchor 1.1.2 and Node 22; register a domain (or subdomain) for the MWA identity URI and host its Digital Asset Links file (R3).
+- **Agent tooling:** install the solana-dev skill in this repository and add the Solana MCP server (R19).
 
 ## Complexity Tracking
 

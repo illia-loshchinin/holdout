@@ -10,23 +10,39 @@ Resolves decision-record open items P3, P4, P5, P8, P10, P11 (plan-level parts).
 
 ## R1 · On-chain program framework
 
-- **Decision:** Rust program built with **Anchor 1.0.x**, one program named `holdout`, deployed to **devnet**. Token CPIs go through Anchor's **token interface**, so the program works with either the classic SPL Token program or Token Extensions.
-- **Rationale:** Anchor 1.0 (April 2026) is the current stable line and ships LiteSVM as its default test backend (R2). One program keeps account relationships, PDAs and invariants in one place for a 13-day build. SKR is an SPL asset; the mock SKR mint is a classic SPL mint, and the token interface keeps the door open for Token Extensions (the Genesis Token uses them).
+- **Decision:** Rust program built with **Anchor 1.1.x (1.1.2)**, one program named `holdout`, deployed to **devnet**. Toolchain pinned to the Solana Foundation's tested combination: **Solana CLI 3.1.10**, Rust **≥ 1.89**, platform tools v1.52+, `solana-*` crates on `^3`, all `anchor-*` crates on the exact same version, `Cargo.lock` committed. Token CPIs go through Anchor's **token interface**, so the program works with either the classic SPL Token program or Token Extensions. The toolchain runs in **WSL2 (Ubuntu 24.04)** on the Windows development machine — Anchor 1.x binaries need GLIBC ≥ 2.39 and have no native Windows build.
+- **Rationale:** Anchor 1.1.x (June 2026) is the Solana Foundation's recommended line for new projects (solana-dev skill, compatibility matrix). One program keeps account relationships, PDAs and invariants in one place for a 13-day build. SKR is an SPL asset; the mock SKR mint is a classic SPL mint, and the token interface keeps the door open for Token Extensions (the Genesis Token uses them).
 - **Alternatives considered:** native Rust without Anchor (more boilerplate, slower to a correct IDL); several programs as in the archived PRD (cross-program invariants for no benefit); Pinocchio (less tooling, no time to absorb).
 
 ## R2 · Contract testing and clock control
 
 - **Decision:** three layers, written **before** the logic they test (constitution VII):
   1. **Pure settlement math** in a dependency-free Rust module (`programs/holdout/src/math/`), unit-tested against every vector in PRD §19 (V1–V22) plus property tests for the arithmetic invariants.
-  2. **Program integration tests** in **TypeScript on LiteSVM** with the Anchor-generated client, setting the Clock sysvar to jump to join cutoffs, deadlines and settlement. The randomised INV-1…INV-8 suite (acceptance criterion 7), including a 1,000-member cohort, runs here.
+  2. **Program integration tests** in **TypeScript on LiteSVM** (`litesvm` npm 1.3.x) through **`@solana/kit` with `@solana/kit-plugin-litesvm`**, using a **Codama-generated Kit client** rendered from the Anchor IDL. Tests set the Clock sysvar to jump to join cutoffs, deadlines and settlement. The randomised INV-1…INV-8 suite (acceptance criterion 7), including a 1,000-member cohort, runs here. A small **Surfpool** smoke suite (`anchor test`'s default runner in Anchor 1.x) exercises the real RPC path with `surfnet_timeTravel` before each devnet deploy. All of this runs in WSL2 — LiteSVM and Surfpool ship native binaries for Linux and macOS only.
   3. **Shared golden fixtures** (`fixtures/*.json`): account byte layouts, PDA derivations, instruction encodings and derived figures (breach, survivor counter, projected share) produced by the TypeScript tests and **replayed by the Kotlin `core` module's unit tests**, so the Kotlin client can never drift from the program.
 - **Rationale:** LiteSVM runs in-process with clock control, and every rule here is time-driven; Anchor's TypeScript tooling is the most mature place to test the program itself. Golden fixtures turn "two languages" into one source of truth.
-- **Alternatives considered:** `solana-test-validator` (slow, no clock control); Rust-only integration tests (fine, but the Anchor-generated TypeScript client makes fixture generation trivial); writing program tests in Kotlin (no LiteSVM bindings).
+- **Alternatives considered:** `solana-test-validator` (slow, no clock control); `@solana/web3.js` v1 with the old Anchor TypeScript client (the Solana Foundation now recommends Kit; web3.js v1 is legacy); Rust-only integration tests (fine, but the generated Kit client makes fixture generation trivial); writing program tests in Kotlin (no LiteSVM bindings).
+- **Deviation from the solana-dev skill, stated:** the skill says never to hand-write Borsh layouts for a program you own. Codama has no Kotlin renderer, so the Kotlin codecs in `core` are hand-written — which is exactly why they must replay the golden fixtures generated from the Codama TypeScript client and the real program (layer 3).
 
 ## R3 · Mobile app stack
 
-- **Decision:** a **native Android app in Kotlin**, UI in **Jetpack Compose**, starting from Solana Mobile's **Kotlin Compose scaffold**. Wallet connection and signing through **Mobile Wallet Adapter (`mobile-wallet-adapter-clientlib-ktx`, 2.0.x)** — which reaches Seed Vault Wallet on Seeker and other MWA wallets on ordinary Android phones. Transactions built with Solana Mobile's **`web3-core`**, RPC via **`rpc-core`**, Anchor instruction data encoded with **kborsh**, following Solana Mobile's "Working with Anchor programs in Kotlin" guide. Target: Android 10+ (API 29), Seeker first. *Confirm at spike S1.*
-- **Rationale:** the camera pipeline is the product's magic, and native Kotlin gives MediaPipe and CameraX first-party, GPU-accelerated support with no bridge (R4). Solana Mobile maintains the Kotlin MWA, web3 and RPC libraries and a Compose scaffold, so wallet flows are first-class too. One language for app, device logic and crank (R12).
+- **Decision:** a **native Android app in Kotlin**, UI in **Jetpack Compose**, generated with the **Solana Mobile CLI** (`npx solana-mobile@latest create`, template **"Kotlin Compose Minimal"**) — the same template as the local reference project `fitbet`. Its tested versions become the baseline:
+
+  | Component | Version from the template |
+  |---|---|
+  | Gradle / Android Gradle Plugin | 9.7.1 / 9.3.2 (built-in Kotlin support — no separate `kotlin-android` plugin in app modules) |
+  | Kotlin / Compose compiler plugin | 2.4.10 |
+  | Compose BOM | 2026.08.00 (Material 3, lifecycle 2.11, activity-compose 1.13) |
+  | `com.solanamobile:mobile-wallet-adapter-clientlib-ktx` | 2.2.0 |
+  | `com.solanamobile:web3-solana` | 0.3.1 (public keys, transactions) |
+  | `io.github.funkatronics:multimult` | 0.2.6 (Base58) |
+  | `com.solanamobile:rpc-core` | **added by us** — not in the template's app module; version pinned at scaffold (the template's stray root entry names 0.2.7) |
+  | compileSdk / targetSdk / minSdk | 37 / 37 / **26** |
+  | Bytecode / Gradle daemon JVM | Java 17 / JDK 21 |
+
+  Wallet flow follows the template's pattern: a `MobileWalletAdapter` with a `ConnectionIdentity` (app name, icon, identity URI) and `blockchain = Solana.Devnet`; an `ActivityResultSender` created in the activity; `connect`, `transact { signAndSendTransactions(...) }` and `disconnect`, each returning `TransactionResult.Success`, **`NoWalletFound`** (drives the no-wallet screen, ES-0) or `Failure`. The identity URI must be a domain we control with a Digital Asset Links file so wallets can verify the app. Anchor instruction data is encoded following Solana Mobile's "Working with Anchor programs in Kotlin" guide. *Confirm at spike S1.*
+- **Template defects to fix when scaffolding:** the template's **root** `build.gradle.kts` contains a stray `dependencies { implementation(...) }` block and an `android { }` block with older library versions (MWA 2.0.3, web3-solana 0.2.5, rpc-core 0.2.7) that don't belong in a root project; remove both, keeping versions only in `gradle/libs.versions.toml`. Rename the template's placeholder namespace (`com.fitbet`) and identity (`https://yourdapp.com`).
+- **Rationale:** the camera pipeline is the product's magic, and native Kotlin gives MediaPipe and CameraX first-party, GPU-accelerated support with no bridge (R4). Starting from the CLI template gives a known-good, current Gradle/AGP/Kotlin/Compose/MWA combination instead of assembling one by hand in a 13-day build. One language for app, device logic and crank (R12).
 - **Alternatives considered:** React Native + Expo (faster UI iteration, but pose detection through community Vision Camera plugins is the riskiest spike, and a TypeScript/Kotlin bridge sits on the hot path); Flutter (weak Solana Mobile support); sol4k as the Solana client (capable, but Solana Mobile's own libraries match MWA's types directly).
 
 ## R4 · On-device pose estimation and rep counting
@@ -151,12 +167,13 @@ Resolves decision-record open items P3, P4, P5, P8, P10, P11 (plan-level parts).
 
 ## R19 · Repository layout and tooling
 
-- **Decision:** one repository with three build systems, each doing one job:
-  - **Cargo workspace** — `programs/holdout` (Rust, Anchor).
-  - **npm** — `tests/` (TypeScript LiteSVM integration tests and fixture generation), Node 22 LTS.
-  - **Gradle (Kotlin DSL, version catalog)** — `kotlin/` with `core` (JVM library), `repcounter` (JVM library), `app` (Android application) and `crank` (JVM application).
-  Kotlin 2.x, JDK 17, JUnit 5 + Kotest assertions for JVM modules, Compose UI tests for key screens; ktlint + detekt; `cargo fmt` + Clippy.
-- **Rationale:** smallest setup that lets the app and crank share one Kotlin client while the program is tested with Anchor's native tooling.
+- **Decision:** one repository with three build systems, each doing one job, on two environments:
+  - **Cargo workspace** — `programs/holdout` (Rust, Anchor 1.1.2). Built in **WSL2**.
+  - **npm** — `tests/` (Kit + LiteSVM integration tests, Codama client generation, fixture generation), Node 22 LTS (≥ 20.18). Run in **WSL2**.
+  - **Gradle** — `kotlin/`, created from the Solana Mobile CLI template (R3) and extended with `core` (JVM library), `repcounter` (JVM library) and `crank` (JVM application) next to the template's `app`. Versions only in `gradle/libs.versions.toml`. Built on **Windows** with Android Studio or in WSL2.
+  - **Tooling:** Kotlin 2.4.10, JDK 21 daemon / Java 17 bytecode, JUnit + Kotest assertions for JVM modules, Compose UI tests for key screens; ktlint + detekt; `cargo fmt` + Clippy.
+  - **Agent tooling:** the **solana-dev skill** installed in this repository (`npx skills add solana-foundation/solana-dev-skill`, as in the reference project) and the **Solana MCP server** (`https://mcp.solana.com/mcp`) for current docs. Anchor and Surfpool commands run by agents are prefixed with `NO_DNA=1` for non-interactive output.
+- **Rationale:** smallest setup that lets the app and crank share one Kotlin client while the program is tested with the Solana Foundation's recommended tooling; WSL2 is required because the Solana toolchain has no native Windows binaries.
 - **Alternatives considered:** Kotlin Multiplatform (no second target needs it); a TypeScript crank (see R12).
 
 ---
@@ -165,9 +182,9 @@ Resolves decision-record open items P3, P4, P5, P8, P10, P11 (plan-level parts).
 
 | Spike | Confirms | Pass bar | If it fails |
 |---|---|---|---|
-| **S1 · Wallet on real hardware** | R3, R13 | The Kotlin Compose scaffold on a Seeker connects Seed Vault Wallet via MWA, signs and lands a devnet transaction; a sponsor-paid transaction built with `web3-core` lands too | Try another MWA wallet on a plain Android phone; if a library blocks, drop to sol4k for transaction building |
+| **S1 · Wallet on real hardware** | R3, R12, R13 | The Kotlin Compose Minimal template (fixed root build file) builds; on a Seeker it connects Seed Vault Wallet via MWA and lands a devnet transaction with `signAndSendTransactions`; a sponsor-paid transaction built with `web3-solana` + `rpc-core` lands too; `NoWalletFound` is returned on a phone with no wallet; `web3-solana` and `rpc-core` also run in a plain JVM module (for the crank) | Try another MWA wallet on a plain Android phone; if a library blocks, or doesn't run on the plain JVM, use sol4k for transaction building in that module |
 | **S2 · Rep counting on real video** | R4, R5 | ≥ 15 FPS pose inference on a Seeker; correct count on 10 real push-up videos (≤ 1 miscounted rep in 25) and rejection of 3 cheat videos (half reps, sagging hips, too fast); open palm detected in normal indoor light | Lite model; lower analysis resolution; CPU delegate; relax thresholds with recorded evidence |
-| **S3 · Full cycle on a manipulated clock** | R1, R2, R9, R10 | On LiteSVM: open → join (incl. lobby place) → lock → daily submits → forfeits in out-of-order repeated pages → count → finalize with remainder → claim, for a 1,000-member cohort; vectors V1–V22 pass; Kotlin `core` replays the fixtures | Reduce page size; add address lookup tables |
+| **S3 · Full cycle on a manipulated clock** | R1, R2, R9, R10 | In WSL2 with Anchor 1.1.2 / Solana CLI 3.1.10, on LiteSVM: open → join (incl. lobby place) → lock → daily submits → forfeits in out-of-order repeated pages → count → finalize with remainder → claim, for a 1,000-member cohort; vectors V1–V22 pass; Kotlin `core` replays the fixtures | Reduce page size; add address lookup tables |
 
 ## Sources checked for this research (September 2026)
 
@@ -175,3 +192,5 @@ Resolves decision-record open items P3, P4, P5, P8, P10, P11 (plan-level parts).
 - [Solana Mobile — Kotlin quickstart](https://docs.solanamobile.com/android-native/quickstart) · [Using Mobile Wallet Adapter (Kotlin)](https://docs.solanamobile.com/android-native/using_mobile_wallet_adapter) · [Working with Anchor programs in Kotlin](https://docs.solanamobile.com/android-native/using-anchor-programs) · [solana-kotlin-compose-scaffold](https://github.com/solana-mobile/solana-kotlin-compose-scaffold) · [mobile-wallet-adapter-clientlib-ktx](https://javadoc.io/doc/com.solanamobile/mobile-wallet-adapter-clientlib-ktx/latest/index.html)
 - [MediaPipe Pose Landmarker for Android](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker/android)
 - [SKR token launch (SPL asset)](https://thedefiant.io/news/tokens/solana-seeker-launches-skr-token-airdrop)
+- Local reference project `D:\dev\Hackaton Solana Mobile\fitbet` — Solana Mobile CLI "Kotlin Compose Minimal" template (build files, version catalog, MWA view model) and the bundled solana-dev skill v2.4.0 (compatibility matrix, testing strategy, IDL codegen)
+- [Solana Mobile templates](https://github.com/solana-mobile/templates) · [create-solana-dapp](https://github.com/solana-foundation/create-solana-dapp) · [Solana Mobile CLI — create a project](https://docs.solanamobile.com/get-started/react-native/create-solana-mobile-app)

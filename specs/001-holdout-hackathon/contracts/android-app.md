@@ -6,7 +6,7 @@
 
 | Item | Contract |
 |---|---|
-| Minimum Android | API 29 (Android 10); primary device Solana Seeker |
+| Android SDK levels | min SDK 26, compile/target SDK 37 (Solana Mobile CLI Kotlin Compose Minimal template); primary device Solana Seeker |
 | `CAMERA` | Requested before the first sitting, with the reason stated |
 | `RECORD_AUDIO` | **Never declared** in the manifest (FR-022a) — a build check fails if it appears |
 | `INTERNET` | Declared; used only as in §2 |
@@ -23,12 +23,16 @@ Nothing else. **Camera frames, landmarks and rep traces are never sent anywhere*
 
 ## 3. Wallet use (Mobile Wallet Adapter)
 
-| Action | MWA call | Notes |
+Client: `com.solanamobile:mobile-wallet-adapter-clientlib-ktx` 2.2.0, used as in the template — one `MobileWalletAdapter` with a `ConnectionIdentity` (identity URI on our domain with a Digital Asset Links file, icon, name "Holdout") and `blockchain = Solana.Devnet`, and an `ActivityResultSender` created in the activity.
+
+| Action | Client call | Notes |
 |---|---|---|
-| Connect | `authorize` (cluster: devnet) | First screen; nothing else is usable before it (FR-001a) |
-| Join, leave, submit completed day, claim | `signAndSendTransactions` | The member's wallet is the fee payer |
-| Faucet | **none** | Built and sent by the app with the bundled sponsor key as fee payer; recipient = connected address; no member signature (R13) |
-| Reconnect | `reauthorize` with the stored auth token | On resume |
+| Connect | `walletAdapter.connect(sender)` | First screen; nothing else is usable before it (FR-001a) |
+| No wallet installed | `TransactionResult.NoWalletFound` from any call | Shows the no-wallet screen with how to get a wallet (ES-0) |
+| Join, leave, submit completed day, claim | `walletAdapter.transact(sender) { signAndSendTransactions(...) }` | The member's wallet is the fee payer; `Failure` results show a retryable error |
+| Faucet | **none** | Built with `web3-solana`, signed with the bundled sponsor key as fee payer and sent with `rpc-core`; recipient = connected address; no member signature (R13) |
+| Reconnect | Stored auth token reused on resume; `connect` again if it was revoked | — |
+| Disconnect | `walletAdapter.disconnect(sender)` | Returns to the connect screen |
 
 ## 4. Device storage
 

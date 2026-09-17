@@ -6,21 +6,44 @@
 
 ## 1. Prerequisites
 
-| Tool | Version |
-|---|---|
-| Rust + Solana CLI (Agave) | Versions required by Anchor 1.0.x |
-| Anchor CLI | 1.0.x (pinned in `Anchor.toml`) |
-| Node.js | 22 LTS (program integration tests, fixture generation) |
-| JDK | 17 |
-| Android SDK / Android Studio | Current stable; platform API 35, min API 29 |
-| Devices | A Solana Seeker with Seed Vault Wallet; one ordinary Android phone with an MWA wallet |
-| Devnet SOL | ~40 SOL for faucet pre-funding (R13) plus deploy costs, gathered in advance |
+| Tool | Version | Where |
+|---|---|---|
+| WSL2 + Ubuntu | 24.04 (GLIBC ≥ 2.39) | Windows host |
+| Rust | ≥ 1.89 | WSL2 |
+| Solana CLI (Agave) | 3.1.10 | WSL2 |
+| Anchor CLI | 1.1.2 (pinned in `Anchor.toml`, same as `anchor-lang`/`anchor-spl`) | WSL2 |
+| Surfpool | current (`curl -sL https://run.surfpool.run/ \| bash`; never `cargo install surfpool`) | WSL2 |
+| Node.js | 22 LTS (≥ 20.18) | WSL2 |
+| JDK | 21 (daemon toolchain); app bytecode targets Java 17 | Windows (Android Studio) |
+| Android Studio / SDK | Current stable; compile/target SDK 37, min SDK 26 | Windows |
+| Devices | A Solana Seeker with Seed Vault Wallet; one ordinary Android phone with an MWA wallet | — |
+| Domain | One domain or subdomain for the MWA identity URI, with a Digital Asset Links file | — |
+| Devnet SOL | ~40 SOL for faucet pre-funding (R13) plus deploy costs, gathered in advance | — |
+
+Commands in §3, §5 and §6 run inside WSL2. When an agent runs Anchor or Surfpool commands, prefix them with `NO_DNA=1`.
+
+### One-time project setup
+
+```bash
+npx solana-mobile@latest create
+```
+
+Choose the **Kotlin Compose Minimal** template and generate it into `kotlin/`. Then remove the stray `dependencies { }` and `android { }` blocks from `kotlin/build.gradle.kts`, rename the `com.fitbet`-style placeholder namespace and the `https://yourdapp.com` identity, and add `rpc-core` to `gradle/libs.versions.toml` (research R3).
+
+```bash
+npx skills add solana-foundation/solana-dev-skill
+```
+
+```bash
+claude mcp add --transport http solana-mcp-server https://mcp.solana.com/mcp
+```
 
 ## 2. Repository layout
 
 ```text
-programs/holdout/      Rust program (Anchor)
-tests/                 TypeScript LiteSVM integration tests + fixture generation
+programs/holdout/      Rust program (Anchor 1.1.2)
+idl/                   Anchor IDL from the build
+tests/                 TypeScript (Kit + LiteSVM) integration tests, Codama client, Surfpool smoke tests, fixture generation
 fixtures/              Golden JSON shared by Rust, TypeScript and Kotlin
 kotlin/core/           Kotlin/JVM: codecs, PDAs, instruction builders, Derive.kt
 kotlin/repcounter/     Kotlin/JVM: pre-flight, palm and rep rules
@@ -31,7 +54,7 @@ kotlin/crank/          Kotlin/JVM CLI (automation, scripted members, chips)
 ## 3. Contract: tests first
 
 ```bash
-anchor build
+NO_DNA=1 anchor build
 ```
 
 ```bash
@@ -41,10 +64,16 @@ cargo test -p holdout --lib math
 Runs the pure settlement math against `fixtures/settlement-vectors.json` (PRD §19 V1–V22). **Expected:** all pass. On a fresh checkout before the math exists: all fail (constitution VII).
 
 ```bash
+npm --prefix tests run codegen
+```
+
+Regenerates the Codama Kit client in `tests/clients/holdout/` from `idl/holdout.json`.
+
+```bash
 npm --prefix tests test
 ```
 
-Runs LiteSVM integration tests with clock control and regenerates `fixtures/`. **Expected:** scenario tests for acceptance criteria 1–9, 11, 13, 15 (contract side), 16 and 18 (contract side) pass; the randomised invariant suite (INV-1…INV-8, 1,000-member cohort, pages out of order and repeated) passes.
+Runs Kit + LiteSVM integration tests with clock control and regenerates `fixtures/`. **Expected:** scenario tests for acceptance criteria 1–9, 11, 13, 15 (contract side), 16 and 18 (contract side) pass; the randomised invariant suite (INV-1…INV-8, 1,000-member cohort, pages out of order and repeated) passes.
 
 ```bash
 git diff --exit-code fixtures/
@@ -78,8 +107,16 @@ npm --prefix tests test -- --grep "full cycle"
 
 ## 6. Devnet deployment
 
+Smoke-test first against an embedded Surfpool network with time travel:
+
 ```bash
-anchor deploy --provider.cluster devnet
+NO_DNA=1 anchor test
+```
+
+**Expected:** the smoke suite in `tests/smoke/` passes (one happy path per instruction plus a time-travelled settlement).
+
+```bash
+NO_DNA=1 anchor deploy --provider.cluster devnet
 ```
 
 Then, once:
