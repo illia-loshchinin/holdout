@@ -1,6 +1,6 @@
 # Holdout — feature specification (hackathon build)
 
-**Date:** 2026-09-15 · **Status:** clarified and phased, ready for `/speckit-plan` · **Target:** CLOCK IN submission, 9 Oct 2026
+**Date:** 2026-09-15 · **Status:** clarified and phased, ready for `/speckit-plan` · **Target:** CLOCK IN submission due 9 Oct 2026 08:59 CEST · judging 10 Oct – 9 Nov 2026
 
 > This IS the spec-kit feature spec for `001-holdout-hackathon`. All open decisions in §9 are resolved (see Clarifications). Work is split into **Phase 1 (core)** and **Phase 2 (deferred)** — see §3a. Next: `/speckit-plan`.
 > **This file describes *what* and *why* only.** Stack, accounts, PDAs, instruction signatures and framework choices belong in `plan.md`.
@@ -18,7 +18,7 @@ A fitness commitment contract. A member stakes on themselves to complete a daily
 
 **Why it works as a product:** the cohort is visible and it shrinks. `189 / 312 still standing` is a number no rolling-join competitor can display, and it is the reason to open the app on a day when nothing else happened.
 
-**Why it is being built now:** a hackathon submission judged over a month on stickiness, UX, memorability and presentation — not a startup launch.
+**Why it is being built now:** a submission to CLOCK IN, the Solana Mobile hackathon, judged from 10 October to 9 November 2026 in four equal parts — stickiness and product fit with the Seeker community (habits and daily engagement), user experience, innovation, and presentation and demo quality — not a startup launch.
 
 ---
 
@@ -46,6 +46,14 @@ A fitness commitment contract. A member stakes on themselves to complete a daily
 - Q: Given 13 days to the feature freeze, how should leaderboards, weekly chip re-pricing, delivery of a held carry-over and automatic offline retry be scheduled? → A: As **Phase 2 inside this spec**: built only after every Phase 1 item works end to end, with simple Phase 1 stand-ins. The data they need is still designed and recorded in Phase 1, so Phase 2 needs no migration.
 - Q: May Phase 2 items land after the 28 September feature freeze? → A: No. The freeze stands; any Phase 2 item not finished by 28 September is cut from the hackathon build and recorded in the decision record for later.
 
+### Session 2026-09-17
+
+- Q: Where should the in-app walkthrough's full cycle be recorded — only from a real 7-day cohort on the judged program, or from a labelled rehearsal cohort with shortened days? (FR-044) → A: Real cohort only. It is recorded from the first judged 7-day cohort, including its real settlement on 5 October and a real claim, and added to the build submitted before 9 October; until then the app says the recording is in progress. No shortened-day recording is used.
+- Q: Once the judged program is deployed on devnet, may it still be upgraded to fix bugs while cohorts hold stakes, or should it be locked? → A: Upgradeable through judging, to fix defects only. An upgrade never changes the rules, parameters or stored layout of any existing cohort, membership or progress record, and the upgrade authority is named in the README as a known weakness.
+- Q: Must the hackathon build be published on the Solana dApp Store for real users? → A: No — the CLOCK IN rules do not require it by the submission deadline. The product launches as is on devnet and reaches judges as a signed APK with the submission. If it wins, it must be published on the dApp Store within 30 calendar days of the winners' announcement; that listing, and any mainnet launch, are post-hackathon work. *(Revised in-session once the official rules were read.)*
+- Q: How long must the devnet build keep running — live cohorts, the faucet and the scheduler? (FR-042a, FR-043) → A: Per the CLOCK IN rules, judging runs 10 October – 9 November 2026 and winners are announced on 10–11 November 2026 (the rules page gives both dates). The build stays live, with no manual intervention, from submission through **11 November 2026**.
+- Q: What must the hackathon submission contain? → A: Per the CLOCK IN rules, before 9 October 2026 08:59 CEST: a functional Android APK that runs on a real device, a GitHub repository someone else can clone and run, a demo video of about three minutes, and a pitch deck. Judges score completion from the demo video and technical depth from the commit history; false or misleading submission materials disqualify, so scripted members and the test network are disclosed in the video and deck as well as in the app and README.
+
 ---
 
 ## 2. In scope
@@ -62,10 +70,13 @@ A fitness commitment contract. A member stakes on themselves to complete a daily
 | Phasing | **Phase 1** is everything not listed as Phase 2 in §3a and must work end to end before any Phase 2 work starts. Nothing lands after the 28 September freeze. |
 | Fee | 20% of each forfeited stake |
 | Network | Devnet, test token |
+| Distribution | A signed Android APK delivered with the hackathon submission — no store listing (FR-066) |
+| Deliverables | APK, GitHub repository, demo video of about three minutes, pitch deck — all before 9 October 2026 08:59 CEST (FR-066) |
+| Live period | From submission through the winners' announcement, **11 November 2026** (FR-042a, FR-043) |
 
 ## 3. Out of scope
 
-Human Flag league (locked rung in the UI only) · **free cohorts of any league** · geo-blocking · terms of service · calibration flow · Swelfie · conditional pre-joining (a lobby place that depends on clearing the current cohort and is refunded automatically on forfeit — the unconditional lobby place of FR-006a is in scope) · cohort cancellation and minimum size · cold-start bonus matching · insurance fund · demotion · notification infrastructure (manual for the demo) · share cards · badges · a daily-streak leaderboard, or any leaderboard fed by a server · audio of any kind in verification — no audio environment check, no audio rep condition, no microphone access *(§9 OD-3)*.
+Human Flag league (locked rung in the UI only) · **free cohorts of any league** · geo-blocking · terms of service · calibration flow · Swelfie · conditional pre-joining (a lobby place that depends on clearing the current cohort and is refunded automatically on forfeit — the unconditional lobby place of FR-006a is in scope) · cohort cancellation and minimum size · cold-start bonus matching · insurance fund · demotion · notification infrastructure (manual for the demo) · share cards · badges · a daily-streak leaderboard, or any leaderboard fed by a server · audio of any kind in verification — no audio environment check, no audio rep condition, no microphone access *(§9 OD-3)* · publishing on the Solana dApp Store, and any mainnet deployment — not required for submission; if the app wins, the dApp Store listing is due within 30 calendar days of the winners' announcement, as post-hackathon work.
 
 ## 3a. Phasing
 
@@ -90,8 +101,8 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 |---|---|
 | **Member** | A person with a wallet and the app. Joins cohorts, does their daily reps in one or more sittings, claims payouts. |
 | **Scheduler** | The automated actor that normally records missed days, settles finished cohorts and opens each league's next cohort on schedule. Holds no special permission — anyone may perform the same steps (FR-030a). Never decides outcomes — only records ones already true (constitution II). |
-| **Operator** | Publishes the SKR chip set: once at launch in Phase 1 (FR-055a), and after a weekly rate check when it has drifted drastically in Phase 2 (FR-056). The only privileged actor, and only for the chip set. |
-| **Judge** | Installs the app cold, weeks after the last real cohort, and must immediately see the product working (constitution XII). |
+| **Operator** | Publishes the SKR chip set: once at launch in Phase 1 (FR-055a), and after a weekly rate check when it has drifted drastically in Phase 2 (FR-056). Also holds the contract's upgrade authority, usable only to fix defects (FR-007b). The only privileged actor, and only for these two things. |
+| **Judge** | Scores the submission from its demo video, repository, pitch deck and APK. May install the submitted APK cold on any day from 10 October to 9 November 2026 and must immediately see the product working (constitution XII). The panel includes security researchers. |
 
 ---
 
@@ -171,11 +182,11 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 ### US-9 · A judge installs the app cold
 
-**Given** a person installs the app on any day during the judging month with no prior state
+**Given** a person installs the app on any day during judging (10 October – 9 November 2026) with no prior state
 **When** they open it and connect a wallet
 **Then** there is a real-time cohort running with members visibly thinning, today's daily challenge is available to do immediately, and a recorded walkthrough inside the app shows a full cycle — join, session, forfeit, settle, claim — end to end without waiting days.
 
-**And** the app and README state plainly that the members of judging-period cohorts are scripted (constitution XI).
+**And** the app, the README, the demo video and the pitch deck state plainly that the members of judging-period cohorts are scripted (constitution XI, FR-066).
 
 ### US-10 · Leaderboards *(league boards: Phase 2 · cohort roster: Phase 1)*
 
@@ -218,6 +229,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 | ES-13 | A member finishes day 7 and holds a lobby place in the cohort starting at that same instant | Their day-7 completion must land before the instant; at the instant the old cohort stops accepting completed days and the new one's day 1 begins, with a fresh count of banked reps. The old payout is claimable once it settles, independently of the new cohort |
 | ES-14 | A member forfeits their running cohort while holding a lobby place | The lobby place is untouched; it starts as normal unless the member leaves it |
 | ES-15 | The automated opening of a league's next cohort runs late | The league has no open lobby until it runs; the next cohort's start instant is still the scheduled Monday, and the daily challenge remains available (FR-053) |
+| ES-16 | A contract defect is found while cohorts hold stakes | The fix is deployed to the same contract (FR-007b). Every existing cohort keeps its start, deadlines, chip set, members, stakes, completed days and pool; no member has to rejoin or resubmit |
 
 ---
 
@@ -240,6 +252,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 - **FR-007** A cohort has a fixed start, a fixed join cutoff, a fixed duration, a fixed daily rep requirement, a fixed day length and a fixed chip set, all set at creation and immutable thereafter.
 - **FR-007a** Cohorts start weekly, on Monday at the 05:00 UTC boundary. Every league opens its next cohort for joining at the instant its current cohort starts, so each league has exactly one cohort open for joining at all times except the locked hour before each start. For the 21-day league this means up to three cohorts running at once. Opening is automated and needs no manual action (FR-043), and may be triggered by anyone once it is due (FR-030a).
+- **FR-007b** The deployed contract remains upgradeable through the judging period, and an upgrade may only fix a defect. An upgrade never changes the rules, parameters or stored layout of any existing cohort, membership or progress record, and never moves a held stake, prize pool or carry-over except through the rule-driven steps every member already relies on. The upgrade authority is named in the README as a known weakness, with its real fix — revoking it once the contract is final — beside it (constitution XI).
 - **FR-008** A cohort accepts joins until its join cutoff, **1 hour before its start**, and starts for everyone at the same instant.
 - **FR-009** Until the join cutoff, a member may leave and receive a full refund, unconditionally.
 - **FR-010** From the join cutoff there is no way out and no refund; the roster is final and the daily obligation begins at the start. Whether a join or a leave landed before the cutoff is decided by chain time alone, never by when the member signed or by whether any automated process has run.
@@ -281,7 +294,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 - **FR-027** 20% of a forfeited stake is taken as fee; the remainder is added to that cohort's prize pool.
 - **FR-028** Forfeiture resets the member's league streak in that league and ends their participation in that cohort.
 - **FR-030** The automated process that records forfeitures is safe to run twice, and safe to run late.
-- **FR-030a** Recording forfeitures, settling a finished cohort, and opening a league's next cohort (with delivery of any held carry-over) are **permissionless**: any wallet may trigger them once they are due. The caller cannot choose or influence any parameter, outcome, recipient or amount — each step only does what on-chain state and the schedule already require, and does nothing if it is not yet due or already done. Publishing a chip set is the only Operator-restricted action.
+- **FR-030a** Recording forfeitures, settling a finished cohort, and opening a league's next cohort (with delivery of any held carry-over) are **permissionless**: any wallet may trigger them once they are due. The caller cannot choose or influence any parameter, outcome, recipient or amount — each step only does what on-chain state and the schedule already require, and does nothing if it is not yet due or already done. Publishing a chip set is the only Operator-restricted instruction; the contract's upgrade authority is governed by FR-007b.
 
 ### Settlement and claim
 
@@ -303,7 +316,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 - **FR-040** The app uses "prize" and never "winnings", "returns", "yield" or "earnings".
 - **FR-041** Before joining a staked cohort, the member is told that a cohort with no forfeitures pays no prize beyond any carry-over it has already received.
 - **FR-042** The app states that it runs on a test network with a test token.
-- **FR-042a** The app has an in-app **faucet**: one tap gives the connected wallet enough test SKR to stake the top chip ($100 tier) of any open cohort, plus enough devnet SOL to pay the transaction fees of a full 21-day cohort cycle — join, every completed day, and claim. Each wallet may use it **once per day** (day boundary 05:00 UTC). No server is involved: the faucet is funded in advance for the whole judging month and needs no manual top-up. It is offered wherever a member lacks test SKR or fee SOL, and the test tokens it gives have no value.
+- **FR-042a** The app has an in-app **faucet**: one tap gives the connected wallet enough test SKR to stake the top chip ($100 tier) of any open cohort, plus enough devnet SOL to pay the transaction fees of a full 21-day cohort cycle — join, every completed day, and claim. Each wallet may use it **once per day** (day boundary 05:00 UTC). No server is involved: the faucet is funded in advance for the whole live period — through the winners' announcement on 11 November 2026 — and needs no manual top-up. It is offered wherever a member lacks test SKR or fee SOL, and the test tokens it gives have no value.
 
 ### The daily challenge and the streak
 
@@ -336,9 +349,10 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 ### Demo integrity
 
-- **FR-043** At any moment during the judging period, a member installing the app finds at least one real-time cohort running and visibly populated, with no manual intervention for the whole month. Cohorts open on the weekly schedule (FR-007a) and are populated by scripted members whose forfeits are spread across the cohort so the survivor count visibly falls; the scripted membership is disclosed in the app and the README.
+- **FR-043** At any moment from submission (9 October 2026) through the winners' announcement (11 November 2026), a member installing the app finds at least one real-time cohort running and visibly populated, with no manual intervention for that whole period. Cohorts open on the weekly schedule (FR-007a) and are populated by scripted members whose forfeits are spread across the cohort so the survivor count visibly falls; the scripted membership is disclosed in the app, the README, the demo video and the pitch deck (FR-066).
 - **FR-043a** Scripted members are **ordinary wallets run by automation**, with no special treatment anywhere in the contract. Each joins with a real test-SKR stake on a normal chip, submits completed days through the same path as any member, and forfeits or finishes on a planned schedule. Their forfeits fund the prize pool real members win, and a scripted finisher takes its proportional share like anyone else. Every figure on screen therefore stays backed by on-chain state (FR-038a, FR-065). Their completed days are not camera-verified — this is named in the README as part of the client-signed trust gap (constitution XI). The set of scripted wallet addresses is public and fixed in the build, so labels (FR-064) need no server and anyone can check them.
-- **FR-044** A full cycle — join, daily sessions, forfeiture, settlement, claim — can be watched without waiting days, as a recorded walkthrough available inside the app. The walkthrough is a recording of the real app against the real devnet contract, not a mock-up. There is no compressed or simulated cohort for judges.
+- **FR-044** A full cycle — join, daily sessions, forfeiture, settlement, claim — can be watched without waiting days, as a recorded walkthrough available inside the app. The walkthrough is a recording of the real app against the judged devnet contract, taken from the **first judged 7-day cohort** (starts Monday 28 September 05:00 UTC, settles Monday 5 October 05:00 UTC) and showing its real settlement and a real claim. It is never a mock-up and never recorded from a shortened-day cohort. The recording is added to the build submitted before 9 October — adding it is filming, not a feature change after the freeze; until it exists, the walkthrough screen says the recording is in progress. The same footage may serve as, or be cut from, the submission demo video (FR-066). There is no compressed or simulated cohort for judges.
+- **FR-066** The hackathon submission is made before **9 October 2026 08:59 CEST** — no late entries — and contains: a functional Android APK that installs and runs on a real device (not only a simulator); a GitHub repository with the full source that someone else can clone, build and run by following the README; a demo video of about **three minutes** showing the full cycle from the real app on devnet; and a pitch deck. Judges score completion from the demo video and technical depth from the repository's commit history. The submitted APK is assumed to be the build judges install, so app fixes after the deadline are not assumed to reach them; contract fixes can (FR-007b). Every submission material is accurate — scripted members, the test network and test token, and every weakness named in the README are never hidden in the video or deck — because false or misleading materials disqualify the entry.
 
 ---
 
@@ -446,7 +460,7 @@ The audio environment check and the audio rep condition are both removed. The en
 
 ### OD-4 · How a judge experiences a full cycle (FR-044) — **RESOLVED 2026-09-15: recorded walkthrough**
 
-Real-time cohorts run continuously through the judging month, populated by disclosed scripted members (FR-043). The full cycle is a recorded walkthrough inside the app, captured from the real app on devnet (FR-044). Compressed `day_seconds` cohorts remain a testing tool only and are not offered to judges.
+Real-time cohorts run continuously through judging and until winners are announced (FR-043), populated by disclosed scripted members (FR-043). The full cycle is a recorded walkthrough inside the app, captured from the real app on the first judged 7-day cohort — its settlement on 5 October and a real claim — and added to the submitted build (FR-044, clarified 2026-09-17). Compressed `day_seconds` cohorts remain a testing tool only and are not offered to judges.
 
 ### OD-6 · One clock or two — **RESOLVED 2026-09-15: one clock**
 
@@ -482,3 +496,4 @@ The build is done when all of the following are demonstrable on devnet:
 16. A brand-new wallet with no SOL and no test SKR uses the in-app faucet once and can then stake the top chip, submit every completed day of a 7-day cohort and claim, without any other source of funds. A second faucet request from the same wallet before the next 05:00 UTC boundary is refused with the time it becomes available; no server is contacted.
 17. With the camera covered during the palm check, the app returns to the environment checks with a tip after 30 seconds, the member can retry repeatedly or cancel, and the day's banked reps are unchanged throughout.
 18. With the phone in airplane mode, a member runs a cohort sitting, sees the offline warning, banks blocks and completes the day. Reconnecting before the deadline and tapping submit (automatically, without the tap, **[Phase 2]**) lands the day and it counts; in a second run, reconnecting one minute after the deadline submits nothing that counts, and the member is in breach.
+19. The submission is complete before 9 October 2026 08:59 CEST (FR-066): the submitted APK installs and runs on a Seeker and on an ordinary Android phone; someone who has not worked on the project clones the repository and builds the app and the contract by following the README alone; the demo video runs about three minutes and shows a join, a sitting, a forfeit, settlement and a real claim from the first judged 7-day cohort; and the app, README, demo video and pitch deck all disclose the scripted members and the test network.
