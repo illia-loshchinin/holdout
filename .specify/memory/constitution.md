@@ -39,12 +39,12 @@ Every state in the specification is reachable in the UI or provably unreachable 
 No upload, no server-side inference, no video persistence, no human review. This is not a performance choice; it is the product's promise.
 
 ### XI. Weaknesses Documented, Not Hidden
-Anything faked, stubbed, flagged off or left trusting is named in the README with its real fix beside it. A judge who discovers a shortcut reads deception; a judge who is told reads competence.
+Anything faked, stubbed, flagged off or left trusting is named in the README with its real fix beside it. No submission material — demo video or pitch deck — hides or contradicts what the README names. A judge who discovers a shortcut reads deception; a judge who is told reads competence. Under the hackathon rules, misleading submission materials also disqualify the entry.
 
 ### XII. The Build Demonstrates Itself
-Judging runs for a month after the last real cohort. Anyone installing the app on any day must find a populated, live, visibly thinning cohort and a free daily challenge they can do immediately — never an empty state, never "come back Monday".
+Judges may install the submitted build on any day of judging, 10 October – 9 November 2026, and the build stays live with no manual intervention until winners are announced on 11 November 2026. Anyone installing it in that period must find a populated, live, visibly thinning cohort and a free daily challenge they can do immediately — never an empty state, never "come back Monday".
 
-Those cohorts MAY be populated by scripted members, and only on these terms: the scripting is disclosed in the app and the README, and every scripted member is labelled wherever it appears — rosters and leaderboards included. An unlabelled scripted member is deception, not demonstration.
+Those cohorts MAY be populated by scripted members, and only on these terms: the scripting is disclosed in the app, the README, the demo video and the pitch deck, and every scripted member is labelled wherever it appears — rosters and leaderboards included. An unlabelled scripted member is deception, not demonstration.
 
 ### XIII. Honest Language
 "Prize", never "winnings", "returns", "yield" or "earnings"; never "bet", "wager", "gamble", "odds" or "luck". No fiat figure presented as a guarantee of what a member will receive. No leaderboard shows or ranks any stake, prize or payout amount — members are ranked on discipline, never on money. The app states plainly that it runs on a test network with a test token.
@@ -52,11 +52,14 @@ Those cohorts MAY be populated by scripted members, and only on these terms: the
 ## Hackathon Constraints
 
 - **Devnet only**, with a mock SKR mint. Stated in the README and in the app.
+- **Delivered as a signed APK** with the submission. Publishing on the Solana dApp Store and any mainnet deployment are post-hackathon work; a winning app must be published on the dApp Store within 30 calendar days of the winners' announcement.
 - **Two staked leagues** — 7-day and 21-day, 25 reps a day — over a **free daily challenge** open to everyone, which builds a cosmetic streak that unlocks nothing, appears on no leaderboard and is never paid against. A forfeit does not break a streak.
 - **Leaderboards are derived only from on-chain progress** — no server and no device-reported figure ever feeds a ranking.
 - **Feature-frozen 28 September**, when the first in-app cohort starts. Everything after that date is bug fixes, filming and writing.
+- **Submission due 9 October 2026, 08:59 CEST** — no late entries. It contains a functional APK that runs on a real device, a GitHub repository someone else can clone and run, a demo video of about three minutes and a pitch deck. Judges score completion from the demo video and technical depth from the commit history, so the full cycle is shown from the real app on devnet — never a mock-up and never a shortened-day cohort.
+- **Contract upgrade authority is retained** through the live period, for defect fixes only. An upgrade never changes the rules, parameters or stored layout of an existing cohort, membership or progress record (Principle V) and never moves funds outside the rule-driven instructions (Principle I). The authority is named in the README with its real fix — revoking it once the contract is final (Principle XI).
 - **Deliberate flags, all named in the README:** `ladder_gate_enabled=false` (both leagues open), `genesis_gate_enabled=false` (testers have no Seeker), non-default `day_seconds` for compressed test cohorts. Flags disable checks; they never delete the logic behind them.
-- **Out of scope by decision, not by omission:** geo-blocking, terms of service, third-party audit, free cohorts, calibration, Swelfie, share cards, badges, daily-streak or server-fed leaderboards, conditional pre-joining (a lobby place that depends on clearing the current cohort — the unconditional lobby place is in scope), cohort cancellation, bonus matching, insurance fund, demotion.
+- **Out of scope by decision, not by omission:** geo-blocking, terms of service, third-party audit, free cohorts, calibration, Swelfie, share cards, badges, daily-streak or server-fed leaderboards, conditional pre-joining (a lobby place that depends on clearing the current cohort — the unconditional lobby place is in scope), cohort cancellation, bonus matching, insurance fund, demotion, a dApp Store listing, mainnet deployment.
 
 ## Development Workflow
 
@@ -68,4 +71,4 @@ Those cohorts MAY be populated by scripted members, and only on these terms: the
 
 This constitution supersedes other practice in this repository. Anything not required by a scenario in `specs/001-holdout-hackathon/spec.md` is out of scope; additions are made by amending the spec, not by writing code. Amendments are recorded here with a version bump and a line in `docs/holdout_decisions.md`. The deadline is what makes scope discipline load-bearing rather than decorative.
 
-**Version**: 1.2.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-09-15
+**Version**: 1.3.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-09-17
