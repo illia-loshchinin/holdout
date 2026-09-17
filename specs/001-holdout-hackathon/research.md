@@ -2,7 +2,7 @@
 
 **Phase 0 output of `/speckit-plan`.** Each entry: **Decision** · **Rationale** · **Alternatives considered**. Items marked *confirm at spike* are decided here but must be validated by the risk spikes in `plan.md` before implementation depends on them; the fallback is named so a failed spike changes a line, not the plan.
 
-Resolves decision-record open items P3, P4, P5, P8, P10, P11 (plan-level parts).
+Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level parts). Revised 2026-09-17 for the official CLOCK IN dates and deliverables (spec clarifications of that date): R12, R13, R14, R18.
 
 **Stack in one line:** Rust/Anchor program on devnet · **native Android app in Kotlin** (Jetpack Compose, Solana Mobile Kotlin SDKs, MediaPipe Tasks) · Kotlin/JVM crank sharing the app's core module · TypeScript + LiteSVM for program integration tests.
 
@@ -106,10 +106,25 @@ Resolves decision-record open items P3, P4, P5, P8, P10, P11 (plan-level parts).
   - `crank scripted` — drives scripted wallets: faucet claim, join, submit completed days early in each day, and stop submitting on each wallet's scheduled forfeit day.
   - `crank chips publish` — Operator-only chip set publication (Phase 1: once at launch).
   Packaged as a single runnable JAR, run every **10 minutes** as a **Fly.io scheduled machine** (scope doc D-F); a GitHub Actions scheduled workflow is the documented fallback. Anyone with the repo can run `crank run` by hand (FR-030a).
-- **Scripted member schedule (P5):** per cohort, **80 scripted wallets in each 7-day cohort and 60 in each 21-day cohort**, spread across the four tiers, with forfeit days from a fixed seeded schedule removing **4–8 % per day** in the first half and **1–3 % per day** after, and about **40 %** finishing. Scripted wallets join over the first days of each lobby so rosters look alive early. Their SKR stakes come from their own faucet claims under the same once-a-day rule as everyone (FR-043a); their SOL is a one-time Operator top-up, so they pay their own fees and never touch the faucet's SOL cap (R13).
+- **Scripted members fill to a floor (P5; revised 2026-09-17 — real members first):** a cohort is filled by real members first, and scripted wallets join only until it holds its league's minimum — **20 members in a 7-day cohort, 12 in a 21-day one**, counting real and scripted alike (FR-043). With 5–7 beta testers expected in cohort #3, roughly a third of it is real, and every later real joiner reduces the scripted share.
+  - **Deficit:** `deficit = floor − current member count`, read from the cohort account before each pass. Once it reaches zero no further scripted wallet joins, and a scripted member never leaves to make room (FR-043a).
+  - **Two stages, so a lobby is never dead and real members still have room:** fill to **half the floor when the lobby opens**, then to the **full floor 24 hours before the join cutoff**.
+  - **Tiers and forfeits:** wallets spread across the four tiers, with forfeit days from a fixed seeded schedule removing **4–8 % per day** in the first half and **1–3 % per day** after, and about **40 %** finishing — the same shape as before, at the smaller size.
+  - Their SKR stakes come from their own faucet claims under the same once-a-day rule as everyone (FR-043a).
+- **Which cohorts, and for how long (revised 2026-09-17):** scripted wallets join every cohort starting from **28 September through 9 November 2026** — seven per league — so a populated cohort is running at every moment of the live period, from submission to the winners' announcement on 11 November (FR-043). Cohorts starting after 9 November get no scripted members. The crank's schedule keeps running until the last of those cohorts (the 21-day cohort starting 9 November) settles on **30 November**, so no scripted wallet forfeits merely because automation stopped; then the schedule is switched off, and anyone can still crank the leagues (FR-030a).
+- **Wallet pool:** a fixed set of **56 wallets** — enough to fill every cohort to its floor with none left over:
+  - **20 for the 7-day league.** Each holds a lobby place in the next cohort while in the current one (FR-006a), so the same 20 play every week.
+  - **36 for the 21-day league, in three groups of 12** that take turns every three weeks. A 21-day wallet can't hold a place in a cohort that starts before its own ends (FR-006b), and up to three 21-day cohorts run at once.
+  - No wallet plays both leagues at once (FR-006).
+- **SOL:** the Operator tops each scripted wallet up **once to 0.02 SOL** before its first join (≈ **1.12 SOL** in total). Scripted wallets pay their own fees and rent, so they never touch the faucet's SOL cap (R13). The heaviest user is a 7-day wallet in all seven cohorts: profile and SKR token account rent ≈ 0.004 SOL, plus ≈ 0.0017 SOL per membership in rent and fees, ≈ 0.016 SOL in total — inside the top-up.
+- **Floors live in the crank's configuration** (`--floor-7d`, `--floor-21d`), never on-chain: the contract must not know which wallets are scripted, and nothing about a cohort depends on it (constitution I, FR-043a).
 - **Scripted address list:** generated once, committed as `kotlin/core/src/main/resources/scripted-wallets.json` (public keys only), bundled into the app and copied into the README. Keypairs live only in the crank's secret store.
-- **Rationale:** the crank, scripted members and app share one Kotlin implementation of codecs, PDAs, instruction builders and derived figures — the production code paths never diverge. The schedule makes the survivor counter fall the way the home screen needs, without scripted members being special on-chain.
-- **Alternatives considered:** a TypeScript crank reusing the test client (two production client implementations to keep in sync); separate services per job.
+- **Rationale:** the crank, scripted members and app share one Kotlin implementation of codecs, PDAs, instruction builders and derived figures — the production code paths never diverge. Filling only to a floor keeps the crowd as real as recruitment allows, which is what the rubric's stickiness quarter measures, while still guaranteeing that nobody installing the app finds an empty cohort (constitution XII).
+- **Alternatives considered:**
+  - **A TypeScript crank reusing the test client.** Two production client implementations to keep in sync.
+  - **Separate services per job.**
+  - **Fixed rosters of 80 and 60 regardless of real members** (the plan until 2026-09-17). Bigger cohorts, but with 5–7 testers the crowd would have been ~93 % scripted, which is the opposite of what judges score.
+  - **No scripted members at all.** Saves about a day and a half and makes every figure real, but a thin recruiting week leaves a judge looking at a two-person cohort, breaking constitution XII.
 - **Resolves:** P5.
 
 ## R13 · Faucet design, including a zero-SOL wallet
@@ -117,14 +132,23 @@ Resolves decision-record open items P3, P4, P5, P8, P10, P11 (plan-level parts).
 - **Problem found in planning:** a brand-new wallet with **0 SOL cannot pay the fee** for any transaction, including its own faucet claim, and a program-derived address cannot pay transaction fees.
 - **Decision:**
   - **Test SKR** is minted per claim by the program: the mock SKR mint's authority is a program address (`["mint_authority"]`), so the faucet never runs out of SKR. Amount: the current chip set's **$100-tier** amount.
-  - **Devnet SOL** comes from a program-owned **faucet vault** (`["faucet_vault"]`), pre-funded for the judging month. A claim **tops the recipient up to 0.02 SOL** — enough for membership and profile rent plus every fee of a 21-day cycle — and sends nothing if they already hold that much.
+  - **Devnet SOL** comes from a program-owned **faucet vault** (`["faucet_vault"]`), funded to last from submission through 11 November 2026. A claim **tops the recipient up to 0.02 SOL** — enough for membership and profile rent plus every fee of a 21-day cycle — and sends nothing if they already hold that much.
   - **Fee bootstrap:** the app bundles a **devnet sponsor key** whose only use is paying the fee for `claim_faucet`. The instruction needs **no member signature** — the recipient is the connected wallet's address — so no partial signing through MWA is involved, and it reimburses the sponsor's fee and rent from the vault in the same instruction, so the sponsor's balance stays flat.
-  - **Limits enforced on-chain:** one claim per recipient per day (`Profile.last_faucet_day`) and a **global cap of 60 SOL-paying claims per day**, so a leaked sponsor key can drain at most one day's SOL allowance. Claims that only mint SKR are not capped. When the cap or vault is exhausted, `claim_faucet` fails with a specific error and the app shows ES-0b.
-  - **Scripted wallets** are pre-funded with SOL once by the Operator and pay their own fees, so their claims mint SKR only.
-  - **Sizing:** 60 × 31 days × 0.02 SOL ≈ **37 devnet SOL** worst case, pre-funded before 28 September.
+  - **Limits enforced on-chain:** one claim per recipient per day (`Profile.last_faucet_day`) and a **global cap of 30 SOL-paying claims per day**, so a leaked sponsor key can drain at most one day's SOL allowance (≈ 0.72 SOL). Claims that only mint SKR, and claims by wallets that already hold 0.02 SOL, are not capped. When the cap or vault is exhausted, `claim_faucet` fails with a specific error and the app shows ES-0b.
+  - **Scripted wallets** are pre-funded with SOL once by the Operator and pay their own fees, so their claims mint SKR only (R12).
+  - **Sizing (revised 2026-09-17 for the live period through 11 November):**
+    - **Worst case per SOL-paying claim ≈ 0.024 SOL:** the 0.02 top-up, plus the profile and SKR token account rent reimbursed to the sponsor for a brand-new wallet.
+    - **Funding deadline:** the vault may be topped up by hand until submission. From 9 October it must last to 11 November with no top-up (FR-042a).
+    - **Amount:** 34 days × 30 claims × 0.024 SOL ≈ **24.5 SOL**, so the vault is funded to **25 SOL by 8 October**.
+    - **Why 30 a day is enough:** it means 30 brand-new wallets a day, well above expected judge and community traffic. One claim funds a wallet for a whole 21-day cycle.
 - **Rationale:** meets FR-042a — no server, no public faucet, no manual top-up — within Solana's fee rules. A sponsor key in the APK is a devnet-only trust gap: anyone can extract it, but it holds only a small float, cannot touch stakes, and the on-chain caps bound the damage.
 - **Must be documented** in the README's known weaknesses (constitution XI): "the faucet's fee sponsor key ships in the app; on-chain limits cap abuse to one day's faucet allowance."
-- **Alternatives considered:** the public devnet `requestAirdrop` for the first SOL (rate-limited and often failing — the reason H22 exists); a relayer server that co-signs (a server, rejected by H22); requiring members to bring devnet SOL (breaks FR-042a).
+- **Alternatives considered:**
+  - **The public devnet `requestAirdrop` for the first SOL.** Rate-limited and often failing — the reason H22 exists.
+  - **A relayer server that co-signs.** A server, rejected by H22.
+  - **Requiring members to bring devnet SOL.** Breaks FR-042a.
+  - **Keeping the cap at 60 a day.** About 49 SOL for the longer live period.
+  - **A smaller 0.01 SOL top-up to stretch the vault.** Wallets may add priority fees to member transactions, and 21 days of them could exceed it.
 - **Resolves:** P11.
 
 ## R14 · Fee destination and privileged keys
@@ -134,6 +158,10 @@ Resolves decision-record open items P3, P4, P5, P8, P10, P11 (plan-level parts).
   - `Config.operator` may only `publish_chip_set`.
   - `Config.admin` may only `initialize`, `set_flags` (the two gates) and `create_test_league`.
   - **No instruction** lets any key move a held stake, a pool or a carry-over except the rule-driven instructions in `contracts/program-instructions.md`.
+  - **Program upgrade authority** (added 2026-09-17, FR-007b) is held by the admin key and kept through the live period, used only to deploy defect fixes.
+    - An upgrade never changes an existing account layout, a rule an existing cohort runs under, or any fund movement; a fix that would need any of those is not deployed.
+    - The README names the authority as a known weakness, with its fix: revoke it once the contract is final.
+    - Rejected: revoking it at the freeze. A defect found after 28 September would be unfixable while cohort #3 carries the walkthrough.
 - **Rationale:** constitution I — the contract is the only authority on funds; the only discretionary powers are the chip set and the documented flags.
 - **Alternatives considered:** fees to a program-owned treasury (nobody can spend them; nothing gained); an admin rescue withdrawal (violates constitution I).
 - **Resolves:** P4.
@@ -161,9 +189,35 @@ Resolves decision-record open items P3, P4, P5, P8, P10, P11 (plan-level parts).
 
 ## R18 · Recorded walkthrough
 
-- **Decision:** a screen recording of the real app on devnet — join, sittings, a forfeit, settlement, a claim — captured during cohorts #3–#4 and shipped **inside the APK** as a compressed MP4 (≤ 40 MB), played with **Media3 ExoPlayer**. Until the real recording exists, the screen says "Walkthrough recording in progress" — never a mock-up (FR-044).
-- **Rationale:** works offline for a judge, no video host.
-- **Alternatives considered:** streaming from a video host (external dependency); an animated mock (forbidden by FR-044).
+- **Decision (revised 2026-09-17):** a screen recording of the real app on the judged devnet program, taken **only from cohort #3**, the first judged 7-day cohort (FR-044). The same footage serves both the in-app walkthrough and the submission's demo video (FR-066).
+  - **Two wallets on two devices:** a **finisher** on the Seeker and a **forfeiter** on the second phone. Both join cohort #3 through the release-candidate app before its join cutoff, **28 September 04:00 UTC**.
+  - **Shots:**
+    1. Join and lobby, by 27 September.
+    2. The locked hour.
+    3. The finisher's daily sittings, 28 September – 4 October.
+    4. The forfeiter missing a day, then its forfeit screen.
+    5. The survivor counter falling as scripted members forfeit.
+    6. Settlement at 5 October 05:00 UTC.
+    7. The finisher's real claim, with the SKR balance change.
+  - **The cut runs the whole flow in order** (FR-044): launching the app, connecting a wallet, the faucet, the ladder, staking, the lobby, a sitting, a completed day, the crowd thinning, a forfeit, settlement and the claim. Storyboard, screen checklist, shot log and beta-test plan: `docs/holdout_demo_video.md`.
+  - **Editing, 5–7 October — two exports:**
+    - **16:9 at 1080p** for the submission, about three minutes.
+    - **9:16 at 720×1280, ~1.5 Mbps (≈ 34 MB)** for inside the app, shipped in the final APK as an MP4 played with **Media3 ExoPlayer**, within the 40 MB budget.
+  - **Where it plays:** from the connect screen without a wallet, and from the app once connected (FR-001a, contracts/android-app §5). The player needs no network.
+    - Scripted members, the test network and the named weaknesses stay disclosed in both (constitution XI, XII).
+  - **Until the recording exists,** the screen says "Walkthrough recording in progress" — never a mock-up.
+  - **Adding the recording is filming, not a feature change.** The final APK is the release candidate plus the video and bug fixes.
+  - **Fallback:** a contract defect that blocks settlement or the claim is fixed by upgrade (FR-007b, R14). If the claim still can't be filmed by 8 October, the submission ships with "recording in progress" in the app, and the demo video stops at the last real step and says so. No shortened-day footage is used.
+- **Rationale:**
+  - Works offline for a judge, with no video host, and without a wallet — the case where a judge has no devnet-capable wallet is exactly when the recording matters.
+  - Cohort #3 is the only judged cohort that settles before the 9 October deadline.
+  - Judges score completion from the demo video, so every Phase 1 step it shows must be the real one.
+- **Alternatives considered:**
+  - **Streaming from a video host.** An external dependency.
+  - **An animated mock.** Forbidden by FR-044.
+  - **Cohort #4.** It settles 12 October, after submission.
+  - **A labelled shortened-day rehearsal cohort.** Rejected in the 2026-09-17 clarification.
+- **Resolves:** P6.
 
 ## R19 · Repository layout and tooling
 
@@ -182,7 +236,7 @@ Resolves decision-record open items P3, P4, P5, P8, P10, P11 (plan-level parts).
 
 | Spike | Confirms | Pass bar | If it fails |
 |---|---|---|---|
-| **S1 · Wallet on real hardware** | R3, R12, R13 | The Kotlin Compose Minimal template (fixed root build file) builds; on a Seeker it connects Seed Vault Wallet via MWA and lands a devnet transaction with `signAndSendTransactions`; a sponsor-paid transaction built with `web3-solana` + `rpc-core` lands too; `NoWalletFound` is returned on a phone with no wallet; `web3-solana` and `rpc-core` also run in a plain JVM module (for the crank) | Try another MWA wallet on a plain Android phone; if a library blocks, or doesn't run on the plain JVM, use sol4k for transaction building in that module |
+| **S1 · Wallet on real hardware** | R3, R12, R13 | The Kotlin Compose Minimal template (fixed root build file) builds; on a Seeker it connects Seed Vault Wallet via MWA and lands a devnet transaction with `signAndSendTransactions`; a sponsor-paid transaction built with `web3-solana` + `rpc-core` lands too; `NoWalletFound` is returned on a phone with no wallet; `web3-solana` and `rpc-core` also run in a plain JVM module (for the crank); **`scrcpy --record` captures the app, and whether the wallet's approval screen records or comes out black (`FLAG_SECURE`)**, which decides whether those moments need the second camera (R18) | Try another MWA wallet on a plain Android phone; if a library blocks, or doesn't run on the plain JVM, use sol4k for transaction building in that module; film blocked screens with the second camera |
 | **S2 · Rep counting on real video** | R4, R5 | ≥ 15 FPS pose inference on a Seeker; correct count on 10 real push-up videos (≤ 1 miscounted rep in 25) and rejection of 3 cheat videos (half reps, sagging hips, too fast); open palm detected in normal indoor light | Lite model; lower analysis resolution; CPU delegate; relax thresholds with recorded evidence |
 | **S3 · Full cycle on a manipulated clock** | R1, R2, R9, R10 | In WSL2 with Anchor 1.1.2 / Solana CLI 3.1.10, on LiteSVM: open → join (incl. lobby place) → lock → daily submits → forfeits in out-of-order repeated pages → count → finalize with remainder → claim, for a 1,000-member cohort; vectors V1–V22 pass; Kotlin `core` replays the fixtures | Reduce page size; add address lookup tables |
 

@@ -1,12 +1,14 @@
 # Holdout — product requirements (hackathon build)
 
-**Version:** 2.3 · **Date:** 2026-09-15 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
+**Version:** 2.4 · **Date:** 2026-09-17 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
+
+> **Changed in 2.4:** the recorded walkthrough plays from the connect screen **without a wallet** and runs the whole flow from launching the app to the claim (FR-001a, FR-044) · cohorts are filled by **real members first**, with scripted members topping up only to a floor of 20 (7-day) or 12 (21-day) (FR-043) · production detail for the video lives in `holdout_demo_video.md`.
 
 > **Phasing (spec §3a, decisions H23).** Four items are **Phase 2** — built only after the Phase 1 core works end to end, and only if done before the 28 September freeze: league leaderboards, weekly chip re-pricing, delivery of a held carry-over, and automatic offline submission. They are marked **[Phase 2]** below, each with its Phase 1 stand-in.
 
 > **What this file is.** The product-level detail behind `specs/001-holdout-hackathon/spec.md`: screens, copy, verification rules, settlement math, test vectors and glossary. It adds detail; it never adds scope. Every behaviour here traces to a spec requirement (cited as FR-/US-/ES-/INV-), and where this file and the spec disagree, **the spec is right and this file is a bug**.
 >
-> **Precedence:** `.specify/memory/constitution.md` (v1.2.0) → spec → `holdout_decisions.md` (H1–H23, the why) → `holdout_scope_and_state_machines.md` (state machines, edge cases) → this file.
+> **Precedence:** `.specify/memory/constitution.md` (v1.3.0) → spec → `holdout_decisions.md` (H1–H26, the why) → `holdout_scope_and_state_machines.md` (state machines, edge cases) → this file.
 >
 > **Not here, on purpose.** Stack, accounts, PDAs and instruction signatures belong to `plan.md`. The post-hackathon vision — three leagues, USDC pool, free cohorts, badges, share cards, referrals, Swelfie, geo-blocking, ToS, audit, treasury policy, cold-start matching, simulated economics — is archived verbatim at `archive/holdout_v1_prd_full-vision_2026-09-15.md`. Top-level section numbers match that archive, so an older reference like "§8" still lands on the same subject; subsection numbers do not.
 
@@ -473,7 +475,7 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 
 **First run**
 1. **Welcome** — what Holdout is in three lines; *"Test network, test token."*
-2. **Connect wallet** — required before anything else (FR-001a). **No-wallet variant:** *"Holdout needs a Solana wallet — even for the free daily challenge."* with how to get one (ES-0)
+2. **Connect wallet** — required before anything else (FR-001a). It also carries **"Watch a full cycle (3 min)"**, which opens the walkthrough (13) with no wallet connected — the single exception to FR-001a. **No-wallet variant:** *"Holdout needs a Solana wallet — even for the free daily challenge."* with how to get one, and the same walkthrough link (ES-0)
 3. **Disclosure** — judging-period cohorts include scripted members: real wallets playing by the same rules, labelled wherever they appear (FR-043a)
 
 **Funds**
@@ -499,7 +501,7 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 12. **Cohort roster** — members still standing, then forfeited members by days lasted, scripted members labelled (Phase 1, FR-062). **League leaderboards** **[Phase 2]** (§12.3, US-10)
 
 **Demo**
-13. **Walkthrough** — the recorded full cycle: join, daily reps, forfeit, settle, claim (US-9, FR-044)
+13. **Walkthrough** — the recorded full cycle, in order: launching the app, connecting a wallet, the faucet, the ladder, staking, the lobby, a sitting, a completed day, the crowd thinning, a forfeit, settlement and the claim (US-9, FR-044). Taken from cohort #3 on devnet, bundled in the APK, playable offline and without a wallet. Until it is recorded: *"Walkthrough recording in progress."* Storyboard and production detail: `holdout_demo_video.md`
 
 ### 10.1a The home screen
 
@@ -729,7 +731,7 @@ Constitution XIII, applied to every screen, notification and README line.
 | Cohorts look empty during judging | High | Scripted members on the weekly schedule, forfeits spread across each cohort, labelled everywhere |
 | Scripted members read as deception | High | Disclosed on first run and in the README, labelled on every roster and board |
 | Wallet signing fails on real hardware | High | Risk spike before implementation |
-| Judges give up at "connect a wallet" | High | Wallet-first is deliberate (FR-001a); the no-wallet screen says plainly why and how to get one; the recorded walkthrough and README show the product without a wallet |
+| Judges give up at "connect a wallet" | High | Wallet-first is deliberate (FR-001a); the no-wallet screen says plainly why and how to get one, and offers the recorded walkthrough, which plays without a wallet and shows the whole product — as does the README |
 | Faucet drained or empty during judging | Medium | Once per wallet per day; funded in advance for the whole month; a clear message if it can't pay out, with the daily challenge still available |
 | Members lose a day by finishing offline | Medium | Warning before an offline cohort sitting and on completion; automatic submission on reconnect |
 | Palm check fails for honest members | Medium | 30-second limit with a tip, back to pre-flight, unlimited retries, banked reps untouched |

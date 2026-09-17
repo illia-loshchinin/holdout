@@ -1,8 +1,8 @@
 # Holdout — decision record
 
-**Companion to `specs/001-holdout-hackathon/spec.md` and `.specify/memory/constitution.md` (v1.2.0).** The spec says *what to build*. The constitution says *what may never be violated*. This file says *why it is that way, what was tried and rejected, and what is still open* — so settled questions are not reopened by accident.
+**Companion to `specs/001-holdout-hackathon/spec.md` and `.specify/memory/constitution.md` (v1.3.0).** The spec says *what to build*. The constitution says *what may never be violated*. This file says *why it is that way, what was tried and rejected, and what is still open* — so settled questions are not reopened by accident.
 
-**Precedence when documents disagree:** constitution → spec → this file → `holdout_scope_and_state_machines.md` → `holdout_v1_prd.md`. The PRD (v2.2) is the hackathon build's product companion to the spec — screens, copy, verification rules, settlement vectors; the original full-vision PRD is archived and is deliberately not what is being built.
+**Precedence when documents disagree:** constitution → spec → this file → `holdout_scope_and_state_machines.md` → `holdout_v1_prd.md`. The PRD (v2.3) is the hackathon build's product companion to the spec — screens, copy, verification rules, settlement vectors; the original full-vision PRD is archived and is deliberately not what is being built.
 
 **Rule of thumb:** before proposing a change to the mechanic, search this file. Most of it has been proposed before, and several things were adopted, reversed and adopted again in a single day.
 
@@ -14,9 +14,15 @@
 
 ### H1. The build is a hackathon submission, not a launch
 
-**Decided:** devnet only, mock SKR mint, feature-frozen **28 September** when the first in-app cohort opens; submission **9 October**. Anything not required by a scenario in the spec is out of scope, and scope grows only by amending the spec.
+**Decided:** devnet only, mock SKR mint, feature-frozen **28 September** when the first in-app cohort opens; submission **9 October 2026, 08:59 CEST**. Anything not required by a scenario in the spec is out of scope, and scope grows only by amending the spec. The submission's contents, the judging dates and the live period are in H25.
 
-**Why:** judged over a month on stickiness, UX, memorability and presentation. Half the rubric is UX; pool economics score approximately nothing. A feature earns its place only if it appears in the video or is load-bearing for something that does.
+**Why:** the official CLOCK IN rubric has four equal parts:
+- stickiness and product fit with the Seeker community (habits and daily engagement);
+- user experience;
+- innovation;
+- presentation and demo quality.
+
+Judges score completion from the demo video and technical depth from the GitHub commit history. User experience and presentation together are half the rubric; pool economics score approximately nothing. A feature earns its place only if it appears in the video or is load-bearing for something that does.
 
 **Source:** constitution Hackathon Constraints and Governance; spec §1.
 
@@ -217,11 +223,20 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 ### H14. Demo integrity: real-time cohorts plus a recorded walkthrough
 
-**Decided (OD-4, clarified 2026-09-15):** real-time 7-day and 21-day cohorts run continuously through the judging month on the weekly schedule, populated by **scripted members whose forfeits are spread across the cohort** so the survivor counter visibly falls. The scripted membership is **disclosed in the app and the README**. The full cycle — join, sessions, forfeit, settle, claim — is a **recorded walkthrough inside the app**, captured from the real app against the real devnet contract. There is no compressed or simulated cohort for judges.
+**Decided (OD-4, clarified 2026-09-15; revised 2026-09-17):** real-time 7-day and 21-day cohorts run continuously through the live period (submission to 11 November 2026, H25) on the weekly schedule, populated by **scripted members whose forfeits are spread across the cohort** so the survivor counter visibly falls. The scripted membership is **disclosed in the app, the README, the demo video and the pitch deck**. The full cycle — join, sessions, forfeit, settle, claim — is a **recorded walkthrough inside the app**, captured from the real app against the real devnet contract. There is no compressed or simulated cohort for judges.
 
-**Why:** judging starts weeks after the last real cohort, so any live cohort a judge sees must be populated by script regardless. A recording of the real thing shows the complete money loop without asking a judge for 175 push-ups in an hour.
+**Where the walkthrough comes from (clarified 2026-09-17):** only from **cohort #3**, the first judged 7-day cohort. That means its real settlement on 5 October and a real claim, recorded 5–8 October and added to the build submitted before 9 October. The same footage serves as the demo video. Until it exists, the app says the recording is in progress. Plan: research R18, which resolves P6.
 
-**Rejected:** a labelled compressed "Demo" cohort on-chain (real contract, but judges would still have to perform the cycle); compressed cohorts only during judging (the home screen would stop looking like the real product); an off-chain simulated demo mode (a second code path that proves nothing about the contract).
+**What it shows, and who can watch it (clarified 2026-09-17):** the whole flow in order — launching the app, connecting a wallet, the faucet, the ladder, staking, the lobby, a sitting, a completed day, the crowd thinning, a forfeit, settlement and the claim. It is the **one thing playable before a wallet is connected** (FR-001a), because a judge whose wallet cannot sign on devnet would otherwise see nothing but the connect screen. Storyboard, shot list, recording workflow and beta-test plan: `holdout_demo_video.md`.
+
+**Why:** judges install the app between 10 October and 9 November, and a full staked cycle takes a week, so any live cohort a judge sees must be populated by script regardless. A recording of the real thing shows the complete money loop without asking a judge for 175 push-ups in an hour.
+
+**Rejected:**
+1. **A labelled compressed "Demo" cohort on-chain** — real contract, but judges would still have to perform the cycle.
+2. **Compressed cohorts only during judging** — the home screen would stop looking like the real product.
+3. **An off-chain simulated demo mode** — a second code path that proves nothing about the contract.
+4. **Recording the walkthrough from a labelled shortened-day rehearsal cohort** (2026-09-17) — it would have de-risked the timeline, but it is not the product judges install.
+5. **Cohort #4** — it settles 12 October, after submission.
 
 **`day_seconds` stays** (scope doc D-A) — as a testing and rehearsal tool, behind an admin guard, not as a judge-facing feature.
 
@@ -229,7 +244,16 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 **Why:** it is the only option that keeps every figure on screen backed by on-chain state (FR-038a, FR-065), and it needs no special case in the contract or in the app's reads. **Rejected:** real wallets that always forfeit before the end (never takes a real prize share, but a crowd where no scripted member ever finishes is its own tell and skews every rate on the leaderboard); display-only scripted members added to counters off-chain (breaks FR-065 and puts fake figures next to real money).
 
-**Source:** spec US-9, FR-043, FR-043a, FR-044, FR-064, acceptance criterion 8; constitution XI, XII.
+**Real members first, scripted only to a floor (revised 2026-09-17).** With 5–7 beta testers available, scripted wallets stop being the crowd and become the guarantee that no cohort is ever empty:
+- A cohort is filled to **20 members (7-day) or 12 (21-day)**, counting real and scripted alike; once it is there, no further scripted wallet joins, and none leaves to make room (FR-043, FR-043a).
+- Filling happens in two stages — half the floor when the lobby opens, the rest 24 hours before the join cutoff — so a lobby is never dead and real members still have room.
+- A fixed pool of **56 wallets**: 20 play every 7-day cohort, and 36 cover the 21-day league in three rotating groups of 12. Each is topped up once to 0.02 SOL, about 1.12 SOL in total.
+- They join every cohort starting 28 September – 9 November. The crank keeps running until the last of those cohorts settles on 30 November, so none forfeits merely because automation stopped.
+- The floors are crank configuration; nothing on-chain knows which wallets are scripted.
+
+**Why not drop scripted members entirely,** now that real testers exist? It would save about a day and a half and make every figure real, but recruitment is not guaranteed week to week, and a judge installing the app in late October could find a two-person cohort — the one thing constitution XII forbids. **Why not keep the old fixed 80 and 60?** With 5–7 testers the crowd would have been about 93% scripted, which is the opposite of what the rubric rewards.
+
+**Source:** spec US-9, FR-043, FR-043a, FR-044, FR-064, FR-066, acceptance criteria 8 and 19; constitution XI, XII.
 
 ### H15. Deliberately cut for the demo
 
@@ -252,7 +276,9 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 | Banked reps stored on the device, editable on a rooted phone, lost with the phone (H18) | Covered by the attestation fix; cross-device progress post-hackathon (L9) |
 | No audio anti-spoofing filter | Reinstate audio check and rep condition together |
 | Off-chain rate source and weekly chip re-pricing by the Operator | Documented trust; on-chain chip governance post-hackathon |
-| Scripted members in judging-period cohorts — real wallets whose completed days are not camera-verified (H14) | Disclosed in app and README; addresses published in the build and labelled everywhere |
+| Scripted members in judging-period cohorts — real wallets whose completed days are not camera-verified (H14) | Disclosed in the app, README, demo video and pitch deck; addresses published in the build and labelled everywhere |
+| Faucet fee sponsor key bundled in the APK (H22) | Anyone can extract it; the contract caps abuse at 30 SOL-paying claims a day and one claim per wallet a day. Real fix: no faucet on mainnet, or a rate-limited relayer |
+| Program upgrade authority kept through the live period (H24) | Used only for defect fixes that change no existing cohort, account layout or fund movement. Real fix: revoke it once the contract is final |
 | Devnet, mock SKR mint | Mainnet with real SKR |
 
 Copy uses "prize", never "winnings", "returns", "yield" or "earnings"; never "bet", "wager", "gamble", "odds" or "luck". Fiat is always approximate and never presented as what a member will receive. The app says it runs on a test network with a test token.
@@ -281,7 +307,7 @@ Copy uses "prize", never "winnings", "returns", "yield" or "earnings"; never "be
 
 **Why league streak for consistency:** the contract already tracks it, and "cleared 6 weeks straight" is the clearest discipline story a member can read at a glance.
 
-**Known consequence:** in the 21-day league, 3 cohorts is 9 weeks, so no real member can be ranked there during the judging month — that board is ranked by scripted members only, with real members under "not ranked yet". In the 7-day league a real member from cohort #3 can be ranked by mid-October.
+**Known consequence (corrected 2026-09-17):** in the 21-day league, 3 cohorts is 9 weeks, longer than the whole live period (28 September – 11 November). So **nobody — real or scripted — can be ranked there before winners are announced**, and that board lists everyone under "not ranked yet". In the 7-day league a member who plays cohorts #3, #4 and #5 is ranked once #5 settles on 19 October.
 
 **Rejected:**
 
@@ -336,7 +362,7 @@ Copy uses "prize", never "winnings", "returns", "yield" or "earnings"; never "be
 
 **Decided (clarified 2026-09-15):** **recording forfeitures, settling a finished cohort, and opening a league's next cohort** (with delivery of any held carry-over) can be triggered by **any wallet** once they are due. The Scheduler is the usual caller, not a privileged one. No caller can choose or influence any parameter, outcome, recipient or amount; a step that isn't due, or is already done, does nothing. **Publishing a chip set is the only Operator-restricted action.**
 
-**Why:** every outcome is already derived from on-chain state (H6) and every step is idempotent, so a stranger calling them can only do what is already due. It takes the Scheduler's key and server off the critical path for the entire judging month: if the box dies, anyone with the repo can crank a stuck cohort. It also makes the demo claim stronger — the contract, not our server, runs the game.
+**Why:** every outcome is already derived from on-chain state (H6) and every step is idempotent, so a stranger calling them can only do what is already due. It takes the Scheduler's key and server off the critical path for the entire live period: if the box dies, anyone with the repo can crank a stuck cohort. It also makes the demo claim stronger — the contract, not our server, runs the game.
 
 **Rejected:**
 
@@ -373,9 +399,16 @@ Copy uses "prize", never "winnings", "returns", "yield" or "earnings"; never "be
 
 ### H22. An in-app faucet, not public faucets
 
-**Decided (clarified 2026-09-15):** the app has an **in-app faucet**. One tap gives the connected wallet enough test SKR to stake the top chip ($100 tier) of any open cohort, plus enough devnet SOL to pay fees for a full 21-day cycle — join, every completed day, claim. **Once per wallet per day** (05:00 UTC boundary). **No server:** it is funded in advance for the whole judging month and needs no manual top-up. It is offered wherever a member lacks test SKR or fee SOL, and it never touches a stake, a pool or the fee destination.
+**Decided (clarified 2026-09-15):** the app has an **in-app faucet**. One tap gives the connected wallet enough test SKR to stake the top chip ($100 tier) of any open cohort, plus enough devnet SOL to pay fees for a full 21-day cycle — join, every completed day, claim. **Once per wallet per day** (05:00 UTC boundary). **No server:** it is funded in advance to last the whole live period, through 11 November 2026 (H25), and needs no manual top-up after submission. It is offered wherever a member lacks test SKR or fee SOL, and it never touches a stake, a pool or the fee destination.
 
-**Why:** a judge with an empty wallet is one tap from a real stake without leaving the app, and nothing depends on a public devnet faucet being up during the judging month. A server-free faucet keeps "no backend decides anything" true (H5, H19). The daily limit per wallet stops one wallet draining it.
+**How it works (plan, research R13; resized 2026-09-17):**
+- **SKR** is minted by the program.
+- **SOL** comes from a program-owned vault that tops a wallet up to 0.02 SOL.
+- **Fees:** a bundled devnet sponsor key pays the claim fee, so a wallet with zero SOL can claim. The key is a documented weakness (H16).
+- **Caps:** at most 30 SOL-paying claims a day, and one claim per wallet per day.
+- **Funding:** the vault holds 25 SOL by 8 October, the worst case from submission to 11 November.
+
+**Why:** a judge with an empty wallet is one tap from a real stake without leaving the app, and nothing depends on a public devnet faucet being up during judging. A server-free faucet keeps "no backend decides anything" true (H5, H19). The daily limit per wallet stops one wallet draining it.
 
 **Rejected:** linking to public devnet SOL and mock-SKR faucets (members leave the app; public faucets are often rate-limited or down); an in-app SKR faucet plus sponsored fees (no SOL needed, but a service co-signs every transaction — a backend on the hot path).
 
@@ -400,6 +433,57 @@ Copy uses "prize", never "winnings", "returns", "yield" or "earnings"; never "be
 2. **Allowing Phase 2 to land after the freeze** — would change the app judges are already using, needing a new release mid-judging, and would break constitution Hackathon Constraints.
 
 **Source:** spec §3a, Clarifications; constitution Hackathon Constraints (feature freeze).
+
+### H24. The contract stays upgradeable, for defect fixes only
+
+**Decided (clarified 2026-09-17):** the judged devnet program keeps its upgrade authority through the live period, used only to fix defects. An upgrade may never change:
+- the rules, parameters or stored layout of any existing cohort, membership or progress record;
+- how a held stake, prize pool or carry-over moves, except through the rule-driven steps every member already relies on.
+
+A fix that would need any of those is not deployed. The authority is named in the README as a known weakness, with its real fix — revoking it once the contract is final (H16).
+
+**Why:** the walkthrough and demo video can only come from cohort #3 (H14), which holds real test stakes from 28 September until its claim on 5 October. A defect found after launch must be fixable without abandoning that cohort. Keeping the authority is the constitution's one named exception to "the contract is the only authority on funds", and it is bounded by principle V: a running cohort's rules never move under its members.
+
+**Rejected:**
+1. **Revoking the authority at the 28 September freeze** — any defect after that would be unfixable while cohort #3 carries the submission.
+2. **An immutable program from launch** — a defect would mean a fresh deployment and new cohorts, losing cohort #3.
+
+**Source:** spec FR-007b, ES-16, §4 Actors (Operator), FR-030a; constitution I, V, XI and Hackathon Constraints (v1.3.0); plan research R14.
+
+### H25. The CLOCK IN rules: what is submitted, when judging runs, how long the build stays live
+
+**Decided (clarified 2026-09-17 from the official CLOCK IN rules page):**
+- **Submission, before 9 October 2026 08:59 CEST, no late entries:**
+  - a functional Android APK that runs on a real device;
+  - a GitHub repository someone else can clone and run;
+  - a demo video of about three minutes;
+  - a pitch deck.
+- **Judging** runs 10 October – 9 November 2026. Winners are announced on 10 or 11 November; the rules page gives both dates.
+- **The build stays live with no manual intervention from submission through 11 November 2026:** cohorts, the faucet and the Scheduler.
+- **Distribution:** judges get the signed APK. **Publishing on the Solana dApp Store is not required** for submission. If the app wins, it must be published there within 30 calendar days of the announcement; that listing, and any mainnet launch, are post-hackathon work (L10, L11).
+- **No submission material may mislead:** scripted members, the test network and every README weakness are disclosed in the demo video and pitch deck as well as in the app and README (H16).
+
+**Why:** these are the hackathon's own rules. Judges score completion from the demo video and technical depth from the commit history, so the video must show the real cycle (H14) and the repository is part of the product. Misleading materials disqualify an entry. A store listing before submission would add KYC and store review, and each app update would need a new review — the walkthrough build of 7–8 October could not be approved before the deadline.
+
+**Rejected:**
+1. **Publishing a devnet build on the dApp Store for the submission** — store users are real users, and review would block the final build.
+2. **Stopping the build at the end of judging on 9 November** — winners are announced after it, and winners get a technical review.
+
+**Source:** spec header, §1, §2 (Distribution, Deliverables, Live period), §3, §4 Actors (Judge), US-9, FR-042a, FR-043, FR-066, acceptance criterion 19; constitution XI, XII and Hackathon Constraints (v1.3.0); plan delivery sequence.
+
+### H26. A native Kotlin Android app
+
+**Decided (during `/speckit-plan`, 2026-09-15; toolchain aligned 2026-09-17):** the app is a **native Android app in Kotlin with Jetpack Compose**, generated from the Solana Mobile CLI's **Kotlin Compose Minimal** template. It uses Mobile Wallet Adapter's Kotlin client, and MediaPipe Tasks with CameraX for on-device pose and palm detection. The crank is a Kotlin/JVM tool that shares the app's `core` module, so one Kotlin client talks to the program.
+
+**Why:** the camera pipeline is the product's magic, and native Kotlin gives MediaPipe and CameraX first-party, GPU-accelerated support with no bridge on the hot path. The CLI template gives a known-good set of library versions in a build measured in days. Mobile-first design also scores directly in the rubric (H1).
+
+**Rejected:**
+1. **React Native + Expo** — faster UI iteration, but pose detection through community camera plugins is the riskiest spike.
+2. **Flutter** — weak Solana Mobile support.
+
+**Known cost:** Codama has no Kotlin renderer, so the Kotlin encoders and decoders for the program's data are hand-written and pinned to the program by committed golden fixtures.
+
+**Source:** plan Technical Context; research R3, R12, R19; scope doc D-F, D-G.
 
 ---
 
@@ -476,6 +560,7 @@ By decision, not by omission.
 | Firebase | H13 |
 | Share cards, badges | H17 — not in the video's critical path |
 | Daily-streak leaderboard; any server-fed leaderboard | H17 |
+| Solana dApp Store listing, mainnet deployment | H25 — not required for submission; a winner's listing is post-hackathon (L10, L11) |
 | Anything else not required by a spec scenario | Constitution Governance. Add it by amending the spec, not by writing code. |
 
 ---
@@ -488,15 +573,15 @@ By decision, not by omission.
 |---|---|---|
 | P1 | ~~Pause bound~~ | **Resolved 2026-09-15 by H18** — no pause bound; reps bank in blocks of 10 for the whole day. |
 | P2 | ~~Palm liveness failure path~~ | **Resolved 2026-09-15 by H13** — 30 seconds, tip, back to pre-flight, unlimited retries. |
-| P3 | **Weekly chip check: which weekday**, which rate source, and the rounding rule for "readable SKR amounts" | H8 fixes the policy, not these parameters. |
-| P4 | **Fee destination** | Where the 20% fee and the 50% no-finisher share land. |
-| P5 | **Scripted member behaviour** | *Model decided by H14 (real wallets, same rules).* Still open: how many per cohort, the forfeit and finish schedule, how their stakes are funded, and how the scripted-address list is published in the build. |
-| P6 | **Walkthrough recording** | Captured during cohort #3 or #4; must show a real claim transaction. |
+| P3 | ~~Weekly chip check parameters~~ | **Resolved 2026-09-15 by research R15:**<br>• Phase 1: one chip set published at launch from a rate read by hand and recorded in the README.<br>• Phase 2: the same command runs Mondays with a 20% drift check against a public price API.<br>• Amounts round down to the nearest 10 SKR. |
+| P4 | ~~Fee destination~~ | **Resolved 2026-09-15 by research R14** — an SKR token account owned by a treasury wallet set at initialisation receives the 20% fee, the no-finisher 50% and rounding remainders. |
+| P5 | ~~Scripted member behaviour~~ | **Resolved 2026-09-15 by research R12, changed to a floor 2026-09-17:**<br>• Real members first; scripted wallets fill a cohort only to 20 members (7-day) or 12 (21-day), across the four tiers.<br>• A seeded forfeit schedule, with about 40% finishing.<br>• A fixed pool of 56 wallets funding their stakes from the faucet (SKR only) and topped up once with SOL.<br>• Addresses in `scripted-wallets.json` bundled in the app and copied into the README. |
+| P6 | ~~Walkthrough recording~~ | **Resolved 2026-09-17 by H14 and research R18** — only from cohort #3, including its 5 October settlement and a real claim, filmed with a finisher and a forfeiter wallet; the same footage is the demo video. |
 | P7 | ~~Scope doc drift~~ | **Done 2026-09-15** — scope doc v1.4 matches spec §8. |
-| P8 | **Reads at scale** | Reading up to 1,000 members' state from chain for rosters, leaderboards and the deadline-time survivor counter (H6, H20) — RPC limits, page size and caching are plan decisions; FR-065 only forbids showing unsupported figures. |
+| P8 | ~~Reads at scale~~ | **Resolved 2026-09-15 by research R8** — the app reads memberships straight from a devnet RPC endpoint with `getProgramAccounts` filtered by cohort, cached in memory and refreshed every 30 seconds on the cohort screen; no Holdout server or indexer. |
 | P9 | ~~Share-rounding dust~~ | **Resolved 2026-09-15 by H11** — remainder to the fee destination at settlement. |
-| P10 | **Banked-progress storage details** | Which device store, how a block is written atomically before "banked" is shown, how banked progress is keyed to the wallet and day so it expires at the boundary, and how a completed day waiting for network is persisted and retried (H18, H21). |
-| P11 | **Faucet design** | How a server-free faucet holds devnet SOL and test SKR, enforces once per wallet per day, and is sized so it lasts the judging month without a top-up (H22). |
+| P10 | ~~Banked-progress storage details~~ | **Resolved 2026-09-15 by research R6:**<br>• MMKV on Android, keyed by wallet + cohort (or `challenge`) + day index, so progress expires at the boundary by construction.<br>• Each block is written synchronously before "banked" is shown.<br>• A completed cohort day not yet landed is kept as a pending submission and shown as "Done — tap to submit" (data-model §4). |
+| P11 | ~~Faucet design~~ | **Resolved 2026-09-15 by research R13, resized 2026-09-17** — see H22 for how it works. Sized for the live period through 11 November. |
 
 ### Post-hackathon
 
@@ -511,6 +596,8 @@ By decision, not by omission.
 | L6 | **Chip governance on-chain** — replacing trusted Operator re-pricing (H8, H16) | Before real value is at stake |
 | L7 | **Free-entry lane for jurisdictions where paid entry is not legal** (H3) | Before any launch outside devnet |
 | L8 | **Last-one-standing tournament** (archived O7) | v1.1 concept, needs a lawyer |
+| L10 | **Solana dApp Store listing** — required within 30 calendar days of the announcement if the app wins (H25) | On the winners' announcement, 10–11 November 2026 |
+| L11 | **Mainnet launch** — real SKR, faucet removed or replaced, upgrade authority revoked once the contract is final (H24), Genesis gate on | Together with or after L10 |
 
 ---
 
@@ -530,3 +617,9 @@ By decision, not by omission.
 | 2026-09-15 | Second `/speckit-clarify` session: automation permissionless (H19); no cohort size cap, built for 1,000 (H20); rounding remainder to the fee destination (H11, closes P9); counters and projected pool move at the deadline (H6); reps banked in blocks of 10 across sittings with re-verification every sitting, no pause limit and no late-start refusal (H18, closes P1). Spec gained FR-011a, FR-024a, FR-030a, FR-032a, FR-038a, ES-3a and acceptance criterion 15. PRD synced to v2.1 (new vectors V17–V19), scope doc to v1.4 (§3.3 rewritten, E17–E19). New open item P10. |
 | 2026-09-15 | Third `/speckit-clarify` session: wallet required first (H21); in-app server-free faucet, once per wallet per day (H22); scripted members are real wallets under the same rules, published in the build (H14); offline sittings with automatic submission, chain time still decides (H18); palm check times out after 30 seconds (H13, closes P2). Spec gained FR-001a, FR-024b, FR-042a, FR-043a, ES-0, ES-0a, ES-0b, ES-3b and acceptance criteria 16–18. PRD synced to v2.2 (faucet §6.1, offline §8.7, vectors V20–V22), scope doc to v1.5 (F10, F11, §3.3 waiting-for-network state, E11 resolved, E20–E22). P5 narrowed, P11 added. |
 | 2026-09-15 | Phasing (H23): league leaderboards, weekly chip re-pricing, delivery of a held carry-over and automatic offline submission moved to Phase 2 inside spec 001, each with a Phase 1 stand-in; Phase 2 only before the freeze. Spec gained §3a and FR-055a, with [Phase 2] markers; PRD v2.3 and scope doc v1.6 marked to match. |
+| 2026-09-15 | `/speckit-plan`: native Kotlin Android app (H26), Anchor program, TypeScript tests on LiteSVM, Kotlin/JVM crank. Research resolved P3 (R15), P4 (R14), P5 (R12), P8 (R8), P10 (R6) and P11 (R13). |
+| 2026-09-17 | Plan aligned with the Solana Mobile CLI Kotlin template: Anchor 1.1.2, Solana CLI 3.1.10, Kit + LiteSVM + Codama tests with a Surfpool smoke run, WSL2 on Windows (H26). |
+| 2026-09-17 | Fourth `/speckit-clarify` session, using the official CLOCK IN rules. Decisions:<br>• The walkthrough comes only from cohort #3 and doubles as the demo video (H14, closes P6).<br>• The contract stays upgradeable for defect fixes only (H24).<br>• No dApp Store listing for submission; judging runs 10 October – 9 November; the build stays live through 11 November; the submission is an APK, a GitHub repository, a demo video of about three minutes and a pitch deck (H25).<br><br>The spec gained FR-007b, FR-066, ES-16 and acceptance criterion 19. |
+| 2026-09-17 | Constitution v1.3.0:<br>• XI: submission materials may not hide or contradict the README's weaknesses.<br>• XII: the real judging window and live period; scripted members disclosed in the demo video and pitch deck too.<br>• Hackathon Constraints add signed-APK distribution, the submission deliverables and deadline, and the defect-fix-only upgrade authority. |
+| 2026-09-17 | Crowd model changed (H14): real members first, with 5–7 beta testers recruited for cohort #3, and scripted wallets filling a cohort only to a floor of 20 (7-day) or 12 (21-day); pool cut from 260 to 56 wallets. The walkthrough shows the whole flow and plays before a wallet is connected — the only exception to FR-001a. Spec gained those changes in FR-001a, ES-0, FR-043, FR-043a, FR-044 and acceptance criterion 8. New doc `holdout_demo_video.md`: storyboard, screen checklist, recording workflow, shot log, filming calendar and the beta-test plan. |
+| 2026-09-17 | Plan revised for the new dates:<br>• R12: scripted wallets in every cohort starting through 9 November, a pool of 260, and the crank running to 30 November.<br>• R13: SOL-paying faucet cap cut from 60 to 30 a day; worst case corrected to 0.024 SOL per claim; vault funded to 25 SOL by 8 October.<br>• R14: upgrade authority.<br>• R18: walkthrough from cohort #3 with finisher and forfeiter wallets.<br>• Delivery calendar re-planned from 17 September, with the judged launch on 22–23 September.<br><br>H16 gains the sponsor key and upgrade authority weaknesses; H17's 21-day ranking consequence corrected (nobody can be ranked there before 11 November); L10 and L11 added. |

@@ -18,7 +18,8 @@
 | Android Studio / SDK | Current stable; compile/target SDK 37, min SDK 26 | Windows |
 | Devices | A Solana Seeker with Seed Vault Wallet; one ordinary Android phone with an MWA wallet | — |
 | Domain | One domain or subdomain for the MWA identity URI, with a Digital Asset Links file | — |
-| Devnet SOL | ~40 SOL for faucet pre-funding (R13) plus deploy costs, gathered in advance | — |
+| Devnet SOL | Program deploy rent (measured at the rehearsal deploy); ~1.12 SOL for the 56 scripted wallets by 22 Sep (R12); 25 SOL in the faucet vault by 8 Oct (R13) | — |
+| GitHub | A repository judges can clone, pushed from the first commit (FR-066) | — |
 
 Commands in §3, §5 and §6 run inside WSL2. When an agent runs Anchor or Surfpool commands, prefix them with `NO_DNA=1`.
 
@@ -105,6 +106,16 @@ npm --prefix tests test -- --grep "full cycle"
 
 **Expected:** open → join (with a lobby place) → lock → daily submits → forfeits → count → finalize (with remainder) → claim completes in minutes, and every INV holds at each step.
 
+### Beta test on the rehearsal deployment (24–26 Sep)
+
+The same compressed idea, but on devnet with real testers and real phones: a test league of **seven 10-minute days at 5 reps a day**, so each tester runs faucet → join → sittings → a deliberate forfeit → settlement → claim in about 70 minutes.
+
+```bash
+java -jar kotlin/crank/build/libs/crank.jar init --test-league --day-seconds 600 --reps 5 --days 7
+```
+
+**Expected:** 5–7 testers each complete a full cycle on the rehearsal program; bugs are fixed before the 28 Sep freeze. No footage from this run is ever used in the walkthrough or demo video (`docs/holdout_demo_video.md`).
+
 ## 6. Devnet deployment
 
 Smoke-test first against an embedded Surfpool network with time travel:
@@ -158,7 +169,7 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 5 | Crank killed a day; stranger cranks | *local*: stop crank, advance 1 day, run `crank run` from a different payer | Same forfeits and payouts as uninterrupted run; breached member's submit failed meanwhile |
 | 6 | Vectors | Section 3 | All V1–V22 pass |
 | 7 | Invariants at 1,000 members | Section 3 | Randomised suite green |
-| 8 | Fresh install; counters at the deadline | Devnet: install, connect; stop crank before a boundary | Wallet asked first; populated labelled cohort; one second after the deadline the counter already excludes non-submitters |
+| 8 | Fresh install; counters at the deadline | Devnet: install, play the walkthrough **without connecting**, then connect; stop crank before a boundary | Wallet asked first, with only the walkthrough available before it; cohort populated to at least its floor, scripted members labelled; one second after the deadline the counter already excludes non-submitters |
 | 9 | No price read | Code search + test | No instruction reads a price; only `crank chips publish` uses a rate |
 | 10 | No frame leaves device | Proxy the phone, run a sitting | Only RPC traffic observed |
 | 11 | No finishers, carry-over | *local*: all forfeit; with and without an open next cohort | 50 % fee; carry-over in the open cohort, or held and recorded (delivery **[Phase 2]**) |
@@ -169,3 +180,4 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 16 | Faucet from zero | Device with a brand-new wallet | One tap funds a full 7-day cycle; second tap same day refused with time |
 | 17 | Palm timeout | Device: cover camera at palm step | Tip after 30 s, back to pre-flight; banked reps unchanged |
 | 18 | Offline completion | Device in airplane mode | Warning shown; reconnect before deadline + tap submit lands the day (automatic **[Phase 2]**); after deadline, breach |
+| 19 | Submission complete | 7–8 Oct: install the final APK on a Seeker and a plain phone; build from a clean clone on a machine that has never built the project, following only the README; review the demo video and deck (R18) | Both installs run; clean clone builds the app and the program; video ≈ 3 min shows join, sitting, forfeit, settlement and claim from cohort #3; scripted members and the test network disclosed in app, README, video and deck; submitted before 9 Oct 08:59 CEST |

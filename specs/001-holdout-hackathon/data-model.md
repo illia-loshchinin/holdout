@@ -23,7 +23,7 @@ Units: SKR amounts are **base units** (`u64`); times are **Unix seconds of chain
 | `chip_set.version` | u32 | +1 on every publish |
 | `chip_set.published_at` | i64 | Chain time of publish |
 | `faucet.sol_top_up` | u64 | Lamports a claim tops a recipient up to (20,000,000 = 0.02 SOL) |
-| `faucet.daily_sol_cap` | u16 | 60 SOL-paying claims per day (R13) |
+| `faucet.daily_sol_cap` | u16 | 30 SOL-paying claims per day (R13) |
 | `faucet.sol_claims_day` | i64 | Day index the counter belongs to |
 | `faucet.sol_claims_today` | u16 | Resets when `sol_claims_day` changes |
 | `bump` | u8 | |

@@ -77,8 +77,8 @@ The rule: **a feature earns its place only if it appears in the video or is load
 | S5 | Notifications | Manual Telegram push to cohort members | None — invisible in video |
 | S6 | Genesis Token gate | Feature flag `genesis_gate_enabled`, **off on devnet** | **Must be off**, or no tester without a Seeker can join |
 | S7 | League gate | Feature flag `ladder_gate_enabled`, **off**; the 21-day unlock is still computed and recorded | None — named in the README |
-| S8 | Judging-period cohorts | Real-time cohorts populated by scripted members — **ordinary wallets run by automation under the same contract rules**: real test-SKR stakes, completed days, planned forfeits and finishes. Their forfeits fund real prizes. Their days are not camera-verified. Addresses published in the build; disclosed in app and README and labelled wherever they appear (H14, constitution XII) | None if labelled; deception if not |
-| S9 | Full-cycle demo | Recorded walkthrough inside the app, captured from the real app on devnet (H14) | None — it is a recording of the real thing |
+| S8 | Judging-period cohorts | Real members first — beta testers and anyone who installs the app — with scripted members **topping a cohort up to a floor only** (20 for a 7-day cohort, 12 for a 21-day one). Scripted members are **ordinary wallets run by automation under the same contract rules**: real test-SKR stakes, completed days, planned forfeits and finishes. Their forfeits fund real prizes. Their days are not camera-verified. Addresses published in the build; disclosed in the app, README, demo video and pitch deck, and labelled wherever they appear (H14, constitution XII) | None if labelled; deception if not |
+| S9 | Full-cycle demo | Recorded walkthrough inside the app, captured from cohort #3 on the real devnet program — the whole flow from launching the app to the claim, playable before a wallet is connected (H14, `holdout_demo_video.md`) | None — it is a recording of the real thing |
 | S10 | Stake chip prices | **Phase 1:** Operator publishes one SKR chip set at launch from an off-chain rate. **[Phase 2]** re-prices weekly when drift exceeds 20% (H8, H23) | None — named in the README as a trusted input |
 
 ### 1.3 Cut entirely
@@ -378,7 +378,7 @@ Found by drawing the machines. Each needed a decision before the code that touch
 | E19 | A member closes the app at 17 reps, or their phone dies | §8.6 | **Resolved by spec FR-024, ES-1:** 10 banked reps survive, 7 are discarded; the member returns any time before the deadline and re-verifies. |
 | E20 | A member completes a cohort day offline and reconnects around the deadline | spec §8.3 | **Resolved by spec FR-024b, ES-3b:** warned before and on completion; the day waits on the device and is submitted automatically on reconnect; it counts only if it lands before the deadline by chain time. |
 | E21 | A judge connects a fresh wallet with no SOL and no test SKR | spec US-9 | **Resolved by spec FR-042a, ES-0a, ES-0b:** one-tap in-app faucet, once per wallet per day, pre-funded, no server; a clear message if it can't pay out. |
-| E22 | A judge has no Solana wallet at all | spec US-1, US-9 | **Resolved by spec FR-001a, ES-0:** the app requires a wallet first and explains how to get one. Accepted cost: a judge without a wallet sees only that screen, the README and the recorded walkthrough. |
+| E22 | A judge has no Solana wallet at all | spec US-1, US-9 | **Resolved by spec FR-001a, ES-0 (revised 2026-09-17):** the app requires a wallet first and explains how to get one, and the connect screen offers the recorded walkthrough, which plays without a wallet — so a judge who cannot connect one still sees the whole product, plus the README. |
 
 ---
 

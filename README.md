@@ -35,18 +35,21 @@ Named here on purpose (constitution XI). Each has its real fix beside it.
 | Reps banked during the day (in blocks of 10), and a completed day waiting for network, live only on the phone | No wallet prompt mid-workout; a lost phone loses that day's partial progress, and a rooted phone could edit it. A day finished offline counts only if it reaches the network before the deadline | Covered by the attestation fix; cross-device progress later |
 | No audio anti-spoofing in rep verification | Microphone permission adds first-run friction and protects no real value on devnet | Reinstate the audio check and audio rep condition together |
 | Stake chips ($10 / $25 / $50 / $100) are priced in SKR by the Operator from an off-chain rate — once at launch, re-checked weekly in Phase 2 | The contract must never read a price | On-chain chip governance before real value is at stake |
-| Judging-period cohorts are populated by scripted members — real wallets under the same contract rules, whose forfeits fund real prizes and whose completed days are **not camera-verified** | Judging runs weeks after the last real cohort | Disclosed here and in the app; their addresses are published in the build and every scripted member is labelled wherever it appears |
-| A wallet is required before anything, even the free challenge | One identity from the first tap | Judges without a wallet can see the product in the in-app walkthrough and this README |
-| The full cycle is shown as a recorded walkthrough in the app | A judge can't wait 7 days | It is a recording of the real app against the real devnet contract |
+| Cohorts are filled by real members first; scripted members — real wallets under the same contract rules, whose forfeits fund real prizes and whose completed days are **not camera-verified** — top a cohort up only to a minimum (20 members in a 7-day cohort, 12 in a 21-day one) | A cohort must never be empty when someone installs the app during judging | Disclosed here, in the app, in the demo video and in the pitch deck; their addresses are published in the build and every scripted member is labelled wherever it appears |
+| A wallet is required before anything, even the free challenge | One identity from the first tap | The connect screen plays the recorded walkthrough without a wallet, so judges who cannot connect one still see the whole product |
+| The full cycle is shown as a recorded walkthrough in the app | A judge can't wait 7 days | It is a recording of the real app against the real devnet contract, taken from the first judged cohort |
+| The faucet's fee sponsor key ships inside the app | A wallet with zero SOL cannot pay for its own first transaction, and there is no server to sign for it | Anyone can extract the key, so the contract caps the damage: at most 30 SOL-paying claims a day and one claim per wallet a day. Real fix: no faucet on mainnet, or a rate-limited relayer |
+| The program keeps its upgrade authority during judging | A defect found while cohort #3 holds real test stakes must be fixable | Used only for defect fixes that change no existing cohort, account layout or fund movement. Real fix: revoke the authority once the contract is final |
 | Notifications are sent manually | No notification infrastructure in the build | Push notification service |
 
 ## Layout
 
 | Path | |
 |---|---|
-| `.specify/memory/constitution.md` | The principles every phase is checked against (v1.2.0). Read first. |
+| `.specify/memory/constitution.md` | The principles every phase is checked against (v1.3.0). Read first. |
 | `specs/001-holdout-hackathon/spec.md` | The feature spec — what and why, no stack. Clarified; ready for planning. |
-| `docs/holdout_decisions.md` | Decision record H1–H23: why the build is what it is, what was rejected, what is still open. Read before changing the mechanic. |
+| `docs/holdout_decisions.md` | Decision record H1–H26: why the build is what it is, what was rejected, what is still open. Read before changing the mechanic. |
+| `docs/holdout_demo_video.md` | The demo video and in-app walkthrough: storyboard, screen checklist, recording workflow, filming calendar and the beta-test plan. |
 | `docs/holdout_scope_and_state_machines.md` | Scope cut, decisions D-A…D-I, state machines and edge cases, synced to the spec. Read before coding. |
 | `docs/holdout_v1_prd.md` | Product requirements for this build: screens, copy, verification rules, settlement math and test vectors. Adds detail to the spec, never scope. |
 | `docs/archive/` | The full post-hackathon vision — the original PRD and its decision record — kept for the pitch. Not the build. |
