@@ -38,9 +38,11 @@
 - [ ] T009 [P] Register the domain (or subdomain) for the MWA identity URI and publish its Digital Asset Links file (research R3)
 - [ ] T010 [P] Start gathering devnet SOL on the plan's schedule: deploy rent, ~1.12 SOL for scripted wallets by 22 Sep, 25 SOL in the faucet vault by 8 Oct (research R12, R13)
 - [ ] T011 [P] Recruit 5–7 beta testers, open the group chat, send the one-page onboarding note and collect filming consent (`docs/holdout_demo_video.md` §9)
-- [ ] T012 [P] Install `scrcpy` and check whether the wallet's approval screen records or comes out black (`FLAG_SECURE`), which decides whether those shots need the second camera (spike S1, research R18)
+- [ ] T012 [P] Install `scrcpy` and check whether the wallet's approval screen records or comes out black (`FLAG_SECURE`), which decides whether those shots need the second camera; record the answer in `docs/holdout_demo_video.md` §4 (research R18)
+- [ ] T012a [P] **Spike S1 — wallet signing on real hardware**: the fixed template builds; a Seeker connects Seed Vault Wallet over MWA and lands a devnet transaction with `signAndSendTransactions`; a plain Android phone does the same with its own MWA wallet; a phone with no wallet returns `NoWalletFound`; a sponsor-paid transaction built with `web3-solana` and sent with `rpc-core` lands; both libraries run in a plain JVM module. **Fallback**: another MWA wallet, or sol4k for transaction building in that module (research S1). **Blocks T038, T040, T061.**
+- [ ] T012b [P] **Spike S2 — rep counting on real video**: ≥ 15 FPS pose inference on a Seeker; 10 honest push-up videos counted within 1 rep of 25; 3 cheat videos — half reps, sagging hips, too fast — rejected; an open palm detected in normal indoor light. **Fallback**: lite model, lower analysis resolution, CPU delegate, or thresholds relaxed against the recorded evidence (research S2). **Blocks T046–T050.**
 
-**Checkpoint (17–18 Sep)**: `NO_DNA=1 anchor build` succeeds in WSL2, the Gradle project builds, and the repository is public.
+**Checkpoint (17–18 Sep)**: `NO_DNA=1 anchor build` succeeds in WSL2, the Gradle project builds, the repository is public, and **spikes S1 and S2 have passed or their fallbacks are chosen — implementation does not begin before that** (constitution, Development Workflow).
 
 ---
 
@@ -57,6 +59,7 @@
 - [ ] T015 [P] Write the failing schedule tests in `programs/holdout/src/math/schedule.rs` — `deadline_of(k) = start + (k+1) × day_length − 1`, day index `floor((now − 18,000) ÷ 86,400)`, join cutoff `start − 3,600` (data-model §1.3, §5)
 - [ ] T016 [P] Build the LiteSVM harness with clock control in `tests/helpers/harness.ts` — chain-time travel, cohort builders, account decoding (research R2)
 - [ ] T017 [P] Write the invariant checker in `tests/invariants/checker.ts` asserting INV-1…INV-8 after every step (spec §8.4)
+- [ ] T017a [P] Write the failing no-oracle check — `tests/scenarios/no-oracle.spec.ts` asserting that no instruction takes a price, a fiat figure or an oracle account among its accounts or arguments, plus `scripts/check-no-oracle.sh` grepping `programs/holdout/src/` for `price`, `oracle`, `pyth`, `switchboard` and `usd` identifiers and failing CI on a hit; the only rate use in the repository stays `crank chips publish` (AC-9, constitution III)
 
 ### Program foundations
 
@@ -83,7 +86,7 @@
 - [ ] T035 [P] Transcribe the design tokens into `kotlin/app/src/main/kotlin/holdout/app/ui/theme/` — `Color.kt`, `Type.kt`, `Shape.kt`, `Theme.kt`: one dark `ColorScheme`, **dynamic colour disabled**, JetBrains Mono in `kotlin/app/src/main/res/font/` (PRD §11, research R20)
 - [ ] T036 [P] Scaffold the crank in `kotlin/crank/src/main/kotlin/holdout/crank/Main.kt` — argument parsing, RPC config, `status` subcommand, single runnable JAR (contracts/crank-cli.md)
 
-**Checkpoint (21 Sep)**: math and schedule tests pass, accounts compile, `kotlin/core` replays every fixture, the theme renders.
+**Checkpoint (21 Sep)**: math and schedule tests pass, accounts compile, `kotlin/core` replays every fixture, the theme renders, and the no-oracle check passes.
 
 ---
 
@@ -187,7 +190,7 @@
 - [ ] T073 [US7] Build the cohort home variant in `kotlin/app/src/main/kotlin/holdout/app/home/CohortHome.kt` — survivor counter and prize pool as the largest things, projected share, days remaining, the member's own record, and the counter rolling rather than cutting (FR-038, PRD §10.1a, §11.5)
 - [ ] T074 [P] [US7] Build the roster in `kotlin/app/src/main/kotlin/holdout/app/roster/RosterScreen.kt` — still standing first, then forfeited by days lasted, scripted members labelled from the bundled list (FR-062, FR-064)
 - [ ] T075 [P] [US7] Build cohort detail in `kotlin/app/src/main/kotlin/holdout/app/cohort/CohortDetailScreen.kt` — days remaining, own completion record, projected share, survivor history (US-7)
-- [ ] T076 [US7] Run the randomised invariant suite at 1,000 members in `tests/invariants/randomised.spec.ts` — joins, sittings, misses, claims, pages out of order and repeated, INV-1…INV-8 after every step (AC-7)
+- [ ] T076 [US7] Run the randomised invariant suite at 1,000 members in `tests/invariants/randomised.spec.ts` — joins, sittings, misses, claims, pages out of order and repeated, INV-1…INV-8 after every step. **This is spike S3** (research S3): run it as soon as the instruction set first compiles, not at the end of the phase; if it fails, cut the page size or add address lookup tables before building further (AC-7)
 
 **Checkpoint**: the number that sells the product is live and provably backed by chain state.
 
@@ -226,6 +229,8 @@
 
 **Goal**: on any day of judging the app is populated, honest about itself, and explains itself without a wallet.
 
+**This phase is not last in time.** It runs in parallel from 22 September: the judged deploy (T093) and the first scripted joins (T087) have to be live long before the app stories finish, because cohort #3's lobby must be open and joinable by **28 Sep 04:00 UTC**.
+
 **Independent test**: a fresh install on any judging day finds a running Holdout at or above its floor, every scripted member labelled, and the walkthrough playable with no wallet connected.
 
 - [ ] T086 [US9] Generate the 56 scripted wallets, commit the public keys to `kotlin/core/src/main/resources/scripted-wallets.json`, and keep the keypairs in the crank's secret store (research R12, FR-043a)
@@ -243,15 +248,15 @@
 
 ---
 
-## Phase 12: US10 — League leaderboards (Priority: P3) **[Phase 2]**
+## Phase 12: Spec Phase 2 — deferred items (Priority: P3)
 
-**Built only after every Phase 1 check is green, and only if it lands before 28 September** (spec §3a). If it does not, cut it and log the cut in `docs/holdout_decisions.md`.
+**Built only after every Phase 1 check is green, and only if it lands before 28 September** (spec §3a). Four separate items live here: league leaderboards (US10), automatic offline submission (US3), carry-over delivery (US8) and weekly chip re-pricing (US6). Cut them independently, smallest first, and log every cut in `docs/holdout_decisions.md`.
 
 - [ ] T096 [P] [US10] Write `tests/scenarios/leaderboard.spec.ts` — ranking by survival rate, the 3-cohort minimum, the tie-breaks, "not ranked yet" below the line, a running or locked cohort counted in neither figure (AC-14)
 - [ ] T097 [US10] Build the leaderboard screen in `kotlin/app/src/main/kotlin/holdout/app/leaderboard/LeaderboardScreen.kt` — survival rate, cohorts played and cleared, current and longest league streak, shortened addresses, no amounts anywhere (FR-060…FR-063)
-- [ ] T098 [P] [US10] Implement automatic offline submission — the pending day sent as soon as a connection returns, "Done — waiting for network" until it lands (FR-024b Phase 2)
-- [ ] T099 [P] [US10] Implement `deliver_carry_over` in `programs/holdout/src/instructions/deliver_carry_over.rs` — moves a held carry-over exactly once into the next cohort of that league when it opens (FR-037a, INV-6)
-- [ ] T100 [P] [US10] Implement `crank chips publish --auto --if-drift 0.20` — weekly Monday check against a public rate, exits without publishing when no rate is available (FR-056, FR-057)
+- [ ] T098 [P] [US3] Implement automatic offline submission — the pending day sent as soon as a connection returns, "Done — waiting for network" until it lands (FR-024b Phase 2)
+- [ ] T099 [P] [US8] Implement `deliver_carry_over` in `programs/holdout/src/instructions/deliver_carry_over.rs` — moves a held carry-over exactly once into the next cohort of that league when it opens (FR-037a, INV-6)
+- [ ] T100 [P] [US6] Implement `crank chips publish --auto --if-drift 0.20` — weekly Monday check against a public rate, exits without publishing when no rate is available (FR-056, FR-057)
 
 ---
 
@@ -265,7 +270,7 @@
 - [ ] T106 Film the cohort #3 shot list, 27 Sep – 5 Oct — join and lobby, daily sittings, the forfeiter's forfeit, the daily 05:05 UTC captures, settlement and the real claim, each row logged with its transaction signature (`docs/holdout_demo_video.md` §2, §5)
 - [ ] T107 Cut the two exports, 5–7 Oct — the 16:9 three-minute demo video and the 9:16 in-app walkthrough under 40 MB — plus the short explainer for the tour's card 2 (research R18, FR-067)
 - [ ] T108 Build the final APK with the walkthrough bundled, install it on a Seeker and a plain Android phone, and check every §3 screen appears in the video (AC-19)
-- [ ] T109 Write the pitch deck, disclosing scripted members and the test network, and submit the APK, repository, video and deck on 8 Oct (FR-066)
+- [ ] T109 Write the pitch deck, disclosing scripted members and the test network, and submit the APK, repository, video and deck on 8 Oct. Before submitting, log every cut Phase 2 item in `docs/holdout_decisions.md` and confirm the README's weakness table matches what the app actually ships (FR-066, spec §3a, constitution XI)
 - [ ] T110 Monitor the live period 9 Oct – 11 Nov — the faucet vault, the crank, the scripted floors — fixing only contract defects, by upgrade (FR-007b, FR-043)
 
 ---
@@ -287,7 +292,7 @@
 
 ## Parallel execution examples
 
-- **Phase 1**: T004–T012 in parallel — different toolchains, no shared files.
+- **Phase 1**: T004–T012b in parallel — different toolchains, no shared files. The two spikes (T012a, T012b) need hardware, so start them first; everything else can proceed while they run.
 - **Phase 2**: T020–T024 (one account file each), then T032–T036 in parallel.
 - **Phase 3**: T039, T042, T043, T044, T045 — separate screens and stores.
 - **Phase 4**: T046, T047 in parallel; T052, T053 in parallel once banking exists.
@@ -298,5 +303,5 @@
 1. **MVP** = Phases 1–4: install, connect, tour, faucet, and the Daily 25 counted on the device. It demonstrates the camera, which is the product's magic, without any money.
 2. **The money loop** = Phases 5–9, in order. Nothing here is optional: the spec's acceptance criteria 1–11 and 13 all live in it.
 3. **Demo integrity** = Phase 11, which must be live before the freeze because judging depends on it.
-4. **Phase 2 of the spec** = Phase 12 here, cut without regret if 26–27 September is tight.
+4. **Phase 2 of the spec** = Phase 12 here, cut without regret if 26–27 September is tight — each item has a Phase 1 stand-in, and each cut is logged in the decision record.
 5. **Everything after the freeze** is Phase 13: filming, writing and the submission.
