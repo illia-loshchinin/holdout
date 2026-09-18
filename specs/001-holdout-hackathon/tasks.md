@@ -226,6 +226,8 @@
 - [ ] T084 [US5] Set `qualified` inside `settle_count` when the cleared cohort belongs to league 0, and enforce `ladder_gate_enabled` in `join_cohort` (FR-003, FR-003a)
 - [ ] T085 [P] [US5] Show the unlock in the ladder and after a clear — stated plainly, with the note that both lengths are open in this build (US-5)
 
+**Checkpoint**: every 7-day clear records the unlock with the gate off, and flipping `ladder_gate_enabled` on refuses an unqualified 21-day join — proving the flag is the only difference between this build and an enforced ladder (AC-1). Nothing downstream waits on this phase.
+
 ---
 
 ## Phase 11: US9 — A judge installs the app cold (Priority: P1)
@@ -260,6 +262,8 @@
 - [ ] T098 [P] [US3] Implement automatic offline submission — the pending day written by T066 sent as soon as a connection returns, with "Done — waiting for network" until it lands, replacing the Phase 1 tap (FR-024b Phase 2, ES-3b)
 - [ ] T099 [P] [US8] Implement `deliver_carry_over` in `programs/holdout/src/instructions/deliver_carry_over.rs` — moves a held carry-over exactly once into the next cohort of that league when it opens (FR-037a, INV-6)
 - [ ] T100 [P] [US6] Implement `crank chips publish --auto --if-drift 0.20` — weekly Monday check against a public rate, exits without publishing when no rate is available (FR-056, FR-057)
+
+**Checkpoint (27 Sep)**: each item has either landed with its acceptance scenario green, or been cut and logged in `docs/holdout_decisions.md` with its Phase 1 stand-in still in place. Phase 13 does not wait for any of it.
 
 ---
 
