@@ -1,0 +1,27 @@
+{
+  "name": "holdout-tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Contract tests for Holdout: Kit + LiteSVM with clock control, plus a Surfpool smoke suite (research R2)",
+  "scripts": {
+    "test": "vitest run --exclude 'smoke/**'",
+    "test:watch": "vitest --exclude 'smoke/**'",
+    "smoke": "vitest run --dir smoke",
+    "codegen": "node scripts/codegen.mjs",
+    "fixtures": "vitest run fixtures/generate.ts"
+  },
+  "dependencies": {
+    "@solana/kit": "^8.3.0",
+    "@solana/kit-plugin-litesvm": "^0.19.0",
+    "litesvm": "^1.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.1",
+    "codama": "^1.11.0",
+    "@codama/nodes-from-anchor": "^1.5.6",
+    "@codama/renderers-js": "^2.5.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  }
+}

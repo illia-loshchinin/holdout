@@ -1,0 +1,29 @@
+[package]
+name = "holdout"
+version = "0.1.0"
+description = "Holdout — push-up commitment cohorts on Solana devnet"
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "holdout"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+# Test leagues with a non-default day_length: LiteSVM and the rehearsal
+# deployment only, never the judged program (research R11, scope doc D-A).
+test-leagues = []
+
+[dependencies]
+anchor-lang = { version = "1.1.2", features = ["init-if-needed"] }
+anchor-spl = { version = "1.1.2", features = ["token", "token_2022"] }
+
+[dev-dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

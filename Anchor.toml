@@ -1,0 +1,31 @@
+[toolchain]
+anchor_version = "1.1.2"
+solana_version = "3.1.10"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.devnet]
+holdout = "Ho1dout111111111111111111111111111111111111"
+
+[programs.localnet]
+holdout = "Ho1dout111111111111111111111111111111111111"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+# Smoke suite only (quickstart §6). The real integration suite is Kit + LiteSVM,
+# run with `npm --prefix tests test` — research R2.
+[scripts]
+test = "npx vitest run --dir tests/smoke"
+
+[test]
+startup_wait = 20000
+
+[test.validator]
+url = "https://api.devnet.solana.com"

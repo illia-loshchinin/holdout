@@ -28,12 +28,12 @@
 
 **Purpose**: a repository three build systems can work in, and a toolchain that runs Anchor at all.
 
-- [ ] T001 Install the WSL2 Ubuntu 24.04 toolchain — Rust ≥ 1.89, Solana CLI 3.1.10, Anchor 1.1.2, Node 22, Surfpool via `curl -sL https://run.surfpool.run/ | bash` (research R1, R19; quickstart §1)
+- [X] T001 Install the WSL2 Ubuntu 24.04 toolchain — Rust ≥ 1.89, Solana CLI 3.1.10, Anchor 1.1.2, Node 22, Surfpool via `curl -sL https://run.surfpool.run/ | bash` (research R1, R19; quickstart §1)
 - [ ] T002 Create the GitHub repository and push the existing history; judges score technical depth from commits (FR-066)
-- [ ] T003 Scaffold the Anchor workspace: `Anchor.toml` (program id, `[test]` runner surfpool), root `Cargo.toml`, `programs/holdout/Cargo.toml` with `anchor-lang`/`anchor-spl` 1.1.2, `solana-*` `^3`, feature `test-leagues`
+- [X] T003 Scaffold the Anchor workspace: `Anchor.toml` (program id, `[test]` runner surfpool), root `Cargo.toml`, `programs/holdout/Cargo.toml` with `anchor-lang`/`anchor-spl` 1.1.2, `solana-*` `^3`, feature `test-leagues`
 - [ ] T004 [P] Generate the Android app with `npx solana-mobile@latest create` (Kotlin Compose Minimal) into `kotlin/`, then fix the template: delete the stray root `dependencies {}` and `android {}` blocks in `kotlin/build.gradle.kts`, replace the placeholder namespace and identity, add `rpc-core` to `kotlin/gradle/libs.versions.toml` (research R3)
 - [ ] T005 [P] Add the Gradle modules `:core`, `:repcounter`, `:crank` to `kotlin/settings.gradle.kts` with JVM-only source sets (research R12)
-- [ ] T006 [P] Initialise the TypeScript test package in `tests/package.json` — `@solana/kit`, `@solana/kit-plugin-litesvm`, `litesvm`, `codama`, `vitest` (research R2)
+- [X] T006 [P] Initialise the TypeScript test package in `tests/package.json` — `@solana/kit`, `@solana/kit-plugin-litesvm`, `litesvm`, `codama`, `vitest` (research R2)
 - [ ] T007 [P] Install the agent tooling: `npx skills add solana-foundation/solana-dev-skill` and `claude mcp add --transport http solana-mcp-server https://mcp.solana.com/mcp` (research R19)
 - [ ] T008 [P] Configure formatting and linting: `rustfmt.toml`, `clippy` in CI, `.editorconfig`, ktlint for the Kotlin modules
 - [ ] T009 [P] Register the domain (or subdomain) for the MWA identity URI and publish its Digital Asset Links file (research R3)
@@ -55,9 +55,9 @@
 
 ### Tests first (constitution VII)
 
-- [ ] T013 Write `fixtures/settlement-vectors.json` from PRD §19 V1–V22 — equal stakes, mixed tiers, rounding remainders, no-finisher 50/50, carry-over cases
-- [ ] T014 Write the failing Rust math tests in `programs/holdout/src/math/settlement.rs` (`#[cfg(test)]`) replaying `fixtures/settlement-vectors.json`
-- [ ] T015 [P] Write the failing schedule tests in `programs/holdout/src/math/schedule.rs` — `deadline_of(k) = start + (k+1) × day_length − 1`, day index `floor((now − 18,000) ÷ 86,400)`, join cutoff `start − 3,600` (data-model §1.3, §5)
+- [X] T013 Write `fixtures/settlement-vectors.json` from PRD §19 V1–V22 — equal stakes, mixed tiers, rounding remainders, no-finisher 50/50, carry-over cases
+- [X] T014 Write the failing Rust math tests in `programs/holdout/src/math/settlement.rs` (`#[cfg(test)]`) replaying `fixtures/settlement-vectors.json`
+- [X] T015 [P] Write the failing schedule tests in `programs/holdout/src/math/schedule.rs` — `deadline_of(k) = start + (k+1) × day_length − 1`, day index `floor((now − 18,000) ÷ 86,400)`, join cutoff `start − 3,600` (data-model §1.3, §5)
 - [ ] T016 [P] Build the LiteSVM harness with clock control in `tests/helpers/harness.ts` — chain-time travel, cohort builders, account decoding (research R2)
 - [ ] T017 [P] Write the invariant checker in `tests/invariants/checker.ts` asserting INV-1…INV-8 after every step (spec §8.4)
 - [ ] T017a [P] Write the failing no-oracle check — `tests/scenarios/no-oracle.spec.ts` asserting that no instruction takes a price, a fiat figure or an oracle account among its accounts or arguments, plus `scripts/check-no-oracle.sh` grepping `programs/holdout/src/` for `price`, `oracle`, `pyth`, `switchboard` and `usd` identifiers and failing CI on a hit; the only rate use in the repository stays `crank chips publish` (AC-9, constitution III)

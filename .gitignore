@@ -1,0 +1,51 @@
+# Rust / Anchor
+/target/
+**/target/
+.anchor/
+test-ledger/
+*.rs.bk
+
+# Keys — never commit a keypair, not even a devnet one
+*.json.key
+/keys/
+**/id.json
+!fixtures/**/*.json
+!idl/*.json
+!tests/**/*.json
+
+# Node / TypeScript
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Kotlin / Android / Gradle
+.gradle/
+**/build/
+local.properties
+*.iml
+*.hprof
+captures/
+.cxx/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# Video and traces are large; the committed ones are named explicitly
+*.mp4
+!kotlin/app/src/main/assets/walkthrough.mp4
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
