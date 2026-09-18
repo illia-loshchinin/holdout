@@ -29,10 +29,10 @@
 **Purpose**: a repository three build systems can work in, and a toolchain that runs Anchor at all.
 
 - [X] T001 Install the WSL2 Ubuntu 24.04 toolchain — Rust ≥ 1.89, Solana CLI 3.1.10, Anchor 1.1.2, Node 22, Surfpool via `curl -sL https://run.surfpool.run/ | bash` (research R1, R19; quickstart §1)
-- [ ] T002 Create the GitHub repository and push the existing history; judges score technical depth from commits (FR-066)
+- [X] T002 Create the GitHub repository and push the existing history; judges score technical depth from commits (FR-066)
 - [X] T003 Scaffold the Anchor workspace: `Anchor.toml` (program id, `[test]` runner surfpool), root `Cargo.toml`, `programs/holdout/Cargo.toml` with `anchor-lang`/`anchor-spl` 1.1.2, `solana-*` `^3`, feature `test-leagues`
-- [ ] T004 [P] Generate the Android app with `npx solana-mobile@latest create` (Kotlin Compose Minimal) into `kotlin/`, then fix the template: delete the stray root `dependencies {}` and `android {}` blocks in `kotlin/build.gradle.kts`, replace the placeholder namespace and identity, add `rpc-core` to `kotlin/gradle/libs.versions.toml` (research R3)
-- [ ] T005 [P] Add the Gradle modules `:core`, `:repcounter`, `:crank` to `kotlin/settings.gradle.kts` with JVM-only source sets (research R12)
+- [X] T004 [P] Generate the Android app with `npx solana-mobile@latest create` (Kotlin Compose Minimal) into `kotlin/`, then fix the template: delete the stray root `dependencies {}` and `android {}` blocks in `kotlin/build.gradle.kts`, replace the placeholder namespace and identity, add `rpc-core` to `kotlin/gradle/libs.versions.toml` (research R3)
+- [X] T005 [P] Add the Gradle modules `:core`, `:repcounter`, `:crank` to `kotlin/settings.gradle.kts` with JVM-only source sets (research R12)
 - [X] T006 [P] Initialise the TypeScript test package in `tests/package.json` — `@solana/kit`, `@solana/kit-plugin-litesvm`, `litesvm`, `codama`, `vitest` (research R2)
 - [ ] T007 [P] Install the agent tooling: `npx skills add solana-foundation/solana-dev-skill` and `claude mcp add --transport http solana-mcp-server https://mcp.solana.com/mcp` (research R19)
 - [ ] T008 [P] Configure formatting and linting: `rustfmt.toml`, `clippy` in CI, `.editorconfig`, ktlint for the Kotlin modules
