@@ -4,7 +4,7 @@
 
 **Changed in 1.7 (17 Sept):** members' names adopted — **the Daily 25** and **a Holdout** (H28, spec §1a), with on-chain names unchanged · **first-run tour** added as F12 (FR-067) and the full-cycle walkthrough becomes judge-facing (H29) · guest mode proposed and dropped, so F10 wallet-first stands.
 
-> **Precedence.** The constitution (`.specify/memory/constitution.md`, v1.3.0) and the spec override this file; `holdout_decisions.md` (H1–H29) records why. Where this file and the spec disagree, the spec is right and this file is a bug. Decision IDs D1–D16 and O1–O12 cited below refer to the archived record at `docs/archive/holdout_decisions_pre-hackathon-spec_2026-09-15.md`.
+> **Precedence.** The constitution (`.specify/memory/constitution.md`, v1.3.1) and the spec override this file; `holdout_decisions.md` (H1–H30) records why. Where this file and the spec disagree, the spec is right and this file is a bug. Decision IDs D1–D16 and O1–O12 cited below refer to the archived record at `docs/archive/holdout_decisions_pre-hackathon-spec_2026-09-15.md`.
 
 **Changed in 1.6 (phasing, 15 Sept — spec §3a, H23):** four items are **Phase 2** — league leaderboards (F9), weekly chip re-pricing (S10), delivery of a held carry-over (§3.1), automatic offline submission (§3.3) — built only after the Phase 1 core works end to end and only before the 28 September freeze. Each has a Phase 1 stand-in, and the data Phase 2 needs is still recorded in Phase 1.
 
@@ -23,7 +23,7 @@
 | Companion file | Holds |
 |---|---|
 | `specs/001-holdout-hackathon/spec.md` | What the hackathon build does. Authoritative over this file. |
-| `holdout_decisions.md` | Why the build is what it is (H1–H29). Read before changing anything here. |
+| `holdout_decisions.md` | Why the build is what it is (H1–H30). Read before changing anything here. |
 | `holdout_v1_prd.md` | Product requirements for the hackathon build (v2.6): screens, copy, verification rules, settlement vectors. |
 | `archive/holdout_v1_prd_full-vision_2026-09-15.md` | The original full-vision PRD. **Bare §-references below (§5.3, §8.6, §9.3 Op6 …) point into this archive**, not into the current PRD. |
 | This file | Demo scope, state machines, blocking decisions, edge transitions the PRD does not cover. |

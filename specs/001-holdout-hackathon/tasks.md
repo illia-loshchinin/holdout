@@ -41,7 +41,7 @@
 - [ ] T011 [P] Recruit 5–7 beta testers, open the group chat, send the one-page onboarding note and collect filming consent (`docs/holdout_demo_video.md` §9)
 - [ ] T012 [P] Install `scrcpy` and check whether the wallet's approval screen records or comes out black (`FLAG_SECURE`), which decides whether those shots need the second camera; record the answer in `docs/holdout_demo_video.md` §4 (research R18)
 - [ ] T012a [P] **Spike S1 — wallet signing on real hardware**: the fixed template builds; a Seeker connects Seed Vault Wallet over MWA and lands a devnet transaction with `signAndSendTransactions`; a plain Android phone does the same with its own MWA wallet; a phone with no wallet returns `NoWalletFound`; a sponsor-paid transaction built with `web3-solana` and sent with `rpc-core` lands; both libraries run in a plain JVM module. **Fallback**: another MWA wallet, or sol4k for transaction building in that module (research S1). **Blocks T038, T040, T061.**
-- [ ] T012b [P] **Spike S2 — rep counting on real video**: ≥ 15 FPS pose inference on a Seeker; 10 honest push-up videos counted within 1 rep of 25; 3 cheat videos — half reps, sagging hips, too fast — rejected; an open palm detected in normal indoor light. **Fallback**: lite model, lower analysis resolution, CPU delegate, or thresholds relaxed against the recorded evidence (research S2). **Blocks T046–T050.**
+- [ ] T012b [P] **Spike S2 — rep counting on real video**: ≥ 15 FPS pose inference on a Seeker; 10 honest push-up videos counted within 1 rep of 25; 3 cheat videos — half reps, sagging hips, too fast — rejected; an open palm detected in normal indoor light. **Fallback**: lite model, lower analysis resolution, CPU delegate, or thresholds relaxed against the recorded evidence (research S2). **Its output is committed** as `fixtures/rep-traces/s2-angles.json` — the measured per-frame elbow and body-line angles the hysteresis triggers in T048 are set from. **Blocks T046–T050.**
 
 **Checkpoint (17–18 Sep)**: `NO_DNA=1 anchor build` succeeds in WSL2, the Gradle project builds, the repository is public, and **spikes S1 and S2 have passed or their fallbacks are chosen — implementation does not begin before that** (constitution, Development Workflow).
 
@@ -60,6 +60,7 @@
 - [ ] T015 [P] Write the failing schedule tests in `programs/holdout/src/math/schedule.rs` — `deadline_of(k) = start + (k+1) × day_length − 1`, day index `floor((now − 18,000) ÷ 86,400)`, join cutoff `start − 3,600` (data-model §1.3, §5)
 - [ ] T016 [P] Build the LiteSVM harness with clock control in `tests/helpers/harness.ts` — chain-time travel, cohort builders, account decoding (research R2)
 - [ ] T017 [P] Write the invariant checker in `tests/invariants/checker.ts` asserting INV-1…INV-8 after every step (spec §8.4)
+- [ ] T017b [P] Write the failing league-setup scenario in `tests/scenarios/league-setup.spec.ts` — `create_league` accepts `exercise == 0` and rejects `1` and `2` with `ExerciseNotSupported` (6053); a `league_id ≥ 100` test league is refused unless the build carries the `test-leagues` feature; `day_length`, `cadence`, `join_lock` and the Monday 05:00 UTC start are enforced for real leagues (data-model §2, contracts §1, H30)
 - [ ] T017a [P] Write the failing no-oracle check — `tests/scenarios/no-oracle.spec.ts` asserting that no instruction takes a price, a fiat figure or an oracle account among its accounts or arguments, plus `scripts/check-no-oracle.sh` grepping `programs/holdout/src/` for `price`, `oracle`, `pyth`, `switchboard` and `usd` identifiers and failing CI on a hit; the only rate use in the repository stays `crank chips publish` (AC-9, constitution III)
 
 ### Program foundations
@@ -74,7 +75,7 @@
 - [ ] T025 Implement `guards.rs` in `programs/holdout/src/` — `in_breach(now)`, `standing(now)`, cohort status from chain time, slot normalisation moving `pending` into `running`, the two gate checks (data-model §1.4, §1.5)
 - [ ] T026 [P] Declare every event in `programs/holdout/src/events.rs` and every error code 6000–6060 in `errors.rs`, exactly as `contracts/program-instructions.md` §4–§5 lists them
 - [ ] T027 Implement `initialize` in `programs/holdout/src/instructions/initialize.rs` — creates `Config`, the mock SKR mint with authority PDA `["mint_authority"]`, the fee destination token account and the faucet vault PDA `["faucet_vault"]`; flags start `false`
-- [ ] T028 [P] Implement `create_league` and `set_flags` in `programs/holdout/src/instructions/` — admin only, `create_test_league` behind the `test-leagues` feature (research R11, R14)
+- [ ] T028 [P] Implement `create_league` and `set_flags` in `programs/holdout/src/instructions/` until T017b passes — admin only; **`exercise` stored but validated to `0`, rejecting the reserved `1` and `2` with `ExerciseNotSupported` (6053)**; `create_test_league` behind the `test-leagues` feature (research R11, R14, H30)
 
 ### Shared Kotlin and design foundations
 

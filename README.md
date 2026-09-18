@@ -48,9 +48,9 @@ Named here on purpose (constitution XI). Each has its real fix beside it.
 
 | Path | |
 |---|---|
-| `.specify/memory/constitution.md` | The principles every phase is checked against (v1.3.0). Read first. |
+| `.specify/memory/constitution.md` | The principles every phase is checked against (v1.3.1). Read first. |
 | `specs/001-holdout-hackathon/spec.md` | The feature spec — what and why, no stack. Clarified; ready for planning. |
-| `docs/holdout_decisions.md` | Decision record H1–H26: why the build is what it is, what was rejected, what is still open. Read before changing the mechanic. |
+| `docs/holdout_decisions.md` | Decision record H1–H30: why the build is what it is, what was rejected, what is still open. Read before changing the mechanic. |
 | `docs/holdout_demo_video.md` | The demo video and in-app walkthrough: storyboard, screen checklist, recording workflow, filming calendar and the beta-test plan. |
 | `docs/holdout_scope_and_state_machines.md` | Scope cut, decisions D-A…D-I, state machines and edge cases, synced to the spec. Read before coding. |
 | `docs/holdout_v1_prd.md` | Product requirements for this build: screens, copy, verification rules, settlement math and test vectors. Adds detail to the spec, never scope. |

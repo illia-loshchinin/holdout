@@ -12,7 +12,7 @@
 
 > **What this file is.** The product-level detail behind `specs/001-holdout-hackathon/spec.md`: screens, copy, verification rules, settlement math, test vectors and glossary. It adds detail; it never adds scope. Every behaviour here traces to a spec requirement (cited as FR-/US-/ES-/INV-), and where this file and the spec disagree, **the spec is right and this file is a bug**.
 >
-> **Precedence:** `.specify/memory/constitution.md` (v1.3.0) → spec → `holdout_decisions.md` (H1–H26, the why) → `holdout_scope_and_state_machines.md` (state machines, edge cases) → this file.
+> **Precedence:** `.specify/memory/constitution.md` (v1.3.1) → spec → `holdout_decisions.md` (H1–H30, the why) → `holdout_scope_and_state_machines.md` (state machines, edge cases) → this file.
 >
 > **Not here, on purpose.** Stack, accounts, PDAs and instruction signatures belong to `plan.md`. The post-hackathon vision — three leagues, USDC pool, free cohorts, badges, share cards, referrals, Swelfie, geo-blocking, ToS, audit, treasury policy, cold-start matching, simulated economics — is archived verbatim at `archive/holdout_v1_prd_full-vision_2026-09-15.md`. Top-level section numbers match that archive, so an older reference like "§8" still lands on the same subject; subsection numbers do not.
 

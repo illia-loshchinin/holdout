@@ -21,7 +21,7 @@ Fiat figures shown to members are display metadata only, always marked approxima
 Stakes, pool, payouts and fees are all SKR. No second asset, no swap, no conversion path anywhere in the system.
 
 ### V. Parameters Live on the Cohort
-`reps_per_day`, `duration_days`, `day_length`, the boundary instant, the join cutoff and the stake chip amounts are fixed at cohort creation and read from the account, never from constants. A running cohort's rules can never move under its members.
+`reps_per_day`, `duration_days`, `day_length`, the exercise, the boundary instant, the join cutoff and the stake chip amounts are fixed at cohort creation and read from the account, never from constants. A running cohort's rules can never move under its members. The list is not a closed set: anything that decides how a cohort behaves belongs on the cohort, not in a constant.
 
 ### VI. One Clock
 Day boundaries are a single instant shared by every member of a cohort — 05:00 UTC — derived from chain time. No timezone, offset or locale exists anywhere in the system, and the streak day resets on that same instant. Time is presented to members as a countdown, never as a calendar date.
@@ -42,7 +42,7 @@ No upload, no server-side inference, no video persistence, no human review. This
 Anything faked, stubbed, flagged off or left trusting is named in the README with its real fix beside it. No submission material — demo video or pitch deck — hides or contradicts what the README names. A judge who discovers a shortcut reads deception; a judge who is told reads competence. Under the hackathon rules, misleading submission materials also disqualify the entry.
 
 ### XII. The Build Demonstrates Itself
-Judges may install the submitted build on any day of judging, 10 October – 9 November 2026, and the build stays live with no manual intervention until winners are announced on 11 November 2026. Anyone installing it in that period must find a populated, live, visibly thinning cohort and a free daily challenge they can do immediately — never an empty state, never "come back Monday".
+Judges may install the submitted build on any day of judging, 10 October – 9 November 2026, and the build stays live with no manual intervention until winners are announced on 11 November 2026. Anyone installing it in that period must find a populated, live, visibly thinning Holdout and a free Daily 25 they can do immediately — never an empty state, never "come back Monday".
 
 Those cohorts MAY be populated by scripted members, and only on these terms: the scripting is disclosed in the app, the README, the demo video and the pitch deck, and every scripted member is labelled wherever it appears — rosters and leaderboards included. An unlabelled scripted member is deception, not demonstration.
 
@@ -53,7 +53,7 @@ Those cohorts MAY be populated by scripted members, and only on these terms: the
 
 - **Devnet only**, with a mock SKR mint. Stated in the README and in the app.
 - **Delivered as a signed APK** with the submission. Publishing on the Solana dApp Store and any mainnet deployment are post-hackathon work; a winning app must be published on the dApp Store within 30 calendar days of the winners' announcement.
-- **Two staked leagues** — 7-day and 21-day, 25 reps a day — over a **free daily challenge** open to everyone, which builds a cosmetic streak that unlocks nothing, appears on no leaderboard and is never paid against. A forfeit does not break a streak.
+- **Two staked leagues** — 7-day and 21-day **Holdouts**, 25 reps a day — over **the Daily 25**, free and open to everyone, which builds a cosmetic streak that unlocks nothing, appears on no leaderboard and is never paid against. A forfeit does not break a streak. (Members read "the Daily 25" and "a Holdout"; the contract stores a cohort in a league — spec §1a.)
 - **Leaderboards are derived only from on-chain progress** — no server and no device-reported figure ever feeds a ranking.
 - **Feature-frozen 28 September**, when the first in-app cohort starts. Everything after that date is bug fixes, filming and writing.
 - **Submission due 9 October 2026, 08:59 CEST** — no late entries. It contains a functional APK that runs on a real device, a GitHub repository someone else can clone and run, a demo video of about three minutes and a pitch deck. Judges score completion from the demo video and technical depth from the commit history, so the full cycle is shown from the real app on devnet — never a mock-up and never a shortened-day cohort.
@@ -71,4 +71,4 @@ Those cohorts MAY be populated by scripted members, and only on these terms: the
 
 This constitution supersedes other practice in this repository. Anything not required by a scenario in `specs/001-holdout-hackathon/spec.md` is out of scope; additions are made by amending the spec, not by writing code. Amendments are recorded here with a version bump and a line in `docs/holdout_decisions.md`. The deadline is what makes scope discipline load-bearing rather than decorative.
 
-**Version**: 1.3.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-09-17
+**Version**: 1.3.1 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-09-18
