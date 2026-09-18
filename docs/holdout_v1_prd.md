@@ -347,6 +347,10 @@ A rep counts only when, within one rep cycle, all of these are detected (FR-021)
 
 A rep that misses a rule is **discarded silently with a hint** — *"Go lower"* · *"Keep your body straight"* · *"Slow down"* — never an error.
 
+**How those angles are measured (H30, research R4).** The rule above is what the product promises; the counter is built to survive the model's own error. Angles come from 3D world landmarks rather than image coordinates, so they do not depend on where the phone lies; they are smoothed before any comparison; and the state machine triggers on **wider** thresholds than the rule states — around 165° at the top and 85° at the bottom — because the pose model's joint-angle error is roughly 2° and a hard edge would count a rep twice on jitter. Frames where the elbow, shoulder, hip or ankle are not clearly visible are dropped rather than scored. The final trigger values come from spike S2's measured angle table, not from this document.
+
+**Other push-up variants are post-hackathon** (L12). The cohort already records which exercise it is, with negative (eccentric) and decline push-ups reserved, so adding them later changes rules and traces — never an account layout.
+
 The target is the cohort's reps per day, or 25 for the Daily 25. The pose model and the rep state machine on top of it are chosen in `plan.md`.
 
 ### 8.6 Banked progress

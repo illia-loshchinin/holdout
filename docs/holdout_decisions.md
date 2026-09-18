@@ -531,6 +531,23 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 
 **Source:** spec FR-067, FR-044, FR-001a, US-1, US-9; PRD screens 2, 2a and 13; `contracts/android-app.md` §5.
 
+
+### H30. How reps are tracked, and room for more exercises
+
+**Decided (2026-09-18):**
+
+- **The model** is MediaPipe Pose Landmarker (BlazePose GHUM), FULL on the GPU delegate, LITE as the fallback if spike S2 misses 15 FPS on a Seeker. The Hand Landmarker for palm liveness shares the same runtime.
+- **Angles come from 3D world landmarks**, not image coordinates, so they do not depend on where the phone lies; image coordinates drive the overlay only.
+- **The stated rule and the trigger values are different things.** The rule stays as the PRD writes it — top > 160°, bottom < 90°, body line ±10°, cycle 0.8–6 s. The state machine triggers at **≥ 165° / ≤ 85°** over one-euro-smoothed angles, because published validation puts the model's joint-angle error at about **2° mean absolute, RMSE ≈ 2.6°**: a hard edge would double-count on jitter. Frames with low landmark presence are dropped rather than scored. **Spike S2 sets the final numbers** from a measured per-frame angle table.
+- **The exercise is a cohort parameter** (`exercise: u8`, copied from the league at creation like every other parameter, constitution V). `0` = push-ups is the only value this build accepts; `1` = negative (eccentric) push-ups and `2` = decline push-ups are **reserved**, so adding them later needs no new account layout — which matters because the retained upgrade authority (H24) may never change one.
+
+**Why:** the rep rules were quantified before anything checked that the model could measure them, and the margin turned out to be thin. Separating the rule from the trigger keeps the honest statement in the product and the noise handling in the code, and lets the tests assert the rule while the thresholds are still being tuned.
+
+**Deferred, not dropped:** negative (eccentric) push-ups — a controlled 3–5 second descent, the standard beginner path to a first full rep — and decline push-ups. Both are post-hackathon (L12): each needs its own recorded traces and cheat videos, and the freeze is 10 days out.
+
+**Rejected:** MoveNet Thunder (17 keypoints, and the body-line rule needs hips and ankles; its upper-limb error is under 10° RMSE, worse than BlazePose here); ML Kit Pose Detection (no world coordinates); hard-coding push-ups and adding a second exercise by redeploying the program later.
+
+**Source:** research R4, spike S2; spec §2, FR-007, FR-014, FR-021; data-model §1.2, §1.3, §2; `contracts/program-instructions.md` (`create_league`, `open_cohort`, error 6053); constitution V, X.
 ---
 
 ## 2. Still valid from the product-vision record
@@ -644,6 +661,7 @@ By decision, not by omission.
 | L8 | **Last-one-standing tournament** (archived O7) | v1.1 concept, needs a lawyer |
 | L10 | **Solana dApp Store listing** — required within 30 calendar days of the announcement if the app wins (H25) | On the winners' announcement, 10–11 November 2026 |
 | L11 | **Mainnet launch** — real SKR, faucet removed or replaced, upgrade authority revoked once the contract is final (H24), Genesis gate on | Together with or after L10 |
+| L12 | **More exercises** — negative (eccentric) push-ups, a controlled 3–5 second descent as the beginner path to a first full rep, and decline push-ups. The cohort already carries `exercise`, with both values reserved (H30), so each needs rules, recorded traces and cheat videos, not a migration | After the hackathon; sooner if beta testers cannot do 25 full push-ups |
 
 ---
 
@@ -668,6 +686,7 @@ By decision, not by omission.
 | 2026-09-17 | Fourth `/speckit-clarify` session, using the official CLOCK IN rules. Decisions:<br>• The walkthrough comes only from cohort #3 and doubles as the demo video (H14, closes P6).<br>• The contract stays upgradeable for defect fixes only (H24).<br>• No dApp Store listing for submission; judging runs 10 October – 9 November; the build stays live through 11 November; the submission is an APK, a GitHub repository, a demo video of about three minutes and a pitch deck (H25).<br><br>The spec gained FR-007b, FR-066, ES-16 and acceptance criterion 19. |
 | 2026-09-17 | Constitution v1.3.0:<br>• XI: submission materials may not hide or contradict the README's weaknesses.<br>• XII: the real judging window and live period; scripted members disclosed in the demo video and pitch deck too.<br>• Hackathon Constraints add signed-APK distribution, the submission deliverables and deadline, and the defect-fix-only upgrade authority. |
 | 2026-09-17 | Crowd model changed (H14): real members first, with 5–7 beta testers recruited for cohort #3, and scripted wallets filling a cohort only to a floor of 20 (7-day) or 12 (21-day); pool cut from 260 to 56 wallets. The walkthrough shows the whole flow and plays before a wallet is connected — the only exception to FR-001a. Spec gained those changes in FR-001a, ES-0, FR-043, FR-043a, FR-044 and acceptance criterion 8. New doc `holdout_demo_video.md`: storyboard, screen checklist, recording workflow, shot log, filming calendar and the beta-test plan. |
+| 2026-09-18 | Rep tracking grounded in a measured method (H30): world landmarks, one-euro smoothing and hysteresis triggers wider than the model's ~2° error, with spike S2 setting the final numbers; research R4 rewritten. The **exercise becomes a cohort parameter** with negative and decline push-ups reserved, so they need no migration — spec §2, FR-007, FR-014, data-model §1.2–§1.3, `create_league` error 6053. Negatives and decline deferred to L12. |
 | 2026-09-17 | Names and onboarding (H28, H29): the free tier becomes **the Daily 25** and a staked run **a Holdout**, with on-chain names unchanged and spec §1a mapping them; a three-card first-run tour (FR-067); the full-cycle walkthrough becomes judge-facing; Holdouts open to join show what is at stake in them (FR-053). Guest mode proposed and dropped — H21 stands. PRD v2.6; prototype gained a tour artboard and rewritten first two screens. |
 | 2026-09-17 | Design direction set (H27): native-on-Seeker dark design system, tokens sampled from the Solana brand kit, Roboto plus JetBrains Mono, dynamic colour off, licensed brand fonts excluded. PRD §11 rewritten (v2.5) with colour, type, spacing, components, motion, accessibility and brand boundaries; §10.1a mocks annotated; app contract gained §3a Appearance. |
 | 2026-09-17 | Plan revised for the new dates:<br>• R12: scripted wallets in every cohort starting through 9 November, a pool of 260, and the crank running to 30 November.<br>• R13: SOL-paying faucet cap cut from 60 to 30 a day; worst case corrected to 0.024 SOL per claim; vault funded to 25 SOL by 8 October.<br>• R14: upgrade authority.<br>• R18: walkthrough from cohort #3 with finisher and forfeiter wallets.<br>• Delivery calendar re-planned from 17 September, with the judged launch on 22–23 September.<br><br>H16 gains the sponsor key and upgrade authority weaknesses; H17's 21-day ranking consequence corrected (nobody can be ranked there before 11 November); L10 and L11 added. |

@@ -12,6 +12,7 @@
 
 - **[P]**: can run in parallel — different files, no dependency on unfinished work
 - **[Story]**: the user story the task serves (US1, US2, US3, US4, US5, US5A, US6, US7, US8, US9, US10)
+- **IDs are stable.** A task added after a review takes a letter suffix in its place (T012a, T017a, T054a, T103a) rather than renumbering everything after it, so an ID in a commit message always means the same task. Suffixed tasks run in their printed position.
 - Member-facing names: **the Daily 25** and **a Holdout**; the code keeps `Cohort` and `LeagueConfig` (spec §1a)
 
 ## Path conventions
@@ -66,8 +67,8 @@
 - [ ] T018 Implement the settlement maths in `programs/holdout/src/math/settlement.rs` until T014 passes — per-tier `share_t = floor(pool × chip_t ÷ T)`, remainder to the fee destination, `T = 0` → `fee_half = floor(pool ÷ 2)` with the odd unit to carry-over (research R10, FR-032a, FR-037)
 - [ ] T019 Implement the schedule maths in `programs/holdout/src/math/schedule.rs` until T015 passes
 - [ ] T020 [P] Define `Config` in `programs/holdout/src/state/config.rs` — admin, operator, sponsor, fee destination, SKR mint, `chip_set.amounts: [u64; 4]`, `faucet.sol_top_up = 20,000,000` lamports, `faucet.daily_sol_cap = 30`, `ladder_gate_enabled = false`, `genesis_gate_enabled = false` (data-model §1.1, research R13)
-- [ ] T021 [P] Define `LeagueConfig` in `programs/holdout/src/state/league.rs` — `first_start` (Monday 05:00 UTC), `cadence = 7 days`, `duration_days`, `reps_per_day = 25`, `day_length`, `next_index` (data-model §1.2, research R11)
-- [ ] T022 [P] Define `Cohort` in `programs/holdout/src/state/cohort.rs` — start, join cutoff, duration, reps, day length, the four locked chip amounts, status, `member_count`, `held_stake`, `pool`, `carry_over_in`, and the write-once settlement fields (data-model §1.3, FR-007)
+- [ ] T021 [P] Define `LeagueConfig` in `programs/holdout/src/state/league.rs` — `first_start` (Monday 05:00 UTC), `cadence = 7 days`, `duration_days`, `reps_per_day = 25`, `day_length`, `exercise: u8` (**`0` = push-ups; `1` negative and `2` decline are reserved and rejected by `create_league` with `ExerciseNotSupported`**), `next_index` (data-model §1.2, H30)
+- [ ] T022 [P] Define `Cohort` in `programs/holdout/src/state/cohort.rs` — start, join cutoff, duration, reps, day length, `exercise`, the four locked chip amounts, status, `member_count`, `held_stake`, `pool`, `carry_over_in`, and the write-once settlement fields (data-model §1.3, FR-007)
 - [ ] T023 [P] Define `Membership` in `programs/holdout/src/state/membership.rs` — `tier: u8` (0–3), `stake: u64` equal to `cohort.chips[tier]` at join and never changed, `days_completed: u8` never above the days reached, `state`, `counted: bool` set once, `bump` (data-model §1.4)
 - [ ] T024 [P] Define `Profile` in `programs/holdout/src/state/profile.rs` — `qualified` set on any 7-day clear and never cleared, per-league `cleared`/`forfeited`/`current_streak`/`longest_streak`/`last_changed`, `running`, `pending`, `last_faucet_day` (−1 = never) (data-model §1.5)
 - [ ] T025 Implement `guards.rs` in `programs/holdout/src/` — `in_breach(now)`, `standing(now)`, cohort status from chain time, slot normalisation moving `pending` into `running`, the two gate checks (data-model §1.4, §1.5)
@@ -104,7 +105,7 @@
 - [ ] T042 [P] [US1] Build the three-card tour in `kotlin/app/src/main/kotlin/holdout/app/tour/TourScreen.kt` — the Daily 25, what a Holdout is, how reps are counted; skippable at any card, re-openable from About, `tour:{wallet}` written to MMKV (FR-067, research R20)
 - [ ] T043 [P] [US1] Build the faucet sheet in `kotlin/app/src/main/kotlin/holdout/app/faucet/FaucetSheet.kt` — one tap, used-today variant with the time it returns, and the can't-pay-out variant that never blames the member (ES-0a, ES-0b)
 - [ ] T044 [P] [US1] Build the ladder in `kotlin/app/src/main/kotlin/holdout/app/ladder/LadderScreen.kt` — the Daily 25, both Holdout lengths open, the 21-day requirement stated but not enforced, Human Flag locked (US-1, FR-003)
-- [ ] T045 [P] [US1] Implement MMKV storage in `kotlin/app/src/main/kotlin/holdout/app/storage/Store.kt` — keys scoped per wallet, synchronous writes before anything shows as banked (data-model §4, research R6)
+- [ ] T045 [P] [US1] Implement MMKV storage in `kotlin/app/src/main/kotlin/holdout/app/storage/Store.kt` — keys scoped per wallet, cohort (or `challenge`) and day index, with synchronous writes before anything shows as banked. Because nothing syncs, a wiped or replaced phone simply starts that day at zero and the member may finish it there before the deadline; a lost day is never recoverable (data-model §4, research R6, FR-024a, ES-3a)
 
 **Checkpoint**: a brand-new wallet reaches a funded ladder without leaving the app.
 
@@ -118,25 +119,26 @@
 
 - [ ] T046 [P] [US5A] Implement the pre-flight checks in `kotlin/repcounter/src/main/kotlin/holdout/repcounter/Preflight.kt` — four visual checks, each failure saying what to fix, **no audio** (FR-019)
 - [ ] T047 [P] [US5A] Implement palm liveness in `kotlin/repcounter/src/main/kotlin/holdout/repcounter/Liveness.kt` — MediaPipe Hand Landmarker, open palm held 3 s, 30-second timeout back to pre-flight, unlimited retries, banked reps untouched (FR-020, research R5)
-- [ ] T048 [US5A] Implement the push-up state machine in `kotlin/repcounter/src/main/kotlin/holdout/repcounter/RepCounter.kt` — Pose Landmarker, form and timing rules, non-conforming reps discarded with a hint (FR-021, research R4)
-- [ ] T049 [US5A] Write the recorded-trace tests in `kotlin/repcounter/src/test/kotlin/holdout/repcounter/TraceTest.kt` — 10 honest videos counted within 1 rep of 25, 3 cheat videos rejected, palm timeout at 30 s
+- [ ] T048 [US5A] Implement the push-up state machine in `kotlin/repcounter/src/main/kotlin/holdout/repcounter/RepCounter.kt`. **The rule** (FR-021, PRD §8): a rep counts only when one cycle shows top — elbow > 160°, shoulder–hip–ankle within ±10° of straight; bottom — elbow < 90°, body line held; back to top; cycle time 0.8–6 s. **The implementation** (research R4): angles from 3D world landmarks, one-euro smoothing, and hysteresis triggers at **≥ 165° top / ≤ 85° bottom** so the model's ~2° error cannot double-count; frames below the landmark presence threshold are dropped, not scored. A rep missing the rule is discarded silently with a hint — "Go lower", "Keep your body straight", "Slow down" — never an error. **Spike S2 sets the final trigger values from its measured angle table.**
+- [ ] T049 [US5A] Write the recorded-trace tests in `kotlin/repcounter/src/test/kotlin/holdout/repcounter/TraceTest.kt` — 10 honest videos counted within 1 rep of 25, 3 cheat videos rejected, palm timeout at 30 s. **Assert the rule, never the trigger values**, so tuning the hysteresis after S2 does not rewrite the tests
 - [ ] T050 [US5A] Build the sitting screens in `kotlin/app/src/main/kotlin/holdout/app/sitting/` — start card, pre-flight, liveness, countdown, counting with the skeleton overlay and bank ring, stopped part-way, complete (PRD §10.1 screen 8)
 - [ ] T051 [US5A] Bank verified reps in blocks of 10 in `kotlin/app/src/main/kotlin/holdout/app/sitting/BankingController.kt` — written to MMKV before the UI shows them, carried across sittings for the day, reps short of the next block discarded when a sitting ends (FR-024, FR-023)
-- [ ] T052 [P] [US5A] Implement the streak in `kotlin/app/src/main/kotlin/holdout/app/streak/StreakStore.kt` — `+1` on a completed day, broken by a day with none, untouched by a forfeit, turning over at 05:00 UTC by chain time (FR-049…FR-052)
+- [ ] T052 [P] [US5A] Implement the streak in `kotlin/app/src/main/kotlin/holdout/app/streak/StreakStore.kt` — `+1` on a completed day **from either source: a Daily 25 or a cohort day counts as that day's training, so nobody trains twice** (FR-050); broken by a day with none; untouched by a forfeit; turning over at 05:00 UTC by chain time. Its tests assert both the shared-day rule and that a completed day stops counting once the boundary passes, so the app never shows yesterday's done state (FR-049…FR-052, ES-9)
 - [ ] T053 [P] [US5A] Build the home screen's Daily 25 variant in `kotlin/app/src/main/kotlin/holdout/app/home/HomeScreen.kt` — the hero 25 with Start and the countdown, the streak chip, and the Holdouts open to join below it with **at stake**, joined count, carry-over and the closing countdown (FR-053)
 
 **Checkpoint**: the free habit loop works end to end on a device, with no chain writes. **This plus Phase 3 is the MVP.**
 
 ---
 
-## Phase 5: US6 + US2 — Staking into a Holdout, and the lobby (Priority: P1)
+## Phase 5: US6 — Staking into a Holdout, with US2 the lobby it waits in (Priority: P1)
 
 **Goal**: a member picks a chip, stakes, sits in the lobby, and can leave until joining closes.
 
 **Independent test**: a join and a leave landing one second before the cutoff both succeed with a full refund on the leave; both are rejected one second after it; the cohort then shows as locked until it starts.
 
-- [ ] T054 [US6] Write `tests/scenarios/join-leave.spec.ts` — join at each tier, refusal of any amount that is not one of the cohort's four, leave with a full refund, both sides of the cutoff by chain time, one lobby place at a time, FR-006b overlap refusal (AC-13)
-- [ ] T055 [US6] Implement `open_cohort` in `programs/holdout/src/instructions/open_cohort.rs` — permissionless, succeeds only for `i == next_index` and after cohort `i − 1` has started, copies the current chip set and every parameter (research R11, FR-007a)
+- [ ] T054 [US6] Write `tests/scenarios/join-leave.spec.ts` — join at each tier, refusal of any amount that is not one of the cohort's four, leave with a full refund and no deduction, one lobby place at a time (AC-13, FR-055, FR-009)
+- [ ] T054a [P] [US2] Write `tests/scenarios/lobby.spec.ts` — the cutoff decided by chain time alone: a join and a leave one second before it both succeed, both are rejected one second after it; `Locked` holds from the cutoff to the start with a final roster; a lobby place is refused in a cohort starting before the member's running one ends (ES-12, ES-12a, ES-13, ES-14, FR-006a, FR-006b, FR-010)
+- [ ] T055 [US6] Implement `open_cohort` in `programs/holdout/src/instructions/open_cohort.rs` — permissionless, succeeds only for `i == next_index` and after cohort `i − 1` has started, copies the current chip set and every parameter including `exercise` (research R11, FR-007, FR-007a)
 - [ ] T056 [US6] Implement `join_cohort` in `programs/holdout/src/instructions/join_cohort.rs` — status `Open`, `tier ≤ 3`, gates, slot normalisation, `Membership` created with the member paying rent, stake moved to the vault, `held_stake` and `member_count` raised (contracts/program-instructions §3)
 - [ ] T057 [US6] Implement `leave_cohort` in `programs/holdout/src/instructions/leave_cohort.rs` — status `Open` only, full refund with no deduction, membership closed and its rent returned, `profile.pending` cleared (FR-009)
 - [ ] T058 [P] [US6] Implement `publish_chip_set` in `programs/holdout/src/instructions/publish_chip_set.rs` — operator only, takes `amounts: [u64; 4]` and no price (constitution III, FR-055a)
@@ -157,8 +159,8 @@
 
 - [ ] T063 [US3] Write `tests/scenarios/submit-day.spec.ts` — one completed day per member per day, `days_completed` never past the days reached (INV-3), rejection once in breach (INV-8), rejection after the cohort's final deadline
 - [ ] T064 [US3] Implement `submit_day` in `programs/holdout/src/instructions/submit_day.rs` — member-signed, `day_index` and a 32-byte `proof_hash` emitted in `DayCompleted` and not stored (research R16, FR-025)
-- [ ] T065 [US3] Wire the cohort day into the sitting flow in `kotlin/app/src/main/kotlin/holdout/app/sitting/CohortDayController.kt` — target read from `Cohort.reps_per_day`, never a constant (FR-014)
-- [ ] T066 [P] [US3] Implement the offline path in `kotlin/app/src/main/kotlin/holdout/app/sitting/PendingSubmission.kt` — the warning before an offline cohort sitting and again on completion, the pending record in MMKV, and "Done — tap to submit" once online (FR-024b, Phase 1 half only)
+- [ ] T065 [US3] Wire the cohort day into the sitting flow in `kotlin/app/src/main/kotlin/holdout/app/sitting/CohortDayController.kt` — target and exercise read from `Cohort.reps_per_day` and `Cohort.exercise`, never constants; an unknown exercise value refuses the sitting rather than guessing (FR-014, H30)
+- [ ] T066 [P] [US3] Implement the offline path in `kotlin/app/src/main/kotlin/holdout/app/sitting/PendingSubmission.kt` — the warning before an offline cohort sitting and again on completion, the pending record in MMKV, and "Done — tap to submit" once online. **Phase 1 half only**; T098 replaces the tap with automatic submission if spec Phase 2 lands (FR-024b, ES-3b)
 - [ ] T067 [P] [US3] Show reps still needed and time left before every sitting, with the clear warning inside the last 10 minutes and no refusal to start (FR-047)
 
 **Checkpoint**: a real day in a real Holdout can be completed and submitted from a phone.
@@ -237,7 +239,7 @@
 - [ ] T087 [US9] Implement `crank scripted run` in `kotlin/crank/src/main/kotlin/holdout/crank/Scripted.kt` — fills each cohort only to its league floor (20 for 7-day, 12 for 21-day) computed from the live member count, half at lobby open and the rest 24 h before the cutoff, then submits days for wallets not scheduled to forfeit (FR-043, research R12)
 - [ ] T088 [P] [US9] Implement `crank scripted plan` and `crank scripted fund` — print floor, real and scripted counts, deficit, tiers and forfeit days; top each wallet up once to 0.02 SOL (contracts/crank-cli.md)
 - [ ] T089 [P] [US9] Label scripted members wherever they appear, from the bundled list, with no server (FR-064)
-- [ ] T090 [P] [US9] Build the disclosure screen and the About / for judges route in `kotlin/app/src/main/kotlin/holdout/app/about/` — the walkthrough player (Media3 ExoPlayer, bundled MP4, "recording in progress" until it exists), the scripted-wallet list and the known weaknesses (FR-043a, FR-044, constitution XI)
+- [ ] T090 [P] [US9] Build the disclosure screen and the About / for judges route in `kotlin/app/src/main/kotlin/holdout/app/about/` — the walkthrough player (Media3 ExoPlayer, bundled MP4, "recording in progress" until it exists), the scripted-wallet list, and the known weaknesses **rendered from `kotlin/app/src/main/assets/weaknesses.json`, the one source T103 also generates the README table from**, so the two can never drift (FR-043a, FR-044, constitution XI)
 - [ ] T091 [US9] Implement `crank init` in `kotlin/crank/src/main/kotlin/holdout/crank/Init.kt` — `initialize`, both leagues with `first_start` Monday 28 September 05:00 UTC, the mock mint, the funded faucet vault (quickstart §6)
 - [ ] T092 [US9] Deploy the rehearsal program with a `test-leagues` build and run a compressed full cycle on devnet (plan 21–22 Sep)
 - [ ] T093 [US9] Run the `NO_DNA=1 anchor test` Surfpool smoke suite in `tests/smoke/` — one happy path per instruction plus a time-travelled settlement — then deploy the judged program keeping its upgrade authority (FR-007b, quickstart §6)
@@ -254,7 +256,7 @@
 
 - [ ] T096 [P] [US10] Write `tests/scenarios/leaderboard.spec.ts` — ranking by survival rate, the 3-cohort minimum, the tie-breaks, "not ranked yet" below the line, a running or locked cohort counted in neither figure (AC-14)
 - [ ] T097 [US10] Build the leaderboard screen in `kotlin/app/src/main/kotlin/holdout/app/leaderboard/LeaderboardScreen.kt` — survival rate, cohorts played and cleared, current and longest league streak, shortened addresses, no amounts anywhere (FR-060…FR-063)
-- [ ] T098 [P] [US3] Implement automatic offline submission — the pending day sent as soon as a connection returns, "Done — waiting for network" until it lands (FR-024b Phase 2)
+- [ ] T098 [P] [US3] Implement automatic offline submission — the pending day written by T066 sent as soon as a connection returns, with "Done — waiting for network" until it lands, replacing the Phase 1 tap (FR-024b Phase 2, ES-3b)
 - [ ] T099 [P] [US8] Implement `deliver_carry_over` in `programs/holdout/src/instructions/deliver_carry_over.rs` — moves a held carry-over exactly once into the next cohort of that league when it opens (FR-037a, INV-6)
 - [ ] T100 [P] [US6] Implement `crank chips publish --auto --if-drift 0.20` — weekly Monday check against a public rate, exits without publishing when no rate is available (FR-056, FR-057)
 
@@ -264,7 +266,8 @@
 
 - [ ] T101 [P] Add the manifest check `:app:checkNoAudioPermission` to `kotlin/app/build.gradle.kts` — the build fails if `RECORD_AUDIO` ever appears (FR-022a)
 - [ ] T102 [P] Capture outbound traffic during a sitting and confirm only RPC calls leave the device (AC-10, constitution X)
-- [ ] T103 [P] Write the README's known weaknesses with their real fixes — the bundled faucet sponsor key and its caps, the retained upgrade authority, client-signed days, device-local banked reps, no audio anti-spoofing, the off-chain rate, scripted members, devnet (constitution XI)
+- [ ] T103 [P] Write the known weaknesses with their real fixes into `kotlin/app/src/main/assets/weaknesses.json` and render the README table from it — the bundled faucet sponsor key and its caps, the retained upgrade authority, client-signed days, device-local banked reps, no audio anti-spoofing, the off-chain rate, scripted members, devnet. T090 shows the same file in the app (constitution XI)
+- [ ] T103a [P] Check the app's own wording before the freeze — grep `kotlin/app/src/main/res/values/strings.xml` and the Compose sources for "winnings", "returns", "yield", "earnings", "bet", "wager", "gamble", "odds" and "luck", confirm every fiat figure carries "≈", and confirm the test-network notice is present (FR-039, FR-040, FR-042, constitution XIII)
 - [ ] T104 [P] Write the README's clone-and-run instructions and verify them on a machine that has never built the project (FR-066, AC-19)
 - [ ] T105 [P] Draw the app icon, wordmark and splash from the design tokens (PRD §11.8)
 - [ ] T106 Film the cohort #3 shot list, 27 Sep – 5 Oct — join and lobby, daily sittings, the forfeiter's forfeit, the daily 05:05 UTC captures, settlement and the real claim, each row logged with its transaction signature (`docs/holdout_demo_video.md` §2, §5)
@@ -288,7 +291,7 @@
 - The judged deploy (T093) must land before cohort #3's join cutoff, **28 Sep 04:00 UTC**, since the walkthrough and demo video can only come from that cohort.
 - T106 cannot start before T093 and the release candidate; T107 cannot start before T106.
 
-**Story independence**: US5A (the Daily 25) touches no chain state and can ship alone. US1 needs only the faucet instruction. Everything from US6 onward shares the cohort lifecycle, so they land in order.
+**Story independence**: US5A (the Daily 25) touches no chain state and can ship alone. US1 needs only the faucet instruction. **US2 is not separately deliverable** — a lobby needs the join it holds, so it ships inside Phase 5 with its own contract assertions (T054a) and screen (T060). Everything from US6 onward shares the cohort lifecycle, so they land in order.
 
 ## Parallel execution examples
 

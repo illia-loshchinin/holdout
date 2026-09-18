@@ -35,6 +35,7 @@ Units: SKR amounts are **base units** (`u64`); times are **Unix seconds of chain
 | `league_id` | u8 | 0 = 7-day, 1 = 21-day; test leagues ≥ 100 (admin, `test-leagues` builds only: LiteSVM and the rehearsal deployment) |
 | `duration_days` | u8 | 7 or 21 |
 | `reps_per_day` | u16 | 25 |
+| `exercise` | u8 | `0` = push-ups. `1` = negative (eccentric) push-ups and `2` = decline push-ups are **reserved and rejected** by `create_league` in this build, so a later exercise needs no new layout (H30, constitution V) |
 | `day_length` | i64 | 86,400 on devnet; smaller only for test leagues (scope doc D-A) |
 | `first_start` | i64 | A Monday 05:00:00 UTC |
 | `cadence` | i64 | 604,800 (7 days) |
@@ -51,7 +52,7 @@ Units: SKR amounts are **base units** (`u64`); times are **Unix seconds of chain
 | `league_id`, `index` | u8, u32 | From seeds |
 | `start` | i64 | `first_start + index × cadence` |
 | `join_cutoff` | i64 | `start − join_lock` |
-| `duration_days`, `reps_per_day`, `day_length` | u8, u16, i64 | Copied from `LeagueConfig` |
+| `duration_days`, `reps_per_day`, `day_length`, `exercise` | u8, u16, i64, u8 | Copied from `LeagueConfig` |
 | `chips` | [u64; 4] | Copied from `Config.chip_set.amounts` (FR-055) |
 | `vault_bump`, `bump` | u8 | Vault = token account PDA `["vault", cohort]`, authority = cohort PDA |
 
@@ -164,6 +165,7 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | Carry-over only into a cohort of the same league with `status == Open` | FR-037a | `settle_finalize`, `deliver_carry_over` **[Phase 2]** |
 | Chip set: 4 increasing positive amounts; operator only | FR-054, R14 | `publish_chip_set` |
 | Faucet: payer == `sponsor`; once per recipient per day; SOL cap per day | FR-042a, R13 | `claim_faucet` |
+| `exercise` must be `0` — the reserved values are layout, not behaviour, in this build | H30, constitution V | `create_league` |
 
 ## 3. Invariants → where they are checked
 

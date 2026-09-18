@@ -64,6 +64,7 @@ On-chain and technical names — `Cohort`, `LeagueConfig`, cohort index — are 
 - Q: Once the judged program is deployed on devnet, may it still be upgraded to fix bugs while cohorts hold stakes, or should it be locked? → A: Upgradeable through judging, to fix defects only. An upgrade never changes the rules, parameters or stored layout of any existing cohort, membership or progress record, and the upgrade authority is named in the README as a known weakness.
 - Q: Must the hackathon build be published on the Solana dApp Store for real users? → A: No — the CLOCK IN rules do not require it by the submission deadline. The product launches as is on devnet and reaches judges as a signed APK with the submission. If it wins, it must be published on the dApp Store within 30 calendar days of the winners' announcement; that listing, and any mainnet launch, are post-hackathon work. *(Revised in-session once the official rules were read.)*
 - Q: How long must the devnet build keep running — live cohorts, the faucet and the scheduler? (FR-042a, FR-043) → A: Per the CLOCK IN rules, judging runs 10 October – 9 November 2026 and winners are announced on 10–11 November 2026 (the rules page gives both dates). The build stays live, with no manual intervention, from submission through **11 November 2026**.
+- Q: Can the pose model actually measure the stated rep rules, and should other push-up variants be supported? (FR-021) → A: Yes, with care — published validation puts the model's joint-angle error at about 2° (RMSE ≈ 2.6°), so the counter measures angles from 3D world landmarks, smooths them, and triggers on wider thresholds than the stated rule so jitter cannot count a rep; spike S2 sets the final numbers (research R4). **Negative (eccentric) and decline push-ups are post-hackathon**, but the **exercise becomes a cohort parameter now** so they need no migration later (FR-007, FR-014).
 - Q: What do members call the free tier and a staked run? → A: **The Daily 25** and **a Holdout** (a 7-day Holdout, a 21-day Holdout). On-chain names stay as they are; §1a maps the two vocabularies.
 - Q: How does a first-timer learn what the app is? → A: A **three-card tour** right after the wallet connects — the Daily 25, what a Holdout is, and how reps are counted — skippable and re-openable later (FR-067). A short explainer video joins it once cohort #3 has been filmed.
 - Q: Who is the recorded full-cycle walkthrough for, now that first-timers have a tour? → A: **Judges.** It stays in the app as FR-044 requires, reachable from an About section and from a quiet link on the connect screen — the judge who cannot connect a devnet wallet — but it is not a member-facing feature.
@@ -78,7 +79,7 @@ On-chain and technical names — `Cohort`, `LeagueConfig`, cohort index — are 
 
 | | |
 |---|---|
-| Exercise | Push-ups only |
+| Exercise | Push-ups only in this build. The exercise is a **cohort parameter**, so a later one — negative (eccentric) or decline push-ups — needs no new account layout; only push-ups are accepted here (FR-007, H30) |
 | Leagues | **Staked 7-day** (25 reps/day) → **staked 21-day** (25 reps/day) |
 | Free tier | **The Daily 25** — 25 reps, offered every day to everyone, no cohort, no stake, no prize. Builds a streak and nothing else. This is the habit product; the leagues sit on top of it. |
 | Progression | Clearing the staked 7-day league permanently unlocks the 21-day league. The 7-day league never closes — it is also the comeback path after a forfeit. |
@@ -268,7 +269,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 ### Cohorts and the lobby
 
-- **FR-007** A cohort has a fixed start, a fixed join cutoff, a fixed duration, a fixed daily rep requirement, a fixed day length and a fixed chip set, all set at creation and immutable thereafter.
+- **FR-007** A cohort has a fixed start, a fixed join cutoff, a fixed duration, a fixed daily rep requirement, a fixed day length, a fixed **exercise** and a fixed chip set, all set at creation and immutable thereafter. Only push-ups are accepted in this build; the parameter exists so a later exercise never has to change a running cohort or an existing account layout.
 - **FR-007a** Cohorts start weekly, on Monday at the 05:00 UTC boundary. Every league opens its next cohort for joining at the instant its current cohort starts, so each league has exactly one cohort open for joining at all times except the locked hour before each start. For the 21-day league this means up to three cohorts running at once. Opening is automated and needs no manual action (FR-043), and may be triggered by anyone once it is due (FR-030a).
 - **FR-007b** The deployed contract remains upgradeable through the judging period, and an upgrade may only fix a defect. An upgrade never changes the rules, parameters or stored layout of any existing cohort, membership or progress record, and never moves a held stake, prize pool or carry-over except through the rule-driven steps every member already relies on. The upgrade authority is named in the README as a known weakness, with its real fix — revoking it once the contract is final — beside it (constitution XI).
 - **FR-008** A cohort accepts joins until its join cutoff, **1 hour before its start**, and starts for everyone at the same instant.
@@ -287,7 +288,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 ### The daily obligation
 
 - **FR-013** Each day of the cohort, the day's required reps must be verified before that day's deadline — in one sitting or several (FR-024).
-- **FR-014** The rep requirement is read from the cohort, never from a constant.
+- **FR-014** The rep requirement **and the exercise** are read from the cohort, never from a constant.
 - **FR-015** Unlimited retries within the same day.
 - **FR-016** No grace day, no postponement, no carry-forward. One missed day ends the cohort for that member.
 - **FR-017** A member is in breach the moment their current day's deadline passes without that day recorded as complete, independently of whether any automated process has run. Banked reps short of the requirement do not count.
