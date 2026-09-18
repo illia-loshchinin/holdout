@@ -1,6 +1,8 @@
 # Holdout — product requirements (hackathon build)
 
-**Version:** 2.6 · **Date:** 2026-09-17 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
+**Version:** 2.7 · **Date:** 2026-09-18 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
+
+> **Changed in 2.7:** §8 records **how the rep rules are actually measured** — 3D world landmarks, smoothing, and trigger thresholds wider than the stated rule, because the pose model's own error is about 2° (H30, research R4) · other push-up variants, negative (eccentric) and decline, are named as post-hackathon with the cohort already carrying which exercise it is.
 
 > **Changed in 2.6:** members' names for the two things — **the Daily 25** (free, solo) and **a Holdout** (a staked 7-day or 21-day run), mapped to the on-chain vocabulary in spec §1a · a **three-card first-run tour** (FR-067) as screen 0 · the recorded full-cycle walkthrough is **for judges**, moved to About plus a quiet connect-screen link · Holdouts open to join show **what is at stake** in them.
 

@@ -1,8 +1,8 @@
 # Holdout — feature specification (hackathon build)
 
-**Date:** 2026-09-15 · **Status:** clarified and phased, ready for `/speckit-plan` · **Target:** CLOCK IN submission due 9 Oct 2026 08:59 CEST · judging 10 Oct – 9 Nov 2026
+**Date:** 2026-09-15, last clarified 2026-09-18 · **Status:** clarified, planned and tasked — implementation starts at T001 · **Target:** CLOCK IN submission due 9 Oct 2026 08:59 CEST · judging 10 Oct – 9 Nov 2026
 
-> This IS the spec-kit feature spec for `001-holdout-hackathon`. All open decisions in §9 are resolved (see Clarifications). Work is split into **Phase 1 (core)** and **Phase 2 (deferred)** — see §3a. Next: `/speckit-plan`.
+> This IS the spec-kit feature spec for `001-holdout-hackathon`. All open decisions in §9 are resolved (see Clarifications). Work is split into **Phase 1 (core)** and **Phase 2 (deferred)** — see §3a. The plan, its design artifacts and the 116-task list are written; next is `/speckit-implement`.
 > **This file describes *what* and *why* only.** Stack, accounts, PDAs, instruction signatures and framework choices belong in `plan.md`.
 > Governed by `.specify/memory/constitution.md`. Behavioural detail and the reasoning behind the cuts live in `docs/holdout_scope_and_state_machines.md`; screens, copy, verification rules and settlement test vectors for this build live in `docs/holdout_v1_prd.md`; the full post-hackathon product vision is archived in `docs/archive/holdout_v1_prd_full-vision_2026-09-15.md`, which this spec deliberately does **not** try to satisfy.
 

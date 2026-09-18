@@ -1,6 +1,8 @@
 # Holdout — demo scope cut and state machines
 
-**Version:** 1.7 · **Date:** 2026-09-17 · **Status:** D-A … D-I decided; §1, §3 and §4 synced to `specs/001-holdout-hackathon/spec.md`
+**Version:** 1.8 · **Date:** 2026-09-18 · **Status:** D-A … D-I decided; §1, §3 and §4 synced to `specs/001-holdout-hackathon/spec.md`
+
+**Changed in 1.8 (18 Sept):** pointers follow constitution v1.3.1 and decisions H1–H30 · the **exercise is now a cohort parameter** with negative and decline push-ups reserved for later (H30), so F1's rep counter is push-ups only by validation, not by assumption.
 
 **Changed in 1.7 (17 Sept):** members' names adopted — **the Daily 25** and **a Holdout** (H28, spec §1a), with on-chain names unchanged · **first-run tour** added as F12 (FR-067) and the full-cycle walkthrough becomes judge-facing (H29) · guest mode proposed and dropped, so F10 wallet-first stands.
 
@@ -24,7 +26,7 @@
 |---|---|
 | `specs/001-holdout-hackathon/spec.md` | What the hackathon build does. Authoritative over this file. |
 | `holdout_decisions.md` | Why the build is what it is (H1–H30). Read before changing anything here. |
-| `holdout_v1_prd.md` | Product requirements for the hackathon build (v2.6): screens, copy, verification rules, settlement vectors. |
+| `holdout_v1_prd.md` | Product requirements for the hackathon build (v2.7): screens, copy, verification rules, settlement vectors. |
 | `archive/holdout_v1_prd_full-vision_2026-09-15.md` | The original full-vision PRD. **Bare §-references below (§5.3, §8.6, §9.3 Op6 …) point into this archive**, not into the current PRD. |
 | This file | Demo scope, state machines, blocking decisions, edge transitions the PRD does not cover. |
 

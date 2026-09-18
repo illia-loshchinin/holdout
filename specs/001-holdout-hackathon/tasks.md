@@ -60,8 +60,8 @@
 - [ ] T015 [P] Write the failing schedule tests in `programs/holdout/src/math/schedule.rs` — `deadline_of(k) = start + (k+1) × day_length − 1`, day index `floor((now − 18,000) ÷ 86,400)`, join cutoff `start − 3,600` (data-model §1.3, §5)
 - [ ] T016 [P] Build the LiteSVM harness with clock control in `tests/helpers/harness.ts` — chain-time travel, cohort builders, account decoding (research R2)
 - [ ] T017 [P] Write the invariant checker in `tests/invariants/checker.ts` asserting INV-1…INV-8 after every step (spec §8.4)
-- [ ] T017b [P] Write the failing league-setup scenario in `tests/scenarios/league-setup.spec.ts` — `create_league` accepts `exercise == 0` and rejects `1` and `2` with `ExerciseNotSupported` (6053); a `league_id ≥ 100` test league is refused unless the build carries the `test-leagues` feature; `day_length`, `cadence`, `join_lock` and the Monday 05:00 UTC start are enforced for real leagues (data-model §2, contracts §1, H30)
 - [ ] T017a [P] Write the failing no-oracle check — `tests/scenarios/no-oracle.spec.ts` asserting that no instruction takes a price, a fiat figure or an oracle account among its accounts or arguments, plus `scripts/check-no-oracle.sh` grepping `programs/holdout/src/` for `price`, `oracle`, `pyth`, `switchboard` and `usd` identifiers and failing CI on a hit; the only rate use in the repository stays `crank chips publish` (AC-9, constitution III)
+- [ ] T017b [P] Write the failing league-setup scenario in `tests/scenarios/league-setup.spec.ts` — `create_league` accepts `exercise == 0` and rejects `1` and `2` with `ExerciseNotSupported` (6053); a `league_id ≥ 100` test league is refused unless the build carries the `test-leagues` feature; `day_length`, `cadence`, `join_lock` and the Monday 05:00 UTC start are enforced for real leagues (data-model §2, contracts §1, H30)
 
 ### Program foundations
 

@@ -2,7 +2,7 @@
 
 **Companion to `specs/001-holdout-hackathon/spec.md` and `.specify/memory/constitution.md` (v1.3.1).** The spec says *what to build*. The constitution says *what may never be violated*. This file says *why it is that way, what was tried and rejected, and what is still open* — so settled questions are not reopened by accident.
 
-**Precedence when documents disagree:** constitution → spec → this file → `holdout_scope_and_state_machines.md` → `holdout_v1_prd.md`. The PRD (v2.3) is the hackathon build's product companion to the spec — screens, copy, verification rules, settlement vectors; the original full-vision PRD is archived and is deliberately not what is being built.
+**Precedence when documents disagree:** constitution → spec → this file → `holdout_scope_and_state_machines.md` → `holdout_v1_prd.md`. The PRD (v2.7) is the hackathon build's product companion to the spec — screens, copy, verification rules, settlement vectors; the original full-vision PRD is archived and is deliberately not what is being built.
 
 **Rule of thumb:** before proposing a change to the mechanic, search this file. Most of it has been proposed before, and several things were adopted, reversed and adopted again in a single day.
 
