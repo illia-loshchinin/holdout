@@ -21,8 +21,12 @@ idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 test-leagues = []
 
 [dependencies]
-anchor-lang = { version = "1.1.2", features = ["init-if-needed"] }
-anchor-spl = { version = "1.1.2", features = ["token", "token_2022"] }
+# Exact pins, not caret ranges: the program, its IDL and the Anchor CLI in
+# `Anchor.toml` must be the same release, or a clean checkout builds against a
+# different Anchor than the one that deploys it. Bumping these means bumping the
+# CLI, the lockfile and quickstart §1 together.
+anchor-lang = { version = "=1.1.2", features = ["init-if-needed"] }
+anchor-spl = { version = "=1.1.2", features = ["token", "token_2022"] }
 
 [dev-dependencies]
 serde = { version = "1", features = ["derive"] }
