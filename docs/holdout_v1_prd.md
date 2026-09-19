@@ -436,7 +436,7 @@ Cohorts with their fixed parameters and locked chip set · memberships and held 
 - **Parameters are read from the cohort**, never from constants (constitution V).
 - **Every automation-callable operation is idempotent, chunkable and permissionless** — two Schedulers, or a Scheduler and a stranger, running at once are harmless, and no caller can choose a parameter, outcome, recipient or amount (constitution VIII, FR-030a).
 - **Built for cohorts of up to 1,000 members** with no enforced cap; no single step's cost grows with cohort size (FR-011a).
-- **Invariants INV-1…INV-8** (spec §8.4) and the vectors in §19 exist as **failing tests before the logic they describe** (constitution VII).
+- **Invariants INV-1…INV-9** (spec §8.4) and the vectors in §19 exist as **failing tests before the logic they describe** (constitution VII).
 
 ### 9.3 Operations
 

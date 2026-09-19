@@ -39,9 +39,25 @@ pub fn cohort_start(first_start: i64, cadence: i64, index: u32) -> i64 {
     todo!("T019")
 }
 
-/// How many days of a cohort have been reached at `now`, capped at its
-/// duration. A member's `days_completed` may never exceed this (INV-3).
-pub fn days_reached(start: i64, day_length: i64, duration_days: u8, now: i64) -> u8 {
+/// How many whole cohort days have **elapsed** at `now`, capped at the
+/// cohort's duration: `floor((now − start) ÷ day_length)`, and `0` before the
+/// start. While the cohort is `Running` this is its current zero-based day
+/// index — the `day_index(now)` that `submit_day` matches against
+/// (data-model §1.3).
+///
+/// Elapsed days are not a completion ceiling: at the cohort's first second
+/// nothing has elapsed, yet a member who submits day 0 there legitimately
+/// holds `days_completed == 1`. The INV-3 ceiling is [`max_days_completed`].
+pub fn days_elapsed(start: i64, day_length: i64, duration_days: u8, now: i64) -> u8 {
+    let _ = (start, day_length, duration_days, now);
+    todo!("T019")
+}
+
+/// The most completed days a member of this cohort may hold at `now` — the
+/// INV-3 ceiling: `0` before the start, otherwise
+/// `min(days_elapsed + 1, duration_days)`, because the day in progress can
+/// itself be completed at any second of it.
+pub fn max_days_completed(start: i64, day_length: i64, duration_days: u8, now: i64) -> u8 {
     let _ = (start, day_length, duration_days, now);
     todo!("T019")
 }
@@ -92,9 +108,33 @@ mod tests {
     }
 
     #[test]
-    fn days_reached_is_capped_at_the_duration() {
-        assert_eq!(days_reached(FIRST_START, DAY_LENGTH, 7, FIRST_START), 0);
-        assert_eq!(days_reached(FIRST_START, DAY_LENGTH, 7, FIRST_START + DAY_LENGTH), 1);
-        assert_eq!(days_reached(FIRST_START, DAY_LENGTH, 7, FIRST_START + 99 * DAY_LENGTH), 7);
+    fn elapsed_days_are_the_current_day_index_and_stop_at_the_duration() {
+        assert_eq!(days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START), 0, "day 0 at the start");
+        assert_eq!(days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START + DAY_LENGTH - 1), 0);
+        assert_eq!(days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START + DAY_LENGTH), 1);
+        assert_eq!(days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START + 99 * DAY_LENGTH), 7);
+        assert_eq!(days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START - 1), 0, "before the start");
+    }
+
+    #[test]
+    fn the_first_day_can_be_completed_on_the_first_day() {
+        // The ceiling INV-3 asserts, not elapsed time: a submission at the very
+        // first second of day 0 is valid and leaves `days_completed == 1`.
+        assert_eq!(max_days_completed(FIRST_START, DAY_LENGTH, 7, FIRST_START), 1);
+        assert_eq!(max_days_completed(FIRST_START, DAY_LENGTH, 7, FIRST_START + DAY_LENGTH - 1), 1);
+        assert_eq!(max_days_completed(FIRST_START, DAY_LENGTH, 7, FIRST_START + DAY_LENGTH), 2);
+    }
+
+    #[test]
+    fn completed_days_are_capped_at_the_duration() {
+        let end = FIRST_START + 7 * DAY_LENGTH;
+        assert_eq!(max_days_completed(FIRST_START, DAY_LENGTH, 7, end - 1), 7, "the final day");
+        assert_eq!(max_days_completed(FIRST_START, DAY_LENGTH, 7, end), 7, "once it has ended");
+        assert_eq!(max_days_completed(FIRST_START, DAY_LENGTH, 7, FIRST_START + 99 * DAY_LENGTH), 7);
+        assert_eq!(
+            max_days_completed(FIRST_START, DAY_LENGTH, 7, FIRST_START - 1),
+            0,
+            "nothing can be completed before the cohort starts"
+        );
     }
 }

@@ -277,7 +277,7 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 | No audio anti-spoofing filter | Reinstate audio check and rep condition together |
 | Off-chain rate source and weekly chip re-pricing by the Operator | Documented trust; on-chain chip governance post-hackathon |
 | Scripted members in judging-period cohorts — real wallets whose completed days are not camera-verified (H14) | Disclosed in the app, README, demo video and pitch deck; addresses published in the build and labelled everywhere |
-| Faucet fee sponsor key bundled in the APK (H22) | Anyone can extract it; the contract caps abuse at 30 SOL-paying claims a day and one claim per wallet a day. Real fix: no faucet on mainnet, or a rate-limited relayer |
+| Faucet fee sponsor key bundled in the APK (H22) | Anyone can extract it, and empty its 0.05 SOL float; the contract caps abuse at one claim per wallet a day and a daily 0.72 SOL budget on every lamport leaving the faucet, and anyone can refill the sponsor, so a drain delays onboarding by one crank pass instead of ending it. Real fix: no faucet on mainnet, or a rate-limited relayer |
 | Program upgrade authority kept through the live period (H24) | Used only for defect fixes that change no existing cohort, account layout or fund movement. Real fix: revoke it once the contract is final |
 | Devnet, mock SKR mint | Mainnet with real SKR |
 
@@ -404,8 +404,9 @@ Copy uses "prize", never "winnings", "returns", "yield" or "earnings"; never "be
 **How it works (plan, research R13; resized 2026-09-17):**
 - **SKR** is minted by the program.
 - **SOL** comes from a program-owned vault that tops a wallet up to 0.02 SOL.
-- **Fees:** a bundled devnet sponsor key pays the claim fee, so a wallet with zero SOL can claim. The key is a documented weakness (H16).
-- **Caps:** at most 30 SOL-paying claims a day, and one claim per wallet per day.
+- **Fees:** a bundled devnet sponsor key pays the claim fee, so a wallet with zero SOL can claim; a wallet that already holds SOL may pay for itself. The key is a documented weakness (H16).
+- **A drained sponsor heals itself (2026-09-19):** the key holds a 0.05 SOL float and nothing else, and anyone who extracts it can transfer that float away — which would stop zero-SOL onboarding, not merely cost a day's allowance. So `top_up_sponsor` is permissionless: the crank refills the float from the faucet vault on any pass where it is below half, and so can any wallet with a little devnet SOL.
+- **Caps (revised 2026-09-19):** one claim per wallet per day, and a daily budget of **0.72 SOL on every lamport leaving the faucet vault** — top-ups, the sponsor's fee and rent reimbursements, and sponsor refills. Counting claims instead let a recipient already holding 0.02 SOL have its `Profile` and token account rent reimbursed outside the cap, so the same recycled 0.02 SOL could have funded fresh wallet after fresh wallet at the vault's expense.
 - **Funding:** the vault holds 25 SOL by 8 October, the worst case from submission to 11 November.
 
 **Why:** a judge with an empty wallet is one tap from a real stake without leaving the app, and nothing depends on a public devnet faucet being up during judging. A server-free faucet keeps "no backend decides anything" true (H5, H19). The daily limit per wallet stops one wallet draining it.
@@ -598,7 +599,7 @@ Carried forward unchanged; full reasoning in the archive.
 | Share-rounding dust left in the settled pool | PRD v2.0 §19 V14; open item P9 | H11 — remainder to the fee destination |
 | Counters and prize move only when forfeits are recorded | spec ES-8 (first version) | H6 — they move at the deadline |
 | Minimum cohort size 8 with cancellation and auto-enrolment | PRD §7.4; archived O8 | H15 |
-| Invariants I1…I9 | scope doc §3.4; constitution v1.0.0 | spec §8.4, INV-1…INV-8 |
+| Invariants I1…I9 | scope doc §3.4; constitution v1.0.0 | spec §8.4, INV-1…INV-9 |
 
 ---
 
@@ -691,3 +692,4 @@ By decision, not by omission.
 | 2026-09-17 | Names and onboarding (H28, H29): the free tier becomes **the Daily 25** and a staked run **a Holdout**, with on-chain names unchanged and spec §1a mapping them; a three-card first-run tour (FR-067); the full-cycle walkthrough becomes judge-facing; Holdouts open to join show what is at stake in them (FR-053). Guest mode proposed and dropped — H21 stands. PRD v2.6; prototype gained a tour artboard and rewritten first two screens. |
 | 2026-09-17 | Design direction set (H27): native-on-Seeker dark design system, tokens sampled from the Solana brand kit, Roboto plus JetBrains Mono, dynamic colour off, licensed brand fonts excluded. PRD §11 rewritten (v2.5) with colour, type, spacing, components, motion, accessibility and brand boundaries; §10.1a mocks annotated; app contract gained §3a Appearance. |
 | 2026-09-17 | Plan revised for the new dates:<br>• R12: scripted wallets in every cohort starting through 9 November, a pool of 260, and the crank running to 30 November.<br>• R13: SOL-paying faucet cap cut from 60 to 30 a day; worst case corrected to 0.024 SOL per claim; vault funded to 25 SOL by 8 October.<br>• R14: upgrade authority.<br>• R18: walkthrough from cohort #3 with finisher and forfeiter wallets.<br>• Delivery calendar re-planned from 17 September, with the judged launch on 22–23 September.<br><br>H16 gains the sponsor key and upgrade authority weaknesses; H17's 21-day ranking consequence corrected (nobody can be ranked there before 11 November); L10 and L11 added. |
+| 2026-09-19 | Review pass over the planning artifacts, five defects fixed:<br>• **H22/H16, faucet:** the sponsor key holds a 0.05 SOL float and `top_up_sponsor` is permissionless, so a thief emptying it delays zero-SOL onboarding by one crank pass instead of ending it (spec FR-042b, research R13).<br>• **H22, faucet:** the daily cap becomes a 0.72 SOL **lamport budget** on everything leaving the vault, closing the reimbursement path an already-funded recipient used to create accounts outside the cap.<br>• **H17, streaks:** league streaks are written only by `settle_count`, which now refuses a cohort until the league's previous one has settled — so a forfeit recorded before an earlier cohort settles can no longer be overwritten (spec FR-061a, INV-9, error 6045).<br>• **INV-3:** completed days are bounded by `max_days_completed(now)`, not by elapsed days; `schedule.rs` gains that helper and the day-zero test, and `days_reached` becomes `days_elapsed`.<br>• **FR-041 copy:** the stake sheet says "if everyone finishes, you get your stake back plus your share of any carry-over" — the old wording contradicted the carry-over line beside it (T059). |

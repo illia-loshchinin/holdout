@@ -31,7 +31,7 @@ Client: `com.solanamobile:mobile-wallet-adapter-clientlib-ktx` 2.2.0, used as in
 | Connect | `walletAdapter.connect(sender)` | First screen; nothing else is usable before it (FR-001a) |
 | No wallet installed | `TransactionResult.NoWalletFound` from any call | Shows the no-wallet screen with how to get a wallet (ES-0) |
 | Join, leave, submit completed day, claim | `walletAdapter.transact(sender) { signAndSendTransactions(...) }` | The member's wallet is the fee payer; `Failure` results show a retryable error |
-| Faucet | **none** | Built with `web3-solana`, signed with the bundled sponsor key as fee payer and sent with `rpc-core`; recipient = connected address; no member signature (R13) |
+| Faucet | **none** | Built with `web3-solana`, signed with the bundled sponsor key as fee payer and sent with `rpc-core`; recipient = connected address; no member signature (R13). If the sponsor's float has been emptied and the connected wallet already holds SOL, the same claim is re-sent through `transact` with the member as fee payer — `claim_faucet` accepts either (FR-042b) |
 | Reconnect | Stored auth token reused on resume; `connect` again if it was revoked | — |
 | Disconnect | `walletAdapter.disconnect(sender)` | Returns to the connect screen |
 

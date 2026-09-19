@@ -286,8 +286,8 @@ stateDiagram-v2
 | `[*] → Pending` | user, `join_cohort` | cohort `Open`; stake equals one of the cohort's four chip amounts; ladder gate passed (flag off); member holds no other `Pending`; cohort starts no earlier than the final deadline of the member's running membership (FR-006a, FR-006b) | stake held **segregated**, never in the pool; `member_count++` |
 | `Pending → Withdrawn` | user, `leave_cohort` | cohort still `Open` (before the join cutoff) | full refund, no fee, `member_count--` |
 | `Pending → Active` | time | cohort reaches `Running` | `days_completed = 0`; unaffected by anything happening to the member's other membership |
-| `Active → Forfeited` | anyone, `tick_cohort` (keeper usually; materialises a breach that already exists; pageable) | `now > deadline_of(days_completed)` | 20% fee, 80% to pool; `progress[league].forfeited++`; current league streak = 0; daily streak untouched |
-| `Active → ReadyToClaim` | anyone, `settle_cohort` (keeper usually) | `days_completed == duration_days` | `progress[league].cleared++`; current league streak++, longest = max; clearing a 7-day cohort sets `qualified = true` (recorded even with the gate off) |
+| `Active → Forfeited` | anyone, `tick_cohort` (keeper usually; materialises a breach that already exists; pageable) | `now > deadline_of(days_completed)` | 20% fee, 80% to pool; `progress[league].forfeited++`; the current league streak is set to 0 when this cohort is **counted at settlement**, not here, so a forfeit recorded before an earlier cohort settles still breaks the streak (FR-061a); daily streak untouched |
+| `Active → ReadyToClaim` | anyone, `settle_cohort` (keeper usually) | `days_completed == duration_days`; the league's previous cohort has settled | `progress[league].cleared++`; current league streak++, longest = max; clearing a 7-day cohort sets `qualified = true` (recorded even with the gate off) |
 | `ReadyToClaim → Claimed` | user, `claim_payout` | — | transfers `stake + pool × stake / total_finisher_stake` |
 
 `progress[league]` (cleared, forfeited, current and longest league streak) is the only source for the leaderboards (H17).
@@ -345,12 +345,13 @@ stateDiagram-v2
 |---|---|---|
 | **INV-1** | Held stakes + prize pool + any held carry-over == balance under custody. Finisher principal is never in the pool. | I1 |
 | **INV-2** | Only forfeited stakes, and carry-over from a no-finisher cohort of the same league, ever enter a prize pool. | I8 (bonus match removed) |
-| **INV-3** | `days_completed ≤ expected_day_index` at all times. | I3 |
+| **INV-3** | `days_completed ≤ max_days_completed(now)` at all times — the day in progress counts, so day 0 may be completed in the cohort's first second. | I3 |
 | **INV-4** | Per member: at most one membership in a `Running` cohort, at most one `Pending`, and no `Pending` whose cohort starts before the running one's final deadline. | I4, revised for the lobby place |
 | **INV-5** | `finisher_count` and `total_finisher_stake` are written exactly once, in `settle_cohort`. | I5 |
 | **INV-6** | After `Settled`, the only changes anywhere in the cohort are `ReadyToClaim → Claimed` and the single delivery of a held carry-over. | I6, revised for carry-over |
 | **INV-7** | `tick_cohort` and `settle_cohort` are idempotent, chunkable and permissionless — two keepers, or a keeper and a stranger, running at once is safe. | I7 |
 | **INV-8** | A member in breach (`now > deadline_of(days_completed)`) cannot submit, whether or not the keeper has ticked. | I9 |
+| **INV-9** | A league streak depends only on the order of the member's own cohorts: streaks are written when a cohort is counted, and a cohort is counted only after the previous one of its league has settled. | new 2026-09-19 |
 
 Old **I2** (`Forfeited` is reachable only from `Active`; a lobby member can never forfeit) is a property of the membership machine in §3.2 and is tested there, not listed separately.
 

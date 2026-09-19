@@ -14,7 +14,7 @@ Units: SKR amounts are **base units** (`u64`); times are **Unix seconds of chain
 |---|---|---|
 | `admin` | Pubkey | May only run `initialize`, `set_flags`, `create_test_league` (R14) |
 | `operator` | Pubkey | May only run `publish_chip_set` |
-| `sponsor` | Pubkey | The only fee payer accepted by `claim_faucet` (R13) |
+| `sponsor` | Pubkey | Fee payer accepted by `claim_faucet` beside the recipient itself; holds only its float, which anyone may refill through `top_up_sponsor` (R13) |
 | `skr_mint` | Pubkey | Mock SKR mint; its mint authority is PDA `["mint_authority"]` |
 | `fee_destination` | Pubkey | SKR token account of the treasury wallet (R14) |
 | `ladder_gate_enabled` | bool | `false` on devnet (FR-003) |
@@ -23,9 +23,10 @@ Units: SKR amounts are **base units** (`u64`); times are **Unix seconds of chain
 | `chip_set.version` | u32 | +1 on every publish |
 | `chip_set.published_at` | i64 | Chain time of publish |
 | `faucet.sol_top_up` | u64 | Lamports a claim tops a recipient up to (20,000,000 = 0.02 SOL) |
-| `faucet.daily_sol_cap` | u16 | 30 SOL-paying claims per day (R13) |
-| `faucet.sol_claims_day` | i64 | Day index the counter belongs to |
-| `faucet.sol_claims_today` | u16 | Resets when `sol_claims_day` changes |
+| `faucet.sponsor_float` | u64 | Lamports `top_up_sponsor` tops the sponsor up to (50,000,000 = 0.05 SOL); a refill is allowed only below half of it (R13) |
+| `faucet.daily_lamport_cap` | u64 | 720,000,000 (0.72 SOL): the budget for **every** lamport leaving the faucet vault in a day — top-ups, sponsor reimbursements and sponsor refills alike (R13) |
+| `faucet.lamport_day` | i64 | Day index the budget belongs to |
+| `faucet.lamports_today` | u64 | Lamports already out of the vault today; resets when `lamport_day` changes |
 | `bump` | u8 | |
 
 ### 1.2 `LeagueConfig` — one per league · PDA `["league", league_id: u8]`
@@ -90,6 +91,7 @@ Units: SKR amounts are **base units** (`u64`); times are **Unix seconds of chain
 | `status(now)` | `Open` if `now < join_cutoff` · `Locked` if `< start` · `Running` if `< end` · `Settling` if `!settled` · `Settled` |
 | `day_index(now)` | `floor((now − start) ÷ day_length)` while `Running` |
 | `deadline_of(k)` | `start + (k + 1) × day_length − 1` — the **last second** of day `k` |
+| `max_days_completed(now)` | `0` before `start`, else `min(day_index(now) + 1, duration_days)` — the INV-3 ceiling. The day in progress may be completed at any second of it, so a member submitting day 0 in the cohort's first second holds `days_completed == 1` while no day has yet elapsed |
 
 The day boundary therefore falls exactly on 05:00:00 UTC: day `k` accepts completions at chain times `start + k·L … start + (k+1)·L − 1`, and a member is in breach from the next second (constitution II: `now > deadline_of(days_completed)`).
 
@@ -101,7 +103,7 @@ The day boundary therefore falls exactly on 05:00:00 UTC: day `k` accepts comple
 | `tier` | u8 | 0–3 |
 | `stake` | u64 | `== cohort.chips[tier]` at join; never changes (FR-058) |
 | `joined_at` | i64 | Chain time of join |
-| `days_completed` | u8 | +1 per accepted `submit_day`; ≤ reached days (INV-3) |
+| `days_completed` | u8 | +1 per accepted `submit_day`; never above `max_days_completed(now)` (INV-3) |
 | `state` | enum | `Joined` → `Forfeited` \| `Finished` → `Claimed` |
 | `counted` | bool | Set once by `settle_count` (order-independent paging, R9) |
 | `bump` | u8 | |
@@ -124,13 +126,15 @@ Created by the first `claim_faucet` or `join_cohort`, whichever comes first.
 | `qualified` | bool | Set on any 7-day clear; never cleared (FR-003a, FR-004) |
 | `leagues[l].cleared` | u16 | +1 when counted as finisher |
 | `leagues[l].forfeited` | u16 | +1 when a forfeit is recorded |
-| `leagues[l].current_streak` | u16 | +1 on clear, 0 on forfeit (FR-061) |
-| `leagues[l].longest_streak` | u16 | `max(longest, current)` |
+| `leagues[l].current_streak` | u16 | +1 on clear, 0 on forfeit (FR-061). Written **only by `settle_count`**, which runs in cohort order, so the figure never depends on the order automation happens to run in (FR-061a, INV-9) |
+| `leagues[l].longest_streak` | u16 | `max(longest, current)`, written in the same step |
 | `leagues[l].last_changed` | i64 | Leaderboard tie-break (FR-060b) |
 | `running` | {cohort: Pubkey, end: i64} | Membership in a started cohort; default = none |
 | `pending` | {cohort: Pubkey, start: i64} | Lobby place; default = none |
 | `last_faucet_day` | i64 | Day index of last faucet claim; −1 = never |
 | `bump` | u8 | |
+
+`cleared` and `forfeited` are order-independent counters: `forfeited` rises the moment a forfeit is recorded (FR-060a), `cleared` when the cohort is counted. Only the two streak figures need cohort order, and only `settle_count` writes them.
 
 **Slot normalisation** (run at the start of `join_cohort`, `leave_cohort`, `submit_day`, and when forfeits and counts touch the profile): if `pending.start ≤ now`, move `pending` into `running`. Recording a forfeit or counting a finisher clears `running` when it matches that cohort.
 
@@ -159,12 +163,14 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | Submit only while `Running`, `day_index == days_completed`, `now ≤ deadline_of(days_completed)` | FR-013, FR-017, FR-018, FR-025, INV-8 | `submit_day` |
 | Forfeit only if `in_breach(now)`; fee `floor(stake × 20 ÷ 100)` | FR-026, FR-027, INV-2 | `record_forfeits` |
 | Count only when `status == Settling`; any member of the page still in unrecorded breach is forfeited first by the same rule as `record_forfeits`, then counted | spec §8.1, FR-030 | `settle_count` |
+| Count cohort `i > 0` only once the league's cohort `i − 1` is `settled`, so streaks are written in cohort order | FR-061a, INV-9 | `settle_count` |
 | Finalize only when `counted == member_count` | R10, INV-5 | `settle_finalize` |
 | Claim only when `settled`, `state == Finished` | FR-034, INV-6 | `claim_payout` |
 | Open only `index == next_index`, previous cohort started | R11, FR-007a | `open_cohort` |
 | Carry-over only into a cohort of the same league with `status == Open` | FR-037a | `settle_finalize`, `deliver_carry_over` **[Phase 2]** |
 | Chip set: 4 increasing positive amounts; operator only | FR-054, R14 | `publish_chip_set` |
-| Faucet: payer == `sponsor`; once per recipient per day; SOL cap per day | FR-042a, R13 | `claim_faucet` |
+| Faucet: payer ∈ {`sponsor`, recipient}; once per recipient per day; every lamport leaving the vault charged to the day's budget | FR-042a, R13 | `claim_faucet` |
+| Sponsor refill only below half its float, charged to the same daily budget; no signature from the sponsor | FR-042b, R13 | `top_up_sponsor` |
 | `exercise` must be `0` — the reserved values are layout, not behaviour, in this build | H30, constitution V | `create_league` |
 
 ## 3. Invariants → where they are checked
@@ -173,12 +179,13 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 |---|---|---|
 | **INV-1** custody | `vault.amount == held_stake + pool + carry_over_held` after every instruction touching a cohort | Assert in every integration test step; property test |
 | **INV-2** pool sources | Only `record_forfeits`, carry-over arrival and claims change `pool` | Property test over random instruction sequences |
-| **INV-3** days | `submit_day` requires `day_index == days_completed` | Unit + property test |
+| **INV-3** days | `submit_day` requires `day_index == days_completed == day_index(now)`, so `days_completed ≤ max_days_completed(now)` | Unit + property test |
 | **INV-4** one running, one pending, no overlap | Profile slot rules | Scenario tests incl. 21-day refusal (AC-13) |
 | **INV-5** denominator once | `settle_finalize` requires `!settled` | Double-finalize test |
 | **INV-6** settled is final | Only `claim_payout` and **[Phase 2]** `deliver_carry_over` accept a settled cohort | Instruction-matrix test |
 | **INV-7** idempotent automation | Per-membership state and `counted` flags | Pages out of order and repeated (AC-7) |
 | **INV-8** breach blocks submit | `submit_day` deadline guard, no dependency on forfeits | V16 |
+| **INV-9** streaks follow cohort order | Streaks written only by `settle_count`, which requires the league's previous cohort to be settled | Interleaved-settlement scenario across two cohorts of one league |
 
 ---
 

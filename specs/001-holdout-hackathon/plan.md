@@ -28,7 +28,7 @@ Work follows the spec's phasing (spec §3a): **Phase 1** is the full loop and mu
 - **Device:** MMKV key-value records for banked reps, pending submissions, streak and cached chain time (data-model §4). No server database.
 
 **Testing**:
-- **Program:** `cargo test` for the pure settlement math (PRD §19 vectors V1–V22 plus property tests); Kit + LiteSVM integration tests for every scenario, including the randomised INV-1…INV-8 suite at 1,000 members; a Surfpool smoke run (`anchor test`) with time travel before each devnet deploy.
+- **Program:** `cargo test` for the pure settlement math (PRD §19 vectors V1–V22 plus property tests); Kit + LiteSVM integration tests for every scenario, including the randomised INV-1…INV-9 suite at 1,000 members; a Surfpool smoke run (`anchor test`) with time travel before each devnet deploy.
 - **Kotlin:** JUnit 5 for `core` (golden fixture replay) and `repcounter` (recorded landmark traces, including cheats); Compose UI tests for key screens.
 - **Manual device checks:** quickstart §8.
 
@@ -130,7 +130,7 @@ tests/                              # TypeScript (runs in WSL2): Kit + LiteSVM
 ├── helpers/                        # clock control, cohort builders, invariant checker
 ├── smoke/                          # Surfpool + time travel, run before devnet deploys
 ├── scenarios/                      # one file per acceptance criterion (contract side)
-├── invariants/                     # randomised INV-1…INV-8, 1,000-member cohort
+├── invariants/                     # randomised INV-1…INV-9, 1,000-member cohort
 └── fixtures/generate.ts            # writes ../fixtures/*.json
 
 fixtures/                           # committed golden JSON (contracts/program-instructions §7)
@@ -192,7 +192,7 @@ Post-hackathon, outside this plan: a winning app must be published on the Solana
 ## Follow-ups outside this plan
 
 - **README (constitution XI):**
-  - Add two known weaknesses, each with its fix: the faucet's bundled sponsor key and its on-chain caps (R13), and the retained program upgrade authority (R14).
+  - Add two known weaknesses, each with its fix: the faucet's bundled sponsor key, with the daily lamport budget and the permissionless refill that bound it (R13, FR-042b), and the retained program upgrade authority (R14).
   - Add clone-and-run build steps for someone who has never seen the project (FR-066).
 - **GitHub:** create the repository and push the existing history now; judges score technical depth from the commit history (FR-066).
 - **Beta testers (by 21 Sep):** recruit 5–7, open a group chat, write the one-page onboarding note (install, devnet wallet, faucet, what each day asks) and collect written consent from anyone who may appear in the footage — `docs/holdout_demo_video.md`.
