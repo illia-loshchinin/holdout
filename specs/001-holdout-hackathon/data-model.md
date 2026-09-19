@@ -29,6 +29,8 @@ Units: SKR amounts are **base units** (`u64`); times are **Unix seconds of chain
 | `faucet.lamports_today` | u64 | Lamports already out of the vault today; resets when `lamport_day` changes |
 | `bump` | u8 | |
 
+The faucet figures above are **normative**: research R13 explains where they come from, and the README and `docs/holdout_decisions.md` H22 restate them for readers, but a change to any of them lands here first.
+
 ### 1.2 `LeagueConfig` — one per league · PDA `["league", league_id: u8]`
 
 | Field | Type | Rule |
@@ -89,7 +91,7 @@ Units: SKR amounts are **base units** (`u64`); times are **Unix seconds of chain
 |---|---|
 | `end` | `start + duration_days × day_length` |
 | `status(now)` | `Open` if `now < join_cutoff` · `Locked` if `< start` · `Running` if `< end` · `Settling` if `!settled` · `Settled` |
-| `day_index(now)` | `floor((now − start) ÷ day_length)` while `Running` |
+| `day_index(now)` | `floor((now − start) ÷ day_length)` while `Running` — the program's `schedule::days_elapsed`, which clamps to `0 … duration_days` outside that window |
 | `deadline_of(k)` | `start + (k + 1) × day_length − 1` — the **last second** of day `k` |
 | `max_days_completed(now)` | `0` before `start`, else `min(day_index(now) + 1, duration_days)` — the INV-3 ceiling. The day in progress may be completed at any second of it, so a member submitting day 0 in the cohort's first second holds `days_completed == 1` while no day has yet elapsed |
 
@@ -167,7 +169,7 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | Finalize only when `counted == member_count` | R10, INV-5 | `settle_finalize` |
 | Claim only when `settled`, `state == Finished` | FR-034, INV-6 | `claim_payout` |
 | Open only `index == next_index`, previous cohort started | R11, FR-007a | `open_cohort` |
-| Carry-over only into a cohort of the same league with `status == Open` | FR-037a | `settle_finalize`, `deliver_carry_over` **[Phase 2]** |
+| Carry-over only into a cohort of the same league with `status == Open`; a no-finisher `settle_finalize` must be given the league's cohort `next_index − 1` and its vault unless that is this cohort itself (`CarryOverTargetRequired`), so whether the carry lands or is held follows from that cohort's status and never from which accounts the caller passed | FR-037a, FR-030a | `settle_finalize`, `deliver_carry_over` **[Phase 2]** |
 | Chip set: 4 increasing positive amounts; operator only | FR-054, R14 | `publish_chip_set` |
 | Faucet: payer ∈ {`sponsor`, recipient}; once per recipient per day; every lamport leaving the vault charged to the day's budget | FR-042a, R13 | `claim_faucet` |
 | Sponsor refill only below half its float, charged to the same daily budget; no signature from the sponsor | FR-042b, R13 | `top_up_sponsor` |
@@ -185,7 +187,7 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | **INV-6** settled is final | Only `claim_payout` and **[Phase 2]** `deliver_carry_over` accept a settled cohort | Instruction-matrix test |
 | **INV-7** idempotent automation | Per-membership state and `counted` flags | Pages out of order and repeated (AC-7) |
 | **INV-8** breach blocks submit | `submit_day` deadline guard, no dependency on forfeits | V16 |
-| **INV-9** streaks follow cohort order | Streaks written only by `settle_count`, which requires the league's previous cohort to be settled | Interleaved-settlement scenario across two cohorts of one league |
+| **INV-9** streaks follow cohort order | Streaks written only by `settle_count`, which requires the league's previous cohort to be settled. Checkable on any snapshot: for a wallet, take its memberships whose cohort is `settled`, order them by cohort `start`, and count the finishes since the last forfeit — that number is `current_streak`, and the largest it reaches across that history is `longest_streak` | Per-step derivation in the invariant checker (T017) + the interleaved-settlement scenario across two cohorts of one league (T077a) |
 
 ---
 
