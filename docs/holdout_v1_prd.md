@@ -890,7 +890,7 @@ Cohort B (7-day): 5 members × 100, 1 forfeits → fee 20 → 80 + 600 carry-ove
 
 **V6 · odd pool split.** A no-finisher cohort's pool is 1,001 base units → **500** to the fee destination, **501** carry-over. The indivisible unit goes to the carry-over (FR-037).
 
-**V7 · no open cohort.** V5's cohort A settles while no 7-day cohort is open → the 600 is held and recorded against A (Phase 1) and **[Phase 2]** appears in the next 7-day cohort's pool **when it opens**, exactly once. A second delivery attempt changes nothing (FR-037a, INV-6).
+**V7 · no open lobby.** V5's cohort A comes to settle while the 7-day league has no cohort open for joining → finalizing is **refused** (`CarryOverTargetNotOpen`) and not one byte changes; A stays `Settling` with its pool of 1,200 intact. Opening the league's next cohort — permissionless, and already due — and finalizing again sends the 600 no-finisher half to the fee destination and delivers the other 600 into that cohort's pool, exactly as V5. Running the two steps in the other order gives the same destination and the same amounts: the carry-over never depends on which transaction lands first (FR-037a, FR-030a). Phase 1 therefore holds no carry-over; `carry_over_held` and its **[Phase 2]** delivery exist for a league in which nobody ever opens another cohort.
 
 **V8 · carry-over, no finishers again.** Cohort B receives 600 carry-over, all 5 members forfeit → pool 400 + 600 = 1,000 → **500** fee, **500** carry-over onward (ES-7b).
 

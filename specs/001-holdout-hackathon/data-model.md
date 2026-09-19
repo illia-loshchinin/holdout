@@ -12,7 +12,7 @@ Units: SKR amounts are **base units** (`u64`); times are **Unix seconds of chain
 
 | Field | Type | Rule |
 |---|---|---|
-| `admin` | Pubkey | The signer of `initialize`, which that instruction accepts only if it is the program's current upgrade authority (R14). May only run `initialize`, `set_flags`, `create_test_league` |
+| `admin` | Pubkey | The signer of `initialize`, which that instruction accepts only if it is the program's current upgrade authority (R14). May only run `initialize`, `create_league` and `set_flags` — nothing else, and none of them moves funds. `create_league` covers both real leagues (ids 0 and 1, created by `crank init`) and, in builds carrying the `test-leagues` feature, a test league with `league_id ≥ 100`; there is no separate instruction for the latter |
 | `operator` | Pubkey | May only run `publish_chip_set` |
 | `sponsor` | Pubkey | Fee payer accepted by `claim_faucet` beside the recipient itself; holds only its float, which anyone may refill through `top_up_sponsor` (R13) |
 | `skr_mint` | Pubkey | Mock SKR mint; its mint authority is PDA `["mint_authority"]` |
@@ -221,7 +221,7 @@ Computed in `kotlin/core` (`Derive.kt`) from chain accounts and chain time only,
 | Time left today | `deadline_of(day_index) − chainNow` (FR-046) |
 | Warning window | Time left ≤ 600 s (FR-047) |
 | **At stake** (a Holdout open for joining) | `held_stake` — the sum of the stakes taken so far. Shown on the lobby card with the joined count (FR-053). Labelled "at stake", never "prize": an open cohort has no forfeits yet |
-| **Carry-over received** | `carry_over_in`, shown as its own line when it is non-zero (FR-037b) |
+| **Carry-over received** | `carry_over_received` — the stored field of §1.3, shown as its own line when it is non-zero (FR-037b). `carry_over_in` is only the input key of `fixtures/settlement-vectors.json`, never an account field |
 | Time until joining closes | `join_cutoff − chainNow` (FR-008) |
 
 `member_count_at_start` = `member_count` read at or after `start` (the roster is final from the join cutoff, FR-010).
