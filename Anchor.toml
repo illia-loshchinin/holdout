@@ -6,11 +6,13 @@ solana_version = "3.1.10"
 resolution = true
 skip-lint = false
 
+# Real program address; its keypair is kept outside the repository at
+# `~/.config/solana/holdout-program-keypair.json` (quickstart §6).
 [programs.devnet]
-holdout = "Ho1dout111111111111111111111111111111111111"
+holdout = "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4"
 
 [programs.localnet]
-holdout = "Ho1dout111111111111111111111111111111111111"
+holdout = "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4"
 
 [registry]
 url = "https://api.apr.dev"

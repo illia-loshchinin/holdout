@@ -9,7 +9,12 @@
 
 use anchor_lang::prelude::*;
 
-declare_id!("Ho1dout111111111111111111111111111111111111");
+// The matching keypair is NOT in the repository (`.gitignore` excludes every
+// keypair). It lives at `~/.config/solana/holdout-program-keypair.json` and must
+// be copied to `target/deploy/holdout-keypair.json` before `anchor deploy`, or
+// Anchor generates a different key and the deployed address stops matching this
+// one (quickstart §6).
+declare_id!("Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4");
 
 pub mod errors;
 pub mod events;

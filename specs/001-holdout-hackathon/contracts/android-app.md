@@ -10,6 +10,7 @@
 | `CAMERA` | Requested before the first sitting, with the reason stated |
 | `RECORD_AUDIO` | **Never declared** in the manifest (FR-022a) — a build check fails if it appears |
 | `INTERNET` | Declared; used only as in §2 |
+| Merged from the MWA client library | `ACCESS_NETWORK_STATE`, `REORDER_TASKS` and the generated `holdout.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` — all normal, none requested at runtime; read off the built APK with `aapt2 dump badging` |
 | Other dangerous permissions | None |
 
 ## 2. Network egress

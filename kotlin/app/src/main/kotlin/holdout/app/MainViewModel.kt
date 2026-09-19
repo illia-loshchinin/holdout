@@ -24,13 +24,15 @@ data class WalletUiState(
 
 class MainViewModel : ViewModel() {
 
-    // Replace with your app's own domain and host a Digital Asset Links file there so
-    // wallets can verify your app identity: https://docs.solanamobile.com/android-native/using_mobile_wallet_adapter
+    // Identity as `contracts/android-app.md` §3 fixes it. `holdout.app` is not
+    // registered yet and carries no Digital Asset Links file (T009), so wallets
+    // cannot verify this identity until it is — the name and URI are already the
+    // production ones so nothing has to change when the domain lands.
     private val walletAdapter = MobileWalletAdapter(
         connectionIdentity = ConnectionIdentity(
             identityUri = Uri.parse("https://holdout.app"),
             iconUri = Uri.parse("favicon.ico"),
-            identityName = "Kotlin",
+            identityName = "Holdout",
         )
     ).apply {
         blockchain = Solana.Devnet

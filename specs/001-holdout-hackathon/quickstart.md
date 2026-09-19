@@ -132,6 +132,16 @@ NO_DNA=1 anchor test
 
 **Expected:** the smoke suite in `tests/smoke/` passes (one happy path per instruction plus a time-travelled settlement).
 
+The program keypair is not in the repository. Put it where Anchor expects it first,
+otherwise `anchor deploy` generates a fresh key and deploys to an address that no
+longer matches `declare_id!`:
+
+```bash
+mkdir -p target/deploy && cp ~/.config/solana/holdout-program-keypair.json target/deploy/holdout-keypair.json && anchor keys list
+```
+
+**Expected:** `holdout: Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4`, matching `Anchor.toml` and `declare_id!`. Back that file up — losing it means a new address and a redeploy, and after the 28 Sep freeze that would strand the judged cohort.
+
 ```bash
 NO_DNA=1 anchor deploy --provider.cluster devnet
 ```
