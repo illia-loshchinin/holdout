@@ -12,7 +12,7 @@ Units: SKR amounts are **base units** (`u64`); times are **Unix seconds of chain
 
 | Field | Type | Rule |
 |---|---|---|
-| `admin` | Pubkey | May only run `initialize`, `set_flags`, `create_test_league` (R14) |
+| `admin` | Pubkey | The signer of `initialize`, which that instruction accepts only if it is the program's current upgrade authority (R14). May only run `initialize`, `set_flags`, `create_test_league` |
 | `operator` | Pubkey | May only run `publish_chip_set` |
 | `sponsor` | Pubkey | Fee payer accepted by `claim_faucet` beside the recipient itself; holds only its float, which anyone may refill through `top_up_sponsor` (R13) |
 | `skr_mint` | Pubkey | Mock SKR mint; its mint authority is PDA `["mint_authority"]` |
@@ -171,6 +171,8 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | Open only `index == next_index`, previous cohort started | R11, FR-007a | `open_cohort` |
 | Carry-over only into a cohort of the same league with `status == Open`. A no-finisher `settle_finalize` must be given the league's cohort `next_index − 1` and its vault (`CarryOverTargetRequired`), and that cohort must be another cohort and `Open` (`CarryOverTargetNotOpen`) — so the destination follows from chain state, a caller can neither choose it nor strand the carry by settling before the lobby exists, and opening that lobby is itself permissionless | FR-037a, FR-030a | `settle_finalize`, `deliver_carry_over` **[Phase 2]** |
 | Chip set: 4 increasing positive amounts; operator only | FR-054, R14 | `publish_chip_set` |
+| Only the program's current upgrade authority may `initialize`, verified against `ProgramData` | R14, constitution I | `initialize` |
+| No cohort opens before the first chip set is published (`chip_set.version > 0`) | FR-055b | `open_cohort` |
 | Faucet: payer ∈ {`sponsor`, recipient}; once per recipient per day; every lamport leaving the vault charged to the day's budget | FR-042a, R13 | `claim_faucet` |
 | Sponsor refill only below half its float, charged to the same daily budget; no signature from the sponsor | FR-042b, R13 | `top_up_sponsor` |
 | `exercise` must be `0` — the reserved values are layout, not behaviour, in this build | H30, constitution V | `create_league` |

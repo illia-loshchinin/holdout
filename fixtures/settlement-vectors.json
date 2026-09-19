@@ -133,7 +133,7 @@
     }
   ],
   "scenario_vectors": [
-    { "id": "V7", "name": "No open cohort at settlement — carry-over held, delivered exactly once", "source": "FR-037a, INV-6", "phase": "delivery is Phase 2" },
+    { "id": "V7", "name": "No open lobby at settlement — finalize refused with CarryOverTargetNotOpen, nothing written; opening the league's next cohort and finalizing again delivers the carry-over into it, and the destination is the same in either order", "source": "FR-037a, FR-030a", "note": "Revised 2026-09-19: Phase 1 never holds a carry-over. The held field and deliver_carry_over remain for a league in which nobody ever opens another cohort, and that delivery is Phase 2." },
     { "id": "V11", "name": "Leave while Open — full refund, member count falls", "source": "FR-009" },
     { "id": "V12", "name": "Join or leave after the cutoff — rejected by chain time", "source": "ES-12" },
     { "id": "V13", "name": "Forfeit while holding a lobby place — the lobby place is untouched", "source": "ES-14" },
