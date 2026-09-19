@@ -7,8 +7,13 @@
          counter and RECORD_AUDIO is never declared (FR-022a). -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Backup and device transfer are both off: banked reps and a completed day
+         waiting for the network live only on this device, and a restore must never
+         carry them to another one (FR-024a, ES-3a). On Android 12+ allowBackup
+         alone does not stop a device-to-device transfer, so res/xml also excludes
+         every domain from <cloud-backup> and <device-transfer>. -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"

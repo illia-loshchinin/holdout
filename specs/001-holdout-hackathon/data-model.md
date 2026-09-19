@@ -20,7 +20,8 @@ Units: SKR amounts are **base units** (`u64`); times are **Unix seconds of chain
 | `ladder_gate_enabled` | bool | `false` on devnet (FR-003) |
 | `genesis_gate_enabled` | bool | `false` on devnet (R17) |
 | `chip_set.amounts` | [u64; 4] | $10, $25, $50, $100 tiers in SKR; strictly increasing, all > 0 |
-| `chip_set.version` | u32 | +1 on every publish |
+| `chip_set.version` | u32 | +1 on every publish; `0` until the first publish, which no cohort may precede (FR-055b) |
+| `chip_set.max_top_tier` | u64 | The largest `amounts[3]` ever published — `max(max_top_tier, a3)` at each publish, never decreasing. What the faucet mints, so a claim funds the top chip of any open cohort even after a Phase 2 re-price lowered the tiers (FR-042a) |
 | `chip_set.published_at` | i64 | Chain time of publish |
 | `faucet.sol_top_up` | u64 | Lamports a claim tops a recipient up to (20,000,000 = 0.02 SOL) |
 | `faucet.sponsor_float` | u64 | Lamports `top_up_sponsor` tops the sponsor up to (50,000,000 = 0.05 SOL); a refill is allowed only below half of it (R13) |
@@ -130,7 +131,7 @@ Created by the first `claim_faucet` or `join_cohort`, whichever comes first.
 | `leagues[l].forfeited` | u16 | +1 when a forfeit is recorded |
 | `leagues[l].current_streak` | u16 | +1 on clear, 0 on forfeit (FR-061). Written **only by `settle_count`**, which runs in cohort order, so the figure never depends on the order automation happens to run in (FR-061a, INV-9) |
 | `leagues[l].longest_streak` | u16 | `max(longest, current)`, written in the same step |
-| `leagues[l].last_changed` | i64 | Leaderboard tie-break (FR-060b) |
+| `leagues[l].last_changed` | i64 | The instant of the member's most recent outcome in that league — the cohort's `end` for a clear, the missed `deadline_of(days_completed)` for a forfeit — and **never the time the transaction landed**. Written as `max(last_changed, t)`, so neither page order nor a late crank run can change it. Leaderboard tie-break (FR-060b) |
 | `running` | {cohort: Pubkey, end: i64} | Membership in a started cohort; default = none |
 | `pending` | {cohort: Pubkey, start: i64} | Lobby place; default = none |
 | `last_faucet_day` | i64 | Day index of last faucet claim; −1 = never |
@@ -173,7 +174,7 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | Chip set: 4 increasing positive amounts; operator only | FR-054, R14 | `publish_chip_set` |
 | Only the program's current upgrade authority may `initialize`, verified against `ProgramData` | R14, constitution I | `initialize` |
 | No cohort opens before the first chip set is published (`chip_set.version > 0`) | FR-055b | `open_cohort` |
-| Faucet: payer ∈ {`sponsor`, recipient}; once per recipient per day; every lamport leaving the vault charged to the day's budget | FR-042a, R13 | `claim_faucet` |
+| Faucet: payer ∈ {`sponsor`, recipient}; once per recipient per day; every lamport leaving the vault charged to the day's budget; mints `chip_set.max_top_tier`, not today's `amounts[3]` | FR-042a, R13 | `claim_faucet` |
 | Sponsor refill only below half its float, charged to the same daily budget; no signature from the sponsor | FR-042b, R13 | `top_up_sponsor` |
 | `exercise` must be `0` — the reserved values are layout, not behaviour, in this build | H30, constitution V | `create_league` |
 
@@ -205,6 +206,8 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | *(bundled resource)* | JSON | Scripted wallet public keys from `kotlin/core/src/main/resources/scripted-wallets.json` (FR-043a) — read-only, not in MMKV |
 
 Nothing here is trusted by the contract: a completed day only counts once `submit_day` lands, and the streak is cosmetic.
+
+The app **opts out of Android cloud backup and of device-to-device transfer** (`allowBackup="false"` plus explicit `<cloud-backup>` and `<device-transfer>` exclusions, since on Android 12+ turning backup off does not by itself stop a transfer). Without that, restoring a backup would carry an unfinished day's banked reps onto another device, which FR-024a and ES-3a say plainly does not happen.
 
 ---
 

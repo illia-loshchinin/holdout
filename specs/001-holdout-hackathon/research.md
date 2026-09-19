@@ -192,6 +192,7 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
 - **Decision:**
   - **Phase 1:** `crank chips publish --rate <USD per SKR>` converts $10/$25/$50/$100 to SKR base units, rounded **down to the nearest 10 whole SKR** (minimum 10 SKR), and sends `publish_chip_set` once at launch. The rate is read by hand from a public SKR market price on launch day and recorded in the README — **never on-chain**, so the contract holds no fiat figure at all.
   - **Phase 2:** the same command runs weekly on Mondays with `--if-drift 0.20`, fetching the rate from a public price API; with no rate it exits without publishing (FR-057).
+- **Faucet interaction (added 2026-09-19):** a re-price may lower the tiers while a cohort that copied the older, larger set is still open. `Config.chip_set.max_top_tier` is therefore a high-water mark — `max` of every `amounts[3]` ever published — and the faucet mints that rather than today's top tier. Since no cohort can be created before a chip set exists (FR-055b) and the mark never decreases, it is at least the top tier of every cohort that exists, so FR-042a holds whatever order publishing and opening happen in. Minting more than today's tier costs nothing: the program mints mock SKR per claim.
 - **Rationale:** readable amounts; the contract never sees a price (constitution III); Phase 2 is pure tooling on an instruction Phase 1 already has.
 - **Alternatives considered:** an on-chain oracle (forbidden by constitution III).
 - **Resolves:** P3.
