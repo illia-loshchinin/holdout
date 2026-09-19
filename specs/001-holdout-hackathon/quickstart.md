@@ -188,7 +188,7 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 8 | Fresh install; counters at the deadline | Devnet: install, play the walkthrough **without connecting**, then connect; stop crank before a boundary | Wallet asked first, with only the walkthrough available before it; the first-run tour appears once the wallet connects, skips cleanly and re-opens from About (FR-067); cohort populated to at least its floor, scripted members labelled; one second after the deadline the counter already excludes non-submitters |
 | 9 | No price read | Code search + test | No instruction reads a price; only `crank chips publish` uses a rate |
 | 10 | No frame leaves device | Proxy the phone, run a sitting | Only RPC traffic observed |
-| 11 | No finishers, carry-over | *local*: all forfeit; with and without an open next cohort | 50 % fee; carry-over in the open cohort, or held and recorded (delivery **[Phase 2]**) |
+| 11 | No finishers, carry-over | *local*: all forfeit; with the league's next cohort open, and with none open | 50 % fee; carry-over in the open cohort. With none open the finalize is refused with `CarryOverTargetNotOpen` (6047) and nothing changes; opening the league's next cohort and repeating lands the same carry-over in it |
 | 12 **[Phase 2]** | Weekly re-pricing | *local*: `crank chips publish --auto` with drift below and above 20 % | Publishes only above 20 %; old cohorts keep old chips |
 | 13 | Lobby place, lock, overlap | *local* | Continuous 7-day → 7-day; cutoff ±1 s behaviour; 21-day overlap refused |
 | 14 **[Phase 2]** | Leaderboard ranking | Devnet or *local* with seeded profiles | Ranking and "not ranked yet" as specified; no amounts; scripted labels |

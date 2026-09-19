@@ -82,7 +82,7 @@ The faucet figures above are **normative**: research R13 explains where they com
 | `rounding_remainder` | u64 | Sent to fee destination (FR-032a) |
 | `no_finisher_fee` | u64 | `floor(pool ÷ 2)` when no finishers (FR-037) |
 | `carry_over_sent` | u64 | `pool − no_finisher_fee`, delivered at finalize |
-| `carry_over_held` | u64 | The same amount if no cohort of the league was open; 0 once delivered **[Phase 2]** |
+| `carry_over_held` | u64 | Always 0 in Phase 1 — settlement is refused rather than held (FR-037a); the field carries the amount only for a league in which no further cohort is ever opened, and returns to 0 once `deliver_carry_over` moves it **[Phase 2]** |
 | `carry_over_target` | Pubkey | Receiving cohort, or default while held |
 
 **Derived, never stored** (`kotlin/core` `Derive.kt`, mirrored in program guards and pinned by `fixtures/`):
@@ -169,7 +169,7 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | Finalize only when `counted == member_count` | R10, INV-5 | `settle_finalize` |
 | Claim only when `settled`, `state == Finished` | FR-034, INV-6 | `claim_payout` |
 | Open only `index == next_index`, previous cohort started | R11, FR-007a | `open_cohort` |
-| Carry-over only into a cohort of the same league with `status == Open`; a no-finisher `settle_finalize` must be given the league's cohort `next_index − 1` and its vault unless that is this cohort itself (`CarryOverTargetRequired`), so whether the carry lands or is held follows from that cohort's status and never from which accounts the caller passed | FR-037a, FR-030a | `settle_finalize`, `deliver_carry_over` **[Phase 2]** |
+| Carry-over only into a cohort of the same league with `status == Open`. A no-finisher `settle_finalize` must be given the league's cohort `next_index − 1` and its vault (`CarryOverTargetRequired`), and that cohort must be another cohort and `Open` (`CarryOverTargetNotOpen`) — so the destination follows from chain state, a caller can neither choose it nor strand the carry by settling before the lobby exists, and opening that lobby is itself permissionless | FR-037a, FR-030a | `settle_finalize`, `deliver_carry_over` **[Phase 2]** |
 | Chip set: 4 increasing positive amounts; operator only | FR-054, R14 | `publish_chip_set` |
 | Faucet: payer ∈ {`sponsor`, recipient}; once per recipient per day; every lamport leaving the vault charged to the day's budget | FR-042a, R13 | `claim_faucet` |
 | Sponsor refill only below half its float, charged to the same daily budget; no signature from the sponsor | FR-042b, R13 | `top_up_sponsor` |
