@@ -10,14 +10,16 @@
 
 /// Fee taken from one forfeited stake: 20 %, rounded down (FR-027).
 pub fn fee_of(forfeited_stake: u64) -> u64 {
-    let _ = forfeited_stake;
-    todo!("T018")
+    // u128 throughout: `stake * 20` overflows u64 above ~9.2e17 base units, and
+    // a chip amount is an ordinary cohort parameter, not a bounded constant.
+    ((forfeited_stake as u128) * 20 / 100) as u64
 }
 
 /// What one forfeited stake adds to the pool: the stake minus its fee.
 pub fn pool_contribution(forfeited_stake: u64) -> u64 {
-    let _ = forfeited_stake;
-    todo!("T018")
+    // The whole stake leaves the member; the fee is the only part that does not
+    // reach the pool, so the two always add back to the stake (INV-2).
+    forfeited_stake - fee_of(forfeited_stake)
 }
 
 /// A tier's share of the pool, rounded down (FR-032, FR-032a).
@@ -25,22 +27,32 @@ pub fn pool_contribution(forfeited_stake: u64) -> u64 {
 /// `total_finisher_stake == 0` has no finishers to pay, so the caller must use
 /// [`no_finisher_split`] instead; this returns 0 rather than dividing by zero.
 pub fn share_for_tier(pool: u64, chip: u64, total_finisher_stake: u64) -> u64 {
-    let _ = (pool, chip, total_finisher_stake);
-    todo!("T018")
+    if total_finisher_stake == 0 {
+        return 0;
+    }
+    ((pool as u128) * (chip as u128) / (total_finisher_stake as u128)) as u64
 }
 
 /// Pool minus every rounded-down share. Always fewer units than there are
 /// finishers, and it goes to the fee destination at settlement (FR-032a).
 pub fn rounding_remainder(pool: u64, finishers_per_tier: [u32; 4], shares: [u64; 4]) -> u64 {
-    let _ = (pool, finishers_per_tier, shares);
-    todo!("T018")
+    let paid: u128 = finishers_per_tier
+        .iter()
+        .zip(shares.iter())
+        .map(|(count, share)| u128::from(*count) * u128::from(*share))
+        .sum();
+    // Every share is floored, so the sum can never exceed the pool; saturating
+    // rather than wrapping keeps a caller's arithmetic slip from minting units.
+    (u128::from(pool).saturating_sub(paid)) as u64
 }
 
 /// A cohort nobody finished: half to the fee destination, half carried over,
 /// with the indivisible unit going to the carry-over (FR-037).
 pub fn no_finisher_split(pool: u64) -> (u64, u64) {
-    let _ = pool;
-    todo!("T018")
+    let fee_half = pool / 2;
+    // The odd unit goes to the carry-over, so nothing is lost to rounding and
+    // the members' side of the split is never the one shortchanged (FR-037).
+    (fee_half, pool - fee_half)
 }
 
 #[cfg(test)]

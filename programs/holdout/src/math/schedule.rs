@@ -16,27 +16,25 @@ pub const JOIN_LOCK: i64 = 3_600;
 /// Last instant at which day `k` (zero-based) can still be completed:
 /// `start + (k + 1) * day_length - 1` (data-model §1.3).
 pub fn deadline_of(start: i64, day_length: i64, day_index: u8) -> i64 {
-    let _ = (start, day_length, day_index);
-    todo!("T019")
+    start + (i64::from(day_index) + 1) * day_length - 1
 }
 
 /// The global day index used by the streak and the faucet:
 /// `floor((now - 18,000) / 86,400)` — it turns over at 05:00 UTC (OD-6).
 pub fn global_day_index(now: i64) -> i64 {
-    let _ = now;
-    todo!("T019")
+    // div_euclid, not `/`: integer division truncates toward zero, which would
+    // put the instants just before the epoch boundary in the wrong day.
+    (now - BOUNDARY_OFFSET).div_euclid(DAY_LENGTH)
 }
 
 /// A cohort's join cutoff: `start - join_lock` (FR-008).
 pub fn join_cutoff(start: i64, join_lock: i64) -> i64 {
-    let _ = (start, join_lock);
-    todo!("T019")
+    start - join_lock
 }
 
 /// Start of cohort `index` in a league: `first_start + index * cadence` (R11).
 pub fn cohort_start(first_start: i64, cadence: i64, index: u32) -> i64 {
-    let _ = (first_start, cadence, index);
-    todo!("T019")
+    first_start + i64::from(index) * cadence
 }
 
 /// How many whole cohort days have **elapsed** at `now`, capped at the
@@ -49,8 +47,11 @@ pub fn cohort_start(first_start: i64, cadence: i64, index: u32) -> i64 {
 /// nothing has elapsed, yet a member who submits day 0 there legitimately
 /// holds `days_completed == 1`. The INV-3 ceiling is [`max_days_completed`].
 pub fn days_elapsed(start: i64, day_length: i64, duration_days: u8, now: i64) -> u8 {
-    let _ = (start, day_length, duration_days, now);
-    todo!("T019")
+    if now < start {
+        return 0;
+    }
+    let elapsed = (now - start) / day_length;
+    elapsed.min(i64::from(duration_days)) as u8
 }
 
 /// The most completed days a member of this cohort may hold at `now` — the
@@ -58,8 +59,11 @@ pub fn days_elapsed(start: i64, day_length: i64, duration_days: u8, now: i64) ->
 /// `min(days_elapsed + 1, duration_days)`, because the day in progress can
 /// itself be completed at any second of it.
 pub fn max_days_completed(start: i64, day_length: i64, duration_days: u8, now: i64) -> u8 {
-    let _ = (start, day_length, duration_days, now);
-    todo!("T019")
+    if now < start {
+        return 0;
+    }
+    // The day in progress may itself be completed, hence the + 1 (INV-3).
+    (days_elapsed(start, day_length, duration_days, now) + 1).min(duration_days)
 }
 
 #[cfg(test)]
