@@ -65,10 +65,10 @@ Those cohorts MAY be populated by scripted members, and only on these terms: the
 
 - Order is `/speckit-constitution` → `/speckit-specify` → `/speckit-clarify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement`. Stack, accounts, PDAs and instruction signatures belong to `/speckit-plan`, never to the spec.
 - Risk spikes precede implementation: wallet signing on real hardware, rep counting against real video including deliberate cheating, and a full cohort cycle on a manipulated clock.
-- Published settlement vectors and every invariant listed in spec §8.4 (currently INV-1…INV-8) are the first test suite, written before business logic.
+- Published settlement vectors and every invariant listed in spec §8.4 are the first test suite, written before business logic. **Spec §8.4 is the authoritative list** — INV-1…INV-9 at this version — and an invariant added there is a new failing test, never an optional extra.
 
 ## Governance
 
 This constitution supersedes other practice in this repository. Anything not required by a scenario in `specs/001-holdout-hackathon/spec.md` is out of scope; additions are made by amending the spec, not by writing code. Amendments are recorded here with a version bump and a line in `docs/holdout_decisions.md`. The deadline is what makes scope discipline load-bearing rather than decorative.
 
-**Version**: 1.3.1 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-09-18
+**Version**: 1.3.2 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-09-19
