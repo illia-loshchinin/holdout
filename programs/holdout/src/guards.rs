@@ -8,34 +8,34 @@
 
 use anchor_lang::prelude::*;
 
-use crate::errors::{DayError, LobbyError, SettlementError};
+use crate::errors::HoldoutError;
 use crate::state::cohort::{Cohort, CohortStatus};
 use crate::state::membership::{Membership, MembershipState, MAX_TIER};
 use crate::state::profile::Profile;
 
 /// Joining is only open before the cutoff (FR-008, error 6021).
 pub fn require_open(cohort: &Cohort, now: i64) -> Result<()> {
-    require!(cohort.status(now) == CohortStatus::Open, LobbyError::JoiningClosed);
+    require!(cohort.status(now) == CohortStatus::Open, HoldoutError::JoiningClosed);
     Ok(())
 }
 
 /// Completed days are only accepted while the cohort is running (error 6030).
 pub fn require_running(cohort: &Cohort, now: i64) -> Result<()> {
-    require!(cohort.status(now) == CohortStatus::Running, DayError::CohortNotRunning);
+    require!(cohort.status(now) == CohortStatus::Running, HoldoutError::CohortNotRunning);
     Ok(())
 }
 
 /// Settlement steps only run once the final deadline has passed and not after
 /// the cohort is settled (errors 6040, 6041).
 pub fn require_settling(cohort: &Cohort, now: i64) -> Result<()> {
-    require!(!cohort.settled, SettlementError::AlreadySettled);
-    require!(cohort.status(now) == CohortStatus::Settling, SettlementError::NotSettling);
+    require!(!cohort.settled, HoldoutError::AlreadySettled);
+    require!(cohort.status(now) == CohortStatus::Settling, HoldoutError::NotSettling);
     Ok(())
 }
 
 /// A tier is 0..=3 (FR-054, error 6022).
 pub fn require_tier(tier: u8) -> Result<()> {
-    require!(tier <= MAX_TIER, LobbyError::InvalidTier);
+    require!(tier <= MAX_TIER, HoldoutError::InvalidTier);
     Ok(())
 }
 
@@ -57,9 +57,9 @@ pub fn genesis_gate_ok(enabled: bool, holds_genesis: bool) -> bool {
 /// (FR-006a, FR-006b, INV-4): at most one lobby place, and a new cohort may not
 /// start before the running one's final deadline.
 pub fn require_slot_free(profile: &Profile, cohort: &Cohort, now: i64) -> Result<()> {
-    require!(profile.pending.is_none(), LobbyError::LobbyPlaceTaken);
+    require!(profile.pending.is_none(), HoldoutError::LobbyPlaceTaken);
     if !profile.running.is_none() && profile.running.end > now {
-        require!(cohort.start >= profile.running.end, LobbyError::ObligationsOverlap);
+        require!(cohort.start >= profile.running.end, HoldoutError::ObligationsOverlap);
     }
     Ok(())
 }
@@ -73,13 +73,13 @@ pub fn require_submittable(
     day_index: u8,
     now: i64,
 ) -> Result<()> {
-    require!(membership.state == MembershipState::Joined, DayError::CohortNotRunning);
+    require!(membership.state == MembershipState::Joined, HoldoutError::CohortNotRunning);
     require!(
         day_index == membership.days_completed,
-        DayError::DayAlreadyCompleted
+        HoldoutError::DayAlreadyCompleted
     );
-    require!(day_index == cohort.day_index(now), DayError::WrongDay);
-    require!(now <= cohort.deadline_of(day_index), DayError::DeadlinePassed);
+    require!(day_index == cohort.day_index(now), HoldoutError::WrongDay);
+    require!(now <= cohort.deadline_of(day_index), HoldoutError::DeadlinePassed);
     Ok(())
 }
 
