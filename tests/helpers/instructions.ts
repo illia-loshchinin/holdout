@@ -365,3 +365,103 @@ export const recordForfeitsIx = async (
     data: instructionDiscriminator('record_forfeits'),
   };
 };
+
+// ---------------------------------------------------------------- settle_count
+
+/**
+ * `settle_count()`, permissionless and paged like `record_forfeits`. The
+ * league's cohort `index - 1` is required for every index but 0: counting runs
+ * in cohort order so every profile's streak does too (FR-061a).
+ */
+export const settleCountIx = async (
+  caller: Address,
+  feeDestination: Address,
+  leagueId: number,
+  index: number,
+  pairs: readonly ForfeitPair[],
+  previousCohort?: Address,
+): Promise<Instruction> => {
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      rwSigner(caller),
+      ro(await configPda()),
+      ro(await leaguePda(leagueId)),
+      rw(cohort),
+      rw(await vaultPda(cohort)),
+      rw(feeDestination),
+      ro(previousCohort ?? PROGRAM_ID),
+      ro(TOKEN_PROGRAM),
+      ...pairs.flatMap((pair) => [rw(pair.membership), rw(pair.profile)]),
+    ],
+    data: instructionDiscriminator('settle_count'),
+  };
+};
+
+// ------------------------------------------------------------- settle_finalize
+
+/**
+ * `settle_finalize()`. With finishers it needs no target. With none, the
+ * league's cohort `next_index - 1` and its vault are **required** — the
+ * accounts that decide whether the carry-over is delivered or held — so no
+ * caller can strand it by omission (FR-030a, FR-037a).
+ */
+export const settleFinalizeIx = async (
+  caller: Address,
+  feeDestination: Address,
+  leagueId: number,
+  index: number,
+  target?: { cohort: Address; vault: Address },
+): Promise<Instruction> => {
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      rwSigner(caller),
+      ro(await configPda()),
+      ro(await leaguePda(leagueId)),
+      rw(cohort),
+      rw(await vaultPda(cohort)),
+      rw(feeDestination),
+      target ? rw(target.cohort) : ro(PROGRAM_ID),
+      target ? rw(target.vault) : ro(PROGRAM_ID),
+      ro(TOKEN_PROGRAM),
+    ],
+    data: instructionDiscriminator('settle_finalize'),
+  };
+};
+
+/** The league's cohort `index` and its vault, as `settle_finalize` wants them. */
+export const carryOverTarget = async (
+  leagueId: number,
+  index: number,
+): Promise<{ cohort: Address; vault: Address }> => {
+  const cohort = await cohortPda(leagueId, index);
+  return { cohort, vault: await vaultPda(cohort) };
+};
+
+// ---------------------------------------------------------------- claim_payout
+
+/** `claim_payout()`: `stake + share_per_tier[tier]`, read from the finalised cohort. */
+export const claimPayoutIx = async (
+  member: Address,
+  skrMint: Address,
+  leagueId: number,
+  index: number,
+): Promise<Instruction> => {
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      rwSigner(member),
+      ro(await configPda()),
+      rw(cohort),
+      rw(await vaultPda(cohort)),
+      rw(await membershipPda(cohort, member)),
+      rw(await associatedTokenPda(member, skrMint)),
+      ro(TOKEN_PROGRAM),
+    ],
+    data: instructionDiscriminator('claim_payout'),
+  };
+};
