@@ -15,13 +15,19 @@ use crate::state::profile::Profile;
 
 /// Joining is only open before the cutoff (FR-008, error 6021).
 pub fn require_open(cohort: &Cohort, now: i64) -> Result<()> {
-    require!(cohort.status(now) == CohortStatus::Open, HoldoutError::JoiningClosed);
+    require!(
+        cohort.status(now) == CohortStatus::Open,
+        HoldoutError::JoiningClosed
+    );
     Ok(())
 }
 
 /// Completed days are only accepted while the cohort is running (error 6030).
 pub fn require_running(cohort: &Cohort, now: i64) -> Result<()> {
-    require!(cohort.status(now) == CohortStatus::Running, HoldoutError::CohortNotRunning);
+    require!(
+        cohort.status(now) == CohortStatus::Running,
+        HoldoutError::CohortNotRunning
+    );
     Ok(())
 }
 
@@ -29,7 +35,10 @@ pub fn require_running(cohort: &Cohort, now: i64) -> Result<()> {
 /// the cohort is settled (errors 6040, 6041).
 pub fn require_settling(cohort: &Cohort, now: i64) -> Result<()> {
     require!(!cohort.settled, HoldoutError::AlreadySettled);
-    require!(cohort.status(now) == CohortStatus::Settling, HoldoutError::NotSettling);
+    require!(
+        cohort.status(now) == CohortStatus::Settling,
+        HoldoutError::NotSettling
+    );
     Ok(())
 }
 
@@ -59,7 +68,10 @@ pub fn genesis_gate_ok(enabled: bool, holds_genesis: bool) -> bool {
 pub fn require_slot_free(profile: &Profile, cohort: &Cohort, now: i64) -> Result<()> {
     require!(profile.pending.is_none(), HoldoutError::LobbyPlaceTaken);
     if !profile.running.is_none() && profile.running.end > now {
-        require!(cohort.start >= profile.running.end, HoldoutError::ObligationsOverlap);
+        require!(
+            cohort.start >= profile.running.end,
+            HoldoutError::ObligationsOverlap
+        );
     }
     Ok(())
 }
@@ -73,13 +85,19 @@ pub fn require_submittable(
     day_index: u8,
     now: i64,
 ) -> Result<()> {
-    require!(membership.state == MembershipState::Joined, HoldoutError::CohortNotRunning);
+    require!(
+        membership.state == MembershipState::Joined,
+        HoldoutError::CohortNotRunning
+    );
     require!(
         day_index == membership.days_completed,
         HoldoutError::DayAlreadyCompleted
     );
     require!(day_index == cohort.day_index(now), HoldoutError::WrongDay);
-    require!(now <= cohort.deadline_of(day_index), HoldoutError::DeadlinePassed);
+    require!(
+        now <= cohort.deadline_of(day_index),
+        HoldoutError::DeadlinePassed
+    );
     Ok(())
 }
 
@@ -165,13 +183,22 @@ mod tests {
     fn a_day_is_submittable_only_on_its_own_day_and_before_its_deadline() {
         let c = cohort(FIRST_START, 7);
         let m = membership(0);
-        assert!(require_submittable(&m, &c, 0, FIRST_START).is_ok(), "the first second of day 0");
-        assert!(require_submittable(&m, &c, 0, c.deadline_of(0)).is_ok(), "and its last");
+        assert!(
+            require_submittable(&m, &c, 0, FIRST_START).is_ok(),
+            "the first second of day 0"
+        );
+        assert!(
+            require_submittable(&m, &c, 0, c.deadline_of(0)).is_ok(),
+            "and its last"
+        );
         assert!(
             require_submittable(&m, &c, 0, c.deadline_of(0) + 1).is_err(),
             "in breach, and no automation had to run for that (INV-8)"
         );
-        assert!(require_submittable(&m, &c, 1, FIRST_START).is_err(), "not tomorrow's day");
+        assert!(
+            require_submittable(&m, &c, 1, FIRST_START).is_err(),
+            "not tomorrow's day"
+        );
         assert!(
             require_submittable(&membership(1), &c, 1, FIRST_START).is_err(),
             "day 1 is not today yet"
@@ -180,17 +207,26 @@ mod tests {
 
     #[test]
     fn the_ladder_gate_only_bites_when_it_is_on() {
-        assert!(ladder_gate_ok(false, LEAGUE_21D, false), "devnet: both leagues open (FR-003)");
+        assert!(
+            ladder_gate_ok(false, LEAGUE_21D, false),
+            "devnet: both leagues open (FR-003)"
+        );
         assert!(!ladder_gate_ok(true, LEAGUE_21D, false));
         assert!(ladder_gate_ok(true, LEAGUE_21D, true));
-        assert!(ladder_gate_ok(true, LEAGUE_7D, false), "the 7-day league never closes (FR-002)");
+        assert!(
+            ladder_gate_ok(true, LEAGUE_7D, false),
+            "the 7-day league never closes (FR-002)"
+        );
     }
 
     #[test]
     fn two_obligations_can_never_overlap() {
         let running_end = FIRST_START + 7 * DEVNET_DAY_LENGTH;
         let mut p = profile();
-        p.running = RunningSlot { cohort: Pubkey::new_unique(), end: running_end };
+        p.running = RunningSlot {
+            cohort: Pubkey::new_unique(),
+            end: running_end,
+        };
 
         let touching = cohort(running_end, 7);
         assert!(
@@ -201,7 +237,10 @@ mod tests {
         let overlapping = cohort(running_end - 1, 7);
         assert!(require_slot_free(&p, &overlapping, FIRST_START).is_err());
 
-        p.pending = PendingSlot { cohort: Pubkey::new_unique(), start: running_end };
+        p.pending = PendingSlot {
+            cohort: Pubkey::new_unique(),
+            start: running_end,
+        };
         assert!(
             require_slot_free(&p, &touching, FIRST_START).is_err(),
             "one lobby place at a time (FR-006a)"

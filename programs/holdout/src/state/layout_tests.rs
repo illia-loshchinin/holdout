@@ -134,12 +134,36 @@ fn profile() -> Profile {
         wallet: key(0x99),
         qualified: true,
         leagues: [
-            LeagueProgress { cleared: 5, forfeited: 2, current_streak: 3, longest_streak: 4, last_changed: 1_790_600_000 },
-            LeagueProgress { cleared: 1, forfeited: 0, current_streak: 1, longest_streak: 1, last_changed: 1_791_400_000 },
-            LeagueProgress { cleared: 0, forfeited: 1, current_streak: 0, longest_streak: 0, last_changed: 1_790_700_000 },
+            LeagueProgress {
+                cleared: 5,
+                forfeited: 2,
+                current_streak: 3,
+                longest_streak: 4,
+                last_changed: 1_790_600_000,
+            },
+            LeagueProgress {
+                cleared: 1,
+                forfeited: 0,
+                current_streak: 1,
+                longest_streak: 1,
+                last_changed: 1_791_400_000,
+            },
+            LeagueProgress {
+                cleared: 0,
+                forfeited: 1,
+                current_streak: 0,
+                longest_streak: 0,
+                last_changed: 1_790_700_000,
+            },
         ],
-        running: RunningSlot { cohort: key(0xaa), end: 1_791_800_000 },
-        pending: PendingSlot { cohort: key(0xbb), start: 1_792_000_000 },
+        running: RunningSlot {
+            cohort: key(0xaa),
+            end: 1_791_800_000,
+        },
+        pending: PendingSlot {
+            cohort: key(0xbb),
+            start: 1_792_000_000,
+        },
         last_faucet_day: 20_351,
         bump: 248,
     }
@@ -163,14 +187,24 @@ fn layouts_match_the_golden_bytes_the_typescript_codecs_decode() {
             .iter()
             .map(|(name, bytes)| format!("  \"{name}\": \"{}\"", hex(bytes)))
             .collect();
-        println!("--- layout-vectors.json ---\n{{\n{}\n}}\n--- end ---", body.join(",\n"));
+        println!(
+            "--- layout-vectors.json ---\n{{\n{}\n}}\n--- end ---",
+            body.join(",\n")
+        );
         return;
     }
 
-    let golden: serde_json::Value = serde_json::from_str(VECTORS).expect("layout-vectors.json parses");
+    let golden: serde_json::Value =
+        serde_json::from_str(VECTORS).expect("layout-vectors.json parses");
     for (name, bytes) in all() {
-        let expected = golden[name].as_str().unwrap_or_else(|| panic!("no golden for {name}"));
-        assert_eq!(hex(&bytes), expected, "{name} serializes differently from its golden bytes");
+        let expected = golden[name]
+            .as_str()
+            .unwrap_or_else(|| panic!("no golden for {name}"));
+        assert_eq!(
+            hex(&bytes),
+            expected,
+            "{name} serializes differently from its golden bytes"
+        );
     }
 }
 
@@ -189,9 +223,24 @@ fn every_account_is_the_size_the_typescript_side_allocates() {
 #[test]
 fn discriminators_are_anchors_default_sha256_prefixes() {
     // sha256("account:<Name>")[..8], computed independently in TypeScript.
-    assert_eq!(Config::DISCRIMINATOR, [0x9b, 0x0c, 0xaa, 0xe0, 0x1e, 0xfa, 0xcc, 0x82]);
-    assert_eq!(LeagueConfig::DISCRIMINATOR, [0xe0, 0xce, 0x26, 0x66, 0x62, 0x6a, 0x21, 0x28]);
-    assert_eq!(Cohort::DISCRIMINATOR, [0x89, 0x11, 0xd5, 0x3d, 0x69, 0x40, 0x90, 0xa9]);
-    assert_eq!(Membership::DISCRIMINATOR, [0xe7, 0x8d, 0xb4, 0x62, 0x6d, 0xa8, 0xaf, 0xa6]);
-    assert_eq!(Profile::DISCRIMINATOR, [0xb8, 0x65, 0xa5, 0xbc, 0x5f, 0x3f, 0x7f, 0xbc]);
+    assert_eq!(
+        Config::DISCRIMINATOR,
+        [0x9b, 0x0c, 0xaa, 0xe0, 0x1e, 0xfa, 0xcc, 0x82]
+    );
+    assert_eq!(
+        LeagueConfig::DISCRIMINATOR,
+        [0xe0, 0xce, 0x26, 0x66, 0x62, 0x6a, 0x21, 0x28]
+    );
+    assert_eq!(
+        Cohort::DISCRIMINATOR,
+        [0x89, 0x11, 0xd5, 0x3d, 0x69, 0x40, 0x90, 0xa9]
+    );
+    assert_eq!(
+        Membership::DISCRIMINATOR,
+        [0xe7, 0x8d, 0xb4, 0x62, 0x6d, 0xa8, 0xaf, 0xa6]
+    );
+    assert_eq!(
+        Profile::DISCRIMINATOR,
+        [0xb8, 0x65, 0xa5, 0xbc, 0x5f, 0x3f, 0x7f, 0xbc]
+    );
 }

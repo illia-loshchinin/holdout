@@ -108,7 +108,11 @@ mod tests {
 
     #[test]
     fn every_code_lands_where_the_contract_says() {
-        assert_eq!(anchor_lang::error::ERROR_CODE_OFFSET, 6_000, "the base Anchor counts from");
+        assert_eq!(
+            anchor_lang::error::ERROR_CODE_OFFSET,
+            6_000,
+            "the base Anchor counts from"
+        );
 
         assert_eq!(code(HoldoutError::NotAdmin), 6000);
         assert_eq!(code(HoldoutError::NotOperator), 6001);

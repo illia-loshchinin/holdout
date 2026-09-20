@@ -1,0 +1,247 @@
+# Continuous integration for Holdout.
+#
+# Three gates, in the order the quickstart runs them (§3):
+#
+#   program         rustfmt, clippy, the Rust unit suites and the no-oracle check —
+#                   host toolchain only, so it answers in a few minutes.
+#   anchor          the real SBF build. Publishes `holdout.so` and the IDL so the
+#                   contract tests run against the same binary the judges would.
+#   contract-tests  Kit + LiteSVM against that binary, plus the drift checks that
+#                   keep the committed IDL, Codama client and fixtures honest.
+#
+# Versions are pinned to `Anchor.toml` and quickstart §1. Bumping one means bumping
+# them together — a clean checkout must build against the Anchor that deploys it.
+
+name: CI
+
+on:
+  push:
+    branches: [main, '001-holdout-hackathon']
+  pull_request:
+  workflow_dispatch:
+
+# A new push supersedes the run in flight on the same ref; a finished run on main
+# is never cancelled out from under a merge.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  SOLANA_VERSION: 3.1.10
+  ANCHOR_VERSION: 1.1.2
+  NODE_VERSION: '22'
+  # Anchor and Surfpool are run with telemetry off everywhere else in this
+  # repository (quickstart §1); CI is no exception.
+  NO_DNA: '1'
+
+jobs:
+  # ---------------------------------------------------------------- program
+  program:
+    name: Program — fmt, clippy, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: program
+
+      - name: rustfmt
+        run: cargo fmt --all -- --check
+
+      # Constitution III: the contract never reads a price and never holds a fiat
+      # figure. The script greps the program source with comments stripped (T017a).
+      - name: No price, no oracle, no fiat figure
+        run: bash scripts/check-no-oracle.sh
+
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      # `test-leagues` is what the LiteSVM suites build with; it must lint clean too.
+      - name: clippy (test-leagues)
+        run: cargo clippy --workspace --all-targets --features test-leagues -- -D warnings
+
+      # The settlement vectors, the schedule maths and the account layouts that
+      # `tests/helpers/layout-vectors.json` pins the TypeScript codecs to.
+      - name: cargo test
+        run: cargo test -p holdout --lib --features test-leagues
+
+  # ----------------------------------------------------------------- anchor
+  anchor:
+    name: Anchor build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache the Solana and Anchor toolchains
+        id: toolchain-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/avm
+            ~/.cargo/bin/anchor
+            ~/.avm
+            ~/.local/share/solana
+            ~/.cache/solana
+          key: toolchain-${{ runner.os }}-solana-${{ env.SOLANA_VERSION }}-anchor-${{ env.ANCHOR_VERSION }}
+
+      # What building anchor-cli from source needs on a bare runner; skipped
+      # entirely when the toolchain comes back from the cache.
+      - name: Install the build prerequisites
+        if: steps.toolchain-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends             build-essential pkg-config libssl-dev libudev-dev llvm libclang-dev protobuf-compiler
+
+      - name: Install the Solana CLI
+        if: steps.toolchain-cache.outputs.cache-hit != 'true'
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSfL "https://release.anza.xyz/v${SOLANA_VERSION}/install" | sh -s
+
+      - name: Put the Solana CLI on PATH
+        run: echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Install Anchor via avm
+        if: steps.toolchain-cache.outputs.cache-hit != 'true'
+        run: |
+          cargo install --git https://github.com/solana-foundation/anchor \
+            --tag "v${ANCHOR_VERSION}" avm --locked --force
+          avm install "${ANCHOR_VERSION}"
+          avm use "${ANCHOR_VERSION}"
+
+      - name: Report the toolchain
+        run: |
+          solana --version
+          anchor --version
+          cargo --version
+
+      - name: Cache the SBF build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: anchor
+          cache-directories: target/sbf-solana-solana
+
+      - name: anchor build
+        run: anchor build
+
+      # The test-league cases need a second binary, carrying the feature the
+      # judged program never does (research R11). `league-setup.spec.ts` skips
+      # them when it is missing, and a gate that skips in silence is worse than
+      # one that fails. The command lives in tests/package.json, so the workflow
+      # and a developer's shell build it the same way.
+      - name: Build the test-leagues binary
+        run: npm --prefix tests run build:test-leagues
+
+      # The IDL is the build's output and the Codama client is generated from it
+      # (quickstart §3). A stale committed copy means the client in the repository
+      # describes a contract that no longer exists — fail here, on the diff, rather
+      # than three jobs later on a puzzling decode error.
+      - name: Refresh the IDL
+        run: |
+          mkdir -p idl
+          cp target/idl/holdout.json idl/holdout.json
+
+      - name: The committed IDL matches the build
+        run: git diff --exit-code -- idl/
+
+      # Everything the contract tests reach for under `target/`: the judged
+      # binary, the test-leagues one, and the build's IDL — which
+      # `no-oracle.spec.ts` reads at `target/idl/holdout.json`, not from the
+      # committed copy. The committed copy rides along for the codegen step.
+      - name: Publish the program and the IDL
+        uses: actions/upload-artifact@v4
+        with:
+          name: program
+          path: |
+            target/deploy/holdout.so
+            target/test-leagues/holdout.so
+            target/idl/holdout.json
+            idl/holdout.json
+          if-no-files-found: error
+          retention-days: 7
+
+  # -------------------------------------------------------- contract tests
+  contract-tests:
+    name: Contract tests — Kit + LiteSVM
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: anchor
+    steps:
+      - uses: actions/checkout@v4
+
+      # The same binary `anchor build` produced, at the path the harness expects
+      # (`tests/helpers/harness.ts`: target/deploy/holdout.so).
+      - name: Fetch the program and the IDL
+        uses: actions/download-artifact@v4
+        with:
+          name: program
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+
+      - name: Install dependencies
+        working-directory: tests
+        run: npm ci
+
+      - name: Regenerate the Codama client
+        working-directory: tests
+        run: npm run codegen
+
+      - name: The committed client matches the IDL
+        run: git diff --exit-code -- tests/clients/
+
+      - name: Type-check
+        working-directory: tests
+        run: npx tsc --noEmit
+
+      # Constitution VII writes the suites before the logic, so a red test is
+      # the normal state of work not yet done. The gate ratchets instead of
+      # choosing between a permanently red build and a blind one: every passing
+      # test is gated, and the ones red on purpose are listed in
+      # `tests/known-red.json`. A new failure fails the build; a listed test that
+      # starts passing fails it too, until `--update` takes it off the list and it
+      # joins the gated set. The list shrinks to nothing as T027 onward land.
+      - name: vitest — the gate
+        working-directory: tests
+        run: npm run ci:gate
+
+      # The suites regenerate the golden JSON the Rust, TypeScript and Kotlin
+      # sides all read; a diff here means the three have drifted apart.
+      - name: Fixtures unchanged
+        run: git diff --exit-code -- fixtures/
+
+  # ------------------------------------------------------------------- gate
+  # One required check for branch protection: green only when every job above is.
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [program, anchor, contract-tests]
+    if: always()
+    steps:
+      - name: Check the results
+        run: |
+          echo "program:        ${{ needs.program.result }}"
+          echo "anchor:         ${{ needs.anchor.result }}"
+          echo "contract-tests: ${{ needs.contract-tests.result }}"
+          [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "false" ]

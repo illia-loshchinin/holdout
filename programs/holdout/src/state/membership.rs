@@ -16,7 +16,9 @@ pub const MAX_TIER: u8 = 3;
 /// `Withdrawn` is not here: leaving the lobby closes the account and returns its
 /// rent. `Pending` and `Active` are derived from the cohort's status while the
 /// state is `Joined` (spec §8.2).
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, Default, PartialEq, Eq, InitSpace)]
+#[derive(
+    AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, Default, PartialEq, Eq, InitSpace,
+)]
 pub enum MembershipState {
     #[default]
     Joined,
@@ -137,7 +139,10 @@ mod tests {
         let c = cohort();
         let m = membership(0, MembershipState::Joined);
         let deadline = c.deadline_of(0);
-        assert!(!m.in_breach(&c, deadline), "the deadline second is still theirs");
+        assert!(
+            !m.in_breach(&c, deadline),
+            "the deadline second is still theirs"
+        );
         assert!(m.in_breach(&c, deadline + 1), "and the next one is not");
     }
 
@@ -145,7 +150,10 @@ mod tests {
     fn a_lobby_membership_cannot_be_in_breach() {
         let c = cohort();
         let m = membership(0, MembershipState::Joined);
-        assert!(!m.in_breach(&c, c.start - 1), "nothing is owed before the start (old I2)");
+        assert!(
+            !m.in_breach(&c, c.start - 1),
+            "nothing is owed before the start (old I2)"
+        );
     }
 
     #[test]
@@ -161,7 +169,10 @@ mod tests {
         let c = cohort();
         let breached = membership(0, MembershipState::Joined);
         let at = c.deadline_of(0) + 1;
-        assert!(!breached.standing(&c, at), "the counter drops at the deadline (FR-038a)");
+        assert!(
+            !breached.standing(&c, at),
+            "the counter drops at the deadline (FR-038a)"
+        );
 
         let finished = membership(7, MembershipState::Finished);
         assert!(finished.standing(&c, at));
@@ -169,6 +180,10 @@ mod tests {
         assert!(claimed.standing(&c, at));
         let forfeited = membership(2, MembershipState::Forfeited);
         assert!(!forfeited.standing(&c, at));
-        assert_eq!(forfeited.days_lasted(), 2, "roster order for the forfeited (FR-062)");
+        assert_eq!(
+            forfeited.days_lasted(),
+            2,
+            "roster order for the forfeited (FR-062)"
+        );
     }
 }

@@ -1,5 +1,7 @@
 # Holdout
 
+[![CI](https://github.com/illia-loshchinin/holdout/actions/workflows/ci.yml/badge.svg)](https://github.com/illia-loshchinin/holdout/actions/workflows/ci.yml)
+
 Solana Mobile fitness commitment dApp. Built for the CLOCK IN hackathon, submission due 9 Oct 2026.
 
 **Devnet only, mock SKR mint — a test network with a test token.** Nothing here touches mainnet or real value.

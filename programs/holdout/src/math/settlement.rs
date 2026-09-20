@@ -113,15 +113,26 @@ mod tests {
             let (fee, pool) = match v.pool_override {
                 Some(p) => (0, p),
                 None => {
+                    let mut forfeited = 0u64;
                     let mut fee = 0u64;
                     let mut pool = v.carry_over_in;
                     for (chip, count) in &v.forfeited_stakes {
                         let chip: u64 = chip.parse().unwrap();
                         for _ in 0..*count {
+                            forfeited += chip;
                             fee += fee_of(chip);
                             pool += pool_contribution(chip);
                         }
                     }
+                    // The vector states the forfeited total; read it, so a vector
+                    // whose stakes and total disagree fails here rather than
+                    // silently agreeing with whatever the stakes add up to.
+                    assert_eq!(forfeited, v.expected.forfeited, "forfeited — {ctx}");
+                    assert_eq!(
+                        fee + pool - v.carry_over_in,
+                        forfeited,
+                        "fee and pool split the forfeits — {ctx}"
+                    );
                     (fee, pool)
                 }
             };
@@ -133,7 +144,10 @@ mod tests {
                 .iter()
                 .map(|(chip, count)| chip.parse::<u64>().unwrap() * u64::from(*count))
                 .sum();
-            assert_eq!(total, v.expected.total_finisher_stake, "finisher stake — {ctx}");
+            assert_eq!(
+                total, v.expected.total_finisher_stake,
+                "finisher stake — {ctx}"
+            );
 
             if total == 0 {
                 let (fee_half, carry) = no_finisher_split(pool);

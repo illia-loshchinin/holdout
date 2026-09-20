@@ -31,3 +31,15 @@ anchor-spl = { version = "=1.1.2", features = ["token", "token_2022"] }
 [dev-dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# Anchor's `#[program]` expansion emits `cfg`s the crate itself never declares —
+# `target_os = "solana"` for the on-chain target and three features the runtime
+# sets. Declaring them here keeps `clippy -D warnings` (CI) honest: an *actual*
+# stale `cfg` still fails, these four no longer do.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+  'cfg(target_os, values("solana"))',
+  'cfg(feature, values("anchor-debug"))',
+  'cfg(feature, values("custom-heap"))',
+  'cfg(feature, values("custom-panic"))',
+] }
