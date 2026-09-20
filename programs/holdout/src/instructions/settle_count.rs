@@ -208,7 +208,11 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleCount<'info>>) -> Result<
                 .record_forfeit_counted(outcome_at);
         }
 
-        // Either way the obligation is over, so the member is free to stake again.
+        // Either way the obligation is over, so the member is free to stake
+        // again — which means clearing the place wherever it sits. A member who
+        // never sat a day still has this cohort in `pending`, and
+        // `release_running` cannot reach it there (data-model §1.5).
+        profile.normalise_slots(now);
         profile.release_running(&cohort_key);
 
         membership.counted = true;

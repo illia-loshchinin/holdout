@@ -220,6 +220,28 @@ mod tests {
     }
 
     #[test]
+    fn a_forfeit_frees_the_place_of_a_member_who_never_sat_a_day() {
+        // The member staked and never showed up, so nothing ever normalised
+        // their slots: the cohort is still in `pending`, never in `running`.
+        // `release_running` alone cannot reach it there, and a place left on the
+        // profile would answer `LobbyPlaceTaken` for every later join — a
+        // forfeit ending the member's place in the league (FR-002).
+        let cohort = Pubkey::new_unique();
+        let start = 1_790_571_600;
+        let mut p = profile();
+        p.pending = PendingSlot { cohort, start };
+
+        let now = start + 86_400;
+        p.release_running(&cohort);
+        assert_eq!(p.pending.cohort, cohort, "release alone leaves it stranded");
+
+        p.normalise_slots(now);
+        p.release_running(&cohort);
+        assert!(p.pending.is_none(), "the place is free again");
+        assert!(p.running.is_none());
+    }
+
+    #[test]
     fn a_lobby_place_becomes_the_running_one_at_its_start() {
         let mut p = profile();
         let cohort = Pubkey::new_unique();

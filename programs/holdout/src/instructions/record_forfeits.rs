@@ -139,6 +139,13 @@ pub(crate) fn handler<'info>(ctx: Context<'info, RecordForfeits<'info>>) -> Resu
         let progress = profile.progress_mut(league_id);
         progress.forfeited = progress.forfeited.saturating_add(1);
         progress.touch(outcome_at);
+        // Normalisation first (data-model §1.5): a member who never sat a
+        // single day still has this cohort in `pending`, and `release_running`
+        // cannot reach it there. Without this, forfeiting without ever sitting
+        // would leave the lobby place on their profile for good and every later
+        // join would answer `LobbyPlaceTaken` — a forfeit ending the member's
+        // place in the league, which is exactly what FR-002 forbids.
+        profile.normalise_slots(now);
         profile.release_running(&cohort_key);
 
         membership.state = MembershipState::Forfeited;
