@@ -1,36 +1,4 @@
 {
   "$comment": "Tests that are red on purpose: written before the logic they describe (constitution VII). Regenerate with `npm run ci:gate -- --update`. The list shrinks as tasks land; when it empties, delete it, delete scripts/ci-gate.mjs, and let the workflow run `npm test`.",
-  "tests": [
-    "scenarios/league-setup.spec.ts :: a cohort cannot open before a chip set is published (FR-055b) fails open_cohort with ChipSetNotPublished, and succeeds with the same accounts once a set exists",
-    "scenarios/league-setup.spec.ts :: a cohort cannot open before a chip set is published (FR-055b) is for the operator only",
-    "scenarios/league-setup.spec.ts :: a cohort cannot open before a chip set is published (FR-055b) never lowers max_top_tier, and never changes a cohort that already copied a set (FR-055, FR-055b)",
-    "scenarios/league-setup.spec.ts :: a cohort cannot open before a chip set is published (FR-055b) records the published set: version, amounts, when, and the highest top tier ever seen",
-    "scenarios/league-setup.spec.ts :: a cohort cannot open before a chip set is published (FR-055b) rejects a decreasing pair with InvalidChipSet, and publishes nothing",
-    "scenarios/league-setup.spec.ts :: a cohort cannot open before a chip set is published (FR-055b) rejects a zero first amount with InvalidChipSet, and publishes nothing",
-    "scenarios/league-setup.spec.ts :: a cohort cannot open before a chip set is published (FR-055b) rejects two equal neighbours with InvalidChipSet, and publishes nothing",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) a real league keeps the devnet timing accepts any Monday at 05:00 UTC as the first start",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) a real league keeps the devnet timing rejects a cadence that is not weekly with InvalidLeagueTiming",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) a real league keeps the devnet timing rejects a day that is not 24 hours with InvalidLeagueTiming",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) a real league keeps the devnet timing rejects a first start on Monday at 04:00 UTC with InvalidLeagueTiming",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) a real league keeps the devnet timing rejects a first start on a Tuesday with InvalidLeagueTiming",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) a real league keeps the devnet timing rejects a first start one second before Monday 05:00 UTC with InvalidLeagueTiming",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) a real league keeps the devnet timing rejects a first start one second past Monday 05:00 UTC with InvalidLeagueTiming",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) a real league keeps the devnet timing rejects a join lock that is not one hour with InvalidLeagueTiming",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) a test league (id 100 and up) needs a test-leagues build is refused by the judged build, whatever its timing",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) creates the 21-day league beside it",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) creates the 7-day league with the devnet timing, and stores what it was given",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) exercise accepts 0, which is push-ups",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) exercise rejects 1, negative push-ups with ExerciseNotSupported, and creates nothing",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) exercise rejects 2, decline push-ups with ExerciseNotSupported, and creates nothing",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) exercise rejects any other value with ExerciseNotSupported, and creates nothing",
-    "scenarios/league-setup.spec.ts :: create_league (data-model §1.2, H30) is for the admin only",
-    "scenarios/league-setup.spec.ts :: create_league in a test-leagues build accepts a test league with any timing",
-    "scenarios/league-setup.spec.ts :: create_league in a test-leagues build still holds a real league to the devnet timing — the feature widens test leagues only",
-    "scenarios/league-setup.spec.ts :: create_league in a test-leagues build still rejects a reserved exercise",
-    "scenarios/league-setup.spec.ts :: initialize (research R14) accepts the upgrade authority, who becomes admin, and creates everything the program needs",
-    "scenarios/league-setup.spec.ts :: initialize (research R14) cannot run twice: a second initialize fails and leaves Config as it was",
-    "scenarios/league-setup.spec.ts :: initialize (research R14) refuses a stranger with NotUpgradeAuthority, and creates nothing",
-    "scenarios/league-setup.spec.ts :: initialize (research R14) refuses even the deployer once the authority has moved on — the current authority decides, not the original",
-    "scenarios/league-setup.spec.ts :: initialize (research R14) refuses everyone when the program is immutable, since nobody holds the authority"
-  ]
+  "tests": []
 }
