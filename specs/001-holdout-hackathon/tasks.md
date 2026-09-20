@@ -191,11 +191,11 @@
 
 **Independent test**: with the crank stopped, one second after a deadline every device already excludes the members who missed it; recording their forfeits later changes no displayed figure.
 
-- [ ] T072 [US7] Write `tests/scenarios/derived-figures.spec.ts` — figures computed at the deadline match the figures after recording, for a 1,000-member cohort (FR-038a, AC-8)
+- [X] T072 [US7] Write `tests/scenarios/derived-figures.spec.ts` — figures computed at the deadline match the figures after recording, for a 1,000-member cohort (FR-038a, AC-8)
 - [ ] T073 [US7] Build the cohort home variant in `kotlin/app/src/main/kotlin/holdout/app/home/CohortHome.kt` — survivor counter and prize pool as the largest things, projected share, days remaining, the member's own record, and the counter rolling rather than cutting (FR-038, PRD §10.1a, §11.5)
 - [ ] T074 [P] [US7] Build the roster in `kotlin/app/src/main/kotlin/holdout/app/roster/RosterScreen.kt` — still standing first, then forfeited by days lasted, scripted members labelled from the bundled list (FR-062, FR-064)
 - [ ] T075 [P] [US7] Build cohort detail in `kotlin/app/src/main/kotlin/holdout/app/cohort/CohortDetailScreen.kt` — days remaining, own completion record, projected share, survivor history (US-7)
-- [ ] T076 [US7] Run the randomised invariant suite at 1,000 members in `tests/invariants/randomised.spec.ts` — joins, sittings, misses, claims, pages out of order and repeated, INV-1…INV-9 after every step, and **one sequence replayed in two processing orders** — every forfeit recorded before the earlier cohorts settle, then the reverse — with every profile required to end identical (INV-9, FR-061a). **This is spike S3** (research S3): run it as soon as the instruction set first compiles, not at the end of the phase; if it fails, cut the page size or add address lookup tables before building further (AC-7)
+- [X] T076 [US7] Run the randomised invariant suite at 1,000 members in `tests/invariants/randomised.spec.ts` — joins, sittings, misses, claims, pages out of order and repeated, INV-1…INV-9 after every step, and **one sequence replayed in two processing orders** — every forfeit recorded before the earlier cohorts settle, then the reverse — with every profile required to end identical (INV-9, FR-061a). **This is spike S3** (research S3): run it as soon as the instruction set first compiles, not at the end of the phase; if it fails, cut the page size or add address lookup tables before building further (AC-7)
 
 **Checkpoint**: the number that sells the product is live and provably backed by chain state.
 
