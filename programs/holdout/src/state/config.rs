@@ -149,7 +149,11 @@ mod tests {
         let mut f = faucet();
         assert!(f.charge(DEFAULT_DAILY_LAMPORT_CAP - 1, 7));
         assert!(!f.charge(2, 7), "a charge past the cap is refused whole");
-        assert_eq!(f.lamports_today, DEFAULT_DAILY_LAMPORT_CAP - 1, "and writes nothing");
+        assert_eq!(
+            f.lamports_today,
+            DEFAULT_DAILY_LAMPORT_CAP - 1,
+            "and writes nothing"
+        );
         assert!(f.charge(1, 7), "the last lamport of the day still fits");
     }
 
@@ -158,7 +162,11 @@ mod tests {
         let mut f = faucet();
         assert!(f.charge(DEFAULT_DAILY_LAMPORT_CAP, 7));
         assert_eq!(f.remaining_today(7), 0);
-        assert_eq!(f.remaining_today(8), DEFAULT_DAILY_LAMPORT_CAP, "a new day, a new budget");
+        assert_eq!(
+            f.remaining_today(8),
+            DEFAULT_DAILY_LAMPORT_CAP,
+            "a new day, a new budget"
+        );
         assert!(f.charge(1, 8));
         assert_eq!(f.lamports_today, 1, "yesterday's spend does not carry");
         assert_eq!(f.lamport_day, 8);
@@ -170,8 +178,15 @@ mod tests {
         let half = DEFAULT_SPONSOR_FLOAT / 2;
         assert_eq!(f.sponsor_refill(DEFAULT_SPONSOR_FLOAT), None);
         assert_eq!(f.sponsor_refill(half), None, "still half full");
-        assert_eq!(f.sponsor_refill(half - 1), Some(DEFAULT_SPONSOR_FLOAT - (half - 1)));
-        assert_eq!(f.sponsor_refill(0), Some(DEFAULT_SPONSOR_FLOAT), "drained by whoever has the key");
+        assert_eq!(
+            f.sponsor_refill(half - 1),
+            Some(DEFAULT_SPONSOR_FLOAT - (half - 1))
+        );
+        assert_eq!(
+            f.sponsor_refill(0),
+            Some(DEFAULT_SPONSOR_FLOAT),
+            "drained by whoever has the key"
+        );
     }
 
     #[test]

@@ -182,7 +182,11 @@ mod tests {
         assert_eq!((p.cleared, p.current_streak, p.longest_streak), (2, 2, 2));
         p.forfeited += 1;
         p.record_forfeit_counted(300);
-        assert_eq!((p.current_streak, p.longest_streak), (0, 2), "the longest never decreases");
+        assert_eq!(
+            (p.current_streak, p.longest_streak),
+            (0, 2),
+            "the longest never decreases"
+        );
         p.record_clear(400);
         assert_eq!((p.current_streak, p.longest_streak, p.played()), (1, 2, 4));
     }
@@ -207,7 +211,11 @@ mod tests {
 
         let mut p = profile();
         p.progress_mut(100).record_clear(1);
-        assert_eq!(p.progress(0).cleared, 0, "a test cohort never touches league 0");
+        assert_eq!(
+            p.progress(0).cleared,
+            0,
+            "a test cohort never touches league 0"
+        );
         assert_eq!(p.progress(100).cleared, 1);
     }
 
@@ -215,7 +223,10 @@ mod tests {
     fn a_lobby_place_becomes_the_running_one_at_its_start() {
         let mut p = profile();
         let cohort = Pubkey::new_unique();
-        p.pending = PendingSlot { cohort, start: 1_000 };
+        p.pending = PendingSlot {
+            cohort,
+            start: 1_000,
+        };
 
         p.normalise_slots(999);
         assert!(!p.pending.is_none(), "not yet");
@@ -225,7 +236,10 @@ mod tests {
         assert_eq!(p.running.cohort, cohort);
 
         p.release_running(&Pubkey::new_unique());
-        assert_eq!(p.running.cohort, cohort, "another cohort's outcome leaves it alone");
+        assert_eq!(
+            p.running.cohort, cohort,
+            "another cohort's outcome leaves it alone"
+        );
         p.release_running(&cohort);
         assert!(p.running.is_none());
     }

@@ -133,7 +133,10 @@ mod tests {
                 .iter()
                 .map(|(chip, count)| chip.parse::<u64>().unwrap() * u64::from(*count))
                 .sum();
-            assert_eq!(total, v.expected.total_finisher_stake, "finisher stake — {ctx}");
+            assert_eq!(
+                total, v.expected.total_finisher_stake,
+                "finisher stake — {ctx}"
+            );
 
             if total == 0 {
                 let (fee_half, carry) = no_finisher_split(pool);

@@ -166,10 +166,18 @@ mod tests {
     fn every_status_boundary_is_one_second_wide() {
         let c = cohort();
         assert_eq!(c.status(c.join_cutoff - 1), CohortStatus::Open);
-        assert_eq!(c.status(c.join_cutoff), CohortStatus::Locked, "the cutoff itself closes it");
+        assert_eq!(
+            c.status(c.join_cutoff),
+            CohortStatus::Locked,
+            "the cutoff itself closes it"
+        );
         assert_eq!(c.status(c.start - 1), CohortStatus::Locked);
         assert_eq!(c.status(c.start), CohortStatus::Running);
-        assert_eq!(c.status(c.end() - 1), CohortStatus::Running, "the last second still counts");
+        assert_eq!(
+            c.status(c.end() - 1),
+            CohortStatus::Running,
+            "the last second still counts"
+        );
         assert_eq!(c.status(c.end()), CohortStatus::Settling);
     }
 

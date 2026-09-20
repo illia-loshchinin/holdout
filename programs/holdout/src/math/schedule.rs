@@ -75,8 +75,14 @@ mod tests {
 
     #[test]
     fn deadlines_land_one_second_before_the_next_boundary() {
-        assert_eq!(deadline_of(FIRST_START, DAY_LENGTH, 0), FIRST_START + DAY_LENGTH - 1);
-        assert_eq!(deadline_of(FIRST_START, DAY_LENGTH, 6), FIRST_START + 7 * DAY_LENGTH - 1);
+        assert_eq!(
+            deadline_of(FIRST_START, DAY_LENGTH, 0),
+            FIRST_START + DAY_LENGTH - 1
+        );
+        assert_eq!(
+            deadline_of(FIRST_START, DAY_LENGTH, 6),
+            FIRST_START + 7 * DAY_LENGTH - 1
+        );
         // A 7-day cohort's final deadline is one second before the next Monday.
         assert_eq!(
             deadline_of(FIRST_START, DAY_LENGTH, 6) + 1,
@@ -93,9 +99,21 @@ mod tests {
     #[test]
     fn the_global_day_turns_over_at_five_utc() {
         let day = global_day_index(FIRST_START);
-        assert_eq!(global_day_index(FIRST_START + DAY_LENGTH - 1), day, "same day one second before");
-        assert_eq!(global_day_index(FIRST_START + DAY_LENGTH), day + 1, "next day at the boundary");
-        assert_eq!(global_day_index(FIRST_START - 1), day - 1, "previous day one second before the start");
+        assert_eq!(
+            global_day_index(FIRST_START + DAY_LENGTH - 1),
+            day,
+            "same day one second before"
+        );
+        assert_eq!(
+            global_day_index(FIRST_START + DAY_LENGTH),
+            day + 1,
+            "next day at the boundary"
+        );
+        assert_eq!(
+            global_day_index(FIRST_START - 1),
+            day - 1,
+            "previous day one second before the start"
+        );
     }
 
     #[test]
@@ -108,33 +126,73 @@ mod tests {
         let cadence = 7 * DAY_LENGTH;
         assert_eq!(cohort_start(FIRST_START, cadence, 0), FIRST_START);
         assert_eq!(cohort_start(FIRST_START, cadence, 1), FIRST_START + cadence);
-        assert_eq!(cohort_start(FIRST_START, cadence, 6), FIRST_START + 6 * cadence);
+        assert_eq!(
+            cohort_start(FIRST_START, cadence, 6),
+            FIRST_START + 6 * cadence
+        );
     }
 
     #[test]
     fn elapsed_days_are_the_current_day_index_and_stop_at_the_duration() {
-        assert_eq!(days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START), 0, "day 0 at the start");
-        assert_eq!(days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START + DAY_LENGTH - 1), 0);
-        assert_eq!(days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START + DAY_LENGTH), 1);
-        assert_eq!(days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START + 99 * DAY_LENGTH), 7);
-        assert_eq!(days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START - 1), 0, "before the start");
+        assert_eq!(
+            days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START),
+            0,
+            "day 0 at the start"
+        );
+        assert_eq!(
+            days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START + DAY_LENGTH - 1),
+            0
+        );
+        assert_eq!(
+            days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START + DAY_LENGTH),
+            1
+        );
+        assert_eq!(
+            days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START + 99 * DAY_LENGTH),
+            7
+        );
+        assert_eq!(
+            days_elapsed(FIRST_START, DAY_LENGTH, 7, FIRST_START - 1),
+            0,
+            "before the start"
+        );
     }
 
     #[test]
     fn the_first_day_can_be_completed_on_the_first_day() {
         // The ceiling INV-3 asserts, not elapsed time: a submission at the very
         // first second of day 0 is valid and leaves `days_completed == 1`.
-        assert_eq!(max_days_completed(FIRST_START, DAY_LENGTH, 7, FIRST_START), 1);
-        assert_eq!(max_days_completed(FIRST_START, DAY_LENGTH, 7, FIRST_START + DAY_LENGTH - 1), 1);
-        assert_eq!(max_days_completed(FIRST_START, DAY_LENGTH, 7, FIRST_START + DAY_LENGTH), 2);
+        assert_eq!(
+            max_days_completed(FIRST_START, DAY_LENGTH, 7, FIRST_START),
+            1
+        );
+        assert_eq!(
+            max_days_completed(FIRST_START, DAY_LENGTH, 7, FIRST_START + DAY_LENGTH - 1),
+            1
+        );
+        assert_eq!(
+            max_days_completed(FIRST_START, DAY_LENGTH, 7, FIRST_START + DAY_LENGTH),
+            2
+        );
     }
 
     #[test]
     fn completed_days_are_capped_at_the_duration() {
         let end = FIRST_START + 7 * DAY_LENGTH;
-        assert_eq!(max_days_completed(FIRST_START, DAY_LENGTH, 7, end - 1), 7, "the final day");
-        assert_eq!(max_days_completed(FIRST_START, DAY_LENGTH, 7, end), 7, "once it has ended");
-        assert_eq!(max_days_completed(FIRST_START, DAY_LENGTH, 7, FIRST_START + 99 * DAY_LENGTH), 7);
+        assert_eq!(
+            max_days_completed(FIRST_START, DAY_LENGTH, 7, end - 1),
+            7,
+            "the final day"
+        );
+        assert_eq!(
+            max_days_completed(FIRST_START, DAY_LENGTH, 7, end),
+            7,
+            "once it has ended"
+        );
+        assert_eq!(
+            max_days_completed(FIRST_START, DAY_LENGTH, 7, FIRST_START + 99 * DAY_LENGTH),
+            7
+        );
         assert_eq!(
             max_days_completed(FIRST_START, DAY_LENGTH, 7, FIRST_START - 1),
             0,
