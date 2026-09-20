@@ -7,6 +7,8 @@
 
 pub mod create_league;
 pub mod initialize;
+pub mod open_cohort;
+pub mod publish_chip_set;
 pub mod set_flags;
 
 // `#[program]` names the `Accounts` structs and the client/CPI modules Anchor
@@ -15,4 +17,6 @@ pub mod set_flags;
 // here — lib.rs calls each by its full path.
 pub use create_league::*;
 pub use initialize::*;
+pub use open_cohort::*;
+pub use publish_chip_set::*;
 pub use set_flags::*;

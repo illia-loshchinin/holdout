@@ -80,6 +80,16 @@ pub mod holdout {
         )
     }
 
+    /// Operator only. Four SKR amounts, never a price (constitution III).
+    pub fn publish_chip_set(ctx: Context<PublishChipSet>, amounts: [u64; 4]) -> Result<()> {
+        instructions::publish_chip_set::handler(ctx, amounts)
+    }
+
+    /// Permissionless: the caller pays the rent and nothing else (FR-030a).
+    pub fn open_cohort(ctx: Context<OpenCohort>, league_id: u8, index: u32) -> Result<()> {
+        instructions::open_cohort::handler(ctx, league_id, index)
+    }
+
     /// Admin only. The two gates this build ships off (FR-003, research R17).
     pub fn set_flags(
         ctx: Context<SetFlags>,
