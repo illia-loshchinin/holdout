@@ -19,6 +19,9 @@
  *     green test;
  *   - a test that fails and is on the list is expected, and only counted.
  *
+ * `--update` only ever removes entries: it refuses to run while a failure is
+ * missing from the list, so it can never adopt a regression as intentional.
+ *
  * The list is meant to shrink to nothing. When it is empty, delete it, delete
  * this script, and make the workflow run `npm test`.
  */
@@ -105,7 +108,22 @@ if (update) {
     if (unexplained) console.error(`  vitest exited ${run.status} with nothing red to explain it.`);
     process.exit(1);
   }
-  const tests = [...failing].sort();
+  // The list may only shrink. Rewriting it from whatever is failing right now
+  // would quietly adopt a regression as intentional the first time someone runs
+  // `--update` on a tree that has both a test that landed and a test that broke.
+  const seeding = !existsSync(BASELINE);
+  const listed = new Set(readBaseline());
+  const unlisted = [...failing].filter((t) => !listed.has(t)).sort();
+  if (!seeding && unlisted.length > 0) {
+    console.error(`ci-gate: ${unlisted.length} failing test(s) are not on the list, so this is not`);
+    console.error('a run to update from — fix them first. `--update` only removes entries:');
+    for (const t of unlisted) console.error(`  ${t}`);
+    console.error('');
+    console.error('A test that was renamed keeps its old entry; take that one out by hand.');
+    process.exit(1);
+  }
+  const tests = (seeding ? [...failing] : [...listed].filter((t) => failing.has(t))).sort();
+  const dropped = seeding ? 0 : listed.size - tests.length;
   writeFileSync(
     BASELINE,
     `${JSON.stringify(
@@ -120,7 +138,11 @@ if (update) {
       2,
     )}\n`,
   );
-  console.log(`ci-gate: baseline rewritten — ${tests.length} test(s) red on purpose.`);
+  console.log(
+    seeding
+      ? `ci-gate: baseline seeded — ${tests.length} test(s) red on purpose.`
+      : `ci-gate: ${dropped} test(s) taken off the list, ${tests.length} still red on purpose.`,
+  );
   process.exit(0);
 }
 
