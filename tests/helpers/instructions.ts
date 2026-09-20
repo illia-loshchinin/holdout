@@ -315,3 +315,53 @@ export const submitDayIx = async (
     data: concat(instructionDiscriminator('submit_day'), u8(dayIndex), proofHash),
   };
 };
+
+// ------------------------------------------------------------- record_forfeits
+
+/** A page pair: the membership and the profile of its wallet. */
+export interface ForfeitPair {
+  membership: Address;
+  profile: Address;
+}
+
+/** The pairs for a set of wallets in one cohort, in the order given. */
+export const forfeitPairs = async (
+  cohort: Address,
+  wallets: readonly Address[],
+): Promise<ForfeitPair[]> =>
+  Promise.all(
+    wallets.map(async (wallet) => ({
+      membership: await membershipPda(cohort, wallet),
+      profile: await profilePda(wallet),
+    })),
+  );
+
+/**
+ * `record_forfeits()`, permissionless: the caller pays the fee and the outcome
+ * does not depend on who they are (FR-030a). The pairs ride in the remaining
+ * accounts, up to ten of them, and pairs not in breach or already forfeited are
+ * skipped rather than refused — so a page may be repeated and re-ordered freely
+ * (research R9, INV-7).
+ */
+export const recordForfeitsIx = async (
+  caller: Address,
+  feeDestination: Address,
+  leagueId: number,
+  index: number,
+  pairs: readonly ForfeitPair[],
+): Promise<Instruction> => {
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      rwSigner(caller),
+      ro(await configPda()),
+      rw(cohort),
+      rw(await vaultPda(cohort)),
+      rw(feeDestination),
+      ro(TOKEN_PROGRAM),
+      ...pairs.flatMap((pair) => [rw(pair.membership), rw(pair.profile)]),
+    ],
+    data: instructionDiscriminator('record_forfeits'),
+  };
+};
