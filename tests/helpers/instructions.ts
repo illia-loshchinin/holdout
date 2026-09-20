@@ -287,3 +287,31 @@ export const leaveCohortIx = async (
     data: instructionDiscriminator('leave_cohort'),
   };
 };
+
+// ------------------------------------------------------------------ submit_day
+
+/**
+ * `submit_day(day_index, proof_hash)`. The member signs and pays the fee; no
+ * money moves. The proof is **emitted and not stored** (research R16, FR-025),
+ * so nothing here writes 32 bytes per member per day into an account.
+ */
+export const submitDayIx = async (
+  member: Address,
+  leagueId: number,
+  index: number,
+  dayIndex: number,
+  proofHash: Uint8Array,
+): Promise<Instruction> => {
+  if (proofHash.length !== 32) throw new Error(`a proof hash is 32 bytes, got ${proofHash.length}`);
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      rwSigner(member),
+      ro(cohort),
+      rw(await membershipPda(cohort, member)),
+      rw(await profilePda(member)),
+    ],
+    data: concat(instructionDiscriminator('submit_day'), u8(dayIndex), proofHash),
+  };
+};
