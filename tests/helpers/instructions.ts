@@ -465,3 +465,56 @@ export const claimPayoutIx = async (
     data: instructionDiscriminator('claim_payout'),
   };
 };
+
+// ---------------------------------------------------------------- claim_faucet
+
+/**
+ * `claim_faucet(recipient)`. **The recipient does not sign** (research R13):
+ * a brand-new wallet holds no SOL and cannot pay for its own first
+ * transaction, so the bundled sponsor pays and is reimbursed from the vault in
+ * the same instruction. A wallet that already holds SOL may pay for itself
+ * instead, and `payer` is then the recipient.
+ */
+export const claimFaucetIx = async (
+  payer: Address,
+  recipient: Address,
+  skrMint: Address,
+  sponsor: Address,
+): Promise<Instruction> => ({
+  programAddress: PROGRAM_ID,
+  accounts: [
+    rwSigner(payer),
+    rw(await configPda()),
+    rw(recipient),
+    rw(await profilePda(recipient)),
+    rw(skrMint),
+    ro(await mintAuthorityPda()),
+    rw(await associatedTokenPda(recipient, skrMint)),
+    rw(await faucetVaultPda()),
+    rw(sponsor),
+    ro(SYSTEM_PROGRAM),
+    ro(TOKEN_PROGRAM),
+    ro(ASSOCIATED_TOKEN_PROGRAM),
+  ],
+  data: concat(instructionDiscriminator('claim_faucet'), key(recipient)),
+});
+
+// -------------------------------------------------------------- top_up_sponsor
+
+/**
+ * `top_up_sponsor()`. Permissionless and **the sponsor does not sign**: the key
+ * ships in the app, so anyone can empty its float and anyone must be able to
+ * refill it, or a drain would end zero-SOL onboarding rather than costing a
+ * day's allowance (FR-042b, research R13).
+ */
+export const topUpSponsorIx = async (caller: Address, sponsor: Address): Promise<Instruction> => ({
+  programAddress: PROGRAM_ID,
+  accounts: [
+    rwSigner(caller),
+    rw(await configPda()),
+    rw(await faucetVaultPda()),
+    rw(sponsor),
+    ro(SYSTEM_PROGRAM),
+  ],
+  data: instructionDiscriminator('top_up_sponsor'),
+});
