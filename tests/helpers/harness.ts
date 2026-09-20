@@ -74,6 +74,12 @@ import {
   profilePda,
   programDataPda,
   vaultPda,
+  cohortBump,
+  configBump,
+  leagueBump,
+  membershipBump,
+  profileBump,
+  vaultBump,
 } from './pdas.js';
 import type {
   CohortSnapshot,
@@ -368,7 +374,7 @@ export class Harness {
         lamportDay: 0n,
         lamportsToday: 0n,
       },
-      bump: 255,
+      bump: await configBump(),
       ...over,
     };
     this.put(at, Config.encode(config));
@@ -398,7 +404,7 @@ export class Harness {
       cadence: BigInt(WEEK),
       joinLock: BigInt(HOUR),
       nextIndex: 0,
-      bump: 255,
+      bump: await leagueBump(leagueId),
       ...over,
     };
     this.put(at, LeagueConfig.encode(account));
@@ -445,8 +451,10 @@ export class Harness {
       carryOverSent: 0n,
       carryOverHeld: 0n,
       carryOverTarget: NO_KEY,
-      vaultBump: 255,
-      bump: 255,
+      // The real bumps, not placeholders: the program signs the vault transfers
+      // with `cohort.bump`, so an injected lie here fails inside `leave_cohort`.
+      vaultBump: await vaultBump(await cohortPda(leagueId, index)),
+      bump: await cohortBump(leagueId, index),
       ...fields,
     };
 
@@ -484,7 +492,7 @@ export class Harness {
       daysCompleted: 0,
       state: 'Joined',
       counted: false,
-      bump: 255,
+      bump: await membershipBump(cohort, wallet),
       ...over,
     };
     this.put(at, Membership.encode(membership));
@@ -501,7 +509,7 @@ export class Harness {
       running: { cohort: NO_KEY, end: 0n },
       pending: { cohort: NO_KEY, start: 0n },
       lastFaucetDay: -1n,
-      bump: 255,
+      bump: await profileBump(wallet),
       ...over,
     };
     this.put(at, Profile.encode(profile));

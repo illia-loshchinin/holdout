@@ -8,5 +8,7 @@
 
 export * from './config';
 export * from './faucetVault';
+export * from './membership';
 export * from './mintAuthority';
+export * from './profile';
 export * from './vault';

@@ -90,6 +90,16 @@ pub mod holdout {
         instructions::open_cohort::handler(ctx, league_id, index)
     }
 
+    /// A member picks a tier, never an amount (AC-13, FR-055).
+    pub fn join_cohort(ctx: Context<JoinCohort>, tier: u8) -> Result<()> {
+        instructions::join_cohort::handler(ctx, tier)
+    }
+
+    /// Unconditional and lossless while joining is open (FR-009).
+    pub fn leave_cohort(ctx: Context<LeaveCohort>) -> Result<()> {
+        instructions::leave_cohort::handler(ctx)
+    }
+
     /// Admin only. The two gates this build ships off (FR-003, research R17).
     pub fn set_flags(
         ctx: Context<SetFlags>,

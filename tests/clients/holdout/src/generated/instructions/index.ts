@@ -8,6 +8,8 @@
 
 export * from './createLeague';
 export * from './initialize';
+export * from './joinCohort';
+export * from './leaveCohort';
 export * from './openCohort';
 export * from './publishChipSet';
 export * from './setFlags';

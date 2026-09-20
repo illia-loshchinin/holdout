@@ -240,7 +240,9 @@ describe('two daily obligations never overlap (FR-006b, INV-4)', () => {
   });
 
   it('frees the slot once the running cohort\'s final deadline has passed', async () => {
-    const next = await lobbyAt(1, RUNNING_END + HOUR);
+    // Starting two hours out, so its own cutoff is still an hour away at
+    // `RUNNING_END` — this test is about the running slot, not the cutoff.
+    const next = await lobbyAt(1, RUNNING_END + 2 * HOUR);
     await h.injectProfile(member.address, {
       running: { cohort: running, end: 0n },
     });

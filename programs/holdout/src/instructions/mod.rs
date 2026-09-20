@@ -7,6 +7,8 @@
 
 pub mod create_league;
 pub mod initialize;
+pub mod join_cohort;
+pub mod leave_cohort;
 pub mod open_cohort;
 pub mod publish_chip_set;
 pub mod set_flags;
@@ -17,6 +19,8 @@ pub mod set_flags;
 // here — lib.rs calls each by its full path.
 pub use create_league::*;
 pub use initialize::*;
+pub use join_cohort::*;
+pub use leave_cohort::*;
 pub use open_cohort::*;
 pub use publish_chip_set::*;
 pub use set_flags::*;
