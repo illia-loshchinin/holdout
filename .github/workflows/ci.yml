@@ -140,6 +140,14 @@ jobs:
       - name: anchor build
         run: anchor build
 
+      # The test-league cases need a second binary, carrying the feature the
+      # judged program never does (research R11). `league-setup.spec.ts` skips
+      # them when it is missing, and a gate that skips in silence is worse than
+      # one that fails. The command lives in tests/package.json, so the workflow
+      # and a developer's shell build it the same way.
+      - name: Build the test-leagues binary
+        run: npm --prefix tests run build:test-leagues
+
       # The IDL is the build's output and the Codama client is generated from it
       # (quickstart §3). A stale committed copy means the client in the repository
       # describes a contract that no longer exists — fail here, on the diff, rather
@@ -158,6 +166,7 @@ jobs:
           name: program
           path: |
             target/deploy/holdout.so
+            target/test-leagues/holdout.so
             idl/holdout.json
           if-no-files-found: error
           retention-days: 7
