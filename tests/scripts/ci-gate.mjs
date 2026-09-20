@@ -59,12 +59,36 @@ const idOf = (file, assertion) => `${relative(TESTS, file).split(sep).join('/')}
 
 const failing = new Set();
 const passing = new Set();
+/**
+ * Files that failed without any test failing in them: an import that does not
+ * resolve, a syntax error, a throw at the top of the file. Vitest reports those
+ * with no assertions at all, so a file full of green tests can vanish from the
+ * report entirely — and a gate that only reads assertions would call that a
+ * clean run (it is the one way this script could wave a broken suite through).
+ */
+const broken = [];
 for (const file of report.testResults) {
+  let failedHere = 0;
   for (const a of file.assertionResults) {
-    if (a.status === 'failed') failing.add(idOf(file.name, a));
-    else if (a.status === 'passed') passing.add(idOf(file.name, a));
+    if (a.status === 'failed') {
+      failing.add(idOf(file.name, a));
+      failedHere += 1;
+    } else if (a.status === 'passed') passing.add(idOf(file.name, a));
+  }
+  if (file.status === 'failed' && failedHere === 0) {
+    broken.push({
+      file: relative(TESTS, file.name).split(sep).join('/'),
+      why: (file.message || 'no message').split('\n')[0].trim(),
+    });
   }
 }
+
+/**
+ * Vitest exits non-zero whenever anything is red, which is the normal state
+ * here, so the exit code alone says nothing. It does say something when nothing
+ * red is visible: the run then failed for a reason the report does not show.
+ */
+const unexplained = run.status !== 0 && failing.size === 0 && broken.length === 0;
 
 // ------------------------------------------------------------ the baseline
 
@@ -75,6 +99,12 @@ const readBaseline = () => {
 };
 
 if (update) {
+  if (broken.length > 0 || unexplained) {
+    console.error('ci-gate: the suite did not run cleanly — refusing to write a baseline from it.');
+    for (const b of broken) console.error(`  ${b.file}: ${b.why}`);
+    if (unexplained) console.error(`  vitest exited ${run.status} with nothing red to explain it.`);
+    process.exit(1);
+  }
   const tests = [...failing].sort();
   writeFileSync(
     BASELINE,
@@ -114,6 +144,18 @@ say('');
 say(`- **${passing.size} passing**, gated: any one of them breaking fails the build.`);
 say(`- ${stillRed} red on purpose (constitution VII), listed in \`tests/known-red.json\`.`);
 
+if (broken.length > 0) {
+  say('');
+  say(`**${broken.length} file(s) failed before their tests ran** — every test in them is missing`);
+  say('from this report, so nothing here vouches for them:');
+  for (const b of broken) say(`  - \`${b.file}\` — ${b.why}`);
+}
+
+if (unexplained) {
+  say('');
+  say(`**vitest exited ${run.status} with nothing red to explain it** — treat the run as failed.`);
+}
+
 if (regressions.length > 0) {
   say('');
   say(`**${regressions.length} regression(s)** — failing, and not on the list:`);
@@ -137,4 +179,5 @@ if (process.env.GITHUB_STEP_SUMMARY) {
   appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
 }
 
-process.exit(regressions.length + landed.length + vanished.length > 0 ? 1 : 0);
+const problems = regressions.length + landed.length + vanished.length + broken.length;
+process.exit(problems > 0 || unexplained ? 1 : 0);
