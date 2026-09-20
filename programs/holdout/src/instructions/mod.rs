@@ -12,6 +12,7 @@ pub mod leave_cohort;
 pub mod open_cohort;
 pub mod publish_chip_set;
 pub mod set_flags;
+pub mod submit_day;
 
 // `#[program]` names the `Accounts` structs and the client/CPI modules Anchor
 // generates beside them, so the glob is what the macro needs. Each module's
@@ -24,3 +25,4 @@ pub use leave_cohort::*;
 pub use open_cohort::*;
 pub use publish_chip_set::*;
 pub use set_flags::*;
+pub use submit_day::*;

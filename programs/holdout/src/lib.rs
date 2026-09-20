@@ -100,6 +100,11 @@ pub mod holdout {
         instructions::leave_cohort::handler(ctx)
     }
 
+    /// One completed day; the proof is emitted, never stored (research R16).
+    pub fn submit_day(ctx: Context<SubmitDay>, day_index: u8, proof_hash: [u8; 32]) -> Result<()> {
+        instructions::submit_day::handler(ctx, day_index, proof_hash)
+    }
+
     /// Admin only. The two gates this build ships off (FR-003, research R17).
     pub fn set_flags(
         ctx: Context<SetFlags>,

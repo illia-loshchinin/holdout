@@ -117,9 +117,18 @@ pub fn require_submittable(
         membership.state == MembershipState::Joined,
         HoldoutError::CohortNotRunning
     );
+    // The two mismatches are different answers, as the contract's table says:
+    // a day behind the member's next one is one they already completed (6033),
+    // while a day ahead of it — or one that is not today — is the wrong day
+    // (6031). A member in breach meets the second: their next day is an
+    // earlier one, and that day is no longer today.
+    require!(
+        day_index >= membership.days_completed,
+        HoldoutError::DayAlreadyCompleted
+    );
     require!(
         day_index == membership.days_completed,
-        HoldoutError::DayAlreadyCompleted
+        HoldoutError::WrongDay
     );
     require!(day_index == cohort.day_index(now), HoldoutError::WrongDay);
     require!(
@@ -195,6 +204,17 @@ mod tests {
         }
     }
 
+    /// The number a client would match on, out of an `anchor_lang::Error`.
+    fn anchor_error_code(err: &Error) -> u32 {
+        match err {
+            Error::AnchorError(inner) => inner.error_code_number,
+            Error::ProgramError(inner) => match inner.program_error {
+                anchor_lang::solana_program::program_error::ProgramError::Custom(code) => code,
+                ref other => panic!("not a custom error: {other:?}"),
+            },
+        }
+    }
+
     fn profile() -> Profile {
         Profile {
             wallet: Pubkey::default(),
@@ -230,6 +250,30 @@ mod tests {
         assert!(
             require_submittable(&membership(1), &c, 1, FIRST_START).is_err(),
             "day 1 is not today yet"
+        );
+    }
+
+    /// The contract's table gives the two mismatches different codes, and
+    /// clients match on the numbers (contracts §5).
+    #[test]
+    fn a_day_behind_is_already_completed_and_a_day_ahead_is_the_wrong_day() {
+        let c = cohort(FIRST_START, 7);
+
+        // Completed day 0, still day 0: asking for day 0 again.
+        let err = require_submittable(&membership(1), &c, 0, FIRST_START).unwrap_err();
+        assert_eq!(anchor_error_code(&err), 6033, "DayAlreadyCompleted");
+
+        // Next day is 0, asking for day 1 — skipping ahead.
+        let err = require_submittable(&membership(0), &c, 1, FIRST_START).unwrap_err();
+        assert_eq!(anchor_error_code(&err), 6031, "WrongDay");
+
+        // In breach: day 0 was missed, and it is day 2 now.
+        let now = FIRST_START + 2 * DEVNET_DAY_LENGTH;
+        let err = require_submittable(&membership(0), &c, 0, now).unwrap_err();
+        assert_eq!(
+            anchor_error_code(&err),
+            6031,
+            "WrongDay, not a completed day"
         );
     }
 

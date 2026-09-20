@@ -1027,6 +1027,104 @@
           "type": "bool"
         }
       ]
+    },
+    {
+      "name": "submit_day",
+      "docs": [
+        "One completed day; the proof is emitted, never stored (research R16)."
+      ],
+      "discriminator": [
+        72,
+        224,
+        17,
+        130,
+        158,
+        107,
+        140,
+        136
+      ],
+      "accounts": [
+        {
+          "name": "member",
+          "docs": [
+            "Pays the fee, and nothing else leaves their wallet."
+          ],
+          "signer": true
+        },
+        {
+          "name": "cohort"
+        },
+        {
+          "name": "membership",
+          "docs": [
+            "The seeds carry the member's own key, so a signer can only ever move",
+            "their own count."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cohort"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "day_index",
+          "type": "u8"
+        },
+        {
+          "name": "proof_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
     }
   ],
   "accounts": [

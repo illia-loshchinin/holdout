@@ -13,3 +13,4 @@ export * from './leaveCohort';
 export * from './openCohort';
 export * from './publishChipSet';
 export * from './setFlags';
+export * from './submitDay';
