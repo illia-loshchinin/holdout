@@ -43,6 +43,10 @@ const vitestArgs = argv.filter((a) => a !== '--update');
 
 // --------------------------------------------------------------- run vitest
 
+// A report left behind by a run that was killed would otherwise be read as this
+// run's result the moment vitest fails to start at all — a stale green.
+rmSync(REPORT, { force: true });
+
 const run = spawnSync(
   'npx',
   // The same selection as `npm test` in package.json: the Surfpool smoke suite
