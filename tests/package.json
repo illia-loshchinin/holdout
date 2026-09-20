@@ -6,6 +6,7 @@
   "description": "Contract tests for Holdout: Kit + LiteSVM with clock control, plus a Surfpool smoke suite (research R2)",
   "scripts": {
     "test": "vitest run --exclude 'smoke/**'",
+    "ci:gate": "node scripts/ci-gate.mjs",
     "test:watch": "vitest --exclude 'smoke/**'",
     "smoke": "vitest run --dir smoke",
     "codegen": "node scripts/codegen.mjs",

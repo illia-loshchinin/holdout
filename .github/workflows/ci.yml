@@ -214,30 +214,16 @@ jobs:
         working-directory: tests
         run: npx tsc --noEmit
 
-      # Constitution VII writes the suites before the logic, so part of this
-      # suite is red on purpose until the instructions land. The split keeps the
-      # gate meaningful in the meantime: what is already implemented must stay
-      # green, and what is not yet written is reported without blocking.
-      #
-      # **When the last scenario goes green (T027 onward), delete both steps and
-      # leave a single blocking `npm test`.**
-      - name: vitest — the suites that must be green
+      # Constitution VII writes the suites before the logic, so a red test is
+      # the normal state of work not yet done. The gate ratchets instead of
+      # choosing between a permanently red build and a blind one: every passing
+      # test is gated, and the ones red on purpose are listed in
+      # `tests/known-red.json`. A new failure fails the build; a listed test that
+      # starts passing fails it too, until `--update` takes it off the list and it
+      # joins the gated set. The list shrinks to nothing as T027 onward land.
+      - name: vitest — the gate
         working-directory: tests
-        run: npx vitest run helpers invariants scenarios/no-oracle.spec.ts
-
-      - name: vitest — the scenario suites (test-first; red until the instructions land)
-        id: scenarios
-        working-directory: tests
-        continue-on-error: true
-        run: npm test
-
-      - name: Where the scenarios stand
-        if: always()
-        run: |
-          echo "### Scenario suites: ${{ steps.scenarios.outcome }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Red here is expected while the instructions are unwritten (constitution VII)." >> "$GITHUB_STEP_SUMMARY"
-          echo "It stops being expected once tasks T027 onward are done." >> "$GITHUB_STEP_SUMMARY"
+        run: npm run ci:gate
 
       # The suites regenerate the golden JSON the Rust, TypeScript and Kotlin
       # sides all read; a diff here means the three have drifted apart.
