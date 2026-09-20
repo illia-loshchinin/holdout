@@ -9,6 +9,7 @@
     "test:watch": "vitest --exclude 'smoke/**'",
     "smoke": "vitest run --dir smoke",
     "codegen": "node scripts/codegen.mjs",
+    "build:test-leagues": "cd .. && NO_DNA=1 cargo build-sbf --features test-leagues --manifest-path programs/holdout/Cargo.toml --sbf-out-dir target/test-leagues",
     "fixtures": "vitest run fixtures/generate.ts"
   },
   "dependencies": {

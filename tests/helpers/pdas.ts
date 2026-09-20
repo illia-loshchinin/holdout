@@ -16,6 +16,7 @@ export const UPGRADEABLE_LOADER: Address = address('BPFLoaderUpgradeab1e11111111
 
 export const TOKEN_PROGRAM: Address = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 export const SYSTEM_PROGRAM: Address = address('11111111111111111111111111111111');
+export const ASSOCIATED_TOKEN_PROGRAM: Address = address('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 
 const utf8 = (s: string): Uint8Array => new TextEncoder().encode(s);
 const addr = (a: Address): Uint8Array => new Uint8Array(getAddressEncoder().encode(a));
@@ -46,6 +47,10 @@ export const profilePda = (wallet: Address): Promise<Address> =>
 export const faucetVaultPda = (): Promise<Address> => derive(PROGRAM_ID, [utf8('faucet_vault')]);
 
 export const mintAuthorityPda = (): Promise<Address> => derive(PROGRAM_ID, [utf8('mint_authority')]);
+
+/** A wallet's associated token account for a mint — where the treasury's fees land. */
+export const associatedTokenPda = (owner: Address, mint: Address): Promise<Address> =>
+  derive(ASSOCIATED_TOKEN_PROGRAM, [addr(owner), addr(TOKEN_PROGRAM), addr(mint)]);
 
 /** The loader's `ProgramData` account, whose upgrade authority `initialize` checks. */
 export const programDataPda = (): Promise<Address> => derive(UPGRADEABLE_LOADER, [addr(PROGRAM_ID)]);
