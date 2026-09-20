@@ -24,7 +24,9 @@ wallet = "~/.config/solana/id.json"
 # Smoke suite only (quickstart §6). The real integration suite is Kit + LiteSVM,
 # run with `npm --prefix tests test` — research R2.
 [scripts]
-test = "npx vitest run --dir tests/smoke"
+# Through npm so the pinned Vitest in tests/package-lock.json runs; a bare `npx` from
+# this directory has no manifest and would fetch an unpinned copy from the registry.
+test = "npm --prefix tests run smoke"
 
 [test]
 startup_wait = 20000
