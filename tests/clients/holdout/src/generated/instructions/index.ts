@@ -6,6 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from './claimPayout';
 export * from './createLeague';
 export * from './initialize';
 export * from './joinCohort';
@@ -14,4 +15,6 @@ export * from './openCohort';
 export * from './publishChipSet';
 export * from './recordForfeits';
 export * from './setFlags';
+export * from './settleCount';
+export * from './settleFinalize';
 export * from './submitDay';

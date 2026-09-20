@@ -110,6 +110,22 @@ pub mod holdout {
         instructions::record_forfeits::handler(ctx)
     }
 
+    /// Paged, repeatable, and the only step that writes a streak (FR-061a).
+    pub fn settle_count<'info>(ctx: Context<'info, SettleCount<'info>>) -> Result<()> {
+        instructions::settle_count::handler(ctx)
+    }
+
+    /// Once. Constant-time per-tier shares; the carry-over's destination is
+    /// fixed by chain state, never by the caller (FR-030a, FR-037a).
+    pub fn settle_finalize<'info>(ctx: Context<'info, SettleFinalize<'info>>) -> Result<()> {
+        instructions::settle_finalize::handler(ctx)
+    }
+
+    /// A deliberate member action, claimable indefinitely (FR-034, FR-035).
+    pub fn claim_payout(ctx: Context<ClaimPayout>) -> Result<()> {
+        instructions::claim_payout::handler(ctx)
+    }
+
     /// Admin only. The two gates this build ships off (FR-003, research R17).
     pub fn set_flags(
         ctx: Context<SetFlags>,

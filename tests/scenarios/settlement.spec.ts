@@ -554,9 +554,11 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
       crank,
     );
 
-    // The league's latest cohort is this one, which is not a lobby at all.
+    // The league's latest cohort is this one, so there is no later cohort to
+    // carry into and no account the caller could pass to say otherwise — the
+    // program answers with the reason, not a bare "target required".
     const before = await h.snapshot();
-    expectProgramError(await finalize(0, await carryOverTarget(league, 0)), 'CarryOverTargetNotOpen');
+    expectProgramError(await finalize(0), 'CarryOverTargetNotOpen');
     assertUnchanged(before, await h.snapshot());
 
     // Opening the next one is permissionless and always due, so the refusal
@@ -609,7 +611,7 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
       if (finalizeFirst) {
         // The refusal, then the lobby, then the same call again.
         expectProgramError(
-          await harness.send([await settleFinalizeIx(runner.address, fees, id, 0, await carryOverTarget(id, 0))], runner),
+          await harness.send([await settleFinalizeIx(runner.address, fees, id, 0)], runner),
           'CarryOverTargetNotOpen',
         );
       }
@@ -658,10 +660,23 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
 
     h.setTime(END);
     const before = await h.snapshot();
-    // The foreign pair would drive this cohort's `counted` towards its
-    // `member_count` without its own members ever being counted.
+    // The foreign pair, by its own cohort's PDA: it exists and decodes, which is
+    // exactly what makes it dangerous. Counting it would drive this cohort's
+    // `counted` towards its `member_count` without its own members ever being
+    // counted.
     expectProgramError(
-      await count(0, [stranger.address]),
+      await h.send(
+        [
+          await settleCountIx(
+            crank.address,
+            feeDestination,
+            league,
+            0,
+            await forfeitPairs(foreign, [stranger.address]),
+          ),
+        ],
+        crank,
+      ),
       'AccountMismatch',
     );
     assertUnchanged(before, await h.snapshot());
