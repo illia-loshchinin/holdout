@@ -76,10 +76,17 @@ pub struct RunningSlot {
 }
 
 /// A lobby place in a cohort that has not started. Default = none (FR-006a).
+///
+/// `end` is the cohort's own end, copied in as the place is taken. It is dead
+/// weight until the place is promoted, and then it is the whole point: the
+/// running slot's `end` is what stops a second obligation overlapping this one
+/// (FR-006b, INV-4), and the cohort account is not passed to every instruction
+/// that normalises the slots, so the end has to travel with the place.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, Default, InitSpace)]
 pub struct PendingSlot {
     pub cohort: Pubkey,
     pub start: i64,
+    pub end: i64,
 }
 
 impl RunningSlot {
@@ -143,7 +150,7 @@ impl Profile {
         if !self.pending.is_none() && self.pending.start <= now {
             self.running = RunningSlot {
                 cohort: self.pending.cohort,
-                end: 0,
+                end: self.pending.end,
             };
             self.pending.clear();
         }
@@ -226,6 +233,7 @@ mod tests {
         p.pending = PendingSlot {
             cohort,
             start: 1_000,
+            end: 8_000,
         };
 
         p.normalise_slots(999);
@@ -234,6 +242,11 @@ mod tests {
         p.normalise_slots(1_000);
         assert!(p.pending.is_none());
         assert_eq!(p.running.cohort, cohort);
+        assert_eq!(
+            p.running.end, 8_000,
+            "the obligation the promotion carries over — a zero here would let the \
+             next join start inside this cohort (FR-006b, INV-4)"
+        );
 
         p.release_running(&Pubkey::new_unique());
         assert_eq!(

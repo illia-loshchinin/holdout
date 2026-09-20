@@ -79,6 +79,14 @@ pub fn require_slot_free(profile: &Profile, cohort: &Cohort, now: i64) -> Result
 /// The three things `submit_day` needs beyond the cohort being `Running`: the
 /// day is the member's next one, it is today, and today's deadline has not
 /// passed (FR-013, FR-017, FR-025, INV-8 — errors 6031, 6032, 6033).
+///
+/// The order is what tells the three apart, because a client picks its recovery
+/// path from the code. A day below `days_completed` is a repeat whatever the
+/// clock says (6033); one above it was never the member's next day, so it is
+/// wrong rather than late (6031); and only once the index is the right one does
+/// the deadline speak — before the calendar does, since a missed day always
+/// falls on a day that has since turned over, and `WrongDay` would otherwise
+/// swallow every 6032 a member could ever see.
 pub fn require_submittable(
     membership: &Membership,
     cohort: &Cohort,
@@ -90,14 +98,18 @@ pub fn require_submittable(
         HoldoutError::CohortNotRunning
     );
     require!(
-        day_index == membership.days_completed,
+        day_index >= membership.days_completed,
         HoldoutError::DayAlreadyCompleted
     );
-    require!(day_index == cohort.day_index(now), HoldoutError::WrongDay);
+    require!(
+        day_index == membership.days_completed,
+        HoldoutError::WrongDay
+    );
     require!(
         now <= cohort.deadline_of(day_index),
         HoldoutError::DeadlinePassed
     );
+    require!(day_index == cohort.day_index(now), HoldoutError::WrongDay);
     Ok(())
 }
 
@@ -179,6 +191,15 @@ mod tests {
         }
     }
 
+    /// The code a rejection carries — the contract a client matches on, so the
+    /// tests below pin it rather than settling for `is_err`.
+    fn code_of(result: Result<()>) -> u32 {
+        match result.expect_err("expected a rejection") {
+            Error::AnchorError(e) => e.error_code_number,
+            other => panic!("expected an AnchorError, got {other:?}"),
+        }
+    }
+
     #[test]
     fn a_day_is_submittable_only_on_its_own_day_and_before_its_deadline() {
         let c = cohort(FIRST_START, 7);
@@ -202,6 +223,53 @@ mod tests {
         assert!(
             require_submittable(&membership(1), &c, 1, FIRST_START).is_err(),
             "day 1 is not today yet"
+        );
+    }
+
+    #[test]
+    fn each_rejected_submission_names_its_own_code() {
+        let c = cohort(FIRST_START, 7);
+
+        // A missed day: still the member's next one, but its deadline has gone.
+        // The clock has moved on to day 1, which must not turn this into 6031 —
+        // day lengths are positive, so every missed day looks exactly like this.
+        assert_eq!(
+            code_of(require_submittable(
+                &membership(0),
+                &c,
+                0,
+                c.deadline_of(0) + 1
+            )),
+            u32::from(HoldoutError::DeadlinePassed),
+            "6032 is what a member who missed day 0 must be told"
+        );
+
+        // A repeat: the day is below `days_completed`, whatever the clock says.
+        assert_eq!(
+            code_of(require_submittable(
+                &membership(2),
+                &c,
+                1,
+                FIRST_START + 2 * c.day_length
+            )),
+            u32::from(HoldoutError::DayAlreadyCompleted),
+            "6033 is a second submit, and only that (FR-025)"
+        );
+
+        // A day that was never the member's next one — malformed or stale, not
+        // a repeat: nothing has completed day 3.
+        assert_eq!(
+            code_of(require_submittable(&membership(0), &c, 3, FIRST_START)),
+            u32::from(HoldoutError::WrongDay),
+            "6031 for a future index, never 6033"
+        );
+
+        // The right index, in time for its deadline, but not today: the member
+        // is somehow ahead of the cohort.
+        assert_eq!(
+            code_of(require_submittable(&membership(3), &c, 3, FIRST_START)),
+            u32::from(HoldoutError::WrongDay),
+            "6031 for the calendar day"
         );
     }
 
@@ -240,10 +308,41 @@ mod tests {
         p.pending = PendingSlot {
             cohort: Pubkey::new_unique(),
             start: running_end,
+            end: running_end + 7 * DEVNET_DAY_LENGTH,
         };
         assert!(
             require_slot_free(&p, &touching, FIRST_START).is_err(),
             "one lobby place at a time (FR-006a)"
+        );
+    }
+
+    #[test]
+    fn a_promoted_lobby_place_still_blocks_an_overlapping_join() {
+        let started = cohort(FIRST_START, 7);
+        let mut p = profile();
+        p.pending = PendingSlot {
+            cohort: Pubkey::new_unique(),
+            start: started.start,
+            end: started.end(),
+        };
+
+        // The place is taken while the cohort is still in the lobby, and the
+        // member comes back on its first day — the promotion has to hand the
+        // running slot a real end, not a zero, or nothing below refuses.
+        let now = started.start;
+        p.normalise_slots(now);
+        assert!(p.pending.is_none(), "promoted");
+
+        let overlapping = cohort(started.end() - 1, 7);
+        assert!(
+            require_slot_free(&p, &overlapping, now).is_err(),
+            "a cohort starting inside the promoted obligation (FR-006b, INV-4)"
+        );
+
+        let after = cohort(started.end(), 7);
+        assert!(
+            require_slot_free(&p, &after, now).is_ok(),
+            "one starting as it ends is fine"
         );
     }
 

@@ -50,6 +50,9 @@ const cohort = (over: Partial<CohortSnapshot> = {}): CohortSnapshot => ({
   settled: false,
   sharePerTier: [0n, 0n, 0n, 0n],
   roundingRemainder: 0n,
+  noFinisherFee: 0n,
+  carryOverSent: 0n,
+  carryOverTarget: null,
   carryOverHeld: 0n,
   vaultAmount: 100n,
   ...over,
@@ -84,6 +87,7 @@ const profile = (over: Partial<ProfileSnapshot> = {}): ProfileSnapshot => ({
   runningEnd: 0,
   pendingCohort: null,
   pendingStart: 0,
+  pendingEnd: 0,
   ...over,
 });
 
@@ -197,6 +201,239 @@ describe('INV-8 · breach blocks submission', () => {
     const prev = snapshot({ now: c.start, memberships: [membership({ daysCompleted: 0 })] });
     const next = snapshot({ now: c.start + 60, memberships: [membership({ daysCompleted: 1 })] });
     expect(() => assertInvariants(next, prev)).not.toThrow();
+  });
+
+  it('catches the stale submission a step advanced its clock into', () => {
+    // The shape a scenario produces when it snapshots, advances the clock past
+    // day 0's deadline, and the program then accepts day 0 anyway. Read at the
+    // previous instant this looks lawful, and INV-3's ceiling has risen with
+    // the clock, so nothing else is watching.
+    const c = cohort();
+    const prev = snapshot({ now: c.start, memberships: [membership({ daysCompleted: 0 })] });
+    const next = snapshot({
+      now: c.start + DAY + 10,
+      memberships: [membership({ daysCompleted: 1 })],
+    });
+    expectViolation('INV-8', () => assertInvariants(next, prev));
+  });
+});
+
+describe('INV-6 · a settled cohort only moves through claims', () => {
+  /** A settled cohort: one finisher of tier 3, stake 100, owed a share of 80. */
+  const settled = (over: Partial<CohortSnapshot> = {}): CohortSnapshot =>
+    cohort({
+      settled: true,
+      counted: 1,
+      finisherCount: 1,
+      finishersPerTier: [0, 0, 0, 1],
+      totalFinisherStake: 100n,
+      sharePerTier: [0n, 0n, 0n, 80n],
+      heldStake: 100n,
+      pool: 80n,
+      vaultAmount: 180n,
+      ...over,
+    });
+
+  const at = FIRST_START + 8 * DAY;
+  const finished = membership({ state: 'Finished', daysCompleted: 7, counted: true });
+  /** What INV-9 derives from that one counted finish — the streak is not the point here. */
+  const cleared = [profile({ leagues: { 0: progress({ cleared: 1, currentStreak: 1, longestStreak: 1 }) } })];
+
+  it('accepts a claim that takes exactly the stake and the share', () => {
+    const prev = snapshot({ now: at, cohorts: [settled()], memberships: [finished], profiles: cleared });
+    const next = snapshot({
+      now: at,
+      cohorts: [settled({ heldStake: 0n, pool: 0n, vaultAmount: 0n })],
+      memberships: [{ ...finished, state: 'Claimed' }],
+      profiles: cleared,
+    });
+    expect(() => assertInvariants(next, prev)).not.toThrow();
+  });
+
+  it('catches balances walked down with the vault and no claim to show for it', () => {
+    // The books balance — INV-1 holds at both ends — and every membership is
+    // still `Finished`. Only the missing claim gives it away.
+    const prev = snapshot({ now: at, cohorts: [settled()], memberships: [finished], profiles: cleared });
+    const next = snapshot({
+      now: at,
+      cohorts: [settled({ pool: 30n, vaultAmount: 130n })],
+      memberships: [finished],
+      profiles: cleared,
+    });
+    expectViolation('INV-6', () => assertInvariants(next, prev));
+  });
+
+  it('catches a held stake that fell further than the claim returns', () => {
+    const prev = snapshot({ now: at, cohorts: [settled()], memberships: [finished], profiles: cleared });
+    const next = snapshot({
+      now: at,
+      cohorts: [settled({ heldStake: 0n, pool: 0n, vaultAmount: 0n, memberCount: 1 })],
+      memberships: [{ ...finished, stake: 40n, state: 'Claimed' }],
+      profiles: cleared,
+    });
+    expectViolation('INV-6', () => assertInvariants(next, prev));
+  });
+});
+
+describe('INV-2 · finalization lands on an exact pool', () => {
+  const counted = (over: Partial<CohortSnapshot> = {}): CohortSnapshot =>
+    cohort({
+      memberCount: 1,
+      counted: 1,
+      finisherCount: 1,
+      finishersPerTier: [0, 0, 0, 1],
+      totalFinisherStake: 100n,
+      heldStake: 100n,
+      pool: 81n,
+      vaultAmount: 181n,
+      ...over,
+    });
+
+  const at = FIRST_START + 8 * DAY;
+  const finisher = membership({ state: 'Finished', daysCompleted: 7, counted: true });
+  const cleared = [profile({ leagues: { 0: progress({ cleared: 1, currentStreak: 1, longestStreak: 1 }) } })];
+
+  it('accepts the shares it owes plus the remainder it gave up', () => {
+    const prev = snapshot({ now: at, cohorts: [counted()], memberships: [finisher], profiles: cleared });
+    const next = snapshot({
+      now: at,
+      cohorts: [
+        counted({ settled: true, sharePerTier: [0n, 0n, 0n, 80n], roundingRemainder: 1n, pool: 80n, vaultAmount: 180n }),
+      ],
+      memberships: [finisher],
+      profiles: cleared,
+    });
+    expect(() => assertInvariants(next, prev)).not.toThrow();
+  });
+
+  it('catches a finalize that drained the claimable shares', () => {
+    // The pool falls, the vault falls with it, and the shares the cohort wrote
+    // still promise 80 per finisher. Only the first claim would find out.
+    const prev = snapshot({ now: at, cohorts: [counted()], memberships: [finisher], profiles: cleared });
+    const next = snapshot({
+      now: at,
+      cohorts: [
+        counted({ settled: true, sharePerTier: [0n, 0n, 0n, 80n], roundingRemainder: 1n, pool: 0n, vaultAmount: 100n }),
+      ],
+      memberships: [finisher],
+      profiles: cleared,
+    });
+    expectViolation('INV-2', () => assertInvariants(next, prev));
+  });
+
+  it('requires a no-finisher cohort to empty its pool into the fee and the carry', () => {
+    const lobby = cohort({
+      address: 'cohort-B',
+      index: 1,
+      start: FIRST_START + 7 * DAY,
+      joinCutoff: FIRST_START + 7 * DAY - 3_600,
+      memberCount: 0,
+      heldStake: 0n,
+      vaultAmount: 0n,
+    });
+    const empty = counted({
+      finisherCount: 0,
+      finishersPerTier: [0, 0, 0, 0],
+      totalFinisherStake: 0n,
+      heldStake: 0n,
+      pool: 81n,
+      vaultAmount: 81n,
+    });
+    const prev = snapshot({ now: at, cohorts: [empty, lobby], memberships: [] });
+    const settledEmpty = {
+      ...empty,
+      settled: true,
+      pool: 0n,
+      vaultAmount: 0n,
+      noFinisherFee: 40n,
+      carryOverSent: 41n,
+      carryOverTarget: 'cohort-B',
+    };
+    const fed = { ...lobby, pool: 41n, carryOverReceived: 41n, vaultAmount: 41n };
+    expect(() =>
+      assertInvariants(snapshot({ now: at, cohorts: [settledEmpty, fed], memberships: [] }), prev),
+    ).not.toThrow();
+
+    // The same split, one unit short of the pool it started with.
+    expectViolation('INV-2', () =>
+      assertInvariants(
+        snapshot({
+          now: at,
+          cohorts: [{ ...settledEmpty, noFinisherFee: 39n }, fed],
+          memberships: [],
+        }),
+        prev,
+      ),
+    );
+  });
+});
+
+describe('INV-2 · a carry-over has to have a sender', () => {
+  const at = FIRST_START + 8 * DAY;
+
+  const lobby = cohort({
+    address: 'cohort-B',
+    index: 1,
+    start: FIRST_START + 7 * DAY,
+    joinCutoff: FIRST_START + 7 * DAY - 3_600,
+    memberCount: 0,
+    heldStake: 0n,
+    vaultAmount: 0n,
+  });
+
+  /** A cohort of *another* league, nobody finished, ready to finalize. */
+  const stranger = cohort({
+    address: 'cohort-C',
+    leagueId: 1,
+    index: 4,
+    memberCount: 0,
+    heldStake: 0n,
+    pool: 81n,
+    vaultAmount: 81n,
+  });
+
+  it('catches a pool fed by a counter nobody sent anything into', () => {
+    const prev = snapshot({ now: at, cohorts: [lobby], memberships: [] });
+    expectViolation('INV-2', () =>
+      assertInvariants(
+        snapshot({
+          now: at,
+          cohorts: [{ ...lobby, pool: 41n, carryOverReceived: 41n, vaultAmount: 41n }],
+          memberships: [],
+        }),
+        prev,
+      ),
+    );
+  });
+
+  it('catches a carry-over that crossed from another league', () => {
+    // Every figure on both sides adds up on its own: the source splits its pool
+    // into a fee and a carry and empties it, the target's `carry_over_received`
+    // covers its new pool, and INV-1 holds at both ends. Only putting the two
+    // sides next to each other shows the carry left league 1 and landed in
+    // league 0, which FR-037a does not allow.
+    const prev = snapshot({ now: at, cohorts: [lobby, stranger], memberships: [] });
+    expectViolation('INV-2', () =>
+      assertInvariants(
+        snapshot({
+          now: at,
+          cohorts: [
+            { ...lobby, pool: 41n, carryOverReceived: 41n, vaultAmount: 41n },
+            {
+              ...stranger,
+              settled: true,
+              pool: 0n,
+              vaultAmount: 0n,
+              noFinisherFee: 40n,
+              carryOverSent: 41n,
+              carryOverTarget: 'cohort-B',
+            },
+          ],
+          memberships: [],
+        }),
+        prev,
+      ),
+    );
   });
 });
 

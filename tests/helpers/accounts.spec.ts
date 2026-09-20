@@ -125,7 +125,7 @@ const profile: ProfileAccount = {
     { cleared: 0, forfeited: 1, currentStreak: 0, longestStreak: 0, lastChanged: 1_790_700_000n },
   ],
   running: { cohort: key(0xaa), end: 1_791_800_000n },
-  pending: { cohort: key(0xbb), start: 1_792_000_000n },
+  pending: { cohort: key(0xbb), start: 1_792_000_000n, end: 1_792_600_000n },
   lastFaucetDay: 20_351n,
   bump: 248,
 };
@@ -135,7 +135,7 @@ const cases = [
   ['LeagueConfig', LeagueConfig, leagueConfig, 50],
   ['Cohort', Cohort, cohort, 236],
   ['Membership', Membership, membership, 93],
-  ['Profile', Profile, profile, 178],
+  ['Profile', Profile, profile, 186],
 ] as const;
 
 describe.each(cases)('%s', (name, layout, expected, space) => {

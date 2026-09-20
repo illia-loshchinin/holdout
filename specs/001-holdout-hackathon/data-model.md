@@ -133,13 +133,13 @@ Created by the first `claim_faucet` or `join_cohort`, whichever comes first.
 | `leagues[l].longest_streak` | u16 | `max(longest, current)`, written in the same step |
 | `leagues[l].last_changed` | i64 | The instant of the member's most recent outcome in that league — the cohort's `end` for a clear, the missed `deadline_of(days_completed)` for a forfeit — and **never the time the transaction landed**. Written as `max(last_changed, t)`, so neither page order nor a late crank run can change it. Leaderboard tie-break (FR-060b) |
 | `running` | {cohort: Pubkey, end: i64} | Membership in a started cohort; default = none |
-| `pending` | {cohort: Pubkey, start: i64} | Lobby place; default = none |
+| `pending` | {cohort: Pubkey, start: i64, end: i64} | Lobby place; default = none. `end` is the lobby cohort's own end, copied in as the place is taken: normalisation promotes the place without the cohort account in hand, and `running.end` is the only figure the overlap guard has (FR-006b, INV-4) |
 | `last_faucet_day` | i64 | Day index of last faucet claim; −1 = never |
 | `bump` | u8 | |
 
 `cleared` and `forfeited` are order-independent counters: `forfeited` rises the moment a forfeit is recorded (FR-060a), `cleared` when the cohort is counted. Only the two streak figures need cohort order, and only `settle_count` writes them.
 
-**Slot normalisation** (run at the start of `join_cohort`, `leave_cohort`, `submit_day`, and when forfeits and counts touch the profile): if `pending.start ≤ now`, move `pending` into `running`. Recording a forfeit or counting a finisher clears `running` when it matches that cohort.
+**Slot normalisation** (run at the start of `join_cohort`, `leave_cohort`, `submit_day`, and when forfeits and counts touch the profile): if `pending.start ≤ now`, move `pending` into `running`, **carrying `pending.end` over as `running.end`** — a promotion that left the end at zero would read as “no obligation” and let the very next join start inside the cohort it just promoted. Recording a forfeit or counting a finisher clears `running` when it matches that cohort.
 
 Per-league progress is recorded from Phase 1; league leaderboards reading it are Phase 2 (spec §3a).
 
@@ -189,7 +189,7 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | **INV-5** denominator once | `settle_finalize` requires `!settled` | Double-finalize test |
 | **INV-6** settled is final | Only `claim_payout` and **[Phase 2]** `deliver_carry_over` accept a settled cohort | Instruction-matrix test |
 | **INV-7** idempotent automation | Per-membership state and `counted` flags | Pages out of order and repeated (AC-7) |
-| **INV-8** breach blocks submit | `submit_day` deadline guard, no dependency on forfeits | V16 |
+| **INV-8** breach blocks submit | `submit_day` deadline guard, no dependency on forfeits. The guard is ordered so the deadline is read **before** the current-day check: a missed day always falls on a day that has since turned over, so the reverse order answers every late submission with `WrongDay` and 6032 is never raised. Checked per step at the **post-transaction** clock — reading the breach at the pre-step instant passes a submission the step's own clock advance made late | V16 |
 | **INV-9** streaks follow cohort order | Streaks written only by `settle_count`, which requires the league's previous cohort to be settled. Checkable on any snapshot: for a wallet, take its memberships whose cohort is `settled`, order them by cohort `start`, and count the finishes since the last forfeit — that number is `current_streak`, and the largest it reaches across that history is `longest_streak` | Per-step derivation in the invariant checker (T017) + the interleaved-settlement scenario across two cohorts of one league (T077a) |
 
 ---

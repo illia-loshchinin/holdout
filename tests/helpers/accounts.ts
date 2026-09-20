@@ -226,7 +226,7 @@ export interface LeagueProgress {
 }
 
 export interface RunningSlot { cohort: Address; end: bigint }
-export interface PendingSlot { cohort: Address; start: bigint }
+export interface PendingSlot { cohort: Address; start: bigint; end: bigint }
 
 export interface ProfileAccount {
   wallet: Address;
@@ -255,7 +255,10 @@ const leagueProgress = struct<LeagueProgress>(
 );
 
 const runningSlot = struct<RunningSlot>({ cohort: pubkey, end: i64 }, ['cohort', 'end']);
-const pendingSlot = struct<PendingSlot>({ cohort: pubkey, start: i64 }, ['cohort', 'start']);
+const pendingSlot = struct<PendingSlot>(
+  { cohort: pubkey, start: i64, end: i64 },
+  ['cohort', 'start', 'end'],
+);
 
 const configCodec = struct<ConfigAccount>(
   {

@@ -163,6 +163,7 @@ fn profile() -> Profile {
         pending: PendingSlot {
             cohort: key(0xbb),
             start: 1_792_000_000,
+            end: 1_792_600_000,
         },
         last_faucet_day: 20_351,
         bump: 248,
@@ -217,7 +218,7 @@ fn every_account_is_the_size_the_typescript_side_allocates() {
     assert_eq!(8 + LeagueConfig::INIT_SPACE, 50);
     assert_eq!(8 + Cohort::INIT_SPACE, 236);
     assert_eq!(8 + Membership::INIT_SPACE, 93);
-    assert_eq!(8 + Profile::INIT_SPACE, 178);
+    assert_eq!(8 + Profile::INIT_SPACE, 186);
 }
 
 #[test]
