@@ -1,6 +1,8 @@
 /**
- * Instruction builders for the setup instructions — `initialize`, `create_league`,
- * `publish_chip_set` and `open_cohort` (contracts/program-instructions §1–§2). Task T017b.
+ * Instruction builders written from the contract rather than generated from the
+ * program: `initialize`, `create_league`, `publish_chip_set` and `open_cohort`
+ * (contracts/program-instructions §1–§2, task T017b), then `join_cohort` and
+ * `leave_cohort` (§3, tasks T054 and T054a).
  *
  * ## Why these are written by hand
  *
@@ -14,7 +16,8 @@
  *
  * The contract names the accounts each instruction touches but not their order, and
  * it does not say how the mint or the fee destination are addressed. The order below
- * is therefore a decision, made here and followed by T027, T028, T055 and T058:
+ * is therefore a decision, made here and followed by T027, T028, T055, T056, T057
+ * and T058:
  *
  *  - Signers first, then the state the instruction reads or writes, then programs.
  *  - The SKR mint is a fresh keypair that signs `initialize` (§6 lists no mint seed).
@@ -23,6 +26,14 @@
  *    to rent exemption and the Operator tops it up by an ordinary transfer.
  *  - `open_cohort` takes the previous cohort as an optional account: the program's
  *    own ID in that slot means "none" (Anchor's convention), which index 0 sends.
+ *  - A member's SKR is held in their **associated** token account, the one
+ *    `claim_faucet` creates, so `join_cohort` and `leave_cohort` address that.
+ *  - `join_cohort` takes the member's running cohort by the same optional-account
+ *    convention, and the program **requires** it whenever `profile.running` is
+ *    set. Slot normalisation moves a lobby place into the running slot knowing
+ *    only the cohort's address and start (data-model §1.5), so `running.end` is
+ *    left at 0 and a guard trusting it would skip the overlap rule; the account
+ *    is what the rule is checked against instead.
  */
 
 import { createHash } from 'node:crypto';
@@ -49,7 +60,9 @@ import {
   configPda,
   faucetVaultPda,
   leaguePda,
+  membershipPda,
   mintAuthorityPda,
+  profilePda,
   programDataPda,
   vaultPda,
 } from './pdas.js';
@@ -202,5 +215,75 @@ export const openCohortIx = async (
       ro(TOKEN_PROGRAM),
     ],
     data: concat(instructionDiscriminator('open_cohort'), u8(leagueId), u32(index)),
+  };
+};
+
+// ----------------------------------------------------------------- join_cohort
+
+/**
+ * `join_cohort(tier)`. The member signs, pays the rent for their `Membership`
+ * (and their `Profile` if this is their first), and the stake moves from their
+ * associated SKR account into the cohort's vault.
+ *
+ * `runningCohort` is the cohort in the member's `profile.running` slot, and the
+ * program requires it whenever that slot is set: slot normalisation cannot fill
+ * `running.end`, so the overlap rule is checked against that cohort's own
+ * account rather than a cached figure. Omitted — the program's own ID in the
+ * slot, Anchor's convention for "none" — for a member with no running cohort.
+ */
+export const joinCohortIx = async (
+  member: Address,
+  skrMint: Address,
+  leagueId: number,
+  index: number,
+  tier: number,
+  runningCohort?: Address,
+): Promise<Instruction> => {
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      rwSigner(member),
+      ro(await configPda()),
+      rw(cohort),
+      rw(await vaultPda(cohort)),
+      rw(await membershipPda(cohort, member)),
+      rw(await profilePda(member)),
+      rw(await associatedTokenPda(member, skrMint)),
+      ro(runningCohort ?? PROGRAM_ID),
+      ro(skrMint),
+      ro(SYSTEM_PROGRAM),
+      ro(TOKEN_PROGRAM),
+    ],
+    data: concat(instructionDiscriminator('join_cohort'), u8(tier)),
+  };
+};
+
+// ---------------------------------------------------------------- leave_cohort
+
+/**
+ * `leave_cohort()`. A full refund with no deduction, the `Membership` closed and
+ * its rent returned, and the lobby place cleared (FR-009). Open status only.
+ */
+export const leaveCohortIx = async (
+  member: Address,
+  skrMint: Address,
+  leagueId: number,
+  index: number,
+): Promise<Instruction> => {
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      rwSigner(member),
+      ro(await configPda()),
+      rw(cohort),
+      rw(await vaultPda(cohort)),
+      rw(await membershipPda(cohort, member)),
+      rw(await profilePda(member)),
+      rw(await associatedTokenPda(member, skrMint)),
+      ro(TOKEN_PROGRAM),
+    ],
+    data: instructionDiscriminator('leave_cohort'),
   };
 };
