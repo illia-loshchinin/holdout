@@ -1,0 +1,721 @@
+{
+  "address": "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4",
+  "metadata": {
+    "name": "holdout",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Holdout — push-up commitment cohorts on Solana devnet"
+  },
+  "instructions": [],
+  "events": [
+    {
+      "name": "CarryOverDelivered",
+      "discriminator": [
+        133,
+        4,
+        96,
+        150,
+        141,
+        96,
+        107,
+        182
+      ]
+    },
+    {
+      "name": "CarryOverHeld",
+      "discriminator": [
+        61,
+        84,
+        89,
+        35,
+        170,
+        204,
+        29,
+        242
+      ]
+    },
+    {
+      "name": "CarryOverSent",
+      "discriminator": [
+        3,
+        56,
+        84,
+        193,
+        174,
+        246,
+        82,
+        216
+      ]
+    },
+    {
+      "name": "ChipSetPublished",
+      "discriminator": [
+        48,
+        130,
+        183,
+        224,
+        63,
+        232,
+        95,
+        131
+      ]
+    },
+    {
+      "name": "CohortOpened",
+      "discriminator": [
+        141,
+        177,
+        142,
+        22,
+        93,
+        105,
+        143,
+        171
+      ]
+    },
+    {
+      "name": "CohortSettled",
+      "discriminator": [
+        51,
+        102,
+        180,
+        239,
+        7,
+        199,
+        225,
+        63
+      ]
+    },
+    {
+      "name": "DayCompleted",
+      "discriminator": [
+        29,
+        125,
+        47,
+        231,
+        128,
+        2,
+        43,
+        73
+      ]
+    },
+    {
+      "name": "FaucetClaimed",
+      "discriminator": [
+        153,
+        213,
+        25,
+        224,
+        176,
+        249,
+        203,
+        218
+      ]
+    },
+    {
+      "name": "FlagsSet",
+      "discriminator": [
+        18,
+        239,
+        239,
+        47,
+        29,
+        66,
+        236,
+        126
+      ]
+    },
+    {
+      "name": "ForfeitRecorded",
+      "discriminator": [
+        0,
+        104,
+        212,
+        140,
+        159,
+        195,
+        207,
+        179
+      ]
+    },
+    {
+      "name": "MemberCounted",
+      "discriminator": [
+        222,
+        213,
+        237,
+        36,
+        164,
+        1,
+        56,
+        93
+      ]
+    },
+    {
+      "name": "MemberJoined",
+      "discriminator": [
+        156,
+        199,
+        149,
+        88,
+        193,
+        203,
+        191,
+        210
+      ]
+    },
+    {
+      "name": "MemberLeft",
+      "discriminator": [
+        48,
+        83,
+        72,
+        92,
+        111,
+        227,
+        133,
+        142
+      ]
+    },
+    {
+      "name": "PayoutClaimed",
+      "discriminator": [
+        200,
+        39,
+        105,
+        112,
+        116,
+        63,
+        58,
+        149
+      ]
+    },
+    {
+      "name": "SponsorToppedUp",
+      "discriminator": [
+        114,
+        41,
+        168,
+        147,
+        136,
+        37,
+        52,
+        34
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NotAdmin",
+      "msg": "Only the admin may do this"
+    },
+    {
+      "code": 6001,
+      "name": "NotOperator",
+      "msg": "Only the operator may publish a chip set"
+    },
+    {
+      "code": 6002,
+      "name": "NotSponsorOrRecipient",
+      "msg": "A faucet claim is paid by the sponsor or by the recipient itself"
+    },
+    {
+      "code": 6003,
+      "name": "NotUpgradeAuthority",
+      "msg": "Only the program's upgrade authority may initialize it"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidLeagueTiming",
+      "msg": "A devnet league must use the default timing; test leagues need a test-leagues build"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidChipSet",
+      "msg": "Chip amounts must be strictly increasing and all above zero"
+    },
+    {
+      "code": 6012,
+      "name": "ChipSetNotPublished",
+      "msg": "No cohort can open before the first chip set is published"
+    },
+    {
+      "code": 6020,
+      "name": "CohortNotDue",
+      "msg": "This cohort is not due yet, or its index is wrong"
+    },
+    {
+      "code": 6021,
+      "name": "JoiningClosed",
+      "msg": "Joining and leaving closed an hour before the start"
+    },
+    {
+      "code": 6022,
+      "name": "InvalidTier",
+      "msg": "A tier is 0, 1, 2 or 3"
+    },
+    {
+      "code": 6023,
+      "name": "LadderGateClosed",
+      "msg": "A 21-day Holdout needs a cleared 7-day one while the ladder gate is on"
+    },
+    {
+      "code": 6024,
+      "name": "GenesisGateClosed",
+      "msg": "The genesis gate is on and this wallet did not pass it"
+    },
+    {
+      "code": 6025,
+      "name": "LobbyPlaceTaken",
+      "msg": "This wallet already holds a lobby place"
+    },
+    {
+      "code": 6026,
+      "name": "ObligationsOverlap",
+      "msg": "This cohort starts before the running one ends"
+    },
+    {
+      "code": 6030,
+      "name": "CohortNotRunning",
+      "msg": "Completed days are only accepted while the cohort is running"
+    },
+    {
+      "code": 6031,
+      "name": "WrongDay",
+      "msg": "That is not today's day index, or not the member's next one"
+    },
+    {
+      "code": 6032,
+      "name": "DeadlinePassed",
+      "msg": "This day's deadline has passed"
+    },
+    {
+      "code": 6033,
+      "name": "DayAlreadyCompleted",
+      "msg": "This day is already completed"
+    },
+    {
+      "code": 6040,
+      "name": "NotSettling",
+      "msg": "This cohort is not settling"
+    },
+    {
+      "code": 6041,
+      "name": "AlreadySettled",
+      "msg": "This cohort is already settled"
+    },
+    {
+      "code": 6042,
+      "name": "CountIncomplete",
+      "msg": "Every member must be counted before settlement can finalize"
+    },
+    {
+      "code": 6043,
+      "name": "NotClaimable",
+      "msg": "Only a finisher can claim"
+    },
+    {
+      "code": 6044,
+      "name": "AlreadyClaimed",
+      "msg": "This payout is already claimed"
+    },
+    {
+      "code": 6045,
+      "name": "PreviousCohortUnsettled",
+      "msg": "The previous cohort of this league must settle first"
+    },
+    {
+      "code": 6046,
+      "name": "CarryOverTargetRequired",
+      "msg": "A no-finisher settlement needs the league's latest cohort and its vault"
+    },
+    {
+      "code": 6047,
+      "name": "CarryOverTargetNotOpen",
+      "msg": "The league has no cohort open for joining: open the next one, then settle"
+    },
+    {
+      "code": 6050,
+      "name": "FaucetAlreadyClaimedToday",
+      "msg": "This wallet has already used the faucet today"
+    },
+    {
+      "code": 6051,
+      "name": "FaucetCapReached",
+      "msg": "The faucet has spent today's allowance"
+    },
+    {
+      "code": 6052,
+      "name": "FaucetEmpty",
+      "msg": "The faucet vault cannot cover this"
+    },
+    {
+      "code": 6053,
+      "name": "ExerciseNotSupported",
+      "msg": "Only push-ups are supported in this build"
+    },
+    {
+      "code": 6054,
+      "name": "SponsorFloatSufficient",
+      "msg": "The sponsor still holds at least half its float"
+    },
+    {
+      "code": 6060,
+      "name": "AccountMismatch",
+      "msg": "This account does not match the cohort, wallet or league it was passed for"
+    }
+  ],
+  "types": [
+    {
+      "name": "CarryOverDelivered",
+      "docs": [
+        "**[Phase 2]** — the single delivery of an amount a stopped league held."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "from",
+            "type": "pubkey"
+          },
+          {
+            "name": "to",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CarryOverHeld",
+      "docs": [
+        "Phase 1 never emits this: a no-finisher cohort is refused rather than settled",
+        "while its carry-over has nowhere to go (FR-037a). It stays for the league in",
+        "which nobody ever opens another cohort."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cohort",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "fee",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CarryOverSent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "from",
+            "type": "pubkey"
+          },
+          {
+            "name": "to",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "fee",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ChipSetPublished",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u32"
+          },
+          {
+            "name": "amounts",
+            "type": {
+              "array": [
+                "u64",
+                4
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CohortOpened",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "league",
+            "type": "u8"
+          },
+          {
+            "name": "index",
+            "type": "u32"
+          },
+          {
+            "name": "start",
+            "type": "i64"
+          },
+          {
+            "name": "chips",
+            "type": {
+              "array": [
+                "u64",
+                4
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CohortSettled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cohort",
+            "type": "pubkey"
+          },
+          {
+            "name": "finishers",
+            "type": "u32"
+          },
+          {
+            "name": "total_finisher_stake",
+            "type": "u64"
+          },
+          {
+            "name": "share_per_tier",
+            "type": {
+              "array": [
+                "u64",
+                4
+              ]
+            }
+          },
+          {
+            "name": "rounding_remainder",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DayCompleted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cohort",
+            "type": "pubkey"
+          },
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "day_index",
+            "type": "u8"
+          },
+          {
+            "name": "proof_hash",
+            "docs": [
+              "Client-signed proof of the sitting — a documented trust gap until the",
+              "attestation signer exists (constitution XI, scope doc D-E)."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "FaucetClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "skr",
+            "docs": [
+              "SKR minted: the high-water top tier, so it funds any open cohort (FR-042a)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lamports",
+            "docs": [
+              "Lamports that left the vault — top-up plus any sponsor reimbursement."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FlagsSet",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ladder_gate_enabled",
+            "type": "bool"
+          },
+          {
+            "name": "genesis_gate_enabled",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ForfeitRecorded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cohort",
+            "type": "pubkey"
+          },
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "days_completed",
+            "type": "u8"
+          },
+          {
+            "name": "fee",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MemberCounted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cohort",
+            "type": "pubkey"
+          },
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "finished",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MemberJoined",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cohort",
+            "type": "pubkey"
+          },
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "tier",
+            "type": "u8"
+          },
+          {
+            "name": "stake",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MemberLeft",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cohort",
+            "type": "pubkey"
+          },
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "stake",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PayoutClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cohort",
+            "type": "pubkey"
+          },
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SponsorToppedUp",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}
