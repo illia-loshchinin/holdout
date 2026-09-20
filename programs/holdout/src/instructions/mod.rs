@@ -11,6 +11,7 @@ pub mod join_cohort;
 pub mod leave_cohort;
 pub mod open_cohort;
 pub mod publish_chip_set;
+pub mod record_forfeits;
 pub mod set_flags;
 pub mod submit_day;
 
@@ -24,5 +25,6 @@ pub use join_cohort::*;
 pub use leave_cohort::*;
 pub use open_cohort::*;
 pub use publish_chip_set::*;
+pub use record_forfeits::*;
 pub use set_flags::*;
 pub use submit_day::*;

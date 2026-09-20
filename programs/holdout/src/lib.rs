@@ -105,6 +105,11 @@ pub mod holdout {
         instructions::submit_day::handler(ctx, day_index, proof_hash)
     }
 
+    /// Permissionless, paged and repeatable (AC-5, INV-7, research R9).
+    pub fn record_forfeits<'info>(ctx: Context<'info, RecordForfeits<'info>>) -> Result<()> {
+        instructions::record_forfeits::handler(ctx)
+    }
+
     /// Admin only. The two gates this build ships off (FR-003, research R17).
     pub fn set_flags(
         ctx: Context<SetFlags>,

@@ -978,6 +978,85 @@
       ]
     },
     {
+      "name": "record_forfeits",
+      "docs": [
+        "Permissionless, paged and repeatable (AC-5, INV-7, research R9)."
+      ],
+      "discriminator": [
+        16,
+        114,
+        97,
+        167,
+        117,
+        84,
+        108,
+        176
+      ],
+      "accounts": [
+        {
+          "name": "caller",
+          "docs": [
+            "Anyone. Pays the fee, and the result does not depend on who they are."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "cohort",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cohort"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_destination",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "set_flags",
       "docs": [
         "Admin only. The two gates this build ships off (FR-003, research R17)."
