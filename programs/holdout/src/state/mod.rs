@@ -6,3 +6,6 @@ pub mod config;
 pub mod league;
 pub mod membership;
 pub mod profile;
+
+#[cfg(test)]
+mod layout_tests;

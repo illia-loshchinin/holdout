@@ -8,7 +8,7 @@ export default defineConfig({
     // (AC-7, tasks T076).
     testTimeout: 120_000,
     hookTimeout: 120_000,
-    include: ['scenarios/**/*.spec.ts', 'invariants/**/*.spec.ts', 'smoke/**/*.spec.ts'],
+    include: ['scenarios/**/*.spec.ts', 'invariants/**/*.spec.ts', 'helpers/**/*.spec.ts', 'smoke/**/*.spec.ts'],
     reporters: ['default'],
   },
 });
