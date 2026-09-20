@@ -8,7 +8,7 @@
 
 import { combineCodec, fixDecoderSize, fixEncoderSize, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, getU8Decoder, getU8Encoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type Instruction, type InstructionWithAccounts, type InstructionWithData, type ReadonlyAccount, type ReadonlySignerAccount, type ReadonlyUint8Array, type WritableAccount } from '@solana/kit';
 import { getAccountMetaFactory, getAddressFromResolvedInstructionAccount, type InstructionAccountInput, type InstructionAccountInputAddress, type InstructionSignerInput, type ResolvedInstructionAccount, type ResolvedInstructionAccountMeta } from '@solana/program-client-core';
-import { findMembershipPda, findProfilePda } from '../pdas';
+import { findJoinCohortProfilePda, findMembershipPda } from '../pdas';
 import { HOLDOUT_PROGRAM_ADDRESS } from '../programs';
 
 export const SUBMIT_DAY_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([72, 224, 17, 130, 158, 107, 140, 136]);
@@ -69,7 +69,7 @@ if (!accounts.membership.value) {
 accounts.membership.value = await findMembershipPda({ cohort: getAddressFromResolvedInstructionAccount("cohort", accounts.cohort.value), member: getAddressFromResolvedInstructionAccount("member", accounts.member.value) }, { programAddress });
 }
 if (!accounts.profile.value) {
-accounts.profile.value = await findProfilePda({ member: getAddressFromResolvedInstructionAccount("member", accounts.member.value) }, { programAddress });
+accounts.profile.value = await findJoinCohortProfilePda({ member: getAddressFromResolvedInstructionAccount("member", accounts.member.value) }, { programAddress });
 }
 
 return Object.freeze({ accounts: [getAccountMeta("member", accounts.member), getAccountMeta("cohort", accounts.cohort), getAccountMeta("membership", accounts.membership), getAccountMeta("profile", accounts.profile)], data: getSubmitDayInstructionDataEncoder().encode(args as SubmitDayInstructionDataArgs), programAddress } as SubmitDayInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountMember, InstructionAccountInputAddress<TAccountMember>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountMembership, InstructionAccountInputAddress<TAccountMembership>>, ResolvedInstructionAccountMeta<TAccountProfile, InstructionAccountInputAddress<TAccountProfile>>>);

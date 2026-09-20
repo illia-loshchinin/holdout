@@ -9,10 +9,10 @@
 import { getAddressEncoder, getBytesEncoder, getProgramDerivedAddress, type Address, type ProgramDerivedAddress } from '@solana/kit';
 
 export type ProfileSeeds = {
-member: Address;
+recipient: Address;
 };
 
 export async function findProfilePda(seeds: ProfileSeeds, config: { programAddress?: Address | undefined } = {}): Promise<ProgramDerivedAddress> {
   const { programAddress = 'Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4' as Address<'Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4'> } = config;
-  return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([112, 114, 111, 102, 105, 108, 101])), getAddressEncoder().encode(seeds.member)]});
+  return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([112, 114, 111, 102, 105, 108, 101])), getAddressEncoder().encode(seeds.recipient)]});
 }

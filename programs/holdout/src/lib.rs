@@ -126,6 +126,18 @@ pub mod holdout {
         instructions::claim_payout::handler(ctx)
     }
 
+    /// The zero-SOL wallet's first transaction: no member signature, the
+    /// sponsor pays, and the vault reimburses it (research R13).
+    pub fn claim_faucet(ctx: Context<ClaimFaucet>, recipient: Pubkey) -> Result<()> {
+        instructions::claim_faucet::handler(ctx, recipient)
+    }
+
+    /// Permissionless, no sponsor signature: a drained sponsor never outlasts
+    /// one crank pass (FR-042b).
+    pub fn top_up_sponsor(ctx: Context<TopUpSponsor>) -> Result<()> {
+        instructions::top_up_sponsor::handler(ctx)
+    }
+
     /// Admin only. The two gates this build ships off (FR-003, research R17).
     pub fn set_flags(
         ctx: Context<SetFlags>,

@@ -8,7 +8,7 @@
 
 import { combineCodec, fixDecoderSize, fixEncoderSize, getAddressEncoder, getBytesDecoder, getBytesEncoder, getProgramDerivedAddress, getStructDecoder, getStructEncoder, getU8Decoder, getU8Encoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type Instruction, type InstructionWithAccounts, type InstructionWithData, type ReadonlyAccount, type ReadonlyUint8Array, type WritableAccount, type WritableSignerAccount } from '@solana/kit';
 import { getAccountMetaFactory, getAddressFromResolvedInstructionAccount, type InstructionAccountInput, type InstructionAccountInputAddress, type InstructionSignerInput, type ResolvedInstructionAccount, type ResolvedInstructionAccountMeta } from '@solana/program-client-core';
-import { findConfigPda, findMembershipPda, findProfilePda, findVaultPda } from '../pdas';
+import { findConfigPda, findJoinCohortProfilePda, findMembershipPda, findVaultPda } from '../pdas';
 import { HOLDOUT_PROGRAM_ADDRESS } from '../programs';
 
 export const JOIN_COHORT_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([101, 23, 98, 65, 106, 131, 213, 218]);
@@ -87,7 +87,7 @@ if (!accounts.membership.value) {
 accounts.membership.value = await findMembershipPda({ cohort: getAddressFromResolvedInstructionAccount("cohort", accounts.cohort.value), member: getAddressFromResolvedInstructionAccount("member", accounts.member.value) }, { programAddress });
 }
 if (!accounts.profile.value) {
-accounts.profile.value = await findProfilePda({ member: getAddressFromResolvedInstructionAccount("member", accounts.member.value) }, { programAddress });
+accounts.profile.value = await findJoinCohortProfilePda({ member: getAddressFromResolvedInstructionAccount("member", accounts.member.value) }, { programAddress });
 }
 if (!accounts.memberToken.value) {
 accounts.memberToken.value = await getProgramDerivedAddress({ programAddress: 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>, seeds: [getAddressEncoder().encode(getAddressFromResolvedInstructionAccount("member", accounts.member.value)), getBytesEncoder().encode(new Uint8Array([6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169])), getAddressEncoder().encode(getAddressFromResolvedInstructionAccount("skrMint", accounts.skrMint.value))] });

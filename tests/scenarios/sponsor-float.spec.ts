@@ -91,12 +91,19 @@ describe('top_up_sponsor (contracts §2, FR-042b)', () => {
     anybody = await h.newWallet();
   });
 
-  /** Empty the float the way anyone holding the extracted key can. */
+  /**
+   * Empty the float the way anyone holding the extracted key can — and in the
+   * worst shape it comes in: the thief pays the fee, so the sponsor's *entire*
+   * balance can go and the account is deleted outright. (The sponsor cannot
+   * drain itself to a few thousand lamports: the runtime rejects a transaction
+   * that leaves an account non-rent-exempt with a balance, so a self-paid
+   * transfer can only ever leave it above the rent floor.)
+   */
   const drainTheFloat = async () => {
     const thief = await h.newWallet();
     const balance = h.balance(sponsor.address);
-    // Leave the sponsor enough to pay this transfer's own fee and nothing more.
-    await h.sendOrThrow([systemTransfer(sponsor.address, thief.address, balance - 10_000n)], sponsor);
+    await h.sendOrThrow([systemTransfer(sponsor.address, thief.address, balance)], thief, [sponsor]);
+    expect(h.balance(sponsor.address)).toBe(0n);
   };
 
   const topUp = async (who: KeyPairSigner = anybody) =>
@@ -199,7 +206,6 @@ describe('top_up_sponsor (contracts §2, FR-042b)', () => {
   });
 
   it('refuses when the vault cannot cover the refill (6052)', async () => {
-    await drainTheFloat();
     // A vault with only its rent exemption left.
     const poor = await createHarness({ startTime: FIRST_START - 86_400 });
     const skr = (await generateKeyPairSigner()).address;

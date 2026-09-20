@@ -6,6 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from './claimFaucet';
 export * from './claimPayout';
 export * from './createLeague';
 export * from './initialize';
@@ -18,3 +19,4 @@ export * from './setFlags';
 export * from './settleCount';
 export * from './settleFinalize';
 export * from './submitDay';
+export * from './topUpSponsor';
