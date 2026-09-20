@@ -19,11 +19,73 @@ declare_id!("Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4");
 pub mod errors;
 pub mod events;
 pub mod guards;
+pub mod instructions;
 pub mod math;
 pub mod state;
 
+use instructions::*;
+
 #[program]
 pub mod holdout {
-    // Instructions land here as their tasks complete (tasks.md T027–T080).
+    // The rest land here as their tasks complete (tasks.md T037–T080).
     // Nothing is implemented before its failing test exists (constitution VII).
+    use super::*;
+
+    /// Once, by the program's current upgrade authority (research R14).
+    #[allow(clippy::too_many_arguments)]
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        operator: Pubkey,
+        sponsor: Pubkey,
+        treasury_wallet: Pubkey,
+        faucet_sol_top_up: u64,
+        faucet_daily_lamport_cap: u64,
+        faucet_sponsor_float: u64,
+    ) -> Result<()> {
+        instructions::initialize::handler(
+            ctx,
+            operator,
+            sponsor,
+            treasury_wallet,
+            faucet_sol_top_up,
+            faucet_daily_lamport_cap,
+            faucet_sponsor_float,
+        )
+    }
+
+    /// Admin only. A real league keeps the devnet timing; a test league needs a
+    /// `test-leagues` build (H30, research R11).
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_league(
+        ctx: Context<CreateLeague>,
+        league_id: u8,
+        duration_days: u8,
+        reps_per_day: u16,
+        exercise: u8,
+        first_start: i64,
+        day_length: i64,
+        cadence: i64,
+        join_lock: i64,
+    ) -> Result<()> {
+        instructions::create_league::handler(
+            ctx,
+            league_id,
+            duration_days,
+            reps_per_day,
+            exercise,
+            first_start,
+            day_length,
+            cadence,
+            join_lock,
+        )
+    }
+
+    /// Admin only. The two gates this build ships off (FR-003, research R17).
+    pub fn set_flags(
+        ctx: Context<SetFlags>,
+        ladder_gate_enabled: bool,
+        genesis_gate_enabled: bool,
+    ) -> Result<()> {
+        instructions::set_flags::handler(ctx, ladder_gate_enabled, genesis_gate_enabled)
+    }
 }
