@@ -155,7 +155,7 @@ describe('the figures move at the deadline, not when the crank runs (FR-038a, AC
     const snapshot = await h.snapshot();
     const c = snapshot.cohorts.find((x) => x.address === cohort)!;
     atDeadline = figuresOf(snapshot, c, h.now(), sampled);
-  }, 600_000);
+  });
 
   it('already excludes everyone who missed the deadline, with nothing recorded yet', async () => {
     const onChain = await h.readCohort(LEAGUE, INDEX);
@@ -203,7 +203,7 @@ describe('the figures move at the deadline, not when the crank runs (FR-038a, AC
     expect(afterRecording.projectedPool).toBe(atDeadline.projectedPool);
     expect(afterRecording.shares).toEqual(atDeadline.shares);
     expect(afterRecording.roster).toEqual(atDeadline.roster);
-  }, 600_000);
+  });
 
   it('has the stored pool equal to what was projected before anything ran', async () => {
     // The projection was not merely stable, it was right: the pool the contract

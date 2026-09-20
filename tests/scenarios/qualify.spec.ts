@@ -30,6 +30,7 @@ import {
 import {
   forfeitPairs,
   joinCohortIx,
+  setFlagsIx,
   settleCountIx,
   settleFinalizeIx,
   submitDayIx,
@@ -191,8 +192,33 @@ describe('the 21-day unlock (AC-1, FR-003a, FR-004)', () => {
     expect((await h.readProfile(member.address)).pending.cohort).toBe(await cohortPda(LEAGUE_21D, 0));
   });
 
+  it('flips the gates through set_flags, admin only', async () => {
+    const admin = h.upgradeAuthority;
+    expect((await h.readConfig()).ladderGateEnabled).toBe(false);
+
+    const stranger = await h.newWallet();
+    expectProgramError(
+      await h.send([await setFlagsIx(stranger.address, true, true)], stranger),
+      'NotAdmin',
+    );
+    expect((await h.readConfig()).ladderGateEnabled, 'a stranger changes nothing').toBe(false);
+
+    await h.sendOrThrow([await setFlagsIx(admin.address, true, false)], admin);
+    let config = await h.readConfig();
+    expect(config.ladderGateEnabled).toBe(true);
+    expect(config.genesisGateEnabled).toBe(false);
+
+    // And back off again, which is what makes it a flag and not a migration.
+    await h.sendOrThrow([await setFlagsIx(admin.address, false, false)], admin);
+    config = await h.readConfig();
+    expect(config.ladderGateEnabled).toBe(false);
+    expect(config.genesisGateEnabled).toBe(false);
+  });
+
   it('refuses an unqualified 21-day join with the gate on — the flag is the only difference (AC-1)', async () => {
-    await h.injectConfig({ skrMint: mint, feeDestination, ladderGateEnabled: true });
+    // Flipped through the real instruction: AC-1 is a claim about this flag, so
+    // nothing here injects it.
+    await h.sendOrThrow([await setFlagsIx(h.upgradeAuthority.address, true, false)], h.upgradeAuthority);
     await h.injectCohort(LEAGUE_21D, 0, {
       start: BigInt(startOf(0)),
       joinCutoff: BigInt(startOf(0) - HOUR),
@@ -220,7 +246,7 @@ describe('the 21-day unlock (AC-1, FR-003a, FR-004)', () => {
     expect((await h.readProfile(member.address)).qualified).toBe(true);
 
     // …then flip the flag on and prove the same wallet is admitted.
-    await h.injectConfig({ skrMint: mint, feeDestination, ladderGateEnabled: true });
+    await h.sendOrThrow([await setFlagsIx(h.upgradeAuthority.address, true, false)], h.upgradeAuthority);
     await h.injectCohort(LEAGUE_21D, 1, {
       start: BigInt(startOf(1)),
       joinCutoff: BigInt(startOf(1) - HOUR),

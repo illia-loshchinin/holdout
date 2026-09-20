@@ -79,7 +79,7 @@
 
 ### Shared Kotlin and design foundations
 
-- [ ] T029 Generate fixtures in `tests/fixtures/generate.ts` — accounts, PDAs, instruction bytes, derived figures — and commit them under `fixtures/` (contracts/program-instructions §7)
+- [X] T029 Generate fixtures in `tests/fixtures/generate.ts` — accounts, PDAs, instruction bytes, derived figures — and commit them under `fixtures/` (contracts/program-instructions §7)
 - [ ] T030 Implement account codecs, PDA derivation and instruction builders in `kotlin/core/src/main/kotlin/holdout/core/` (`Accounts.kt`, `Pdas.kt`, `Instructions.kt`), with hand-written encodings pinned by the fixtures (research R2 deviation)
 - [ ] T031 Write the fixture replay tests in `kotlin/core/src/test/kotlin/holdout/core/FixtureReplayTest.kt` — every fixture decodes and re-encodes byte-identically
 - [ ] T032 [P] Implement `Derive.kt` in `kotlin/core/src/main/kotlin/holdout/core/` — survivor counter, projected pool, projected share, roster order, time left, warning window, **at stake**, carry-over received, time until joining closes (data-model §5)

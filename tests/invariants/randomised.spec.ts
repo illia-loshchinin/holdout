@@ -259,7 +259,7 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
     expect(f.h.tokenBalance(await associatedTokenPda(stayer.address, f.mint))).toBeGreaterThan(
       3n * DEFAULT_CHIPS[3]!,
     );
-  }, 900_000);
+  });
 
   it('runs a 1,000-member cohort through the whole loop (spike S3, AC-7)', async () => {
     const f = await setUp({ duration: 3 });
@@ -356,7 +356,7 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
     expect(done.heldStake).toBe(0n);
     expect(done.pool).toBe(0n);
     expect(f.h.tokenBalance(await cohortVault(f))).toBe(0n);
-  }, 1_800_000);
+  });
 
   it('ends with identical profiles whichever order the cohorts are processed in (INV-9, FR-061a)', async () => {
     /**
@@ -478,7 +478,7 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
 
     // Wallets differ between runs, so compare the progress figures themselves.
     assertSameProgress(forfeitsFirst, settleFirst);
-  }, 900_000);
+  });
 });
 
 /** The current cohort's vault. */
