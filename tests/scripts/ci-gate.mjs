@@ -19,8 +19,10 @@
  *     green test;
  *   - a test that fails and is on the list is expected, and only counted.
  *
- * `--update` only ever removes entries: it refuses to run while a failure is
- * missing from the list, so it can never adopt a regression as intentional.
+ * `--update` only ever removes entries, and only ones that now pass: it refuses
+ * while a failure is missing from the list, so it cannot adopt a regression as
+ * intentional, and it refuses while a listed test is not running at all, so a
+ * test cannot be retired by accident. Retiring one is a hand edit.
  *
  * The list is meant to shrink to nothing. When it is empty, delete it, delete
  * this script, and make the workflow run `npm test`.
@@ -122,7 +124,22 @@ if (update) {
     console.error('A test that was renamed keeps its old entry; take that one out by hand.');
     process.exit(1);
   }
-  const tests = (seeding ? [...failing] : [...listed].filter((t) => failing.has(t))).sort();
+  // An entry that is neither passing nor failing is not running at all: renamed,
+  // deleted, skipped, or excluded by a guard whose file went missing. Dropping
+  // it here because it no longer fails would retire a test by accident, and
+  // quietly — the one failure mode this whole script exists to prevent. Only a
+  // test that now *passes* leaves the list on its own.
+  const unaccounted = [...listed].filter((t) => !passing.has(t) && !failing.has(t)).sort();
+  if (!seeding && unaccounted.length > 0) {
+    console.error(`ci-gate: ${unaccounted.length} listed test(s) did not run at all — neither passed`);
+    console.error('nor failed. Find out why before updating: a guard may be skipping them.');
+    for (const t of unaccounted) console.error(`  ${t}`);
+    console.error('');
+    console.error('If one was renamed or deliberately removed, take its entry out by hand —');
+    console.error('that is a decision to retire a test, and it should read like one in the diff.');
+    process.exit(1);
+  }
+  const tests = (seeding ? [...failing] : [...listed].filter((t) => !passing.has(t))).sort();
   const dropped = seeding ? 0 : listed.size - tests.length;
   writeFileSync(
     BASELINE,
@@ -193,7 +210,9 @@ if (landed.length > 0) {
 
 if (vanished.length > 0) {
   say('');
-  say(`**${vanished.length} listed test(s) no longer exist** — renamed or removed. Same fix: \`--update\`.`);
+  say(`**${vanished.length} listed test(s) never ran** — not passed, not failed. A guard may`);
+  say('be skipping them; if one was renamed or removed on purpose, take its entry out of');
+  say('`tests/known-red.json` by hand.');
   for (const t of vanished) say(`  - \`${t}\``);
 }
 
