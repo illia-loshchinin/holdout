@@ -193,6 +193,27 @@ describe('claim_faucet (contracts §3, research R13)', () => {
     expect(decodeClaimed(oneEvent(result, 'FaucetClaimed')).lamports).toBe(0n);
   });
 
+  it('refuses before the first chip set is published, sparing the day\'s claim', async () => {
+    // Between `initialize` and the first `publish_chip_set`, `max_top_tier` is
+    // zero. A claim would mint no SKR and still stamp `last_faucet_day`,
+    // spending the recipient's one claim of the day on nothing and leaving
+    // them unable to make a real one until the next 05:00 UTC boundary.
+    await h.injectConfig({
+      skrMint: mint,
+      sponsor: sponsor.address,
+      chipSet: { amounts: [0n, 0n, 0n, 0n], version: 0, publishedAt: 0n, maxTopTier: 0n },
+    });
+
+    const newcomer = await zeroSolWallet();
+    const vaultBefore = vaultBalance();
+    expectProgramError(await claim(newcomer.address), 'ChipSetNotPublished');
+
+    // Nothing written, nothing spent, and the claim still available.
+    expect(h.svm.getAccount(await profilePda(newcomer.address)).exists).toBe(false);
+    expect(vaultBalance()).toBe(vaultBefore);
+    expect((await h.readConfig()).faucet.lamportsToday).toBe(0n);
+  });
+
   // ------------------------------------------------------------- the day's cap
 
   it('refuses once the day\'s lamport budget is spent, and nothing is half-done (ES-0b)', async () => {

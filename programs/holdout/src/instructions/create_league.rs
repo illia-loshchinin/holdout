@@ -28,7 +28,7 @@ use crate::{
         config::{Config, CONFIG_SEED},
         league::{
             is_monday_0500_utc, LeagueConfig, DEVNET_CADENCE, DEVNET_DAY_LENGTH, DEVNET_JOIN_LOCK,
-            EXERCISE_PUSHUP, LEAGUE_SEED,
+            EXERCISE_PUSHUP, LEAGUE_21D, LEAGUE_7D, LEAGUE_SEED,
         },
     },
 };
@@ -60,16 +60,36 @@ pub struct CreateLeague<'info> {
 /// what widens it, not a flag anyone can flip on chain (research R11).
 fn timing_ok(
     league_id: u8,
+    duration_days: u8,
     first_start: i64,
     day_length: i64,
     cadence: i64,
     join_lock: i64,
 ) -> bool {
     if LeagueConfig::is_test_league(league_id) {
-        // A test league's whole point is a compressed day, so its timing is free.
-        return cfg!(feature = "test-leagues");
+        // A test league's whole point is a compressed day, so its clock is
+        // free — but never a zero duration, for the reason below.
+        return cfg!(feature = "test-leagues") && duration_days > 0;
     }
-    day_length == DEVNET_DAY_LENGTH
+    // The duration belongs to the timing: it is what fixes the league's `end`,
+    // and `open_cohort` copies it into every cohort permanently, so a wrong
+    // figure here can never be corrected. The two judged leagues are 7 and 21
+    // days and nothing else (data-model §1.2).
+    //
+    // Zero is the dangerous one. `settle_count` calls a member finished when
+    // `days_completed == duration_days`, so in a zero-day league every member
+    // who never sat a single day is a finisher: an immediate clear, a payout,
+    // and the 21-day unlock, without a push-up. Every other id is refused
+    // outright — ids 2 to 99 are not test leagues, yet `Profile::slot_of`
+    // sends them to the test progress slot, so a "real" league there would
+    // write its judged progress where test runs live.
+    let expected = match league_id {
+        LEAGUE_7D => 7,
+        LEAGUE_21D => 21,
+        _ => return false,
+    };
+    duration_days == expected
+        && day_length == DEVNET_DAY_LENGTH
         && cadence == DEVNET_CADENCE
         && join_lock == DEVNET_JOIN_LOCK
         && is_monday_0500_utc(first_start)
@@ -92,7 +112,14 @@ pub(crate) fn handler(
         HoldoutError::ExerciseNotSupported
     );
     require!(
-        timing_ok(league_id, first_start, day_length, cadence, join_lock),
+        timing_ok(
+            league_id,
+            duration_days,
+            first_start,
+            day_length,
+            cadence,
+            join_lock
+        ),
         HoldoutError::InvalidLeagueTiming
     );
 

@@ -129,6 +129,17 @@ pub(crate) fn handler(ctx: Context<ClaimFaucet>, recipient: Pubkey) -> Result<()
         HoldoutError::FaucetAlreadyClaimedToday
     );
 
+    // Before the first `publish_chip_set`, `max_top_tier` is zero: the claim
+    // would mint no SKR and still stamp `last_faucet_day`, spending the
+    // recipient's one claim of the day on nothing and leaving them unable to
+    // make a real one until the next 05:00 UTC boundary. `open_cohort` already
+    // refuses in this window for the same reason (FR-055b), and refused before
+    // anything is written, as here.
+    require!(
+        ctx.accounts.config.chip_set.is_published(),
+        HoldoutError::ChipSetNotPublished
+    );
+
     // ---- work out every lamport that would leave the vault -----------------
 
     let top_up = ctx
