@@ -88,8 +88,17 @@ const profile = (over: Partial<ProfileSnapshot> = {}): ProfileSnapshot => ({
   pendingCohort: null,
   pendingStart: 0,
   pendingEnd: 0,
+  lastFaucetDay: -1,
   ...over,
 });
+
+/**
+ * The instants an outcome records on a profile: a cohort's end for a clear, the
+ * deadline missed for a forfeit — never the time a transaction landed (FR-060b),
+ * which is exactly what lets INV-9 derive the figure instead of trusting it.
+ */
+const CLEARED_A = FIRST_START + 7 * DAY;
+const FORFEITED_B = FIRST_START + 8 * DAY - 1;
 
 /** The slot a live place in cohort A puts on its member's profile. */
 const inCohortA = { runningCohort: 'cohort-A', runningEnd: FIRST_START + 7 * DAY } as const;
@@ -273,7 +282,13 @@ describe('INV-6 · a settled cohort only moves through claims', () => {
   const at = FIRST_START + 8 * DAY;
   const finished = membership({ state: 'Finished', daysCompleted: 7, counted: true });
   /** What INV-9 derives from that one counted finish — the streak is not the point here. */
-  const cleared = [profile({ leagues: { 0: progress({ cleared: 1, currentStreak: 1, longestStreak: 1 }) } })];
+  const cleared = [
+    profile({
+      leagues: {
+        0: progress({ cleared: 1, currentStreak: 1, longestStreak: 1, lastChanged: CLEARED_A }),
+      },
+    }),
+  ];
 
   it('accepts a claim that takes exactly the stake and the share', () => {
     const prev = snapshot({ now: at, cohorts: [settled()], memberships: [finished], profiles: cleared });
@@ -299,15 +314,123 @@ describe('INV-6 · a settled cohort only moves through claims', () => {
     expectViolation('INV-6', () => assertInvariants(next, prev));
   });
 
-  it('catches a held stake that fell further than the claim returns', () => {
+  it('catches a held stake that moved by something other than the claim', () => {
+    // The pool falls by exactly the share, so half the claim is beyond reproach;
+    // the held stake falls by 40 where the member's 100 was due back, and the
+    // vault is lowered to agree with the cohort, so INV-1 holds at both ends.
     const prev = snapshot({ now: at, cohorts: [settled()], memberships: [finished], profiles: cleared });
     const next = snapshot({
       now: at,
-      cohorts: [settled({ heldStake: 0n, pool: 0n, vaultAmount: 0n, memberCount: 1 })],
-      memberships: [{ ...finished, stake: 40n, state: 'Claimed' }],
+      cohorts: [settled({ heldStake: 60n, pool: 0n, vaultAmount: 60n })],
+      memberships: [{ ...finished, state: 'Claimed' }],
       profiles: cleared,
     });
     expectViolation('INV-6', () => assertInvariants(next, prev));
+  });
+
+});
+
+describe('INV-2 · the terms of a membership are written once', () => {
+  it('catches a stake rewritten under a live membership', () => {
+    // The stake is what custody holds, what a forfeit hands the pool and what a
+    // claim returns, so every figure the other invariants balance is derived
+    // from it. Lowered here with the held stake and the vault lowered to agree,
+    // the snapshot is internally consistent at both ends and the member is 60
+    // out of pocket. Once the cohort settles the same rewrite also shows up in
+    // INV-5's tally; while it is still running, this is the only rule watching.
+    const live = cohort({ memberCount: 1, heldStake: 100n, vaultAmount: 100n });
+    const prev = snapshot({ cohorts: [live], memberships: [membership()] });
+    const next = snapshot({
+      cohorts: [cohort({ memberCount: 1, heldStake: 40n, vaultAmount: 40n })],
+      memberships: [membership({ stake: 40n })],
+    });
+    expectViolation('INV-2', () => assertInvariants(next, prev));
+  });
+
+  it('catches a membership moved to another wallet', () => {
+    const prev = snapshot();
+    expectViolation('INV-2', () =>
+      assertInvariants(
+        snapshot({
+          memberships: [membership({ wallet: 'wallet-2' })],
+          profiles: [profile({ wallet: 'wallet-2', ...inCohortA })],
+        }),
+        prev,
+      ),
+    );
+  });
+});
+
+describe('INV-5 · the tally is derived, not taken on trust', () => {
+  const at = FIRST_START + 8 * DAY;
+  const finisher = membership({ state: 'Finished', daysCompleted: 7, counted: true });
+  const cleared = [
+    profile({
+      leagues: {
+        0: progress({ cleared: 1, currentStreak: 1, longestStreak: 1, lastChanged: CLEARED_A }),
+      },
+    }),
+  ];
+
+  /** One counted finisher: tier 3, stake 100. */
+  const tallied = (over: Partial<CohortSnapshot> = {}): CohortSnapshot =>
+    cohort({
+      memberCount: 1,
+      counted: 1,
+      finisherCount: 1,
+      finishersPerTier: [0, 0, 0, 1],
+      totalFinisherStake: 100n,
+      ...over,
+    });
+
+  it('accepts a tally that matches the counted memberships', () => {
+    expect(() =>
+      assertInvariants(
+        snapshot({ now: at, cohorts: [tallied()], memberships: [finisher], profiles: cleared }),
+      ),
+    ).not.toThrow();
+  });
+
+  it('catches an overstated denominator', () => {
+    // The shares it divides out are smaller and the remainder larger to match,
+    // so finalization stays internally consistent and the difference goes to the
+    // fee destination. The member who claims at their real tier finds it short.
+    expectViolation('INV-5', () =>
+      assertInvariants(
+        snapshot({
+          now: at,
+          cohorts: [tallied({ totalFinisherStake: 200n })],
+          memberships: [finisher],
+          profiles: cleared,
+        }),
+      ),
+    );
+  });
+
+  it('catches a finisher counted into the wrong tier', () => {
+    expectViolation('INV-5', () =>
+      assertInvariants(
+        snapshot({
+          now: at,
+          cohorts: [tallied({ finishersPerTier: [1, 0, 0, 0] })],
+          memberships: [finisher],
+          profiles: cleared,
+        }),
+      ),
+    );
+  });
+
+  it('catches a finisher count that no membership backs', () => {
+    expectViolation('INV-5', () =>
+      assertInvariants(
+        snapshot({
+          now: at,
+          cohorts: [tallied({ finisherCount: 2 })],
+          memberships: [finisher],
+          profiles: cleared,
+        }),
+      ),
+    );
   });
 });
 
@@ -327,7 +450,13 @@ describe('INV-2 · finalization lands on an exact pool', () => {
 
   const at = FIRST_START + 8 * DAY;
   const finisher = membership({ state: 'Finished', daysCompleted: 7, counted: true });
-  const cleared = [profile({ leagues: { 0: progress({ cleared: 1, currentStreak: 1, longestStreak: 1 }) } })];
+  const cleared = [
+    profile({
+      leagues: {
+        0: progress({ cleared: 1, currentStreak: 1, longestStreak: 1, lastChanged: CLEARED_A }),
+      },
+    }),
+  ];
 
   it('accepts the shares it owes plus the remainder it gave up', () => {
     const prev = snapshot({ now: at, cohorts: [counted()], memberships: [finisher], profiles: cleared });
@@ -361,8 +490,9 @@ describe('INV-2 · finalization lands on an exact pool', () => {
     const lobby = cohort({
       address: 'cohort-B',
       index: 1,
-      start: FIRST_START + 7 * DAY,
-      joinCutoff: FIRST_START + 7 * DAY - 3_600,
+      // Open at `at` — a carry-over may only enter a cohort members can join.
+      start: FIRST_START + 14 * DAY,
+      joinCutoff: FIRST_START + 14 * DAY - 3_600,
       memberCount: 0,
       heldStake: 0n,
       vaultAmount: 0n,
@@ -416,8 +546,10 @@ describe('INV-2 · a carry-over has to have a sender', () => {
   const lobby = cohort({
     address: 'cohort-B',
     index: 1,
-    start: FIRST_START + 7 * DAY,
-    joinCutoff: FIRST_START + 7 * DAY - 3_600,
+    // Still Open at `at`: FR-037a puts the carry where members can join it, so
+    // a lobby one cadence further out is the one a settlement may feed.
+    start: FIRST_START + 14 * DAY,
+    joinCutoff: FIRST_START + 14 * DAY - 3_600,
     memberCount: 0,
     heldStake: 0n,
     vaultAmount: 0n,
@@ -441,6 +573,37 @@ describe('INV-2 · a carry-over has to have a sender', () => {
         snapshot({
           now: at,
           cohorts: [{ ...lobby, pool: 41n, carryOverReceived: 41n, vaultAmount: 41n }],
+          memberships: [],
+          profiles: [],
+        }),
+        prev,
+      ),
+    );
+  });
+
+  it('catches a carry-over sent to a cohort nobody can join any more', () => {
+    // Same league, no finishers at the source, the amounts on both sides agree
+    // — and the money lands in a cohort that has already started, where no
+    // member can ever stake against it (FR-037a).
+    const started = { ...lobby, start: FIRST_START + 7 * DAY, joinCutoff: FIRST_START + 7 * DAY - 3_600 };
+    const source = { ...stranger, leagueId: 0 };
+    const prev = snapshot({ now: at, cohorts: [started, source], memberships: [], profiles: [] });
+    expectViolation('INV-2', () =>
+      assertInvariants(
+        snapshot({
+          now: at,
+          cohorts: [
+            { ...started, pool: 41n, carryOverReceived: 41n, vaultAmount: 41n },
+            {
+              ...source,
+              settled: true,
+              pool: 0n,
+              vaultAmount: 0n,
+              noFinisherFee: 40n,
+              carryOverSent: 41n,
+              carryOverTarget: 'cohort-B',
+            },
+          ],
           memberships: [],
           profiles: [],
         }),
@@ -537,6 +700,140 @@ describe('INV-2 · the fee reaches the fee destination', () => {
   });
 });
 
+describe('INV-6 · a claim needs a settled cohort', () => {
+  const at = FIRST_START + 8 * DAY;
+  const finisher = membership({ state: 'Finished', daysCompleted: 7, counted: true });
+  const cleared = [
+    profile({
+      leagues: {
+        0: progress({ cleared: 1, currentStreak: 1, longestStreak: 1, lastChanged: CLEARED_A }),
+      },
+    }),
+  ];
+
+  /** Counted, not yet finalized: the shares are still unwritten. */
+  const counting = (over: Partial<CohortSnapshot> = {}): CohortSnapshot =>
+    cohort({
+      memberCount: 1,
+      counted: 1,
+      finisherCount: 1,
+      finishersPerTier: [0, 0, 0, 1],
+      totalFinisherStake: 100n,
+      heldStake: 100n,
+      pool: 81n,
+      vaultAmount: 181n,
+      ...over,
+    });
+
+  it('catches a claim paid in the window before finalization', () => {
+    // `settle_count` has run, so the membership already reads `Finished`; the
+    // shares have not been written, so the claim takes the stake and nothing
+    // else. Every figure agrees with itself — the pool is untouched, custody
+    // falls by exactly what left — and the member is paid out of a cohort whose
+    // denominator is not fixed yet.
+    const prev = snapshot({ now: at, cohorts: [counting()], memberships: [finisher], profiles: cleared });
+    const next = snapshot({
+      now: at,
+      cohorts: [counting({ heldStake: 0n, vaultAmount: 81n })],
+      memberships: [{ ...finisher, state: 'Claimed' }],
+      profiles: cleared,
+    });
+    expectViolation('INV-6', () => assertInvariants(next, prev));
+  });
+});
+
+describe('INV-2 · a claim has to reach the member', () => {
+  const at = FIRST_START + 8 * DAY;
+  const finisher = membership({ state: 'Finished', daysCompleted: 7, counted: true });
+  const cleared = [
+    profile({
+      leagues: {
+        0: progress({ cleared: 1, currentStreak: 1, longestStreak: 1, lastChanged: CLEARED_A }),
+      },
+    }),
+  ];
+
+  /** Settled, one finisher of tier 3: stake 100 back, share 80 on top. */
+  const settled = (over: Partial<CohortSnapshot> = {}): CohortSnapshot =>
+    cohort({
+      settled: true,
+      memberCount: 1,
+      counted: 1,
+      finisherCount: 1,
+      finishersPerTier: [0, 0, 0, 1],
+      totalFinisherStake: 100n,
+      sharePerTier: [0n, 0n, 0n, 80n],
+      heldStake: 100n,
+      pool: 80n,
+      vaultAmount: 180n,
+      ...over,
+    });
+
+  const before = (balance: bigint): Snapshot =>
+    snapshot({
+      now: at,
+      cohorts: [settled()],
+      memberships: [finisher],
+      profiles: cleared,
+      walletBalances: { 'wallet-1': balance },
+      faucetMint: 100n,
+    });
+
+  const after = (balance: bigint): Snapshot =>
+    snapshot({
+      now: at,
+      cohorts: [settled({ heldStake: 0n, pool: 0n, vaultAmount: 0n })],
+      memberships: [{ ...finisher, state: 'Claimed' }],
+      profiles: cleared,
+      walletBalances: { 'wallet-1': balance },
+      faucetMint: 100n,
+    });
+
+  it('accepts a claim the member actually received', () => {
+    expect(() => assertInvariants(after(180n), before(0n))).not.toThrow();
+  });
+
+  it('catches a payout that went somewhere else', () => {
+    // The cohort's own books are immaculate: the vault fell by 180, the held
+    // stake and the pool with it, the membership reads `Claimed`. Only the
+    // wallet that was owed the money says otherwise.
+    expectViolation('INV-2', () => assertInvariants(after(0n), before(0n)));
+  });
+
+  it('counts a join against the same wallet, so a step can do both', () => {
+    // A member who claims one cohort and joins the next in the same step is
+    // paid 180 and stakes 100, so the balance moves by 80. Nothing here should
+    // need the two to be in separate steps.
+    const lobby = cohort({
+      address: 'cohort-B',
+      index: 1,
+      start: FIRST_START + 14 * DAY,
+      joinCutoff: FIRST_START + 14 * DAY - 3_600,
+      memberCount: 1,
+      heldStake: 100n,
+      vaultAmount: 100n,
+    });
+    const joined = membership({ address: 'm-B', cohort: 'cohort-B' });
+    const prev = before(0n);
+    const next = snapshot({
+      now: at,
+      cohorts: [settled({ heldStake: 0n, pool: 0n, vaultAmount: 0n }), lobby],
+      memberships: [{ ...finisher, state: 'Claimed' }, joined],
+      profiles: [
+        profile({
+          ...cleared[0]!,
+          pendingCohort: 'cohort-B',
+          pendingStart: lobby.start,
+          pendingEnd: lobby.start + 7 * DAY,
+        }),
+      ],
+      walletBalances: { 'wallet-1': 80n },
+      faucetMint: 100n,
+    });
+    expect(() => assertInvariants(next, prev)).not.toThrow();
+  });
+});
+
 describe('INV-9 · streaks follow cohort order, not crank order', () => {
   /** A cleared cohort A, then a forfeited cohort B one week later. */
   const twoCohorts = (bState: MembershipState, bCounted: boolean) => {
@@ -548,6 +845,11 @@ describe('INV-9 · streaks follow cohort order, not crank order', () => {
       vaultAmount: 0n,
       memberCount: 1,
       counted: 1,
+      // The member below is a counted finisher, and INV-5 derives these three
+      // from the memberships rather than taking the cohort's word for them.
+      finisherCount: 1,
+      finishersPerTier: [0, 0, 0, 1],
+      totalFinisherStake: 100n,
     });
     const b = cohort({
       address: 'cohort-B',
@@ -569,18 +871,11 @@ describe('INV-9 · streaks follow cohort order, not crank order', () => {
   it('derives a broken streak once both cohorts are counted, whatever the order was', () => {
     const { a, b, memberships } = twoCohorts('Forfeited', true);
     const cohorts = new Map([a, b].map((c) => [c.address, c]));
-    expect(deriveStreak(memberships, cohorts, 'wallet-1', 0)).toEqual({
-      cleared: 1,
-      currentStreak: 0,
-      longestStreak: 1,
-    });
+    const derived = { cleared: 1, currentStreak: 0, longestStreak: 1, lastChanged: FORFEITED_B };
+    expect(deriveStreak(memberships, cohorts, 'wallet-1', 0)).toEqual(derived);
 
     // Reversing the arrays is exactly what a different page order produces.
-    expect(deriveStreak([...memberships].reverse(), cohorts, 'wallet-1', 0)).toEqual({
-      cleared: 1,
-      currentStreak: 0,
-      longestStreak: 1,
-    });
+    expect(deriveStreak([...memberships].reverse(), cohorts, 'wallet-1', 0)).toEqual(derived);
   });
 
   it('catches the profile that recorded the late clear over the earlier forfeit', () => {
@@ -595,7 +890,44 @@ describe('INV-9 · streaks follow cohort order, not crank order', () => {
           memberships,
           profiles: [
             profile({
-              leagues: { 0: progress({ cleared: 1, forfeited: 1, currentStreak: 1, longestStreak: 1 }) },
+              leagues: {
+                0: progress({
+                  cleared: 1,
+                  forfeited: 1,
+                  currentStreak: 1,
+                  longestStreak: 1,
+                  lastChanged: FORFEITED_B,
+                }),
+              },
+            }),
+          ],
+        }),
+      ),
+    );
+  });
+
+  it('catches a tie-break instant taken from the crank instead of the outcome', () => {
+    // Every counter is right; only the instant is the moment the settlement
+    // transaction happened to land. Two members level on everything else would
+    // be ordered by whichever one the crank reached first (FR-060b).
+    const { a, b, memberships } = twoCohorts('Forfeited', true);
+    expectViolation('INV-9', () =>
+      assertInvariants(
+        snapshot({
+          now: FIRST_START + 8 * DAY,
+          cohorts: [a, b],
+          memberships,
+          profiles: [
+            profile({
+              leagues: {
+                0: progress({
+                  cleared: 1,
+                  forfeited: 1,
+                  currentStreak: 0,
+                  longestStreak: 1,
+                  lastChanged: FORFEITED_B + 4_000,
+                }),
+              },
             }),
           ],
         }),
@@ -613,7 +945,15 @@ describe('INV-9 · streaks follow cohort order, not crank order', () => {
           memberships,
           profiles: [
             profile({
-              leagues: { 0: progress({ cleared: 1, forfeited: 1, currentStreak: 0, longestStreak: 1 }) },
+              leagues: {
+                0: progress({
+                  cleared: 1,
+                  forfeited: 1,
+                  currentStreak: 0,
+                  longestStreak: 1,
+                  lastChanged: FORFEITED_B,
+                }),
+              },
             }),
           ],
         }),
@@ -633,7 +973,15 @@ describe('INV-9 · streaks follow cohort order, not crank order', () => {
           memberships,
           profiles: [
             profile({
-              leagues: { 0: progress({ cleared: 1, forfeited: 1, currentStreak: 1, longestStreak: 1 }) },
+              leagues: {
+                0: progress({
+                  cleared: 1,
+                  forfeited: 1,
+                  currentStreak: 1,
+                  longestStreak: 1,
+                  lastChanged: CLEARED_A,
+                }),
+              },
             }),
           ],
         }),

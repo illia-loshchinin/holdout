@@ -75,6 +75,8 @@ export interface ProfileSnapshot {
   pendingStart: number;
   /** The lobby cohort's own end, carried so the promotion can hand it over. */
   pendingEnd: number;
+  /** Global day index of the last faucet claim; -1 = never (R13). */
+  lastFaucetDay: number;
 }
 
 export interface Snapshot {
@@ -84,6 +86,15 @@ export interface Snapshot {
   profiles: ProfileSnapshot[];
   /** SKR held by the fee destination, for the delta checks. */
   feeDestination?: bigint;
+  /**
+   * SKR each member wallet holds, by wallet. Every transfer has two sides, and
+   * this is the one outside the program: without it a `claim_payout` that moved
+   * the right amount to the wrong token account is indistinguishable from one
+   * that paid the member. Absent when no config names a mint.
+   */
+  walletBalances?: Record<Address, bigint>;
+  /** What one faucet claim mints — `chip_set.max_top_tier` (FR-042a). */
+  faucetMint?: bigint;
 }
 
 export class InvariantError extends Error {
@@ -151,7 +162,7 @@ export const deriveStreak = (
   cohorts: Map<Address, CohortSnapshot>,
   wallet: Address,
   leagueId: number,
-): { cleared: number; currentStreak: number; longestStreak: number } => {
+): { cleared: number; currentStreak: number; longestStreak: number; lastChanged: number } => {
   const history = memberships
     .filter((m) => m.wallet === wallet && m.counted)
     .map((m) => ({ m, c: cohorts.get(m.cohort) }))
@@ -162,16 +173,23 @@ export const deriveStreak = (
   let cleared = 0;
   let currentStreak = 0;
   let longestStreak = 0;
-  for (const { m } of history) {
+  // The instant of the most recent outcome, and never the time a transaction
+  // landed (FR-060b). `LeagueProgress::touch` takes the maximum, so the figure
+  // is order-independent — which is the whole point, and is also what makes it
+  // derivable here: the largest outcome instant in the counted history.
+  let lastChanged = 0;
+  for (const { m, c } of history) {
     if (m.state === 'Finished' || m.state === 'Claimed') {
       cleared += 1;
       currentStreak += 1;
       longestStreak = Math.max(longestStreak, currentStreak);
+      lastChanged = Math.max(lastChanged, cohortEnd(c));
     } else if (m.state === 'Forfeited') {
       currentStreak = 0;
+      lastChanged = Math.max(lastChanged, deadlineOf(c, m.daysCompleted));
     }
   }
-  return { cleared, currentStreak, longestStreak };
+  return { cleared, currentStreak, longestStreak, lastChanged };
 };
 
 // ---------------------------------------------------------------- the checks
@@ -300,6 +318,54 @@ const checkSlots = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void =>
   }
 };
 
+/**
+ * INV-5 · the denominator, and the tally it is built from, are the counted
+ * memberships and nothing else.
+ *
+ * `settle_count` writes `finisher_count`, `finishers_per_tier` and
+ * `total_finisher_stake` page by page, and `settle_finalize` divides by the
+ * last of them. Taking those three at face value leaves the allocation
+ * self-consistent no matter what they say: an overstated denominator produces
+ * smaller shares and a larger remainder that still add back to the pool, so the
+ * money checks pass while the difference has been handed to the fee
+ * destination — and the first member to claim at their real tier finds the
+ * cohort short. Derived here instead, from the memberships that carry
+ * `counted`, so the figures are checked at every stage of the count rather than
+ * only at the end.
+ */
+const checkTallies = (s: Snapshot): void => {
+  for (const c of s.cohorts) {
+    const finishers = s.memberships.filter(
+      (m) => m.cohort === c.address && m.counted && (m.state === 'Finished' || m.state === 'Claimed'),
+    );
+    if (c.finisherCount !== finishers.length) {
+      fail(
+        'INV-5',
+        `cohort ${c.address}: ${c.finisherCount} finishers recorded, ${finishers.length} counted memberships finished`,
+      );
+    }
+    const perTier = [0, 0, 0, 0];
+    let stake = 0n;
+    for (const m of finishers) {
+      if (m.tier < 0 || m.tier > 3) fail('INV-5', `${m.wallet} in ${c.address}: tier ${m.tier}`);
+      perTier[m.tier] = (perTier[m.tier] ?? 0) + 1;
+      stake += m.stake;
+    }
+    if (c.finishersPerTier.some((n, t) => n !== perTier[t])) {
+      fail(
+        'INV-5',
+        `cohort ${c.address}: tiers recorded [${c.finishersPerTier}], counted memberships give [${perTier}]`,
+      );
+    }
+    if (c.totalFinisherStake !== stake) {
+      fail(
+        'INV-5',
+        `cohort ${c.address}: denominator ${c.totalFinisherStake}, counted finishers staked ${stake}`,
+      );
+    }
+  }
+};
+
 /** INV-9 · the streak follows the member's own cohorts, not the crank's order. */
 const checkStreaks = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void => {
   for (const p of s.profiles) {
@@ -322,6 +388,17 @@ const checkStreaks = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void 
         fail(
           'INV-9',
           `${p.wallet} league ${leagueId}: cleared ${progress.cleared}, derived ${derived.cleared}`,
+        );
+      }
+      // The leaderboard tie-break. Written from the cohort's own end or the
+      // deadline the member missed, never from the clock the crank ran on — so
+      // an old outcome processed late cannot reorder two members who are level
+      // on everything else (FR-060b). Nothing else in the snapshot would show
+      // the difference: the counters are identical either way.
+      if (progress.lastChanged !== derived.lastChanged) {
+        fail(
+          'INV-9',
+          `${p.wallet} league ${leagueId}: last changed ${progress.lastChanged}, outcomes give ${derived.lastChanged}`,
         );
       }
       const forfeited = s.memberships.filter((m) => {
@@ -384,8 +461,32 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
   const before = byAddress(prev.cohorts);
   const prevMemberships = byAddress(prev.memberships);
   const prevCohorts = new Map(prev.cohorts.map((c) => [c.address, c]));
+  const nextCohorts = new Map(next.cohorts.map((c) => [c.address, c]));
   const moves = carryMovesByTarget(next, before);
   const inSnapshot = new Set(next.cohorts.map((c) => c.address));
+
+  // A membership's terms are written once, by `join_cohort`, and every figure
+  // INV-1 and INV-2 balance is derived from them: the stake is what custody
+  // holds and what a forfeit hands the pool, the tier is what picks the share.
+  // So they are checked before they are used, and used from the *previous*
+  // snapshot below — a `claim_payout` that underpaid its member could
+  // otherwise rewrite the two numbers it is judged by and come out exact.
+  for (const m of next.memberships) {
+    const was = prevMemberships.get(m.address);
+    if (!was) continue;
+    if (m.cohort !== was.cohort || m.wallet !== was.wallet) {
+      fail(
+        'INV-2',
+        `membership ${m.address} changed hands: ${was.wallet} in ${was.cohort} → ${m.wallet} in ${m.cohort}`,
+      );
+    }
+    if (m.tier !== was.tier || m.stake !== was.stake) {
+      fail(
+        'INV-2',
+        `membership ${m.address}: tier ${was.tier} staking ${was.stake} → tier ${m.tier} staking ${m.stake}`,
+      );
+    }
+  }
 
   for (const [target, sent] of moves) {
     if (!inSnapshot.has(target)) {
@@ -426,18 +527,43 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
           `cohort ${move.from.address} carried ${move.amount} over although its finishers are owed it`,
         );
       }
+      // FR-037a puts the carry where members can still reach it. A locked or
+      // running cohort takes the money and nobody can join to win it back, and
+      // the amount and the league both look right, so nothing else objects.
+      // Read at the post-step clock, on the same footing as INV-8 below.
+      const status = statusOf(c, next.now);
+      if (status !== 'Open') {
+        fail(
+          'INV-2',
+          `cohort ${c.address} took ${move.amount} of carry-over while ${status}, not Open (FR-037a)`,
+        );
+      }
     }
 
     if (!b) continue;
 
     // The claims this step settled — the only thing that may move a settled
     // cohort's balances, and the yardstick both INV-6 and INV-2 measure against.
-    const claims = next.memberships.filter((m) => {
+    const claims = next.memberships.flatMap((m) => {
       const was = prevMemberships.get(m.address);
-      return m.cohort === c.address && m.state === 'Claimed' && was?.state === 'Finished';
+      return m.cohort === c.address && m.state === 'Claimed' && was?.state === 'Finished' ? [was] : [];
     });
-    const claimsPaid = claims.reduce((sum, m) => sum + (c.sharePerTier[m.tier] ?? 0n), 0n);
-    const stakesReturned = claims.reduce((sum, m) => sum + m.stake, 0n);
+    // INV-6 · `claim_payout` answers only for a settled cohort. Between
+    // `settle_count` and `settle_finalize` a membership is already `Finished`
+    // and the shares are not written yet, so a claim in that window pays out of
+    // a pool that is still being assembled — and every figure below would
+    // accept it, because it only ever asks whether the deltas agree with each
+    // other. The cohort has to have been settled before the step, not during
+    // it: finalization and a claim in one snapshot would also break the exact
+    // post-finalize pool this checker pins.
+    if (claims.length > 0 && !b.settled) {
+      fail(
+        'INV-6',
+        `cohort ${c.address}: ${claims.length} claim(s) paid while it was ${statusOf(b, prev.now)}, not settled`,
+      );
+    }
+    const claimsPaid = claims.reduce((sum, was) => sum + (c.sharePerTier[was.tier] ?? 0n), 0n);
+    const stakesReturned = claims.reduce((sum, was) => sum + was.stake, 0n);
 
     // INV-5 · the denominator and the shares are written exactly once.
     if (b.settled) {
@@ -494,13 +620,13 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
     }
 
     // INV-2 · only recorded forfeits, carry-over arrival and claims touch a pool.
-    const forfeitsAdded = next.memberships.filter((m) => {
+    const forfeitsAdded = next.memberships.flatMap((m) => {
       const was = prevMemberships.get(m.address);
-      return m.cohort === c.address && m.state === 'Forfeited' && was?.state === 'Joined';
+      return m.cohort === c.address && m.state === 'Forfeited' && was?.state === 'Joined' ? [was] : [];
     });
-    const fromForfeits = forfeitsAdded.reduce((sum, m) => {
-      const fee = (m.stake * 20n) / 100n;
-      return sum + (m.stake - fee);
+    const fromForfeits = forfeitsAdded.reduce((sum, was) => {
+      const fee = (was.stake * 20n) / 100n;
+      return sum + (was.stake - fee);
     }, 0n);
 
     const available = b.pool + fromForfeits + carryArrived;
@@ -576,7 +702,7 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
       for (const m of next.memberships) {
         const was = prevMemberships.get(m.address);
         if (m.cohort !== c.address || m.state !== 'Forfeited' || was?.state !== 'Joined') continue;
-        owed += (m.stake * 20n) / 100n;
+        owed += (was.stake * 20n) / 100n;
       }
       if (c.settled && !b.settled) {
         owed += c.totalFinisherStake > 0n ? c.roundingRemainder : c.noFinisherFee;
@@ -588,6 +714,59 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
         'INV-2',
         `the fee destination took ${paid}, but this step's forfeits and settlements owe it ${owed}`,
       );
+    }
+  }
+
+  // INV-2 · the member's own side of every transfer.
+  //
+  // Everything above reconciles the program's accounts against each other, and
+  // a `claim_payout` that sent the exact amount to somebody else's token
+  // account satisfies all of it: the vault falls, the pool and the held stake
+  // fall with it, the membership reads `Claimed`. The only thing that tells the
+  // two apart is the wallet that was supposed to be paid. Every flow that moves
+  // SKR between a member and the program is accounted for here, so a step that
+  // joins, leaves, claims and takes a faucet claim at once still adds up.
+  if (prev.walletBalances && next.walletBalances) {
+    const nextMemberships = byAddress(next.memberships);
+    const owed = new Map<Address, bigint>();
+    const owe = (wallet: Address, amount: bigint) =>
+      owed.set(wallet, (owed.get(wallet) ?? 0n) + amount);
+
+    for (const m of next.memberships) {
+      const was = prevMemberships.get(m.address);
+      const c = nextCohorts.get(m.cohort);
+      // A membership that was not there before is a join: the stake leaves.
+      if (!was) {
+        owe(m.wallet, -m.stake);
+        continue;
+      }
+      if (m.state === 'Claimed' && was.state === 'Finished') {
+        owe(m.wallet, was.stake + (c?.sharePerTier[was.tier] ?? 0n));
+      }
+    }
+    // A membership that has gone is a `leave_cohort`, the one path that closes
+    // the account, and it refunds the stake in full (FR-009).
+    for (const was of prev.memberships) {
+      if (!nextMemberships.has(was.address)) owe(was.wallet, was.stake);
+    }
+    // A faucet claim mints the largest top tier ever published, and says so by
+    // moving the day it stamps on the profile (FR-042a, R13).
+    if (next.faucetMint !== undefined) {
+      const claimedBefore = new Map(prev.profiles.map((p) => [p.wallet, p.lastFaucetDay]));
+      for (const p of next.profiles) {
+        const before = claimedBefore.get(p.wallet);
+        if (before !== undefined && p.lastFaucetDay > before) owe(p.wallet, next.faucetMint);
+      }
+    }
+
+    for (const [wallet, expected] of owed) {
+      const paid = (next.walletBalances[wallet] ?? 0n) - (prev.walletBalances[wallet] ?? 0n);
+      if (paid !== expected) {
+        fail(
+          'INV-2',
+          `${wallet}'s balance moved by ${paid}, but this step's joins, leaves, claims and faucet come to ${expected}`,
+        );
+      }
     }
   }
 
@@ -624,6 +803,7 @@ export const assertInvariants = (current: Snapshot, previous?: Snapshot): void =
   checkCustody(current);
   checkDays(current, cohorts);
   checkSlots(current, cohorts);
+  checkTallies(current);
   checkStreaks(current, cohorts);
   if (previous) checkDeltas(previous, current);
 };
