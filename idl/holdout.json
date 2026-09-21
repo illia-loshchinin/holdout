@@ -3204,7 +3204,13 @@
     {
       "name": "PendingSlot",
       "docs": [
-        "A lobby place in a cohort that has not started. Default = none (FR-006a)."
+        "A lobby place in a cohort that has not started. Default = none (FR-006a).",
+        "",
+        "`end` is the cohort's own end, copied in as the place is taken. It is dead",
+        "weight until the place is promoted, and then it is the whole point: the",
+        "running slot's `end` is what stops a second obligation overlapping this one",
+        "(FR-006b, INV-4), and the cohort account is not passed to every instruction",
+        "that normalises the slots, so the end has to travel with the place."
       ],
       "type": {
         "kind": "struct",
@@ -3215,6 +3221,10 @@
           },
           {
             "name": "start",
+            "type": "i64"
+          },
+          {
+            "name": "end",
             "type": "i64"
           }
         ]

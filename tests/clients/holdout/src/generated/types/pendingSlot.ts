@@ -8,17 +8,25 @@
 
 import { combineCodec, getAddressDecoder, getAddressEncoder, getI64Decoder, getI64Encoder, getStructDecoder, getStructEncoder, type Address, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder } from '@solana/kit';
 
-/** A lobby place in a cohort that has not started. Default = none (FR-006a). */
-export type PendingSlot = { cohort: Address; start: bigint;  };
+/**
+ * A lobby place in a cohort that has not started. Default = none (FR-006a).
+ *
+ * `end` is the cohort's own end, copied in as the place is taken. It is dead
+ * weight until the place is promoted, and then it is the whole point: the
+ * running slot's `end` is what stops a second obligation overlapping this one
+ * (FR-006b, INV-4), and the cohort account is not passed to every instruction
+ * that normalises the slots, so the end has to travel with the place.
+ */
+export type PendingSlot = { cohort: Address; start: bigint; end: bigint;  };
 
-export type PendingSlotArgs = { cohort: Address; start: number | bigint;  };
+export type PendingSlotArgs = { cohort: Address; start: number | bigint; end: number | bigint;  };
 
 export function getPendingSlotEncoder(): FixedSizeEncoder<PendingSlotArgs> {
-    return getStructEncoder([['cohort', getAddressEncoder()], ['start', getI64Encoder()]]);
+    return getStructEncoder([['cohort', getAddressEncoder()], ['start', getI64Encoder()], ['end', getI64Encoder()]]);
 }
 
 export function getPendingSlotDecoder(): FixedSizeDecoder<PendingSlot> {
-    return getStructDecoder([['cohort', getAddressDecoder()], ['start', getI64Decoder()]]);
+    return getStructDecoder([['cohort', getAddressDecoder()], ['start', getI64Decoder()], ['end', getI64Decoder()]]);
 }
 
 export function getPendingSlotCodec(): FixedSizeCodec<PendingSlotArgs, PendingSlot> {

@@ -157,14 +157,18 @@ describe('submit_day (contracts §3)', () => {
   });
 
   it('refuses a submission once the member is in breach (INV-8)', async () => {
-    // Day 0's deadline passes with nothing submitted.
+    // Day 0's deadline passes with nothing submitted. The code is 6032 and not
+    // 6031: day 0 is still the member's next day, so what stops them is the
+    // deadline, and the guard reads it before the calendar precisely so a
+    // missed day says so — the day it fell on has since turned over, and the
+    // reverse order would answer every breach with `WrongDay` (contracts §5).
     h.setTime(deadlineOf(0) + 1);
-    expectProgramError(await submit(0), 'WrongDay');
+    expectProgramError(await submit(0), 'DeadlinePassed');
     expect(await daysCompleted(), 'no automation had to run for that').toBe(0);
 
-    // And the member cannot catch up later either.
+    // And the member cannot catch up later either, with the same answer.
     h.setTime(START + 3 * DAY_LENGTH);
-    expectProgramError(await submit(0), 'WrongDay');
+    expectProgramError(await submit(0), 'DeadlinePassed');
     expect(await daysCompleted()).toBe(0);
   });
 

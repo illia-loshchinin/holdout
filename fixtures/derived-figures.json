@@ -36,6 +36,9 @@
       "0"
     ],
     "roundingRemainder": "0",
+    "noFinisherFee": "0",
+    "carryOverSent": "0",
+    "carryOverTarget": null,
     "carryOverHeld": "0",
     "vaultAmount": "205000000"
   },

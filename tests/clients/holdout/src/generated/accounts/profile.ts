@@ -91,5 +91,5 @@ export async function fetchAllMaybeProfile(
 }
 
 export function getProfileSize(): number {
-  return 178;
+  return 186;
 }
