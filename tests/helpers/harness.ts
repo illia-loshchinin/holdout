@@ -677,7 +677,29 @@ export class Harness {
       };
     });
 
-    return { now: this.now(), cohorts, memberships, profiles };
+    return {
+      now: this.now(),
+      cohorts,
+      memberships,
+      profiles,
+      feeDestination: await this.feeBalance(),
+    };
+  }
+
+  /**
+   * SKR the configured fee destination holds.
+   *
+   * It is not program-owned, so `getProgramAccounts` never reaches it — and
+   * without it a fee that left a vault for the wrong token account is invisible:
+   * custody still balances, the pool still adds up, and nothing in the snapshot
+   * says where the units went. `undefined` means "no destination configured",
+   * which is not the same as a treasury that has been paid nothing.
+   */
+  private async feeBalance(): Promise<bigint | undefined> {
+    const account = this.svm.getAccount(await configPda());
+    if (!account.exists) return undefined;
+    const { feeDestination } = Config.decode(new Uint8Array(account.data));
+    return feeDestination === NO_KEY ? undefined : this.tokenBalance(feeDestination);
   }
 }
 

@@ -252,6 +252,52 @@ const checkSlots = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void =>
       );
     }
   }
+
+  // Both directions between the profile's slots and the memberships that back
+  // them. Checking only the slots a profile happens to name leaves the gap that
+  // matters: a `join_cohort` that wrote a `Joined` membership and left the slot
+  // empty passes here, and the *next* join then sees a free slot and takes a
+  // second obligation — which only a scenario that tries that second join would
+  // ever surface.
+  const slotsOf = new Map(s.profiles.map((p) => [p.wallet, p]));
+  for (const m of s.memberships) {
+    const c = cohorts.get(m.cohort);
+    if (!c || m.state !== 'Joined' || statusOf(c, s.now) === 'Settled') continue;
+    const p = slotsOf.get(m.wallet);
+    if (!p) {
+      fail('INV-4', `${m.wallet} is joined to ${c.address} with no profile to hold the slot`);
+      continue;
+    }
+    // Either slot will do. Normalisation runs inside the member's own
+    // instructions, so a lobby place whose cohort has started stays in
+    // `pending` until the member sends the next one — that lag is lawful, and
+    // the overlap guard covers it either way (data-model §1.5).
+    if (p.runningCohort !== c.address && p.pendingCohort !== c.address) {
+      fail(
+        'INV-4',
+        `${m.wallet} is joined to ${c.address}, but its profile holds running ${p.runningCohort ?? 'none'} / lobby ${p.pendingCohort ?? 'none'}`,
+      );
+    }
+  }
+  for (const p of s.profiles) {
+    for (const [slot, named] of [
+      ['running', p.runningCohort],
+      ['lobby', p.pendingCohort],
+    ] as const) {
+      if (named === null || !cohorts.has(named)) continue;
+      const held = s.memberships.some(
+        (m) => m.wallet === p.wallet && m.cohort === named && m.state === 'Joined',
+      );
+      // A slot outlives nothing: `leave_cohort` clears the lobby place, and
+      // recording a forfeit or counting a finisher releases the running one in
+      // the same instruction that moves the membership off `Joined`. A slot
+      // still naming a cohort the member has left refuses the member's next
+      // join for an obligation that no longer exists.
+      if (!held) {
+        fail('INV-4', `${p.wallet}: ${slot} slot names ${named}, with no joined membership in it`);
+      }
+    }
+  }
 };
 
 /** INV-9 · the streak follows the member's own cohorts, not the crank's order. */
@@ -459,6 +505,17 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
 
     const available = b.pool + fromForfeits + carryArrived;
     if (c.settled && !b.settled) {
+      // INV-5 · the denominator is written once, and only once it is complete.
+      // A finalize that ran early strands every uncounted member in a settled
+      // cohort for good, and the allocation it wrote can still balance on its
+      // own — an empty pool does, and so do shares for the subset counted so
+      // far — so the money checks below would pass it through.
+      if (b.counted !== b.memberCount) {
+        fail(
+          'INV-5',
+          `cohort ${c.address}: settled with ${b.counted} of ${b.memberCount} members counted`,
+        );
+      }
       // Finalization is the one place a pool moves without a claim, and it moves
       // to a figure the cohort has just written down for itself: the shares it
       // owes its finishers, or nothing at all when nobody finished. "It only
@@ -501,6 +558,35 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
       fail(
         'INV-2',
         `cohort ${c.address}: pool ${b.pool} → ${c.pool}, but forfeits +${fromForfeits}, carry-over +${carryArrived}, claims -${claimsPaid}`,
+      );
+    }
+  }
+
+  // INV-2 · the fee is the part of a stake that does *not* reach the pool, and
+  // the remainder is the part that leaves it at finalization. Both land in one
+  // account, and until that account is read the snapshot cannot tell a fee that
+  // reached the treasury from one that reached somebody else's token account:
+  // the vault falls by the same amount either way, so custody and the pool both
+  // still balance. Skipped when either snapshot has no destination configured.
+  if (prev.feeDestination !== undefined && next.feeDestination !== undefined) {
+    let owed = 0n;
+    for (const c of next.cohorts) {
+      const b = before.get(c.address);
+      if (!b) continue;
+      for (const m of next.memberships) {
+        const was = prevMemberships.get(m.address);
+        if (m.cohort !== c.address || m.state !== 'Forfeited' || was?.state !== 'Joined') continue;
+        owed += (m.stake * 20n) / 100n;
+      }
+      if (c.settled && !b.settled) {
+        owed += c.totalFinisherStake > 0n ? c.roundingRemainder : c.noFinisherFee;
+      }
+    }
+    const paid = next.feeDestination - prev.feeDestination;
+    if (paid !== owed) {
+      fail(
+        'INV-2',
+        `the fee destination took ${paid}, but this step's forfeits and settlements owe it ${owed}`,
       );
     }
   }

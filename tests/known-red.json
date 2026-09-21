@@ -1,4 +1,8 @@
 {
   "$comment": "Tests that are red on purpose: written before the logic they describe (constitution VII). Regenerate with `npm run ci:gate -- --update`. The list shrinks as tasks land; when it empties, delete it, delete scripts/ci-gate.mjs, and let the workflow run `npm test`.",
-  "tests": []
+  "$skippedComment": "Tests allowed not to run at all. Hand-maintained: `--update` never adds to it, because a skip takes a test out of the gate and should read like a decision in the diff.",
+  "tests": [],
+  "skipped": [
+    "helpers/harness.spec.ts :: the error table needs `anchor build` to compare with the IDL"
+  ]
 }
