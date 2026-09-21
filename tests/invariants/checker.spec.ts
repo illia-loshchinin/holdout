@@ -682,7 +682,11 @@ describe('INV-2 · the fee reaches the fee destination', () => {
   const forfeited = { ...joined, state: 'Forfeited' as const };
   const after = cohort({ memberCount: 1, heldStake: 0n, pool: 80n, vaultAmount: 80n });
   const slots = [profile(inCohortA)];
-  const released = [profile({ leagues: { 0: progress({ forfeited: 1 }) } })];
+  /** The missed deadline of day 0, which is the outcome instant a record writes. */
+  const missed = FIRST_START + DAY - 1;
+  const released = [
+    profile({ leagues: { 0: progress({ forfeited: 1, lastChanged: missed }) } }),
+  ];
 
   it('accepts a forfeit whose fee lands in the treasury', () => {
     const prev = snapshot({ now: at, cohorts: [live], memberships: [joined], profiles: slots, feeDestination: 500n });
@@ -979,7 +983,11 @@ describe('INV-9 · streaks follow cohort order, not crank order', () => {
                   forfeited: 1,
                   currentStreak: 1,
                   longestStreak: 1,
-                  lastChanged: CLEARED_A,
+                  // The forfeit has resolved cohort B (FR-060a), so it is the
+                  // member's most recent outcome and the tie-break instant is
+                  // its missed deadline. Only the streak waits for the count
+                  // (FR-061a), which is why it is still 1.
+                  lastChanged: FORFEITED_B,
                 }),
               },
             }),
