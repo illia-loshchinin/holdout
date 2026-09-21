@@ -1,5 +1,6 @@
 {
   "$comment": "Tests that are red on purpose: written before the logic they describe (constitution VII). Regenerate with `npm run ci:gate -- --update`. The list shrinks as tasks land; when it empties, delete it, delete scripts/ci-gate.mjs, and let the workflow run `npm test`.",
+  "$skippedComment": "Tests allowed not to run at all. Hand-maintained: `--update` never adds to it, because a skip takes a test out of the gate and should read like a decision in the diff.",
   "tests": [
     "scenarios/league-setup.spec.ts :: a cohort cannot open before a chip set is published (FR-055b) fails open_cohort with ChipSetNotPublished, and succeeds with the same accounts once a set exists",
     "scenarios/league-setup.spec.ts :: a cohort cannot open before a chip set is published (FR-055b) is for the operator only",
@@ -32,5 +33,8 @@
     "scenarios/league-setup.spec.ts :: initialize (research R14) refuses a stranger with NotUpgradeAuthority, and creates nothing",
     "scenarios/league-setup.spec.ts :: initialize (research R14) refuses even the deployer once the authority has moved on — the current authority decides, not the original",
     "scenarios/league-setup.spec.ts :: initialize (research R14) refuses everyone when the program is immutable, since nobody holds the authority"
+  ],
+  "skipped": [
+    "helpers/harness.spec.ts :: the error table needs `anchor build` to compare with the IDL"
   ]
 }

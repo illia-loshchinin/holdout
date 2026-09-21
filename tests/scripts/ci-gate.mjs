@@ -24,6 +24,15 @@
  * intentional, and it refuses while a listed test is not running at all, so a
  * test cannot be retired by accident. Retiring one is a hand edit.
  *
+ * A *skipped* test is neither passing nor failing, so without a second list it
+ * leaves the gate entirely: turning any green test into `it.skip`, or making a
+ * `skipIf` condition true, drops its coverage and the build stays green. So the
+ * file carries a `skipped` list as well, of the tests allowed not to run. It is
+ * hand-maintained on purpose — `--update` never adds to it, because skipping a
+ * test is a decision and should read like one in the diff. The list is a floor,
+ * not an equality: a listed test that *does* run is more coverage, not less,
+ * which is what happens when an environment-dependent guard goes the other way.
+ *
  * The list is meant to shrink to nothing. When it is empty, delete it, delete
  * this script, and make the workflow run `npm test`.
  */
@@ -68,6 +77,7 @@ const idOf = (file, assertion) => `${relative(TESTS, file).split(sep).join('/')}
 
 const failing = new Set();
 const passing = new Set();
+const skipped = new Set();
 /**
  * Files that failed without any test failing in them: an import that does not
  * resolve, a syntax error, a throw at the top of the file. Vitest reports those
@@ -83,6 +93,7 @@ for (const file of report.testResults) {
       failing.add(idOf(file.name, a));
       failedHere += 1;
     } else if (a.status === 'passed') passing.add(idOf(file.name, a));
+    else skipped.add(idOf(file.name, a));
   }
   if (file.status === 'failed' && failedHere === 0) {
     broken.push({
@@ -101,10 +112,18 @@ const unexplained = run.status !== 0 && failing.size === 0 && broken.length === 
 
 // ------------------------------------------------------------ the baseline
 
+const readFile = () => (existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : null);
+
 const readBaseline = () => {
-  if (!existsSync(BASELINE)) return [];
-  const raw = JSON.parse(readFileSync(BASELINE, 'utf8'));
+  const raw = readFile();
+  if (raw === null) return [];
   return Array.isArray(raw) ? raw : raw.tests;
+};
+
+/** Tests allowed not to run at all. Hand-maintained; `--update` preserves it. */
+const readSkips = () => {
+  const raw = readFile();
+  return raw === null || Array.isArray(raw) ? [] : (raw.skipped ?? []);
 };
 
 if (update) {
@@ -143,6 +162,15 @@ if (update) {
     console.error('that is a decision to retire a test, and it should read like one in the diff.');
     process.exit(1);
   }
+  const allowedSkips = new Set(readSkips());
+  const newSkips = [...skipped].filter((t) => !allowedSkips.has(t)).sort();
+  if (newSkips.length > 0) {
+    console.error(`ci-gate: ${newSkips.length} test(s) are skipped and not on the \`skipped\` list.`);
+    console.error('Skipping a test takes it out of the gate, so it is a hand edit, not something');
+    console.error('`--update` will adopt for you. Add them with a note on why, or unskip them:');
+    for (const t of newSkips) console.error(`  ${t}`);
+    process.exit(1);
+  }
   const tests = (seeding ? [...failing] : [...listed].filter((t) => !passing.has(t))).sort();
   const dropped = seeding ? 0 : listed.size - tests.length;
   writeFileSync(
@@ -153,7 +181,11 @@ if (update) {
           'Tests that are red on purpose: written before the logic they describe (constitution VII). ' +
           'Regenerate with `npm run ci:gate -- --update`. The list shrinks as tasks land; when it ' +
           'empties, delete it, delete scripts/ci-gate.mjs, and let the workflow run `npm test`.',
+        $skippedComment:
+          'Tests allowed not to run at all. Hand-maintained: `--update` never adds to it, because ' +
+          'a skip takes a test out of the gate and should read like a decision in the diff.',
         tests,
+        skipped: [...allowedSkips].sort(),
       },
       null,
       2,
@@ -168,6 +200,9 @@ if (update) {
 }
 
 const baseline = new Set(readBaseline());
+
+const allowedSkips = new Set(readSkips());
+const unexpectedSkips = [...skipped].filter((t) => !allowedSkips.has(t)).sort();
 
 const regressions = [...failing].filter((t) => !baseline.has(t)).sort();
 const landed = [...baseline].filter((t) => passing.has(t)).sort();
@@ -186,6 +221,7 @@ say(`### Contract tests`);
 say('');
 say(`- **${passing.size} passing**, gated: any one of them breaking fails the build.`);
 say(`- ${stillRed} red on purpose (constitution VII), listed in \`tests/known-red.json\`.`);
+say(`- ${skipped.size} skipped, ${skipped.size - unexpectedSkips.length} of them on its \`skipped\` list.`);
 
 if (broken.length > 0) {
   say('');
@@ -197,6 +233,15 @@ if (broken.length > 0) {
 if (unexplained) {
   say('');
   say(`**vitest exited ${run.status} with nothing red to explain it** — treat the run as failed.`);
+}
+
+if (unexpectedSkips.length > 0) {
+  say('');
+  say(`**${unexpectedSkips.length} test(s) are skipped without being listed.** A skipped test is`);
+  say('neither passing nor failing, so it is not gated by anything: this is how a green test');
+  say('stops running without the build noticing. Unskip it, or add it to the `skipped` list in');
+  say('`tests/known-red.json` with a note on why it cannot run.');
+  for (const t of unexpectedSkips) say(`  - \`${t}\``);
 }
 
 if (regressions.length > 0) {
@@ -224,5 +269,6 @@ if (process.env.GITHUB_STEP_SUMMARY) {
   appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
 }
 
-const problems = regressions.length + landed.length + vanished.length + broken.length;
+const problems =
+  regressions.length + landed.length + vanished.length + broken.length + unexpectedSkips.length;
 process.exit(problems > 0 || unexplained ? 1 : 0);

@@ -91,11 +91,17 @@ const profile = (over: Partial<ProfileSnapshot> = {}): ProfileSnapshot => ({
   ...over,
 });
 
+/** The slot a live place in cohort A puts on its member's profile. */
+const inCohortA = { runningCohort: 'cohort-A', runningEnd: FIRST_START + 7 * DAY } as const;
+
 const snapshot = (over: Partial<Snapshot> = {}): Snapshot => ({
   now: FIRST_START,
   cohorts: [cohort()],
   memberships: [membership()],
-  profiles: [profile()],
+  // INV-4 reads the slots against the memberships in both directions, so the
+  // default profile holds the place the default membership took. A test about
+  // the slots passes its own.
+  profiles: [profile(inCohortA)],
   ...over,
 });
 
@@ -182,9 +188,39 @@ describe('INV-4 · one obligation at a time', () => {
             membership({ address: 'm-1', cohort: 'cohort-A' }),
             membership({ address: 'm-2', cohort: 'cohort-B' }),
           ],
+          profiles: [
+            profile({
+              ...inCohortA,
+              pendingCohort: 'cohort-B',
+              pendingStart: next.start,
+              pendingEnd: next.start + 7 * DAY,
+            }),
+          ],
         }),
       ),
     ).not.toThrow();
+  });
+
+  it('catches a join that took a place without filling the slot', () => {
+    // What a broken `join_cohort` leaves behind: the membership is live, the
+    // profile still reads as free, and the very next join takes a second
+    // obligation. Nothing else in the snapshot is wrong.
+    expectViolation('INV-4', () =>
+      assertInvariants(snapshot({ profiles: [profile()] })),
+    );
+  });
+
+  it('catches a slot left naming a cohort the member is no longer in', () => {
+    // The mirror image: the place is gone but the slot outlived it, so the
+    // member is refused their next join for an obligation that does not exist.
+    expectViolation('INV-4', () =>
+      assertInvariants(
+        snapshot({
+          memberships: [membership({ state: 'Forfeited' })],
+          profiles: [profile({ ...inCohortA, leagues: { 0: progress({ forfeited: 1 }) } })],
+        }),
+      ),
+    );
   });
 });
 
@@ -332,6 +368,8 @@ describe('INV-2 · finalization lands on an exact pool', () => {
       vaultAmount: 0n,
     });
     const empty = counted({
+      memberCount: 0,
+      counted: 0,
       finisherCount: 0,
       finishersPerTier: [0, 0, 0, 0],
       totalFinisherStake: 0n,
@@ -339,7 +377,7 @@ describe('INV-2 · finalization lands on an exact pool', () => {
       pool: 81n,
       vaultAmount: 81n,
     });
-    const prev = snapshot({ now: at, cohorts: [empty, lobby], memberships: [] });
+    const prev = snapshot({ now: at, cohorts: [empty, lobby], memberships: [], profiles: [] });
     const settledEmpty = {
       ...empty,
       settled: true,
@@ -351,7 +389,10 @@ describe('INV-2 · finalization lands on an exact pool', () => {
     };
     const fed = { ...lobby, pool: 41n, carryOverReceived: 41n, vaultAmount: 41n };
     expect(() =>
-      assertInvariants(snapshot({ now: at, cohorts: [settledEmpty, fed], memberships: [] }), prev),
+      assertInvariants(
+        snapshot({ now: at, cohorts: [settledEmpty, fed], memberships: [], profiles: [] }),
+        prev,
+      ),
     ).not.toThrow();
 
     // The same split, one unit short of the pool it started with.
@@ -361,6 +402,7 @@ describe('INV-2 · finalization lands on an exact pool', () => {
           now: at,
           cohorts: [{ ...settledEmpty, noFinisherFee: 39n }, fed],
           memberships: [],
+          profiles: [],
         }),
         prev,
       ),
@@ -393,13 +435,14 @@ describe('INV-2 · a carry-over has to have a sender', () => {
   });
 
   it('catches a pool fed by a counter nobody sent anything into', () => {
-    const prev = snapshot({ now: at, cohorts: [lobby], memberships: [] });
+    const prev = snapshot({ now: at, cohorts: [lobby], memberships: [], profiles: [] });
     expectViolation('INV-2', () =>
       assertInvariants(
         snapshot({
           now: at,
           cohorts: [{ ...lobby, pool: 41n, carryOverReceived: 41n, vaultAmount: 41n }],
           memberships: [],
+          profiles: [],
         }),
         prev,
       ),
@@ -412,7 +455,7 @@ describe('INV-2 · a carry-over has to have a sender', () => {
     // covers its new pool, and INV-1 holds at both ends. Only putting the two
     // sides next to each other shows the carry left league 1 and landed in
     // league 0, which FR-037a does not allow.
-    const prev = snapshot({ now: at, cohorts: [lobby, stranger], memberships: [] });
+    const prev = snapshot({ now: at, cohorts: [lobby, stranger], memberships: [], profiles: [] });
     expectViolation('INV-2', () =>
       assertInvariants(
         snapshot({
@@ -430,10 +473,67 @@ describe('INV-2 · a carry-over has to have a sender', () => {
             },
           ],
           memberships: [],
+          profiles: [],
         }),
         prev,
       ),
     );
+  });
+});
+
+describe('INV-5 · the denominator is written once, and not before its time', () => {
+  const at = FIRST_START + 8 * DAY;
+
+  it('catches a finalize that ran while members were still uncounted', () => {
+    // The allocation it wrote balances on its own — an empty pool always does —
+    // so nothing about the money gives it away. The two members never counted
+    // are simply stranded in a cohort that can no longer be settled.
+    const half = cohort({ memberCount: 2, counted: 0, heldStake: 0n, pool: 0n, vaultAmount: 0n });
+    const prev = snapshot({ now: at, cohorts: [half], memberships: [], profiles: [] });
+    expectViolation('INV-5', () =>
+      assertInvariants(
+        snapshot({ now: at, cohorts: [{ ...half, settled: true }], memberships: [], profiles: [] }),
+        prev,
+      ),
+    );
+  });
+
+  it('accepts the same finalize once the count is complete', () => {
+    const done = cohort({ memberCount: 2, counted: 2, heldStake: 0n, pool: 0n, vaultAmount: 0n });
+    const prev = snapshot({ now: at, cohorts: [done], memberships: [], profiles: [] });
+    expect(() =>
+      assertInvariants(
+        snapshot({ now: at, cohorts: [{ ...done, settled: true }], memberships: [], profiles: [] }),
+        prev,
+      ),
+    ).not.toThrow();
+  });
+});
+
+describe('INV-2 · the fee reaches the fee destination', () => {
+  const at = FIRST_START + 3 * DAY;
+
+  /** One member of tier 3, stake 100, about to be forfeited: fee 20, pool 80. */
+  const live = cohort({ memberCount: 1, heldStake: 100n, pool: 0n, vaultAmount: 100n });
+  const joined = membership();
+  const forfeited = { ...joined, state: 'Forfeited' as const };
+  const after = cohort({ memberCount: 1, heldStake: 0n, pool: 80n, vaultAmount: 80n });
+  const slots = [profile(inCohortA)];
+  const released = [profile({ leagues: { 0: progress({ forfeited: 1 }) } })];
+
+  it('accepts a forfeit whose fee lands in the treasury', () => {
+    const prev = snapshot({ now: at, cohorts: [live], memberships: [joined], profiles: slots, feeDestination: 500n });
+    const next = snapshot({ now: at, cohorts: [after], memberships: [forfeited], profiles: released, feeDestination: 520n });
+    expect(() => assertInvariants(next, prev)).not.toThrow();
+  });
+
+  it('catches a fee that left the vault for somewhere else', () => {
+    // Every figure the cohort keeps is right: the stake left held, 80 of it
+    // reached the pool, and the vault fell by the whole 100. The 20 simply
+    // never arrived, and only reading the destination shows it.
+    const prev = snapshot({ now: at, cohorts: [live], memberships: [joined], profiles: slots, feeDestination: 500n });
+    const next = snapshot({ now: at, cohorts: [after], memberships: [forfeited], profiles: released, feeDestination: 500n });
+    expectViolation('INV-2', () => assertInvariants(next, prev));
   });
 });
 

@@ -29,6 +29,24 @@ const IDL_PATH = resolve(ROOT, 'target/idl/holdout.json');
 /** Words that may not name anything a caller can pass in. */
 const FORBIDDEN = /price|oracle|pyth|switchboard|usd|fiat|dollar/i;
 
+/**
+ * `rate` is the one that cannot be a substring: it lives inside `crate`,
+ * `accurate` and `saturating`. A name is split into its components first —
+ * `exchangeRate` and `exchange_rate` both become `['exchange', 'rate']` — and
+ * the word is only forbidden when it *is* a component. `crate` stays one.
+ */
+const FORBIDDEN_WORDS = new Set(['rate']);
+
+const componentsOf = (name: string): string[] =>
+  name
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+const namesAPrice = (name: string): boolean =>
+  FORBIDDEN.test(name) || componentsOf(name).some((part) => FORBIDDEN_WORDS.has(part));
+
 /** Every string that names something in an IDL: args, accounts, fields, types. */
 const namesIn = (node: unknown, found: string[] = []): string[] => {
   if (Array.isArray(node)) {
@@ -60,8 +78,21 @@ describe('the contract never reads a price (constitution III)', () => {
     ).toBe(true);
 
     const idl = JSON.parse(readFileSync(IDL_PATH, 'utf8')) as unknown;
-    const offenders = namesIn(idl).filter((name) => FORBIDDEN.test(name));
+    const offenders = namesIn(idl).filter(namesAPrice);
     expect(offenders, `IDL names a price: ${offenders.join(', ')}`).toEqual([]);
+  });
+
+  it('reads `rate` as a name, not as a substring', () => {
+    // The pattern this half shares with `scripts/check-no-oracle.sh`. Getting it
+    // wrong in either direction is silent: too loose and every `crate::` in the
+    // program is an offender, too tight and a field carrying a conversion rate
+    // goes through.
+    for (const name of ['rate', 'exchangeRate', 'exchange_rate', 'rateBps', 'skrPrice', 'usdFloor']) {
+      expect(namesAPrice(name), `${name} should be refused`).toBe(true);
+    }
+    for (const name of ['crate', 'accurate', 'saturating', 'operator', 'generate', 'separate']) {
+      expect(namesAPrice(name), `${name} should be allowed`).toBe(false);
+    }
   });
 
   it('keeps the only rate in the crank, where it stays off-chain', () => {
