@@ -68,6 +68,7 @@ import {
   TOKEN_PROGRAM,
   UPGRADEABLE_LOADER,
   cohortPda,
+  associatedTokenPda,
   configPda,
   leaguePda,
   membershipPda,
@@ -635,32 +636,37 @@ export class Harness {
         pendingCohort: p.pending.cohort === NO_KEY ? null : p.pending.cohort,
         pendingStart: Number(p.pending.start),
         pendingEnd: Number(p.pending.end),
+        lastFaucetDay: Number(p.lastFaucetDay),
       };
     });
+
+    // None of these are program-owned, so `getProgramAccounts` reaches none of
+    // them — and they are the far side of every transfer the program makes.
+    // Without them a fee or a payout that went to the wrong token account is
+    // invisible: custody still balances and the pool still adds up. `undefined`
+    // means "nothing configured yet", which is not the same as a balance of nil.
+    const account = this.svm.getAccount(await configPda());
+    const config = account.exists ? Config.decode(new Uint8Array(account.data)) : undefined;
+    const balances: Record<string, bigint> = {};
+    if (config && config.skrMint !== NO_KEY) {
+      for (const p of profiles) {
+        const ata = await associatedTokenPda(p.wallet as Address, config.skrMint);
+        balances[p.wallet] = this.tokenBalance(ata);
+      }
+    }
 
     return {
       now: this.now(),
       cohorts,
       memberships,
       profiles,
-      feeDestination: await this.feeBalance(),
+      feeDestination:
+        config && config.feeDestination !== NO_KEY
+          ? this.tokenBalance(config.feeDestination)
+          : undefined,
+      walletBalances: config ? balances : undefined,
+      faucetMint: config ? config.chipSet.maxTopTier : undefined,
     };
-  }
-
-  /**
-   * SKR the configured fee destination holds.
-   *
-   * It is not program-owned, so `getProgramAccounts` never reaches it — and
-   * without it a fee that left a vault for the wrong token account is invisible:
-   * custody still balances, the pool still adds up, and nothing in the snapshot
-   * says where the units went. `undefined` means "no destination configured",
-   * which is not the same as a treasury that has been paid nothing.
-   */
-  private async feeBalance(): Promise<bigint | undefined> {
-    const account = this.svm.getAccount(await configPda());
-    if (!account.exists) return undefined;
-    const { feeDestination } = Config.decode(new Uint8Array(account.data));
-    return feeDestination === NO_KEY ? undefined : this.tokenBalance(feeDestination);
   }
 }
 

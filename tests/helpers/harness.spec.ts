@@ -227,14 +227,19 @@ describe('a snapshot flows from the SVM into the invariant checker', () => {
     await fresh.injectMembership(b, wallet, { state: 'Forfeited', daysCompleted: 0, counted: true });
 
     const progress = (over: object) => ({ cleared: 0, forfeited: 0, currentStreak: 0, longestStreak: 0, lastChanged: 0n, ...over });
-    const leagues = [progress({}), progress({}), progress({ cleared: 1, forfeited: 1, currentStreak: 0, longestStreak: 1 })] as never;
+    // The instant of the most recent outcome: cohort b's missed day-0 deadline,
+    // which is later than cohort a's end. INV-9 derives it from the counted
+    // memberships, so a figure taken from the crank's clock would not match.
+    const outcome = BigInt(FIRST_START + WEEK + DAY - 1);
+    const settledProgress = { cleared: 1, forfeited: 1, currentStreak: 0, longestStreak: 1, lastChanged: outcome };
+    const leagues = [progress({}), progress({}), progress(settledProgress)] as never;
     await fresh.injectProfile(wallet, { leagues });
     fresh.setTime(FIRST_START + 3 * WEEK);
     const ok = await snap(fresh);
     expect(() => assertInvariants(ok)).not.toThrow();
 
     // What the old, order-dependent design would have left behind.
-    const wrong = [progress({}), progress({}), progress({ cleared: 1, forfeited: 1, currentStreak: 1, longestStreak: 1 })] as never;
+    const wrong = [progress({}), progress({}), progress({ ...settledProgress, currentStreak: 1 })] as never;
     await fresh.injectProfile(wallet, { leagues: wrong });
     try {
       assertInvariants(await snap(fresh));
