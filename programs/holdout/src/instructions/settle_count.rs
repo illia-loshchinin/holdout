@@ -130,6 +130,31 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleCount<'info>>) -> Result<
             membership.wallet,
             HoldoutError::AccountMismatch
         );
+
+        // No membership twice in one page. Decoding the page up front gives
+        // every entry its own copy of the account, so two entries naming the
+        // same membership would both read `counted == false` — the `counted`
+        // guard below reads that copy, not the account, and cannot see the
+        // write the earlier pass made. The second pass would then count the
+        // member again: `cohort.counted`, `finisher_count` and
+        // `total_finisher_stake` all rise twice. A caller who duplicates one
+        // member and omits another still reaches `counted == member_count`,
+        // finalises on distorted shares, and leaves the omitted member's stake
+        // locked in a cohort that can never be counted again (INV-1, INV-2).
+        //
+        // `record_forfeits` cannot be reached this way: it decodes inside its
+        // loop, so a second pass re-reads `Forfeited` and `in_breach` is false.
+        // Anchor's own duplicate-mutable-account check does not help here,
+        // because it covers the `Accounts` struct and not `remaining_accounts`.
+        //
+        // At most `MAX_PAIRS` entries, so the scan is trivial.
+        require!(
+            decoded
+                .iter()
+                .all(|(seen, _)| seen.key() != membership.key()),
+            HoldoutError::AccountMismatch
+        );
+
         decoded.push((membership, profile));
     }
 

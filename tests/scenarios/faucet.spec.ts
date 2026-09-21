@@ -98,9 +98,13 @@ describe('claim_faucet (contracts §3, research R13)', () => {
     expect(h.balance(newcomer.address)).toBe(SOL_TOP_UP);
     expect(await skrOf(newcomer.address)).toBe(DEFAULT_CHIPS[3]);
 
-    // The sponsor is no poorer than it started: its fee and the rent it paid
-    // for the new accounts come back out of the vault.
-    expect(h.balance(sponsor.address)).toBeGreaterThanOrEqual(sponsorBefore);
+    // The sponsor ends exactly where it started — not merely no poorer. Its
+    // fee and the rent it paid for the new accounts come back out of the
+    // vault, and nothing more: reimbursing the fee twice would leave it above
+    // its float, and `toBeGreaterThanOrEqual` is what let that through once
+    // already.
+    expect(h.balance(sponsor.address), 'the sponsor is reimbursed exactly once')
+      .toBe(sponsorBefore);
 
     // And every lamport that left the vault is charged to the day.
     const spent = vaultBefore - vaultBalance();

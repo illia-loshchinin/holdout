@@ -41,15 +41,6 @@ use crate::{
     },
 };
 
-/// Lamports reimbursed to the sponsor for the claim's transaction fee.
-///
-/// Solana charges 5,000 lamports per signature and this instruction carries
-/// exactly one — the sponsor's, since the recipient never signs. The fee is
-/// deducted before the instruction runs, so the program cannot observe it and
-/// has to know it; a priority fee is the app's own choice and is not reimbursed
-/// (research R13).
-pub const CLAIM_FEE_LAMPORTS: u64 = 5_000;
-
 /// The large accounts are boxed: `Config` and `Profile` do not fit in
 /// `try_accounts`' own SBF stack frame beside the mint and two token accounts.
 #[derive(Accounts)]
@@ -147,21 +138,27 @@ pub(crate) fn handler(ctx: Context<ClaimFaucet>, recipient: Pubkey) -> Result<()
         .sol_top_up
         .saturating_sub(ctx.accounts.recipient.lamports());
 
-    // What the payer spent inside this instruction: the rent for the `Profile`
-    // and token account Anchor has just created, whichever of them were
-    // missing. Measured rather than assumed, so it is right for a recipient
-    // that already had one of them.
+    // Everything the sponsor is out of pocket for, in a single measurement:
+    // the gap between the float it is configured to hold and what it holds
+    // now. Both halves are already inside that gap — the transaction fee was
+    // deducted before this instruction began, and the rent for whichever of
+    // `Profile` and the token account Anchor has just created was paid during
+    // it — so adding a fee constant on top would reimburse the fee twice,
+    // push the sponsor above its float and spend the day's budget faster than
+    // the claim actually cost (R13).
+    //
+    // Measuring rather than assuming also means a priority fee the caller
+    // attached is reimbursed, where a fixed constant would not have been. The
+    // gap cannot exceed `sponsor_float`, so one claim can move at most that
+    // much, and the daily lamport budget bounds the rest — the same bound R13
+    // already accepts for a drained sponsor.
     let sponsor_is_payer = payer_key == ctx.accounts.sponsor.key();
     let reimbursement = if sponsor_is_payer {
-        let spent_on_rent = ctx
-            .accounts
+        ctx.accounts
             .config
             .faucet
             .sponsor_float
-            .saturating_sub(ctx.accounts.sponsor.lamports());
-        // The fee left the sponsor before this instruction ran, so it is added
-        // rather than measured.
-        spent_on_rent.saturating_add(CLAIM_FEE_LAMPORTS)
+            .saturating_sub(ctx.accounts.sponsor.lamports())
     } else {
         0
     };

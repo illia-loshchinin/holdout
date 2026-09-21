@@ -292,6 +292,69 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
     assertUnchanged(before, await h.snapshot());
   });
 
+  it('refuses a page naming the same membership twice (INV-1, INV-2)', async () => {
+    // The page is decoded up front, so each entry carries its own copy of the
+    // account. Two entries for one membership would both read
+    // `counted == false`, and the second pass would count the member a second
+    // time: `counted`, `finisherCount` and `totalFinisherStake` all double.
+    //
+    // That is not merely untidy accounting. `settle_finalize` needs
+    // `counted == member_count`, so a caller who duplicates one member and
+    // omits another reaches that total with a member never counted, finalises
+    // on shares computed from an inflated finisher stake, and strands the
+    // omitted member's stake in a settled cohort that can never be counted
+    // again. Anchor's duplicate-mutable-account check does not reach it —
+    // that covers the `Accounts` struct, not `remaining_accounts`.
+    const cohort = await cohortAt(0);
+    const finisher = await member(0, 0);
+    const other = await member(0, 1);
+    await clearAllDays(finisher, 0);
+
+    h.setTime(END);
+    const before = await h.snapshot();
+
+    // The finisher twice, `other` left out — the shape that would forge a
+    // complete count.
+    expectProgramError(
+      await h.send(
+        [
+          await settleCountIx(
+            crank.address,
+            feeDestination,
+            league,
+            0,
+            await forfeitPairs(cohort, [finisher.address, finisher.address]),
+          ),
+        ],
+        crank,
+      ),
+      'AccountMismatch',
+    );
+
+    // Refused whole: a page wrong anywhere writes nothing.
+    assertUnchanged(before, await h.snapshot());
+
+    // And the honest page still works, with each member counted exactly once.
+    await h.sendOrThrow(
+      [
+        await settleCountIx(
+          crank.address,
+          feeDestination,
+          league,
+          0,
+          await forfeitPairs(cohort, [finisher.address, other.address]),
+        ),
+      ],
+      crank,
+    );
+    const counted = await h.readCohort(league, 0);
+    expect(counted.counted, 'both members, once each').toBe(2);
+    expect(counted.finisherCount, 'one finisher, counted once').toBe(1);
+    expect(counted.totalFinisherStake).toBe(
+      (await h.readMembership(cohort, finisher.address)).stake,
+    );
+  });
+
   it('refuses to finalize before every member is counted (INV-5)', async () => {
     const cohort = await cohortAt(0);
     const a = await member(0, 1);
