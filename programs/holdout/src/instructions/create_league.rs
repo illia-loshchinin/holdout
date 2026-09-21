@@ -28,7 +28,7 @@ use crate::{
         config::{Config, CONFIG_SEED},
         league::{
             is_monday_0500_utc, LeagueConfig, DEVNET_CADENCE, DEVNET_DAY_LENGTH, DEVNET_JOIN_LOCK,
-            EXERCISE_PUSHUP, LEAGUE_21D, LEAGUE_7D, LEAGUE_SEED,
+            DEVNET_REPS_PER_DAY, EXERCISE_PUSHUP, LEAGUE_21D, LEAGUE_7D, LEAGUE_SEED,
         },
     },
 };
@@ -61,6 +61,7 @@ pub struct CreateLeague<'info> {
 fn timing_ok(
     league_id: u8,
     duration_days: u8,
+    reps_per_day: u16,
     first_start: i64,
     day_length: i64,
     cadence: i64,
@@ -68,8 +69,9 @@ fn timing_ok(
 ) -> bool {
     if LeagueConfig::is_test_league(league_id) {
         // A test league's whole point is a compressed day, so its clock is
-        // free — but never a zero duration, for the reason below.
-        return cfg!(feature = "test-leagues") && duration_days > 0;
+        // free — but never a zero duration or a zero rep count, for the
+        // reasons below.
+        return cfg!(feature = "test-leagues") && duration_days > 0 && reps_per_day > 0;
     }
     // The duration belongs to the timing: it is what fixes the league's `end`,
     // and `open_cohort` copies it into every cohort permanently, so a wrong
@@ -88,7 +90,12 @@ fn timing_ok(
         LEAGUE_21D => 21,
         _ => return false,
     };
+    // The obligation itself, copied into every cohort as permanently as the
+    // duration: both judged leagues are the Daily 25 (data-model §1.2), and a
+    // zero-rep league would be a daily obligation with nothing to do — a
+    // submission that means nothing and a forfeit nobody could have avoided.
     duration_days == expected
+        && reps_per_day == DEVNET_REPS_PER_DAY
         && day_length == DEVNET_DAY_LENGTH
         && cadence == DEVNET_CADENCE
         && join_lock == DEVNET_JOIN_LOCK
@@ -115,6 +122,7 @@ pub(crate) fn handler(
         timing_ok(
             league_id,
             duration_days,
+            reps_per_day,
             first_start,
             day_length,
             cadence,

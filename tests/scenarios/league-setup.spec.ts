@@ -326,6 +326,18 @@ describe('create_league (data-model §1.2, H30)', () => {
       expect(await readLeague(0)).toBeNull();
     });
 
+    it.each([
+      ['a zero-rep league', { repsPerDay: 0 }],
+      ['a league of one rep', { repsPerDay: 1 }],
+      ['a league of more than the Daily 25', { repsPerDay: 50 }],
+    ])('rejects %s with InvalidLeagueTiming', async (_name, over) => {
+      // Copied into every cohort as permanently as the duration. A zero-rep
+      // league would be a daily obligation with nothing to do: a submission
+      // that means nothing and a forfeit nobody could have avoided.
+      expectProgramError(await create(over), 'InvalidLeagueTiming');
+      expect(await readLeague(0)).toBeNull();
+    });
+
     it('rejects a 7-day league 1, which is the 21-day league', async () => {
       expectProgramError(await create({ leagueId: 1, durationDays: 7 }), 'InvalidLeagueTiming');
       expect(await readLeague(1)).toBeNull();

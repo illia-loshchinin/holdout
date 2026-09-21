@@ -50,7 +50,7 @@ A second `claim_payout`, `submit_day` for the same day, `leave_cohort` after the
 |---|---|---|
 | 6000 | `NotAdmin` / 6001 `NotOperator` / 6002 `NotSponsorOrRecipient` | Wrong privileged signer |
 | 6003 | `NotUpgradeAuthority` | `initialize` signed by anyone but the program's current upgrade authority (R14) |
-| 6010 | `InvalidLeagueTiming` | Devnet league with non-default timing or the wrong duration for its id (league 0 is 7 days, league 1 is 21, and no other real id is defined), a zero-day league of any kind, or a test league outside a `test-leagues` build |
+| 6010 | `InvalidLeagueTiming` | Devnet league with non-default timing or the wrong duration or rep count for its id (league 0 is 7 days, league 1 is 21, both at 25 reps, and no other real id is defined), a zero-day or zero-rep league of any kind, or a test league outside a `test-leagues` build |
 | 6011 | `InvalidChipSet` | Amounts not strictly increasing and positive |
 | 6012 | `ChipSetNotPublished` | `open_cohort` before the first `publish_chip_set` — `Config.chip_set.version == 0` (FR-055b) |
 | 6020 | `CohortNotDue` | `open_cohort` with wrong index or before the previous cohort started |
