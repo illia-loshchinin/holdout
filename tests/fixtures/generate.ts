@@ -247,7 +247,7 @@ const profile = (over: Partial<ProfileAccount> = {}): ProfileAccount => ({
     { ...zeroProgress },
   ],
   running: { cohort: key(3), end: BigInt(FIRST_START + 7 * DAY) },
-  pending: { cohort: key(0), start: 0n },
+  pending: { cohort: key(0), start: 0n, end: 0n },
   lastFaucetDay: 20_700n,
   bump: 250,
   ...over,
@@ -284,7 +284,7 @@ const accountFixtures = () => {
     qualified: false,
     leagues: [{ ...zeroProgress }, { ...zeroProgress }, { ...zeroProgress }],
     running: { cohort: key(0), end: 0n },
-    pending: { cohort: key(0), start: 0n },
+    pending: { cohort: key(0), start: 0n, end: 0n },
     lastFaucetDay: -1n,
   }));
   return cases;
@@ -428,6 +428,9 @@ const derivedFixtures = () => {
     settled: false,
     sharePerTier: [0n, 0n, 0n, 0n],
     roundingRemainder: 0n,
+    noFinisherFee: 0n,
+    carryOverSent: 0n,
+    carryOverTarget: null,
     carryOverHeld: 0n,
     vaultAmount: 205n * SKR,
   };

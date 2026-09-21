@@ -538,7 +538,7 @@ export class Harness {
       qualified: false,
       leagues: [{ ...zero }, { ...zero }, { ...zero }],
       running: { cohort: NO_KEY, end: 0n },
-      pending: { cohort: NO_KEY, start: 0n },
+      pending: { cohort: NO_KEY, start: 0n, end: 0n },
       lastFaucetDay: -1n,
       bump: await profileBump(wallet),
       ...over,
@@ -618,6 +618,9 @@ export class Harness {
           settled: c.settled,
           sharePerTier: c.sharePerTier,
           roundingRemainder: c.roundingRemainder,
+          noFinisherFee: c.noFinisherFee,
+          carryOverSent: c.carryOverSent,
+          carryOverTarget: c.carryOverTarget === NO_KEY ? null : c.carryOverTarget,
           carryOverHeld: c.carryOverHeld,
           vaultAmount: this.tokenBalance(vault),
         });
@@ -670,6 +673,7 @@ export class Harness {
         runningEnd: Number(p.running.end),
         pendingCohort: p.pending.cohort === NO_KEY ? null : p.pending.cohort,
         pendingStart: Number(p.pending.start),
+        pendingEnd: Number(p.pending.end),
       };
     });
 

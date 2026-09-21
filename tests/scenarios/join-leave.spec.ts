@@ -166,9 +166,11 @@ describe('join_cohort and leave_cohort (contracts §3)', () => {
 
     it('refuses a second lobby place (FR-006a)', async () => {
       // A place in another cohort of the same league, still in its lobby.
-      const other = await h.injectCohort(LEAGUE, 1, { start: BigInt(FIRST_START) + BigInt(WEEK) });
+      const otherStart = BigInt(FIRST_START) + BigInt(WEEK);
+      const other = await h.injectCohort(LEAGUE, 1, { start: otherStart });
       await h.injectProfile(member.address, {
-        pending: { cohort: other, start: BigInt(FIRST_START) + BigInt(WEEK) },
+        // The place carries the cohort's own end, as a join writes it.
+        pending: { cohort: other, start: otherStart, end: otherStart + BigInt(WEEK) },
       });
 
       expectProgramError(await join(0), 'LobbyPlaceTaken');

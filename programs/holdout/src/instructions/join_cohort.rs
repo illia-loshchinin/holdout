@@ -13,8 +13,9 @@
 //!
 //! The lobby place it records is what keeps two daily obligations from ever
 //! overlapping (FR-006a, FR-006b, INV-4). The member's running cohort must be
-//! supplied whenever `profile.running` is set, because slot normalisation
-//! cannot fill `running.end` — see `guards::require_slot_free`.
+//! supplied whenever `profile.running` is set, because the overlap is judged on
+//! that account's own end and never on the profile's cached copy — see
+//! `guards::require_slot_free`.
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
@@ -121,8 +122,10 @@ pub(crate) fn handler(ctx: Context<JoinCohort>, tier: u8) -> Result<()> {
     };
     guards::require_slot_free(profile, &ctx.accounts.cohort, running, now)?;
 
-    // The cached end that normalisation could not fill, repaired from the
-    // account the guard just checked — so the figure stops being a permanent 0.
+    // The cached end, refreshed from the account the guard just checked. The
+    // place carries the end across the promotion now, so for a profile written
+    // since that landed this writes back what is already there; for one
+    // promoted before it, this is the write that clears the stale 0.
     if let Some((_, account)) = running {
         profile.running.end = account.end();
     }
@@ -175,9 +178,13 @@ pub(crate) fn handler(ctx: Context<JoinCohort>, tier: u8) -> Result<()> {
         .ok_or(error!(HoldoutError::AccountMismatch))?;
     cohort.member_count += 1;
 
+    // The end travels with the place. Normalisation promotes it without the
+    // cohort account in hand (data-model §1.5), so a zero here would reach the
+    // running slot as "no obligation" (FR-006b, INV-4).
     profile.pending = PendingSlot {
         cohort: cohort_key,
         start: cohort.start,
+        end: cohort.end(),
     };
 
     emit!(MemberJoined {

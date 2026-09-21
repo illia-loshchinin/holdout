@@ -69,12 +69,13 @@ pub fn genesis_gate_ok(enabled: bool, holds_genesis: bool) -> bool {
 /// `running` is the profile's running cohort — its address and its account —
 /// and the caller must supply it whenever `profile.running` is set, else
 /// `AccountMismatch`. **The end comes from that account, never from
-/// `profile.running.end`**: slot normalisation moves a lobby place into the
-/// running slot knowing only the cohort's address and start (data-model §1.5),
-/// so it cannot fill the end, and a guard that trusted the cached `0` would
-/// skip the overlap check for exactly the window between a cohort starting and
-/// its member's first completed day. Reading the cohort makes the rule depend
-/// on chain state alone (constitution II).
+/// `profile.running.end`.** The cached figure is filled in now — the lobby
+/// place carries the cohort's end and the promotion hands it over (data-model
+/// §1.5) — but a guard that trusted it would still be one write away from
+/// reading `0` as "no obligation", and a profile whose place was promoted
+/// before the end travelled with it is carrying exactly that zero until its
+/// member next acts. Reading the cohort makes the rule depend on chain state
+/// alone (constitution II), which is the only figure that cannot go stale.
 pub fn require_slot_free(
     profile: &Profile,
     cohort: &Cohort,
@@ -107,6 +108,14 @@ pub fn require_slot_free(
 /// The three things `submit_day` needs beyond the cohort being `Running`: the
 /// day is the member's next one, it is today, and today's deadline has not
 /// passed (FR-013, FR-017, FR-025, INV-8 — errors 6031, 6032, 6033).
+///
+/// The order is what tells the three apart, because a client picks its recovery
+/// path from the code. A day below `days_completed` is a repeat whatever the
+/// clock says (6033); one above it was never the member's next day, so it is
+/// wrong rather than late (6031); and only once the index is the right one does
+/// the deadline speak — before the calendar does, since a missed day always
+/// falls on a day that has since turned over, and `WrongDay` would otherwise
+/// swallow every 6032 a member could ever see.
 pub fn require_submittable(
     membership: &Membership,
     cohort: &Cohort,
@@ -117,11 +126,6 @@ pub fn require_submittable(
         membership.state == MembershipState::Joined,
         HoldoutError::CohortNotRunning
     );
-    // The two mismatches are different answers, as the contract's table says:
-    // a day behind the member's next one is one they already completed (6033),
-    // while a day ahead of it — or one that is not today — is the wrong day
-    // (6031). A member in breach meets the second: their next day is an
-    // earlier one, and that day is no longer today.
     require!(
         day_index >= membership.days_completed,
         HoldoutError::DayAlreadyCompleted
@@ -130,11 +134,11 @@ pub fn require_submittable(
         day_index == membership.days_completed,
         HoldoutError::WrongDay
     );
-    require!(day_index == cohort.day_index(now), HoldoutError::WrongDay);
     require!(
         now <= cohort.deadline_of(day_index),
         HoldoutError::DeadlinePassed
     );
+    require!(day_index == cohort.day_index(now), HoldoutError::WrongDay);
     Ok(())
 }
 
@@ -204,17 +208,6 @@ mod tests {
         }
     }
 
-    /// The number a client would match on, out of an `anchor_lang::Error`.
-    fn anchor_error_code(err: &Error) -> u32 {
-        match err {
-            Error::AnchorError(inner) => inner.error_code_number,
-            Error::ProgramError(inner) => match inner.program_error {
-                anchor_lang::solana_program::program_error::ProgramError::Custom(code) => code,
-                ref other => panic!("not a custom error: {other:?}"),
-            },
-        }
-    }
-
     fn profile() -> Profile {
         Profile {
             wallet: Pubkey::default(),
@@ -224,6 +217,15 @@ mod tests {
             pending: PendingSlot::default(),
             last_faucet_day: -1,
             bump: 0,
+        }
+    }
+
+    /// The code a rejection carries — the contract a client matches on, so the
+    /// tests below pin it rather than settling for `is_err`.
+    fn code_of(result: Result<()>) -> u32 {
+        match result.expect_err("expected a rejection") {
+            Error::AnchorError(e) => e.error_code_number,
+            other => panic!("expected an AnchorError, got {other:?}"),
         }
     }
 
@@ -253,27 +255,50 @@ mod tests {
         );
     }
 
-    /// The contract's table gives the two mismatches different codes, and
-    /// clients match on the numbers (contracts §5).
     #[test]
-    fn a_day_behind_is_already_completed_and_a_day_ahead_is_the_wrong_day() {
+    fn each_rejected_submission_names_its_own_code() {
         let c = cohort(FIRST_START, 7);
 
-        // Completed day 0, still day 0: asking for day 0 again.
-        let err = require_submittable(&membership(1), &c, 0, FIRST_START).unwrap_err();
-        assert_eq!(anchor_error_code(&err), 6033, "DayAlreadyCompleted");
-
-        // Next day is 0, asking for day 1 — skipping ahead.
-        let err = require_submittable(&membership(0), &c, 1, FIRST_START).unwrap_err();
-        assert_eq!(anchor_error_code(&err), 6031, "WrongDay");
-
-        // In breach: day 0 was missed, and it is day 2 now.
-        let now = FIRST_START + 2 * DEVNET_DAY_LENGTH;
-        let err = require_submittable(&membership(0), &c, 0, now).unwrap_err();
+        // A missed day: still the member's next one, but its deadline has gone.
+        // The clock has moved on to day 1, which must not turn this into 6031 —
+        // day lengths are positive, so every missed day looks exactly like this.
         assert_eq!(
-            anchor_error_code(&err),
-            6031,
-            "WrongDay, not a completed day"
+            code_of(require_submittable(
+                &membership(0),
+                &c,
+                0,
+                c.deadline_of(0) + 1
+            )),
+            u32::from(HoldoutError::DeadlinePassed),
+            "6032 is what a member who missed day 0 must be told"
+        );
+
+        // A repeat: the day is below `days_completed`, whatever the clock says.
+        assert_eq!(
+            code_of(require_submittable(
+                &membership(2),
+                &c,
+                1,
+                FIRST_START + 2 * c.day_length
+            )),
+            u32::from(HoldoutError::DayAlreadyCompleted),
+            "6033 is a second submit, and only that (FR-025)"
+        );
+
+        // A day that was never the member's next one — malformed or stale, not
+        // a repeat: nothing has completed day 3.
+        assert_eq!(
+            code_of(require_submittable(&membership(0), &c, 3, FIRST_START)),
+            u32::from(HoldoutError::WrongDay),
+            "6031 for a future index, never 6033"
+        );
+
+        // The right index, in time for its deadline, but not today: the member
+        // is somehow ahead of the cohort.
+        assert_eq!(
+            code_of(require_submittable(&membership(3), &c, 3, FIRST_START)),
+            u32::from(HoldoutError::WrongDay),
+            "6031 for the calendar day"
         );
     }
 
@@ -315,6 +340,7 @@ mod tests {
         p.pending = PendingSlot {
             cohort: Pubkey::new_unique(),
             start: running_end,
+            end: running_end + 7 * DEVNET_DAY_LENGTH,
         };
         assert!(
             require_slot_free(&p, &touching, supplied, FIRST_START).is_err(),
@@ -323,39 +349,63 @@ mod tests {
     }
 
     #[test]
-    fn a_normalised_running_slot_still_blocks_an_overlap() {
-        // The regression this guard's shape exists for. A member joined cohort A
-        // and it has now started, so slot normalisation moved their lobby place
-        // into the running slot — knowing only A's address and start, so
-        // `running.end` is left at 0. A guard reading that cached zero would let
-        // them take a second place in a cohort starting inside A's run, which is
-        // INV-4 gone for the whole window before their first completed day.
+    fn a_promoted_lobby_place_still_blocks_an_overlapping_join() {
+        let started = cohort(FIRST_START, 7);
+        let started_key = Pubkey::new_unique();
+        let mut p = profile();
+        p.pending = PendingSlot {
+            cohort: started_key,
+            start: started.start,
+            end: started.end(),
+        };
+
+        // The place is taken while the cohort is still in the lobby, and the
+        // member comes back on its first day — the promotion has to hand the
+        // running slot a real end, not a zero, or nothing below refuses.
+        let now = started.start;
+        p.normalise_slots(now);
+        assert!(p.pending.is_none(), "promoted");
+        assert_eq!(p.running.end, started.end(), "the end travelled with it");
+
+        let overlapping = cohort(started.end() - 1, 7);
+        assert!(
+            require_slot_free(&p, &overlapping, Some((&started_key, &started)), now).is_err(),
+            "a cohort starting inside the promoted obligation (FR-006b, INV-4)"
+        );
+
+        let after = cohort(started.end(), 7);
+        assert!(
+            require_slot_free(&p, &after, Some((&started_key, &started)), now).is_ok(),
+            "one starting as it ends is fine"
+        );
+    }
+
+    #[test]
+    fn the_overlap_is_read_from_the_cohort_not_the_cached_end() {
+        // The second defence, and the reason the guard asks for the account at
+        // all: a `running.end` of 0 reads as "no obligation". The promotion
+        // fills it now, but a profile whose place was promoted before it did is
+        // still carrying the zero, and nothing rewrites one until its member
+        // acts. The rule holds anyway, because the end comes from the cohort.
         let a = cohort(FIRST_START, 7);
         let a_key = Pubkey::new_unique();
         let mut p = profile();
-        p.pending = PendingSlot {
+        p.running = RunningSlot {
             cohort: a_key,
-            start: a.start,
+            end: 0,
         };
-
-        let now = a.start;
-        p.normalise_slots(now);
-        assert!(
-            p.pending.is_none(),
-            "the lobby place became the running one"
-        );
-        assert_eq!(p.running.cohort, a_key);
-        assert_eq!(p.running.end, 0, "normalisation cannot know A's end");
 
         let b = cohort(FIRST_START + DEVNET_DAY_LENGTH, 7);
         assert!(
-            require_slot_free(&p, &b, Some((&a_key, &a)), now).is_err(),
+            require_slot_free(&p, &b, Some((&a_key, &a)), a.start).is_err(),
             "B starts before A ends, so the place must be refused"
         );
 
-        // The rule is the cohort's own end, so a cohort starting at A's end is fine.
         let after = cohort(a.end(), 7);
-        assert!(require_slot_free(&p, &after, Some((&a_key, &a)), now).is_ok());
+        assert!(
+            require_slot_free(&p, &after, Some((&a_key, &a)), a.start).is_ok(),
+            "the rule is the cohort's own end"
+        );
     }
 
     #[test]
