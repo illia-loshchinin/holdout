@@ -299,15 +299,117 @@ describe('INV-6 · a settled cohort only moves through claims', () => {
     expectViolation('INV-6', () => assertInvariants(next, prev));
   });
 
-  it('catches a held stake that fell further than the claim returns', () => {
+  it('catches a held stake that moved by something other than the claim', () => {
+    // The pool falls by exactly the share, so half the claim is beyond reproach;
+    // the held stake falls by 40 where the member's 100 was due back, and the
+    // vault is lowered to agree with the cohort, so INV-1 holds at both ends.
     const prev = snapshot({ now: at, cohorts: [settled()], memberships: [finished], profiles: cleared });
     const next = snapshot({
       now: at,
-      cohorts: [settled({ heldStake: 0n, pool: 0n, vaultAmount: 0n, memberCount: 1 })],
-      memberships: [{ ...finished, stake: 40n, state: 'Claimed' }],
+      cohorts: [settled({ heldStake: 60n, pool: 0n, vaultAmount: 60n })],
+      memberships: [{ ...finished, state: 'Claimed' }],
       profiles: cleared,
     });
     expectViolation('INV-6', () => assertInvariants(next, prev));
+  });
+
+});
+
+describe('INV-2 · the terms of a membership are written once', () => {
+  it('catches a stake rewritten under a live membership', () => {
+    // The stake is what custody holds, what a forfeit hands the pool and what a
+    // claim returns, so every figure the other invariants balance is derived
+    // from it. Lowered here with the held stake and the vault lowered to agree,
+    // the snapshot is internally consistent at both ends and the member is 60
+    // out of pocket. Once the cohort settles the same rewrite also shows up in
+    // INV-5's tally; while it is still running, this is the only rule watching.
+    const live = cohort({ memberCount: 1, heldStake: 100n, vaultAmount: 100n });
+    const prev = snapshot({ cohorts: [live], memberships: [membership()] });
+    const next = snapshot({
+      cohorts: [cohort({ memberCount: 1, heldStake: 40n, vaultAmount: 40n })],
+      memberships: [membership({ stake: 40n })],
+    });
+    expectViolation('INV-2', () => assertInvariants(next, prev));
+  });
+
+  it('catches a membership moved to another wallet', () => {
+    const prev = snapshot();
+    expectViolation('INV-2', () =>
+      assertInvariants(
+        snapshot({
+          memberships: [membership({ wallet: 'wallet-2' })],
+          profiles: [profile({ wallet: 'wallet-2', ...inCohortA })],
+        }),
+        prev,
+      ),
+    );
+  });
+});
+
+describe('INV-5 · the tally is derived, not taken on trust', () => {
+  const at = FIRST_START + 8 * DAY;
+  const finisher = membership({ state: 'Finished', daysCompleted: 7, counted: true });
+  const cleared = [profile({ leagues: { 0: progress({ cleared: 1, currentStreak: 1, longestStreak: 1 }) } })];
+
+  /** One counted finisher: tier 3, stake 100. */
+  const tallied = (over: Partial<CohortSnapshot> = {}): CohortSnapshot =>
+    cohort({
+      memberCount: 1,
+      counted: 1,
+      finisherCount: 1,
+      finishersPerTier: [0, 0, 0, 1],
+      totalFinisherStake: 100n,
+      ...over,
+    });
+
+  it('accepts a tally that matches the counted memberships', () => {
+    expect(() =>
+      assertInvariants(
+        snapshot({ now: at, cohorts: [tallied()], memberships: [finisher], profiles: cleared }),
+      ),
+    ).not.toThrow();
+  });
+
+  it('catches an overstated denominator', () => {
+    // The shares it divides out are smaller and the remainder larger to match,
+    // so finalization stays internally consistent and the difference goes to the
+    // fee destination. The member who claims at their real tier finds it short.
+    expectViolation('INV-5', () =>
+      assertInvariants(
+        snapshot({
+          now: at,
+          cohorts: [tallied({ totalFinisherStake: 200n })],
+          memberships: [finisher],
+          profiles: cleared,
+        }),
+      ),
+    );
+  });
+
+  it('catches a finisher counted into the wrong tier', () => {
+    expectViolation('INV-5', () =>
+      assertInvariants(
+        snapshot({
+          now: at,
+          cohorts: [tallied({ finishersPerTier: [1, 0, 0, 0] })],
+          memberships: [finisher],
+          profiles: cleared,
+        }),
+      ),
+    );
+  });
+
+  it('catches a finisher count that no membership backs', () => {
+    expectViolation('INV-5', () =>
+      assertInvariants(
+        snapshot({
+          now: at,
+          cohorts: [tallied({ finisherCount: 2 })],
+          memberships: [finisher],
+          profiles: cleared,
+        }),
+      ),
+    );
   });
 });
 
@@ -548,6 +650,11 @@ describe('INV-9 · streaks follow cohort order, not crank order', () => {
       vaultAmount: 0n,
       memberCount: 1,
       counted: 1,
+      // The member below is a counted finisher, and INV-5 derives these three
+      // from the memberships rather than taking the cohort's word for them.
+      finisherCount: 1,
+      finishersPerTier: [0, 0, 0, 1],
+      totalFinisherStake: 100n,
     });
     const b = cohort({
       address: 'cohort-B',

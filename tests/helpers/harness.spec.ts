@@ -209,7 +209,18 @@ describe('a snapshot flows from the SVM into the invariant checker', () => {
     const fresh = await createHarness();
     const league = fresh.freshTestLeague();
     // A cleared, then a forfeit one week later: the streak must read 0, longest 1.
-    const a = await fresh.injectCohort(league, 0, { settled: true, counted: 1, memberCount: 1 });
+    // The tally has to say what the membership below says: INV-5 derives the
+    // finisher figures from the counted memberships rather than reading them off
+    // the cohort, so a settled cohort with a claimed finisher and an empty tally
+    // is not a state the program could ever have written.
+    const a = await fresh.injectCohort(league, 0, {
+      settled: true,
+      counted: 1,
+      memberCount: 1,
+      finisherCount: 1,
+      finishersPerTier: [0, 0, 0, 1],
+      totalFinisherStake: DEFAULT_CHIPS[3],
+    });
     const b = await fresh.injectCohort(league, 1, { memberCount: 1, pool: 80n });
     const wallet = (await generateKeyPairSigner()).address;
     await fresh.injectMembership(a, wallet, { state: 'Claimed', daysCompleted: 7, counted: true });

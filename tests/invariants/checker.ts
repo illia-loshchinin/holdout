@@ -300,6 +300,54 @@ const checkSlots = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void =>
   }
 };
 
+/**
+ * INV-5 · the denominator, and the tally it is built from, are the counted
+ * memberships and nothing else.
+ *
+ * `settle_count` writes `finisher_count`, `finishers_per_tier` and
+ * `total_finisher_stake` page by page, and `settle_finalize` divides by the
+ * last of them. Taking those three at face value leaves the allocation
+ * self-consistent no matter what they say: an overstated denominator produces
+ * smaller shares and a larger remainder that still add back to the pool, so the
+ * money checks pass while the difference has been handed to the fee
+ * destination — and the first member to claim at their real tier finds the
+ * cohort short. Derived here instead, from the memberships that carry
+ * `counted`, so the figures are checked at every stage of the count rather than
+ * only at the end.
+ */
+const checkTallies = (s: Snapshot): void => {
+  for (const c of s.cohorts) {
+    const finishers = s.memberships.filter(
+      (m) => m.cohort === c.address && m.counted && (m.state === 'Finished' || m.state === 'Claimed'),
+    );
+    if (c.finisherCount !== finishers.length) {
+      fail(
+        'INV-5',
+        `cohort ${c.address}: ${c.finisherCount} finishers recorded, ${finishers.length} counted memberships finished`,
+      );
+    }
+    const perTier = [0, 0, 0, 0];
+    let stake = 0n;
+    for (const m of finishers) {
+      if (m.tier < 0 || m.tier > 3) fail('INV-5', `${m.wallet} in ${c.address}: tier ${m.tier}`);
+      perTier[m.tier] = (perTier[m.tier] ?? 0) + 1;
+      stake += m.stake;
+    }
+    if (c.finishersPerTier.some((n, t) => n !== perTier[t])) {
+      fail(
+        'INV-5',
+        `cohort ${c.address}: tiers recorded [${c.finishersPerTier}], counted memberships give [${perTier}]`,
+      );
+    }
+    if (c.totalFinisherStake !== stake) {
+      fail(
+        'INV-5',
+        `cohort ${c.address}: denominator ${c.totalFinisherStake}, counted finishers staked ${stake}`,
+      );
+    }
+  }
+};
+
 /** INV-9 · the streak follows the member's own cohorts, not the crank's order. */
 const checkStreaks = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void => {
   for (const p of s.profiles) {
@@ -387,6 +435,29 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
   const moves = carryMovesByTarget(next, before);
   const inSnapshot = new Set(next.cohorts.map((c) => c.address));
 
+  // A membership's terms are written once, by `join_cohort`, and every figure
+  // INV-1 and INV-2 balance is derived from them: the stake is what custody
+  // holds and what a forfeit hands the pool, the tier is what picks the share.
+  // So they are checked before they are used, and used from the *previous*
+  // snapshot below — a `claim_payout` that underpaid its member could
+  // otherwise rewrite the two numbers it is judged by and come out exact.
+  for (const m of next.memberships) {
+    const was = prevMemberships.get(m.address);
+    if (!was) continue;
+    if (m.cohort !== was.cohort || m.wallet !== was.wallet) {
+      fail(
+        'INV-2',
+        `membership ${m.address} changed hands: ${was.wallet} in ${was.cohort} → ${m.wallet} in ${m.cohort}`,
+      );
+    }
+    if (m.tier !== was.tier || m.stake !== was.stake) {
+      fail(
+        'INV-2',
+        `membership ${m.address}: tier ${was.tier} staking ${was.stake} → tier ${m.tier} staking ${m.stake}`,
+      );
+    }
+  }
+
   for (const [target, sent] of moves) {
     if (!inSnapshot.has(target)) {
       const total = sent.reduce((sum, m) => sum + m.amount, 0n);
@@ -432,12 +503,12 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
 
     // The claims this step settled — the only thing that may move a settled
     // cohort's balances, and the yardstick both INV-6 and INV-2 measure against.
-    const claims = next.memberships.filter((m) => {
+    const claims = next.memberships.flatMap((m) => {
       const was = prevMemberships.get(m.address);
-      return m.cohort === c.address && m.state === 'Claimed' && was?.state === 'Finished';
+      return m.cohort === c.address && m.state === 'Claimed' && was?.state === 'Finished' ? [was] : [];
     });
-    const claimsPaid = claims.reduce((sum, m) => sum + (c.sharePerTier[m.tier] ?? 0n), 0n);
-    const stakesReturned = claims.reduce((sum, m) => sum + m.stake, 0n);
+    const claimsPaid = claims.reduce((sum, was) => sum + (c.sharePerTier[was.tier] ?? 0n), 0n);
+    const stakesReturned = claims.reduce((sum, was) => sum + was.stake, 0n);
 
     // INV-5 · the denominator and the shares are written exactly once.
     if (b.settled) {
@@ -494,13 +565,13 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
     }
 
     // INV-2 · only recorded forfeits, carry-over arrival and claims touch a pool.
-    const forfeitsAdded = next.memberships.filter((m) => {
+    const forfeitsAdded = next.memberships.flatMap((m) => {
       const was = prevMemberships.get(m.address);
-      return m.cohort === c.address && m.state === 'Forfeited' && was?.state === 'Joined';
+      return m.cohort === c.address && m.state === 'Forfeited' && was?.state === 'Joined' ? [was] : [];
     });
-    const fromForfeits = forfeitsAdded.reduce((sum, m) => {
-      const fee = (m.stake * 20n) / 100n;
-      return sum + (m.stake - fee);
+    const fromForfeits = forfeitsAdded.reduce((sum, was) => {
+      const fee = (was.stake * 20n) / 100n;
+      return sum + (was.stake - fee);
     }, 0n);
 
     const available = b.pool + fromForfeits + carryArrived;
@@ -576,7 +647,7 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
       for (const m of next.memberships) {
         const was = prevMemberships.get(m.address);
         if (m.cohort !== c.address || m.state !== 'Forfeited' || was?.state !== 'Joined') continue;
-        owed += (m.stake * 20n) / 100n;
+        owed += (was.stake * 20n) / 100n;
       }
       if (c.settled && !b.settled) {
         owed += c.totalFinisherStake > 0n ? c.roundingRemainder : c.noFinisherFee;
@@ -624,6 +695,7 @@ export const assertInvariants = (current: Snapshot, previous?: Snapshot): void =
   checkCustody(current);
   checkDays(current, cohorts);
   checkSlots(current, cohorts);
+  checkTallies(current);
   checkStreaks(current, cohorts);
   if (previous) checkDeltas(previous, current);
 };
