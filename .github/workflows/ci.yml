@@ -8,6 +8,9 @@
 #                   contract tests run against the same binary the judges would.
 #   contract-tests  Kit + LiteSVM against that binary, plus the drift checks that
 #                   keep the committed IDL, Codama client and fixtures honest.
+#   kotlin          ktlint across all four modules, the JVM unit suites, and the
+#                   debug APK. Independent of the three above: the app and the
+#                   crank are built from the same sources but not from the .so.
 #
 # Versions are pinned to `Anchor.toml` and quickstart §1. Bumping one means bumping
 # them together — a clean checkout must build against the Anchor that deploys it.
@@ -230,13 +233,52 @@ jobs:
       - name: Fixtures unchanged
         run: git diff --exit-code -- fixtures/
 
+  # ----------------------------------------------------------------- kotlin
+  kotlin:
+    name: Kotlin — ktlint, JVM tests, debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # JDK 21 runs the Gradle daemon; the app's bytecode targets Java 17
+      # (quickstart §1).
+      - name: Install the JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install the Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # One style across the app, the shared client, the rep counter and the
+      # crank (T008). `./gradlew ktlintFormat` fixes what this reports.
+      - name: ktlint
+        working-directory: kotlin
+        run: ./gradlew --no-daemon ktlintCheck
+
+      # `core` is the one client the app and the crank share (R12), so its suite
+      # is what keeps the two from drifting. The S1 spike's devnet round trip is
+      # opt-in and stays off here — CI does not depend on a public RPC.
+      - name: JVM unit tests
+        working-directory: kotlin
+        run: ./gradlew --no-daemon :core:test :repcounter:test :crank:test
+
+      - name: Debug APK
+        working-directory: kotlin
+        run: ./gradlew --no-daemon :app:assembleDebug
+
   # ------------------------------------------------------------------- gate
   # One required check for branch protection: green only when every job above is.
   ci:
     name: CI
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [program, anchor, contract-tests]
+    needs: [program, anchor, contract-tests, kotlin]
     if: always()
     steps:
       - name: Check the results
@@ -244,4 +286,5 @@ jobs:
           echo "program:        ${{ needs.program.result }}"
           echo "anchor:         ${{ needs.anchor.result }}"
           echo "contract-tests: ${{ needs.contract-tests.result }}"
+          echo "kotlin:         ${{ needs.kotlin.result }}"
           [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "false" ]

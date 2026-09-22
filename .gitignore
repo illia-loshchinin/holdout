@@ -35,6 +35,10 @@ captures/
 *.keystore
 *.jks
 
+# The MediaPipe models are fetched by `:app:downloadMediaPipeModels` on every
+# build. 13 MB of binary that never changes does not belong in the history.
+kotlin/app/src/main/assets/*.task
+
 # Video and traces are large; the committed ones are named explicitly
 *.mp4
 !kotlin/app/src/main/assets/walkthrough.mp4

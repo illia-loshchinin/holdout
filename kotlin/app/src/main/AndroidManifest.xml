@@ -2,10 +2,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- The only permission this build declares. Used for the devnet RPC endpoint
-         alone (contracts/android-app.md §1–§2); CAMERA arrives with the rep
-         counter and RECORD_AUDIO is never declared (FR-022a). -->
+    <!-- The devnet RPC endpoint (contracts/android-app.md §1–§2). -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Rep verification. Frames are analysed in process and discarded: nothing
+         is written, nothing is uploaded (FR-022, constitution X).
+
+         RECORD_AUDIO is never declared, here or anywhere (FR-022a). The
+         environment check has four visual items and the rep rules are visual
+         only; the lost audio anti-spoofing filter is named in the README as a
+         known weakness with its real fix beside it. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="true" />
 
     <!-- Backup and device transfer are both off: banked reps and a completed day
          waiting for the network live only on this device, and a restore must never

@@ -13,9 +13,12 @@ kotlin {
 dependencies {
     api(libs.web3.solana)
     api(libs.rpc.core)
-    implementation(libs.rpc.solana)
-    implementation(libs.rpc.ktordriver)
+    api(libs.rpc.solana)
+    api(libs.rpc.ktordriver)
     implementation(libs.multimult)
+    // The RPC libraries speak kotlinx-serialization; building a raw JSON-RPC
+    // request needs it on the compile classpath, not only at runtime.
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(kotlin("test"))
 }

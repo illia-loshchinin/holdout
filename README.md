@@ -37,7 +37,7 @@ Named here on purpose (constitution XI). Each has its real fix beside it.
 | Non-default `day_seconds` for test cohorts | Lets a full cycle run in minutes during testing | Admin-guarded; real cohorts always use 24 hours |
 | A completed day's proof is client-signed | No backend in the build | Server-side attestation signer with pinned traces |
 | Reps banked during the day (in blocks of 10), and a completed day waiting for network, live only on the phone | No wallet prompt mid-workout; a lost phone loses that day's partial progress, and a rooted phone could edit it. A day finished offline counts only if it reaches the network before the deadline | Covered by the attestation fix; cross-device progress later |
-| No audio anti-spoofing in rep verification | Microphone permission adds first-run friction and protects no real value on devnet | Reinstate the audio check and audio rep condition together |
+| No liveness check and no audio anti-spoofing in rep verification | The palm-liveness check was dropped on 22 September after the first sitting on real hardware: by the time the checks pass the member is face-down on the floor, and it asked them to lift a hand off it. Holding the top of a push-up starts the sitting instead — a readiness check, not a liveness one. So nothing here tells a live person from a video played to the lens, or one member from another. Microphone permission, which would, adds first-run friction and protects no real value on devnet | Reinstate the audio check and the audio rep condition together — one move restores liveness and anti-spoofing both |
 | Stake chips ($10 / $25 / $50 / $100) are priced in SKR by the Operator from an off-chain rate — once at launch, re-checked weekly in Phase 2 | The contract must never read a price | On-chain chip governance before real value is at stake |
 | Cohorts are filled by real members first; scripted members — real wallets under the same contract rules, whose forfeits fund real prizes and whose completed days are **not camera-verified** — top a cohort up only to a minimum (20 members in a 7-day cohort, 12 in a 21-day one) | A cohort must never be empty when someone installs the app during judging | Disclosed here, in the app, in the demo video and in the pitch deck; their addresses are published in the build and every scripted member is labelled wherever it appears |
 | A wallet is required before anything, even the Daily 25 | One identity from the first tap; guest mode was considered and dropped | The connect screen plays the recorded walkthrough without a wallet, so judges who cannot connect one still see the whole product |
@@ -55,6 +55,7 @@ Named here on purpose (constitution XI). Each has its real fix beside it.
 | `specs/001-holdout-hackathon/spec.md` | The feature spec — what and why, no stack. Clarified; ready for planning. |
 | `docs/holdout_decisions.md` | Decision record H1–H30: why the build is what it is, what was rejected, what is still open. Read before changing the mechanic. |
 | `docs/holdout_demo_video.md` | The demo video and in-app walkthrough: storyboard, screen checklist, recording workflow, filming calendar and the beta-test plan. |
+| `docs/holdout_setup_runbook.md` | The steps only a human can do: toolchain, keys, devnet SOL, the domain, the two hardware spikes and the beta testers. Start here to unblock the app. |
 | `docs/holdout_scope_and_state_machines.md` | Scope cut, decisions D-A…D-I, state machines and edge cases, synced to the spec. Read before coding. |
 | `docs/holdout_v1_prd.md` | Product requirements for this build: screens, copy, verification rules, settlement math and test vectors. Adds detail to the spec, never scope. |
 | `docs/archive/` | The full post-hackathon vision — the original PRD and its decision record — kept for the pitch. Not the build. |
@@ -64,5 +65,9 @@ When documents disagree: constitution → spec → decision record → scope doc
 ## Workflow
 
 `/speckit-plan` → `/speckit-tasks` → `/speckit-implement`.
+
+`specs/001-holdout-hackathon/quickstart.md` builds, tests and deploys it;
+`docs/holdout_setup_runbook.md` covers the parts that need a domain, a phone or
+a person.
 
 Constitution and spec are written and clarified; amend them rather than regenerating them.

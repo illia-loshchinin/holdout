@@ -65,6 +65,21 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
 - **Alternatives considered:** ML Kit Pose Detection (fewer landmarks, no world coordinates); MoveNet Thunder via TFLite (17 keypoints, and the body-line rule needs hips and ankles; validation puts its upper-limb error under 10° RMSE, worse than BlazePose for this measurement); server inference (forbidden by constitution X).
 - **Sources:** MediaPipe Pose Landmarker task documentation; BlazePose joint-angle validation (MAE ≈ 2.11°, RMSE ≈ 2.63°); MoveNet upper-limb range-of-motion validity study.
 
+- **Which camera (decided 2026-09-22, on the device):** the **front** camera. A
+  sitting is self-recorded — the phone is propped at chest height beside the
+  member — so they have to see the preview to get their whole body in frame, the
+  angle right and a palm where the model can read it. With the back camera they
+  aim a lens they cannot see through, which is the exact framing problem the
+  pre-flight pills exist to catch; being told to fix something you cannot see is
+  worse than no check. Two consequences: the preview is mirrored by
+  `PreviewView` while `ImageAnalysis` frames are not, so the skeleton overlay
+  mirrors the landmarks back (the count is unaffected — a reflection does not
+  change an angle, and the rule averages both sides); and **spike S2 now
+  measures the front camera**, whose resolution and field of view are lower. If
+  it cannot hold ≥ 15 FPS, or loses the ankles at arm's length, that is a
+  finding for the spike and its documented fallbacks, not a reason to point the
+  camera away from the member.
+
 ## R5 · Palm liveness
 
 - **Decision:** MediaPipe Tasks **Hand Landmarker** on the same CameraX stream: an open palm (five fingertips extended, palm facing the camera) held **3 continuous seconds**; **30-second timeout** back to pre-flight (FR-020). The hand model runs only during the liveness step and is closed before counting, so pose inference has the GPU to itself. *Confirm at spike S2.*
@@ -268,6 +283,27 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
 | **S1 · Wallet on real hardware** | R3, R12, R13 | The Kotlin Compose Minimal template (fixed root build file) builds; on a Seeker it connects Seed Vault Wallet via MWA and lands a devnet transaction with `signAndSendTransactions`; a sponsor-paid transaction built with `web3-solana` + `rpc-core` lands too; `NoWalletFound` is returned on a phone with no wallet; `web3-solana` and `rpc-core` also run in a plain JVM module (for the crank); **`scrcpy --record` captures the app, and whether the wallet's approval screen records or comes out black (`FLAG_SECURE`)**, which decides whether those moments need the second camera (R18) | Try another MWA wallet on a plain Android phone; if a library blocks, or doesn't run on the plain JVM, use sol4k for transaction building in that module; film blocked screens with the second camera |
 | **S2 · Rep counting on real video** | R4, R5 | ≥ 15 FPS pose inference on a Seeker; correct count on 10 real push-up videos (≤ 1 miscounted rep in 25) and rejection of 3 cheat videos (half reps, sagging hips, too fast); open palm detected in normal indoor light | Lite model; lower analysis resolution; CPU delegate; relax thresholds with recorded evidence |
 | **S3 · Full cycle on a manipulated clock** | R1, R2, R9, R10 | In WSL2 with Anchor 1.1.2 / Solana CLI 3.1.10, on LiteSVM: open → join (incl. lobby place) → lock → daily submits → forfeits in out-of-order repeated pages → count → finalize with remainder → claim, for a 1,000-member cohort; vectors V1–V22 pass; Kotlin `core` replays the fixtures | Reduce page size; add address lookup tables |
+
+### S1 · passed 22 September 2026
+
+R3, R12 and R13 are confirmed on the device of record. No fallback was needed:
+the template's libraries work as researched, and nothing moves to sol4k.
+
+| Leg | |
+|---|---|
+| Seeker, Seed Vault Wallet | **Passed.** Connect, `signMessagesDetached`, and `signAndSendTransactions` landing a devnet memo — signature `3PN4nN1L…fJwzzL`, slot 502,517,648, 22 Sep 16:46 UTC, signer `CkJn1a53c1ZXe5XLZ38ZgsPa1WX28PUiMWHqtJayjfWE`, no error. Shot log S-01 |
+| `web3-solana` + `rpc-core` on a plain JVM | **Passed**, and kept as a test: `kotlin/core/.../S1JvmSpikeTest.kt` builds a transaction, derives the `mint_authority` and `faucet_vault` addresses and reads a devnet blockhash with no Android on the classpath. The crank and the app can share one client (R12) |
+| `scrcpy --record` | **Passed, and better than assumed.** The wallet's approval screen records — it is not `FLAG_SECURE`. The second camera is not needed for those seconds (R18, `docs/holdout_demo_video.md` §4) |
+| A plain Android phone with its own MWA wallet | **Not run.** Compatibility for beta testers rather than a gate on the API; it is answered by the first tester install (T011) |
+| `NoWalletFound` on a phone with no wallet | **Not run.** It is the acceptance criterion of T041, the no-wallet screen, and is checked there |
+
+**Found on the way, and it constrains the code:** Seed Vault returned a
+transaction carrying **two `ComputeBudget` instructions the wallet added
+itself**. What `signAndSendTransactions` sends is therefore *not* byte-identical
+to the message the app built. Nothing may assume it is — in particular a
+completed-day proof (R16) must be over payload the app controls, never over the
+serialised transaction, and any future check of "did the wallet send what we
+asked" has to compare instructions, not bytes.
 
 ## Sources checked for this research (September 2026)
 
