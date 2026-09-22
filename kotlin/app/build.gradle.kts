@@ -20,7 +20,10 @@ val mediaPipeModels = mapOf(
         "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task",
 )
 
-val downloadMediaPipeModels by tasks.registering {
+// `tasks.register(...)`, not `val x by tasks.registering { }`: Gradle 9
+// deprecated that delegate syntax, and it is the only warning this build
+// produces.
+val downloadMediaPipeModels = tasks.register("downloadMediaPipeModels") {
     description = "Fetches the pose and hand models into src/main/assets (research R4, R5)."
 
     // Everything the action touches is captured as a plain value here. A lambda
