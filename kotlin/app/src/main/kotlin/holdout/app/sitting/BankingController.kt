@@ -1,0 +1,103 @@
+package holdout.app.sitting
+
+import holdout.app.storage.Store
+
+/**
+ * Banked reps (T051, FR-024, FR-023, PRD §8.6).
+ *
+ * ```
+ * morning   sitting 1:  17 reps  →  banks 10, the 7 extra are lost   banked 10
+ * lunch     sitting 2:  10 reps  →  banks 10                         banked 20
+ * evening   sitting 3:   5 reps  →  day complete at the 25th rep     done
+ * ```
+ *
+ * Three rules, and all three are about what the member can trust:
+ *
+ * 1. **A block banks the instant its tenth verified rep is counted**, written
+ *    to storage before the screen shows it. What is on screen is what survives
+ *    a crash.
+ * 2. **The day completes the moment banked + this sitting reach the target**,
+ *    so the last block may be smaller than ten — 10 + 10 + 5.
+ * 3. **When a sitting ends for any reason, reps short of the next block are
+ *    discarded.** Banked blocks stay. There is no pause limit.
+ */
+class BankingController(
+    private val store: Store,
+    private val wallet: String,
+    private val scope: String,
+    private val dayIndex: Long,
+    private val target: Int,
+) {
+    companion object {
+        const val BLOCK = 10
+    }
+
+    /** Verified reps in the current sitting that have not yet formed a block. */
+    var loose: Int = 0
+        private set
+
+    /** Whole banked blocks carried from earlier sittings today. */
+    val banked: Int get() = store.bankedReps(wallet, scope, dayIndex)
+
+    /** What the member has to show for today, banked or not. */
+    val total: Int get() = banked + loose
+
+    val remaining: Int get() = (target - total).coerceAtLeast(0)
+
+    val isDayComplete: Boolean get() = store.isDayComplete(wallet, scope, dayIndex)
+
+    sealed interface Outcome {
+        /** Nothing to announce; the rep is counted but the block is not full. */
+        data object Counted : Outcome
+
+        /** A block of ten just became durable. */
+        data class Banked(val banked: Int, val remaining: Int) : Outcome
+
+        /** The target is reached. The day is done and written down. */
+        data class DayComplete(val total: Int) : Outcome
+    }
+
+    /**
+     * One verified rep. Call it only for reps the counter accepted.
+     *
+     * Completion is checked **before** the block rule, because the day is done
+     * the moment the target is reached — waiting for a tenth rep that the
+     * member does not owe would be asking for 30 push-ups to finish 25.
+     */
+    fun onVerifiedRep(): Outcome {
+        if (isDayComplete) return Outcome.DayComplete(total)
+
+        loose += 1
+
+        if (banked + loose >= target) {
+            store.setBankedReps(wallet, scope, dayIndex, target)
+            store.markDayComplete(wallet, scope, dayIndex)
+            loose = 0
+            return Outcome.DayComplete(target)
+        }
+
+        if (loose >= BLOCK) {
+            val blocks = loose / BLOCK
+            loose -= blocks * BLOCK
+            val newTotal = banked + blocks * BLOCK
+            store.setBankedReps(wallet, scope, dayIndex, newTotal)
+            return Outcome.Banked(newTotal, (target - newTotal).coerceAtLeast(0))
+        }
+
+        return Outcome.Counted
+    }
+
+    /**
+     * The sitting ended — the member stopped, the app went away, the phone
+     * died. Loose reps are gone; banked blocks are untouched.
+     *
+     * Nothing is written here. The banked figure was already durable when its
+     * block formed, and a write on the way out is a write that does not happen
+     * when the process is killed.
+     */
+    fun endSitting(): Int {
+        val discarded = loose
+        loose = 0
+        return discarded
+    }
+}
