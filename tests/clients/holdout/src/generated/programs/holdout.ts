@@ -6,9 +6,25 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { containsBytes, fixEncoderSize, getBytesEncoder, type Address, type ReadonlyUint8Array } from '@solana/kit';
+import { assertIsInstructionWithAccounts, containsBytes, extendClient, fixEncoderSize, getBytesEncoder, SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT, SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION, SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE, SolanaError, type Address, type ClientWithPayer, type ClientWithRpc, type ClientWithTransactionPlanning, type ClientWithTransactionSending, type ExtendedClient, type GetAccountInfoApi, type GetMultipleAccountsApi, type Instruction, type InstructionWithData, type ReadonlyUint8Array } from '@solana/kit';
+import { addSelfFetchFunctions, addSelfPlanAndSendFunctions, type SelfFetchFunctions, type SelfPlanAndSendFunctions } from '@solana/program-client-core';
+import { getCohortCodec, getConfigCodec, getLeagueConfigCodec, getMembershipCodec, getProfileCodec, type Cohort, type CohortArgs, type Config, type ConfigArgs, type LeagueConfig, type LeagueConfigArgs, type Membership, type MembershipArgs, type Profile, type ProfileArgs } from '../accounts';
+import { getClaimFaucetInstructionAsync, getClaimPayoutInstructionAsync, getCreateLeagueInstructionAsync, getInitializeInstructionAsync, getJoinCohortInstructionAsync, getLeaveCohortInstructionAsync, getOpenCohortInstructionAsync, getPublishChipSetInstructionAsync, getRecordForfeitsInstructionAsync, getSetFlagsInstructionAsync, getSettleCountInstructionAsync, getSettleFinalizeInstructionAsync, getSubmitDayInstructionAsync, getTopUpSponsorInstructionAsync, parseClaimFaucetInstruction, parseClaimPayoutInstruction, parseCreateLeagueInstruction, parseInitializeInstruction, parseJoinCohortInstruction, parseLeaveCohortInstruction, parseOpenCohortInstruction, parsePublishChipSetInstruction, parseRecordForfeitsInstruction, parseSetFlagsInstruction, parseSettleCountInstruction, parseSettleFinalizeInstruction, parseSubmitDayInstruction, parseTopUpSponsorInstruction, type ClaimFaucetAsyncInput, type ClaimPayoutAsyncInput, type CreateLeagueAsyncInput, type InitializeAsyncInput, type JoinCohortAsyncInput, type LeaveCohortAsyncInput, type OpenCohortAsyncInput, type ParsedClaimFaucetInstruction, type ParsedClaimPayoutInstruction, type ParsedCreateLeagueInstruction, type ParsedInitializeInstruction, type ParsedJoinCohortInstruction, type ParsedLeaveCohortInstruction, type ParsedOpenCohortInstruction, type ParsedPublishChipSetInstruction, type ParsedRecordForfeitsInstruction, type ParsedSetFlagsInstruction, type ParsedSettleCountInstruction, type ParsedSettleFinalizeInstruction, type ParsedSubmitDayInstruction, type ParsedTopUpSponsorInstruction, type PublishChipSetAsyncInput, type RecordForfeitsAsyncInput, type SetFlagsAsyncInput, type SettleCountAsyncInput, type SettleFinalizeAsyncInput, type SubmitDayAsyncInput, type TopUpSponsorAsyncInput } from '../instructions';
+import { findConfigPda, findFaucetVaultPda, findJoinCohortProfilePda, findMembershipPda, findMintAuthorityPda, findProfilePda, findVaultPda } from '../pdas';
 
 export const HOLDOUT_PROGRAM_ADDRESS = 'Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4' as Address<'Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4'>;
+
+export enum HoldoutAccount { Cohort, Config, LeagueConfig, Membership, Profile }
+
+export function identifyHoldoutAccount(account: { data: ReadonlyUint8Array } | ReadonlyUint8Array): HoldoutAccount {
+    const data = 'data' in account ? account.data : account;
+    if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([137, 17, 213, 61, 105, 64, 144, 169])), 0)) { return HoldoutAccount.Cohort; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([155, 12, 170, 224, 30, 250, 204, 130])), 0)) { return HoldoutAccount.Config; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([224, 206, 38, 102, 98, 106, 33, 40])), 0)) { return HoldoutAccount.LeagueConfig; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([231, 141, 180, 98, 109, 168, 175, 166])), 0)) { return HoldoutAccount.Membership; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([184, 101, 165, 188, 95, 63, 127, 188])), 0)) { return HoldoutAccount.Profile; }
+    throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT, { accountData: data, programName: "holdout" });
+}
 
 export enum HoldoutEvent { CarryOverDelivered, CarryOverHeld, CarryOverSent, ChipSetPublished, CohortOpened, CohortSettled, DayCompleted, FaucetClaimed, FlagsSet, ForfeitRecorded, MemberCounted, MemberJoined, MemberLeft, PayoutClaimed, SponsorToppedUp }
 
@@ -31,3 +47,97 @@ if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Arr
 if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([114, 41, 168, 147, 136, 37, 52, 34])), 0)) { return HoldoutEvent.SponsorToppedUp; }
     throw new Error('The provided event could not be identified as a holdout event.');
 }
+
+export enum HoldoutInstruction { ClaimFaucet, ClaimPayout, CreateLeague, Initialize, JoinCohort, LeaveCohort, OpenCohort, PublishChipSet, RecordForfeits, SetFlags, SettleCount, SettleFinalize, SubmitDay, TopUpSponsor }
+
+export function identifyHoldoutInstruction(instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array): HoldoutInstruction {
+    const data = 'data' in instruction ? instruction.data : instruction;
+    if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([80, 7, 251, 108, 55, 145, 135, 68])), 0)) { return HoldoutInstruction.ClaimFaucet; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([127, 240, 132, 62, 227, 198, 146, 133])), 0)) { return HoldoutInstruction.ClaimPayout; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([129, 229, 70, 201, 64, 57, 180, 164])), 0)) { return HoldoutInstruction.CreateLeague; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([175, 175, 109, 31, 13, 152, 155, 237])), 0)) { return HoldoutInstruction.Initialize; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([101, 23, 98, 65, 106, 131, 213, 218])), 0)) { return HoldoutInstruction.JoinCohort; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([201, 47, 89, 75, 43, 181, 191, 163])), 0)) { return HoldoutInstruction.LeaveCohort; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([223, 84, 125, 204, 102, 11, 92, 113])), 0)) { return HoldoutInstruction.OpenCohort; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([104, 155, 173, 63, 75, 185, 94, 186])), 0)) { return HoldoutInstruction.PublishChipSet; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([16, 114, 97, 167, 117, 84, 108, 176])), 0)) { return HoldoutInstruction.RecordForfeits; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([199, 54, 111, 124, 87, 47, 217, 198])), 0)) { return HoldoutInstruction.SetFlags; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([27, 77, 241, 123, 147, 253, 167, 103])), 0)) { return HoldoutInstruction.SettleCount; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([182, 99, 99, 200, 60, 41, 120, 61])), 0)) { return HoldoutInstruction.SettleFinalize; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([72, 224, 17, 130, 158, 107, 140, 136])), 0)) { return HoldoutInstruction.SubmitDay; }
+if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([104, 33, 35, 87, 200, 15, 194, 190])), 0)) { return HoldoutInstruction.TopUpSponsor; }
+    throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION, { instructionData: data, programName: "holdout" });
+}
+
+export type ParsedHoldoutInstruction<TProgram extends string = 'Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4'> =
+| { instructionType: HoldoutInstruction.ClaimFaucet } & ParsedClaimFaucetInstruction<TProgram>
+| { instructionType: HoldoutInstruction.ClaimPayout } & ParsedClaimPayoutInstruction<TProgram>
+| { instructionType: HoldoutInstruction.CreateLeague } & ParsedCreateLeagueInstruction<TProgram>
+| { instructionType: HoldoutInstruction.Initialize } & ParsedInitializeInstruction<TProgram>
+| { instructionType: HoldoutInstruction.JoinCohort } & ParsedJoinCohortInstruction<TProgram>
+| { instructionType: HoldoutInstruction.LeaveCohort } & ParsedLeaveCohortInstruction<TProgram>
+| { instructionType: HoldoutInstruction.OpenCohort } & ParsedOpenCohortInstruction<TProgram>
+| { instructionType: HoldoutInstruction.PublishChipSet } & ParsedPublishChipSetInstruction<TProgram>
+| { instructionType: HoldoutInstruction.RecordForfeits } & ParsedRecordForfeitsInstruction<TProgram>
+| { instructionType: HoldoutInstruction.SetFlags } & ParsedSetFlagsInstruction<TProgram>
+| { instructionType: HoldoutInstruction.SettleCount } & ParsedSettleCountInstruction<TProgram>
+| { instructionType: HoldoutInstruction.SettleFinalize } & ParsedSettleFinalizeInstruction<TProgram>
+| { instructionType: HoldoutInstruction.SubmitDay } & ParsedSubmitDayInstruction<TProgram>
+| { instructionType: HoldoutInstruction.TopUpSponsor } & ParsedTopUpSponsorInstruction<TProgram>
+
+
+        export function parseHoldoutInstruction<TProgram extends string>(
+            instruction: Instruction<TProgram> 
+                & InstructionWithData<ReadonlyUint8Array>
+        ): ParsedHoldoutInstruction<TProgram> {
+            const instructionType = identifyHoldoutInstruction(instruction);
+            switch (instructionType) {
+                case HoldoutInstruction.ClaimFaucet: { assertIsInstructionWithAccounts(instruction);
+return { instructionType: HoldoutInstruction.ClaimFaucet, ...parseClaimFaucetInstruction(instruction) }; }
+case HoldoutInstruction.ClaimPayout: { assertIsInstructionWithAccounts(instruction);
+return { instructionType: HoldoutInstruction.ClaimPayout, ...parseClaimPayoutInstruction(instruction) }; }
+case HoldoutInstruction.CreateLeague: { assertIsInstructionWithAccounts(instruction);
+return { instructionType: HoldoutInstruction.CreateLeague, ...parseCreateLeagueInstruction(instruction) }; }
+case HoldoutInstruction.Initialize: { assertIsInstructionWithAccounts(instruction);
+return { instructionType: HoldoutInstruction.Initialize, ...parseInitializeInstruction(instruction) }; }
+case HoldoutInstruction.JoinCohort: { assertIsInstructionWithAccounts(instruction);
+return { instructionType: HoldoutInstruction.JoinCohort, ...parseJoinCohortInstruction(instruction) }; }
+case HoldoutInstruction.LeaveCohort: { assertIsInstructionWithAccounts(instruction);
+return { instructionType: HoldoutInstruction.LeaveCohort, ...parseLeaveCohortInstruction(instruction) }; }
+case HoldoutInstruction.OpenCohort: { assertIsInstructionWithAccounts(instruction);
+return { instructionType: HoldoutInstruction.OpenCohort, ...parseOpenCohortInstruction(instruction) }; }
+case HoldoutInstruction.PublishChipSet: { assertIsInstructionWithAccounts(instruction);
+return { instructionType: HoldoutInstruction.PublishChipSet, ...parsePublishChipSetInstruction(instruction) }; }
+case HoldoutInstruction.RecordForfeits: { assertIsInstructionWithAccounts(instruction);
+return { instructionType: HoldoutInstruction.RecordForfeits, ...parseRecordForfeitsInstruction(instruction) }; }
+case HoldoutInstruction.SetFlags: { assertIsInstructionWithAccounts(instruction);
+return { instructionType: HoldoutInstruction.SetFlags, ...parseSetFlagsInstruction(instruction) }; }
+case HoldoutInstruction.SettleCount: { assertIsInstructionWithAccounts(instruction);
+return { instructionType: HoldoutInstruction.SettleCount, ...parseSettleCountInstruction(instruction) }; }
+case HoldoutInstruction.SettleFinalize: { assertIsInstructionWithAccounts(instruction);
+return { instructionType: HoldoutInstruction.SettleFinalize, ...parseSettleFinalizeInstruction(instruction) }; }
+case HoldoutInstruction.SubmitDay: { assertIsInstructionWithAccounts(instruction);
+return { instructionType: HoldoutInstruction.SubmitDay, ...parseSubmitDayInstruction(instruction) }; }
+case HoldoutInstruction.TopUpSponsor: { assertIsInstructionWithAccounts(instruction);
+return { instructionType: HoldoutInstruction.TopUpSponsor, ...parseTopUpSponsorInstruction(instruction) }; }
+                default: throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE, { instructionType: instructionType as string, programName: "holdout" });
+            }
+        }
+
+export type HoldoutPlugin = { accounts: HoldoutPluginAccounts; instructions: HoldoutPluginInstructions; pdas: HoldoutPluginPdas; identifyAccount: typeof identifyHoldoutAccount; identifyInstruction: typeof identifyHoldoutInstruction; parseInstruction: typeof parseHoldoutInstruction; }
+
+export type HoldoutPluginAccounts = { cohort: ReturnType<typeof getCohortCodec> & SelfFetchFunctions<CohortArgs, Cohort>; config: ReturnType<typeof getConfigCodec> & SelfFetchFunctions<ConfigArgs, Config>; leagueConfig: ReturnType<typeof getLeagueConfigCodec> & SelfFetchFunctions<LeagueConfigArgs, LeagueConfig>; membership: ReturnType<typeof getMembershipCodec> & SelfFetchFunctions<MembershipArgs, Membership>; profile: ReturnType<typeof getProfileCodec> & SelfFetchFunctions<ProfileArgs, Profile>; }
+
+export type HoldoutPluginInstructions = { claimFaucet: (input: MakeOptional<ClaimFaucetAsyncInput, "payer">) => ReturnType<typeof getClaimFaucetInstructionAsync> & SelfPlanAndSendFunctions; claimPayout: (input: ClaimPayoutAsyncInput) => ReturnType<typeof getClaimPayoutInstructionAsync> & SelfPlanAndSendFunctions; createLeague: (input: CreateLeagueAsyncInput) => ReturnType<typeof getCreateLeagueInstructionAsync> & SelfPlanAndSendFunctions; initialize: (input: InitializeAsyncInput) => ReturnType<typeof getInitializeInstructionAsync> & SelfPlanAndSendFunctions; joinCohort: (input: JoinCohortAsyncInput) => ReturnType<typeof getJoinCohortInstructionAsync> & SelfPlanAndSendFunctions; leaveCohort: (input: LeaveCohortAsyncInput) => ReturnType<typeof getLeaveCohortInstructionAsync> & SelfPlanAndSendFunctions; openCohort: (input: MakeOptional<OpenCohortAsyncInput, "payer">) => ReturnType<typeof getOpenCohortInstructionAsync> & SelfPlanAndSendFunctions; publishChipSet: (input: PublishChipSetAsyncInput) => ReturnType<typeof getPublishChipSetInstructionAsync> & SelfPlanAndSendFunctions; recordForfeits: (input: RecordForfeitsAsyncInput) => ReturnType<typeof getRecordForfeitsInstructionAsync> & SelfPlanAndSendFunctions; setFlags: (input: SetFlagsAsyncInput) => ReturnType<typeof getSetFlagsInstructionAsync> & SelfPlanAndSendFunctions; settleCount: (input: SettleCountAsyncInput) => ReturnType<typeof getSettleCountInstructionAsync> & SelfPlanAndSendFunctions; settleFinalize: (input: SettleFinalizeAsyncInput) => ReturnType<typeof getSettleFinalizeInstructionAsync> & SelfPlanAndSendFunctions; submitDay: (input: SubmitDayAsyncInput) => ReturnType<typeof getSubmitDayInstructionAsync> & SelfPlanAndSendFunctions; topUpSponsor: (input: TopUpSponsorAsyncInput) => ReturnType<typeof getTopUpSponsorInstructionAsync> & SelfPlanAndSendFunctions; }
+
+export type HoldoutPluginPdas = { config: typeof findConfigPda; profile: typeof findProfilePda; mintAuthority: typeof findMintAuthorityPda; faucetVault: typeof findFaucetVaultPda; vault: typeof findVaultPda; membership: typeof findMembershipPda; joinCohortProfile: typeof findJoinCohortProfilePda; }
+
+export type HoldoutPluginRequirements = ClientWithRpc<GetAccountInfoApi & GetMultipleAccountsApi> & ClientWithPayer & ClientWithTransactionPlanning & ClientWithTransactionSending
+
+export function holdoutProgram() {
+    return <T extends HoldoutPluginRequirements>(client: T): ExtendedClient<T, { holdout: HoldoutPlugin }> => {
+        return extendClient(client, { holdout: <HoldoutPlugin>{ accounts: { cohort: addSelfFetchFunctions(client, getCohortCodec()), config: addSelfFetchFunctions(client, getConfigCodec()), leagueConfig: addSelfFetchFunctions(client, getLeagueConfigCodec()), membership: addSelfFetchFunctions(client, getMembershipCodec()), profile: addSelfFetchFunctions(client, getProfileCodec()) }, instructions: { claimFaucet: input => addSelfPlanAndSendFunctions(client, getClaimFaucetInstructionAsync({ ...input, payer: input.payer ?? client.payer })), claimPayout: input => addSelfPlanAndSendFunctions(client, getClaimPayoutInstructionAsync(input)), createLeague: input => addSelfPlanAndSendFunctions(client, getCreateLeagueInstructionAsync(input)), initialize: input => addSelfPlanAndSendFunctions(client, getInitializeInstructionAsync(input)), joinCohort: input => addSelfPlanAndSendFunctions(client, getJoinCohortInstructionAsync(input)), leaveCohort: input => addSelfPlanAndSendFunctions(client, getLeaveCohortInstructionAsync(input)), openCohort: input => addSelfPlanAndSendFunctions(client, getOpenCohortInstructionAsync({ ...input, payer: input.payer ?? client.payer })), publishChipSet: input => addSelfPlanAndSendFunctions(client, getPublishChipSetInstructionAsync(input)), recordForfeits: input => addSelfPlanAndSendFunctions(client, getRecordForfeitsInstructionAsync(input)), setFlags: input => addSelfPlanAndSendFunctions(client, getSetFlagsInstructionAsync(input)), settleCount: input => addSelfPlanAndSendFunctions(client, getSettleCountInstructionAsync(input)), settleFinalize: input => addSelfPlanAndSendFunctions(client, getSettleFinalizeInstructionAsync(input)), submitDay: input => addSelfPlanAndSendFunctions(client, getSubmitDayInstructionAsync(input)), topUpSponsor: input => addSelfPlanAndSendFunctions(client, getTopUpSponsorInstructionAsync(input)) }, pdas: { config: findConfigPda, profile: findProfilePda, mintAuthority: findMintAuthorityPda, faucetVault: findFaucetVaultPda, vault: findVaultPda, membership: findMembershipPda, joinCohortProfile: findJoinCohortProfilePda }, identifyAccount: identifyHoldoutAccount, identifyInstruction: identifyHoldoutInstruction, parseInstruction: parseHoldoutInstruction } });
+    };
+}
+
+type MakeOptional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;

@@ -39,6 +39,34 @@ npx skills add solana-foundation/solana-dev-skill
 claude mcp add --transport http solana-mcp-server https://mcp.solana.com/mcp
 ```
 
+### Behind a restricted network
+
+The installers above reach hosts a locked-down CI runner or sandbox may not
+allow. The contract side needs **only** the Solana CLI, Anchor and Node, and all
+three can be had from GitHub release assets and a git clone instead — which is
+what a sandbox that permits `github.com` but not `release.anza.xyz` leaves you:
+
+```bash
+# Solana CLI 3.1.10, which carries cargo-build-sbf; it fetches platform-tools
+# from GitHub on first use.
+curl -sSL -o solana.tar.bz2 \
+  https://github.com/anza-xyz/agave/releases/download/v3.1.10/solana-release-x86_64-unknown-linux-gnu.tar.bz2
+tar -xjf solana.tar.bz2 && export PATH="$PWD/solana-release/bin:$PATH"
+
+# Anchor CLI 1.1.2 from source — the same tag avm would build.
+cargo install --git https://github.com/solana-foundation/anchor --tag v1.1.2 anchor-cli --locked
+```
+
+With those two on `PATH`, `NO_DNA=1 anchor build`, `npm --prefix tests run
+build:test-leagues` and the whole LiteSVM suite run unchanged. **Surfpool is not
+available this way**, so §6's smoke suite needs the ordinary installer and a
+network that allows it; nothing else does.
+
+The Android side has no such route: Gradle resolves AGP and AndroidX from
+`dl.google.com`, so a sandbox without it cannot build `kotlin/` at all — not the
+app and not the JVM-only modules, because the root build applies the Android
+plugins. Maven Central and `services.gradle.org` are not enough on their own.
+
 ## 2. Repository layout
 
 ```text

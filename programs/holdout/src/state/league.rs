@@ -30,6 +30,20 @@ pub const DEVNET_JOIN_LOCK: i64 = 3_600;
 /// 25 reps a day, in both leagues.
 pub const DEVNET_REPS_PER_DAY: u16 = 25;
 
+/// Offset of Monday 05:00:00 UTC inside a week, in seconds.
+///
+/// Unix day 0 (1 Jan 1970) was a Thursday, so Monday is day 4 of the epoch
+/// week, and the day itself turns over at 05:00 UTC (`BOUNDARY_OFFSET`,
+/// constitution VI). Every real league's `first_start` lands exactly here.
+pub const MONDAY_0500_UTC: i64 = 4 * DEVNET_DAY_LENGTH + crate::math::schedule::BOUNDARY_OFFSET;
+
+/// Whether an instant is a Monday at 05:00:00 UTC — the only start a real
+/// league may have (data-model §1.2). `rem_euclid` so instants before the
+/// epoch answer the same way a positive one would.
+pub fn is_monday_0500_utc(at: i64) -> bool {
+    at.rem_euclid(DEVNET_CADENCE) == MONDAY_0500_UTC
+}
+
 #[account]
 #[derive(InitSpace)]
 pub struct LeagueConfig {
@@ -72,6 +86,24 @@ impl LeagueConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn monday_at_five_is_the_only_start_a_real_league_may_have() {
+        // 28 Sep 2026, 05:00:00 UTC — the first judged cohort, and what
+        // `tests/helpers/harness.ts` calls FIRST_START.
+        let first_start = 1_790_571_600;
+        assert!(is_monday_0500_utc(first_start));
+        assert!(is_monday_0500_utc(first_start + 2 * DEVNET_CADENCE));
+        assert!(is_monday_0500_utc(first_start - 100 * DEVNET_CADENCE));
+
+        assert!(!is_monday_0500_utc(first_start + 1), "a second late");
+        assert!(!is_monday_0500_utc(first_start - 1), "a second early");
+        assert!(!is_monday_0500_utc(first_start - 3_600), "Monday 04:00 UTC");
+        assert!(
+            !is_monday_0500_utc(first_start + DEVNET_DAY_LENGTH),
+            "Tuesday"
+        );
+    }
 
     #[test]
     fn test_leagues_start_at_one_hundred() {

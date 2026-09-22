@@ -27,6 +27,7 @@
  *    settled: true })` — for a scenario that is *about* ordering.
  */
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -75,6 +76,12 @@ import {
   profilePda,
   programDataPda,
   vaultPda,
+  cohortBump,
+  configBump,
+  leagueBump,
+  membershipBump,
+  profileBump,
+  vaultBump,
 } from './pdas.js';
 import type {
   CohortSnapshot,
@@ -124,6 +131,36 @@ export class ProgramCallFailed extends Error {
     this.name = 'ProgramCallFailed';
   }
 }
+
+/**
+ * The payloads of a named Anchor event, in the order they were emitted.
+ *
+ * `emit!` writes `Program data: <base64>` with an 8-byte discriminator —
+ * `sha256("event:<Name>")[0..8]` — ahead of the borsh fields, so filtering by
+ * that prefix picks out one event's payloads and leaves the rest alone. A
+ * scenario decodes the fields it cares about; nothing here knows the layouts.
+ */
+export const eventPayloads = (result: SendResult, name: string): Uint8Array[] => {
+  const want = new Uint8Array(createHash('sha256').update(`event:${name}`).digest().subarray(0, 8));
+  const found: Uint8Array[] = [];
+  for (const line of result.logs) {
+    const match = /^Program data: (.+)$/.exec(line);
+    if (!match?.[1]) continue;
+    const bytes = new Uint8Array(Buffer.from(match[1], 'base64'));
+    if (bytes.length < 8) continue;
+    if (want.every((byte, at) => bytes[at] === byte)) found.push(bytes.subarray(8));
+  }
+  return found;
+};
+
+/** The one payload of a named event, or a failure naming what was emitted instead. */
+export const oneEvent = (result: SendResult, name: string): Uint8Array => {
+  const found = eventPayloads(result, name);
+  if (found.length !== 1) {
+    throw new Error(`expected exactly one ${name}, got ${found.length}\n${result.logs.join('\n')}`);
+  }
+  return found[0]!;
+};
 
 /** Assert a transaction failed with a named program error, printing the logs if not. */
 export const expectProgramError = (result: SendResult, name: ErrorName): void => {
@@ -369,7 +406,7 @@ export class Harness {
         lamportDay: 0n,
         lamportsToday: 0n,
       },
-      bump: 255,
+      bump: await configBump(),
       ...over,
     };
     this.put(at, Config.encode(config));
@@ -399,7 +436,7 @@ export class Harness {
       cadence: BigInt(WEEK),
       joinLock: BigInt(HOUR),
       nextIndex: 0,
-      bump: 255,
+      bump: await leagueBump(leagueId),
       ...over,
     };
     this.put(at, LeagueConfig.encode(account));
@@ -446,8 +483,10 @@ export class Harness {
       carryOverSent: 0n,
       carryOverHeld: 0n,
       carryOverTarget: NO_KEY,
-      vaultBump: 255,
-      bump: 255,
+      // The real bumps, not placeholders: the program signs the vault transfers
+      // with `cohort.bump`, so an injected lie here fails inside `leave_cohort`.
+      vaultBump: await vaultBump(await cohortPda(leagueId, index)),
+      bump: await cohortBump(leagueId, index),
       ...fields,
     };
 
@@ -485,7 +524,7 @@ export class Harness {
       daysCompleted: 0,
       state: 'Joined',
       counted: false,
-      bump: 255,
+      bump: await membershipBump(cohort, wallet),
       ...over,
     };
     this.put(at, Membership.encode(membership));
@@ -502,7 +541,7 @@ export class Harness {
       running: { cohort: NO_KEY, end: 0n },
       pending: { cohort: NO_KEY, start: 0n, end: 0n },
       lastFaucetDay: -1n,
-      bump: 255,
+      bump: await profileBump(wallet),
       ...over,
     };
     this.put(at, Profile.encode(profile));

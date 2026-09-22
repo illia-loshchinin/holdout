@@ -27,6 +27,16 @@ const u32le = (n: number): Uint8Array => new Uint8Array(getU32Encoder().encode(n
 const derive = async (programAddress: Address, seeds: Uint8Array[]): Promise<Address> =>
   (await getProgramDerivedAddress({ programAddress, seeds }))[0];
 
+/**
+ * The canonical bump beside the address. The program stores these — `Cohort`
+ * keeps its own and its vault's, `Membership` and `Profile` keep theirs — and
+ * signs with them, so injected state has to carry the real figure rather than a
+ * placeholder or a `leave_cohort` signing with it would fail on a lie the test
+ * itself told.
+ */
+const deriveBump = async (programAddress: Address, seeds: Uint8Array[]): Promise<number> =>
+  Number((await getProgramDerivedAddress({ programAddress, seeds }))[1]);
+
 export const configPda = (): Promise<Address> => derive(PROGRAM_ID, [utf8('config')]);
 
 export const leaguePda = (leagueId: number): Promise<Address> =>
@@ -54,3 +64,22 @@ export const associatedTokenPda = (owner: Address, mint: Address): Promise<Addre
 
 /** The loader's `ProgramData` account, whose upgrade authority `initialize` checks. */
 export const programDataPda = (): Promise<Address> => derive(UPGRADEABLE_LOADER, [addr(PROGRAM_ID)]);
+
+// ------------------------------------------------------ canonical bumps
+
+export const configBump = (): Promise<number> => deriveBump(PROGRAM_ID, [utf8('config')]);
+
+export const leagueBump = (leagueId: number): Promise<number> =>
+  deriveBump(PROGRAM_ID, [utf8('league'), u8(leagueId)]);
+
+export const cohortBump = (leagueId: number, index: number): Promise<number> =>
+  deriveBump(PROGRAM_ID, [utf8('cohort'), u8(leagueId), u32le(index)]);
+
+export const vaultBump = (cohort: Address): Promise<number> =>
+  deriveBump(PROGRAM_ID, [utf8('vault'), addr(cohort)]);
+
+export const membershipBump = (cohort: Address, wallet: Address): Promise<number> =>
+  deriveBump(PROGRAM_ID, [utf8('member'), addr(cohort), addr(wallet)]);
+
+export const profileBump = (wallet: Address): Promise<number> =>
+  deriveBump(PROGRAM_ID, [utf8('profile'), addr(wallet)]);
