@@ -12,6 +12,8 @@ kotlin {
 
 dependencies {
     implementation(project(":core"))
+    // Every command prints a JSON summary (contracts/crank-cli.md).
+    implementation(libs.kotlinx.serialization.json)
     testImplementation(kotlin("test"))
 }
 
