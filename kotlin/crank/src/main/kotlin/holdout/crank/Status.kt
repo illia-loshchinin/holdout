@@ -1,11 +1,11 @@
 package holdout.crank
 
-import com.solana.publickey.ProgramDerivedAddress
 import com.solana.publickey.SolanaPublicKey
 import holdout.core.CohortSnapshot
 import holdout.core.ConfigSnapshot
 import holdout.core.Derive
 import holdout.core.HoldoutDay
+import holdout.core.Pdas
 import holdout.core.Rpc
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -25,8 +25,8 @@ import kotlinx.serialization.json.putJsonObject
 internal object Status {
     suspend fun run(config: CrankConfig, rpc: Rpc): JsonObject {
         val time = rpc.chainTime() ?: failed("could not read chain time from ${config.rpcUrl}")
-        val configAddress = pda(config.programId, "config")
-        val faucetVault = pda(config.programId, "faucet_vault")
+        val configAddress = Pdas.config(config.programId)
+        val faucetVault = Pdas.faucetVault(config.programId)
 
         // The cluster answered the clock, so a missing Config is an
         // uninitialised program, not a network failure.
@@ -49,12 +49,6 @@ internal object Status {
             cohorts = cohorts,
         )
     }
-
-    /**
-     * The singleton PDAs `status` reads. T030's `Pdas.kt` owns derivation for
-     * the client as a whole; these two seeds are all this command needs.
-     */
-    private suspend fun pda(programId: SolanaPublicKey, seed: String): SolanaPublicKey = ProgramDerivedAddress.find(listOf(seed.encodeToByteArray()), programId).getOrThrow()
 
     /** The summary, from what was read — pure, so it is tested without a cluster. */
     fun report(

@@ -65,7 +65,7 @@ fun runCrank(
                     parsed.allow()
                     fun(config: CrankConfig) = runBlocking { Status.run(config, rpcFor(config.rpcUrl)) }
                 }
-                listOf("chips", "publish") -> fun(config: CrankConfig) = Chips.publish(parsed, config)
+                listOf("chips", "publish") -> fun(config: CrankConfig) = runBlocking { Chips.publish(parsed, config, rpcFor(config.rpcUrl)) }
                 else -> notYet(parsed.words)
             }
         out(command(CrankConfig.from(env)).toString())

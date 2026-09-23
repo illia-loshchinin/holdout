@@ -148,7 +148,7 @@
 - [ ] T059 [P] [US6] Build the stake-confirm sheet in `kotlin/app/src/main/kotlin/holdout/app/stake/StakeSheet.kt` — four tier chips with their exact SKR amounts and `≈ $` labels, daily obligation, time to the cutoff and the start, the pool including carry-over, and the sentence "if everyone finishes, you get your stake back plus your share of any carry-over" — what FR-041 promises, and what the sheet's own carry-over line already shows (US-6, FR-041, FR-059)
 - [ ] T060 [P] [US2] Build the lobby in `kotlin/app/src/main/kotlin/holdout/app/lobby/LobbyScreen.kt` — countdowns to cutoff and start, live roster count, held stake, unconditional leave, and the locked variant with the final roster and no actions (US-2, ES-12a)
 - [ ] T061 [US6] Send transactions through MWA in `kotlin/app/src/main/kotlin/holdout/app/wallet/Signer.kt` — `transact { signAndSendTransactions(...) }`, the member as fee payer, retryable errors surfaced plainly (contracts/android-app §3)
-- [ ] T062 [P] [US6] Implement `crank chips publish --rate <usd-per-skr>` in `kotlin/crank/src/main/kotlin/holdout/crank/Chips.kt` — converts the four tiers, rounds down to the nearest 10 SKR, minimum 10 SKR (research R15)
+- [X] T062 [P] [US6] Implement `crank chips publish --rate <usd-per-skr>` in `kotlin/crank/src/main/kotlin/holdout/crank/Chips.kt` — converts the four tiers, rounds down to the nearest 10 SKR, minimum 10 SKR (research R15)
 
 **Checkpoint**: a member can stake into a Holdout and get out again before the cutoff.
 

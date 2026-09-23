@@ -1,6 +1,14 @@
 package holdout.crank
 
+import com.solana.transaction.Message
+import com.solana.transaction.Transaction
+import holdout.core.ConfigSnapshot
+import holdout.core.Instructions
+import holdout.core.Pdas
+import holdout.core.Rpc
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
@@ -88,59 +96,150 @@ object Chips {
     private const val MAX_DECIMALS = 19
 
     /**
-     * The command. Prices the set and prints it; with `--dry-run` that is the
-     * whole job.
+     * The command (contracts/crank-cli.md). Prices the set, then:
      *
-     * **Sending waits on T030.** Building `publish_chip_set` needs the
-     * instruction builders and PDA derivation in `kotlin/core` (T030), which do
-     * not exist yet. Until they do, a run without `--dry-run` checks the
-     * Operator key is configured, prints the amounts it would publish, and
-     * stops with [EXIT_CONFIG] having sent nothing.
+     * - with the Operator's key, builds and signs `publish_chip_set` —
+     *   `--dry-run` simulates it, otherwise it is sent and confirmed;
+     * - with `--dry-run` and no key, prints the priced set and stops there.
+     *
+     * Before signing it reads `Config` from the cluster: the key must be
+     * `Config.operator` (the program would refuse anyone else with 6001, but
+     * saying so here costs no fee), and the amounts are scaled by the mint's
+     * own decimals. `--decimals` is only a cross-check against the mint.
+     *
+     * Not retried: every publish is a new version (FR-055a), so a send whose
+     * confirmation never arrives is reported with its signature to check,
+     * never sent again.
      */
-    fun publish(args: Args, config: CrankConfig): JsonObject {
+    suspend fun publish(
+        args: Args,
+        config: CrankConfig,
+        rpc: Rpc,
+        loadKeypair: (path: String, role: String) -> Keypair = Keypair::load,
+        pause: suspend (Long) -> Unit = { delay(it) },
+    ): JsonObject {
         if ("auto" in args.flags || args.option("if-drift") != null) {
             configError("--auto and --if-drift are the Phase 2 weekly check (FR-056, FR-057); this build publishes from --rate only")
         }
         args.allow("rate", "decimals")
         val rateText = args.option("rate") ?: configError("chips publish needs --rate <usd-per-skr>")
-        val decimals =
-            args.option("decimals")?.let { it.toIntOrNull() ?: configError("--decimals must be a whole number, got $it") }
-                ?: DEFAULT_SKR_DECIMALS
-        val rate: BigDecimal
-        val tiers: List<Tier>
-        try {
-            rate = parseRate(rateText)
-            tiers = price(rate, decimals)
-        } catch (e: ChipPricingException) {
-            configError(e.message ?: "invalid rate")
+        val rate = pricing { parseRate(rateText) }
+        val askedDecimals = args.option("decimals")?.let { it.toIntOrNull() ?: configError("--decimals must be a whole number, got $it") }
+
+        val operatorPath = config.operatorKeypair
+        if (operatorPath == null) {
+            if (!args.dryRun) config.requireOperator()
+            // A dry run without the key can still show the set; it cannot build
+            // the transaction, which needs the signer.
+            val tiers = pricing { price(rate, askedDecimals ?: DEFAULT_SKR_DECIMALS) }
+            return summary(rate, askedDecimals ?: DEFAULT_SKR_DECIMALS, tiers, dryRun = true) {
+                put("simulated", false)
+                put("sent", false)
+                put("note", "set HOLDOUT_OPERATOR_KEYPAIR to build and simulate the transaction")
+            }
+        }
+        val operator = loadKeypair(operatorPath, "operator")
+
+        val configAddress = Pdas.config(config.programId)
+        val onChain =
+            rpc.accountData(configAddress)?.let {
+                runCatching { ConfigSnapshot.decode(it) }.getOrNull() ?: configError("the account at $configAddress is not a Config")
+            } ?: failed("could not read Config at $configAddress from ${config.rpcUrl}; is the program initialized (crank init)?")
+        if (onChain.operator != operator.publicKey) {
+            configError("HOLDOUT_OPERATOR_KEYPAIR is ${operator.publicKey}, but Config.operator is ${onChain.operator}; only the Operator may publish (6001)")
+        }
+        val mintDecimals =
+            rpc.accountData(onChain.skrMint)?.takeIf { it.size >= MINT_SIZE }?.let { it[MINT_DECIMALS].toInt() and 0xFF }
+                ?: failed("could not read the SKR mint ${onChain.skrMint}")
+        if (askedDecimals != null && askedDecimals != mintDecimals) {
+            configError("--decimals $askedDecimals disagrees with the SKR mint, which has $mintDecimals")
+        }
+        val tiers = pricing { price(rate, mintDecimals) }
+
+        val blockhash = rpc.latestBlockhash() ?: failed("could not read a recent blockhash from ${config.rpcUrl}")
+        val message =
+            Message
+                .Builder()
+                .addInstruction(Instructions.publishChipSet(config.programId, operator.publicKey, configAddress, tiers.map { it.baseUnits }))
+                .setRecentBlockhash(blockhash)
+                .build()
+        val transaction = Transaction(listOf(operator.sign(message.serialize())), message).serialize()
+
+        if (args.dryRun) {
+            val simulation =
+                when (val answer = rpc.simulate(transaction)) {
+                    is Rpc.Answer.Refused -> failed("simulating publish_chip_set was refused: ${answer.message}")
+                    is Rpc.Answer.Ok -> answer.value
+                }
+            simulation.error?.let { failed("publish_chip_set would fail: $it; ${simulation.logs.lastOrNull().orEmpty()}") }
+            return summary(rate, mintDecimals, tiers, dryRun = true) {
+                put("operator", operator.publicKey.base58())
+                put("simulated", true)
+                put("sent", false)
+                put("nextVersion", onChain.chipVersion + 1)
+            }
         }
 
-        if (!args.dryRun) {
-            config.requireOperator()
-            configError(
-                "priced ${tiers.joinToString(" / ") { "${it.wholeSkr}" }} SKR, but sending publish_chip_set waits on T030's " +
-                    "instruction builders; nothing was sent; rerun with --dry-run to see the set",
-            )
-        }
-
-        return buildJsonObject {
-            put("command", "chips publish")
-            put("dryRun", true)
-            put("rate", rate.toPlainString())
-            put("decimals", decimals)
-            putJsonArray("tiers") {
-                tiers.forEach { t ->
-                    addJsonObject {
-                        put("usd", t.usd)
-                        put("skr", JsonPrimitive(t.wholeSkr))
-                        put("amount", JsonPrimitive(t.baseUnits.toBig()))
+        val signature =
+            when (val answer = rpc.send(transaction)) {
+                is Rpc.Answer.Refused -> failed("publish_chip_set was refused and nothing was published: ${answer.message}")
+                is Rpc.Answer.Ok -> answer.value
+            }
+        repeat(CONFIRM_ATTEMPTS) {
+            when (val landing = rpc.landing(signature)) {
+                Rpc.Landing.Confirmed ->
+                    return summary(rate, mintDecimals, tiers, dryRun = false) {
+                        put("operator", operator.publicKey.base58())
+                        put("sent", true)
+                        put("signature", signature)
+                        put("version", onChain.chipVersion + 1)
                     }
+                is Rpc.Landing.Failed -> failed("publish_chip_set $signature landed and failed: ${landing.error}")
+                Rpc.Landing.Pending, null -> pause(CONFIRM_PAUSE_MILLIS)
+            }
+        }
+        failed(
+            "sent publish_chip_set $signature but it was not confirmed within ${CONFIRM_ATTEMPTS * CONFIRM_PAUSE_MILLIS / 1000} s; " +
+                "check that signature before publishing again, since a second publish is a new version",
+        )
+    }
+
+    /** How long a send is watched for: 30 checks, 2 s apart. */
+    const val CONFIRM_ATTEMPTS = 30
+    const val CONFIRM_PAUSE_MILLIS = 2_000L
+
+    /** An SPL mint is 82 bytes; `decimals` is the byte after the 36-byte authority and the 8-byte supply. */
+    private const val MINT_SIZE = 82
+    private const val MINT_DECIMALS = 44
+
+    private inline fun <T> pricing(block: () -> T): T = try {
+        block()
+    } catch (e: ChipPricingException) {
+        configError(e.message ?: "invalid rate")
+    }
+
+    private fun summary(
+        rate: BigDecimal,
+        decimals: Int,
+        tiers: List<Tier>,
+        dryRun: Boolean,
+        extra: JsonObjectBuilder.() -> Unit,
+    ): JsonObject = buildJsonObject {
+        put("command", "chips publish")
+        put("dryRun", dryRun)
+        put("rate", rate.toPlainString())
+        put("decimals", decimals)
+        putJsonArray("tiers") {
+            tiers.forEach { t ->
+                addJsonObject {
+                    put("usd", t.usd)
+                    put("skr", JsonPrimitive(t.wholeSkr))
+                    put("amount", JsonPrimitive(t.baseUnits.toBig()))
                 }
             }
-            putJsonArray("amounts") { tiers.forEach { add(JsonPrimitive(it.baseUnits.toBig())) } }
-            put("sent", false)
-            put("note", "simulating publish_chip_set waits on T030's instruction builders")
         }
+        putJsonArray("amounts") { tiers.forEach { add(JsonPrimitive(it.baseUnits.toBig())) } }
+        extra()
     }
 }
 

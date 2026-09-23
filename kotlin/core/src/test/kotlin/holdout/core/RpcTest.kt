@@ -16,6 +16,7 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * T034 — account reads (research R8): what the roster query asks the RPC node
@@ -192,5 +193,57 @@ class RpcTest {
             }
         assertEquals(listOf(5, 6), seen, "nothing is emitted for a read that failed")
         assertEquals(4, pauses.size, "and the cadence does not speed up to make up for it")
+    }
+
+    // ---- sending (T062) --------------------------------------------------------
+
+    private fun refused(message: String) = """{"jsonrpc":"2.0","error":{"code":-32002,"message":"$message"},"id":"x"}"""
+
+    @Test
+    fun `the blockhash comes from getLatestBlockhash at confirmed`() = runBlocking {
+        val http = FakeHttp { ok("""{"context":{"slot":1},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":9}}""") }
+        assertEquals("EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N", rpcWith(http).latestBlockhash())
+        val sent = Json.parseToJsonElement(http.sent.single()).jsonObject
+        assertEquals("getLatestBlockhash", sent.getValue("method").jsonPrimitive.content)
+        assertEquals("confirmed", sent.getValue("params").jsonArray[0].jsonObject.getValue("commitment").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `a send goes as base64 with preflight, and returns the signature`() = runBlocking {
+        val http = FakeHttp { ok("\"5sig\"") }
+        val tx = byteArrayOf(1, 2, 3)
+        assertEquals(Rpc.Answer.Ok("5sig"), rpcWith(http).send(tx))
+        val params = Json.parseToJsonElement(http.sent.single()).jsonObject.getValue("params").jsonArray
+        assertEquals(Base64.getEncoder().encodeToString(tx), params[0].jsonPrimitive.content)
+        assertEquals("base64", params[1].jsonObject.getValue("encoding").jsonPrimitive.content)
+        assertEquals("confirmed", params[1].jsonObject.getValue("preflightCommitment").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `a refused send keeps the node's reason`() = runBlocking {
+        val http = FakeHttp { refused("Transaction simulation failed: custom program error: 0x1771") }
+        val answer = rpcWith(http).send(byteArrayOf(1))
+        assertEquals(Rpc.Answer.Refused("Transaction simulation failed: custom program error: 0x1771"), answer)
+    }
+
+    @Test
+    fun `a simulation reports the program's error and logs`() = runBlocking {
+        val http = FakeHttp { ok("""{"context":{"slot":1},"value":{"err":{"InstructionError":[0,{"Custom":6001}]},"logs":["Program log: nope"]}}""") }
+        val answer = rpcWith(http).simulate(byteArrayOf(1)) as Rpc.Answer.Ok
+        assertEquals(listOf("Program log: nope"), answer.value.logs)
+        assertTrue(answer.value.error!!.contains("6001"))
+        val clean = FakeHttp { ok("""{"context":{"slot":1},"value":{"err":null,"logs":[]}}""") }
+        assertEquals(Rpc.Answer.Ok(Rpc.Simulation(null, emptyList())), rpcWith(clean).simulate(byteArrayOf(1)))
+    }
+
+    @Test
+    fun `a signature's landing reads pending, confirmed or failed`() = runBlocking {
+        fun status(json: String) = runBlocking { rpcWith(FakeHttp { ok("""{"context":{"slot":1},"value":[$json]}""") }).landing("5sig") }
+        assertEquals(Rpc.Landing.Pending, status("null"))
+        assertEquals(Rpc.Landing.Pending, status("""{"err":null,"confirmationStatus":"processed"}"""))
+        assertEquals(Rpc.Landing.Confirmed, status("""{"err":null,"confirmationStatus":"confirmed"}"""))
+        assertEquals(Rpc.Landing.Confirmed, status("""{"err":null,"confirmationStatus":"finalized"}"""))
+        assertTrue(status("""{"err":{"InstructionError":[0,{"Custom":6011}]},"confirmationStatus":"confirmed"}""") is Rpc.Landing.Failed)
+        assertNull(rpcWith(FakeHttp { refused("down") }).landing("5sig"), "unknown, not pending")
     }
 }

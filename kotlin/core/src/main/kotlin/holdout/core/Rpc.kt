@@ -199,6 +199,106 @@ class Rpc(
         return runCatching { result.getValue("value").jsonPrimitive.long }.getOrNull()
     }
 
+    // ---- sending (T062 first; every crank command after it) ---------------
+
+    /** A call that sends or simulates: its result, or why the node refused it. */
+    sealed interface Answer<out T> {
+        data class Ok<T>(val value: T) : Answer<T>
+
+        /** The node's own words — a preflight failure names the program error. */
+        data class Refused(val message: String) : Answer<Nothing>
+    }
+
+    /** The blockhash a transaction is built on, or null when the cluster cannot be reached. */
+    suspend fun latestBlockhash(): String? {
+        val params = buildJsonArray { add(buildJsonObject { put("commitment", READ_COMMITMENT) }) }
+        val result = call("getLatestBlockhash", params) as? JsonObject ?: return null
+        return runCatching {
+            result
+                .getValue("value")
+                .jsonObject
+                .getValue("blockhash")
+                .jsonPrimitive.content
+        }.getOrNull()
+    }
+
+    /** What a simulation reports: the error, if any, and the program's logs. */
+    data class Simulation(val error: String?, val logs: List<String>)
+
+    /** Runs [transaction] (serialised, signed) against the cluster without landing it. */
+    suspend fun simulate(transaction: ByteArray): Answer<Simulation> {
+        val params =
+            buildJsonArray {
+                add(JsonPrimitive(Base64.getEncoder().encodeToString(transaction)))
+                add(
+                    buildJsonObject {
+                        put("encoding", "base64")
+                        put("commitment", READ_COMMITMENT)
+                        put("sigVerify", true)
+                    },
+                )
+            }
+        return when (val answer = answer("simulateTransaction", params)) {
+            is Answer.Refused -> answer
+            is Answer.Ok ->
+                runCatching {
+                    val value = answer.value.jsonObject.getValue("value").jsonObject
+                    val err = value["err"]?.takeUnless { it is JsonNull }?.toString()
+                    val logs = (value["logs"] as? JsonArray)?.map { it.jsonPrimitive.content }.orEmpty()
+                    Answer.Ok(Simulation(err, logs))
+                }.getOrElse { Answer.Refused("unreadable simulation result: ${answer.value}") }
+        }
+    }
+
+    /**
+     * Sends [transaction] (serialised, signed) with preflight on, so a
+     * transaction the program would refuse comes back refused here, with the
+     * reason, instead of landing as a failure. Returns the signature.
+     */
+    suspend fun send(transaction: ByteArray): Answer<String> {
+        val params =
+            buildJsonArray {
+                add(JsonPrimitive(Base64.getEncoder().encodeToString(transaction)))
+                add(
+                    buildJsonObject {
+                        put("encoding", "base64")
+                        put("preflightCommitment", READ_COMMITMENT)
+                    },
+                )
+            }
+        return when (val answer = answer("sendTransaction", params)) {
+            is Answer.Refused -> answer
+            is Answer.Ok ->
+                runCatching { Answer.Ok(answer.value.jsonPrimitive.content) }
+                    .getOrElse { Answer.Refused("unreadable signature: ${answer.value}") }
+        }
+    }
+
+    /** Where a sent transaction stands. */
+    sealed interface Landing {
+        /** Not seen at `confirmed` yet — it may still land. */
+        data object Pending : Landing
+
+        data object Confirmed : Landing
+
+        /** It landed and the program refused it. */
+        data class Failed(val error: String) : Landing
+    }
+
+    /** The status of [signature], or null when the cluster cannot be reached. */
+    suspend fun landing(signature: String): Landing? {
+        val params = buildJsonArray { add(buildJsonArray { add(JsonPrimitive(signature)) }) }
+        val result = call("getSignatureStatuses", params) as? JsonObject ?: return null
+        val status = runCatching { result.getValue("value").jsonArray[0] }.getOrNull() ?: return null
+        if (status is JsonNull) return Landing.Pending
+        val o = status.jsonObject
+        o["err"]?.takeUnless { it is JsonNull }?.let { return Landing.Failed(it.toString()) }
+        return when (o["confirmationStatus"]?.jsonPrimitive?.content) {
+            "confirmed", "finalized" -> Landing.Confirmed
+            else -> Landing.Pending
+        }
+    }
+
     private fun base64Data(account: JsonElement): ByteArray = Base64.getDecoder().decode(
         account.jsonObject
             .getValue("data")
@@ -212,6 +312,14 @@ class Rpc(
             JsonElement.serializer(),
         ).takeIf { it.error == null }?.result
     }.getOrNull()
+
+    /** Like [call], but keeps the node's reason when it refuses. */
+    private suspend fun answer(method: String, params: JsonArray): Answer<JsonElement> = runCatching {
+        val response = rpc.makeRequest(JsonRpc20Request(method, params, method), JsonElement.serializer())
+        response.error?.let { Answer.Refused(it.message) }
+            ?: response.result?.let { Answer.Ok(it) }
+            ?: Answer.Refused("$method returned nothing")
+    }.getOrElse { Answer.Refused("$method could not reach $endpoint: ${it.message}") }
 
     private suspend fun request(method: String, params: JsonArray? = null): Long? = runCatching {
         rpc.makeRequest(
