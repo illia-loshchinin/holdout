@@ -82,11 +82,11 @@
 - [ ] T029 Generate fixtures in `tests/fixtures/generate.ts` — accounts, PDAs, instruction bytes, derived figures — and commit them under `fixtures/` (contracts/program-instructions §7)
 - [ ] T030 Implement account codecs, PDA derivation and instruction builders in `kotlin/core/src/main/kotlin/holdout/core/` (`Accounts.kt`, `Pdas.kt`, `Instructions.kt`), with hand-written encodings pinned by the fixtures (research R2 deviation)
 - [ ] T031 Write the fixture replay tests in `kotlin/core/src/test/kotlin/holdout/core/FixtureReplayTest.kt` — every fixture decodes and re-encodes byte-identically
-- [ ] T032 [P] Implement `Derive.kt` in `kotlin/core/src/main/kotlin/holdout/core/` — survivor counter, projected pool, projected share, roster order, time left, warning window, **at stake**, carry-over received, time until joining closes (data-model §5)
+- [X] T032 [P] Implement `Derive.kt` in `kotlin/core/src/main/kotlin/holdout/core/` — survivor counter, projected pool, projected share, roster order, time left, warning window, **at stake**, carry-over received, time until joining closes (data-model §5)
 - [X] T033 [P] Implement chain-time tracking in `kotlin/core/src/main/kotlin/holdout/core/Clock.kt` — cached `{chainNow, slot, readAtElapsedRealtime}`, advanced with `SystemClock.elapsedRealtime()`, never the wall clock (research R7)
-- [ ] T034 [P] Implement RPC reads in `kotlin/core/src/main/kotlin/holdout/core/Rpc.kt` — `getProgramAccounts` with a `memcmp` on the cohort key and a `dataSlice`, 30-second refresh while a cohort screen is visible (research R8)
+- [X] T034 [P] Implement RPC reads in `kotlin/core/src/main/kotlin/holdout/core/Rpc.kt` — `getProgramAccounts` with a `memcmp` on the cohort key and a `dataSlice`, 30-second refresh while a cohort screen is visible (research R8)
 - [ ] T035 [P] Transcribe the design tokens into `kotlin/app/src/main/kotlin/holdout/app/ui/theme/` — `Color.kt`, `Type.kt`, `Shape.kt`, `Theme.kt`: one dark `ColorScheme`, **dynamic colour disabled**, JetBrains Mono in `kotlin/app/src/main/res/font/` (PRD §11, research R20)
-- [ ] T036 [P] Scaffold the crank in `kotlin/crank/src/main/kotlin/holdout/crank/Main.kt` — argument parsing, RPC config, `status` subcommand printing cohorts plus the faucet vault, the sponsor's balance against its float and the day's lamport spend, single runnable JAR (contracts/crank-cli.md)
+- [X] T036 [P] Scaffold the crank in `kotlin/crank/src/main/kotlin/holdout/crank/Main.kt` — argument parsing, RPC config, `status` subcommand printing cohorts plus the faucet vault, the sponsor's balance against its float and the day's lamport spend, single runnable JAR (contracts/crank-cli.md)
 
 **Checkpoint (21 Sep)**: math and schedule tests pass, accounts compile, `kotlin/core` replays every fixture, the theme renders, and the no-oracle check passes.
 
