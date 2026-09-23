@@ -58,6 +58,27 @@ data class RepRules(
     }
 }
 
+/**
+ * The rules to use for a given camera view.
+ *
+ * **It returns the same rules for every view today, and that is deliberate.**
+ * Both placements are accepted as of 2026-09-22, and head-on is the harder one:
+ * a push-up seen from the front puts nearly all of its movement along the depth
+ * axis, which is the weakest thing a single camera estimates. So a front-view
+ * trigger set is probably needed — but its numbers have to come from spike S2's
+ * traces, not from a guess made here. This is the one place that will ever know
+ * about them.
+ *
+ * **What must never happen** is loosening a front-view trigger past the rule to
+ * make head-on counting work. The triggers exist to be *stricter* than the rule
+ * so jitter cannot count a rep; a trigger looser than the rule counts reps the
+ * rule forbids, which is not tuning but a change to what a rep is. `RepRules`'s
+ * own `require` refuses it, and `RepRulesViewTest` checks every view's set.
+ */
+fun RepRules.forView(view: CameraView): RepRules = when (view) {
+    CameraView.SIDE, CameraView.OBLIQUE, CameraView.FRONT -> this
+}
+
 /** What the sitting screen shows when a rep is thrown away (PRD §8.4). */
 enum class RepHint(val message: String) {
     GO_LOWER("Go lower"),

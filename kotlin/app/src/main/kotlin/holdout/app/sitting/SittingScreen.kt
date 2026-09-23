@@ -2,8 +2,10 @@ package holdout.app.sitting
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.hardware.camera2.CameraCharacteristics
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
@@ -11,6 +13,8 @@ import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,8 +39,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
@@ -50,9 +60,12 @@ import holdout.app.ui.theme.CounterStyle
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
+import holdout.app.vision.PhoneTilt
 import holdout.app.vision.VisionAnalyzer
+import holdout.repcounter.Lens
 import holdout.repcounter.PoseIndex
 import java.util.concurrent.Executors
+import kotlin.math.atan
 
 /**
  * The sitting, screen 8 of PRD §10.1: start card, four pre-flight pills, palm
@@ -98,6 +111,7 @@ fun SittingScreen(
         if (state.step != SittingViewModel.Step.COMPLETE) {
             if (hasCamera) {
                 CameraFeed(viewModel)
+                PositionOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
                 SkeletonOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
             } else {
                 LaunchedEffect(Unit) { requestCamera.launch(Manifest.permission.CAMERA) }
@@ -158,6 +172,12 @@ private fun KeepScreenOn() {
     }
 }
 
+/**
+ * The positioning helper: what to fix next, then the four checks as chips.
+ *
+ * The outline itself is drawn by [PositionOverlay] over the camera; this is the
+ * text half. Once the member is aligned it all goes, leaving the skeleton.
+ */
 @Composable
 private fun PreflightPills(state: SittingViewModel.UiState, hasCamera: Boolean) {
     if (!hasCamera) {
@@ -177,25 +197,45 @@ private fun PreflightPills(state: SittingViewModel.UiState, hasCamera: Boolean) 
         return
     }
 
-    report.statuses.forEach { status ->
-        Text(
-            text = if (status.passing) status.check.label else "${status.check.label} — ${status.fix}",
-            style = LabelStyle,
-            color = if (status.passing) HoldoutColors.Success else HoldoutColors.TextSecondary,
-            textAlign = TextAlign.Center,
-        )
-    }
+    val guidance = state.guidance
+    val aligned = guidance?.aligned == true
 
-    // No button. By the time these are green the member is face-down on the
-    // floor, and asking them to tap is what "I'm ready" got wrong. Getting into
-    // the top of a push-up and holding it is the start signal (ReadyGate).
-    if (report.canStart) {
+    // Fade rather than cut, so it reads as finished instead of broken.
+    val helperAlpha by animateFloatAsState(
+        targetValue = if (aligned) 0f else 1f,
+        animationSpec = tween(durationMillis = 300),
+        label = "helper",
+    )
+
+    Column(
+        modifier = Modifier.alpha(helperAlpha),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Spacing.tight),
+    ) {
         Text(
-            "Get into position and hold",
+            text = guidance?.hint?.message ?: "Get into position and hold",
             style = MaterialTheme.typography.titleMedium,
             color = HoldoutColors.TextPrimary,
             textAlign = TextAlign.Center,
         )
+
+        // FR-019's four checks, still run and still gating — just no longer the
+        // main event. Each red chip still states its own fix.
+        report.statuses.forEach { status ->
+            Text(
+                text = if (status.passing) {
+                    status.check.label + (state.preflight.view?.let { " · ${it.name.lowercase()}" } ?: "")
+                } else {
+                    status.fix ?: status.check.label
+                },
+                style = LabelStyle,
+                color = if (status.passing) HoldoutColors.Success else HoldoutColors.TextSecondary,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+
+    if (aligned) {
         CircularProgressIndicator(
             progress = { state.readyProgress },
             modifier = Modifier.size(96.dp),
@@ -254,6 +294,117 @@ private fun PrimaryButton(label: String, onClick: () -> Unit) {
     ) {
         Text(label, style = MaterialTheme.typography.titleMedium)
     }
+}
+
+/**
+ * The floor line and the outline to lie into.
+ *
+ * Drawn under the skeleton, in the same letterboxed, mirrored frame the
+ * skeleton uses, so the outline and the body sit in one coordinate system.
+ *
+ * **It fades out the moment the member is aligned** and is gone for good once
+ * the countdown starts — scaffolding for getting into position, and pure noise
+ * once they are there, both for the member holding a plank and for the camera
+ * filming the demo.
+ */
+@Composable
+private fun PositionOverlay(viewModel: SittingViewModel, mirrored: Boolean) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val guidance = state.guidance ?: return
+    if (state.frameWidth <= 0 || state.frameHeight <= 0) return
+
+    val alpha by animateFloatAsState(
+        targetValue = if (guidance.aligned) 0f else 1f,
+        animationSpec = tween(durationMillis = 300),
+        label = "overlay",
+    )
+    if (alpha <= 0.01f) return
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .alpha(alpha)
+            .drawBehind {
+                val fit = letterbox(size.width, size.height, state.frameWidth, state.frameHeight)
+
+                // Where the floor starts. Everything below it is somewhere the
+                // member could lie.
+                guidance.horizonY?.let { horizon ->
+                    val y = fit.offsetY + horizon * fit.height
+                    drawLine(
+                        color = HoldoutColors.Accent.copy(alpha = 0.35f),
+                        start = Offset(fit.offsetX, y),
+                        end = Offset(fit.offsetX + fit.width, y),
+                        strokeWidth = 2f,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(18f, 14f)),
+                    )
+                }
+
+                val target = guidance.target
+                val left = if (mirrored) 1f - target.right else target.left
+                drawRoundRect(
+                    color = HoldoutColors.Accent,
+                    topLeft = Offset(
+                        fit.offsetX + left * fit.width,
+                        fit.offsetY + target.top * fit.height,
+                    ),
+                    size = Size(
+                        2f * target.halfWidth * fit.width,
+                        2f * target.halfHeight * fit.height,
+                    ),
+                    cornerRadius = CornerRadius(80f, 80f),
+                    style = Stroke(
+                        width = 6f,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(28f, 20f)),
+                    ),
+                )
+            },
+    )
+}
+
+/**
+ * The lens's vertical field of view, which is what turns the phone's tilt into
+ * a horizon line.
+ *
+ * `SENSOR_INFO_PHYSICAL_SIZE` and the focal length give it exactly. **Frames
+ * are rotated to the display**, so for a 90°/270° rotation the sensor's width
+ * is what ends up vertical on screen — read the axis that matches the rotation
+ * the analyser applied, or the horizon lands in the wrong place on exactly the
+ * orientation people actually use.
+ *
+ * Falls back to [Lens.DEFAULT] when the characteristics are unreadable: a
+ * horizon a few degrees out still puts the outline in the right half of the
+ * screen, which is all the guide needs.
+ */
+@Suppress("TooGenericExceptionCaught")
+private fun verticalFovOf(cameraInfo: androidx.camera.core.CameraInfo): Lens = runCatching {
+    val camera2 = Camera2CameraInfo.from(cameraInfo)
+    val size = camera2.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
+    val focalLengths = camera2.getCameraCharacteristic(
+        CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
+    )
+    val focal = focalLengths?.firstOrNull() ?: return@runCatching Lens.DEFAULT
+    if (size == null || focal <= 0f) return@runCatching Lens.DEFAULT
+
+    val rotation = cameraInfo.sensorRotationDegrees
+    val verticalExtent = if (rotation == 90 || rotation == 270) size.width else size.height
+    val fov = 2.0 * atan((verticalExtent / (2.0 * focal)))
+    Lens(Math.toDegrees(fov).toFloat())
+}.getOrElse { Lens.DEFAULT }
+
+/** Where a frame of [frameWidth] x [frameHeight] lands inside the view, FIT_CENTER. */
+private data class Letterbox(
+    val offsetX: Float,
+    val offsetY: Float,
+    val width: Float,
+    val height: Float,
+)
+
+private fun letterbox(viewWidth: Float, viewHeight: Float, frameWidth: Int, frameHeight: Int): Letterbox {
+    val scale = minOf(viewWidth / frameWidth, viewHeight / frameHeight)
+    val width = frameWidth * scale
+    val height = frameHeight * scale
+    return Letterbox((viewWidth - width) / 2f, (viewHeight - height) / 2f, width, height)
 }
 
 /**
@@ -375,6 +526,15 @@ private fun CameraFeed(viewModel: SittingViewModel) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }
 
+    // Gravity, so the app knows where the floor is before the model has seen
+    // anybody — which is when a phone lying on its back needs saying.
+    val phoneTilt = remember { PhoneTilt(context) }
+    DisposableEffect(phoneTilt) {
+        phoneTilt.start()
+        onDispose { phoneTilt.stop() }
+    }
+    LaunchedEffect(phoneTilt) { phoneTilt.tilt.collect { viewModel.onTilt(it) } }
+
     val analyzer = remember {
         VisionAnalyzer(
             context = context,
@@ -420,12 +580,13 @@ private fun CameraFeed(viewModel: SittingViewModel) {
 
                 runCatching {
                     provider.unbindAll()
-                    provider.bindToLifecycle(
+                    val camera = provider.bindToLifecycle(
                         lifecycleOwner,
                         SITTING_CAMERA,
                         preview,
                         analysis,
                     )
+                    viewModel.onLens(verticalFovOf(camera.cameraInfo))
                 }.onFailure { viewModel.onError("The camera could not start: ${it.message}") }
             }, ContextCompat.getMainExecutor(ctx))
             previewView

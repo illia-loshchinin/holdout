@@ -23,8 +23,8 @@ enum class PreflightCheck(val label: String, val fix: String) {
         fix = "Step back so your whole body is visible",
     ),
     CAMERA_ANGLE(
-        label = "Camera angle",
-        fix = "Put the phone to your side, not in front of you",
+        label = "Camera view",
+        fix = "Move the phone so it can see all of you",
     ),
     BACKGROUND_STILL(
         label = "Background still",
@@ -38,7 +38,11 @@ data class PreflightStatus(val check: PreflightCheck, val passing: Boolean) {
     val fix: String? get() = if (passing) null else check.fix
 }
 
-data class PreflightReport(val statuses: List<PreflightStatus>) {
+data class PreflightReport(
+    val statuses: List<PreflightStatus>,
+    /** Which way the camera is looking at the member; null when it cannot tell. */
+    val view: CameraView? = null,
+) {
     val canStart: Boolean get() = statuses.all { it.passing }
     val fixes: List<String> get() = statuses.mapNotNull { it.fix }
 }
@@ -80,31 +84,37 @@ class Preflight(
     private val maxBrightness: Float = 0.92f,
     private val maxBackgroundMotion: Float = 0.12f,
     /**
-     * How wide the shoulders may look, relative to the torso's length in the
-     * picture, before the camera counts as front-on.
-     *
-     * Deliberately generous. A check that blocks a correctly positioned member
-     * is worse than one that passes a slightly-off one, because the rep counter
-     * already refuses reps it cannot measure — a bad angle should cost reps,
-     * not access. Spike S2 tightens this against real video.
+     * Shoulder span against torso length, at or below which the camera is
+     * beside the member rather than in front of them.
      */
-    private val maxShoulderSpanRatio: Float = 0.8f,
+    private val sideRatio: Float = 0.5f,
+    /** At or above which it is in front of them. Between the two is oblique. */
+    private val frontRatio: Float = 0.9f,
 ) {
 
-    fun evaluate(input: PreflightInput): PreflightReport = PreflightReport(
-        listOf(
-            PreflightStatus(
-                PreflightCheck.LIGHTING,
-                input.brightness in minBrightness..maxBrightness,
+    fun evaluate(input: PreflightInput): PreflightReport {
+        val view = classifyView(input.image)
+        return PreflightReport(
+            statuses = listOf(
+                PreflightStatus(
+                    PreflightCheck.LIGHTING,
+                    input.brightness in minBrightness..maxBrightness,
+                ),
+                PreflightStatus(PreflightCheck.WHOLE_BODY, wholeBodyVisible(input.world)),
+                // Passes for every view it can name. Which way round the phone
+                // is stopped being a gate on 2026-09-22: people put it on the
+                // floor in front of them, and a check that blocks the commonest
+                // placement stops the app working. It fails only when it cannot
+                // tell what it is looking at.
+                PreflightStatus(PreflightCheck.CAMERA_ANGLE, view != null),
+                PreflightStatus(
+                    PreflightCheck.BACKGROUND_STILL,
+                    input.backgroundMotion <= maxBackgroundMotion,
+                ),
             ),
-            PreflightStatus(PreflightCheck.WHOLE_BODY, wholeBodyVisible(input.world)),
-            PreflightStatus(PreflightCheck.CAMERA_ANGLE, cameraIsSideOn(input.image)),
-            PreflightStatus(
-                PreflightCheck.BACKGROUND_STILL,
-                input.backgroundMotion <= maxBackgroundMotion,
-            ),
-        ),
-    )
+            view = view,
+        )
+    }
 
     /**
      * Every keypoint the rule reads has to be clearly present — both arms, both
@@ -125,52 +135,54 @@ class Preflight(
     }
 
     /**
-     * Is the camera looking at the member from the **side**?
-     *
-     * That is the only thing this check has ever been about: a front-on phone
-     * cannot see elbow flexion at all, so the counter would score nothing it
-     * could measure (research R4).
+     * Which way is the camera looking at the member?
      *
      * The signal is how wide the shoulders look against how long the torso
      * looks, both measured in the picture. Side-on stacks one shoulder behind
-     * the other and the span collapses towards zero; front-on leaves them
-     * spread right across the frame.
+     * the other and the span collapses; head-on leaves them spread right across
+     * the frame, and foreshortens the torso as well, which pushes the ratio the
+     * same way twice.
      *
      * **Both are distances, so the answer does not depend on which way up the
-     * phone is.** The check this replaced compared the shoulder-to-hip line
-     * against the horizontal, which sounds equivalent and is not: frames are
-     * rotated to the display's orientation, the app is portrait-locked, and a
-     * phone propped in landscape therefore made a perfectly positioned body
+     * phone is.** An earlier version of this check compared the shoulder-to-hip
+     * line against the horizontal, which sounds equivalent and is not: frames
+     * are rotated to the display's orientation, the app is portrait-locked, and
+     * a phone propped in landscape therefore made a perfectly positioned body
      * read as vertical. The only way to pass it was to lie along one axis of
      * the frame.
+     *
+     * Returns null when there is not enough of a body to judge — which is the
+     * only thing the camera-view check now fails on.
      */
-    private fun cameraIsSideOn(frame: PoseFrame?): Boolean {
-        if (frame == null) return false
+    fun classifyView(frame: PoseFrame?): CameraView? {
+        if (frame == null) return null
         val leftShoulder = frame[PoseIndex.LEFT_SHOULDER]
         val rightShoulder = frame[PoseIndex.RIGHT_SHOULDER]
-        val shoulder = midpoint(leftShoulder, rightShoulder) ?: return true
-        val hip = midpoint(frame[PoseIndex.LEFT_HIP], frame[PoseIndex.RIGHT_HIP]) ?: return true
+        val shoulder = midpoint(leftShoulder, rightShoulder) ?: return null
+        val hip = midpoint(frame[PoseIndex.LEFT_HIP], frame[PoseIndex.RIGHT_HIP]) ?: return null
 
         val torsoLength = hypot(shoulder.first - hip.first, shoulder.second - hip.second)
+        if (torsoLength < MIN_TORSO_LENGTH) return null
 
-        // Too small to judge — the member is far away, or folded towards the
-        // lens. `WHOLE_BODY` already owns "the model cannot see you"; this pill
-        // must not fail red for the same reason a second time.
-        if (torsoLength < MIN_TORSO_LENGTH) return true
-
-        // One shoulder occluded is the strongest possible side-on signal.
-        if (leftShoulder == null || rightShoulder == null) return true
+        // One shoulder occluded by the other is the strongest side-on signal
+        // there is: the model cannot see through a torso.
+        if (leftShoulder == null || rightShoulder == null) return CameraView.SIDE
         if (leftShoulder.presence < Angles.PRESENCE_THRESHOLD ||
             rightShoulder.presence < Angles.PRESENCE_THRESHOLD
         ) {
-            return true
+            return CameraView.SIDE
         }
 
         val shoulderSpan = hypot(
             leftShoulder.x - rightShoulder.x,
             leftShoulder.y - rightShoulder.y,
         )
-        return shoulderSpan <= maxShoulderSpanRatio * torsoLength
+        val ratio = shoulderSpan / torsoLength
+        return when {
+            ratio <= sideRatio -> CameraView.SIDE
+            ratio >= frontRatio -> CameraView.FRONT
+            else -> CameraView.OBLIQUE
+        }
     }
 
     private companion object {

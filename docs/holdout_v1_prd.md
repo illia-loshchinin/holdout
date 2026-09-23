@@ -323,10 +323,14 @@ Before **every** sitting — not only the day's first — the app runs four chec
 
 1. **Lighting adequate** — average frame brightness within the target range
 2. **Whole body in frame** — every pose keypoint visible
-3. **Camera angle correct** — the camera is side-on to the member, not facing them; a front-on phone cannot see an elbow bend at all
+3. **Camera view readable** — the app can tell how it is looking at the member, in front of them or beside them; both are fine, and only a view it cannot classify is refused
 4. **Background still** — no major motion outside the person
 
-**The sitting cannot start until all four are green** (FR-019). A red pill says exactly what to fix: *"Add light"* · *"Step back so your whole body is visible"* · *"Put the phone to your side, not in front of you"* · *"Find a spot with nothing moving behind you."*
+**The sitting cannot start until all four are green** (FR-019), and while they are going green the screen shows **where to lie**: the floor line, found from the phone's own tilt before the model has seen anybody, and a dashed outline on it shaped for the placement in use — long and flat when the phone is beside the member, foreshortened when it is in front of them. One correction at a time, shown and spoken: *"Stand the phone up so it can see the floor"* · *"Move back"* · *"Move closer"* · *"Move left"* · *"Move right"* · *"Get down into a plank"*. The outline turns green when they are in it, then **the whole helper fades away and only the skeleton is left** — it is there to get somebody into position and is noise once they are. It does not come back once the countdown starts.
+
+The four checks shrink to status chips beside it. Each red chip still states its own fix.
+
+**Either placement works** (decided 2026-09-23). The phone may stand in front of the member or beside them; the app names which view it has and counts from both. Side-on is the more accurate of the two, because a push-up seen head-on puts nearly all of its movement along the depth axis, which is the weakest thing a single camera estimates — see the README for what that costs. A red pill says exactly what to fix: *"Add light"* · *"Step back so your whole body is visible"* · *"Move the phone so it can see all of you"* · *"Find a spot with nothing moving behind you."*
 
 ### 8.3 The start position
 

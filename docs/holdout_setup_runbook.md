@@ -232,11 +232,19 @@ What to record, on a Seeker, **on the front camera** — that is what a sitting
 uses (research R4), and its resolution and field of view are lower than the back
 camera's, so a recording made with the back one would not measure the app:
 
-| Videos | |
+**The set doubles: every video in both placements.** The app accepts the phone
+in front of the member and beside them, so both have to be measured. A threshold
+set from side-on traces alone is a threshold for half the members.
+
+| Videos, in **each** placement | |
 |---|---|
 | 10 honest | 25 real push-ups each. Different people and rooms if you can — one person in one room is one set of angles, not a sample |
 | 3 cheats | half reps; sagging hips; too fast |
-| 1 palm | an open palm held in front of the camera |
+
+The **sagging-hips** cheat is the one to watch head-on. The body line points away
+from the lens there, which is the weakest thing a single camera measures, and
+these traces are what decides whether the front view needs its own trigger set
+or whether staked cohorts should require the side view.
 
 What has to come out of it:
 
@@ -248,9 +256,17 @@ What has to come out of it:
   If the ankles drop out, the pre-flight check says so rather than miscounting —
   but it means the member cannot start, so this is a real pass/fail for the
   spike. 4:3 is the fallback, at the cost of a smaller preview.
-- **The start position is recognised.** Holding the top of a push-up is what
-  begins a sitting now (`ReadyGate`, FR-020); if the model reads a plank as
-  anything other than elbows extended and body straight, nothing starts at all.
+- **The start position is recognised**, in both placements. Holding the top of a
+  push-up is what begins a sitting now (`ReadyGate`, FR-020); if the model reads
+  a plank as anything other than elbows extended and body straight, nothing
+  starts at all.
+- **The positioning overlay puts the outline somewhere sensible.** The floor
+  line comes from the phone's tilt and its lens, so check it against where the
+  floor actually is in the preview — a horizon in the wrong half of the screen
+  means the field of view was read off the wrong sensor axis.
+- **The frame rate on the FULL model.** R4's bar is ≥ 15 FPS on a Seeker. FULL
+  is now shipped as R4 always specified; LITE is the documented fallback and is
+  one constant in `VisionAnalyzer`.
 - Every honest video counted within **1 rep** of 25, and all three cheats
   rejected — under the rule, before any tuning.
 - The palm detected.

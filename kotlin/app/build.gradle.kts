@@ -6,7 +6,7 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
-// The MediaPipe model is 6 MB of binary that never changes. Downloading them
+// The MediaPipe model is 9 MB of binary that never changes. Downloading them
 // at build time keeps them out of git — a repository judges clone should not
 // carry two blobs it could fetch — while a clean checkout still builds with one
 // command, which acceptance criterion 19 requires.
@@ -16,8 +16,8 @@ plugins {
 // Just the pose model. The hand landmarker went with the palm liveness check
 // (ReadyGate) and took about 8 MB of APK with it.
 val mediaPipeModels = mapOf(
-    "pose_landmarker_lite.task" to
-        "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task",
+    "pose_landmarker_full.task" to
+        "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task",
 )
 
 // `tasks.register(...)`, not `val x by tasks.registering { }`: Gradle 9

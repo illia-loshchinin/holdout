@@ -32,6 +32,14 @@ class ReadyGate(
     private val holdMillis: Long = 1_000,
     private val rules: RepRules = RepRules(),
 ) {
+    /**
+     * The rules in force for the view the camera currently has. Goes through
+     * [forView] rather than using [rules] directly, so that when spike S2 gives
+     * the front view its own trigger set, the ready position moves with the
+     * counting rule instead of drifting away from it.
+     */
+    private fun rulesFor(view: CameraView?) = rules.forView(view ?: CameraView.SIDE)
+
     private var heldSinceMillis: Long? = null
 
     /** How far through the hold, 0..1 — for a progress ring on the screen. */
@@ -46,7 +54,12 @@ class ReadyGate(
      * the same drop-don't-score rule [RepCounter] follows, so somebody walking
      * past the camera costs a frame rather than the whole countdown.
      */
-    fun onFrame(frame: PoseFrame, nowMillis: Long, pillsGreen: Boolean): Boolean {
+    fun onFrame(
+        frame: PoseFrame,
+        nowMillis: Long,
+        pillsGreen: Boolean,
+        view: CameraView? = null,
+    ): Boolean {
         if (!pillsGreen) {
             reset()
             return false
@@ -56,7 +69,7 @@ class ReadyGate(
         val bodyLine = Angles.bodyLine(frame)
         if (elbow == null || bodyLine == null) return false
 
-        if (!isAtTop(elbow, bodyLine)) {
+        if (!isAtTop(elbow, bodyLine, rulesFor(view))) {
             reset()
             return false
         }
@@ -72,6 +85,6 @@ class ReadyGate(
         progress = 0f
     }
 
-    private fun isAtTop(elbow: Float, bodyLine: Float): Boolean = elbow >= rules.topTriggerDegrees &&
+    private fun isAtTop(elbow: Float, bodyLine: Float, rules: RepRules): Boolean = elbow >= rules.topTriggerDegrees &&
         abs(180f - bodyLine) <= rules.bodyLineToleranceDegrees
 }
