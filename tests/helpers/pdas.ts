@@ -27,22 +27,45 @@ const u32le = (n: number): Uint8Array => new Uint8Array(getU32Encoder().encode(n
 const derive = async (programAddress: Address, seeds: Uint8Array[]): Promise<Address> =>
   (await getProgramDerivedAddress({ programAddress, seeds }))[0];
 
-export const configPda = (): Promise<Address> => derive(PROGRAM_ID, [utf8('config')]);
+/** The canonical bump the program stores and re-checks with `bump = account.bump`. */
+const deriveBump = async (programAddress: Address, seeds: Uint8Array[]): Promise<number> =>
+  (await getProgramDerivedAddress({ programAddress, seeds }))[1];
 
-export const leaguePda = (leagueId: number): Promise<Address> =>
-  derive(PROGRAM_ID, [utf8('league'), u8(leagueId)]);
+const configSeeds = () => [utf8('config')];
+const leagueSeeds = (leagueId: number) => [utf8('league'), u8(leagueId)];
+const cohortSeeds = (leagueId: number, index: number) => [utf8('cohort'), u8(leagueId), u32le(index)];
+const vaultSeeds = (cohort: Address) => [utf8('vault'), addr(cohort)];
+const membershipSeeds = (cohort: Address, wallet: Address) => [utf8('member'), addr(cohort), addr(wallet)];
+const profileSeeds = (wallet: Address) => [utf8('profile'), addr(wallet)];
+
+export const configPda = (): Promise<Address> => derive(PROGRAM_ID, configSeeds());
+
+export const leaguePda = (leagueId: number): Promise<Address> => derive(PROGRAM_ID, leagueSeeds(leagueId));
 
 export const cohortPda = (leagueId: number, index: number): Promise<Address> =>
-  derive(PROGRAM_ID, [utf8('cohort'), u8(leagueId), u32le(index)]);
+  derive(PROGRAM_ID, cohortSeeds(leagueId, index));
 
-export const vaultPda = (cohort: Address): Promise<Address> =>
-  derive(PROGRAM_ID, [utf8('vault'), addr(cohort)]);
+export const vaultPda = (cohort: Address): Promise<Address> => derive(PROGRAM_ID, vaultSeeds(cohort));
 
 export const membershipPda = (cohort: Address, wallet: Address): Promise<Address> =>
-  derive(PROGRAM_ID, [utf8('member'), addr(cohort), addr(wallet)]);
+  derive(PROGRAM_ID, membershipSeeds(cohort, wallet));
 
-export const profilePda = (wallet: Address): Promise<Address> =>
-  derive(PROGRAM_ID, [utf8('profile'), addr(wallet)]);
+export const profilePda = (wallet: Address): Promise<Address> => derive(PROGRAM_ID, profileSeeds(wallet));
+
+/**
+ * Bumps for the accounts the harness injects. The program re-derives each address
+ * from its stored bump, so an injected account must carry the real one or every
+ * instruction that reads it fails its seeds check.
+ */
+export const bumps = {
+  config: (): Promise<number> => deriveBump(PROGRAM_ID, configSeeds()),
+  league: (leagueId: number): Promise<number> => deriveBump(PROGRAM_ID, leagueSeeds(leagueId)),
+  cohort: (leagueId: number, index: number): Promise<number> => deriveBump(PROGRAM_ID, cohortSeeds(leagueId, index)),
+  vault: (cohort: Address): Promise<number> => deriveBump(PROGRAM_ID, vaultSeeds(cohort)),
+  membership: (cohort: Address, wallet: Address): Promise<number> =>
+    deriveBump(PROGRAM_ID, membershipSeeds(cohort, wallet)),
+  profile: (wallet: Address): Promise<number> => deriveBump(PROGRAM_ID, profileSeeds(wallet)),
+};
 
 export const faucetVaultPda = (): Promise<Address> => derive(PROGRAM_ID, [utf8('faucet_vault')]);
 

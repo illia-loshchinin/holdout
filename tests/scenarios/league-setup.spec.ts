@@ -6,7 +6,7 @@
  * What turns green, and when:
  *
  *  - `initialize` .................. T027
- *  - `create_league` ............... T028
+ *  - `create_league`, `set_flags` ... T028
  *  - `publish_chip_set`, `open_cohort` ... T058 and T055 (US6). The chip-set gate
  *    cannot be shown without both, so this last block stays red until they land.
  *
@@ -44,6 +44,7 @@ import {
   initializeIx,
   openCohortIx,
   publishChipSetIx,
+  setFlagsIx,
   type CreateLeagueArgs,
   type InitializeArgs,
 } from '../helpers/instructions.js';
@@ -359,6 +360,47 @@ describe.skipIf(!existsSync(TEST_LEAGUES_PROGRAM))('create_league in a test-leag
   });
 });
 
+// ------------------------------------------------------------------ set_flags
+
+describe('set_flags (FR-003, research R17)', () => {
+  let h: Harness;
+  let admin: KeyPairSigner;
+
+  beforeEach(async () => {
+    h = await createHarness();
+    admin = h.upgradeAuthority;
+    await h.injectConfig(); // both gates off, as `initialize` leaves them
+  });
+
+  const flags = async () => {
+    const { ladderGateEnabled, genesisGateEnabled } = await h.readConfig();
+    return { ladderGateEnabled, genesisGateEnabled };
+  };
+
+  it('lets the admin turn each gate on and off again, one at a time', async () => {
+    await h.sendOrThrow([await setFlagsIx(admin.address, true, false)], admin);
+    expect(await flags()).toEqual({ ladderGateEnabled: true, genesisGateEnabled: false });
+
+    await h.sendOrThrow([await setFlagsIx(admin.address, false, true)], admin);
+    expect(await flags()).toEqual({ ladderGateEnabled: false, genesisGateEnabled: true });
+
+    await h.sendOrThrow([await setFlagsIx(admin.address, false, false)], admin);
+    expect(await flags()).toEqual({ ladderGateEnabled: false, genesisGateEnabled: false });
+  });
+
+  it('changes nothing else in Config', async () => {
+    const before = await h.readConfig();
+    await h.sendOrThrow([await setFlagsIx(admin.address, true, true)], admin);
+    expect(await h.readConfig()).toEqual({ ...before, ladderGateEnabled: true, genesisGateEnabled: true });
+  });
+
+  it('is for the admin only', async () => {
+    const stranger = await h.newWallet();
+    expectProgramError(await h.send([await setFlagsIx(stranger.address, true, true)], stranger), 'NotAdmin');
+    expect(await flags()).toEqual({ ladderGateEnabled: false, genesisGateEnabled: false });
+  });
+});
+
 // --------------------------------------------- publish_chip_set and open_cohort
 
 describe('a cohort cannot open before a chip set is published (FR-055b)', () => {
@@ -461,5 +503,75 @@ describe('a cohort cannot open before a chip set is published (FR-055b)', () => 
     const { chipSet } = await h.readConfig();
     expect(chipSet.version).toBe(0);
     expect(chipSet.amounts).toEqual([0n, 0n, 0n, 0n]);
+  });
+});
+
+// ------------------------------------------------------------- open_cohort order
+
+describe('open_cohort opens a league\'s cohorts in order, one lobby at a time (R11, FR-007a)', () => {
+  let h: Harness;
+  let mint: Address;
+
+  beforeEach(async () => {
+    h = await createHarness();
+    mint = await addressOf();
+    h.injectMint(mint, await mintAuthorityPda());
+    await h.injectConfig({ skrMint: mint }); // a published chip set
+    await h.injectLeague(0);
+    await h.injectLeague(1);
+    h.setTime(FIRST_START - WEEK);
+  });
+
+  /** Each attempt from a fresh payer, so no two transactions share a signature. */
+  const open = async (leagueId: number, index: number, previous?: Address) => {
+    const payer = await h.newWallet();
+    return h.send([await openCohortIx(payer.address, mint, leagueId, index, previous)], payer);
+  };
+  const nextIndex = async (leagueId: number) =>
+    LeagueConfig.decode(new Uint8Array(account(h, await leaguePda(leagueId))!.data)).nextIndex;
+
+  it('refuses an index other than next_index with CohortNotDue, before or after it', async () => {
+    // No previous cohort to pass yet: the index alone is refused.
+    expectProgramError(await open(0, 1), 'CohortNotDue');
+    expect((await open(0, 0)).ok).toBe(true);
+    expectProgramError(await open(0, 0), 'CohortNotDue');
+    expect(await nextIndex(0)).toBe(1);
+  });
+
+  it('opens cohort i + 1 only once cohort i has started, a cadence later', async () => {
+    expect((await open(0, 0)).ok).toBe(true);
+    const previous = await cohortPda(0, 0);
+
+    h.setTime(FIRST_START - 1);
+    expectProgramError(await open(0, 1, previous), 'CohortNotDue');
+    expect(exists(h, await cohortPda(0, 1))).toBe(false);
+
+    h.setTime(FIRST_START);
+    const opened = await open(0, 1, previous);
+    expect(opened.ok, opened.logs.join('\n')).toBe(true);
+
+    const cohort = await h.readCohort(0, 1);
+    expect(cohort.index).toBe(1);
+    expect(cohort.start).toBe(BigInt(FIRST_START + WEEK));
+    expect(cohort.joinCutoff).toBe(BigInt(FIRST_START + WEEK - HOUR));
+    expect(await nextIndex(0)).toBe(2);
+  });
+
+  it('needs the league\'s own previous cohort, and none for index 0 (AccountMismatch)', async () => {
+    expect((await open(1, 0)).ok).toBe(true);
+    expectProgramError(await open(0, 0, await cohortPda(1, 0)), 'AccountMismatch');
+    expect((await open(0, 0)).ok).toBe(true);
+
+    h.setTime(FIRST_START);
+    expectProgramError(await open(0, 1), 'AccountMismatch');
+    expectProgramError(await open(0, 1, await cohortPda(1, 0)), 'AccountMismatch');
+    expect(await nextIndex(0)).toBe(1);
+  });
+
+  it('keeps each league\'s count apart', async () => {
+    expect((await open(0, 0)).ok).toBe(true);
+    expect((await open(1, 0)).ok).toBe(true);
+    expect(await nextIndex(0)).toBe(1);
+    expect(await nextIndex(1)).toBe(1);
   });
 });

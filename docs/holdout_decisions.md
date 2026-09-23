@@ -549,6 +549,15 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 **Rejected:** MoveNet Thunder (17 keypoints, and the body-line rule needs hips and ankles; its upper-limb error is under 10° RMSE, worse than BlazePose here); ML Kit Pose Detection (no world coordinates); hard-coding push-ups and adding a second exercise by redeploying the program later.
 
 **Source:** research R4, spike S2; spec §2, FR-007, FR-014, FR-021; data-model §1.2, §1.3, §2; `contracts/program-instructions.md` (`create_league`, `open_cohort`, error 6053); constitution V, X.
+
+### H31. The mock SKR mint has 6 decimals
+
+**Decided (2026-09-23):** `initialize` creates the mock SKR mint with **6 decimals** (`SKR_DECIMALS` in `programs/holdout/src/state/config.rs`). One SKR is `1_000_000` base units everywhere: the program, the TypeScript harness's `SKR` unit, the Kotlin client and the crank's chip conversion.
+
+**Why:** the spec never fixed the figure, and a mint's decimals cannot change after it is created, so it had to be decided before the first `initialize`. Chip amounts are whole multiples of 10 SKR (research R15), so more precision buys nothing, and 6 is what the contract tests were already written against.
+
+**Source:** tasks T027, T062; research R15; `tests/helpers/harness.ts`.
+
 ---
 
 ## 2. Still valid from the product-vision record

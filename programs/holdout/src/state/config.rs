@@ -14,6 +14,13 @@ pub const MINT_AUTHORITY_SEED: &[u8] = b"mint_authority";
 /// PDA seed for the program-owned lamport store behind the faucet.
 pub const FAUCET_VAULT_SEED: &[u8] = b"faucet_vault";
 
+/// Decimals of the mock SKR mint `initialize` creates. The spec never fixed
+/// them (decision H31): 6 is what the T016 harness's `SKR` unit already
+/// assumes, and chip amounts are whole multiples of 10 SKR (research R15), so
+/// more precision would buy nothing. The crank converts USD tiers with this
+/// same figure. A mint's decimals cannot change once it exists.
+pub const SKR_DECIMALS: u8 = 6;
+
 /// Lamports a claim tops a recipient up to: 0.02 SOL, enough for membership and
 /// profile rent plus every fee of a 21-day cycle (research R13).
 pub const DEFAULT_SOL_TOP_UP: u64 = 20_000_000;

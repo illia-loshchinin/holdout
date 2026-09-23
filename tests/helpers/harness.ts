@@ -67,6 +67,7 @@ import {
   PROGRAM_ID,
   TOKEN_PROGRAM,
   UPGRADEABLE_LOADER,
+  bumps,
   cohortPda,
   associatedTokenPda,
   configPda,
@@ -369,7 +370,7 @@ export class Harness {
         lamportDay: 0n,
         lamportsToday: 0n,
       },
-      bump: 255,
+      bump: await bumps.config(),
       ...over,
     };
     this.put(at, Config.encode(config));
@@ -399,7 +400,7 @@ export class Harness {
       cadence: BigInt(WEEK),
       joinLock: BigInt(HOUR),
       nextIndex: 0,
-      bump: 255,
+      bump: await bumps.league(leagueId),
       ...over,
     };
     this.put(at, LeagueConfig.encode(account));
@@ -446,8 +447,8 @@ export class Harness {
       carryOverSent: 0n,
       carryOverHeld: 0n,
       carryOverTarget: NO_KEY,
-      vaultBump: 255,
-      bump: 255,
+      vaultBump: await bumps.vault(await cohortPda(leagueId, index)),
+      bump: await bumps.cohort(leagueId, index),
       ...fields,
     };
 
@@ -485,7 +486,7 @@ export class Harness {
       daysCompleted: 0,
       state: 'Joined',
       counted: false,
-      bump: 255,
+      bump: await bumps.membership(cohort, wallet),
       ...over,
     };
     this.put(at, Membership.encode(membership));
@@ -502,7 +503,7 @@ export class Harness {
       running: { cohort: NO_KEY, end: 0n },
       pending: { cohort: NO_KEY, start: 0n, end: 0n },
       lastFaucetDay: -1n,
-      bump: 255,
+      bump: await bumps.profile(wallet),
       ...over,
     };
     this.put(at, Profile.encode(profile));

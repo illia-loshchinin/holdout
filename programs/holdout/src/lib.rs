@@ -19,11 +19,80 @@ declare_id!("Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4");
 pub mod errors;
 pub mod events;
 pub mod guards;
+pub mod instructions;
 pub mod math;
 pub mod state;
+
+pub use instructions::*;
 
 #[program]
 pub mod holdout {
     // Instructions land here as their tasks complete (tasks.md T027–T080).
     // Nothing is implemented before its failing test exists (constitution VII).
+    use super::*;
+
+    // ---- privileged (contracts/program-instructions §1) --------------------
+
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        operator: Pubkey,
+        sponsor: Pubkey,
+        treasury_wallet: Pubkey,
+        faucet_sol_top_up: u64,
+        faucet_daily_lamport_cap: u64,
+        faucet_sponsor_float: u64,
+    ) -> Result<()> {
+        handle_initialize(
+            ctx,
+            operator,
+            sponsor,
+            treasury_wallet,
+            faucet_sol_top_up,
+            faucet_daily_lamport_cap,
+            faucet_sponsor_float,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_league(
+        ctx: Context<CreateLeague>,
+        league_id: u8,
+        duration_days: u8,
+        reps_per_day: u16,
+        exercise: u8,
+        first_start: i64,
+        day_length: i64,
+        cadence: i64,
+        join_lock: i64,
+    ) -> Result<()> {
+        handle_create_league(
+            ctx,
+            league_id,
+            duration_days,
+            reps_per_day,
+            exercise,
+            first_start,
+            day_length,
+            cadence,
+            join_lock,
+        )
+    }
+
+    pub fn set_flags(
+        ctx: Context<SetFlags>,
+        ladder_gate_enabled: bool,
+        genesis_gate_enabled: bool,
+    ) -> Result<()> {
+        handle_set_flags(ctx, ladder_gate_enabled, genesis_gate_enabled)
+    }
+
+    pub fn publish_chip_set(ctx: Context<PublishChipSet>, amounts: [u64; 4]) -> Result<()> {
+        handle_publish_chip_set(ctx, amounts)
+    }
+
+    // ---- permissionless automation (§2) ------------------------------------
+
+    pub fn open_cohort(ctx: Context<OpenCohort>, league_id: u8, index: u32) -> Result<()> {
+        handle_open_cohort(ctx, league_id, index)
+    }
 }

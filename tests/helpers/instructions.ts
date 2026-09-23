@@ -1,6 +1,7 @@
 /**
  * Instruction builders for the setup instructions — `initialize`, `create_league`,
- * `publish_chip_set` and `open_cohort` (contracts/program-instructions §1–§2). Task T017b.
+ * `set_flags`, `publish_chip_set` and `open_cohort` (contracts/program-instructions
+ * §1–§2). Task T017b; `set_flags` added with T028.
  *
  * ## Why these are written by hand
  *
@@ -160,6 +161,19 @@ export const createLeagueIx = async (admin: Address, args: CreateLeagueArgs): Pr
     i64(args.cadence),
     i64(args.joinLock),
   ),
+});
+
+// ------------------------------------------------------------------ set_flags
+
+/** `set_flags(ladder_gate_enabled, genesis_gate_enabled)` — the admin signs; nothing is paid. */
+export const setFlagsIx = async (
+  admin: Address,
+  ladderGateEnabled: boolean,
+  genesisGateEnabled: boolean,
+): Promise<Instruction> => ({
+  programAddress: PROGRAM_ID,
+  accounts: [roSigner(admin), rw(await configPda())],
+  data: concat(instructionDiscriminator('set_flags'), u8(ladderGateEnabled ? 1 : 0), u8(genesisGateEnabled ? 1 : 0)),
 });
 
 // ------------------------------------------------------------ publish_chip_set
