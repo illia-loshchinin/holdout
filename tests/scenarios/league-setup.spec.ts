@@ -300,6 +300,12 @@ describe('create_league (data-model §1.2, H30)', () => {
       ['a first start on Monday at 04:00 UTC', { firstStart: FIRST_START - HOUR }],
       ['a first start one second past Monday 05:00 UTC', { firstStart: FIRST_START + 1 }],
       ['a first start one second before Monday 05:00 UTC', { firstStart: FIRST_START - 1 }],
+      // A league can never be changed once created, so its shape is held too: a
+      // zero-day league would have no Running phase and count every joiner a finisher.
+      ['a length of zero days', { durationDays: 0 }],
+      ['a length that is neither 7 nor 21 days', { durationDays: 14 }],
+      ['zero reps a day', { repsPerDay: 0 }],
+      ['reps other than 25', { repsPerDay: 24 }],
     ])('rejects %s with InvalidLeagueTiming', async (_name, over) => {
       expectProgramError(await create(over), 'InvalidLeagueTiming');
       expect(await readLeague(0)).toBeNull();
@@ -349,6 +355,17 @@ describe.skipIf(!existsSync(TEST_LEAGUES_PROGRAM))('create_league in a test-leag
     );
     expectProgramError(result, 'InvalidLeagueTiming');
     expect(h.svm.getAccount(await leaguePda(0)).exists).toBe(false);
+  });
+
+  it.each([
+    ['zero days', { durationDays: 0 }],
+    ['zero reps a day', { repsPerDay: 0 }],
+  ])('still refuses a test league with %s: nothing to complete would make everyone a finisher', async (_name, over) => {
+    const result = await h.send(
+      [await createLeagueIx(admin.address, { ...REAL_LEAGUE, leagueId: 100, ...COMPRESSED, ...over })],
+      admin,
+    );
+    expectProgramError(result, 'InvalidLeagueTiming');
   });
 
   it('still rejects a reserved exercise', async () => {

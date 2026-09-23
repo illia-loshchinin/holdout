@@ -65,7 +65,10 @@ fun runCrank(
                     parsed.allow()
                     fun(config: CrankConfig) = runBlocking { Status.run(config, rpcFor(config.rpcUrl)) }
                 }
-                listOf("chips", "publish") -> fun(config: CrankConfig) = runBlocking { Chips.publish(parsed, config, rpcFor(config.rpcUrl)) }
+                listOf("chips", "publish") -> {
+                    Chips.checkArgs(parsed)
+                    fun(config: CrankConfig) = runBlocking { Chips.publish(parsed, config, rpcFor(config.rpcUrl)) }
+                }
                 else -> notYet(parsed.words)
             }
         out(command(CrankConfig.from(env)).toString())
@@ -78,6 +81,17 @@ fun runCrank(
             }.toString(),
         )
         e.exitCode
+    } catch (e: Exception) {
+        // Anything unforeseen still ends in a JSON summary and exit 2, never a
+        // bare stack trace and the JVM's exit 1, which means a configuration
+        // error to whoever schedules the crank (contracts/crank-cli.md).
+        out(
+            buildJsonObject {
+                put("command", command)
+                put("error", "unexpected ${e::class.simpleName}: ${e.message}")
+            }.toString(),
+        )
+        EXIT_FAILED
     }
 }
 

@@ -246,4 +246,32 @@ class RpcTest {
         assertTrue(status("""{"err":{"InstructionError":[0,{"Custom":6011}]},"confirmationStatus":"confirmed"}""") is Rpc.Landing.Failed)
         assertNull(rpcWith(FakeHttp { refused("down") }).landing("5sig"), "unknown, not pending")
     }
+
+    @Test
+    fun `a send with no answer is not a refusal - it may have landed`() = runBlocking {
+        val timeout = FakeHttp { throw java.net.SocketTimeoutException("read timed out") }
+        val answer = rpcWith(timeout).send(byteArrayOf(1))
+        assertTrue(answer is Rpc.Answer.Unanswered, "a timeout is unknown, not refused: $answer")
+        assertTrue((answer as Rpc.Answer.Unanswered).message.contains("read timed out"))
+
+        val garbled = FakeHttp { ok("""{"not":"a signature"}""") }
+        assertTrue(rpcWith(garbled).send(byteArrayOf(1)) is Rpc.Answer.Unanswered, "the node answered; it may have taken it")
+    }
+
+    @Test
+    fun `an odd signature status reads as unknown, never an exception`() = runBlocking {
+        for (value in listOf("""["not an object"]""", """[{"confirmationStatus":{"nested":1}}]""", "[]", "\"x\"")) {
+            val http = FakeHttp { ok("""{"context":{"slot":1},"value":$value}""") }
+            assertNull(rpcWith(http).landing("5sig"), value)
+        }
+    }
+
+    @Test
+    fun `cancellation is passed on, not read as a cluster that did not answer`() {
+        val cancelled = FakeHttp { throw kotlinx.coroutines.CancellationException("screen left") }
+        val rpc = rpcWith(cancelled)
+        kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> { runBlocking { rpc.chainTime() } }
+        kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> { runBlocking { rpc.accountData(programId) } }
+        kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> { runBlocking { rpc.send(byteArrayOf(1)) } }
+    }
 }

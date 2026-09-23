@@ -1,5 +1,6 @@
 package holdout.crank
 
+import com.funkatronics.encoders.Base58
 import com.solana.transaction.Message
 import com.solana.transaction.Transaction
 import holdout.core.ConfigSnapshot
@@ -7,6 +8,7 @@ import holdout.core.Instructions
 import holdout.core.Pdas
 import holdout.core.Rpc
 import kotlinx.coroutines.delay
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.JsonPrimitive
@@ -118,10 +120,7 @@ object Chips {
         loadKeypair: (path: String, role: String) -> Keypair = Keypair::load,
         pause: suspend (Long) -> Unit = { delay(it) },
     ): JsonObject {
-        if ("auto" in args.flags || args.option("if-drift") != null) {
-            configError("--auto and --if-drift are the Phase 2 weekly check (FR-056, FR-057); this build publishes from --rate only")
-        }
-        args.allow("rate", "decimals")
+        checkArgs(args)
         val rateText = args.option("rate") ?: configError("chips publish needs --rate <usd-per-skr>")
         val rate = pricing { parseRate(rateText) }
         val askedDecimals = args.option("decimals")?.let { it.toIntOrNull() ?: configError("--decimals must be a whole number, got $it") }
@@ -163,12 +162,17 @@ object Chips {
                 .addInstruction(Instructions.publishChipSet(config.programId, operator.publicKey, configAddress, tiers.map { it.baseUnits }))
                 .setRecentBlockhash(blockhash)
                 .build()
-        val transaction = Transaction(listOf(operator.sign(message.serialize())), message).serialize()
+        val signed = operator.sign(message.serialize())
+        val transaction = Transaction(listOf(signed), message).serialize()
+        // A transaction's ID is its first signature, known before it is sent —
+        // so even a send that gets no answer can say what to look up.
+        val expectedSignature = Base58.encodeToString(signed)
 
         if (args.dryRun) {
             val simulation =
                 when (val answer = rpc.simulate(transaction)) {
                     is Rpc.Answer.Refused -> failed("simulating publish_chip_set was refused: ${answer.message}")
+                    is Rpc.Answer.Unanswered -> failed("could not simulate publish_chip_set: ${answer.message}")
                     is Rpc.Answer.Ok -> answer.value
                 }
             simulation.error?.let { failed("publish_chip_set would fail: $it; ${simulation.logs.lastOrNull().orEmpty()}") }
@@ -183,17 +187,31 @@ object Chips {
         val signature =
             when (val answer = rpc.send(transaction)) {
                 is Rpc.Answer.Refused -> failed("publish_chip_set was refused and nothing was published: ${answer.message}")
+                is Rpc.Answer.Unanswered ->
+                    failed(
+                        "sent publish_chip_set $expectedSignature but got no answer (${answer.message}); it may have landed. " +
+                            "Check that signature before publishing again, since a second publish is a new version",
+                    )
                 is Rpc.Answer.Ok -> answer.value
             }
         repeat(CONFIRM_ATTEMPTS) {
             when (val landing = rpc.landing(signature)) {
-                Rpc.Landing.Confirmed ->
+                Rpc.Landing.Confirmed -> {
+                    // What actually landed, not what the read before signing
+                    // implied: another publish may have landed in between.
+                    val after = rpc.accountData(configAddress)?.let { runCatching { ConfigSnapshot.decode(it) }.getOrNull() }
                     return summary(rate, mintDecimals, tiers, dryRun = false) {
                         put("operator", operator.publicKey.base58())
                         put("sent", true)
                         put("signature", signature)
-                        put("version", onChain.chipVersion + 1)
+                        if (after != null) {
+                            put("version", after.chipVersion)
+                        } else {
+                            put("version", JsonNull)
+                            put("note", "confirmed, but Config could not be read back; run crank status for the version")
+                        }
                     }
+                }
                 is Rpc.Landing.Failed -> failed("publish_chip_set $signature landed and failed: ${landing.error}")
                 Rpc.Landing.Pending, null -> pause(CONFIRM_PAUSE_MILLIS)
             }
@@ -202,6 +220,17 @@ object Chips {
             "sent publish_chip_set $signature but it was not confirmed within ${CONFIRM_ATTEMPTS * CONFIRM_PAUSE_MILLIS / 1000} s; " +
                 "check that signature before publishing again, since a second publish is a new version",
         )
+    }
+
+    /**
+     * The options this command takes, checked before the environment is read
+     * so a typo is reported as a typo (`runCrank` calls this first).
+     */
+    fun checkArgs(args: Args) {
+        if ("auto" in args.flags || args.option("if-drift") != null) {
+            configError("--auto and --if-drift are the Phase 2 weekly check (FR-056, FR-057); this build publishes from --rate only")
+        }
+        args.allow("rate", "decimals")
     }
 
     /** How long a send is watched for: 30 checks, 2 s apart. */

@@ -11,6 +11,7 @@ import holdout.core.Pdas
 import holdout.core.Rpc
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -42,14 +43,17 @@ class ChipsPublishTest {
             "HOLDOUT_OPERATOR_KEYPAIR" to "/keys/operator.json",
         )
 
-    /** A `Config` with [configOperator] as operator, the mock mint, and chip set version 1. */
-    private fun configBytes(configOperator: SolanaPublicKey = operator.publicKey): ByteArray {
+    /** A `Config` with [configOperator] as operator, the mock mint, and chip set [version]. */
+    private fun configBytes(
+        configOperator: SolanaPublicKey = operator.publicKey,
+        version: Int = 1,
+    ): ByteArray {
         val l = AccountLayout.Config
         val b = ByteArray(l.SIZE)
         l.DISCRIMINATOR.copyInto(b)
         configOperator.bytes.copyInto(b, l.OPERATOR)
         mint.bytes.copyInto(b, l.SKR_MINT)
-        b[l.CHIP_VERSION] = 1
+        b[l.CHIP_VERSION] = version.toByte()
         return b
     }
 
@@ -83,30 +87,38 @@ class ChipsPublishTest {
         },
     )
 
+    /**
+     * [config] is what `Config` reads as until a transaction is sent, and
+     * [configAfterSend] afterwards — the version that landed.
+     */
     private fun cluster(
         config: ByteArray? = configBytes(),
+        configAfterSend: ByteArray? = configBytes(version = 2),
         decimals: Int = 6,
-        send: String = ok("\"5sig\""),
+        send: () -> String = { ok("\"5sig\"") },
         statuses: MutableList<String> = mutableListOf("""{"err":null,"confirmationStatus":"confirmed"}"""),
         simulation: String = ok("""{"context":{"slot":1},"value":{"err":null,"logs":["Program log: Instruction: PublishChipSet"]}}"""),
-    ) = Cluster(
-        mapOf(
-            "getAccountInfo" to { body ->
-                when (body.getValue("params").jsonArray[0].jsonPrimitive.content) {
-                    configAddress.base58() -> accountInfo(config)
-                    mint.base58() -> accountInfo(mintBytes(decimals))
-                    else -> accountInfo(null)
-                }
-            },
-            "getLatestBlockhash" to { _ -> ok("""{"context":{"slot":1},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":9}}""") },
-            "simulateTransaction" to { _ -> simulation },
-            "sendTransaction" to { _ -> send },
-            "getSignatureStatuses" to { _ ->
-                val next = if (statuses.size > 1) statuses.removeAt(0) else statuses.single()
-                ok("""{"context":{"slot":1},"value":[$next]}""")
-            },
-        ),
-    )
+    ): Cluster {
+        var configNow = config
+        return Cluster(
+            mapOf(
+                "getAccountInfo" to { body ->
+                    when (body.getValue("params").jsonArray[0].jsonPrimitive.content) {
+                        configAddress.base58() -> accountInfo(configNow)
+                        mint.base58() -> accountInfo(mintBytes(decimals))
+                        else -> accountInfo(null)
+                    }
+                },
+                "getLatestBlockhash" to { _ -> ok("""{"context":{"slot":1},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":9}}""") },
+                "simulateTransaction" to { _ -> simulation },
+                "sendTransaction" to { _ -> send().also { configNow = configAfterSend } },
+                "getSignatureStatuses" to { _ ->
+                    val next = if (statuses.size > 1) statuses.removeAt(0) else statuses.single()
+                    ok("""{"context":{"slot":1},"value":[$next]}""")
+                },
+            ),
+        )
+    }
 
     private var pauses = 0
 
@@ -192,10 +204,38 @@ class ChipsPublishTest {
 
     @Test
     fun `a refused send says why, and that nothing was published`() {
-        val c = cluster(send = refused("Transaction simulation failed: custom program error: 0x1771"))
+        val c = cluster(send = { refused("Transaction simulation failed: custom program error: 0x1771") })
         val e = assertFailsWith<CrankException> { publish(c, "--rate", "0.0213") }
         assertEquals(EXIT_FAILED, e.exitCode)
         assertTrue(e.message!!.contains("0x1771") && e.message!!.contains("nothing was published"))
+    }
+
+    @Test
+    fun `a send with no answer is not called a refusal, and names the signature to check`() {
+        val c = cluster(send = { throw java.net.SocketTimeoutException("read timed out") })
+        val e = assertFailsWith<CrankException> { publish(c, "--rate", "0.0213") }
+        assertEquals(EXIT_FAILED, e.exitCode)
+        val sent = c.calls.single { it.getValue("method").jsonPrimitive.content == "sendTransaction" }
+        val tx = Transaction.from(Base64.getDecoder().decode(sent.getValue("params").jsonArray[0].jsonPrimitive.content))
+        val signature = com.funkatronics.encoders.Base58.encodeToString(tx.signatures.single())
+        assertTrue(e.message!!.contains(signature), "names the transaction it may have landed: ${e.message}")
+        assertTrue(e.message!!.contains("may have landed"))
+        assertTrue(!e.message!!.contains("nothing was published"), "it cannot know that")
+        assertEquals(0, pauses, "and it is not watched or sent again")
+    }
+
+    @Test
+    fun `the version reported is the one read back after confirmation`() {
+        // Another publish landed in between: 1 before signing, 3 after.
+        val json = publish(cluster(configAfterSend = configBytes(version = 3)), "--rate", "0.0213")
+        assertEquals(3, json.getValue("version").jsonPrimitive.long)
+    }
+
+    @Test
+    fun `a confirmed publish whose Config cannot be read back says so rather than guessing`() {
+        val json = publish(cluster(configAfterSend = null), "--rate", "0.0213")
+        assertEquals("true", json.getValue("sent").jsonPrimitive.content)
+        assertEquals(JsonNull, json.getValue("version"))
     }
 
     @Test

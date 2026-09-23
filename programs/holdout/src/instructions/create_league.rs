@@ -13,8 +13,12 @@ use crate::errors::HoldoutError;
 use crate::math::schedule::BOUNDARY_OFFSET;
 use crate::state::config::{Config, CONFIG_SEED};
 use crate::state::league::{
-    LeagueConfig, DEVNET_CADENCE, DEVNET_DAY_LENGTH, DEVNET_JOIN_LOCK, EXERCISE_PUSHUP, LEAGUE_SEED,
+    LeagueConfig, DEVNET_CADENCE, DEVNET_DAY_LENGTH, DEVNET_JOIN_LOCK, DEVNET_REPS_PER_DAY,
+    EXERCISE_PUSHUP, LEAGUE_SEED,
 };
+
+/// The two Holdout lengths a real league may have (data-model §1.2, FR-002).
+const DEVNET_DURATIONS: [u8; 2] = [7, 21];
 
 /// Monday 5 January 1970, 05:00:00 UTC — the first Monday start after the
 /// epoch, which fell on a Thursday. Every valid `first_start` is this plus a
@@ -52,6 +56,7 @@ pub struct CreateLeague<'info> {
 pub fn check_league(
     league_id: u8,
     duration_days: u8,
+    reps_per_day: u16,
     exercise: u8,
     first_start: i64,
     day_length: i64,
@@ -67,17 +72,26 @@ pub fn check_league(
 
     if LeagueConfig::is_test_league(league_id) {
         // Any timing, but only in a test build — and never one the schedule
-        // maths would divide by zero or run backwards on.
+        // maths would divide by zero or run backwards on, nor a cohort with no
+        // day to complete, which would count every joiner as a finisher.
         require!(test_leagues, HoldoutError::InvalidLeagueTiming);
         require!(
-            duration_days > 0 && day_length > 0 && cadence > 0 && join_lock >= 0,
+            duration_days > 0
+                && reps_per_day > 0
+                && day_length > 0
+                && cadence > 0
+                && join_lock >= 0,
             HoldoutError::InvalidLeagueTiming
         );
         return Ok(());
     }
 
+    // A league can never be changed once created, so a real one is held to
+    // the whole devnet shape: 7 or 21 days of 25 reps, on the devnet timing.
     require!(
-        day_length == DEVNET_DAY_LENGTH
+        DEVNET_DURATIONS.contains(&duration_days)
+            && reps_per_day == DEVNET_REPS_PER_DAY
+            && day_length == DEVNET_DAY_LENGTH
             && cadence == DEVNET_CADENCE
             && join_lock == DEVNET_JOIN_LOCK
             && (first_start - EPOCH_MONDAY_START).rem_euclid(DEVNET_CADENCE) == 0,
@@ -101,6 +115,7 @@ pub fn handle_create_league(
     check_league(
         league_id,
         duration_days,
+        reps_per_day,
         exercise,
         first_start,
         day_length,
@@ -135,6 +150,7 @@ mod tests {
         check_league(
             league_id,
             7,
+            DEVNET_REPS_PER_DAY,
             EXERCISE_PUSHUP,
             first_start,
             DEVNET_DAY_LENGTH,
@@ -148,6 +164,7 @@ mod tests {
         check_league(
             league_id,
             3,
+            5,
             exercise,
             FIRST_START,
             60,
@@ -222,16 +239,18 @@ mod tests {
 
     #[test]
     fn a_test_league_still_needs_a_timing_the_maths_can_run() {
-        for (duration, day, cadence, lock) in [
-            (0, 60, 120, 10),
-            (3, 0, 120, 10),
-            (3, 60, 0, 10),
-            (3, 60, 120, -1),
+        for (duration, reps, day, cadence, lock) in [
+            (0, 5, 60, 120, 10),
+            (3, 0, 60, 120, 10),
+            (3, 5, 0, 120, 10),
+            (3, 5, 60, 0, 10),
+            (3, 5, 60, 120, -1),
         ] {
             assert!(is(
                 check_league(
                     TEST_LEAGUE_MIN,
                     duration,
+                    reps,
                     EXERCISE_PUSHUP,
                     FIRST_START,
                     day,
@@ -245,12 +264,51 @@ mod tests {
     }
 
     #[test]
+    fn a_real_league_is_seven_or_twenty_one_days_of_twenty_five() {
+        let shaped = |duration: u8, reps: u16, build: bool| {
+            check_league(
+                LEAGUE_21D,
+                duration,
+                reps,
+                EXERCISE_PUSHUP,
+                FIRST_START,
+                DEVNET_DAY_LENGTH,
+                DEVNET_CADENCE,
+                DEVNET_JOIN_LOCK,
+                build,
+            )
+        };
+        for build in [false, true] {
+            assert!(shaped(7, DEVNET_REPS_PER_DAY, build).is_ok());
+            assert!(shaped(21, DEVNET_REPS_PER_DAY, build).is_ok());
+            // A zero-day league would have no Running phase and count every
+            // joiner as a finisher; the rest are simply not this build's shape.
+            for duration in [0, 1, 6, 8, 14, 20, 22, u8::MAX] {
+                assert!(
+                    is(
+                        shaped(duration, DEVNET_REPS_PER_DAY, build),
+                        HoldoutError::InvalidLeagueTiming
+                    ),
+                    "{duration} days"
+                );
+            }
+            for reps in [0, 24, 26, u16::MAX] {
+                assert!(
+                    is(shaped(7, reps, build), HoldoutError::InvalidLeagueTiming),
+                    "{reps} reps"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn only_push_ups_in_this_build() {
         for exercise in [1, 2, 3, u8::MAX] {
             for build in [false, true] {
                 let real_league = check_league(
                     LEAGUE_7D,
                     7,
+                    DEVNET_REPS_PER_DAY,
                     exercise,
                     FIRST_START,
                     DEVNET_DAY_LENGTH,

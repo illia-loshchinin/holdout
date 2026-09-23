@@ -5,6 +5,7 @@ import com.solana.networking.KtorNetworkDriver
 import com.solana.networking.Rpc20Driver
 import com.solana.publickey.SolanaPublicKey
 import com.solana.rpccore.JsonRpc20Request
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -201,12 +202,19 @@ class Rpc(
 
     // ---- sending (T062 first; every crank command after it) ---------------
 
-    /** A call that sends or simulates: its result, or why the node refused it. */
+    /** A call that sends or simulates: its result, why the node refused it, or no answer at all. */
     sealed interface Answer<out T> {
         data class Ok<T>(val value: T) : Answer<T>
 
-        /** The node's own words — a preflight failure names the program error. */
+        /** The node answered no, in its own words — a preflight failure names the program error. */
         data class Refused(val message: String) : Answer<Nothing>
+
+        /**
+         * No answer: the connection failed or timed out. For a send this is
+         * **not** a refusal — the node may have received the transaction and
+         * landed it — so the caller must check before sending again.
+         */
+        data class Unanswered(val message: String) : Answer<Nothing>
     }
 
     /** The blockhash a transaction is built on, or null when the cluster cannot be reached. */
@@ -240,6 +248,7 @@ class Rpc(
             }
         return when (val answer = answer("simulateTransaction", params)) {
             is Answer.Refused -> answer
+            is Answer.Unanswered -> answer
             is Answer.Ok ->
                 runCatching {
                     val value = answer.value.jsonObject.getValue("value").jsonObject
@@ -268,9 +277,11 @@ class Rpc(
             }
         return when (val answer = answer("sendTransaction", params)) {
             is Answer.Refused -> answer
+            is Answer.Unanswered -> answer
             is Answer.Ok ->
                 runCatching { Answer.Ok(answer.value.jsonPrimitive.content) }
-                    .getOrElse { Answer.Refused("unreadable signature: ${answer.value}") }
+                    // The node answered, so it may well have taken the transaction.
+                    .getOrElse { Answer.Unanswered("unreadable signature: ${answer.value}") }
         }
     }
 
@@ -285,18 +296,24 @@ class Rpc(
         data class Failed(val error: String) : Landing
     }
 
-    /** The status of [signature], or null when the cluster cannot be reached. */
+    /**
+     * The status of [signature], or null when the cluster cannot be reached or
+     * answers in a shape this does not read — never an exception, because the
+     * caller is watching a transaction it has already sent.
+     */
     suspend fun landing(signature: String): Landing? {
         val params = buildJsonArray { add(buildJsonArray { add(JsonPrimitive(signature)) }) }
         val result = call("getSignatureStatuses", params) as? JsonObject ?: return null
-        val status = runCatching { result.getValue("value").jsonArray[0] }.getOrNull() ?: return null
-        if (status is JsonNull) return Landing.Pending
-        val o = status.jsonObject
-        o["err"]?.takeUnless { it is JsonNull }?.let { return Landing.Failed(it.toString()) }
-        return when (o["confirmationStatus"]?.jsonPrimitive?.content) {
-            "confirmed", "finalized" -> Landing.Confirmed
-            else -> Landing.Pending
-        }
+        return runCatching {
+            val status = result.getValue("value").jsonArray[0]
+            if (status is JsonNull) return Landing.Pending
+            val o = status.jsonObject
+            o["err"]?.takeUnless { it is JsonNull }?.let { return Landing.Failed(it.toString()) }
+            when (o["confirmationStatus"]?.jsonPrimitive?.content) {
+                "confirmed", "finalized" -> Landing.Confirmed
+                else -> Landing.Pending
+            }
+        }.getOrNull()
     }
 
     private fun base64Data(account: JsonElement): ByteArray = Base64.getDecoder().decode(
@@ -306,27 +323,43 @@ class Rpc(
             .jsonPrimitive.content,
     )
 
-    private suspend fun call(method: String, params: JsonArray): JsonElement? = runCatching {
+    private suspend fun call(method: String, params: JsonArray): JsonElement? = attempt {
         rpc.makeRequest(
             JsonRpc20Request(method, params, method),
             JsonElement.serializer(),
         ).takeIf { it.error == null }?.result
     }.getOrNull()
 
-    /** Like [call], but keeps the node's reason when it refuses. */
-    private suspend fun answer(method: String, params: JsonArray): Answer<JsonElement> = runCatching {
+    /**
+     * Like [call], but keeps the node's reason when it refuses, and tells a
+     * refusal apart from no answer at all.
+     */
+    private suspend fun answer(method: String, params: JsonArray): Answer<JsonElement> = attempt {
         val response = rpc.makeRequest(JsonRpc20Request(method, params, method), JsonElement.serializer())
         response.error?.let { Answer.Refused(it.message) }
             ?: response.result?.let { Answer.Ok(it) }
-            ?: Answer.Refused("$method returned nothing")
-    }.getOrElse { Answer.Refused("$method could not reach $endpoint: ${it.message}") }
+            ?: Answer.Unanswered("$method returned neither a result nor an error")
+    }.getOrElse { Answer.Unanswered("$method got no answer from $endpoint: ${it.message}") }
 
-    private suspend fun request(method: String, params: JsonArray? = null): Long? = runCatching {
+    private suspend fun request(method: String, params: JsonArray? = null): Long? = attempt {
         rpc.makeRequest(
             JsonRpc20Request(method, params ?: JsonArray(emptyList()), method),
             Long.serializer(),
         ).takeIf { it.error == null }?.result
     }.getOrNull()
+}
+
+/**
+ * `runCatching` for a call that suspends: any failure becomes a result, except
+ * cancellation, which is rethrown. Swallowing it would turn "the screen went
+ * away" into "the cluster did not answer", and keep a cancelled loop running.
+ */
+private inline fun <T> attempt(block: () -> T): Result<T> = try {
+    Result.success(block())
+} catch (e: CancellationException) {
+    throw e
+} catch (e: Exception) {
+    Result.failure(e)
 }
 
 /** Every 30 seconds while a cohort screen is visible (research R8). */

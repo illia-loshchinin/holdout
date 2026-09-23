@@ -137,4 +137,21 @@ class MainTest {
         val (code, _) = run("chips", "publish", "--auto", "--if-drift", "0.20")
         assertEquals(EXIT_CONFIG, code)
     }
+
+    @Test
+    fun `a typo in chips publish is reported as a typo, before the environment is read`() {
+        val (code, json) = run("chips", "publish", "--rat", "0.1", env = emptyMap())
+        assertEquals(EXIT_CONFIG, code)
+        assertTrue(json.getValue("error").jsonPrimitive.content.contains("--rat"), json.toString())
+    }
+
+    @Test
+    fun `anything unforeseen still ends in a JSON summary and exit 2`() {
+        val out = mutableListOf<String>()
+        val code = runCrank(listOf("status"), env, rpcFor = { throw IllegalStateException("boom") }) { out += it }
+        assertEquals(EXIT_FAILED, code)
+        val json = Json.parseToJsonElement(out.single()).jsonObject
+        assertEquals("status", json.getValue("command").jsonPrimitive.content)
+        assertTrue(json.getValue("error").jsonPrimitive.content.contains("boom"))
+    }
 }
