@@ -21,8 +21,9 @@ the first frame of the sitting.
   "delegate": "GPU",
   "traces": [
     {
-      "id": "honest-01",
+      "id": "honest-side-01",
       "kind": "honest",
+      "view": "side",
       "expectedReps": 25,
       "fps": 24.6,
       "frames": [
@@ -37,16 +38,23 @@ the first frame of the sitting.
 | Field | |
 |---|---|
 | `kind` | `honest`, or the cheat it is: `cheat-half`, `cheat-sag`, `cheat-fast` |
+| `view` | **Required.** `side` or `front` — where the phone was. Both placements are accepted by the app, so both have to be measured, and a trace that does not say which it is cannot be used to set a threshold for either |
 | `expectedReps` | what a human counted watching the video — the only ground truth there is |
 | `fps` | measured inference rate for that recording. S2's bar is **≥ 15** on a Seeker |
 | `elbow` | shoulder–elbow–wrist, from 3D world landmarks, one-euro smoothed (R4) |
 | `bodyLine` | shoulder–hip–ankle. 180° is straight; the rule allows ±10° |
 | `presence` | the model's landmark presence score. Frames below the threshold are **dropped, not scored** (T048) — keep them in the trace so the test can prove they are dropped |
 
-## What the suite must hold — 10 honest, 3 cheats
+## What the suite must hold — 10 honest, 3 cheats, **in each placement**
 
 The spike's pass bar is the test's pass bar: every `honest` trace counted within
-**1 rep** of its `expectedReps`, and every `cheat-*` trace rejected.
+**1 rep** of its `expectedReps`, and every `cheat-*` trace rejected — **for the
+phone in front and for the phone to the side**.
+
+The `cheat-sag` traces matter most head-on. That is the measurement expected to
+be weakest there, and these traces are what decides whether the front view needs
+its own trigger set (`RepRules.forView`) or whether staked cohorts should
+require the side view.
 
 **T049 asserts the rule, never the trigger values.** The rule is FR-021 and
 PRD §8 — top above 160°, bottom below 90°, body line held, cycle 0.8–6 s. The

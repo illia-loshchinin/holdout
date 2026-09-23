@@ -4,13 +4,18 @@ import androidx.lifecycle.ViewModel
 import holdout.app.storage.Store
 import holdout.app.streak.StreakStore
 import holdout.app.vision.VisionAnalyzer
+import holdout.repcounter.Guidance
+import holdout.repcounter.Lens
+import holdout.repcounter.Placement
 import holdout.repcounter.PoseFrame
+import holdout.repcounter.PositionGuide
 import holdout.repcounter.Preflight
 import holdout.repcounter.PreflightInput
 import holdout.repcounter.PreflightReport
 import holdout.repcounter.ReadyGate
 import holdout.repcounter.RepCounter
 import holdout.repcounter.RepEvent
+import holdout.repcounter.Tilt
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -70,6 +75,12 @@ class SittingViewModel(
         val preflight: PreflightReport? = null,
         /** How far through the ready-position hold, 0..1. */
         val readyProgress: Float = 0f,
+        /**
+         * Where to lie, and the one thing to fix next. Null before the first
+         * frame. The overlay drawn from this comes off the moment the member is
+         * aligned — it is scaffolding, not furniture.
+         */
+        val guidance: Guidance? = null,
         val countdownFrom: Int = 3,
         val banked: Int = 0,
         val looseReps: Int = 0,
@@ -88,6 +99,23 @@ class SittingViewModel(
 
     private val preflight = Preflight()
     private val readyGate = ReadyGate()
+    private val positionGuide = PositionGuide()
+
+    /** Updated from the gravity sensor; drives where the floor is drawn. */
+    @Volatile
+    private var tilt: Tilt = Tilt(0f)
+
+    /** Read from the camera characteristics once bound; a sane guess until then. */
+    @Volatile
+    private var lens: Lens = Lens.DEFAULT
+
+    fun onTilt(tilt: Tilt) {
+        this.tilt = tilt
+    }
+
+    fun onLens(lens: Lens) {
+        this.lens = lens
+    }
     private val banking = BankingController(store, wallet, scope, dayIndex, target)
     private var repCounter = RepCounter()
 
@@ -118,14 +146,23 @@ class SittingViewModel(
                         observation.image,
                     ),
                 )
+                val guidance = positionGuide.guide(
+                    pose = observation.image,
+                    view = report.view,
+                    floor = Placement.floorView(tilt, lens),
+                )
                 val ready = readyGate.onFrame(
                     frame = observation.world,
                     nowMillis = observation.world.timestampMillis,
                     pillsGreen = report.canStart,
+                    view = report.view,
                 )
                 _uiState.update {
-                    it.withFrame(observation)
-                        .copy(preflight = report, readyProgress = readyGate.progress)
+                    it.withFrame(observation).copy(
+                        preflight = report,
+                        readyProgress = readyGate.progress,
+                        guidance = guidance,
+                    )
                 }
                 if (ready) startCountdown()
             }
@@ -159,7 +196,10 @@ class SittingViewModel(
      */
     private fun startCountdown() {
         readyGate.reset()
-        _uiState.update { it.copy(step = Step.COUNTDOWN, readyProgress = 1f) }
+        // The guide is dropped here and never comes back. A silhouette
+        // reappearing over somebody mid-set is a distraction they cannot act on
+        // without abandoning the set.
+        _uiState.update { it.copy(step = Step.COUNTDOWN, readyProgress = 1f, guidance = null) }
     }
 
     /** One second of the countdown, driven by the screen's timer. */

@@ -75,44 +75,58 @@ class PreflightTest {
     }
 
     @Test
-    fun `a camera looking at the member face-on fails the angle check`() {
-        // Shoulders spread right across the frame: the phone is in front of
-        // them, where it cannot see an elbow bend at all (research R4).
-        val report = preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.5f)))
-        assertFalse(report.canStart)
-        assertTrue(report.fixes.contains("Put the phone to your side, not in front of you"))
+    fun `both placements are accepted, and each is named`() {
+        // The whole point of the 2026-09-22 change: people put the phone on the
+        // floor in front of them, and a check that blocks the commonest
+        // placement stops the app working.
+        val sideOn = preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.05f)))
+        assertTrue(sideOn.canStart)
+        assertEquals(CameraView.SIDE, sideOn.view)
+
+        val faceOn = preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.5f)))
+        assertTrue(faceOn.canStart)
+        assertEquals(CameraView.FRONT, faceOn.view)
     }
 
     @Test
-    fun `a side-on body passes whichever way the phone is propped`() {
+    fun `a view between the two is named oblique and still accepted`() {
+        val report = preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.28f)))
+        assertEquals(CameraView.OBLIQUE, report.view)
+        assertTrue(report.canStart, "whether oblique should block is spike S2's question, not a guess")
+    }
+
+    @Test
+    fun `the view is the same however the phone is propped`() {
         // The bug this replaced: frames are rotated to the display's
         // orientation and the app is portrait-locked, so a phone propped in
         // landscape made a correctly positioned member read as vertical. The
         // only way to pass was to lie along one axis of the frame.
         for (rotation in listOf(0f, 30f, 45f, 90f, 135f, 180f, 270f)) {
-            assertTrue(
+            assertEquals(
+                CameraView.SIDE,
                 preflight.evaluate(
                     good(image = Traces.imageFrame(shoulderSpan = 0.05f, torsoDegrees = rotation)),
-                ).canStart,
-                "a side-on body at $rotation° in frame should still pass",
+                ).view,
+                "a side-on body at $rotation° in frame should still read as side-on",
             )
         }
     }
 
     @Test
-    fun `a body too small in frame to judge passes rather than failing twice`() {
-        // WHOLE_BODY already owns "the model cannot see you". This pill going
-        // red for the same reason would give the member two fixes for one
-        // problem, and one of them would be the wrong fix.
-        val tiny = Traces.imageFrame(shoulderSpan = 0.5f, torsoDegrees = 0f).let { frame ->
+    fun `a body too small to judge fails the view check, and says so`() {
+        // The one thing this pill still gates on: not knowing what it is
+        // looking at. "Move the phone so it can see all of you" is the fix for
+        // somebody too far away to measure.
+        val tiny = Traces.imageFrame(shoulderSpan = 0.5f).let { frame ->
             PoseFrame(
                 frame.timestampMillis,
                 frame.landmarks.map { it.copy(x = it.x * 0.01f, y = it.y * 0.01f) },
             )
         }
-        val angle = preflight.evaluate(good(image = tiny))
-            .statuses.single { it.check == PreflightCheck.CAMERA_ANGLE }
-        assertTrue(angle.passing)
+        val report = preflight.evaluate(good(image = tiny))
+        assertEquals(null, report.view)
+        assertFalse(report.canStart)
+        assertTrue(report.fixes.contains("Move the phone so it can see all of you"))
     }
 
     @Test

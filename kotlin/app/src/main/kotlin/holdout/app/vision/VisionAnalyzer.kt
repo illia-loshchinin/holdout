@@ -127,7 +127,13 @@ class VisionAnalyzer(
     }
 
     companion object {
-        const val POSE_MODEL = "pose_landmarker_lite.task"
+        /**
+         * R4's decision: FULL on the GPU delegate, with LITE only "if spike S2
+         * misses 15 FPS on a Seeker". LITE was shipped first by mistake — and
+         * better landmarks matter most in the depth direction, which is
+         * precisely what a phone placed in front of the member depends on.
+         */
+        const val POSE_MODEL = "pose_landmarker_full.task"
 
         private val EMPTY = PoseFrame(0, List(PoseIndex.COUNT) { Landmark(0f, 0f, 0f, 0f) })
     }
