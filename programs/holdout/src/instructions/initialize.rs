@@ -21,10 +21,10 @@ use crate::state::config::{
 // Bound under other names: the `treasury_wallet` field would shadow the argument.
 #[instruction(operator_arg: Pubkey, sponsor_arg: Pubkey, treasury_arg: Pubkey)]
 pub struct Initialize<'info> {
-    /// Anchor deserializes every non-`init` account before it checks any
-    /// constraint, and checks constraints in field order — so this one runs
-    /// before `config`, the mint, the fee account or the vault is created.
-    /// `None` (an immutable program) matches no signer at all.
+    /// `None` (an immutable program) matches no signer at all. Anchor runs
+    /// this after its `init` accounts are created, but a refusal fails the
+    /// whole transaction, so nothing a refused `initialize` created survives —
+    /// the scenario checks each account is still absent.
     #[account(
         mut,
         constraint = program_data.upgrade_authority_address == Some(admin.key())

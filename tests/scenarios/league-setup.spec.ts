@@ -530,11 +530,17 @@ describe('open_cohort opens a league\'s cohorts in order, one lobby at a time (R
   const nextIndex = async (leagueId: number) =>
     LeagueConfig.decode(new Uint8Array(account(h, await leaguePda(leagueId))!.data)).nextIndex;
 
-  it('refuses an index other than next_index with CohortNotDue, before or after it', async () => {
+  it('refuses an index past next_index with CohortNotDue, and never reopens one', async () => {
     // No previous cohort to pass yet: the index alone is refused.
     expectProgramError(await open(0, 1), 'CohortNotDue');
+    expect(exists(h, await cohortPda(0, 1))).toBe(false);
     expect((await open(0, 0)).ok).toBe(true);
-    expectProgramError(await open(0, 0), 'CohortNotDue');
+
+    // An index already opened is refused before the program's own check can run:
+    // the System Program will not create an account that exists. Nothing changes.
+    const before = await h.readCohort(0, 0);
+    expect((await open(0, 0)).ok).toBe(false);
+    expect(await h.readCohort(0, 0)).toEqual(before);
     expect(await nextIndex(0)).toBe(1);
   });
 

@@ -30,7 +30,7 @@ pub struct CreateLeague<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 
-    // Checked before `league` is created, since constraints run in field order.
+    // Anchor checks this after creating `league`; a refusal rolls it back.
     #[account(seeds = [CONFIG_SEED], bump = config.bump, has_one = admin @ HoldoutError::NotAdmin)]
     pub config: Box<Account<'info, Config>>,
 

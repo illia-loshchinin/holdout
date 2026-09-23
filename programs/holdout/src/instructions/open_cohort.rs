@@ -22,10 +22,11 @@ pub struct OpenCohort<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
 
-    // Both refusals below are constraints so they come before `cohort` is
-    // created: a cohort that copied four zeroed amounts would keep them for
-    // life (FR-055b), and an index already used would otherwise surface as the
-    // System Program's "already in use" rather than 6020.
+    // Without a published set the cohort would copy four zeroed amounts and
+    // keep them for life (FR-055b). Anchor checks these after creating
+    // `cohort` and `vault`, and a refusal rolls both back. One consequence: an
+    // index already opened fails in the System Program ("already in use")
+    // before the index check can answer 6020 — the cohort exists either way.
     #[account(
         seeds = [CONFIG_SEED],
         bump = config.bump,
