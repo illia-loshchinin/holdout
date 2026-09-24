@@ -5,14 +5,14 @@ package holdout.repcounter
  *
  * | | placements | what is verified |
  * |---|---|---|
- * | [DAILY] — the free Daily 25 | **head-on or at 45°** | depth, lockout, tempo; at 45° also the body line and the knees |
- * | [STAKED] — money on it | **at 45° only** | depth, lockout, tempo, body line, knees |
+ * | [DAILY] — the free Daily 25 | **head-on or at 45°** | depth, lockout, tempo, torso down / no hip fold. **Push-ups from the knees count** — a free habit for building strength |
+ * | [STAKED] — money on it | **at 45° only** | all of that, and **knees off the floor** |
  *
- * Head-on is the easiest to set up and needs the least floor, and the picture
- * reads the elbow well from there — but the legs point into the lens, so a
- * push-up from the knees and sagging hips are invisible. Fine for a free daily
- * habit, and said so; not when one member's knee push-up takes another
- * member's stake. At 45° the plane the body bends in is turned towards the
+ * Knee push-ups are a choice for the Daily 25, not a limitation it lives with:
+ * members building up to full push-ups keep their habit. Staked sittings are
+ * where they are refused, and 45° is the placement that can see them — head-on
+ * the legs point into the lens, and on the phone every leg measure read the
+ * same for knee push-ups as for honest ones (`fixtures/rep-traces/README.md`). At 45° the plane the body bends in is turned towards the
  * lens, so a bent knee reads bent, and it needs less floor than square side-on,
  * which is offered to nobody: a body lying across a portrait frame puts the
  * phone about 2 m away.

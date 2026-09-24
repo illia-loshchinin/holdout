@@ -209,7 +209,7 @@ private fun BodyPage(stakes: Stakes) {
             if (stakes == Stakes.STAKED) {
                 add("On your toes. Push-ups from the knees do not count.")
             } else {
-                add("Body straight from shoulders to heels.")
+                add("Body straight from shoulders to heels — or from the knees if you are building up. Both count for the Daily 25.")
             }
         },
     )

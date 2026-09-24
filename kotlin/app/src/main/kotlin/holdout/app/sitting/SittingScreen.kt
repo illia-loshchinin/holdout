@@ -359,6 +359,9 @@ private fun CountingOverlay(state: SittingViewModel.UiState) {
 
     // Test builds only: what the counter is reading, to tune it on a real body.
     if (BuildConfig.DEBUG) {
+        state.traceName?.let {
+            Text("rec · $it", style = LabelStyle, color = HoldoutColors.TextTertiary)
+        }
         state.readout?.let { r ->
             val posture = if (r.view == CameraView.FRONT) "torso" else "line"
             Text(

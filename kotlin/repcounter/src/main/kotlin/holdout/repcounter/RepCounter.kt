@@ -57,14 +57,26 @@ data class RepRules(
      */
     val maxTorsoElevationDegrees: Float = 55f,
     /**
-     * Legs straight, on the toes: the knee, hip–knee–ankle, never below this.
-     * A push-up from the knees bends them to 90–120°, so the margin to an
-     * honest plank's ~175° is wide on purpose — this has to catch the cheat
-     * without ever docking an honest rep. Judged at 45°, the placement in
-     * which the picture shows it ([Stakes]). Provisional until S2 records an
-     * honest angled set.
+     * Knees off the floor: a rep whose **median** knee reading (hip–knee–ankle,
+     * near leg) is below this is a push-up from the knees. The median, not the
+     * lowest reading, because single frames glitch; and a margin that leaves
+     * room for a leg bent in the air, which is allowed. Measured at 45° on the
+     * phone: honest reps 150–172°, knees on the floor 116–137°.
      */
-    val minKneeDegrees: Float = 150f,
+    val kneesDownDegrees: Float = 140f,
+    /**
+     * Head-on depth: at the bottom the shoulders must come down to within this
+     * share of their height above the hands at the top. The elbow angle alone
+     * over-reads the bend head-on; on the phone honest reps reached 0.16–0.19
+     * and half reps stopped at 0.26–0.53.
+     */
+    val maxShoulderHeightAtBottom: Float = 0.25f,
+    /**
+     * At 45°, the lowest **median** body line a rep may have. Coarse on
+     * purpose: honest planks read 152–167° there, so this catches a hip fold,
+     * not a slight sag.
+     */
+    val angledBodyLineFloorDegrees: Float = 140f,
 ) {
     init {
         require(topTriggerDegrees >= topDegrees) {
@@ -93,7 +105,12 @@ data class RepRules(
  * own `require` refuses it, and `RepRulesViewTest` checks every view's set.
  */
 fun RepRules.forView(view: CameraView): RepRules = when (view) {
-    CameraView.SIDE, CameraView.OBLIQUE, CameraView.FRONT -> this
+    CameraView.SIDE, CameraView.FRONT -> this
+    // At 45° a straight arm reads 158–163° in the picture (the phone trace of
+    // 24 Sep), so 165° is rarely reached and reps merge. The rule's own 160° —
+    // never looser than the rule. A rep still needs a full bottom to count, so
+    // jitter at the top cannot add one.
+    CameraView.OBLIQUE -> copy(topTriggerDegrees = topDegrees)
 }
 
 /** What the sitting screen shows when a rep is thrown away (PRD §8.4). */
@@ -101,7 +118,7 @@ enum class RepHint(val message: String) {
     GO_LOWER("Go lower"),
     KEEP_BODY_STRAIGHT("Keep your body straight"),
     SLOW_DOWN("Slow down"),
-    UP_ON_YOUR_TOES("Up on your toes, knees off the floor"),
+    UP_ON_YOUR_TOES("Knees off the floor"),
 }
 
 /**
@@ -159,6 +176,13 @@ class RepCounter(
 
     private val rules = rules.forView(view)
 
+    /**
+     * Knees are judged only when money is on it. The Daily 25 counts push-ups
+     * from the knees on purpose: it is a free habit, and a member building up
+     * to full push-ups should be able to keep it (FR-021a).
+     */
+    private val judgeKnees = stakes == Stakes.STAKED
+
     private enum class Phase {
         /** Nothing yet: waiting for the body to be at the top, straight. */
         AWAITING_TOP,
@@ -181,7 +205,10 @@ class RepCounter(
     private var cycleStartMillis = 0L
     private var minElbowInCycle = Float.MAX_VALUE
     private var bodyLineHeld = true
-    private var kneesDown = false
+    private val cycleKnees = mutableListOf<Float>()
+    private val cyclePostures = mutableListOf<Float>()
+    private var minShoulderHeightInCycle = Float.MAX_VALUE
+    private var topShoulderHeight: Float? = null
 
     val total: Int get() = count
 
@@ -205,9 +232,14 @@ class RepCounter(
         val elbow = elbowFilter.filter(reading.elbow, frame.timestampMillis)
         val posture = postureFilter.filter(reading.posture, frame.timestampMillis)
         val knee = reading.knee?.let { kneeFilter.filter(it, frame.timestampMillis) }
-        val straight = reading.postureHeld(posture, rules)
-        val onToes = kneesStraight(knee, rules)
+        val straight = postureHeld(view, reading, posture, rules)
+        val shoulderHeight = (reading as? ViewReading.HeadOn)?.shoulderHeight
         readout = Readout(view, elbow, posture, knee)
+        // The shoulders' height over the hands at the top — the reference the
+        // head-on depth check is a share of. Tracked while the arms are straight.
+        if (elbow >= rules.topTriggerDegrees && shoulderHeight != null) {
+            topShoulderHeight = topShoulderHeight?.let { it * 0.9f + shoulderHeight * 0.1f } ?: shoulderHeight
+        }
 
         return when (phase) {
             Phase.AWAITING_TOP -> {
@@ -224,7 +256,7 @@ class RepCounter(
                     startCycle(frame.timestampMillis)
                 }
                 if (cycleStartMillis != 0L) {
-                    observe(elbow, straight, onToes)
+                    observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight)
                     if (elbow <= rules.bottomTriggerDegrees) {
                         phase = Phase.AT_BOTTOM
                     } else if (elbow >= rules.topTriggerDegrees) {
@@ -238,7 +270,7 @@ class RepCounter(
             }
 
             Phase.AT_BOTTOM -> {
-                observe(elbow, straight, onToes)
+                observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight)
                 if (elbow < rules.topTriggerDegrees) return null
 
                 // A full cycle: top → bottom → top. Now judge it.
@@ -252,8 +284,9 @@ class RepCounter(
                 val verdict = when {
                     // Knees first: a push-up from the knees is a different
                     // exercise, and "keep your body straight" would not say so.
-                    kneesDown -> RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
-                    !bodyLineHeld -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)
+                    judgeKnees && !kneesOffFloor(cycleKnees.medianOrNull(), rules) -> RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
+                    tooShallowHeadOn() -> RepEvent.Discarded(RepHint.GO_LOWER)
+                    !bodyHeld() -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)
                     cycleMillis < rules.minCycleMillis -> RepEvent.Discarded(RepHint.SLOW_DOWN)
                     cycleMillis > rules.maxCycleMillis -> RepEvent.Discarded(null)
                     else -> {
@@ -269,17 +302,50 @@ class RepCounter(
     }
 
     private fun startCycle(timestampMillis: Long) {
+        resetCycle()
         cycleStartMillis = timestampMillis
-        minElbowInCycle = Float.MAX_VALUE
-        bodyLineHeld = true
-        kneesDown = false
     }
 
-    private fun observe(elbow: Float, straight: Boolean, onToes: Boolean) {
+    private fun observe(
+        timestampMillis: Long,
+        elbow: Float,
+        straight: Boolean,
+        posture: Float,
+        knee: Float?,
+        shoulderHeight: Float?,
+    ) {
+        // Until the arms have really started down, the rep's clock keeps
+        // restarting: resting at the top with the elbow wobbling around the
+        // trigger must not count as time spent in the rep (rule 4).
+        if (minElbowInCycle > rules.descentAttemptDegrees && elbow > rules.descentAttemptDegrees) {
+            cycleStartMillis = timestampMillis
+        }
         if (elbow < minElbowInCycle) minElbowInCycle = elbow
         if (!straight) bodyLineHeld = false
-        if (!onToes) kneesDown = true
+        cyclePostures += posture
+        knee?.let { cycleKnees += it }
+        if (shoulderHeight != null && shoulderHeight < minShoulderHeightInCycle) minShoulderHeightInCycle = shoulderHeight
     }
+
+    /** Head-on only: the shoulders never came down far enough towards the hands. */
+    private fun tooShallowHeadOn(): Boolean {
+        if (view != CameraView.FRONT) return false
+        val top = topShoulderHeight ?: return false
+        if (minShoulderHeightInCycle == Float.MAX_VALUE || top <= 0f) return false
+        return minShoulderHeightInCycle / top > rules.maxShoulderHeightAtBottom
+    }
+
+    /**
+     * The body held through the rep. At 45° judged on the rep's median, which
+     * one glitching frame cannot move; elsewhere every frame must hold.
+     */
+    private fun bodyHeld(): Boolean = if (view == CameraView.OBLIQUE) {
+        (cyclePostures.medianOrNull() ?: 180f) >= rules.angledBodyLineFloorDegrees
+    } else {
+        bodyLineHeld
+    }
+
+    private fun List<Float>.medianOrNull(): Float? = if (isEmpty()) null else sorted()[size / 2]
 
     /**
      * A descent that came back up without reaching the bottom. Silent unless it
@@ -295,6 +361,8 @@ class RepCounter(
         cycleStartMillis = 0L
         minElbowInCycle = Float.MAX_VALUE
         bodyLineHeld = true
-        kneesDown = false
+        cycleKnees.clear()
+        cyclePostures.clear()
+        minShoulderHeightInCycle = Float.MAX_VALUE
     }
 }

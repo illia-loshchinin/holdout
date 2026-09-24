@@ -55,3 +55,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Sitting traces pulled from a debug build (scripts/pull-traces.sh); committed ones live in fixtures/rep-traces/
+phone_traces/

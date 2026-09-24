@@ -66,7 +66,14 @@ class SittingViewModel(
      * camera check accepts, what the guide asks for and what the counter reads.
      */
     private val stakes: Stakes = Stakes.DAILY,
+    /**
+     * Debug builds: where to write this sitting's trace (`TraceRecorder`).
+     * Null in release builds, where nothing is recorded.
+     */
+    traceDir: java.io.File? = null,
 ) : ViewModel() {
+
+    private val trace = traceDir?.let { TraceRecorder(it, stakes) }
 
     enum class Step { PREFLIGHT, COUNTDOWN, COUNTING, COMPLETE }
 
@@ -120,13 +127,15 @@ class SittingViewModel(
         val showSetup: Boolean = false,
         /** The one short correction to show big while getting into position. */
         val coach: Coach? = null,
+        /** Debug builds: the trace file this sitting is being recorded to. */
+        val traceName: String? = null,
     ) {
         val doneToday: Int get() = banked + looseReps
         val remaining: Int get() = (target - doneToday).coerceAtLeast(0)
     }
 
     private val preflight = Preflight(stakes = stakes)
-    private val readyGate = ReadyGate()
+    private val readyGate = ReadyGate(stakes = stakes)
     private val positionGuide = PositionGuide()
 
     /** Updated from the gravity sensor; drives where the floor is drawn. */
@@ -214,6 +223,7 @@ class SittingViewModel(
                     )
                 }
                 speak(coach, observation.world.timestampMillis)
+                record(observation, report.view)
                 if (ready) {
                     countingView = report.view ?: CameraView.SIDE
                     startCountdown()
@@ -222,11 +232,15 @@ class SittingViewModel(
 
             // The overlay stays live through the countdown, so the member can
             // still see they are in frame while they hold position.
-            Step.COUNTDOWN -> _uiState.update { it.withFrame(observation) }
+            Step.COUNTDOWN -> {
+                _uiState.update { it.withFrame(observation) }
+                record(observation, countingView)
+            }
 
             Step.COUNTING -> {
                 val event = repCounter.onFrame(observation.world, observation.imagePose())
                 _uiState.update { it.withFrame(observation).copy(readout = repCounter.readout) }
+                record(observation, countingView, repCounter.readout, event)
                 when (event) {
                     is RepEvent.Counted -> onVerifiedRep()
                     is RepEvent.Discarded -> _uiState.update { it.copy(hint = event.hint?.message) }
@@ -297,6 +311,7 @@ class SittingViewModel(
                 // A cohort day also submits — T061, not this task.
                 // Only the real Daily 25 extends the streak — never a test run.
                 if (scope == Store.CHALLENGE) streaks.recordCompletedDay(wallet, dayIndex)
+                trace?.close()
                 _cues.tryEmit(Cue.DayComplete)
                 _uiState.update {
                     it.copy(
@@ -311,7 +326,46 @@ class SittingViewModel(
     }
 
     /** The member stopped, or the screen went away. Loose reps go; blocks stay. */
-    fun endSitting(): Int = banking.endSitting()
+    fun endSitting(): Int {
+        trace?.close()
+        return banking.endSitting()
+    }
+
+    override fun onCleared() {
+        trace?.close()
+    }
+
+    /**
+     * The screen went away, however it was left — Stop, finishing, the back
+     * gesture, the app going to the background for good. Closes the trace so
+     * nothing buffered is lost. This is not constructed through a
+     * `ViewModelProvider`, so [onCleared] alone would never run.
+     */
+    fun release() {
+        trace?.close()
+    }
+
+    private fun record(
+        observation: VisionAnalyzer.Observation,
+        view: CameraView?,
+        readout: holdout.repcounter.Readout? = null,
+        event: RepEvent? = null,
+    ) {
+        trace?.record(
+            timestampMillis = observation.world.timestampMillis,
+            step = _uiState.value.step.name,
+            view = view,
+            world = observation.world,
+            image = observation.image,
+            width = observation.frameWidth,
+            height = observation.frameHeight,
+            readout = readout,
+            event = event,
+        )
+        if (_uiState.value.traceName == null) {
+            trace?.file?.name?.let { name -> _uiState.update { it.copy(traceName = name) } }
+        }
+    }
 
     private var coachSince: Pair<Coach, Long>? = null
     private var spoken: Pair<Coach, Long>? = null

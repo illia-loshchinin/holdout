@@ -30,6 +30,8 @@ class ReadyGate(
     /** How long the pills and the position must hold together. */
     private val holdMillis: Long = 1_000,
     private val rules: RepRules = RepRules(),
+    /** Staked sittings start from the toes; the Daily 25 may start from the knees. */
+    private val stakes: Stakes = Stakes.DAILY,
 ) {
     /**
      * The rules in force for the view the camera currently has. Goes through
@@ -68,9 +70,10 @@ class ReadyGate(
             return false
         }
 
-        val reading = ViewReading.of(view ?: CameraView.SIDE, frame, image) ?: return false
+        val measuredFrom = view ?: CameraView.SIDE
+        val reading = ViewReading.of(measuredFrom, frame, image) ?: return false
 
-        if (!isAtTop(reading, rulesFor(view))) {
+        if (!isAtTop(measuredFrom, reading, rulesFor(view))) {
             reset()
             return false
         }
@@ -86,7 +89,7 @@ class ReadyGate(
         progress = 0f
     }
 
-    private fun isAtTop(reading: ViewReading, rules: RepRules): Boolean = reading.elbow >= rules.topTriggerDegrees &&
-        reading.postureHeld(reading.posture, rules) &&
-        kneesStraight(reading.knee, rules)
+    private fun isAtTop(view: CameraView, reading: ViewReading, rules: RepRules): Boolean = reading.elbow >= rules.topTriggerDegrees &&
+        postureHeld(view, reading, reading.posture, rules) &&
+        (stakes != Stakes.STAKED || kneesOffFloor(reading.knee, rules))
 }

@@ -188,6 +188,25 @@ object Angles {
         return Math.toDegrees(asin((-dy / length).coerceIn(-1f, 1f).toDouble())).toFloat()
     }
 
+    /**
+     * Head-on: how high the shoulders stand above the hands in the picture, in
+     * pixels — the wrists' height minus the shoulders', both sides averaged.
+     * `null` when a shoulder or wrist is not clearly in frame.
+     *
+     * Head-on the elbow angle in the picture exaggerates the bend: on a real
+     * recording half push-ups read 51–60° at the elbow. How far the shoulders
+     * came down towards the hands did not lie — 0.16–0.19 of their top height
+     * on honest reps, 0.26–0.53 on the half ones.
+     */
+    fun shoulderHeightInImage(image: ImagePose): Float? {
+        val ls = image.frame[PoseIndex.LEFT_SHOULDER]
+        val rs = image.frame[PoseIndex.RIGHT_SHOULDER]
+        val lw = image.frame[PoseIndex.LEFT_WRIST]
+        val rw = image.frame[PoseIndex.RIGHT_WRIST]
+        if (!visible(ls, rs, lw, rw)) return null
+        return ((lw!!.y + rw!!.y) - (ls!!.y + rs!!.y)) / 2f * image.height
+    }
+
     /** The near leg's knee. */
     fun kneeInImage(image: ImagePose): Float? = nearSide(image)?.let { kneeInImage(image, it) }
 

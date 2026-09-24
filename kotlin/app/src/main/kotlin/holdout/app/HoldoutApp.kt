@@ -1,6 +1,7 @@
 package holdout.app
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -110,8 +111,12 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 // Free, so any placement. Staked sittings arrive with the
                 // cohorts (T054 onward) and pass Stakes.STAKED: side or 45°.
                 stakes = if (stakedTest) Stakes.STAKED else Stakes.DAILY,
+                // Debug builds record every sitting's landmarks for tuning;
+                // `scripts/pull-traces.sh` fetches them over USB.
+                traceDir = if (BuildConfig.DEBUG) java.io.File(context.filesDir, "traces") else null,
             )
         }
+        DisposableEffect(sitting) { onDispose { sitting.release() } }
         SittingScreen(
             viewModel = sitting,
             onFinished = {

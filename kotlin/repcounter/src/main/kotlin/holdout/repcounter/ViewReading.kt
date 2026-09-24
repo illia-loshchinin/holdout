@@ -48,8 +48,13 @@ internal sealed interface ViewReading {
         override val posture: Float get() = bodyLine
     }
 
-    /** Head-on: the picture's elbow, and whether the torso is down. */
-    data class HeadOn(override val elbow: Float, val torsoElevation: Float) : ViewReading {
+    /** Head-on: the picture's elbow, whether the torso is down, and how high the shoulders stand over the hands. */
+    data class HeadOn(
+        override val elbow: Float,
+        val torsoElevation: Float,
+        /** Pixels; null when a shoulder or wrist is not clearly in frame. */
+        val shoulderHeight: Float? = null,
+    ) : ViewReading {
         override val posture: Float get() = torsoElevation
         override val knee: Float? get() = null
     }
@@ -60,7 +65,7 @@ internal sealed interface ViewReading {
             CameraView.FRONT -> {
                 val elbow = image?.let(Angles::elbowInImage)
                 val torso = Angles.torsoElevation(world)
-                if (elbow == null || torso == null) null else HeadOn(elbow, torso)
+                if (elbow == null || torso == null) null else HeadOn(elbow, torso, Angles.shoulderHeightInImage(image))
             }
 
             CameraView.SIDE, CameraView.OBLIQUE -> if (image == null) {
@@ -78,11 +83,31 @@ internal sealed interface ViewReading {
     }
 }
 
-/** Whether [knee] — already smoothed — is a leg straight enough to be on its toes. Unknown passes. */
-internal fun kneesStraight(knee: Float?, rules: RepRules): Boolean = knee == null || knee >= rules.minKneeDegrees
+/**
+ * Whether [knee] is off the floor — asked of staked sittings only; the Daily 25
+ * counts push-ups from the knees. Unknown passes. The rule is **knees off the
+ * floor**, not legs dead straight: a knee on the floor bends the leg a long way
+ * (116–137° on a real recording, per rep), while a leg held in the air —
+ * straight or a little bent — stayed at 150–172°.
+ */
+internal fun kneesOffFloor(knee: Float?, rules: RepRules): Boolean = knee == null || knee >= rules.kneesDownDegrees
 
-/** Whether [posture] — already smoothed — is a body in push-up position, by this reading's check. */
-internal fun ViewReading.postureHeld(posture: Float, rules: RepRules): Boolean = when (this) {
-    is ViewReading.Angled -> kotlin.math.abs(180f - posture) <= rules.bodyLineToleranceDegrees
+/**
+ * Whether [posture] — already smoothed — is a body in push-up position, by
+ * what [view] can measure:
+ *
+ * - **head-on**, the torso is down rather than upright;
+ * - **at 45°**, the body line clears [RepRules.angledBodyLineFloorDegrees] — a
+ *   coarse check, because at 45° the picture read honest planks at 152–167°
+ *   and the rule's ±10° cannot be held there (a named weakness, README);
+ * - **square side-on** — synthetic traces only; the app accepts it nowhere —
+ *   the rule's own ±10°.
+ */
+internal fun postureHeld(view: CameraView, reading: ViewReading, posture: Float, rules: RepRules): Boolean = when (reading) {
     is ViewReading.HeadOn -> posture <= rules.maxTorsoElevationDegrees
+    is ViewReading.Angled -> if (view == CameraView.OBLIQUE) {
+        posture >= rules.angledBodyLineFloorDegrees
+    } else {
+        kotlin.math.abs(180f - posture) <= rules.bodyLineToleranceDegrees
+    }
 }
