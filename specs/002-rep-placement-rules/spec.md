@@ -15,6 +15,19 @@ This feature amends how a sitting is verified in `specs/001-holdout-hackathon` (
 - **Recording 1 — head-on, two honest push-ups.** Nothing was counted. Everything the rep rule measures happened along the line of sight, which the pose model estimates worst: the arm never read as straight at the top or as bent enough at the bottom, and the body line of one honest plank read anywhere between 146° and 177°.
 - **Recording 2 — 25 reps, including cheats.** Push-ups from the knees, at an angle and head-on, and knees-down rocking with the hips pushed back, were all counted. Head-on, knees bent on the floor read as 146–164° against an honest plank's 156°; no measurement separated them. At about 45°, read on the side of the body nearer the camera, the same knee push-ups bottomed out at 74–102° at the knee.
 
+## Clarifications
+
+### Session 2026-09-24
+
+Decided from sittings recorded by the app itself on a Solana Seeker (six traces, now test fixtures).
+
+- Q: Do push-ups from the knees count in the Daily 25? → A: Yes, in either placement — it is a free habit for building strength. Knees are judged only in staked sittings, which are always at 45°: a rep whose median knee angle is below 140° is discarded with "Knees off the floor", and the ready position must be held from the toes.
+- Q: How is depth judged head-on, where the elbow angle over-reads the bend? → A: The shoulders must also come down to at most a quarter of their height above the hands at the top (honest reps 0.16–0.19; half push-ups 0.26–0.53, three of which the elbow alone had counted).
+- Q: What counts as the top of a rep at 45°, where straight arms read 158–163°? → A: The rule's own 160°, instead of the stricter 165° used head-on; a rep still needs a full bottom to count.
+- Q: How is the body line judged at 45°, where honest planks read 152–167°? → A: On the rep's median, and only a fold below 140° is refused; the ±10° rule cannot be measured there and is a stated weakness.
+- Q: When does a rep's time start? → A: When the arms actually start down; resting at the top is not time spent in the rep.
+- Q: How are thresholds kept honest as they are tuned? → A: Debug builds record one trace per sitting — landmarks and the counter's decisions, never a picture; committed traces that carry a person's count replay as tests and must count within one rep of it.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Daily 25 counts from where people actually put the phone (Priority: P1)
@@ -31,6 +44,8 @@ A member doing the free Daily 25 stands the phone on the floor in front of them,
 2. **Given** a Daily 25 sitting with the phone at about 45°, **When** the member does full push-ups, **Then** each one counts.
 3. **Given** a Daily 25 sitting with the phone square to the member's side, **When** the camera check runs, **Then** it stays red and says to put the phone in front or at 45°.
 4. **Given** a Daily 25 sitting head-on, **When** the member stands or kneels upright and bends their arms at the phone, **Then** nothing counts.
+5. **Given** a Daily 25 sitting in either placement, **When** the member does full-depth push-ups from the knees, **Then** each one counts.
+6. **Given** a Daily 25 sitting head-on, **When** the member does half push-ups, **Then** none counts and each is met with "Go lower".
 
 ---
 
@@ -108,10 +123,10 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 
 - **FR-006**: Head-on, a rep MUST meet depth, lockout and tempo, and the member's torso MUST be down in push-up position rather than upright. **Depth head-on is judged by how far the shoulders come down towards the hands**: at the bottom they MUST reach a quarter or less of their height above the hands at the top, as well as the elbow bending past the bottom threshold — the elbow angle alone over-reads the bend head-on, and counted three half push-ups on the phone.
 - **FR-007**: **The Daily 25 MUST count push-ups from the knees**, in either placement — a free habit a member can keep while building up to full push-ups — and MUST say so where it explains how reps are counted. Head-on, the app MUST NOT claim to check for sagging hips.
-- **FR-008**: At 45°, a rep MUST meet depth, lockout, tempo, a body not folded at the hips, and knees off the floor. Lockout at 45° is the rule's own 160°, because straight arms read 158–163° from that angle. The body line is judged on the rep's median, and only a fold below 140° is refused: honest planks read 152–167° at 45°, so the ±10° body-line rule cannot be measured there, and this is stated as a known weakness.
+- **FR-008**: At 45°, a rep MUST meet depth, lockout, tempo and a body not folded at the hips — and, in a staked sitting, knees off the floor (FR-010). Lockout at 45° is the rule's own 160°, because straight arms read 158–163° from that angle. The body line is judged on the rep's median, and only a fold below 140° is refused: honest planks read 152–167° at 45°, so the ±10° body-line rule cannot be measured there, and this is stated as a known weakness. In every placement, a rep's time is measured from the moment the arms start down, so a rest at the top does not make a rep "too slow".
 - **FR-009**: At 45°, measurements MUST be taken from the side of the body nearer the camera; a moment when that side is not clearly visible MUST be skipped, not scored.
 - **FR-010**: **In a staked sitting** (always at 45°), a rep whose **median** knee angle is below 140° MUST be discarded with the hint "Knees off the floor", and the ready position MUST be held from the toes. The Daily 25 does not judge knees. The rule is **knees off the floor, not legs dead straight**: a leg held in the air, straight or a little bent, is allowed. The median, not the lowest reading, is judged, so a single glitching frame cannot throw out an honest rep. On the phone, honest reps read 150–172° and knees on the floor 116–137°.
-- **FR-011**: A member who starts on their knees MUST receive that hint on each attempt, not silence.
+- **FR-011**: In a staked sitting, a member who starts on their knees MUST receive that hint on each attempt, not silence.
 
 **Stating the rule**
 
@@ -136,6 +151,10 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 
 - **FR-022**: All of the above MUST work with camera frames processed on the device and discarded, as today.
 
+**Tuning evidence**
+
+- **FR-023**: Debug builds MUST record one trace per sitting in the app's private storage — landmarks and the counter's decisions per frame, never a picture — and a trace MUST be complete however the sitting ends (Stop, finishing, or leaving the screen). Committed traces that carry a person's count MUST replay as tests and count within one rep of it. Release builds record nothing.
+
 ### Key Entities
 
 - **Stakes**: what a sitting has riding on it — the free Daily 25 or a staked Holdout. Decides which placements are accepted and which rule sentence is shown.
@@ -148,6 +167,7 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 
 - **SC-001**: Every honest set, head-on or at 45°, is counted within one rep of what a person watching the recording counts.
 - **SC-002**: In a staked sitting at 45°, no push-up from the knees counts across a recorded set of at least ten.
+- **SC-002a**: Head-on, no half push-up counts across a recorded set, and in the Daily 25 every full-depth push-up from the knees does.
 - **SC-003**: A phone correctly placed at 45° is recognised as 45° in at least 99% of frames while the member holds the top of a push-up.
 - **SC-004**: A member can go from opening a sitting to the countdown without reading anything on the screen after putting the phone down.
 - **SC-005**: A first-time member places the phone correctly on their first attempt in at least 8 of 10 tries with the set-up guide.
@@ -161,4 +181,4 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 - Square side-on is dropped because a body lying across a portrait frame needs the phone about two metres away; 45° needs about one and a half.
 - The device may have no text-to-speech voice; spoken corrections are best effort, shown corrections are not.
 - Head-on limitations are acceptable for the free Daily 25 and are stated there, consistent with the constitution's rule that weaknesses are documented, not hidden.
-- Out of scope: detecting knee push-ups head-on, which would need a classifier trained on the lower body and labelled recordings from several people.
+- Out of scope: detecting knee push-ups head-on, which would need a classifier trained on the lower body and labelled recordings from several people. Not needed for this feature: the Daily 25 counts knee push-ups, and staked sittings are never head-on.
