@@ -45,7 +45,7 @@ A member in a staked Holdout films every sitting at about 45°, where a push-up 
 **Acceptance Scenarios**:
 
 1. **Given** a staked sitting with the phone at about 45°, **When** the member does full push-ups from the toes, **Then** each counts.
-2. **Given** a staked sitting at 45°, **When** the member does push-ups from the knees, **Then** none counts and the screen shows "Up on your toes, knees off the floor".
+2. **Given** a staked sitting at 45°, **When** the member does push-ups from the knees, **Then** none counts and the screen shows "Knees off the floor".
 3. **Given** a staked sitting, **When** the phone is head-on or square side-on, **Then** the camera check stays red, says to turn the phone to 45°, and the sitting cannot start.
 4. **Given** a member about to stake, **When** they see the stake sheet, **Then** it states in one sentence that Holdouts are counted at 45° only, with full push-ups from the toes, and that knee push-ups do not count.
 
@@ -90,7 +90,7 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 - The side of the body nearer the camera is briefly hidden (a hand, the member's own arm): that moment is skipped, not scored from the far side.
 - Speech is unavailable on the device: corrections are still shown large; tones still play.
 - The member reopens the set-up guide after ticking "Don't show this again": it opens; the choice is not undone.
-- A Daily 25 head-on: a push-up from the knees counts. This is a stated limitation, not a defect.
+- A Daily 25, head-on or at 45°: a push-up from the knees counts. This is a product decision — the Daily 25 is a free habit for building strength — not a defect.
 
 ## Requirements *(mandatory)*
 
@@ -106,17 +106,17 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 
 **What each placement verifies**
 
-- **FR-006**: Head-on, a rep MUST meet depth, lockout and tempo, and the member's torso MUST be down in push-up position rather than upright.
-- **FR-007**: Head-on, the app MUST NOT claim to check for push-ups from the knees or sagging hips, and MUST say so where it explains how reps are counted.
-- **FR-008**: At 45°, a rep MUST meet depth, lockout, tempo, a straight body line, and straight legs on the toes.
+- **FR-006**: Head-on, a rep MUST meet depth, lockout and tempo, and the member's torso MUST be down in push-up position rather than upright. **Depth head-on is judged by how far the shoulders come down towards the hands**: at the bottom they MUST reach a quarter or less of their height above the hands at the top, as well as the elbow bending past the bottom threshold — the elbow angle alone over-reads the bend head-on, and counted three half push-ups on the phone.
+- **FR-007**: **The Daily 25 MUST count push-ups from the knees**, in either placement — a free habit a member can keep while building up to full push-ups — and MUST say so where it explains how reps are counted. Head-on, the app MUST NOT claim to check for sagging hips.
+- **FR-008**: At 45°, a rep MUST meet depth, lockout, tempo, a body not folded at the hips, and knees off the floor. Lockout at 45° is the rule's own 160°, because straight arms read 158–163° from that angle. The body line is judged on the rep's median, and only a fold below 140° is refused: honest planks read 152–167° at 45°, so the ±10° body-line rule cannot be measured there, and this is stated as a known weakness.
 - **FR-009**: At 45°, measurements MUST be taken from the side of the body nearer the camera; a moment when that side is not clearly visible MUST be skipped, not scored.
-- **FR-010**: At 45°, a rep with the knees bent below 150° MUST be discarded with the hint "Up on your toes, knees off the floor". This threshold is provisional until an honest 45° set is recorded (see Assumptions).
+- **FR-010**: **In a staked sitting** (always at 45°), a rep whose **median** knee angle is below 140° MUST be discarded with the hint "Knees off the floor", and the ready position MUST be held from the toes. The Daily 25 does not judge knees. The rule is **knees off the floor, not legs dead straight**: a leg held in the air, straight or a little bent, is allowed. The median, not the lowest reading, is judged, so a single glitching frame cannot throw out an honest rep. On the phone, honest reps read 150–172° and knees on the floor 116–137°.
 - **FR-011**: A member who starts on their knees MUST receive that hint on each attempt, not silence.
 
 **Stating the rule**
 
 - **FR-012**: Before staking, the stake sheet MUST state in one sentence that a Holdout is counted at 45° only — not in front, not straight beside — with full push-ups from the toes, and that push-ups from the knees do not count.
-- **FR-013**: The first-run tour's card on how reps are counted MUST state both placements: the Daily 25 in front or at 45°, a Holdout at 45° only and from the toes.
+- **FR-013**: The first-run tour's card on how reps are counted MUST state both placements and the knee rule: the Daily 25 in front or at 45°, knee push-ups welcome; a Holdout at 45° only and from the toes.
 - **FR-014**: The sentence stating the staked rule MUST read the same everywhere it appears.
 
 **Setting up**
@@ -155,7 +155,8 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 
 ## Assumptions
 
-- The 45° knee threshold (150°) and the 45° lockout reading are set from one angled recording of knee push-ups; an honest 45° set and a knee set, recorded with the in-app test switch for staked rules, confirm or move them before a staked cohort relies on them.
+- Thresholds are set from sittings recorded on the phone itself (debug builds record landmarks per sitting; committed ones live in `fixtures/rep-traces/` and replay as tests that must count within one rep of a person's count). On 24 September: an honest head-on set, a head-on half-rep set and an honest 45° set. A 45° set of knee push-ups recorded on the phone is still needed to confirm the 140° knee threshold, which so far rests on a desktop re-run of a screen recording.
+- Knee push-ups filmed at a flatter angle than 45° (nearer head-on) read like honest reps at the knee and are not caught; the camera check refuses head-on, but the boundary between 45° and head-on is where this weakness lives.
 - Placement is recognised from how wide the shoulders appear against the torso's length. On the two recordings that ratio stayed at or under 1.35 at 45° and never fell below 1.73 head-on, so the head-on boundary sits at 1.55; the earlier boundary of 0.9 mistook most 45° frames for head-on.
 - Square side-on is dropped because a body lying across a portrait frame needs the phone about two metres away; 45° needs about one and a half.
 - The device may have no text-to-speech voice; spoken corrections are best effort, shown corrections are not.

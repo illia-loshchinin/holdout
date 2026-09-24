@@ -307,8 +307,8 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 - **FR-021a** *(added 2026-09-23, revised 2026-09-24)* **Where the phone stands, and what is verified, depends on what is at stake.**
   | | Placements accepted | Verified |
   |---|---|---|
-  | **Daily 25** (free) | **head-on** (phone in front, head towards it) **or 45°** | depth, lockout, tempo; at 45° also the body line and straight legs. Head-on, push-ups from the knees and sagging hips are **not** detected, and the app says so |
-  | **Staked Holdout** | **45° only** — phone on the floor ahead of the shoulder, turned to the member | depth, lockout, tempo, body line, and **legs straight, on the toes**: a push-up from the knees is discarded with "Up on your toes, knees off the floor" |
+  | **Daily 25** (free) | **head-on** (phone in front, head towards it) **or 45°** | depth, lockout, tempo, torso down / no hip fold. **Push-ups from the knees count** — a free habit for building strength (decided 2026-09-24) |
+  | **Staked Holdout** | **45° only** — phone on the floor ahead of the shoulder, turned to the member | depth, lockout, tempo, a body not folded at the hips, and **knees off the floor** (a leg bent a little in the air is allowed): a push-up from the knees is discarded with "Knees off the floor" |
 
   Square side-on is accepted by neither. Angles are read **in the picture**: head-on the elbow from both arms and a torso-is-down check in place of the body line; at 45° elbow, body line and knee on the side nearer the lens, because the model guesses the hidden far side. The staked rule is stated in one sentence **before staking** — on the stake sheet beside the chips — and again by the camera check if the phone is placed anywhere else; the sentence has one source in the app (`Stakes.STAKED_RULE`), and the placements one source (`Stakes.allowedViews`).
 - **FR-022** Camera frames are processed on the device and never transmitted or stored.

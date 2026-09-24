@@ -71,6 +71,23 @@ earlier, flatter ones. The 150° threshold is provisional until S2 records an
 **honest** angled set and an honest side-on set: the question is whether real
 push-ups stay above it there.
 
+## Phone traces (`*.trace.csv`) — recorded by the app itself
+
+Debug builds write one trace per sitting (landmarks and the counter's
+decisions, never a picture — `kotlin/repcounter` `Trace.kt`);
+`scripts/pull-traces.sh` fetches them over USB. `RecordedTracesTest` replays
+every trace whose header carries `expectedReps=N` and requires the count to be
+within one of it. A trace with `expectedReps=?` is evidence, not a test.
+
+| File | Placement | What was done | Counts |
+|---|---|---|---|
+| `front-honest-02` | head-on | honest set (24 Sep) | 11 of a stated 10 |
+| `front-honest-03` | head-on | 10 honest | 10 |
+| `front-half-01` | head-on | half push-ups | 0 (was 3 before the shoulder-depth rule) |
+| `front-half-02` | head-on | 5 half push-ups | 0 |
+| `front-knees-01` | head-on | 5 push-ups from the knees, Daily 25 | 5 — **correct**: knee push-ups count in the Daily 25 (FR-021a). It also shows why staked sittings are 45° only: head-on, knee angle, knee and ankle height, hip height, torso angle and body line all overlapped the honest set; the closest signal (hip width ÷ shoulder width, 0.48–0.49 honest vs 0.50–0.53 knees) is one session's 0.01 margin |
+| `angled-honest-01` | 45° | honest set | 8 of about 9 (was 0 before the median knee rule and the 160° top) |
+
 ## What the suite must hold — 10 honest, 3 cheats, **in each placement**
 
 The spike's pass bar is the test's pass bar: every `honest` trace counted within
