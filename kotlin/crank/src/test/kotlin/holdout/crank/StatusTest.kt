@@ -129,4 +129,49 @@ class StatusTest {
         assertEquals(JsonNull, r.getValue("faucet").jsonObject.getValue("sponsor"))
         assertEquals(0, r.getValue("cohorts").jsonArray.size)
     }
+
+    // ---- run: what the cluster answered, and what it did not ----------------
+
+    /** A cluster whose clock and cohort list answer, and whose Config read is [config]. */
+    private class Cluster(private val config: String) : com.solana.networking.HttpNetworkDriver {
+        override suspend fun makeHttpRequest(request: com.solana.networking.HttpRequest): String {
+            val method = kotlinx.serialization.json.Json.parseToJsonElement(request.body ?: "{}")
+                .jsonObject
+                .getValue("method")
+                .jsonPrimitive.content
+            val result =
+                when (method) {
+                    "getSlot" -> "100"
+                    "getBlockTime" -> "1790571600"
+                    "getAccountInfo" -> return config
+                    "getProgramAccounts" -> "[]"
+                    "getBalance" -> """{"context":{"slot":1},"value":1000000}"""
+                    else -> error("unexpected $method")
+                }
+            return """{"jsonrpc":"2.0","result":$result,"id":"x"}"""
+        }
+    }
+
+    private fun runWith(config: String) = kotlinx.coroutines.runBlocking {
+        Status.run(
+            CrankConfig.from(mapOf("HOLDOUT_RPC_URL" to "http://rpc.test", "HOLDOUT_PROGRAM_ID" to "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4")),
+            holdout.core.Rpc("http://rpc.test", com.solana.networking.Rpc20Driver("http://rpc.test", Cluster(config))),
+        )
+    }
+
+    @Test
+    fun `a Config that does not exist reads as an uninitialised program`() {
+        val json = runWith("""{"jsonrpc":"2.0","result":{"context":{"slot":1},"value":null},"id":"x"}""")
+        assertEquals(JsonNull, json.getValue("config"))
+    }
+
+    @Test
+    fun `a Config read that fails is a failure, never an uninitialised program`() {
+        val e =
+            kotlin.test.assertFailsWith<CrankException> {
+                runWith("""{"jsonrpc":"2.0","error":{"code":-32005,"message":"Node is behind by 42 slots"},"id":"x"}""")
+            }
+        assertEquals(EXIT_FAILED, e.exitCode)
+        kotlin.test.assertTrue(e.message!!.contains("Node is behind"), e.message)
+    }
 }

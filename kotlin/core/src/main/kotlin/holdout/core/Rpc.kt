@@ -169,11 +169,12 @@ class Rpc(
     fun cohortUpdates(programId: SolanaPublicKey, cohort: SolanaPublicKey): Flow<CohortRead> = cohortRefreshes { cohortRead(programId, cohort) }
 
     /**
-     * An account's data, or null when it does not exist **or** the cluster
-     * could not be reached. Callers that must tell those apart read something
-     * else first (the chain time, say) to know the cluster is there.
+     * An account's data: `Ok(bytes)`, `Ok(null)` when the account does not
+     * exist, or a failure when the read itself failed. A caller that reports
+     * on the program ("not initialised") needs that distinction — a flaky
+     * node must never read as a missing account.
      */
-    suspend fun accountData(address: SolanaPublicKey): ByteArray? {
+    suspend fun account(address: SolanaPublicKey): Answer<ByteArray?> {
         val params =
             buildJsonArray {
                 add(JsonPrimitive(address.base58()))
@@ -184,10 +185,27 @@ class Rpc(
                     },
                 )
             }
-        val value = (call("getAccountInfo", params) as? JsonObject)?.get("value") ?: return null
-        if (value is JsonNull) return null
-        return runCatching { base64Data(value) }.getOrNull()
+        return when (val answer = answer("getAccountInfo", params)) {
+            is Answer.Refused -> answer
+            is Answer.Unanswered -> answer
+            is Answer.Ok -> {
+                val value = (answer.value as? JsonObject)?.get("value")
+                when {
+                    value == null -> Answer.Unanswered("getAccountInfo returned no value: ${answer.value}")
+                    value is JsonNull -> Answer.Ok(null)
+                    else ->
+                        runCatching { Answer.Ok(base64Data(value)) }
+                            .getOrElse { Answer.Unanswered("unreadable account data for $address") }
+                }
+            }
+        }
     }
+
+    /**
+     * An account's data, or null when it does not exist **or** the cluster
+     * could not be reached. Callers that must tell those apart use [account].
+     */
+    suspend fun accountData(address: SolanaPublicKey): ByteArray? = (account(address) as? Answer.Ok)?.value
 
     /** Lamports held by [address]; `0` for an account that does not exist. */
     suspend fun balance(address: SolanaPublicKey): Long? {

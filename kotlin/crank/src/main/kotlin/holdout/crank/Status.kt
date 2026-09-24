@@ -28,11 +28,17 @@ internal object Status {
         val configAddress = Pdas.config(config.programId)
         val faucetVault = Pdas.faucetVault(config.programId)
 
-        // The cluster answered the clock, so a missing Config is an
-        // uninitialised program, not a network failure.
+        // Only an answer that the account does not exist means an
+        // uninitialised program; a failed read is a failed read, even right
+        // after the clock answered.
         val snapshot =
-            rpc.accountData(configAddress)?.let {
-                runCatching { ConfigSnapshot.decode(it) }.getOrNull() ?: failed("the account at $configAddress is not a Config")
+            when (val read = rpc.account(configAddress)) {
+                is Rpc.Answer.Refused -> failed("could not read Config at $configAddress: ${read.message}")
+                is Rpc.Answer.Unanswered -> failed("could not read Config at $configAddress: ${read.message}")
+                is Rpc.Answer.Ok ->
+                    read.value?.let {
+                        runCatching { ConfigSnapshot.decode(it) }.getOrNull() ?: failed("the account at $configAddress is not a Config")
+                    }
             }
         val cohorts = rpc.cohorts(config.programId) ?: failed("could not list cohorts from ${config.rpcUrl}")
         val vaultLamports = rpc.balance(faucetVault) ?: failed("could not read the faucet vault's balance")

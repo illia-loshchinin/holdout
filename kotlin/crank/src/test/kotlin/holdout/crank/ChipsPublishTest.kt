@@ -95,6 +95,7 @@ class ChipsPublishTest {
         config: ByteArray? = configBytes(),
         configAfterSend: ByteArray? = configBytes(version = 2),
         decimals: Int = 6,
+        configFails: Boolean = false,
         send: () -> String = { ok("\"5sig\"") },
         statuses: MutableList<String> = mutableListOf("""{"err":null,"confirmationStatus":"confirmed"}"""),
         simulation: String = ok("""{"context":{"slot":1},"value":{"err":null,"logs":["Program log: Instruction: PublishChipSet"]}}"""),
@@ -104,7 +105,7 @@ class ChipsPublishTest {
             mapOf(
                 "getAccountInfo" to { body ->
                     when (body.getValue("params").jsonArray[0].jsonPrimitive.content) {
-                        configAddress.base58() -> accountInfo(configNow)
+                        configAddress.base58() -> if (configFails) refused("Node is behind by 42 slots") else accountInfo(configNow)
                         mint.base58() -> accountInfo(mintBytes(decimals))
                         else -> accountInfo(null)
                     }
@@ -198,8 +199,16 @@ class ChipsPublishTest {
     @Test
     fun `an uninitialized program is reported, not published to`() {
         val e = assertFailsWith<CrankException> { publish(cluster(config = null), "--rate", "0.0213") }
-        assertEquals(EXIT_FAILED, e.exitCode)
+        assertEquals(EXIT_CONFIG, e.exitCode)
         assertTrue(e.message!!.contains("crank init"))
+    }
+
+    @Test
+    fun `a failed Config read is a failure, not an uninitialized program`() {
+        val e = assertFailsWith<CrankException> { publish(cluster(configFails = true), "--rate", "0.0213") }
+        assertEquals(EXIT_FAILED, e.exitCode)
+        assertTrue(e.message!!.contains("Node is behind"), e.message)
+        assertTrue(!e.message!!.contains("crank init"), "the program may well be initialized")
     }
 
     @Test

@@ -14,7 +14,7 @@ use crate::math::schedule::BOUNDARY_OFFSET;
 use crate::state::config::{Config, CONFIG_SEED};
 use crate::state::league::{
     LeagueConfig, DEVNET_CADENCE, DEVNET_DAY_LENGTH, DEVNET_JOIN_LOCK, DEVNET_REPS_PER_DAY,
-    EXERCISE_PUSHUP, LEAGUE_SEED,
+    EXERCISE_PUSHUP, LEAGUE_21D, LEAGUE_7D, LEAGUE_SEED,
 };
 
 /// The two Holdout lengths a real league may have (data-model §1.2, FR-002).
@@ -86,6 +86,13 @@ pub fn check_league(
         return Ok(());
     }
 
+    // Only the two real leagues exist below 100. Any other id would share
+    // `Profile`'s test slot (`slot_of`) and mix judged progress into it.
+    require!(
+        league_id == LEAGUE_7D || league_id == LEAGUE_21D,
+        HoldoutError::InvalidLeagueTiming
+    );
+
     // A league can never be changed once created, so a real one is held to
     // the whole devnet shape: 7 or 21 days of 25 reps, on the devnet timing.
     require!(
@@ -141,7 +148,7 @@ pub fn handle_create_league(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::league::{LEAGUE_21D, LEAGUE_7D, TEST_LEAGUE_MIN};
+    use crate::state::league::TEST_LEAGUE_MIN;
 
     /// Monday 28 September 2026, 05:00:00 UTC — the first judged cohort start.
     const FIRST_START: i64 = 1_790_571_600;
@@ -260,6 +267,23 @@ mod tests {
                 ),
                 HoldoutError::InvalidLeagueTiming
             ));
+        }
+    }
+
+    #[test]
+    fn below_one_hundred_only_the_two_real_leagues_exist() {
+        for build in [false, true] {
+            assert!(real(LEAGUE_7D, FIRST_START, build).is_ok());
+            assert!(real(LEAGUE_21D, FIRST_START, build).is_ok());
+            for league_id in [2, 3, 50, TEST_LEAGUE_MIN - 1] {
+                assert!(
+                    is(
+                        real(league_id, FIRST_START, build),
+                        HoldoutError::InvalidLeagueTiming
+                    ),
+                    "league {league_id} would share the test slot"
+                );
+            }
         }
     }
 

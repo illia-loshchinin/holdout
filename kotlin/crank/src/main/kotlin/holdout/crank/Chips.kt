@@ -141,9 +141,14 @@ object Chips {
 
         val configAddress = Pdas.config(config.programId)
         val onChain =
-            rpc.accountData(configAddress)?.let {
-                runCatching { ConfigSnapshot.decode(it) }.getOrNull() ?: configError("the account at $configAddress is not a Config")
-            } ?: failed("could not read Config at $configAddress from ${config.rpcUrl}; is the program initialized (crank init)?")
+            when (val read = rpc.account(configAddress)) {
+                is Rpc.Answer.Refused -> failed("could not read Config at $configAddress: ${read.message}")
+                is Rpc.Answer.Unanswered -> failed("could not read Config at $configAddress: ${read.message}")
+                is Rpc.Answer.Ok ->
+                    read.value?.let {
+                        runCatching { ConfigSnapshot.decode(it) }.getOrNull() ?: configError("the account at $configAddress is not a Config")
+                    } ?: configError("there is no Config at $configAddress; the program is not initialized (crank init)")
+            }
         if (onChain.operator != operator.publicKey) {
             configError("HOLDOUT_OPERATOR_KEYPAIR is ${operator.publicKey}, but Config.operator is ${onChain.operator}; only the Operator may publish (6001)")
         }

@@ -311,6 +311,14 @@ describe('create_league (data-model §1.2, H30)', () => {
       expect(await readLeague(0)).toBeNull();
     });
 
+    it.each([2, 50, 99])(
+      'rejects league %i: below 100 only leagues 0 and 1 exist, and any other id would share the test slot',
+      async (leagueId) => {
+        expectProgramError(await create({ leagueId }), 'InvalidLeagueTiming');
+        expect(await readLeague(leagueId)).toBeNull();
+      },
+    );
+
     it('accepts any Monday at 05:00 UTC as the first start', async () => {
       await h.sendOrThrow([await createLeagueIx(admin.address, { ...REAL_LEAGUE, firstStart: FIRST_START + 2 * WEEK })], admin);
       expect((await readLeague(0))?.firstStart).toBe(BigInt(FIRST_START + 2 * WEEK));

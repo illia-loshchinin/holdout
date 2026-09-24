@@ -274,4 +274,19 @@ class RpcTest {
         kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> { runBlocking { rpc.accountData(programId) } }
         kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> { runBlocking { rpc.send(byteArrayOf(1)) } }
     }
+
+    @Test
+    fun `an account read tells a missing account from a failed read`() = runBlocking {
+        val missing = FakeHttp { ok("""{"context":{"slot":1},"value":null}""") }
+        assertEquals(Rpc.Answer.Ok(null), rpcWith(missing).account(programId))
+        assertNull(rpcWith(missing).accountData(programId))
+
+        val down = FakeHttp { refused("Node is behind") }
+        assertTrue(rpcWith(down).account(programId) is Rpc.Answer.Refused, "a failed read is not a missing account")
+        assertNull(rpcWith(down).accountData(programId))
+
+        val bytes = byteArrayOf(1, 2, 3)
+        val found = FakeHttp { ok("""{"context":{"slot":1},"value":{"data":["${Base64.getEncoder().encodeToString(bytes)}","base64"]}}""") }
+        assertContentEquals(bytes, (rpcWith(found).account(programId) as Rpc.Answer.Ok).value)
+    }
 }
