@@ -75,6 +75,10 @@ On-chain and technical names — `Cohort`, `LeagueConfig`, cohort index — are 
 
 ---
 
+### Session 2026-09-23
+
+- Q: Where may the phone stand, now that the pose model cannot tell a push-up from the toes from one on the knees head-on? (FR-019, FR-021a) → A: **Two placements, head-on and 45°; square side-on is dropped.** The **Daily 25 accepts head-on or 45°**; a **staked Holdout accepts 45° only**. Evidence from two Seeker recordings: head-on, knees bent on the floor read 146–164° against an honest plank's 156° and no landmark signal separated them, so head-on verifies depth, lockout and tempo but not knees or sagging hips — acceptable for a free habit and said so, not when money is at stake. At 45° the plane the body bends in is turned towards the lens: read in the picture on the side nearer the camera, knee push-ups bottomed out at 74–102° at the knee. Square side-on was dropped because a body lying across a portrait frame needs the phone ~2 m away; 45° needs about 1.5 m. *(Revised in-session the same day: first staked = side-on only, then side-on or 45°, then this.)* The 45° knee threshold (150°) stays provisional until S2 records an honest 45° set.
+
 ## 2. In scope
 
 | | |
@@ -183,7 +187,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 **Given** a member is joining a cohort of either league (both are open in this build — FR-003)
 **When** they choose their stake
-**Then** they choose one of the four chips — labelled by its USD tier ($10 / $25 / $50 / $100) and showing the exact SKR amount locked for this cohort, with the USD value marked approximate — and see the daily obligation, the time until joining closes and until the start, the duration, and the cohort's current prize pool including any carry-over already in it, and the plain statement that **if nobody drops out they get exactly their stake back** — plus their share of any carry-over, which is shown as a separate figure.
+**Then** they choose one of the four chips — labelled by its USD tier ($10 / $25 / $50 / $100) and showing the exact SKR amount locked for this cohort, with the USD value marked approximate — and see the rule that a Holdout is counted **at 45° only — not in front, not straight beside — with full push-ups from the toes; knee push-ups do not count** (FR-021a), the daily obligation, the time until joining closes and until the start, the duration, and the cohort's current prize pool including any carry-over already in it, and the plain statement that **if nobody drops out they get exactly their stake back** — plus their share of any carry-over, which is shown as a separate figure.
 
 ### US-7 · Watching the crowd thin
 
@@ -297,9 +301,16 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 ### Session verification
 
-- **FR-019** *(amended 2026-09-23)* A sitting cannot begin until all four environment checks pass; each failure states what to fix. No environment check uses audio. The checks run again at the start of **every** sitting, not only the day's first. The fourth check asks **whether the camera can see enough of the member to measure them**, not whether it is placed to one side: the phone may stand in front of them or beside them, the app names which it is, and only a view it cannot classify at all is refused. Alongside the checks the screen shows **where to lie** — the floor, found from the phone's own tilt, and an outline shaped for the placement in use, with one correction at a time. The outline disappears once the member is in position and does not return.
+- **FR-019** *(amended 2026-09-23)* A sitting cannot begin until all four environment checks pass; each failure states what to fix. No environment check uses audio. The checks run again at the start of **every** sitting, not only the day's first. The fourth check asks **whether the camera can see enough of the member to measure them**, not whether it is placed to one side: the phone may stand in front of them or beside them, the app names which it is, and only a view it cannot classify at all is refused. Alongside the checks the screen shows **where to lie** — the floor, found from the phone's own tilt, and an outline shaped for the placement in use, with one correction at a time. The outline disappears once the member is in position and does not return. **The fourth check accepts only the placements the stakes allow (FR-021a)** — head-on or 45° for the Daily 25, 45° only for a staked Holdout, square side-on for neither — and its failure says where the phone goes. The view is classified from shoulder span against torso length in the picture; the head-on cut-off is 1.55, set from recordings in which 45° never exceeded 1.35 and head-on never fell below 1.73.
 - **FR-020** *(amended 2026-09-22 — was palm liveness; see OD-3)* Every sitting begins once the environment checks pass **and** the member is holding the start position: the top of a push-up, arms extended and body straight, held about a second. Nothing is tapped, because by then the member is face-down on the floor. A spoken three-second countdown follows and counting begins. The member may cancel at any moment, and leaving the position before the countdown ends simply returns to the checks; nothing here ever touches banked reps. **This is a readiness check, not a liveness check** — it confirms a body in push-up position, not a live person and not the same person who set the phone up. What that costs is named in OD-3 and in the README.
 - **FR-021** A rep counts only if it meets the form and timing rules, which are visual only; non-conforming reps are discarded with a hint rather than an error.
+- **FR-021a** *(added 2026-09-23, revised 2026-09-24)* **Where the phone stands, and what is verified, depends on what is at stake.**
+  | | Placements accepted | Verified |
+  |---|---|---|
+  | **Daily 25** (free) | **head-on** (phone in front, head towards it) **or 45°** | depth, lockout, tempo; at 45° also the body line and straight legs. Head-on, push-ups from the knees and sagging hips are **not** detected, and the app says so |
+  | **Staked Holdout** | **45° only** — phone on the floor ahead of the shoulder, turned to the member | depth, lockout, tempo, body line, and **legs straight, on the toes**: a push-up from the knees is discarded with "Up on your toes, knees off the floor" |
+
+  Square side-on is accepted by neither. Angles are read **in the picture**: head-on the elbow from both arms and a torso-is-down check in place of the body line; at 45° elbow, body line and knee on the side nearer the lens, because the model guesses the hidden far side. The staked rule is stated in one sentence **before staking** — on the stake sheet beside the chips — and again by the camera check if the phone is placed anywhere else; the sentence has one source in the app (`Stakes.STAKED_RULE`), and the placements one source (`Stakes.allowedViews`).
 - **FR-022** Camera frames are processed on the device and never transmitted or stored.
 - **FR-022a** The app never requests microphone access. The absence of an audio anti-spoofing filter is named in the README as a known weakness, with its real fix beside it (constitution XI).
 - **FR-023** Banked progress survives an app crash or restart.
@@ -347,7 +358,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 - **FR-051** The streak is cosmetic and personal. It unlocks nothing, gates nothing, appears on no leaderboard, and nothing is ever paid against it — which is why it needs no on-chain record and no economic anti-cheat.
 - **FR-052** A forfeit does not break the streak. Losing a stake and losing a habit are different failures and the app must not conflate them.
 - **FR-053** With no Holdout running, the Daily 25 is the home screen's primary action, and the Holdouts open to join are listed under it — each showing how many have joined, **what is at stake in it**, any carry-over it has already received, and how long joining stays open. The app is never empty and never says "come back Monday".
-- **FR-067** A member who has just connected a wallet for the first time is shown a **three-card tour**: the Daily 25, what a Holdout is (stake, miss a day and it goes to the people still standing, finish and share), and how reps are counted (camera on the device, blocks of 10). It can be skipped at any card and re-opened later from the app. A short explainer video joins the tour once it exists; until then the cards carry it alone, and no mock-up footage is ever used (FR-044).
+- **FR-067** A member who has just connected a wallet for the first time is shown a **three-card tour**: the Daily 25, what a Holdout is (stake, miss a day and it goes to the people still standing, finish and share), and how reps are counted (camera on the device, blocks of 10; the Daily 25 with the phone in front of you or at 45°, a Holdout at 45° only and from the toes — FR-021a). It can be skipped at any card and re-opened later from the app. A short explainer video joins the tour once it exists; until then the cards carry it alone, and no mock-up footage is ever used (FR-044).
 
 ### Leaderboards
 

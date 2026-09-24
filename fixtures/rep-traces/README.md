@@ -45,6 +45,32 @@ the first frame of the sitting.
 | `bodyLine` | shoulder–hip–ankle. 180° is straight; the rule allows ±10° |
 | `presence` | the model's landmark presence score. Frames below the threshold are **dropped, not scored** (T048) — keep them in the trace so the test can prove they are dropped |
 
+## `front-honest-01.csv` — the first head-on recording
+
+Two honest push-ups with the phone on the floor in front of the member, re-run
+through `pose_landmarker_full.task` from a screen recording. Unlike
+`s2-angles.json` it keeps **raw landmarks** (world and image, for the ten joints
+the rule reads), because head-on the angle itself is what had to change: the
+world elbow never read above ~163° or much below 90° here, while the picture
+read 175–179° and ~40°. `FrontViewTest` replays it and must count 2; read the
+old way it counts 0. The header gives the picture size and the column order.
+
+## What the head-on recordings showed about knees
+
+A second recording (`phone_screens/screen-20260923-25-reps.mp4`, not kept here)
+did knee push-ups at an angle and head-on, and knees-down rocks with the hips
+pushed back. Every landmark signal tried — the knee angle in 3D and in the
+picture, the knees' height above the hands, how far the hips drop against the
+shoulders — overlapped with the honest set. That is why staked sittings are
+at 45° only, while the Daily 25 keeps head-on as well (FR-021a, `Stakes`). The same recordings set the view cut-off: shoulder span against torso length stayed at or under 1.35 at 45° (95th percentile) and never fell below 1.73 head-on (5th), so the cut-off is 1.55 — the old 0.9 called most 45° frames head-on.
+
+At about 45° the picture does show the knee — on the **near** leg; the model
+places the far leg badly. Near-leg knee minimum per knee push-up on that
+recording: 74°, 89°, 102°, 93° in the clearest reps, 142° and 98° in the
+earlier, flatter ones. The 150° threshold is provisional until S2 records an
+**honest** angled set and an honest side-on set: the question is whether real
+push-ups stay above it there.
+
 ## What the suite must hold — 10 honest, 3 cheats, **in each placement**
 
 The spike's pass bar is the test's pass bar: every `honest` trace counted within
