@@ -35,18 +35,21 @@ export function getOpenCohortInstructionDataCodec(): FixedSizeCodec<OpenCohortIn
 }
 
 export type OpenCohortAsyncInput<TAccountPayer extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountLeague extends InstructionAccountInput = InstructionAccountInput, TAccountCohort extends InstructionAccountInput = InstructionAccountInput, TAccountVault extends InstructionAccountInput = InstructionAccountInput, TAccountPreviousCohort extends InstructionAccountInput = InstructionAccountInput, TAccountSkrMint extends InstructionAccountInput = InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput = InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput = InstructionAccountInput> =  {
-  payer: TAccountPayer;
+  /** Anyone. Pays the cohort's and the vault's rent, and gets nothing for it. */
+payer: TAccountPayer;
 config?: TAccountConfig;
 league: TAccountLeague;
 cohort: TAccountCohort;
 /**
- * The cohort's own SKR account; the cohort PDA is its authority, so only
- * this program's instructions can move what it holds (constitution I).
+ * The cohort's own SKR vault: stakes, the pool and any carry-over, held
+ * under the cohort's authority so no key outside the program can move them
+ * (constitution I).
  */
 vault?: TAccountVault;
 /**
- * Cohort `index − 1` of this league; absent (the program's ID in its slot)
- * for index 0.
+ * The league's cohort `index - 1`, required for every index but 0. Anchor's
+ * convention for "none" is the program's own ID in the slot, which is what
+ * index 0 sends.
  */
 previousCohort?: TAccountPreviousCohort;
 skrMint: TAccountSkrMint;
@@ -90,18 +93,21 @@ return Object.freeze({ accounts: [getAccountMeta("payer", accounts.payer), getAc
 }
 
 export type OpenCohortInput<TAccountPayer extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountLeague extends InstructionAccountInput = InstructionAccountInput, TAccountCohort extends InstructionAccountInput = InstructionAccountInput, TAccountVault extends InstructionAccountInput = InstructionAccountInput, TAccountPreviousCohort extends InstructionAccountInput = InstructionAccountInput, TAccountSkrMint extends InstructionAccountInput = InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput = InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput = InstructionAccountInput> =  {
-  payer: TAccountPayer;
+  /** Anyone. Pays the cohort's and the vault's rent, and gets nothing for it. */
+payer: TAccountPayer;
 config: TAccountConfig;
 league: TAccountLeague;
 cohort: TAccountCohort;
 /**
- * The cohort's own SKR account; the cohort PDA is its authority, so only
- * this program's instructions can move what it holds (constitution I).
+ * The cohort's own SKR vault: stakes, the pool and any carry-over, held
+ * under the cohort's authority so no key outside the program can move them
+ * (constitution I).
  */
 vault: TAccountVault;
 /**
- * Cohort `index − 1` of this league; absent (the program's ID in its slot)
- * for index 0.
+ * The league's cohort `index - 1`, required for every index but 0. Anchor's
+ * convention for "none" is the program's own ID in the slot, which is what
+ * index 0 sends.
  */
 previousCohort?: TAccountPreviousCohort;
 skrMint: TAccountSkrMint;
@@ -140,18 +146,21 @@ return Object.freeze({ accounts: [getAccountMeta("payer", accounts.payer), getAc
 
 export type ParsedOpenCohortInstruction<TProgram extends string = typeof HOLDOUT_PROGRAM_ADDRESS, TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]> = { programAddress: Address<TProgram>;
 accounts: {
+/** Anyone. Pays the cohort's and the vault's rent, and gets nothing for it. */
 payer: TAccountMetas[0];
 config: TAccountMetas[1];
 league: TAccountMetas[2];
 cohort: TAccountMetas[3];
 /**
- * The cohort's own SKR account; the cohort PDA is its authority, so only
- * this program's instructions can move what it holds (constitution I).
+ * The cohort's own SKR vault: stakes, the pool and any carry-over, held
+ * under the cohort's authority so no key outside the program can move them
+ * (constitution I).
  */
 vault: TAccountMetas[4];
 /**
- * Cohort `index − 1` of this league; absent (the program's ID in its slot)
- * for index 0.
+ * The league's cohort `index - 1`, required for every index but 0. Anchor's
+ * convention for "none" is the program's own ID in the slot, which is what
+ * index 0 sends.
  */
 previousCohort?: TAccountMetas[5] | undefined;
 skrMint: TAccountMetas[6];

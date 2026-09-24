@@ -163,8 +163,15 @@ export const deriveStreak = (
   wallet: Address,
   leagueId: number,
 ): { cleared: number; currentStreak: number; longestStreak: number; lastChanged: number } => {
+  // Counted memberships, plus forfeited ones that automation has recorded but
+  // not yet counted: `forfeited` and `last_changed` move the moment a forfeit
+  // is recorded (FR-060a, data-model §1.5), while the streak figures are
+  // written only by `settle_count`. Filtering the history on `counted` alone
+  // would derive a `last_changed` of 0 for a member whose forfeit is recorded
+  // and whose cohort has not been counted yet — a window every paged crank
+  // run passes through.
   const history = memberships
-    .filter((m) => m.wallet === wallet && m.counted)
+    .filter((m) => m.wallet === wallet && (m.counted || m.state === 'Forfeited'))
     .map((m) => ({ m, c: cohorts.get(m.cohort) }))
     .filter((x): x is { m: MembershipSnapshot; c: CohortSnapshot } => x.c !== undefined)
     .filter((x) => x.c.leagueId === leagueId)
@@ -185,7 +192,10 @@ export const deriveStreak = (
       longestStreak = Math.max(longestStreak, currentStreak);
       lastChanged = Math.max(lastChanged, cohortEnd(c));
     } else if (m.state === 'Forfeited') {
-      currentStreak = 0;
+      // The outcome instant lands when the forfeit is recorded; the streak
+      // only breaks once the cohort counts it, because `settle_count` is the
+      // one place that writes streaks (INV-9).
+      if (m.counted) currentStreak = 0;
       lastChanged = Math.max(lastChanged, deadlineOf(c, m.daysCompleted));
     }
   }
@@ -760,7 +770,20 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
     }
 
     for (const [wallet, expected] of owed) {
-      const paid = (next.walletBalances[wallet] ?? 0n) - (prev.walletBalances[wallet] ?? 0n);
+      // A wallet enters `walletBalances` when it first has a `Profile`, so on a
+      // member's very first join it goes from untracked to tracked in one step
+      // and its prior balance is *unknown*, not nil — the same distinction the
+      // snapshot draws for a mint that is not configured yet. Reading the
+      // absence as a zero would report every SKR the member already held as an
+      // unexplained gain, which is the normal case: R13 has them claim the
+      // faucet before they can stake at all. Nothing is checkable for that one
+      // step, so it is skipped by name rather than papered over with a zero;
+      // every later step for the same wallet is checked in full, and that is
+      // where a payout or a fee sent to the wrong token account would show.
+      const before = prev.walletBalances[wallet];
+      if (before === undefined) continue;
+
+      const paid = (next.walletBalances[wallet] ?? 0n) - before;
       if (paid !== expected) {
         fail(
           'INV-2',

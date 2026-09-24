@@ -8,7 +8,454 @@
   },
   "instructions": [
     {
+      "name": "claim_faucet",
+      "docs": [
+        "The zero-SOL wallet's first transaction: no member signature, the",
+        "sponsor pays, and the vault reimburses it (research R13)."
+      ],
+      "discriminator": [
+        80,
+        7,
+        251,
+        108,
+        55,
+        145,
+        135,
+        68
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "docs": [
+            "`Config.sponsor` or the recipient itself — nobody else (6002)."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient",
+          "docs": [
+            "point — a wallet with no SOL could not sign for itself anyway. The",
+            "handler checks it against the `recipient` argument; the constraint",
+            "cannot, because the account of that name shadows the argument here."
+          ],
+          "writable": true
+        },
+        {
+          "name": "profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "recipient"
+              }
+            ]
+          }
+        },
+        {
+          "name": "skr_mint",
+          "writable": true
+        },
+        {
+          "name": "mint_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient_token",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "recipient"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "skr_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "faucet_vault",
+          "docs": [
+            "through a System transfer this program signs for with its seeds."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  97,
+                  117,
+                  99,
+                  101,
+                  116,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sponsor",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "recipient",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "claim_payout",
+      "docs": [
+        "A deliberate member action, claimable indefinitely (FR-034, FR-035)."
+      ],
+      "discriminator": [
+        127,
+        240,
+        132,
+        62,
+        227,
+        198,
+        146,
+        133
+      ],
+      "accounts": [
+        {
+          "name": "member",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "cohort",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cohort"
+              }
+            ]
+          }
+        },
+        {
+          "name": "membership",
+          "docs": [
+            "The seeds carry the member's own key, so a signer can only ever claim",
+            "their own payout."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cohort"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "member_token",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "member"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.skr_mint",
+                "account": "Config"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "create_league",
+      "docs": [
+        "Admin only. A real league keeps the devnet timing; a test league needs a",
+        "`test-leagues` build (H30, research R11)."
+      ],
       "discriminator": [
         129,
         229,
@@ -23,10 +470,7 @@
         {
           "name": "admin",
           "writable": true,
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "signer": true
         },
         {
           "name": "config",
@@ -92,6 +536,9 @@
     },
     {
       "name": "initialize",
+      "docs": [
+        "Once, by the program's current upgrade authority (research R14)."
+      ],
       "discriminator": [
         175,
         175,
@@ -106,10 +553,8 @@
         {
           "name": "admin",
           "docs": [
-            "`None` (an immutable program) matches no signer at all. Anchor runs",
-            "this after its `init` accounts are created, but a refusal fails the",
-            "whole transaction, so nothing a refused `initialize` created survives —",
-            "the scenario checks each account is still absent."
+            "The program's current upgrade authority. Pays for everything below and",
+            "becomes `Config.admin`."
           ],
           "writable": true,
           "signer": true
@@ -136,19 +581,25 @@
         {
           "name": "program",
           "docs": [
-            "This program, so its `ProgramData` address can be read rather than",
-            "trusted: any other program's `ProgramData`, where a stranger might well",
-            "be the authority, fails here."
+            "This program. `programdata_address()` is `None` unless the upgradeable",
+            "loader owns it, so this constraint also rules out a program deployed",
+            "under a loader that has no authority to check."
           ],
           "address": "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4"
         },
         {
-          "name": "program_data"
+          "name": "program_data",
+          "docs": [
+            "The loader's record of who may upgrade this program. `None` means the",
+            "program is immutable and nobody holds the authority, which refuses",
+            "everyone — including the deployer (research R14)."
+          ]
         },
         {
           "name": "skr_mint",
           "docs": [
-            "The mock SKR mint, a fresh keypair. Only the faucet can mint (FR-042)."
+            "The mock SKR mint: a fresh keypair, since §6 gives it no seed. Its",
+            "authority is the program's PDA, so only `claim_faucet` ever mints."
           ],
           "writable": true,
           "signer": true
@@ -185,7 +636,8 @@
         {
           "name": "fee_destination",
           "docs": [
-            "The treasury's own SKR account, so fees reach the treasury (R14)."
+            "Forfeit fees, the no-finisher half and rounding remainders land here, in",
+            "the treasury's own associated token account — the program never holds them."
           ],
           "writable": true,
           "pda": {
@@ -195,8 +647,41 @@
                 "path": "treasury_wallet"
               },
               {
-                "kind": "account",
-                "path": "token_program"
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
               },
               {
                 "kind": "account",
@@ -245,8 +730,8 @@
         {
           "name": "faucet_vault",
           "docs": [
-            "A system-owned PDA holding lamports only. The Operator fills it with an",
-            "ordinary transfer; the program spends it by signing with its seeds."
+            "rent-exempt; the Operator tops it up with an ordinary transfer, and only",
+            "the faucet instructions move lamports out of it (research R13)."
           ],
           "writable": true,
           "pda": {
@@ -312,7 +797,473 @@
       ]
     },
     {
+      "name": "join_cohort",
+      "docs": [
+        "A member picks a tier, never an amount (AC-13, FR-055)."
+      ],
+      "discriminator": [
+        101,
+        23,
+        98,
+        65,
+        106,
+        131,
+        213,
+        218
+      ],
+      "accounts": [
+        {
+          "name": "member",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "cohort",
+          "docs": [
+            "Verified by ownership and discriminator, not by seeds: only `open_cohort`",
+            "ever creates one of these, and the vault and membership below are derived",
+            "from **this** account's address, so a different cohort in the slot is",
+            "simply a join into that cohort."
+          ],
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cohort"
+              }
+            ]
+          }
+        },
+        {
+          "name": "membership",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cohort"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "profile",
+          "docs": [
+            "Created on a member's very first join, and reused ever after."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "member_token",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "member"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "skr_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "running_cohort",
+          "docs": [
+            "The cohort in `profile.running`, required whenever that slot is set.",
+            "Anchor's \"none\" is the program's own ID in the slot."
+          ],
+          "optional": true
+        },
+        {
+          "name": "skr_mint"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "tier",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "leave_cohort",
+      "docs": [
+        "Unconditional and lossless while joining is open (FR-009)."
+      ],
+      "discriminator": [
+        201,
+        47,
+        89,
+        75,
+        43,
+        181,
+        191,
+        163
+      ],
+      "accounts": [
+        {
+          "name": "member",
+          "docs": [
+            "Receives the refund and the membership's rent."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "cohort",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cohort"
+              }
+            ]
+          }
+        },
+        {
+          "name": "membership",
+          "docs": [
+            "Closed by this instruction. The seeds carry the member's own key, so a",
+            "signer can only ever reach their own membership."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cohort"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "member_token",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "member"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.skr_mint",
+                "account": "Config"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "open_cohort",
+      "docs": [
+        "Permissionless: the caller pays the rent and nothing else (FR-030a)."
+      ],
       "discriminator": [
         223,
         84,
@@ -326,6 +1277,9 @@
       "accounts": [
         {
           "name": "payer",
+          "docs": [
+            "Anyone. Pays the cohort's and the vault's rent, and gets nothing for it."
+          ],
           "writable": true,
           "signer": true
         },
@@ -358,8 +1312,9 @@
         {
           "name": "vault",
           "docs": [
-            "The cohort's own SKR account; the cohort PDA is its authority, so only",
-            "this program's instructions can move what it holds (constitution I)."
+            "The cohort's own SKR vault: stakes, the pool and any carry-over, held",
+            "under the cohort's authority so no key outside the program can move them",
+            "(constitution I)."
           ],
           "writable": true,
           "pda": {
@@ -384,8 +1339,9 @@
         {
           "name": "previous_cohort",
           "docs": [
-            "Cohort `index − 1` of this league; absent (the program's ID in its slot)",
-            "for index 0."
+            "The league's cohort `index - 1`, required for every index but 0. Anchor's",
+            "convention for \"none\" is the program's own ID in the slot, which is what",
+            "index 0 sends."
           ],
           "optional": true
         },
@@ -414,6 +1370,9 @@
     },
     {
       "name": "publish_chip_set",
+      "docs": [
+        "Operator only. Four SKR amounts, never a price (constitution III)."
+      ],
       "discriminator": [
         104,
         155,
@@ -427,10 +1386,7 @@
       "accounts": [
         {
           "name": "operator",
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "signer": true
         },
         {
           "name": "config",
@@ -465,7 +1421,89 @@
       ]
     },
     {
+      "name": "record_forfeits",
+      "docs": [
+        "Permissionless, paged and repeatable (AC-5, INV-7, research R9)."
+      ],
+      "discriminator": [
+        16,
+        114,
+        97,
+        167,
+        117,
+        84,
+        108,
+        176
+      ],
+      "accounts": [
+        {
+          "name": "caller",
+          "docs": [
+            "Anyone. Pays the fee, and the result does not depend on who they are."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "cohort",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cohort"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_destination",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "set_flags",
+      "docs": [
+        "Admin only. The two gates this build ships off (FR-003, research R17)."
+      ],
       "discriminator": [
         199,
         54,
@@ -479,10 +1517,7 @@
       "accounts": [
         {
           "name": "admin",
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "signer": true
         },
         {
           "name": "config",
@@ -514,6 +1549,372 @@
           "type": "bool"
         }
       ]
+    },
+    {
+      "name": "settle_count",
+      "docs": [
+        "Paged, repeatable, and the only step that writes a streak (FR-061a)."
+      ],
+      "discriminator": [
+        27,
+        77,
+        241,
+        123,
+        147,
+        253,
+        167,
+        103
+      ],
+      "accounts": [
+        {
+          "name": "caller",
+          "docs": [
+            "Anyone. The caller's identity never changes the outcome (FR-030a)."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "league"
+        },
+        {
+          "name": "cohort",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cohort"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_destination",
+          "writable": true
+        },
+        {
+          "name": "previous_cohort",
+          "docs": [
+            "The league's cohort `index - 1`, required for every index but 0."
+          ],
+          "optional": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "settle_finalize",
+      "docs": [
+        "Once. Constant-time per-tier shares; the carry-over's destination is",
+        "fixed by chain state, never by the caller (FR-030a, FR-037a)."
+      ],
+      "discriminator": [
+        182,
+        99,
+        99,
+        200,
+        60,
+        41,
+        120,
+        61
+      ],
+      "accounts": [
+        {
+          "name": "caller",
+          "docs": [
+            "Anyone. The caller's identity never changes the outcome (FR-030a)."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "league"
+        },
+        {
+          "name": "cohort",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cohort"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_destination",
+          "writable": true
+        },
+        {
+          "name": "target_cohort",
+          "docs": [
+            "The league's cohort `next_index - 1`. Required when nobody finished."
+          ],
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "target_vault",
+          "docs": [
+            "That cohort's vault."
+          ],
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "submit_day",
+      "docs": [
+        "One completed day; the proof is emitted, never stored (research R16)."
+      ],
+      "discriminator": [
+        72,
+        224,
+        17,
+        130,
+        158,
+        107,
+        140,
+        136
+      ],
+      "accounts": [
+        {
+          "name": "member",
+          "docs": [
+            "Pays the fee, and nothing else leaves their wallet."
+          ],
+          "signer": true
+        },
+        {
+          "name": "cohort"
+        },
+        {
+          "name": "membership",
+          "docs": [
+            "The seeds carry the member's own key, so a signer can only ever move",
+            "their own count."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cohort"
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "member"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "day_index",
+          "type": "u8"
+        },
+        {
+          "name": "proof_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "top_up_sponsor",
+      "docs": [
+        "Permissionless, no sponsor signature: a drained sponsor never outlasts",
+        "one crank pass (FR-042b)."
+      ],
+      "discriminator": [
+        104,
+        33,
+        35,
+        87,
+        200,
+        15,
+        194,
+        190
+      ],
+      "accounts": [
+        {
+          "name": "caller",
+          "docs": [
+            "Anyone. Pays the fee and gets nothing for it."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "faucet_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  97,
+                  117,
+                  99,
+                  101,
+                  116,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sponsor",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -554,6 +1955,32 @@
         106,
         33,
         40
+      ]
+    },
+    {
+      "name": "Membership",
+      "discriminator": [
+        231,
+        141,
+        180,
+        98,
+        109,
+        168,
+        175,
+        166
+      ]
+    },
+    {
+      "name": "Profile",
+      "discriminator": [
+        184,
+        101,
+        165,
+        188,
+        95,
+        63,
+        127,
+        188
       ]
     }
   ],
@@ -1566,6 +2993,45 @@
       }
     },
     {
+      "name": "LeagueProgress",
+      "docs": [
+        "One league's record. `cleared` and `forfeited` are plain counters, so the",
+        "order automation runs in cannot change them; the two streak figures are",
+        "written only by `settle_count`, in cohort order (FR-061a, INV-9)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cleared",
+            "type": "u16"
+          },
+          {
+            "name": "forfeited",
+            "type": "u16"
+          },
+          {
+            "name": "current_streak",
+            "type": "u16"
+          },
+          {
+            "name": "longest_streak",
+            "type": "u16"
+          },
+          {
+            "name": "last_changed",
+            "docs": [
+              "The instant of the member's most recent outcome — a cohort's `end` for a",
+              "clear, the missed deadline for a forfeit — and never the time the",
+              "transaction landed, so no caller's timing can reorder two members tied on",
+              "a leaderboard (FR-060b). Written through [`LeagueProgress::touch`]."
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
       "name": "MemberCounted",
       "type": {
         "kind": "struct",
@@ -1630,6 +3096,92 @@
       }
     },
     {
+      "name": "Membership",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cohort",
+            "type": "pubkey"
+          },
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "tier",
+            "docs": [
+              "0..=3."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "stake",
+            "docs": [
+              "`cohort.chips[tier]` at join, never changed afterwards (FR-058)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "joined_at",
+            "type": "i64"
+          },
+          {
+            "name": "days_completed",
+            "docs": [
+              "+1 per accepted `submit_day`; never above `cohort.max_days_completed(now)`",
+              "(INV-3)."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "state",
+            "type": {
+              "defined": {
+                "name": "MembershipState"
+              }
+            }
+          },
+          {
+            "name": "counted",
+            "docs": [
+              "Set once by `settle_count`, which makes paging order-independent (R9)."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MembershipState",
+      "docs": [
+        "`Withdrawn` is not here: leaving the lobby closes the account and returns its",
+        "rent. `Pending` and `Active` are derived from the cohort's status while the",
+        "state is `Joined` (spec §8.2)."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Joined"
+          },
+          {
+            "name": "Forfeited"
+          },
+          {
+            "name": "Finished"
+          },
+          {
+            "name": "Claimed"
+          }
+        ]
+      }
+    },
+    {
       "name": "PayoutClaimed",
       "type": {
         "kind": "struct",
@@ -1645,6 +3197,114 @@
           {
             "name": "amount",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PendingSlot",
+      "docs": [
+        "A lobby place in a cohort that has not started. Default = none (FR-006a).",
+        "",
+        "`end` is the cohort's own end, copied in as the place is taken. It is dead",
+        "weight until the place is promoted, and then it is the whole point: the",
+        "running slot's `end` is what stops a second obligation overlapping this one",
+        "(FR-006b, INV-4), and the cohort account is not passed to every instruction",
+        "that normalises the slots, so the end has to travel with the place."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cohort",
+            "type": "pubkey"
+          },
+          {
+            "name": "start",
+            "type": "i64"
+          },
+          {
+            "name": "end",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Profile",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "qualified",
+            "docs": [
+              "Set on any 7-day clear and never cleared, whether or not the ladder gate",
+              "is on (FR-003a, FR-004)."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "leagues",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "LeagueProgress"
+                  }
+                },
+                3
+              ]
+            }
+          },
+          {
+            "name": "running",
+            "type": {
+              "defined": {
+                "name": "RunningSlot"
+              }
+            }
+          },
+          {
+            "name": "pending",
+            "type": {
+              "defined": {
+                "name": "PendingSlot"
+              }
+            }
+          },
+          {
+            "name": "last_faucet_day",
+            "docs": [
+              "Global day index of the last faucet claim; `-1` = never (R13)."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RunningSlot",
+      "docs": [
+        "A membership in a cohort that has started. Default = none."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cohort",
+            "type": "pubkey"
+          },
+          {
+            "name": "end",
+            "type": "i64"
           }
         ]
       }

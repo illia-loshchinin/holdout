@@ -552,7 +552,7 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 
 ### H31. The mock SKR mint has 6 decimals
 
-**Decided (2026-09-23):** `initialize` creates the mock SKR mint with **6 decimals** (`SKR_DECIMALS` in `programs/holdout/src/state/config.rs`). One SKR is `1_000_000` base units everywhere: the program, the TypeScript harness's `SKR` unit, the Kotlin client and the crank's chip conversion.
+**Decided (2026-09-23):** `initialize` creates the mock SKR mint with **6 decimals** (`SKR_DECIMALS` in `programs/holdout/src/instructions/initialize.rs`). One SKR is `1_000_000` base units everywhere: the program, the TypeScript harness's `SKR` unit, the Kotlin client and the crank's chip conversion.
 
 **Why:** the spec never fixed the figure, and a mint's decimals cannot change after it is created, so it had to be decided before the first `initialize`. Chip amounts are whole multiples of 10 SKR (research R15), so more precision buys nothing, and 6 is what the contract tests were already written against.
 

@@ -9,3 +9,5 @@
 export * from './cohort';
 export * from './config';
 export * from './leagueConfig';
+export * from './membership';
+export * from './profile';

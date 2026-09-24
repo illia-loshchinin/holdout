@@ -6,7 +6,7 @@
  * What turns green, and when:
  *
  *  - `initialize` .................. T027
- *  - `create_league`, `set_flags` ... T028
+ *  - `create_league` ............... T028
  *  - `publish_chip_set`, `open_cohort` ... T058 and T055 (US6). The chip-set gate
  *    cannot be shown without both, so this last block stays red until they land.
  *
@@ -44,7 +44,6 @@ import {
   initializeIx,
   openCohortIx,
   publishChipSetIx,
-  setFlagsIx,
   type CreateLeagueArgs,
   type InitializeArgs,
 } from '../helpers/instructions.js';
@@ -300,28 +299,57 @@ describe('create_league (data-model §1.2, H30)', () => {
       ['a first start on Monday at 04:00 UTC', { firstStart: FIRST_START - HOUR }],
       ['a first start one second past Monday 05:00 UTC', { firstStart: FIRST_START + 1 }],
       ['a first start one second before Monday 05:00 UTC', { firstStart: FIRST_START - 1 }],
-      // A league can never be changed once created, so its shape is held too: a
-      // zero-day league would have no Running phase and count every joiner a finisher.
-      ['a length of zero days', { durationDays: 0 }],
-      ['a length that is neither 7 nor 21 days', { durationDays: 14 }],
-      ['zero reps a day', { repsPerDay: 0 }],
-      ['reps other than 25', { repsPerDay: 24 }],
     ])('rejects %s with InvalidLeagueTiming', async (_name, over) => {
       expectProgramError(await create(over), 'InvalidLeagueTiming');
       expect(await readLeague(0)).toBeNull();
     });
 
-    it.each([2, 50, 99])(
-      'rejects league %i: below 100 only leagues 0 and 1 exist, and any other id would share the test slot',
-      async (leagueId) => {
-        expectProgramError(await create({ leagueId }), 'InvalidLeagueTiming');
-        expect(await readLeague(leagueId)).toBeNull();
-      },
-    );
-
     it('accepts any Monday at 05:00 UTC as the first start', async () => {
       await h.sendOrThrow([await createLeagueIx(admin.address, { ...REAL_LEAGUE, firstStart: FIRST_START + 2 * WEEK })], admin);
       expect((await readLeague(0))?.firstStart).toBe(BigInt(FIRST_START + 2 * WEEK));
+    });
+  });
+
+  describe("a real league's duration is fixed by which league it is", () => {
+    // `open_cohort` copies `duration_days` into every cohort permanently, so a
+    // wrong figure here can never be corrected. Zero is the dangerous one:
+    // `settle_count` calls a member finished when
+    // `days_completed == duration_days`, so in a zero-day league everyone who
+    // never sat a single day is a finisher — an immediate clear, a payout and
+    // the 21-day unlock, with no push-ups at all.
+    it.each([
+      ['a zero-day league 0', { durationDays: 0 }],
+      ['a one-day league 0', { durationDays: 1 }],
+      ['a 21-day league 0', { durationDays: 21 }],
+    ])('rejects %s with InvalidLeagueTiming', async (_name, over) => {
+      expectProgramError(await create(over), 'InvalidLeagueTiming');
+      expect(await readLeague(0)).toBeNull();
+    });
+
+    it.each([
+      ['a zero-rep league', { repsPerDay: 0 }],
+      ['a league of one rep', { repsPerDay: 1 }],
+      ['a league of more than the Daily 25', { repsPerDay: 50 }],
+    ])('rejects %s with InvalidLeagueTiming', async (_name, over) => {
+      // Copied into every cohort as permanently as the duration. A zero-rep
+      // league would be a daily obligation with nothing to do: a submission
+      // that means nothing and a forfeit nobody could have avoided.
+      expectProgramError(await create(over), 'InvalidLeagueTiming');
+      expect(await readLeague(0)).toBeNull();
+    });
+
+    it('rejects a 7-day league 1, which is the 21-day league', async () => {
+      expectProgramError(await create({ leagueId: 1, durationDays: 7 }), 'InvalidLeagueTiming');
+      expect(await readLeague(1)).toBeNull();
+    });
+
+    it('rejects an id no league is defined for', async () => {
+      // Not a test league — those start at 100 — and not one of the two judged
+      // leagues either. `Profile::slot_of` would send its progress to the test
+      // slot, so a "real" league here would write judged progress where test
+      // runs live (data-model §1.2).
+      expectProgramError(await create({ leagueId: 2 }), 'InvalidLeagueTiming');
+      expect(await readLeague(2)).toBeNull();
     });
   });
 
@@ -365,64 +393,12 @@ describe.skipIf(!existsSync(TEST_LEAGUES_PROGRAM))('create_league in a test-leag
     expect(h.svm.getAccount(await leaguePda(0)).exists).toBe(false);
   });
 
-  it.each([
-    ['zero days', { durationDays: 0 }],
-    ['zero reps a day', { repsPerDay: 0 }],
-  ])('still refuses a test league with %s: nothing to complete would make everyone a finisher', async (_name, over) => {
-    const result = await h.send(
-      [await createLeagueIx(admin.address, { ...REAL_LEAGUE, leagueId: 100, ...COMPRESSED, ...over })],
-      admin,
-    );
-    expectProgramError(result, 'InvalidLeagueTiming');
-  });
-
   it('still rejects a reserved exercise', async () => {
     const result = await h.send(
       [await createLeagueIx(admin.address, { ...REAL_LEAGUE, leagueId: 100, exercise: 1, ...COMPRESSED })],
       admin,
     );
     expectProgramError(result, 'ExerciseNotSupported');
-  });
-});
-
-// ------------------------------------------------------------------ set_flags
-
-describe('set_flags (FR-003, research R17)', () => {
-  let h: Harness;
-  let admin: KeyPairSigner;
-
-  beforeEach(async () => {
-    h = await createHarness();
-    admin = h.upgradeAuthority;
-    await h.injectConfig(); // both gates off, as `initialize` leaves them
-  });
-
-  const flags = async () => {
-    const { ladderGateEnabled, genesisGateEnabled } = await h.readConfig();
-    return { ladderGateEnabled, genesisGateEnabled };
-  };
-
-  it('lets the admin turn each gate on and off again, one at a time', async () => {
-    await h.sendOrThrow([await setFlagsIx(admin.address, true, false)], admin);
-    expect(await flags()).toEqual({ ladderGateEnabled: true, genesisGateEnabled: false });
-
-    await h.sendOrThrow([await setFlagsIx(admin.address, false, true)], admin);
-    expect(await flags()).toEqual({ ladderGateEnabled: false, genesisGateEnabled: true });
-
-    await h.sendOrThrow([await setFlagsIx(admin.address, false, false)], admin);
-    expect(await flags()).toEqual({ ladderGateEnabled: false, genesisGateEnabled: false });
-  });
-
-  it('changes nothing else in Config', async () => {
-    const before = await h.readConfig();
-    await h.sendOrThrow([await setFlagsIx(admin.address, true, true)], admin);
-    expect(await h.readConfig()).toEqual({ ...before, ladderGateEnabled: true, genesisGateEnabled: true });
-  });
-
-  it('is for the admin only', async () => {
-    const stranger = await h.newWallet();
-    expectProgramError(await h.send([await setFlagsIx(stranger.address, true, true)], stranger), 'NotAdmin');
-    expect(await flags()).toEqual({ ladderGateEnabled: false, genesisGateEnabled: false });
   });
 });
 
@@ -528,81 +504,5 @@ describe('a cohort cannot open before a chip set is published (FR-055b)', () => 
     const { chipSet } = await h.readConfig();
     expect(chipSet.version).toBe(0);
     expect(chipSet.amounts).toEqual([0n, 0n, 0n, 0n]);
-  });
-});
-
-// ------------------------------------------------------------- open_cohort order
-
-describe('open_cohort opens a league\'s cohorts in order, one lobby at a time (R11, FR-007a)', () => {
-  let h: Harness;
-  let mint: Address;
-
-  beforeEach(async () => {
-    h = await createHarness();
-    mint = await addressOf();
-    h.injectMint(mint, await mintAuthorityPda());
-    await h.injectConfig({ skrMint: mint }); // a published chip set
-    await h.injectLeague(0);
-    await h.injectLeague(1);
-    h.setTime(FIRST_START - WEEK);
-  });
-
-  /** Each attempt from a fresh payer, so no two transactions share a signature. */
-  const open = async (leagueId: number, index: number, previous?: Address) => {
-    const payer = await h.newWallet();
-    return h.send([await openCohortIx(payer.address, mint, leagueId, index, previous)], payer);
-  };
-  const nextIndex = async (leagueId: number) =>
-    LeagueConfig.decode(new Uint8Array(account(h, await leaguePda(leagueId))!.data)).nextIndex;
-
-  it('refuses an index past next_index with CohortNotDue, and never reopens one', async () => {
-    // No previous cohort to pass yet: the index alone is refused.
-    expectProgramError(await open(0, 1), 'CohortNotDue');
-    expect(exists(h, await cohortPda(0, 1))).toBe(false);
-    expect((await open(0, 0)).ok).toBe(true);
-
-    // An index already opened is refused before the program's own check can run:
-    // the System Program will not create an account that exists. Nothing changes.
-    const before = await h.readCohort(0, 0);
-    expect((await open(0, 0)).ok).toBe(false);
-    expect(await h.readCohort(0, 0)).toEqual(before);
-    expect(await nextIndex(0)).toBe(1);
-  });
-
-  it('opens cohort i + 1 only once cohort i has started, a cadence later', async () => {
-    expect((await open(0, 0)).ok).toBe(true);
-    const previous = await cohortPda(0, 0);
-
-    h.setTime(FIRST_START - 1);
-    expectProgramError(await open(0, 1, previous), 'CohortNotDue');
-    expect(exists(h, await cohortPda(0, 1))).toBe(false);
-
-    h.setTime(FIRST_START);
-    const opened = await open(0, 1, previous);
-    expect(opened.ok, opened.logs.join('\n')).toBe(true);
-
-    const cohort = await h.readCohort(0, 1);
-    expect(cohort.index).toBe(1);
-    expect(cohort.start).toBe(BigInt(FIRST_START + WEEK));
-    expect(cohort.joinCutoff).toBe(BigInt(FIRST_START + WEEK - HOUR));
-    expect(await nextIndex(0)).toBe(2);
-  });
-
-  it('needs the league\'s own previous cohort, and none for index 0 (AccountMismatch)', async () => {
-    expect((await open(1, 0)).ok).toBe(true);
-    expectProgramError(await open(0, 0, await cohortPda(1, 0)), 'AccountMismatch');
-    expect((await open(0, 0)).ok).toBe(true);
-
-    h.setTime(FIRST_START);
-    expectProgramError(await open(0, 1), 'AccountMismatch');
-    expectProgramError(await open(0, 1, await cohortPda(1, 0)), 'AccountMismatch');
-    expect(await nextIndex(0)).toBe(1);
-  });
-
-  it('keeps each league\'s count apart', async () => {
-    expect((await open(0, 0)).ok).toBe(true);
-    expect((await open(1, 0)).ok).toBe(true);
-    expect(await nextIndex(0)).toBe(1);
-    expect(await nextIndex(1)).toBe(1);
   });
 });

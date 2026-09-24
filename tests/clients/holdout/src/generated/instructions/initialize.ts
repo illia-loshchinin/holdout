@@ -36,29 +36,38 @@ export function getInitializeInstructionDataCodec(): FixedSizeCodec<InitializeIn
 
 export type InitializeAsyncInput<TAccountAdmin extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountProgram extends InstructionAccountInput = InstructionAccountInput, TAccountProgramData extends InstructionAccountInput = InstructionAccountInput, TAccountSkrMint extends InstructionSignerInput = InstructionSignerInput, TAccountMintAuthority extends InstructionAccountInput = InstructionAccountInput, TAccountTreasuryWallet extends InstructionAccountInput = InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput = InstructionAccountInput, TAccountFaucetVault extends InstructionAccountInput = InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput = InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput = InstructionAccountInput, TAccountAssociatedTokenProgram extends InstructionAccountInput = InstructionAccountInput> =  {
   /**
- * `None` (an immutable program) matches no signer at all. Anchor runs
- * this after its `init` accounts are created, but a refusal fails the
- * whole transaction, so nothing a refused `initialize` created survives —
- * the scenario checks each account is still absent.
+ * The program's current upgrade authority. Pays for everything below and
+ * becomes `Config.admin`.
  */
 admin: TAccountAdmin;
 config?: TAccountConfig;
 /**
- * This program, so its `ProgramData` address can be read rather than
- * trusted: any other program's `ProgramData`, where a stranger might well
- * be the authority, fails here.
+ * This program. `programdata_address()` is `None` unless the upgradeable
+ * loader owns it, so this constraint also rules out a program deployed
+ * under a loader that has no authority to check.
  */
 program?: TAccountProgram;
+/**
+ * The loader's record of who may upgrade this program. `None` means the
+ * program is immutable and nobody holds the authority, which refuses
+ * everyone — including the deployer (research R14).
+ */
 programData: TAccountProgramData;
-/** The mock SKR mint, a fresh keypair. Only the faucet can mint (FR-042). */
+/**
+ * The mock SKR mint: a fresh keypair, since §6 gives it no seed. Its
+ * authority is the program's PDA, so only `claim_faucet` ever mints.
+ */
 skrMint: TAccountSkrMint;
 mintAuthority?: TAccountMintAuthority;
 treasuryWallet: TAccountTreasuryWallet;
-/** The treasury's own SKR account, so fees reach the treasury (R14). */
+/**
+ * Forfeit fees, the no-finisher half and rounding remainders land here, in
+ * the treasury's own associated token account — the program never holds them.
+ */
 feeDestination?: TAccountFeeDestination;
 /**
- * A system-owned PDA holding lamports only. The Operator fills it with an
- * ordinary transfer; the program spends it by signing with its seeds.
+ * rent-exempt; the Operator tops it up with an ordinary transfer, and only
+ * the faucet instructions move lamports out of it (research R13).
  */
 faucetVault?: TAccountFaucetVault;
 systemProgram?: TAccountSystemProgram;
@@ -98,17 +107,17 @@ accounts.program.value = 'Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4' as Addre
 if (!accounts.mintAuthority.value) {
 accounts.mintAuthority.value = await findMintAuthorityPda({ programAddress });
 }
-if (!accounts.tokenProgram.value) {
-accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
-}
 if (!accounts.feeDestination.value) {
-accounts.feeDestination.value = await getProgramDerivedAddress({ programAddress: 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>, seeds: [getAddressEncoder().encode(getAddressFromResolvedInstructionAccount("treasuryWallet", accounts.treasuryWallet.value)), getAddressEncoder().encode(getAddressFromResolvedInstructionAccount("tokenProgram", accounts.tokenProgram.value)), getAddressEncoder().encode(getAddressFromResolvedInstructionAccount("skrMint", accounts.skrMint.value))] });
+accounts.feeDestination.value = await getProgramDerivedAddress({ programAddress: 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>, seeds: [getAddressEncoder().encode(getAddressFromResolvedInstructionAccount("treasuryWallet", accounts.treasuryWallet.value)), getBytesEncoder().encode(new Uint8Array([6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169])), getAddressEncoder().encode(getAddressFromResolvedInstructionAccount("skrMint", accounts.skrMint.value))] });
 }
 if (!accounts.faucetVault.value) {
 accounts.faucetVault.value = await findFaucetVaultPda({ programAddress });
 }
 if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+}
+if (!accounts.tokenProgram.value) {
+accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
 }
 if (!accounts.associatedTokenProgram.value) {
 accounts.associatedTokenProgram.value = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>;
@@ -119,29 +128,38 @@ return Object.freeze({ accounts: [getAccountMeta("admin", accounts.admin), getAc
 
 export type InitializeInput<TAccountAdmin extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountProgram extends InstructionAccountInput = InstructionAccountInput, TAccountProgramData extends InstructionAccountInput = InstructionAccountInput, TAccountSkrMint extends InstructionSignerInput = InstructionSignerInput, TAccountMintAuthority extends InstructionAccountInput = InstructionAccountInput, TAccountTreasuryWallet extends InstructionAccountInput = InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput = InstructionAccountInput, TAccountFaucetVault extends InstructionAccountInput = InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput = InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput = InstructionAccountInput, TAccountAssociatedTokenProgram extends InstructionAccountInput = InstructionAccountInput> =  {
   /**
- * `None` (an immutable program) matches no signer at all. Anchor runs
- * this after its `init` accounts are created, but a refusal fails the
- * whole transaction, so nothing a refused `initialize` created survives —
- * the scenario checks each account is still absent.
+ * The program's current upgrade authority. Pays for everything below and
+ * becomes `Config.admin`.
  */
 admin: TAccountAdmin;
 config: TAccountConfig;
 /**
- * This program, so its `ProgramData` address can be read rather than
- * trusted: any other program's `ProgramData`, where a stranger might well
- * be the authority, fails here.
+ * This program. `programdata_address()` is `None` unless the upgradeable
+ * loader owns it, so this constraint also rules out a program deployed
+ * under a loader that has no authority to check.
  */
 program?: TAccountProgram;
+/**
+ * The loader's record of who may upgrade this program. `None` means the
+ * program is immutable and nobody holds the authority, which refuses
+ * everyone — including the deployer (research R14).
+ */
 programData: TAccountProgramData;
-/** The mock SKR mint, a fresh keypair. Only the faucet can mint (FR-042). */
+/**
+ * The mock SKR mint: a fresh keypair, since §6 gives it no seed. Its
+ * authority is the program's PDA, so only `claim_faucet` ever mints.
+ */
 skrMint: TAccountSkrMint;
 mintAuthority: TAccountMintAuthority;
 treasuryWallet: TAccountTreasuryWallet;
-/** The treasury's own SKR account, so fees reach the treasury (R14). */
+/**
+ * Forfeit fees, the no-finisher half and rounding remainders land here, in
+ * the treasury's own associated token account — the program never holds them.
+ */
 feeDestination: TAccountFeeDestination;
 /**
- * A system-owned PDA holding lamports only. The Operator fills it with an
- * ordinary transfer; the program spends it by signing with its seeds.
+ * rent-exempt; the Operator tops it up with an ordinary transfer, and only
+ * the faucet instructions move lamports out of it (research R13).
  */
 faucetVault: TAccountFaucetVault;
 systemProgram?: TAccountSystemProgram;
@@ -175,11 +193,11 @@ const args = { ...input, treasuryWallet: input.treasuryWalletArg };
 if (!accounts.program.value) {
 accounts.program.value = 'Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4' as Address<'Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4'>;
 }
-if (!accounts.tokenProgram.value) {
-accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
-}
 if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+}
+if (!accounts.tokenProgram.value) {
+accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
 }
 if (!accounts.associatedTokenProgram.value) {
 accounts.associatedTokenProgram.value = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>;
@@ -191,29 +209,38 @@ return Object.freeze({ accounts: [getAccountMeta("admin", accounts.admin), getAc
 export type ParsedInitializeInstruction<TProgram extends string = typeof HOLDOUT_PROGRAM_ADDRESS, TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]> = { programAddress: Address<TProgram>;
 accounts: {
 /**
- * `None` (an immutable program) matches no signer at all. Anchor runs
- * this after its `init` accounts are created, but a refusal fails the
- * whole transaction, so nothing a refused `initialize` created survives —
- * the scenario checks each account is still absent.
+ * The program's current upgrade authority. Pays for everything below and
+ * becomes `Config.admin`.
  */
 admin: TAccountMetas[0];
 config: TAccountMetas[1];
 /**
- * This program, so its `ProgramData` address can be read rather than
- * trusted: any other program's `ProgramData`, where a stranger might well
- * be the authority, fails here.
+ * This program. `programdata_address()` is `None` unless the upgradeable
+ * loader owns it, so this constraint also rules out a program deployed
+ * under a loader that has no authority to check.
  */
 program: TAccountMetas[2];
+/**
+ * The loader's record of who may upgrade this program. `None` means the
+ * program is immutable and nobody holds the authority, which refuses
+ * everyone — including the deployer (research R14).
+ */
 programData: TAccountMetas[3];
-/** The mock SKR mint, a fresh keypair. Only the faucet can mint (FR-042). */
+/**
+ * The mock SKR mint: a fresh keypair, since §6 gives it no seed. Its
+ * authority is the program's PDA, so only `claim_faucet` ever mints.
+ */
 skrMint: TAccountMetas[4];
 mintAuthority: TAccountMetas[5];
 treasuryWallet: TAccountMetas[6];
-/** The treasury's own SKR account, so fees reach the treasury (R14). */
+/**
+ * Forfeit fees, the no-finisher half and rounding remainders land here, in
+ * the treasury's own associated token account — the program never holds them.
+ */
 feeDestination: TAccountMetas[7];
 /**
- * A system-owned PDA holding lamports only. The Operator fills it with an
- * ordinary transfer; the program spends it by signing with its seeds.
+ * rent-exempt; the Operator tops it up with an ordinary transfer, and only
+ * the faucet instructions move lamports out of it (research R13).
  */
 faucetVault: TAccountMetas[8];
 systemProgram: TAccountMetas[9];

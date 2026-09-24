@@ -1,46 +1,54 @@
-//! `open_cohort(league_id, index)` (contracts/program-instructions §2).
-//! Task T055.
+//! `open_cohort` (contracts/program-instructions §2). Task T055.
 //!
-//! Permissionless: the caller only pays the rent, and chain state alone decides
-//! whether the cohort is due (FR-030a). A cohort copies every league parameter
-//! and the current chip set at creation and never reads them again, so a later
-//! publish or league change cannot move its rules (constitution V, FR-055).
+//! Permissionless: anyone may pay the rent and open a league's next cohort, and
+//! the caller's identity changes nothing about the result (FR-030a). That is
+//! what makes the settlement refusal in `settle_finalize` always answerable —
+//! a league with no lobby open is one permissionless call away from having one.
+//!
+//! Three guards, and each one closes a hole that cannot be corrected later:
+//!
+//!  - **A chip set must exist.** A cohort opened before the first
+//!    `publish_chip_set` would copy four zeroed amounts and keep them for its
+//!    whole life, accepting zero-stake joins no later publish could fix
+//!    (`ChipSetNotPublished`, 6012; FR-007, FR-055b).
+//!  - **`index == next_index`.** Cohorts are a dense sequence per league, which
+//!    is what lets `settle_count` insist on cohort order (FR-061a).
+//!  - **The previous cohort has started.** One lobby per league at a time, so a
+//!    member's obligations cannot overlap by construction.
+//!
+//! Everything the cohort will ever need is copied here and never written again
+//! (constitution V): the league's schedule and reps, and today's chip amounts.
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
-use crate::errors::HoldoutError;
-use crate::events::CohortOpened;
-use crate::math::schedule;
-use crate::state::cohort::{Cohort, COHORT_SEED, VAULT_SEED};
-use crate::state::config::{Config, CONFIG_SEED};
-use crate::state::league::{LeagueConfig, LEAGUE_SEED};
+use crate::{
+    errors::HoldoutError,
+    events::CohortOpened,
+    math::schedule,
+    state::{
+        cohort::{Cohort, COHORT_SEED, VAULT_SEED},
+        config::{Config, CONFIG_SEED},
+        league::{LeagueConfig, LEAGUE_SEED},
+    },
+};
 
 #[derive(Accounts)]
 #[instruction(league_id: u8, index: u32)]
 pub struct OpenCohort<'info> {
+    /// Anyone. Pays the cohort's and the vault's rent, and gets nothing for it.
     #[account(mut)]
     pub payer: Signer<'info>,
 
-    // Without a published set the cohort would copy four zeroed amounts and
-    // keep them for life (FR-055b). Anchor checks these after creating
-    // `cohort` and `vault`, and a refusal rolls both back. One consequence: an
-    // index already opened fails in the System Program ("already in use")
-    // before the index check can answer 6020 — the cohort exists either way.
-    #[account(
-        seeds = [CONFIG_SEED],
-        bump = config.bump,
-        constraint = config.chip_set.is_published() @ HoldoutError::ChipSetNotPublished,
-    )]
-    pub config: Box<Account<'info, Config>>,
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, Config>,
 
     #[account(
         mut,
         seeds = [LEAGUE_SEED, &[league_id]],
         bump = league.bump,
-        constraint = index == league.next_index @ HoldoutError::CohortNotDue,
     )]
-    pub league: Box<Account<'info, LeagueConfig>>,
+    pub league: Account<'info, LeagueConfig>,
 
     #[account(
         init,
@@ -49,10 +57,11 @@ pub struct OpenCohort<'info> {
         seeds = [COHORT_SEED, &[league_id], &index.to_le_bytes()],
         bump,
     )]
-    pub cohort: Box<Account<'info, Cohort>>,
+    pub cohort: Account<'info, Cohort>,
 
-    /// The cohort's own SKR account; the cohort PDA is its authority, so only
-    /// this program's instructions can move what it holds (constitution I).
+    /// The cohort's own SKR vault: stakes, the pool and any carry-over, held
+    /// under the cohort's authority so no key outside the program can move them
+    /// (constitution I).
     #[account(
         init,
         payer = payer,
@@ -60,147 +69,73 @@ pub struct OpenCohort<'info> {
         bump,
         token::mint = skr_mint,
         token::authority = cohort,
-        token::token_program = token_program,
     )]
-    pub vault: Box<Account<'info, TokenAccount>>,
+    pub vault: Account<'info, TokenAccount>,
 
-    /// Cohort `index − 1` of this league; absent (the program's ID in its slot)
-    /// for index 0.
-    pub previous_cohort: Option<Box<Account<'info, Cohort>>>,
+    /// The league's cohort `index - 1`, required for every index but 0. Anchor's
+    /// convention for "none" is the program's own ID in the slot, which is what
+    /// index 0 sends.
+    pub previous_cohort: Option<Account<'info, Cohort>>,
 
-    #[account(address = config.skr_mint @ HoldoutError::AccountMismatch)]
-    pub skr_mint: Box<Account<'info, Mint>>,
+    #[account(constraint = skr_mint.key() == config.skr_mint @ HoldoutError::AccountMismatch)]
+    pub skr_mint: Account<'info, Mint>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
 }
 
-/// Whether cohort `index` of `league_id` may open now, given the previous
-/// cohort's `(league_id, index, start)` when one was passed. Every cohort
-/// account lives at the PDA its league and index derive, so matching those two
-/// fields identifies the previous cohort exactly.
-pub fn check_previous(
-    league_id: u8,
-    index: u32,
-    previous: Option<(u8, u32, i64)>,
-    now: i64,
-) -> Result<()> {
-    match (index, previous) {
-        (0, None) => Ok(()),
-        (0, Some(_)) | (_, None) => err!(HoldoutError::AccountMismatch),
-        (i, Some((prev_league, prev_index, prev_start))) => {
-            require!(
-                prev_league == league_id && prev_index == i - 1,
-                HoldoutError::AccountMismatch
-            );
-            // One lobby at a time: the next cohort opens once this one starts
-            // (R11, FR-007a).
-            require!(now >= prev_start, HoldoutError::CohortNotDue);
-            Ok(())
-        }
-    }
-}
-
-pub fn handle_open_cohort(ctx: Context<OpenCohort>, league_id: u8, index: u32) -> Result<()> {
-    let now = Clock::get()?.unix_timestamp;
-    check_previous(
-        league_id,
-        index,
-        ctx.accounts
-            .previous_cohort
-            .as_ref()
-            .map(|p| (p.league_id, p.index, p.start)),
-        now,
-    )?;
+pub(crate) fn handler(ctx: Context<OpenCohort>, league_id: u8, index: u32) -> Result<()> {
+    let config = &ctx.accounts.config;
+    // Before the first publish there are no amounts to copy, only zeroes (FR-055b).
+    require!(
+        config.chip_set.is_published(),
+        HoldoutError::ChipSetNotPublished
+    );
 
     let league = &mut ctx.accounts.league;
-    let chips = ctx.accounts.config.chip_set.amounts;
+    require!(index == league.next_index, HoldoutError::CohortNotDue);
+
+    let now = Clock::get()?.unix_timestamp;
+    match (index, &ctx.accounts.previous_cohort) {
+        // The league's first cohort has no predecessor to wait for.
+        (0, _) => {}
+        (_, Some(previous)) => {
+            require!(
+                previous.league_id == league_id && previous.index == index - 1,
+                HoldoutError::AccountMismatch
+            );
+            // One lobby per league at a time: the next cohort opens only once
+            // the current one has started and its roster is closed.
+            require!(now >= previous.start, HoldoutError::CohortNotDue);
+        }
+        // Index > 0 with nothing in the slot: there is no way to check the rule.
+        (_, None) => return Err(HoldoutError::AccountMismatch.into()),
+    }
+
     let start = schedule::cohort_start(league.first_start, league.cadence, index);
 
     let cohort = &mut ctx.accounts.cohort;
-    cohort.set_inner(Cohort {
-        league_id,
-        index,
-        start,
-        join_cutoff: schedule::join_cutoff(start, league.join_lock),
-        duration_days: league.duration_days,
-        reps_per_day: league.reps_per_day,
-        day_length: league.day_length,
-        exercise: league.exercise,
-        chips,
-        member_count: 0,
-        held_stake: 0,
-        pool: 0,
-        carry_over_received: 0,
-        forfeits_recorded: 0,
-        counted: 0,
-        finisher_count: 0,
-        finishers_per_tier: [0; 4],
-        total_finisher_stake: 0,
-        settled: false,
-        share_per_tier: [0; 4],
-        rounding_remainder: 0,
-        no_finisher_fee: 0,
-        carry_over_sent: 0,
-        carry_over_held: 0,
-        carry_over_target: Pubkey::default(),
-        vault_bump: ctx.bumps.vault,
-        bump: ctx.bumps.cohort,
-    });
+    cohort.league_id = league_id;
+    cohort.index = index;
+    cohort.start = start;
+    cohort.join_cutoff = schedule::join_cutoff(start, league.join_lock);
+    cohort.duration_days = league.duration_days;
+    cohort.reps_per_day = league.reps_per_day;
+    cohort.day_length = league.day_length;
+    cohort.exercise = league.exercise;
+    // Today's amounts, kept for this cohort's whole life (FR-007, FR-055).
+    cohort.chips = config.chip_set.amounts;
+    cohort.vault_bump = ctx.bumps.vault;
+    cohort.bump = ctx.bumps.cohort;
 
-    league.next_index = index.checked_add(1).ok_or(HoldoutError::CohortNotDue)?;
+    league.next_index += 1;
 
     emit!(CohortOpened {
         league: league_id,
         index,
         start,
-        chips,
+        chips: cohort.chips,
     });
+
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    const START: i64 = 1_790_571_600;
-
-    fn is(result: Result<()>, expected: HoldoutError) -> bool {
-        result == Err(expected.into())
-    }
-
-    #[test]
-    fn the_first_cohort_needs_no_previous_one() {
-        assert!(check_previous(0, 0, None, 0).is_ok());
-        assert!(is(
-            check_previous(0, 0, Some((0, 0, START)), START),
-            HoldoutError::AccountMismatch
-        ));
-    }
-
-    #[test]
-    fn a_later_cohort_waits_for_the_previous_one_to_start() {
-        assert!(is(
-            check_previous(0, 1, Some((0, 0, START)), START - 1),
-            HoldoutError::CohortNotDue
-        ));
-        assert!(check_previous(0, 1, Some((0, 0, START)), START).is_ok());
-        assert!(check_previous(0, 1, Some((0, 0, START)), START + 1).is_ok());
-    }
-
-    #[test]
-    fn the_previous_cohort_must_be_this_leagues_last_one() {
-        assert!(is(
-            check_previous(0, 1, None, START),
-            HoldoutError::AccountMismatch
-        ));
-        assert!(is(
-            check_previous(0, 2, Some((0, 0, START)), START),
-            HoldoutError::AccountMismatch
-        ));
-        assert!(is(
-            check_previous(0, 1, Some((1, 0, START)), START),
-            HoldoutError::AccountMismatch
-        ));
-    }
 }

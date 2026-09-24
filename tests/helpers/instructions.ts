@@ -1,7 +1,8 @@
 /**
- * Instruction builders for the setup instructions — `initialize`, `create_league`,
- * `set_flags`, `publish_chip_set` and `open_cohort` (contracts/program-instructions
- * §1–§2). Task T017b; `set_flags` added with T028.
+ * Instruction builders written from the contract rather than generated from the
+ * program: `initialize`, `create_league`, `publish_chip_set` and `open_cohort`
+ * (contracts/program-instructions §1–§2, task T017b), then `join_cohort` and
+ * `leave_cohort` (§3, tasks T054 and T054a).
  *
  * ## Why these are written by hand
  *
@@ -15,7 +16,8 @@
  *
  * The contract names the accounts each instruction touches but not their order, and
  * it does not say how the mint or the fee destination are addressed. The order below
- * is therefore a decision, made here and followed by T027, T028, T055 and T058:
+ * is therefore a decision, made here and followed by T027, T028, T055, T056, T057
+ * and T058:
  *
  *  - Signers first, then the state the instruction reads or writes, then programs.
  *  - The SKR mint is a fresh keypair that signs `initialize` (§6 lists no mint seed).
@@ -24,6 +26,14 @@
  *    to rent exemption and the Operator tops it up by an ordinary transfer.
  *  - `open_cohort` takes the previous cohort as an optional account: the program's
  *    own ID in that slot means "none" (Anchor's convention), which index 0 sends.
+ *  - A member's SKR is held in their **associated** token account, the one
+ *    `claim_faucet` creates, so `join_cohort` and `leave_cohort` address that.
+ *  - `join_cohort` takes the member's running cohort by the same optional-account
+ *    convention, and the program **requires** it whenever `profile.running` is
+ *    set. Slot normalisation moves a lobby place into the running slot knowing
+ *    only the cohort's address and start (data-model §1.5), so `running.end` is
+ *    left at 0 and a guard trusting it would skip the overlap rule; the account
+ *    is what the rule is checked against instead.
  */
 
 import { createHash } from 'node:crypto';
@@ -50,7 +60,9 @@ import {
   configPda,
   faucetVaultPda,
   leaguePda,
+  membershipPda,
   mintAuthorityPda,
+  profilePda,
   programDataPda,
   vaultPda,
 } from './pdas.js';
@@ -163,9 +175,16 @@ export const createLeagueIx = async (admin: Address, args: CreateLeagueArgs): Pr
   ),
 });
 
-// ------------------------------------------------------------------ set_flags
+// ------------------------------------------------------------------- set_flags
 
-/** `set_flags(ladder_gate_enabled, genesis_gate_enabled)` — the admin signs; nothing is paid. */
+const bool = (v: boolean) => new Uint8Array([v ? 1 : 0]);
+
+/**
+ * `set_flags(ladder_gate_enabled, genesis_gate_enabled)` — admin only. The two
+ * gates this build ships off, and flipping one is the *only* difference between
+ * it and an enforced ladder (AC-1), which is why it is an instruction rather
+ * than a redeploy.
+ */
 export const setFlagsIx = async (
   admin: Address,
   ladderGateEnabled: boolean,
@@ -173,7 +192,11 @@ export const setFlagsIx = async (
 ): Promise<Instruction> => ({
   programAddress: PROGRAM_ID,
   accounts: [roSigner(admin), rw(await configPda())],
-  data: concat(instructionDiscriminator('set_flags'), u8(ladderGateEnabled ? 1 : 0), u8(genesisGateEnabled ? 1 : 0)),
+  data: concat(
+    instructionDiscriminator('set_flags'),
+    bool(ladderGateEnabled),
+    bool(genesisGateEnabled),
+  ),
 });
 
 // ------------------------------------------------------------ publish_chip_set
@@ -218,3 +241,304 @@ export const openCohortIx = async (
     data: concat(instructionDiscriminator('open_cohort'), u8(leagueId), u32(index)),
   };
 };
+
+// ----------------------------------------------------------------- join_cohort
+
+/**
+ * `join_cohort(tier)`. The member signs, pays the rent for their `Membership`
+ * (and their `Profile` if this is their first), and the stake moves from their
+ * associated SKR account into the cohort's vault.
+ *
+ * `runningCohort` is the cohort in the member's `profile.running` slot, and the
+ * program requires it whenever that slot is set: slot normalisation cannot fill
+ * `running.end`, so the overlap rule is checked against that cohort's own
+ * account rather than a cached figure. Omitted — the program's own ID in the
+ * slot, Anchor's convention for "none" — for a member with no running cohort.
+ */
+export const joinCohortIx = async (
+  member: Address,
+  skrMint: Address,
+  leagueId: number,
+  index: number,
+  tier: number,
+  runningCohort?: Address,
+): Promise<Instruction> => {
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      rwSigner(member),
+      ro(await configPda()),
+      rw(cohort),
+      rw(await vaultPda(cohort)),
+      rw(await membershipPda(cohort, member)),
+      rw(await profilePda(member)),
+      rw(await associatedTokenPda(member, skrMint)),
+      ro(runningCohort ?? PROGRAM_ID),
+      ro(skrMint),
+      ro(SYSTEM_PROGRAM),
+      ro(TOKEN_PROGRAM),
+    ],
+    data: concat(instructionDiscriminator('join_cohort'), u8(tier)),
+  };
+};
+
+// ---------------------------------------------------------------- leave_cohort
+
+/**
+ * `leave_cohort()`. A full refund with no deduction, the `Membership` closed and
+ * its rent returned, and the lobby place cleared (FR-009). Open status only.
+ */
+export const leaveCohortIx = async (
+  member: Address,
+  skrMint: Address,
+  leagueId: number,
+  index: number,
+): Promise<Instruction> => {
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      rwSigner(member),
+      ro(await configPda()),
+      rw(cohort),
+      rw(await vaultPda(cohort)),
+      rw(await membershipPda(cohort, member)),
+      rw(await profilePda(member)),
+      rw(await associatedTokenPda(member, skrMint)),
+      ro(TOKEN_PROGRAM),
+    ],
+    data: instructionDiscriminator('leave_cohort'),
+  };
+};
+
+// ------------------------------------------------------------------ submit_day
+
+/**
+ * `submit_day(day_index, proof_hash)`. The member signs and pays the fee; no
+ * money moves. The proof is **emitted and not stored** (research R16, FR-025),
+ * so nothing here writes 32 bytes per member per day into an account.
+ */
+export const submitDayIx = async (
+  member: Address,
+  leagueId: number,
+  index: number,
+  dayIndex: number,
+  proofHash: Uint8Array,
+): Promise<Instruction> => {
+  if (proofHash.length !== 32) throw new Error(`a proof hash is 32 bytes, got ${proofHash.length}`);
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      rwSigner(member),
+      ro(cohort),
+      rw(await membershipPda(cohort, member)),
+      rw(await profilePda(member)),
+    ],
+    data: concat(instructionDiscriminator('submit_day'), u8(dayIndex), proofHash),
+  };
+};
+
+// ------------------------------------------------------------- record_forfeits
+
+/** A page pair: the membership and the profile of its wallet. */
+export interface ForfeitPair {
+  membership: Address;
+  profile: Address;
+}
+
+/** The pairs for a set of wallets in one cohort, in the order given. */
+export const forfeitPairs = async (
+  cohort: Address,
+  wallets: readonly Address[],
+): Promise<ForfeitPair[]> =>
+  Promise.all(
+    wallets.map(async (wallet) => ({
+      membership: await membershipPda(cohort, wallet),
+      profile: await profilePda(wallet),
+    })),
+  );
+
+/**
+ * `record_forfeits()`, permissionless: the caller pays the fee and the outcome
+ * does not depend on who they are (FR-030a). The pairs ride in the remaining
+ * accounts, up to ten of them, and pairs not in breach or already forfeited are
+ * skipped rather than refused — so a page may be repeated and re-ordered freely
+ * (research R9, INV-7).
+ */
+export const recordForfeitsIx = async (
+  caller: Address,
+  feeDestination: Address,
+  leagueId: number,
+  index: number,
+  pairs: readonly ForfeitPair[],
+): Promise<Instruction> => {
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      rwSigner(caller),
+      ro(await configPda()),
+      rw(cohort),
+      rw(await vaultPda(cohort)),
+      rw(feeDestination),
+      ro(TOKEN_PROGRAM),
+      ...pairs.flatMap((pair) => [rw(pair.membership), rw(pair.profile)]),
+    ],
+    data: instructionDiscriminator('record_forfeits'),
+  };
+};
+
+// ---------------------------------------------------------------- settle_count
+
+/**
+ * `settle_count()`, permissionless and paged like `record_forfeits`. The
+ * league's cohort `index - 1` is required for every index but 0: counting runs
+ * in cohort order so every profile's streak does too (FR-061a).
+ */
+export const settleCountIx = async (
+  caller: Address,
+  feeDestination: Address,
+  leagueId: number,
+  index: number,
+  pairs: readonly ForfeitPair[],
+  previousCohort?: Address,
+): Promise<Instruction> => {
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      rwSigner(caller),
+      ro(await configPda()),
+      ro(await leaguePda(leagueId)),
+      rw(cohort),
+      rw(await vaultPda(cohort)),
+      rw(feeDestination),
+      ro(previousCohort ?? PROGRAM_ID),
+      ro(TOKEN_PROGRAM),
+      ...pairs.flatMap((pair) => [rw(pair.membership), rw(pair.profile)]),
+    ],
+    data: instructionDiscriminator('settle_count'),
+  };
+};
+
+// ------------------------------------------------------------- settle_finalize
+
+/**
+ * `settle_finalize()`. With finishers it needs no target. With none, the
+ * league's cohort `next_index - 1` and its vault are **required** — the
+ * accounts that decide whether the carry-over is delivered or held — so no
+ * caller can strand it by omission (FR-030a, FR-037a).
+ */
+export const settleFinalizeIx = async (
+  caller: Address,
+  feeDestination: Address,
+  leagueId: number,
+  index: number,
+  target?: { cohort: Address; vault: Address },
+): Promise<Instruction> => {
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      rwSigner(caller),
+      ro(await configPda()),
+      ro(await leaguePda(leagueId)),
+      rw(cohort),
+      rw(await vaultPda(cohort)),
+      rw(feeDestination),
+      target ? rw(target.cohort) : ro(PROGRAM_ID),
+      target ? rw(target.vault) : ro(PROGRAM_ID),
+      ro(TOKEN_PROGRAM),
+    ],
+    data: instructionDiscriminator('settle_finalize'),
+  };
+};
+
+/** The league's cohort `index` and its vault, as `settle_finalize` wants them. */
+export const carryOverTarget = async (
+  leagueId: number,
+  index: number,
+): Promise<{ cohort: Address; vault: Address }> => {
+  const cohort = await cohortPda(leagueId, index);
+  return { cohort, vault: await vaultPda(cohort) };
+};
+
+// ---------------------------------------------------------------- claim_payout
+
+/** `claim_payout()`: `stake + share_per_tier[tier]`, read from the finalised cohort. */
+export const claimPayoutIx = async (
+  member: Address,
+  skrMint: Address,
+  leagueId: number,
+  index: number,
+): Promise<Instruction> => {
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      rwSigner(member),
+      ro(await configPda()),
+      rw(cohort),
+      rw(await vaultPda(cohort)),
+      rw(await membershipPda(cohort, member)),
+      rw(await associatedTokenPda(member, skrMint)),
+      ro(TOKEN_PROGRAM),
+    ],
+    data: instructionDiscriminator('claim_payout'),
+  };
+};
+
+// ---------------------------------------------------------------- claim_faucet
+
+/**
+ * `claim_faucet(recipient)`. **The recipient does not sign** (research R13):
+ * a brand-new wallet holds no SOL and cannot pay for its own first
+ * transaction, so the bundled sponsor pays and is reimbursed from the vault in
+ * the same instruction. A wallet that already holds SOL may pay for itself
+ * instead, and `payer` is then the recipient.
+ */
+export const claimFaucetIx = async (
+  payer: Address,
+  recipient: Address,
+  skrMint: Address,
+  sponsor: Address,
+): Promise<Instruction> => ({
+  programAddress: PROGRAM_ID,
+  accounts: [
+    rwSigner(payer),
+    rw(await configPda()),
+    rw(recipient),
+    rw(await profilePda(recipient)),
+    rw(skrMint),
+    ro(await mintAuthorityPda()),
+    rw(await associatedTokenPda(recipient, skrMint)),
+    rw(await faucetVaultPda()),
+    rw(sponsor),
+    ro(SYSTEM_PROGRAM),
+    ro(TOKEN_PROGRAM),
+    ro(ASSOCIATED_TOKEN_PROGRAM),
+  ],
+  data: concat(instructionDiscriminator('claim_faucet'), key(recipient)),
+});
+
+// -------------------------------------------------------------- top_up_sponsor
+
+/**
+ * `top_up_sponsor()`. Permissionless and **the sponsor does not sign**: the key
+ * ships in the app, so anyone can empty its float and anyone must be able to
+ * refill it, or a drain would end zero-SOL onboarding rather than costing a
+ * day's allowance (FR-042b, research R13).
+ */
+export const topUpSponsorIx = async (caller: Address, sponsor: Address): Promise<Instruction> => ({
+  programAddress: PROGRAM_ID,
+  accounts: [
+    rwSigner(caller),
+    rw(await configPda()),
+    rw(await faucetVaultPda()),
+    rw(sponsor),
+    ro(SYSTEM_PROGRAM),
+  ],
+  data: instructionDiscriminator('top_up_sponsor'),
+});

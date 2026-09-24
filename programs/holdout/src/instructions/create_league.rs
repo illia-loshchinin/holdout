@@ -1,42 +1,46 @@
-//! `create_league` (contracts/program-instructions §1, data-model §1.2).
-//! Task T028.
+//! `create_league` (contracts/program-instructions §1). Task T028.
 //!
-//! A real league is held to the devnet timing — a 24-hour day, one cohort a
-//! week, joining closing an hour before a Monday 05:00 UTC start — so nothing
-//! but a test build can produce a cohort with a shorter day. Test leagues
-//! (`league_id >= 100`) exist only in builds carrying `test-leagues`, and even
-//! there the feature widens the test leagues alone (research R11, H30).
+//! A league is the schedule and the obligation; a cohort is one run of it. The
+//! admin creates the two judged leagues once, and every cohort copies these
+//! parameters at creation so a running cohort's rules can never move under its
+//! members (constitution V).
+//!
+//! Two guards, in this order:
+//!
+//!  1. `exercise == 0`. `1` (negatives) and `2` (decline) are reserved layout
+//!     for later exercises, not behaviour in this build, and are rejected here
+//!     rather than stored and ignored (H30, `ExerciseNotSupported` 6053). The
+//!     check runs first, so a `test-leagues` build refuses a reserved exercise
+//!     on a test league too.
+//!  2. Timing. A real league (`league_id < 100`) keeps the devnet timing
+//!     exactly: a 24-hour day, a weekly cadence, an hour's join lock and a
+//!     Monday 05:00 UTC first start. A test league (`league_id >= 100`) takes
+//!     any timing, and **only in builds carrying the `test-leagues` feature** —
+//!     LiteSVM and the separate rehearsal deployment, never the judged program
+//!     (research R11, scope doc D-A). Without the feature the id alone is
+//!     refused, whatever timing came with it.
 
 use anchor_lang::prelude::*;
 
-use crate::errors::HoldoutError;
-use crate::math::schedule::BOUNDARY_OFFSET;
-use crate::state::config::{Config, CONFIG_SEED};
-use crate::state::league::{
-    LeagueConfig, DEVNET_CADENCE, DEVNET_DAY_LENGTH, DEVNET_JOIN_LOCK, DEVNET_REPS_PER_DAY,
-    EXERCISE_PUSHUP, LEAGUE_21D, LEAGUE_7D, LEAGUE_SEED,
+use crate::{
+    errors::HoldoutError,
+    state::{
+        config::{Config, CONFIG_SEED},
+        league::{
+            is_monday_0500_utc, LeagueConfig, DEVNET_CADENCE, DEVNET_DAY_LENGTH, DEVNET_JOIN_LOCK,
+            DEVNET_REPS_PER_DAY, EXERCISE_PUSHUP, LEAGUE_21D, LEAGUE_7D, LEAGUE_SEED,
+        },
+    },
 };
-
-/// The two Holdout lengths a real league may have (data-model §1.2, FR-002).
-const DEVNET_DURATIONS: [u8; 2] = [7, 21];
-
-/// Monday 5 January 1970, 05:00:00 UTC — the first Monday start after the
-/// epoch, which fell on a Thursday. Every valid `first_start` is this plus a
-/// whole number of weeks.
-const EPOCH_MONDAY_START: i64 = 4 * DEVNET_DAY_LENGTH + BOUNDARY_OFFSET;
-
-/// Whether this build accepts test leagues. The judged program never does.
-const TEST_LEAGUES: bool = cfg!(feature = "test-leagues");
 
 #[derive(Accounts)]
 #[instruction(league_id: u8)]
 pub struct CreateLeague<'info> {
-    #[account(mut)]
+    #[account(mut, constraint = admin.key() == config.admin @ HoldoutError::NotAdmin)]
     pub admin: Signer<'info>,
 
-    // Anchor checks this after creating `league`; a refusal rolls it back.
-    #[account(seeds = [CONFIG_SEED], bump = config.bump, has_one = admin @ HoldoutError::NotAdmin)]
-    pub config: Box<Account<'info, Config>>,
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, Config>,
 
     #[account(
         init,
@@ -45,70 +49,61 @@ pub struct CreateLeague<'info> {
         seeds = [LEAGUE_SEED, &[league_id]],
         bump,
     )]
-    pub league: Box<Account<'info, LeagueConfig>>,
+    pub league: Account<'info, LeagueConfig>,
 
     pub system_program: Program<'info, System>,
 }
 
-/// What a league may be, apart from who asks. Pure, so both builds' rules are
-/// unit-tested in one run; the handler passes the build's own `TEST_LEAGUES`.
-#[allow(clippy::too_many_arguments)]
-pub fn check_league(
+/// Whether this build may create a league with this id at all, and with this
+/// timing. The judged program is compiled without `test-leagues`, so the whole
+/// test-league branch is absent from the binary the judges run — the feature is
+/// what widens it, not a flag anyone can flip on chain (research R11).
+fn timing_ok(
     league_id: u8,
     duration_days: u8,
     reps_per_day: u16,
-    exercise: u8,
     first_start: i64,
     day_length: i64,
     cadence: i64,
     join_lock: i64,
-    test_leagues: bool,
-) -> Result<()> {
-    // The reserved exercises are layout for later, not behaviour now (H30).
-    require!(
-        exercise == EXERCISE_PUSHUP,
-        HoldoutError::ExerciseNotSupported
-    );
-
+) -> bool {
     if LeagueConfig::is_test_league(league_id) {
-        // Any timing, but only in a test build — and never one the schedule
-        // maths would divide by zero or run backwards on, nor a cohort with no
-        // day to complete, which would count every joiner as a finisher.
-        require!(test_leagues, HoldoutError::InvalidLeagueTiming);
-        require!(
-            duration_days > 0
-                && reps_per_day > 0
-                && day_length > 0
-                && cadence > 0
-                && join_lock >= 0,
-            HoldoutError::InvalidLeagueTiming
-        );
-        return Ok(());
+        // A test league's whole point is a compressed day, so its clock is
+        // free — but never a zero duration or a zero rep count, for the
+        // reasons below.
+        return cfg!(feature = "test-leagues") && duration_days > 0 && reps_per_day > 0;
     }
-
-    // Only the two real leagues exist below 100. Any other id would share
-    // `Profile`'s test slot (`slot_of`) and mix judged progress into it.
-    require!(
-        league_id == LEAGUE_7D || league_id == LEAGUE_21D,
-        HoldoutError::InvalidLeagueTiming
-    );
-
-    // A league can never be changed once created, so a real one is held to
-    // the whole devnet shape: 7 or 21 days of 25 reps, on the devnet timing.
-    require!(
-        DEVNET_DURATIONS.contains(&duration_days)
-            && reps_per_day == DEVNET_REPS_PER_DAY
-            && day_length == DEVNET_DAY_LENGTH
-            && cadence == DEVNET_CADENCE
-            && join_lock == DEVNET_JOIN_LOCK
-            && (first_start - EPOCH_MONDAY_START).rem_euclid(DEVNET_CADENCE) == 0,
-        HoldoutError::InvalidLeagueTiming
-    );
-    Ok(())
+    // The duration belongs to the timing: it is what fixes the league's `end`,
+    // and `open_cohort` copies it into every cohort permanently, so a wrong
+    // figure here can never be corrected. The two judged leagues are 7 and 21
+    // days and nothing else (data-model §1.2).
+    //
+    // Zero is the dangerous one. `settle_count` calls a member finished when
+    // `days_completed == duration_days`, so in a zero-day league every member
+    // who never sat a single day is a finisher: an immediate clear, a payout,
+    // and the 21-day unlock, without a push-up. Every other id is refused
+    // outright — ids 2 to 99 are not test leagues, yet `Profile::slot_of`
+    // sends them to the test progress slot, so a "real" league there would
+    // write its judged progress where test runs live.
+    let expected = match league_id {
+        LEAGUE_7D => 7,
+        LEAGUE_21D => 21,
+        _ => return false,
+    };
+    // The obligation itself, copied into every cohort as permanently as the
+    // duration: both judged leagues are the Daily 25 (data-model §1.2), and a
+    // zero-rep league would be a daily obligation with nothing to do — a
+    // submission that means nothing and a forfeit nobody could have avoided.
+    duration_days == expected
+        && reps_per_day == DEVNET_REPS_PER_DAY
+        && day_length == DEVNET_DAY_LENGTH
+        && cadence == DEVNET_CADENCE
+        && join_lock == DEVNET_JOIN_LOCK
+        && is_monday_0500_utc(first_start)
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn handle_create_league(
+pub(crate) fn handler(
     ctx: Context<CreateLeague>,
     league_id: u8,
     duration_days: u8,
@@ -119,17 +114,22 @@ pub fn handle_create_league(
     cadence: i64,
     join_lock: i64,
 ) -> Result<()> {
-    check_league(
-        league_id,
-        duration_days,
-        reps_per_day,
-        exercise,
-        first_start,
-        day_length,
-        cadence,
-        join_lock,
-        TEST_LEAGUES,
-    )?;
+    require!(
+        exercise == EXERCISE_PUSHUP,
+        HoldoutError::ExerciseNotSupported
+    );
+    require!(
+        timing_ok(
+            league_id,
+            duration_days,
+            reps_per_day,
+            first_start,
+            day_length,
+            cadence,
+            join_lock
+        ),
+        HoldoutError::InvalidLeagueTiming
+    );
 
     let league = &mut ctx.accounts.league;
     league.league_id = league_id;
@@ -140,212 +140,9 @@ pub fn handle_create_league(
     league.first_start = first_start;
     league.cadence = cadence;
     league.join_lock = join_lock;
+    // No cohort yet; `open_cohort` is permissionless and must use this index.
     league.next_index = 0;
     league.bump = ctx.bumps.league;
+
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::state::league::TEST_LEAGUE_MIN;
-
-    /// Monday 28 September 2026, 05:00:00 UTC — the first judged cohort start.
-    const FIRST_START: i64 = 1_790_571_600;
-
-    fn real(league_id: u8, first_start: i64, test_leagues: bool) -> Result<()> {
-        check_league(
-            league_id,
-            7,
-            DEVNET_REPS_PER_DAY,
-            EXERCISE_PUSHUP,
-            first_start,
-            DEVNET_DAY_LENGTH,
-            DEVNET_CADENCE,
-            DEVNET_JOIN_LOCK,
-            test_leagues,
-        )
-    }
-
-    fn compressed(league_id: u8, exercise: u8, test_leagues: bool) -> Result<()> {
-        check_league(
-            league_id,
-            3,
-            5,
-            exercise,
-            FIRST_START,
-            60,
-            120,
-            10,
-            test_leagues,
-        )
-    }
-
-    fn is(result: Result<()>, expected: HoldoutError) -> bool {
-        result == Err(expected.into())
-    }
-
-    #[test]
-    fn the_epoch_anchor_is_a_monday_at_five() {
-        assert_eq!(
-            (FIRST_START - EPOCH_MONDAY_START).rem_euclid(DEVNET_CADENCE),
-            0,
-            "28 September 2026 05:00 UTC is a Monday start"
-        );
-    }
-
-    #[test]
-    fn a_real_league_starts_on_a_monday_at_five() {
-        for build in [false, true] {
-            assert!(real(LEAGUE_7D, FIRST_START, build).is_ok());
-            assert!(real(LEAGUE_21D, FIRST_START + 2 * DEVNET_CADENCE, build).is_ok());
-            // Before the epoch too: rem_euclid, not `%`, keeps the sign honest.
-            assert!(real(LEAGUE_7D, EPOCH_MONDAY_START - DEVNET_CADENCE, build).is_ok());
-
-            for off in [
-                1,
-                -1,
-                DEVNET_JOIN_LOCK,
-                -DEVNET_JOIN_LOCK,
-                DEVNET_DAY_LENGTH,
-            ] {
-                assert!(
-                    is(
-                        real(LEAGUE_7D, FIRST_START + off, build),
-                        HoldoutError::InvalidLeagueTiming
-                    ),
-                    "{off} seconds off Monday 05:00 is refused"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn a_real_league_keeps_the_devnet_timing_in_either_build() {
-        for build in [false, true] {
-            assert!(is(
-                compressed(LEAGUE_7D, EXERCISE_PUSHUP, build),
-                HoldoutError::InvalidLeagueTiming
-            ));
-        }
-    }
-
-    #[test]
-    fn a_test_league_needs_a_test_build() {
-        assert!(is(
-            compressed(TEST_LEAGUE_MIN, EXERCISE_PUSHUP, false),
-            HoldoutError::InvalidLeagueTiming
-        ));
-        assert!(is(
-            real(TEST_LEAGUE_MIN, FIRST_START, false),
-            HoldoutError::InvalidLeagueTiming
-        ));
-        assert!(compressed(TEST_LEAGUE_MIN, EXERCISE_PUSHUP, true).is_ok());
-        assert!(compressed(u8::MAX, EXERCISE_PUSHUP, true).is_ok());
-    }
-
-    #[test]
-    fn a_test_league_still_needs_a_timing_the_maths_can_run() {
-        for (duration, reps, day, cadence, lock) in [
-            (0, 5, 60, 120, 10),
-            (3, 0, 60, 120, 10),
-            (3, 5, 0, 120, 10),
-            (3, 5, 60, 0, 10),
-            (3, 5, 60, 120, -1),
-        ] {
-            assert!(is(
-                check_league(
-                    TEST_LEAGUE_MIN,
-                    duration,
-                    reps,
-                    EXERCISE_PUSHUP,
-                    FIRST_START,
-                    day,
-                    cadence,
-                    lock,
-                    true
-                ),
-                HoldoutError::InvalidLeagueTiming
-            ));
-        }
-    }
-
-    #[test]
-    fn below_one_hundred_only_the_two_real_leagues_exist() {
-        for build in [false, true] {
-            assert!(real(LEAGUE_7D, FIRST_START, build).is_ok());
-            assert!(real(LEAGUE_21D, FIRST_START, build).is_ok());
-            for league_id in [2, 3, 50, TEST_LEAGUE_MIN - 1] {
-                assert!(
-                    is(
-                        real(league_id, FIRST_START, build),
-                        HoldoutError::InvalidLeagueTiming
-                    ),
-                    "league {league_id} would share the test slot"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn a_real_league_is_seven_or_twenty_one_days_of_twenty_five() {
-        let shaped = |duration: u8, reps: u16, build: bool| {
-            check_league(
-                LEAGUE_21D,
-                duration,
-                reps,
-                EXERCISE_PUSHUP,
-                FIRST_START,
-                DEVNET_DAY_LENGTH,
-                DEVNET_CADENCE,
-                DEVNET_JOIN_LOCK,
-                build,
-            )
-        };
-        for build in [false, true] {
-            assert!(shaped(7, DEVNET_REPS_PER_DAY, build).is_ok());
-            assert!(shaped(21, DEVNET_REPS_PER_DAY, build).is_ok());
-            // A zero-day league would have no Running phase and count every
-            // joiner as a finisher; the rest are simply not this build's shape.
-            for duration in [0, 1, 6, 8, 14, 20, 22, u8::MAX] {
-                assert!(
-                    is(
-                        shaped(duration, DEVNET_REPS_PER_DAY, build),
-                        HoldoutError::InvalidLeagueTiming
-                    ),
-                    "{duration} days"
-                );
-            }
-            for reps in [0, 24, 26, u16::MAX] {
-                assert!(
-                    is(shaped(7, reps, build), HoldoutError::InvalidLeagueTiming),
-                    "{reps} reps"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn only_push_ups_in_this_build() {
-        for exercise in [1, 2, 3, u8::MAX] {
-            for build in [false, true] {
-                let real_league = check_league(
-                    LEAGUE_7D,
-                    7,
-                    DEVNET_REPS_PER_DAY,
-                    exercise,
-                    FIRST_START,
-                    DEVNET_DAY_LENGTH,
-                    DEVNET_CADENCE,
-                    DEVNET_JOIN_LOCK,
-                    build,
-                );
-                assert!(is(real_league, HoldoutError::ExerciseNotSupported));
-            }
-            assert!(is(
-                compressed(TEST_LEAGUE_MIN, exercise, true),
-                HoldoutError::ExerciseNotSupported
-            ));
-        }
-    }
 }
