@@ -80,7 +80,22 @@ class VisionAnalyzer(
     /** The frame's own timestamp, so the counter's cycle timing is the camera's, not the UI's. */
     private var lastTimestampMillis = 0L
 
+    /**
+     * Guards the landmarker against [close]. The camera delivers frames on its
+     * own thread and can have one in flight when the screen goes away; a frame
+     * handed to a closed landmarker throws, and on the analysis thread that
+     * took the whole app down the moment the member pressed Stop.
+     */
+    private val lock = Any()
+
+    @Volatile
+    private var closed = false
+
     override fun analyze(imageProxy: ImageProxy) {
+        if (closed) {
+            imageProxy.close()
+            return
+        }
         val bitmap = try {
             imageProxy.toBitmap().rotated(imageProxy.imageInfo.rotationDegrees)
         } catch (e: IllegalStateException) {
@@ -97,7 +112,12 @@ class VisionAnalyzer(
         lastTimestampMillis = timestamp
 
         lastBrightness = bitmap.meanLuma()
-        poseLandmarker?.detectAsync(BitmapImageBuilder(bitmap).build(), timestamp)
+        synchronized(lock) {
+            if (closed) return
+            // A model that failed mid-sitting costs frames, never the app.
+            runCatching { poseLandmarker?.detectAsync(BitmapImageBuilder(bitmap).build(), timestamp) }
+                .onFailure { onError("The pose model stopped: ${it.message}") }
+        }
     }
 
     @Volatile
@@ -122,8 +142,13 @@ class VisionAnalyzer(
         )
     }
 
+    /** Safe from any thread, and more than once; frames arriving afterwards are dropped. */
     fun close() {
-        poseLandmarker?.close()
+        synchronized(lock) {
+            if (closed) return
+            closed = true
+            poseLandmarker?.close()
+        }
     }
 
     companion object {

@@ -3,6 +3,7 @@ package holdout.app.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -10,7 +11,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +63,15 @@ fun HomeScreen(
     state: HomeState,
     onStart: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Test builds only: run the next sitting under staked rules — side-on, from
+     * the toes — so recognition can be tuned both ways on a real body. Null
+     * hides the switch, as it is in every release build.
+     */
+    stakedTest: Boolean = false,
+    onStakedTestChange: ((Boolean) -> Unit)? = null,
+    /** Test builds only: start today over from zero. Null hides the button. */
+    onResetToday: (() -> Unit)? = null,
 ) {
     Column(
         modifier = modifier
@@ -114,6 +127,34 @@ fun HomeScreen(
                 color = HoldoutColors.TextSecondary,
                 textAlign = TextAlign.Center,
             )
+        }
+
+        if (onResetToday != null) {
+            TextButton(onClick = onResetToday) {
+                Text("TEST · reset today to 0", style = LabelStyle, color = HoldoutColors.Warning)
+            }
+        }
+
+        if (onStakedTestChange != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.tight),
+            ) {
+                Switch(
+                    checked = stakedTest,
+                    onCheckedChange = onStakedTestChange,
+                    colors = SwitchDefaults.colors(checkedTrackColor = HoldoutColors.Accent),
+                )
+                Text(
+                    text = if (stakedTest) {
+                        "TEST · staked rules: 45° only, from the toes. Not your Daily 25."
+                    } else {
+                        "TEST · staked rules off"
+                    },
+                    style = LabelStyle,
+                    color = if (stakedTest) HoldoutColors.Accent else HoldoutColors.TextTertiary,
+                )
+            }
         }
 
         Text(

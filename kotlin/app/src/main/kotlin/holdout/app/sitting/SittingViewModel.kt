@@ -4,7 +4,10 @@ import androidx.lifecycle.ViewModel
 import holdout.app.storage.Store
 import holdout.app.streak.StreakStore
 import holdout.app.vision.VisionAnalyzer
+import holdout.repcounter.CameraView
+import holdout.repcounter.Coach
 import holdout.repcounter.Guidance
+import holdout.repcounter.ImagePose
 import holdout.repcounter.Lens
 import holdout.repcounter.Placement
 import holdout.repcounter.PoseFrame
@@ -12,9 +15,11 @@ import holdout.repcounter.PositionGuide
 import holdout.repcounter.Preflight
 import holdout.repcounter.PreflightInput
 import holdout.repcounter.PreflightReport
+import holdout.repcounter.Readout
 import holdout.repcounter.ReadyGate
 import holdout.repcounter.RepCounter
 import holdout.repcounter.RepEvent
+import holdout.repcounter.Stakes
 import holdout.repcounter.Tilt
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,6 +60,12 @@ class SittingViewModel(
     private val target: Int,
     /** Chain time now, for the day's countdown. Null while the chain is unread. */
     private val chainSecondsNow: () -> Long?,
+    /**
+     * The free Daily 25 takes any placement; a staked sitting is side-on or
+     * angled, never head-on, with full push-ups from the toes ([Stakes]). It decides what the
+     * camera check accepts, what the guide asks for and what the counter reads.
+     */
+    private val stakes: Stakes = Stakes.DAILY,
 ) : ViewModel() {
 
     enum class Step { PREFLIGHT, COUNTDOWN, COUNTING, COMPLETE }
@@ -66,6 +77,12 @@ class SittingViewModel(
     sealed interface Cue {
         data class CountdownTick(val remaining: Int) : Cue
         data object Counting : Cue
+
+        /** One verified rep that did not also bank a block — the block has its own chime. */
+        data object Rep : Cue
+
+        /** The coach's next correction, spoken — the member is too far away to read. */
+        data class Say(val words: String) : Cue
         data class BlockBanked(val banked: Int) : Cue
         data object DayComplete : Cue
     }
@@ -92,12 +109,23 @@ class SittingViewModel(
         val frameWidth: Int = 0,
         val frameHeight: Int = 0,
         val error: String? = null,
+        /** What this sitting is held to: decides the set-up card, and which placements it shows. */
+        val stakes: Stakes = Stakes.DAILY,
+        /** What the counter last read, for the debug readout. */
+        val readout: Readout? = null,
+        /**
+         * The set-up guide is open. It opens when the sitting does — while the
+         * member is still holding the phone — unless they asked not to see it.
+         */
+        val showSetup: Boolean = false,
+        /** The one short correction to show big while getting into position. */
+        val coach: Coach? = null,
     ) {
         val doneToday: Int get() = banked + looseReps
         val remaining: Int get() = (target - doneToday).coerceAtLeast(0)
     }
 
-    private val preflight = Preflight()
+    private val preflight = Preflight(stakes = stakes)
     private val readyGate = ReadyGate()
     private val positionGuide = PositionGuide()
 
@@ -119,8 +147,21 @@ class SittingViewModel(
     private val banking = BankingController(store, wallet, scope, dayIndex, target)
     private var repCounter = RepCounter()
 
+    /**
+     * The view the ready position was held in. Counting measures in it for the
+     * whole sitting — head-on reads the elbow from the picture, side-on from
+     * the body (`ViewReading`) — so it is fixed when the countdown starts
+     * rather than re-judged on every frame of a set.
+     */
+    private var countingView: CameraView = CameraView.SIDE
+
     private val _uiState = MutableStateFlow(
-        UiState(banked = banking.banked, target = target),
+        UiState(
+            banked = banking.banked,
+            target = target,
+            stakes = stakes,
+            showSetup = !store.isSetupGuideHidden(wallet, stakes.name),
+        ),
     )
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
@@ -150,21 +191,33 @@ class SittingViewModel(
                     pose = observation.image,
                     view = report.view,
                     floor = Placement.floorView(tilt, lens),
+                    allowedViews = stakes.allowedViews,
                 )
-                val ready = readyGate.onFrame(
-                    frame = observation.world,
-                    nowMillis = observation.world.timestampMillis,
-                    pillsGreen = report.canStart,
-                    view = report.view,
-                )
+                // Nobody can be in position while reading the guide, and a
+                // countdown must never start behind it.
+                if (_uiState.value.showSetup) readyGate.reset()
+                val ready = !_uiState.value.showSetup &&
+                    readyGate.onFrame(
+                        frame = observation.world,
+                        nowMillis = observation.world.timestampMillis,
+                        pillsGreen = report.canStart,
+                        view = report.view,
+                        image = observation.imagePose(),
+                    )
+                val coach = Coach.next(report, guidance)
                 _uiState.update {
                     it.withFrame(observation).copy(
                         preflight = report,
                         readyProgress = readyGate.progress,
                         guidance = guidance,
+                        coach = coach,
                     )
                 }
-                if (ready) startCountdown()
+                speak(coach, observation.world.timestampMillis)
+                if (ready) {
+                    countingView = report.view ?: CameraView.SIDE
+                    startCountdown()
+                }
             }
 
             // The overlay stays live through the countdown, so the member can
@@ -172,8 +225,8 @@ class SittingViewModel(
             Step.COUNTDOWN -> _uiState.update { it.withFrame(observation) }
 
             Step.COUNTING -> {
-                val event = repCounter.onFrame(observation.world)
-                _uiState.update { it.withFrame(observation) }
+                val event = repCounter.onFrame(observation.world, observation.imagePose())
+                _uiState.update { it.withFrame(observation).copy(readout = repCounter.readout) }
                 when (event) {
                     is RepEvent.Counted -> onVerifiedRep()
                     is RepEvent.Discarded -> _uiState.update { it.copy(hint = event.hint?.message) }
@@ -184,6 +237,8 @@ class SittingViewModel(
             else -> Unit
         }
     }
+
+    private fun VisionAnalyzer.Observation.imagePose() = ImagePose(image, frameWidth, frameHeight)
 
     private fun UiState.withFrame(observation: VisionAnalyzer.Observation) = copy(
         skeleton = observation.image,
@@ -209,15 +264,17 @@ class SittingViewModel(
 
     /** The 3-second countdown finished. A fresh counter: this sitting starts at zero. */
     fun startCounting() {
-        repCounter = RepCounter()
+        repCounter = RepCounter(view = countingView, stakes = stakes)
         _uiState.update { it.copy(step = Step.COUNTING, hint = null, looseReps = 0) }
         _cues.tryEmit(Cue.Counting)
     }
 
     private fun onVerifiedRep() {
         when (val outcome = banking.onVerifiedRep()) {
-            is BankingController.Outcome.Counted ->
+            is BankingController.Outcome.Counted -> {
                 _uiState.update { it.copy(looseReps = banking.loose, hint = null, justBanked = null) }
+                _cues.tryEmit(Cue.Rep)
+            }
 
             is BankingController.Outcome.Banked -> {
                 _uiState.update {
@@ -238,7 +295,8 @@ class SittingViewModel(
                 // A Daily 25 is recorded on the device and extends the streak;
                 // nothing goes on-chain and no connection is needed (FR-051).
                 // A cohort day also submits — T061, not this task.
-                streaks.recordCompletedDay(wallet, dayIndex)
+                // Only the real Daily 25 extends the streak — never a test run.
+                if (scope == Store.CHALLENGE) streaks.recordCompletedDay(wallet, dayIndex)
                 _cues.tryEmit(Cue.DayComplete)
                 _uiState.update {
                     it.copy(
@@ -254,6 +312,46 @@ class SittingViewModel(
 
     /** The member stopped, or the screen went away. Loose reps go; blocks stay. */
     fun endSitting(): Int = banking.endSitting()
+
+    private var coachSince: Pair<Coach, Long>? = null
+    private var spoken: Pair<Coach, Long>? = null
+
+    /**
+     * Say the correction once it has held for a moment — so a flicker between
+     * two words is not read out — and again every few seconds while it is still
+     * the thing to fix. "Hold" is said once: repeating it would talk over the
+     * countdown it leads into.
+     */
+    private fun speak(coach: Coach, nowMillis: Long) {
+        if (_uiState.value.showSetup) return
+        val since = coachSince?.takeIf { it.first == coach }?.second ?: nowMillis.also { coachSince = coach to it }
+        if (nowMillis - since < COACH_SETTLE_MILLIS) return
+        val last = spoken
+        val due = when {
+            last == null || last.first != coach -> true
+            coach == Coach.HOLD -> false
+            else -> nowMillis - last.second >= COACH_REPEAT_MILLIS
+        }
+        if (!due) return
+        spoken = coach to nowMillis
+        _cues.tryEmit(Cue.Say(coach.words))
+    }
+
+    private companion object {
+        const val COACH_SETTLE_MILLIS = 700L
+        const val COACH_REPEAT_MILLIS = 5_000L
+    }
+
+    /** The guide was closed. [dontShowAgain] is remembered for this wallet and these stakes. */
+    fun closeSetup(dontShowAgain: Boolean) {
+        if (dontShowAgain) store.hideSetupGuide(wallet, stakes.name)
+        _uiState.update { it.copy(showSetup = false) }
+    }
+
+    /** "How to set up" — reopens the guide, whatever was chosen before. */
+    fun openSetup() {
+        _uiState.update { it.copy(showSetup = true) }
+    }
 
     fun onError(message: String) {
         _uiState.update { it.copy(error = message) }

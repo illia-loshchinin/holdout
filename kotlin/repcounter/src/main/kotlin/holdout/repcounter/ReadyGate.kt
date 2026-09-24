@@ -1,7 +1,5 @@
 package holdout.repcounter
 
-import kotlin.math.abs
-
 /**
  * What starts a sitting: the four pre-flight pills green **and** the member
  * held at the top of a push-up, together, for about a second. No tap.
@@ -22,8 +20,9 @@ import kotlin.math.abs
  *
  * **The ready position is the rule's own top**, from the same [RepRules] the
  * counter uses: elbow past `topTriggerDegrees`, body line within
- * `bodyLineToleranceDegrees` of straight. There is deliberately no second idea
- * of what a plank is — spike S2 retunes both at once, and they can never drift
+ * `bodyLineToleranceDegrees` of straight — or, head-on, where the body line
+ * cannot be seen, arms straight in the picture and the torso down
+ * (`ViewReading`). There is deliberately no second idea of what a plank is — spike S2 retunes both at once, and they can never drift
  * apart. It also means [RepCounter] begins already at the top rather than
  * hunting for one.
  */
@@ -53,23 +52,25 @@ class ReadyGate(
      * Frames the model could not read neither advance the hold nor break it:
      * the same drop-don't-score rule [RepCounter] follows, so somebody walking
      * past the camera costs a frame rather than the whole countdown.
+     *
+     * [image] is the same frame as the picture saw it, which a head-on view
+     * reads the elbow from — exactly as [RepCounter] will once counting starts.
      */
     fun onFrame(
         frame: PoseFrame,
         nowMillis: Long,
         pillsGreen: Boolean,
         view: CameraView? = null,
+        image: ImagePose? = null,
     ): Boolean {
         if (!pillsGreen) {
             reset()
             return false
         }
 
-        val elbow = Angles.elbow(frame)
-        val bodyLine = Angles.bodyLine(frame)
-        if (elbow == null || bodyLine == null) return false
+        val reading = ViewReading.of(view ?: CameraView.SIDE, frame, image) ?: return false
 
-        if (!isAtTop(elbow, bodyLine, rulesFor(view))) {
+        if (!isAtTop(reading, rulesFor(view))) {
             reset()
             return false
         }
@@ -85,6 +86,7 @@ class ReadyGate(
         progress = 0f
     }
 
-    private fun isAtTop(elbow: Float, bodyLine: Float, rules: RepRules): Boolean = elbow >= rules.topTriggerDegrees &&
-        abs(180f - bodyLine) <= rules.bodyLineToleranceDegrees
+    private fun isAtTop(reading: ViewReading, rules: RepRules): Boolean = reading.elbow >= rules.topTriggerDegrees &&
+        reading.postureHeld(reading.posture, rules) &&
+        kneesStraight(reading.knee, rules)
 }

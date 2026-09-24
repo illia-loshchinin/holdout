@@ -1,7 +1,5 @@
 package holdout.repcounter
 
-import kotlin.math.abs
-
 /**
  * The push-up rule, and the machine that applies it (FR-021, PRD §8.4, T048).
  *
@@ -11,9 +9,12 @@ import kotlin.math.abs
  *   2. Bottom  elbow < 90°, body line held
  *   3. Top     elbow > 160°, body line held
  *   4. Cycle   between 0.8 and 6 seconds
+ *   5. Legs    straight, on the toes — judged at 45°, the placement that
+ *              shows it; staked sittings use it, head-on cannot ([Stakes])
  *
  * **The implementation** — how it survives the model's own error (research R4):
- * angles come from 3D world landmarks, are one-euro smoothed before any
+ * angles are read in the picture (`ViewReading`; 3D world landmarks only for
+ * synthetic traces), are one-euro smoothed before any
  * comparison, and the machine triggers on *wider* thresholds than the rule
  * states — 165° at the top, 85° at the bottom — because a hard edge on a
  * reading with ~2° of error counts one descent twice.
@@ -47,6 +48,23 @@ data class RepRules(
      * is what earns "Go lower" instead of silence.
      */
     val descentAttemptDegrees: Float = 140f,
+    /**
+     * Head-on only: the steepest the torso may rise from hips to shoulders and
+     * still be a body down in push-up position. It stands in for the body line,
+     * which a front camera cannot see (`ViewReading`). Measured on
+     * `front-honest-01`: 0–41° through every rep, 65–87° crouching and standing
+     * up. Provisional, like the triggers, until S2 has more than one recording.
+     */
+    val maxTorsoElevationDegrees: Float = 55f,
+    /**
+     * Legs straight, on the toes: the knee, hip–knee–ankle, never below this.
+     * A push-up from the knees bends them to 90–120°, so the margin to an
+     * honest plank's ~175° is wide on purpose — this has to catch the cheat
+     * without ever docking an honest rep. Judged at 45°, the placement in
+     * which the picture shows it ([Stakes]). Provisional until S2 records an
+     * honest angled set.
+     */
+    val minKneeDegrees: Float = 150f,
 ) {
     init {
         require(topTriggerDegrees >= topDegrees) {
@@ -61,13 +79,12 @@ data class RepRules(
 /**
  * The rules to use for a given camera view.
  *
- * **It returns the same rules for every view today, and that is deliberate.**
- * Both placements are accepted as of 2026-09-22, and head-on is the harder one:
- * a push-up seen from the front puts nearly all of its movement along the depth
- * axis, which is the weakest thing a single camera estimates. So a front-view
- * trigger set is probably needed — but its numbers have to come from spike S2's
- * traces, not from a guess made here. This is the one place that will ever know
- * about them.
+ * **It returns the same rules for every view, and that is deliberate.** The
+ * first front-view recording showed that head-on needed a different
+ * *measurement*, not different numbers: read in the picture, the elbow clears
+ * the same 165° / 85° triggers with room to spare (`ViewReading`). So the view
+ * changes what is read, and this stays the one place that would change the
+ * thresholds, should S2's traces ever show a view needs its own.
  *
  * **What must never happen** is loosening a front-view trigger past the rule to
  * make head-on counting work. The triggers exist to be *stricter* than the rule
@@ -84,7 +101,22 @@ enum class RepHint(val message: String) {
     GO_LOWER("Go lower"),
     KEEP_BODY_STRAIGHT("Keep your body straight"),
     SLOW_DOWN("Slow down"),
+    UP_ON_YOUR_TOES("Up on your toes, knees off the floor"),
 }
+
+/**
+ * What the counter read from the last frame it scored, smoothed exactly as the
+ * rule sees it. For tuning on a phone — a debug readout — never for deciding
+ * anything; the rule lives in [RepCounter] alone.
+ */
+data class Readout(
+    val view: CameraView,
+    val elbow: Float,
+    /** At 45°: the near side's shoulder–hip–ankle line. Head-on: the torso's rise above horizontal. */
+    val posture: Float,
+    /** Near leg at 45°; null head-on, or when the leg is not clearly in frame. */
+    val knee: Float?,
+)
 
 sealed interface RepEvent {
     /** A rep met every rule. [total] counts reps in this sitting. */
@@ -93,7 +125,7 @@ sealed interface RepEvent {
     /**
      * A cycle was attempted and thrown away. Never surfaced as an error.
      *
-     * [hint] is null when none of the three the copy deck defines fits — a
+     * [hint] is null when none of the hints the copy deck defines fits — a
      * cycle slower than six seconds fails rule 4, and there is no "speed up"
      * hint to show, so it is rejected in silence rather than under a hint that
      * tells the member to do the opposite of what they need.
@@ -108,7 +140,24 @@ sealed interface RepEvent {
  * One instance per sitting: the counter is not the banker. Reps survive across
  * sittings only as banked blocks of ten, which is [BankingController]'s job.
  */
-class RepCounter(private val rules: RepRules = RepRules()) {
+class RepCounter(
+    rules: RepRules = RepRules(),
+    /**
+     * Where the phone was when the sitting started. It decides what is read
+     * from each frame (`ViewReading`); it is fixed for the sitting, because a
+     * cycle measured half one way and half the other is not measured at all.
+     */
+    private val view: CameraView = CameraView.SIDE,
+    stakes: Stakes = Stakes.DAILY,
+) {
+    init {
+        // Pre-flight already refuses to start a staked sitting anywhere but at
+        // 45°. This is the second lock on the same door: a staked counter
+        // measured from a view that cannot see the knees must not exist.
+        require(stakes != Stakes.STAKED || stakes.accepts(view)) { "$stakes sittings cannot be counted from the $view view" }
+    }
+
+    private val rules = rules.forView(view)
 
     private enum class Phase {
         /** Nothing yet: waiting for the body to be at the top, straight. */
@@ -122,7 +171,8 @@ class RepCounter(private val rules: RepRules = RepRules()) {
     }
 
     private val elbowFilter = OneEuroFilter()
-    private val bodyLineFilter = OneEuroFilter()
+    private val postureFilter = OneEuroFilter()
+    private val kneeFilter = OneEuroFilter()
 
     private var phase = Phase.AWAITING_TOP
     private var count = 0
@@ -131,26 +181,41 @@ class RepCounter(private val rules: RepRules = RepRules()) {
     private var cycleStartMillis = 0L
     private var minElbowInCycle = Float.MAX_VALUE
     private var bodyLineHeld = true
+    private var kneesDown = false
 
     val total: Int get() = count
+
+    /** The last frame scored, for a debug readout. Null until one is. */
+    var readout: Readout? = null
+        private set
 
     /**
      * Frames whose joints are not clearly visible, and frames where the angles
      * cannot be computed, are **dropped rather than scored** — they do not
      * advance the machine and they do not break a cycle in progress. Someone
      * walking briefly in front of the camera costs a frame, not a rep.
+     *
+     * [frame] is the world landmarks. [image] is the same instant as the
+     * picture saw it; head-on it is required, since that is where the elbow is
+     * read, and a front-view frame without it is dropped.
      */
-    fun onFrame(frame: PoseFrame): RepEvent? {
-        val rawElbow = Angles.elbow(frame) ?: return null
-        val rawBodyLine = Angles.bodyLine(frame) ?: return null
+    fun onFrame(frame: PoseFrame, image: ImagePose? = null): RepEvent? {
+        val reading = ViewReading.of(view, frame, image) ?: return null
 
-        val elbow = elbowFilter.filter(rawElbow, frame.timestampMillis)
-        val bodyLine = bodyLineFilter.filter(rawBodyLine, frame.timestampMillis)
-        val straight = abs(180f - bodyLine) <= rules.bodyLineToleranceDegrees
+        val elbow = elbowFilter.filter(reading.elbow, frame.timestampMillis)
+        val posture = postureFilter.filter(reading.posture, frame.timestampMillis)
+        val knee = reading.knee?.let { kneeFilter.filter(it, frame.timestampMillis) }
+        val straight = reading.postureHeld(posture, rules)
+        val onToes = kneesStraight(knee, rules)
+        readout = Readout(view, elbow, posture, knee)
 
         return when (phase) {
             Phase.AWAITING_TOP -> {
-                if (elbow >= rules.topTriggerDegrees && straight) phase = Phase.AT_TOP
+                // Body line and knees are judged per cycle, not here: the ready
+                // gate already held a proper plank before counting began, and
+                // somebody who then drops to their knees or sags should hear why
+                // nothing counts, not silence.
+                if (elbow >= rules.topTriggerDegrees) phase = Phase.AT_TOP
                 null
             }
 
@@ -159,7 +224,7 @@ class RepCounter(private val rules: RepRules = RepRules()) {
                     startCycle(frame.timestampMillis)
                 }
                 if (cycleStartMillis != 0L) {
-                    observe(elbow, straight)
+                    observe(elbow, straight, onToes)
                     if (elbow <= rules.bottomTriggerDegrees) {
                         phase = Phase.AT_BOTTOM
                     } else if (elbow >= rules.topTriggerDegrees) {
@@ -173,7 +238,7 @@ class RepCounter(private val rules: RepRules = RepRules()) {
             }
 
             Phase.AT_BOTTOM -> {
-                observe(elbow, straight)
+                observe(elbow, straight, onToes)
                 if (elbow < rules.topTriggerDegrees) return null
 
                 // A full cycle: top → bottom → top. Now judge it.
@@ -185,6 +250,9 @@ class RepCounter(private val rules: RepRules = RepRules()) {
                 // being wider — the rule is satisfied by construction, and S2
                 // can move them without weakening it.
                 val verdict = when {
+                    // Knees first: a push-up from the knees is a different
+                    // exercise, and "keep your body straight" would not say so.
+                    kneesDown -> RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
                     !bodyLineHeld -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)
                     cycleMillis < rules.minCycleMillis -> RepEvent.Discarded(RepHint.SLOW_DOWN)
                     cycleMillis > rules.maxCycleMillis -> RepEvent.Discarded(null)
@@ -204,11 +272,13 @@ class RepCounter(private val rules: RepRules = RepRules()) {
         cycleStartMillis = timestampMillis
         minElbowInCycle = Float.MAX_VALUE
         bodyLineHeld = true
+        kneesDown = false
     }
 
-    private fun observe(elbow: Float, straight: Boolean) {
+    private fun observe(elbow: Float, straight: Boolean, onToes: Boolean) {
         if (elbow < minElbowInCycle) minElbowInCycle = elbow
         if (!straight) bodyLineHeld = false
+        if (!onToes) kneesDown = true
     }
 
     /**
@@ -225,5 +295,6 @@ class RepCounter(private val rules: RepRules = RepRules()) {
         cycleStartMillis = 0L
         minElbowInCycle = Float.MAX_VALUE
         bodyLineHeld = true
+        kneesDown = false
     }
 }

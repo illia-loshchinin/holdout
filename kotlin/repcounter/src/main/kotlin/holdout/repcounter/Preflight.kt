@@ -33,9 +33,14 @@ enum class PreflightCheck(val label: String, val fix: String) {
 }
 
 /** One pill on the pre-flight screen, updating in real time. */
-data class PreflightStatus(val check: PreflightCheck, val passing: Boolean) {
+data class PreflightStatus(
+    val check: PreflightCheck,
+    val passing: Boolean,
+    /** A fix more specific than the check's own, when the reason it failed calls for one. */
+    private val specificFix: String? = null,
+) {
     /** What the pill says when it is red; null when green. */
-    val fix: String? get() = if (passing) null else check.fix
+    val fix: String? get() = if (passing) null else specificFix ?: check.fix
 }
 
 data class PreflightReport(
@@ -88,8 +93,20 @@ class Preflight(
      * beside the member rather than in front of them.
      */
     private val sideRatio: Float = 0.5f,
-    /** At or above which it is in front of them. Between the two is oblique. */
-    private val frontRatio: Float = 0.9f,
+    /**
+     * At or above which it is in front of them. Between the two is oblique —
+     * the 45° placement staked sittings use. Set from two recordings: at 45°
+     * the ratio stayed at or under 1.35 (95th percentile), head-on it never
+     * fell below 1.73 (5th). The old 0.9 called most 45° frames head-on, which
+     * refused a correctly placed phone.
+     */
+    private val frontRatio: Float = 1.55f,
+    /**
+     * A staked sitting accepts the side view only, and its camera pill says so
+     * in those words — a member told only "move the phone" would move it and
+     * still be refused ([Stakes]).
+     */
+    private val stakes: Stakes = Stakes.DAILY,
 ) {
 
     fun evaluate(input: PreflightInput): PreflightReport {
@@ -101,12 +118,13 @@ class Preflight(
                     input.brightness in minBrightness..maxBrightness,
                 ),
                 PreflightStatus(PreflightCheck.WHOLE_BODY, wholeBodyVisible(input.world)),
-                // Passes for every view it can name. Which way round the phone
-                // is stopped being a gate on 2026-09-22: people put it on the
-                // floor in front of them, and a check that blocks the commonest
-                // placement stops the app working. It fails only when it cannot
-                // tell what it is looking at.
-                PreflightStatus(PreflightCheck.CAMERA_ANGLE, view != null),
+                // One placement per stakes ([Stakes]): head-on for the Daily 25,
+                // 45° when money is on it. Anywhere else, the pill says which.
+                PreflightStatus(
+                    PreflightCheck.CAMERA_ANGLE,
+                    passing = stakes.accepts(view),
+                    specificFix = if (view != null) stakes.cameraFix else null,
+                ),
                 PreflightStatus(
                     PreflightCheck.BACKGROUND_STILL,
                     input.backgroundMotion <= maxBackgroundMotion,

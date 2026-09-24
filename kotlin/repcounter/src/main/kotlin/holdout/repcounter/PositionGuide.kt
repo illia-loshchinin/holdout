@@ -50,6 +50,7 @@ enum class PositionHint(val message: String) {
     MOVE_CLOSER("Move closer"),
     MOVE_LEFT("Move left"),
     MOVE_RIGHT("Move right"),
+    PHONE_AT_45("Turn the phone to 45°"),
 }
 
 data class Guidance(
@@ -79,9 +80,19 @@ class PositionGuide(
          * and getting this backwards sends people the wrong way.
          */
         mirrored: Boolean = true,
+        /**
+         * The placements these stakes allow, or null when any will do. A staked
+         * sitting is side-on or angled, never head-on ([Stakes]); in any other
+         * view it is shown the angled outline and told to move the phone
+         * before anything else.
+         */
+        allowedViews: Set<CameraView>? = null,
     ): Guidance {
         val horizonY = (floor as? FloorView.Horizon)?.y
-        val target = targetFor(view, horizonY)
+        val wrongPlacement = allowedViews != null && view != null && view !in allowedViews
+        // The outline for where the phone is if that is allowed, else for 45° —
+        // the one placement every stakes accepts.
+        val target = targetFor(if (wrongPlacement) CameraView.OBLIQUE else view, horizonY)
         val body = boundingBox(pose)
         val fit = body?.let { target.overlap(it) } ?: 0f
 
@@ -90,6 +101,7 @@ class PositionGuide(
             body == null -> PositionHint.GET_IN_FRAME
             // Standing up: the whole body sits above where the floor begins.
             horizonY != null && body.bottom < horizonY -> PositionHint.GET_DOWN
+            wrongPlacement -> PositionHint.PHONE_AT_45
             body.area > target.area * TOO_BIG -> PositionHint.MOVE_BACK
             body.area < target.area * TOO_SMALL -> PositionHint.MOVE_CLOSER
             else -> sideways(body, target, mirrored)
@@ -100,8 +112,10 @@ class PositionGuide(
             target = target,
             bodyBox = body,
             fit = fit,
-            hint = if (fit >= alignedFit) null else hint,
-            aligned = fit >= alignedFit,
+            // The wrong placement is never "aligned", however well the body
+            // happens to fill the outline: it is the one thing that must change.
+            hint = if (fit >= alignedFit && !wrongPlacement) null else hint,
+            aligned = fit >= alignedFit && !wrongPlacement,
         )
     }
 

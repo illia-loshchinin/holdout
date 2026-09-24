@@ -82,11 +82,12 @@ class ReadyGateTest {
 
     @Test
     fun `the gate reads its rules through the camera view`() {
-        // Today every view returns the same rules, so a plank is a plank
-        // whichever way the phone is placed. When spike S2 gives the front view
-        // its own trigger set this is what proves the ready position moved with
-        // the counting rule instead of drifting away from it.
-        for (view in CameraView.entries) {
+        // Every view returns the same rules, so a plank is a plank whichever
+        // way the phone is placed. Should S2 ever give a view its own trigger
+        // set, this is what proves the ready position moved with the counting
+        // rule instead of drifting away from it. Head-on reads the picture
+        // rather than these world frames; FrontViewTest holds the gate there.
+        for (view in listOf(CameraView.SIDE, CameraView.OBLIQUE)) {
             val gate = ReadyGate(holdMillis = 1_000)
             gate.onFrame(top(0), 0, pillsGreen = true, view = view)
             assertTrue(

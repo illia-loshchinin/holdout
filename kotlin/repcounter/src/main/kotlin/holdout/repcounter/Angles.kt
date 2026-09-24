@@ -1,6 +1,8 @@
 package holdout.repcounter
 
 import kotlin.math.acos
+import kotlin.math.asin
+import kotlin.math.hypot
 import kotlin.math.sqrt
 
 /**
@@ -9,8 +11,11 @@ import kotlin.math.sqrt
  *   elbow      shoulder–elbow–wrist
  *   body line  shoulder–hip–ankle; 180° is straight
  *
- * Both are measured from 3D world landmarks, so they describe the body rather
- * than its projection onto the camera (research R4).
+ * On a phone they are read **in the picture**: at 45° on the near side
+ * ([nearSide]), head-on the elbow from both arms and the body line replaced
+ * by the torso check. The 3D world versions are what the synthetic traces use,
+ * and what the app read before two recordings showed the picture is better
+ * (`ViewReading`).
  *
  * A frame whose joints are not clearly visible produces `null` rather than a
  * number. Scoring a guess is how a counter invents reps that never happened —
@@ -89,6 +94,119 @@ object Angles {
     }
 
     fun elbow(frame: PoseFrame): Float? = bothSides(elbow(frame, Side.LEFT), elbow(frame, Side.RIGHT))
+
+    // --- In the picture, on the side nearer the lens (`ViewReading`) -----------
+
+    private val ARM = mapOf(
+        Side.LEFT to Triple(PoseIndex.LEFT_SHOULDER, PoseIndex.LEFT_ELBOW, PoseIndex.LEFT_WRIST),
+        Side.RIGHT to Triple(PoseIndex.RIGHT_SHOULDER, PoseIndex.RIGHT_ELBOW, PoseIndex.RIGHT_WRIST),
+    )
+    private val LEG = mapOf(
+        Side.LEFT to Triple(PoseIndex.LEFT_HIP, PoseIndex.LEFT_KNEE, PoseIndex.LEFT_ANKLE),
+        Side.RIGHT to Triple(PoseIndex.RIGHT_HIP, PoseIndex.RIGHT_KNEE, PoseIndex.RIGHT_ANKLE),
+    )
+    private val TRUNK = mapOf(
+        Side.LEFT to Triple(PoseIndex.LEFT_SHOULDER, PoseIndex.LEFT_HIP, PoseIndex.LEFT_ANKLE),
+        Side.RIGHT to Triple(PoseIndex.RIGHT_SHOULDER, PoseIndex.RIGHT_HIP, PoseIndex.RIGHT_ANKLE),
+    )
+
+    /**
+     * The side of the body nearer the lens: the one whose clearly visible limbs
+     * are **longer in the picture**. Nearer is bigger, and the far limbs are
+     * partly hidden behind the body, so the model draws them short or folded.
+     * `null` when neither side shows a single clear limb.
+     */
+    fun nearSide(image: ImagePose): Side? {
+        fun length(side: Side): Float {
+            var total = 0f
+            for ((a, b, c) in listOf(ARM.getValue(side), LEG.getValue(side))) {
+                val pa = image.frame[a]
+                val pb = image.frame[b]
+                val pc = image.frame[c]
+                if (!visible(pa, pb, pc)) continue
+                total += pa!!.distanceTo(pb!!, image) + pb.distanceTo(pc!!, image)
+            }
+            return total
+        }
+        val left = length(Side.LEFT)
+        val right = length(Side.RIGHT)
+        return when {
+            left == 0f && right == 0f -> null
+            left >= right -> Side.LEFT
+            else -> Side.RIGHT
+        }
+    }
+
+    /** Shoulder–elbow–wrist on [side], as the picture shows it. */
+    fun elbowInImage(image: ImagePose, side: Side): Float? = inImage(image, ARM.getValue(side))
+
+    /** Shoulder–hip–ankle on [side], as the picture shows it. 180° is straight. */
+    fun bodyLineInImage(image: ImagePose, side: Side): Float? = inImage(image, TRUNK.getValue(side))
+
+    /**
+     * Hip–knee–ankle on [side], as the picture shows it. From the side or at
+     * 45° the leg bends in a plane turned towards the lens, so a bent knee
+     * cannot project straight; head-on it can, which is one reason head-on is
+     * never read ([Stakes]).
+     */
+    fun kneeInImage(image: ImagePose, side: Side): Float? = inImage(image, LEG.getValue(side))
+
+    /**
+     * Head-on: the elbow as the picture shows it, **both arms averaged**, or
+     * `null` when either is not clearly in frame. From the front both arms are
+     * always visible, the elbows flare across the image as they bend, and
+     * averaging halves the error of one.
+     */
+    fun elbowInImage(image: ImagePose): Float? {
+        val left = elbowInImage(image, Side.LEFT) ?: return null
+        val right = elbowInImage(image, Side.RIGHT) ?: return null
+        return (left + right) / 2f
+    }
+
+    /**
+     * Head-on: how steeply the torso rises from hips to shoulders, in degrees
+     * above the horizontal — near 0 lying flat, 30–40 at the top of a push-up,
+     * 65–90 crouching, kneeling up or standing. `null` when the shoulders or
+     * hips are not clearly in frame.
+     *
+     * From 3D world landmarks, whose y axis points down the camera's picture:
+     * with the phone standing on the floor, close enough to gravity to tell a
+     * body down in a plank from one that is upright — all this is asked to do.
+     */
+    fun torsoElevation(frame: PoseFrame): Float? {
+        val ls = frame[PoseIndex.LEFT_SHOULDER]
+        val rs = frame[PoseIndex.RIGHT_SHOULDER]
+        val lh = frame[PoseIndex.LEFT_HIP]
+        val rh = frame[PoseIndex.RIGHT_HIP]
+        if (!visible(ls, rs, lh, rh)) return null
+        val dx = (ls!!.x + rs!!.x - lh!!.x - rh!!.x) / 2f
+        val dy = (ls.y + rs.y - lh.y - rh.y) / 2f
+        val dz = (ls.z + rs.z - lh.z - rh.z) / 2f
+        val length = sqrt(dx * dx + dy * dy + dz * dz)
+        if (length == 0f) return null
+        // y points down, so a shoulder above the hip has a negative dy.
+        return Math.toDegrees(asin((-dy / length).coerceIn(-1f, 1f).toDouble())).toFloat()
+    }
+
+    /** The near leg's knee. */
+    fun kneeInImage(image: ImagePose): Float? = nearSide(image)?.let { kneeInImage(image, it) }
+
+    private fun inImage(image: ImagePose, joints: Triple<Int, Int, Int>): Float? {
+        val a = image.frame[joints.first]
+        val b = image.frame[joints.second]
+        val c = image.frame[joints.third]
+        if (!visible(a, b, c)) return null
+        return angleAt(a!!.inPixels(image), b!!.inPixels(image), c!!.inPixels(image)).takeIf { !it.isNaN() }
+    }
+
+    /**
+     * Normalised coordinates stretched back to pixels. x and y are normalised to
+     * different lengths on a portrait frame, and an angle measured without this
+     * is squashed ([ImagePose]).
+     */
+    private fun Landmark.inPixels(image: ImagePose) = Landmark(x * image.width, y * image.height, 0f, presence)
+
+    private fun Landmark.distanceTo(other: Landmark, image: ImagePose): Float = hypot((x - other.x) * image.width, (y - other.y) * image.height)
 
     fun bodyLine(frame: PoseFrame): Float? = bothSides(bodyLine(frame, Side.LEFT), bodyLine(frame, Side.RIGHT))
 }

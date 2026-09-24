@@ -9,11 +9,16 @@ import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
+import androidx.camera.core.UseCase
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -41,20 +46,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import holdout.app.BuildConfig
 import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.CounterStyle
 import holdout.app.ui.theme.HoldoutColors
@@ -62,8 +74,11 @@ import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 import holdout.app.vision.PhoneTilt
 import holdout.app.vision.VisionAnalyzer
+import holdout.repcounter.CameraView
+import holdout.repcounter.Coach
 import holdout.repcounter.Lens
 import holdout.repcounter.PoseIndex
+import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 import kotlin.math.atan
 
@@ -126,7 +141,14 @@ fun SittingScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems, Alignment.CenterVertically),
         ) {
             when (state.step) {
-                SittingViewModel.Step.PREFLIGHT -> PreflightPills(state, hasCamera)
+                SittingViewModel.Step.PREFLIGHT -> {
+                    PreflightPills(state, hasCamera)
+                    if (state.guidance?.aligned != true) {
+                        TextButton(onClick = viewModel::openSetup) {
+                            Text("How to set up", color = HoldoutColors.Accent)
+                        }
+                    }
+                }
                 SittingViewModel.Step.COUNTDOWN -> Countdown(
                     onTick = viewModel::onCountdownTick,
                     onDone = viewModel::startCounting,
@@ -138,6 +160,16 @@ fun SittingScreen(
             state.error?.let {
                 Text(it, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Warning)
             }
+        }
+
+        // Read while the phone is still in hand: it opens with the sitting, and
+        // the countdown cannot start behind it.
+        if (state.showSetup && state.step == SittingViewModel.Step.PREFLIGHT) {
+            SetupDialog(
+                stakes = state.stakes,
+                detected = state.preflight?.view,
+                onDone = viewModel::closeSetup,
+            )
         }
 
         if (state.step != SittingViewModel.Step.COMPLETE) {
@@ -207,18 +239,24 @@ private fun PreflightPills(state: SittingViewModel.UiState, hasCamera: Boolean) 
         label = "helper",
     )
 
+    // The one correction, big enough to read from the floor — and spoken.
+    state.coach?.let { coach ->
+        Text(
+            text = coach.words,
+            style = CoachStyle,
+            color = if (coach == Coach.HOLD) HoldoutColors.Success else HoldoutColors.TextPrimary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .background(HoldoutColors.Scrim, MaterialTheme.shapes.large)
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+        )
+    }
+
     Column(
         modifier = Modifier.alpha(helperAlpha),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Spacing.tight),
     ) {
-        Text(
-            text = guidance?.hint?.message ?: "Get into position and hold",
-            style = MaterialTheme.typography.titleMedium,
-            color = HoldoutColors.TextPrimary,
-            textAlign = TextAlign.Center,
-        )
-
         // FR-019's four checks, still run and still gating — just no longer the
         // main event. Each red chip still states its own fix.
         report.statuses.forEach { status ->
@@ -245,6 +283,9 @@ private fun PreflightPills(state: SittingViewModel.UiState, hasCamera: Boolean) 
     }
 }
 
+/** The coach's words: read from two metres away, so as big as a line allows. */
+private val CoachStyle = TextStyle(fontSize = 54.sp, lineHeight = 58.sp, fontWeight = FontWeight.Bold)
+
 @Composable
 private fun Countdown(onTick: (Int) -> Unit, onDone: () -> Unit) {
     var remaining by remember { mutableStateOf(3) }
@@ -259,9 +300,54 @@ private fun Countdown(onTick: (Int) -> Unit, onDone: () -> Unit) {
     Text("$remaining", style = CounterStyle, color = HoldoutColors.Accent)
 }
 
+/**
+ * The count, with a reward on every rep: the number jumps, and a "+1" rises off
+ * it and fades. A member mid-set glances at the screen for a fraction of a
+ * second; this is what makes that glance land.
+ */
 @Composable
 private fun CountingOverlay(state: SittingViewModel.UiState) {
-    Text("${state.doneToday}", style = CounterStyle, color = HoldoutColors.TextPrimary)
+    val done = state.doneToday
+    var previous by remember { mutableStateOf(done) }
+    val pulse = remember { Animatable(1f) }
+    val rise = remember { Animatable(1f) }
+    LaunchedEffect(done) {
+        if (done > previous) {
+            launch {
+                pulse.snapTo(1.35f)
+                pulse.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
+            }
+            launch {
+                rise.snapTo(0f)
+                rise.animateTo(1f, tween(durationMillis = 750, easing = FastOutSlowInEasing))
+            }
+        }
+        previous = done
+    }
+
+    Box(contentAlignment = Alignment.Center) {
+        Text(
+            "$done",
+            style = CounterStyle,
+            color = HoldoutColors.TextPrimary,
+            modifier = Modifier.scale(pulse.value),
+        )
+        if (rise.value < 1f) {
+            Text(
+                "+1",
+                style = MaterialTheme.typography.headlineLarge,
+                color = HoldoutColors.Success,
+                modifier = Modifier.graphicsLayer {
+                    translationY = -rise.value * 90.dp.toPx() - 40.dp.toPx()
+                    translationX = 70.dp.toPx()
+                    alpha = 1f - rise.value
+                    val grow = 0.8f + 0.5f * rise.value
+                    scaleX = grow
+                    scaleY = grow
+                },
+            )
+        }
+    }
     Text(
         "${state.banked} banked · ${state.remaining} to go",
         style = AmountStyle,
@@ -269,6 +355,19 @@ private fun CountingOverlay(state: SittingViewModel.UiState) {
     )
     state.hint?.let {
         Text(it, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Accent)
+    }
+
+    // Test builds only: what the counter is reading, to tune it on a real body.
+    if (BuildConfig.DEBUG) {
+        state.readout?.let { r ->
+            val posture = if (r.view == CameraView.FRONT) "torso" else "line"
+            Text(
+                "${r.view.name.lowercase()} · ${state.stakes.name.lowercase()} · elbow ${r.elbow.toInt()}° · " +
+                    "$posture ${r.posture.toInt()}° · knee ${r.knee?.toInt()?.let { "$it°" } ?: "—"}",
+                style = LabelStyle,
+                color = HoldoutColors.TextTertiary,
+            )
+        }
     }
 }
 
@@ -358,6 +457,18 @@ private fun PositionOverlay(viewModel: SittingViewModel, mirrored: Boolean) {
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(28f, 20f)),
                     ),
                 )
+
+                // What goes in the box: a body at the top of a push-up, shaped
+                // for the placement, so the outline reads as "lie like this".
+                val box = Rect(
+                    left = fit.offsetX + left * fit.width,
+                    top = fit.offsetY + target.top * fit.height,
+                    right = fit.offsetX + (left + 2f * target.halfWidth) * fit.width,
+                    bottom = fit.offsetY + target.bottom * fit.height,
+                )
+                val figureView = state.preflight?.view?.takeIf { state.stakes.accepts(it) }
+                    ?: if (box.width >= box.height) CameraView.SIDE else CameraView.FRONT
+                drawPlankFigure(box.deflate(box.minDimension * 0.08f), figureView, HoldoutColors.Accent.copy(alpha = 0.7f))
             },
     )
 }
@@ -548,9 +659,15 @@ private fun CameraFeed(viewModel: SittingViewModel) {
         )
     }
 
+    // The camera is bound to the Activity's lifecycle, which outlives this
+    // screen. So leaving it has to unbind the camera explicitly — otherwise
+    // frames keep arriving for a sitting that has ended — and only then close
+    // the model, on the analysis thread, after any frame still in flight.
+    val bound = remember { BoundCamera() }
     DisposableEffect(Unit) {
         onDispose {
-            analyzer.close()
+            bound.release()
+            executor.execute { analyzer.close() }
             executor.shutdown()
         }
     }
@@ -586,10 +703,40 @@ private fun CameraFeed(viewModel: SittingViewModel) {
                         preview,
                         analysis,
                     )
+                    bound.hold(provider, preview, analysis)
                     viewModel.onLens(verticalFovOf(camera.cameraInfo))
                 }.onFailure { viewModel.onError("The camera could not start: ${it.message}") }
             }, ContextCompat.getMainExecutor(ctx))
             previewView
         },
     )
+}
+
+/**
+ * What this screen bound to the camera, so leaving the screen can unbind it.
+ * Binding happens asynchronously, so the screen may be left before it does; a
+ * binding that lands after that is undone on arrival.
+ */
+private class BoundCamera {
+    private var provider: ProcessCameraProvider? = null
+    private var useCases: Array<UseCase> = emptyArray()
+    private var released = false
+
+    fun hold(provider: ProcessCameraProvider, vararg useCases: UseCase) {
+        if (released) {
+            (useCases.firstOrNull { it is ImageAnalysis } as? ImageAnalysis)?.clearAnalyzer()
+            provider.unbind(*useCases)
+            return
+        }
+        this.provider = provider
+        this.useCases = arrayOf(*useCases)
+    }
+
+    fun release() {
+        released = true
+        useCases.filterIsInstance<ImageAnalysis>().forEach { it.clearAnalyzer() }
+        provider?.unbind(*useCases)
+        provider = null
+        useCases = emptyArray()
+    }
 }

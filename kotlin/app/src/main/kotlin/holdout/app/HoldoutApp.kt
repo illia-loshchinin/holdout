@@ -21,6 +21,8 @@ import holdout.app.streak.StreakStore
 import holdout.app.wallet.ConnectScreen
 import holdout.core.ChainClock
 import holdout.core.HoldoutDay
+import holdout.repcounter.Stakes
+import kotlinx.coroutines.delay
 
 /**
  * The shell, as far as the Daily 25 needs it (US1 partial, US5A).
@@ -54,7 +56,31 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         if (wallet.address != null) walletViewModel.refreshChainTime(clock)
     }
 
-    var inSitting by remember { mutableStateOf(false) }
+    // The clock is a plain object, not Compose state: reading it in the body
+    // gives whatever it said on the last recomposition. So it is sampled here
+    // once a second. Without this, home read the day before the chain had
+    // answered — the "not known yet" slot, always empty — and kept showing it
+    // after the chain did, so a member with ten banked reps was shown 25 to go.
+    // It also keeps the "left today" countdown moving.
+    var now by remember { mutableStateOf(clock.nowSeconds()) }
+    LaunchedEffect(clock) {
+        while (true) {
+            now = clock.nowSeconds()
+            delay(1_000)
+        }
+    }
+
+    /**
+     * The day a sitting is filed under, fixed when it starts. The day can change
+     * under a sitting — the chain answering late, or the 05:00 UTC turnover —
+     * and a sitting whose day changed would be rebuilt from scratch, losing its
+     * loose reps and banking the rest under a different date.
+     */
+    var sittingDay by remember { mutableStateOf<Long?>(null) }
+
+    // Test builds only: sittings under staked rules, filed under their own
+    // scope so a test run never banks into — or completes — the real Daily 25.
+    var stakedTest by remember { mutableStateOf(false) }
     var refreshToken by remember { mutableStateOf(0) }
 
     val address = wallet.address
@@ -68,29 +94,32 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         return
     }
 
-    val now = clock.nowSeconds()
     val dayIndex = now?.let { HoldoutDay.indexOf(it) } ?: LOCAL_DAY_UNKNOWN
 
-    if (inSitting) {
-        val sitting = remember(address, dayIndex, refreshToken) {
+    val inSittingDay = sittingDay
+    if (inSittingDay != null) {
+        val sitting = remember(address, inSittingDay, refreshToken, stakedTest) {
             SittingViewModel(
                 store = store,
                 streaks = streaks,
                 wallet = address,
-                scope = Store.CHALLENGE,
-                dayIndex = dayIndex,
+                scope = if (stakedTest) TEST_STAKED_SCOPE else Store.CHALLENGE,
+                dayIndex = inSittingDay,
                 target = DAILY_25,
                 chainSecondsNow = { clock.nowSeconds() },
+                // Free, so any placement. Staked sittings arrive with the
+                // cohorts (T054 onward) and pass Stakes.STAKED: side or 45°.
+                stakes = if (stakedTest) Stakes.STAKED else Stakes.DAILY,
             )
         }
         SittingScreen(
             viewModel = sitting,
             onFinished = {
-                inSitting = false
+                sittingDay = null
                 refreshToken += 1
             },
             onCancelled = {
-                inSitting = false
+                sittingDay = null
                 refreshToken += 1
             },
             modifier = modifier,
@@ -115,12 +144,28 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             streak = streak.current,
             secondsLeftToday = now?.let { HoldoutDay.secondsLeftIn(it) },
         ),
-        onStart = { inSitting = true },
+        onStart = { sittingDay = dayIndex },
         modifier = modifier,
+        stakedTest = stakedTest,
+        onStakedTestChange = if (BuildConfig.DEBUG) ({ stakedTest = it }) else null,
+        onResetToday = if (BuildConfig.DEBUG) {
+            {
+                // Both scopes: the real Daily 25 and the staked-rules test runs.
+                // The streak is left alone — re-finishing today cannot add to it twice.
+                store.clearDay(address, Store.CHALLENGE, dayIndex)
+                store.clearDay(address, TEST_STAKED_SCOPE, dayIndex)
+                refreshToken += 1
+            }
+        } else {
+            null
+        },
     )
 }
 
 private const val DAILY_25 = 25
+
+/** Where test sittings under staked rules bank, apart from the real Daily 25. */
+private const val TEST_STAKED_SCOPE = "test-staked"
 
 /**
  * The day index used before the chain has been read once.

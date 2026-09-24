@@ -32,6 +32,20 @@ data class PoseFrame(
     operator fun get(index: Int): Landmark? = landmarks.getOrNull(index)
 }
 
+/**
+ * The same instant as the picture sees it: MediaPipe's **image** landmarks,
+ * normalised 0..1 across each axis, and the size of the frame they came from.
+ *
+ * The size is not decoration. x and y are normalised to different lengths on
+ * a portrait frame, so an angle measured in raw normalised units is squashed —
+ * [Angles.elbowInImage] scales both back to pixels before measuring anything.
+ */
+data class ImagePose(
+    val frame: PoseFrame,
+    val width: Int,
+    val height: Int,
+)
+
 /** MediaPipe pose landmark indices, for the joints the rule names. */
 object PoseIndex {
     const val LEFT_SHOULDER = 11
@@ -42,6 +56,8 @@ object PoseIndex {
     const val RIGHT_WRIST = 16
     const val LEFT_HIP = 23
     const val RIGHT_HIP = 24
+    const val LEFT_KNEE = 25
+    const val RIGHT_KNEE = 26
     const val LEFT_ANKLE = 27
     const val RIGHT_ANKLE = 28
 

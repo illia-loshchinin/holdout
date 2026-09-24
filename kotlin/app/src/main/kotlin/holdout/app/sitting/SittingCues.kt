@@ -17,11 +17,13 @@ import java.util.Locale
  * |---|---|
  * | countdown | "three", "two", "one" |
  * | counting starts | "go", and a tone under it |
+ * | a rep counts | one short blip — the member's only proof, face-down, that it did |
+ * | getting into position | the one correction on screen, in two words — "Closer", "Phone to 45°" |
  * | ten reps banked | a two-tone chime — those ten cannot be lost now |
  * | day complete | a success chime, then the screen |
  *
- * Nothing sounds per rep. The chime every ten is the progress signal; a click
- * twenty-five times is noise, not information.
+ * The per-rep blip is deliberately the shortest, quietest-sounding tone here,
+ * so the chime every ten still stands out as the bigger moment.
  *
  * **This is audio out, not audio in.** FR-022a and OD-3 forbid the microphone
  * and forbid audio as a *verification* signal; `RECORD_AUDIO` is not declared
@@ -66,6 +68,12 @@ class SittingCues(context: Context) {
                 tone(ToneGenerator.TONE_PROP_BEEP, 180)
             }
 
+            SittingViewModel.Cue.Rep -> tone(ToneGenerator.TONE_PROP_BEEP, 70)
+
+            // A correction replaces whatever correction was still being said:
+            // only the latest one is worth hearing.
+            is SittingViewModel.Cue.Say -> say(cue.words, flush = true)
+
             is SittingViewModel.Cue.BlockBanked -> {
                 tone(ToneGenerator.TONE_PROP_BEEP2, 300)
                 say("${cue.banked} banked")
@@ -82,11 +90,12 @@ class SittingCues(context: Context) {
         runCatching { tones?.startTone(type, durationMillis) }
     }
 
-    private fun say(text: String) {
+    private fun say(text: String, flush: Boolean = false) {
         if (!speechReady) return
-        // QUEUE_ADD, not QUEUE_FLUSH: "three, two, one, go" arrives as four
-        // separate cues a second apart and must not cut each other off.
-        runCatching { speech?.speak(text, TextToSpeech.QUEUE_ADD, null, text) }
+        // QUEUE_ADD by default: "three, two, one, go" arrives as four separate
+        // cues a second apart and must not cut each other off.
+        val mode = if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+        runCatching { speech?.speak(text, mode, null, text) }
     }
 
     fun close() {

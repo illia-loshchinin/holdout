@@ -12,6 +12,10 @@ import kotlin.test.assertTrue
  * ±10°. That is not tuning — it counts reps FR-021 forbids.
  *
  * This test fails the day somebody tries.
+ *
+ * Head-on the body line is not judged at all, and that is a different thing
+ * from widening it: the camera cannot see it from there, so no tolerance would
+ * make the reading mean anything. `ViewReading` names what that costs.
  */
 class RepRulesViewTest {
 

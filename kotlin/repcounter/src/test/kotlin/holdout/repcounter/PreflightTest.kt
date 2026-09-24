@@ -14,7 +14,8 @@ class PreflightTest {
         brightness: Float = 0.5f,
         backgroundMotion: Float = 0.0f,
         world: PoseFrame? = Traces.frame(0, elbowDegrees = 175f, bodyLineDegrees = 180f),
-        image: PoseFrame? = Traces.imageFrame(shoulderSpan = 0.05f),
+        // Head-on: the Daily 25's placement, which `Preflight()` checks for.
+        image: PoseFrame? = Traces.imageFrame(shoulderSpan = 0.7f),
     ) = PreflightInput(brightness, backgroundMotion, world, image)
 
     @Test
@@ -75,24 +76,28 @@ class PreflightTest {
     }
 
     @Test
-    fun `both placements are accepted, and each is named`() {
-        // The whole point of the 2026-09-22 change: people put the phone on the
-        // floor in front of them, and a check that blocks the commonest
-        // placement stops the app working.
-        val sideOn = preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.05f)))
-        assertTrue(sideOn.canStart)
-        assertEquals(CameraView.SIDE, sideOn.view)
-
-        val faceOn = preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.5f)))
-        assertTrue(faceOn.canStart)
-        assertEquals(CameraView.FRONT, faceOn.view)
+    fun `every placement is named`() {
+        assertEquals(CameraView.SIDE, preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.05f))).view)
+        assertEquals(CameraView.OBLIQUE, preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.4f))).view)
+        assertEquals(CameraView.FRONT, preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.7f))).view)
     }
 
     @Test
-    fun `a view between the two is named oblique and still accepted`() {
-        val report = preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.28f)))
-        assertEquals(CameraView.OBLIQUE, report.view)
-        assertTrue(report.canStart, "whether oblique should block is spike S2's question, not a guess")
+    fun `45 degrees is not mistaken for head-on`() {
+        // The bug the 1.55 cut-off fixed: at 45° the shoulder span against the
+        // torso reached 1.35 on a real recording, and the old 0.9 called most
+        // of those frames head-on — refusing a correctly placed phone.
+        val atFortyFive = Traces.imageFrame(shoulderSpan = 0.4f * 1.35f)
+        assertEquals(CameraView.OBLIQUE, preflight.evaluate(good(image = atFortyFive)).view)
+    }
+
+    @Test
+    fun `the Daily 25 starts head-on or at 45 degrees, and square side-on says where the phone goes`() {
+        assertTrue(preflight.evaluate(good()).canStart)
+        assertTrue(preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.4f))).canStart)
+        val report = preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.05f)))
+        assertFalse(report.canStart)
+        assertEquals(listOf(Stakes.DAILY.cameraFix), report.fixes)
     }
 
     @Test

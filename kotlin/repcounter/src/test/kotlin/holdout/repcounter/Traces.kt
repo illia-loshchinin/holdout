@@ -188,6 +188,163 @@ object Traces {
         return PoseFrame(timestampMillis, landmarks)
     }
 
+    /** A portrait 9:16 picture, so a measurement that forgets to un-squash the axes reads wrong. */
+    const val IMAGE_WIDTH = 900
+    const val IMAGE_HEIGHT = 1600
+
+    /**
+     * One head-on frame: world landmarks whose torso rises [torsoDegrees] above
+     * the horizontal, and a picture in which both elbows read exactly
+     * [elbowDegrees].
+     *
+     * Deliberately, the world arms are left **straight** whatever the picture
+     * says. Head-on, the world elbow is the reading that failed; a front-view
+     * test that passed while it was still being read would prove nothing.
+     */
+    fun frontFrame(
+        timestampMillis: Long,
+        elbowDegrees: Float,
+        torsoDegrees: Float = 35f,
+        presence: Float = 1.0f,
+    ): Pair<PoseFrame, ImagePose> {
+        val world = MutableList(PoseIndex.COUNT) { Landmark(0f, 0f, 0f, 0f) }
+        val t = Math.toRadians(torsoDegrees.toDouble())
+        // Hips at the origin; the shoulders half a metre along the torso,
+        // towards the camera (-z) and up (-y, since y points down).
+        val sy = (-0.5 * sin(t)).toFloat()
+        val sz = (-0.5 * cos(t)).toFloat()
+        for ((sign, s, e, w, h) in listOf(
+            listOf(-1, PoseIndex.LEFT_SHOULDER, PoseIndex.LEFT_ELBOW, PoseIndex.LEFT_WRIST, PoseIndex.LEFT_HIP),
+            listOf(1, PoseIndex.RIGHT_SHOULDER, PoseIndex.RIGHT_ELBOW, PoseIndex.RIGHT_WRIST, PoseIndex.RIGHT_HIP),
+        )) {
+            val x = 0.2f * sign
+            world[h] = Landmark(x / 2, 0f, 0f, presence)
+            world[s] = Landmark(x, sy, sz, presence)
+            world[e] = Landmark(x, sy + 0.3f, sz, presence)
+            world[w] = Landmark(x, sy + 0.6f, sz, presence)
+        }
+        for (a in listOf(PoseIndex.LEFT_ANKLE, PoseIndex.RIGHT_ANKLE)) world[a] = Landmark(0f, 0.1f, 1.5f, presence)
+
+        // The picture, built in pixels and then normalised: each arm bends
+        // outward by `elbowDegrees`, the way flared elbows look head-on.
+        val picture = MutableList(PoseIndex.COUNT) { Landmark(0f, 0f, 0f, 0f) }
+        val e = Math.toRadians(elbowDegrees.toDouble())
+        for ((sign, s, el, w) in listOf(
+            listOf(-1, PoseIndex.LEFT_SHOULDER, PoseIndex.LEFT_ELBOW, PoseIndex.LEFT_WRIST),
+            listOf(1, PoseIndex.RIGHT_SHOULDER, PoseIndex.RIGHT_ELBOW, PoseIndex.RIGHT_WRIST),
+        )) {
+            val shoulderX = 450.0 + sign * 120.0
+            val shoulderY = 800.0
+            // Elbow 200 px out and up from the shoulder at 45°; the wrist
+            // placed so the angle at the elbow is exactly `elbowDegrees`.
+            val ux = -sign * cos(Math.PI / 4)
+            val uy = sin(Math.PI / 4)
+            val elbowX = shoulderX - ux * 200
+            val elbowY = shoulderY - uy * 200
+            // Rotate the elbow→shoulder direction by the elbow angle, away from the body.
+            val rot = -sign * e
+            val fx = ux * cos(rot) - uy * sin(rot)
+            val fy = ux * sin(rot) + uy * cos(rot)
+            val wristX = elbowX + fx * 200
+            val wristY = elbowY + fy * 200
+            picture[s] = Landmark((shoulderX / IMAGE_WIDTH).toFloat(), (shoulderY / IMAGE_HEIGHT).toFloat(), 0f, presence)
+            picture[el] = Landmark((elbowX / IMAGE_WIDTH).toFloat(), (elbowY / IMAGE_HEIGHT).toFloat(), 0f, presence)
+            picture[w] = Landmark((wristX / IMAGE_WIDTH).toFloat(), (wristY / IMAGE_HEIGHT).toFloat(), 0f, presence)
+        }
+        return PoseFrame(timestampMillis, world) to
+            ImagePose(PoseFrame(timestampMillis, picture), IMAGE_WIDTH, IMAGE_HEIGHT)
+    }
+
+    /** [count] head-on push-ups after a settle at the top, shaped as [pushUp] is. */
+    fun frontSet(
+        count: Int,
+        top: Float = 175f,
+        bottom: Float = 45f,
+        cycleMillis: Long = 2_000,
+        torsoDegrees: Float = 35f,
+    ): List<Pair<PoseFrame, ImagePose>> {
+        val frames = mutableListOf<Pair<PoseFrame, ImagePose>>()
+        var t = 0L
+        while (t <= 500) {
+            frames += frontFrame(t, top, torsoDegrees)
+            t += FRAME_MILLIS
+        }
+        repeat(count) {
+            var c = 0L
+            while (c <= cycleMillis) {
+                val phase = (1.0 - cos(2.0 * Math.PI * c / cycleMillis)) / 2.0
+                frames += frontFrame(t + c, top - (top - bottom) * phase.toFloat(), torsoDegrees)
+                c += FRAME_MILLIS
+            }
+            t += cycleMillis + FRAME_MILLIS
+        }
+        return frames
+    }
+
+    /**
+     * The picture of a side-on body, as far as the knee check reads it: the
+     * near leg drawn in pixels with the knee at exactly [kneeDegrees], the far
+     * leg hidden behind it as it is from the side.
+     */
+    fun sideImage(timestampMillis: Long, kneeDegrees: Float, presence: Float = 1f): ImagePose {
+        val landmarks = MutableList(PoseIndex.COUNT) { Landmark(0f, 0f, 0f, 0f) }
+        val k = Math.toRadians(kneeDegrees.toDouble())
+        // Hip up and to the left of the knee along the thigh; the shin leaves
+        // the knee at `kneeDegrees` from the thigh.
+        val kneeX = 500.0
+        val kneeY = 1_000.0
+        val hipX = kneeX - 250.0
+        val hipY = kneeY - 60.0
+        val tx = (hipX - kneeX) / 257.1
+        val ty = (hipY - kneeY) / 257.1
+        val ankleX = kneeX + 250.0 * (tx * cos(k) - ty * sin(k))
+        val ankleY = kneeY + 250.0 * (tx * sin(k) + ty * cos(k))
+        fun at(x: Double, y: Double) = Landmark((x / IMAGE_WIDTH).toFloat(), (y / IMAGE_HEIGHT).toFloat(), 0f, presence)
+        landmarks[PoseIndex.LEFT_HIP] = at(hipX, hipY)
+        landmarks[PoseIndex.LEFT_KNEE] = at(kneeX, kneeY)
+        landmarks[PoseIndex.LEFT_ANKLE] = at(ankleX, ankleY)
+        return ImagePose(PoseFrame(timestampMillis, landmarks), IMAGE_WIDTH, IMAGE_HEIGHT)
+    }
+
+    /**
+     * The picture of a body at 45°, as far as the angled reading needs it: the
+     * near side only (the far one is hidden, as it is on a phone), drawn in
+     * pixels with the elbow at [elbowDegrees] and the knee at [kneeDegrees].
+     * The thigh continues the shoulder–hip line, so with a straight knee the
+     * whole body is straight and a bent knee bends the body line with it.
+     */
+    fun angledImage(timestampMillis: Long, elbowDegrees: Float, kneeDegrees: Float = 178f, presence: Float = 1f): ImagePose {
+        val landmarks = MutableList(PoseIndex.COUNT) { Landmark(0f, 0f, 0f, 0f) }
+        fun at(x: Double, y: Double) = Landmark((x / IMAGE_WIDTH).toFloat(), (y / IMAGE_HEIGHT).toFloat(), 0f, presence)
+        fun rotate(dx: Double, dy: Double, degrees: Float): Pair<Double, Double> {
+            val r = Math.toRadians(degrees.toDouble())
+            return (dx * cos(r) - dy * sin(r)) to (dx * sin(r) + dy * cos(r))
+        }
+
+        // Body: shoulder, hip and knee on one line sloping down to the feet.
+        val shoulder = 200.0 to 900.0
+        val (ux, uy) = 0.97 to 0.24
+        val hip = shoulder.first + 330 * ux to shoulder.second + 330 * uy
+        val knee = hip.first + 230 * ux to hip.second + 230 * uy
+        // The shin leaves the knee at `kneeDegrees` from the thigh.
+        val (sx, sy) = rotate(-ux, -uy, kneeDegrees)
+        val ankle = knee.first + 230 * sx to knee.second + 230 * sy
+
+        // Arm: the upper arm hangs from the shoulder, the forearm leaves the
+        // elbow at `elbowDegrees` from it.
+        val elbow = shoulder.first to shoulder.second + 170
+        val (fx, fy) = rotate(0.0, -1.0, elbowDegrees)
+        val wrist = elbow.first + 170 * fx to elbow.second + 170 * fy
+
+        landmarks[PoseIndex.LEFT_SHOULDER] = at(shoulder.first, shoulder.second)
+        landmarks[PoseIndex.LEFT_ELBOW] = at(elbow.first, elbow.second)
+        landmarks[PoseIndex.LEFT_WRIST] = at(wrist.first, wrist.second)
+        landmarks[PoseIndex.LEFT_HIP] = at(hip.first, hip.second)
+        landmarks[PoseIndex.LEFT_KNEE] = at(knee.first, knee.second)
+        landmarks[PoseIndex.LEFT_ANKLE] = at(ankle.first, ankle.second)
+        return ImagePose(PoseFrame(timestampMillis, landmarks), IMAGE_WIDTH, IMAGE_HEIGHT)
+    }
+
     /** A frame the model could not read — every landmark below the presence threshold. */
     fun blind(timestampMillis: Long): PoseFrame = PoseFrame(timestampMillis, List(PoseIndex.COUNT) { Landmark(0f, 0f, 0f, 0.1f) })
 }

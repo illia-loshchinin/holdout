@@ -31,6 +31,13 @@ interface Store {
     fun isDayComplete(wallet: String, scope: String, dayIndex: Long): Boolean
     fun markDayComplete(wallet: String, scope: String, dayIndex: Long)
 
+    /**
+     * Forget one day's banked reps and completion. **Test builds only** — the
+     * product never un-banks a rep (FR-023); this exists so a day can be done
+     * again on the same phone while the counter is being tuned.
+     */
+    fun clearDay(wallet: String, scope: String, dayIndex: Long)
+
     fun streak(wallet: String): Int
     fun lastStreakDay(wallet: String): Long
     fun setStreak(wallet: String, streak: Int, dayIndex: Long)
@@ -40,6 +47,10 @@ interface Store {
 
     fun hasSeenTour(wallet: String): Boolean
     fun setSeenTour(wallet: String)
+
+    /** Whether the member asked not to see the sitting's set-up guide again, for these [stakes]. */
+    fun isSetupGuideHidden(wallet: String, stakes: String): Boolean
+    fun hideSetupGuide(wallet: String, stakes: String)
 
     companion object {
         /** The scope for the free Daily 25, which belongs to no cohort. */
@@ -78,6 +89,12 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         kv.encode(dayKey(wallet, scope, dayIndex, "done"), true)
     }
 
+    override fun clearDay(wallet: String, scope: String, dayIndex: Long) {
+        kv.removeValuesForKeys(
+            arrayOf(dayKey(wallet, scope, dayIndex, "banked"), dayKey(wallet, scope, dayIndex, "done")),
+        )
+    }
+
     override fun streak(wallet: String): Int = kv.decodeInt("streak:$wallet", 0)
 
     override fun lastStreakDay(wallet: String): Long = kv.decodeLong("streak_day:$wallet", Store.NO_DAY)
@@ -94,6 +111,12 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
     }
 
     override fun hasSeenTour(wallet: String): Boolean = kv.decodeBool("tour:$wallet", false)
+
+    override fun isSetupGuideHidden(wallet: String, stakes: String): Boolean = kv.decodeBool("setup_hidden:$wallet:$stakes", false)
+
+    override fun hideSetupGuide(wallet: String, stakes: String) {
+        kv.encode("setup_hidden:$wallet:$stakes", true)
+    }
 
     override fun setSeenTour(wallet: String) {
         kv.encode("tour:$wallet", true)
@@ -118,6 +141,11 @@ class InMemoryStore : Store {
         values[dayKey(wallet, scope, dayIndex, "done")] = true
     }
 
+    override fun clearDay(wallet: String, scope: String, dayIndex: Long) {
+        values.remove(dayKey(wallet, scope, dayIndex, "banked"))
+        values.remove(dayKey(wallet, scope, dayIndex, "done"))
+    }
+
     override fun streak(wallet: String): Int = values["streak:$wallet"] as? Int ?: 0
 
     override fun lastStreakDay(wallet: String): Long = values["streak_day:$wallet"] as? Long ?: Store.NO_DAY
@@ -134,6 +162,12 @@ class InMemoryStore : Store {
     }
 
     override fun hasSeenTour(wallet: String): Boolean = values["tour:$wallet"] as? Boolean ?: false
+
+    override fun isSetupGuideHidden(wallet: String, stakes: String): Boolean = values["setup_hidden:$wallet:$stakes"] as? Boolean ?: false
+
+    override fun hideSetupGuide(wallet: String, stakes: String) {
+        values["setup_hidden:$wallet:$stakes"] = true
+    }
 
     override fun setSeenTour(wallet: String) {
         values["tour:$wallet"] = true
