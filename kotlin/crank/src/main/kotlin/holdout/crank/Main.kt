@@ -33,7 +33,13 @@ const val EXIT_CONFIG = 1
 const val EXIT_FAILED = 2
 
 /** Stops a command with an exit code and a line for the JSON summary. */
-class CrankException(val exitCode: Int, message: String) : Exception(message)
+open class CrankException(val exitCode: Int, message: String) : Exception(message)
+
+/**
+ * A command that ran to the end but not cleanly — `crank run` with a failed
+ * step: its whole summary is still printed, under [exitCode].
+ */
+class CrankSummaryException(exitCode: Int, val summary: JsonObject) : CrankException(exitCode, "${summary["failed"]} step(s) failed")
 
 internal fun configError(message: String): Nothing = throw CrankException(EXIT_CONFIG, message)
 
@@ -73,10 +79,17 @@ fun runCrank(
                     Chips.checkArgs(parsed)
                     fun(config: CrankConfig) = runBlocking { Chips.publish(parsed, config, rpcFor(config.rpcUrl)) }
                 }
+                listOf("run") -> {
+                    Run.checkArgs(parsed)
+                    fun(config: CrankConfig) = runBlocking { Run.run(parsed, config, rpcFor(config.rpcUrl)) }
+                }
                 else -> notYet(parsed.words)
             }
         out(command(CrankConfig.from(env)).toString())
         EXIT_OK
+    } catch (e: CrankSummaryException) {
+        out(e.summary.toString())
+        e.exitCode
     } catch (e: CrankException) {
         out(
             buildJsonObject {
@@ -105,7 +118,6 @@ fun runCrank(
  */
 private val LATER =
     mapOf(
-        listOf("run") to "T071",
         listOf("scripted", "plan") to "T088",
         listOf("scripted", "fund") to "T088",
         listOf("scripted", "run") to "T087",

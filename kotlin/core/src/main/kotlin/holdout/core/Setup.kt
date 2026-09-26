@@ -60,7 +60,7 @@ data class LeagueSnapshot(val params: LeagueParams, val nextIndex: Long) {
         const val SIZE = 50
 
         /** `sha256("account:LeagueConfig")[..8]`. */
-        private val DISCRIMINATOR = byteArrayOf(0xe0.toByte(), 0xce.toByte(), 0x26, 0x66, 0x62, 0x6a, 0x21, 0x28)
+        val DISCRIMINATOR: ByteArray get() = byteArrayOf(0xe0.toByte(), 0xce.toByte(), 0x26, 0x66, 0x62, 0x6a, 0x21, 0x28)
 
         fun decode(data: ByteArray): LeagueSnapshot {
             require(data.size >= SIZE && data.copyOf(8).contentEquals(DISCRIMINATOR)) { "not a LeagueConfig account" }
