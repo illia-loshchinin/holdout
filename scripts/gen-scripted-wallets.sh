@@ -38,10 +38,12 @@ chmod 700 "$SECRETS"
 
 # group:count — the name is what the crank's rotation reads, and what the JSON
 # carries so a reader can see which wallets can be in a cohort together.
-GROUPS=("7d:20" "21d-a:12" "21d-b:12" "21d-c:12")
+# Not `GROUPS`: bash reserves that name for the user's group ids and silently
+# ignores assignments to it, which once generated a wallet per group id.
+WALLET_GROUPS=("7d:20" "21d-a:12" "21d-b:12" "21d-c:12")
 
 created=0
-for spec in "${GROUPS[@]}"; do
+for spec in "${WALLET_GROUPS[@]}"; do
   group="${spec%%:*}"
   count="${spec##*:}"
   for ((i = 0; i < count; i++)); do
@@ -59,7 +61,7 @@ done
   echo '  "cluster": "devnet",'
   echo '  "wallets": ['
   first=1
-  for spec in "${GROUPS[@]}"; do
+  for spec in "${WALLET_GROUPS[@]}"; do
     group="${spec%%:*}"
     count="${spec##*:}"
     league="${group%%-*}"

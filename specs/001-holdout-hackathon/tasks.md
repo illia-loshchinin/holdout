@@ -241,7 +241,7 @@
 
 **Independent test**: a fresh install on any judging day finds a running Holdout at or above its floor, every scripted member labelled, and the walkthrough playable with no wallet connected.
 
-- [ ] T086 [US9] Generate the 56 scripted wallets, commit the public keys to `kotlin/core/src/main/resources/scripted-wallets.json`, and keep the keypairs in the crank's secret store (research R12, FR-043a)
+- [X] T086 [US9] Generate the 56 scripted wallets, commit the public keys to `kotlin/core/src/main/resources/scripted-wallets.json`, and keep the keypairs in the crank's secret store (research R12, FR-043a)
 - [ ] T087 [US9] Implement `crank scripted run` in `kotlin/crank/src/main/kotlin/holdout/crank/Scripted.kt` — fills each cohort only to its league floor (20 for 7-day, 12 for 21-day) computed from the live member count, half at lobby open and the rest 24 h before the cutoff, then submits days for wallets not scheduled to forfeit (FR-043, research R12)
 - [ ] T088 [P] [US9] Implement `crank scripted plan` and `crank scripted fund` — print floor, real and scripted counts, deficit, tiers and forfeit days; top each wallet up once to 0.02 SOL (contracts/crank-cli.md)
 - [ ] T089 [P] [US9] Label scripted members wherever they appear, from the bundled list, with no server (FR-064)
