@@ -100,6 +100,10 @@ class VisionAnalyzer(
             imageProxy.close()
             return
         }
+        // The capture clock, not the wall clock: it only moves forward, so a
+        // network-time correction mid-sitting cannot squeeze reps into
+        // "too fast". Read before the frame is closed.
+        val capturedMillis = imageProxy.imageInfo.timestamp / 1_000_000
         val bitmap = try {
             imageProxy.toBitmap().rotated(imageProxy.imageInfo.rotationDegrees)
         } catch (e: IllegalStateException) {
@@ -111,8 +115,8 @@ class VisionAnalyzer(
         bitmap ?: return
 
         // MediaPipe's live-stream mode rejects a timestamp that does not
-        // advance, and CameraX can deliver two frames in the same millisecond.
-        val timestamp = maxOf(System.currentTimeMillis(), lastTimestampMillis + 1)
+        // advance, and two frames can share a millisecond.
+        val timestamp = maxOf(capturedMillis, lastTimestampMillis + 1)
         lastTimestampMillis = timestamp
 
         val grid = bitmap.lumaGrid()

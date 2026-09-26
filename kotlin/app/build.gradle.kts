@@ -42,8 +42,22 @@ val downloadMediaPipeModels = tasks.register("downloadMediaPipeModels") {
             val target = File(assetsDir, name)
             if (target.length() > 0) return@forEach
             println("Downloading $name…")
-            URI(url).toURL().openStream().use { input ->
-                target.outputStream().use { output -> input.copyTo(output) }
+            // Into a side file, renamed only once complete: an interrupted
+            // download must never leave a truncated model that the next build
+            // takes for a finished one and ships.
+            val partial = File(assetsDir, "$name.part")
+            val connection = URI(url).toURL().openConnection()
+            val expected = connection.contentLengthLong
+            connection.getInputStream().use { input ->
+                partial.outputStream().use { output -> input.copyTo(output) }
+            }
+            if (expected > 0 && partial.length() != expected) {
+                partial.delete()
+                throw GradleException("$name: got ${partial.length()} of $expected bytes; run the build again")
+            }
+            if (!partial.renameTo(target)) {
+                partial.delete()
+                throw GradleException("$name: could not move the download into place")
             }
         }
     }

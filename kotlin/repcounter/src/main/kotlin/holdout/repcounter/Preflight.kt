@@ -175,8 +175,16 @@ class Preflight(
      * the frame, and foreshortens the torso as well, which pushes the ratio the
      * same way twice.
      *
-     * **Both are distances, so the answer does not depend on which way up the
-     * phone is.** An earlier version of this check compared the shoulder-to-hip
+     * **Both are distances in the model's normalised picture coordinates**,
+     * where a portrait frame's x runs over 720 pixels and y over 1 280, so a
+     * sideways distance counts for more than an upright one. That is kept on
+     * purpose: head-on the shoulders run across the frame and the torso runs
+     * up it, so the skew widens the gap between placements. On the phone's
+     * sixteen recordings head-on read 1.4–1.8 at its 5th percentile against a
+     * 45° median near 1.1; measured in pixels the two ranges overlap (head-on
+     * 0.8–1.0 against 45° up to 1.6). The thresholds are set in these units.
+     *
+     * Distances rather than a direction: an earlier version of this check compared the shoulder-to-hip
      * line against the horizontal, which sounds equivalent and is not: frames
      * are rotated to the display's orientation, the app is portrait-locked, and
      * a phone propped in landscape therefore made a perfectly positioned body
