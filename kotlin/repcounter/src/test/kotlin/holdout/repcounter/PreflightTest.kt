@@ -84,6 +84,20 @@ class PreflightTest {
     }
 
     @Test
+    fun `a joint the model places outside the picture is not in view, however sure it is`() {
+        // MediaPipe extrapolates a cropped ankle with high presence; only its
+        // position in the picture says it is not there.
+        val image = Traces.imageFrame(shoulderSpan = 0.7f)
+        val cropped = PoseFrame(
+            image.timestampMillis,
+            image.landmarks.mapIndexed { i, l -> if (i == PoseIndex.LEFT_ANKLE) l.copy(y = 1.08f) else l },
+        )
+        val report = preflight.evaluate(good(image = cropped))
+        assertFalse(report.canStart)
+        assertTrue(report.fixes.contains("Step back so your whole body is visible"))
+    }
+
+    @Test
     fun `every placement is named`() {
         assertEquals(CameraView.SIDE, preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.05f))).view)
         assertEquals(CameraView.OBLIQUE, preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.4f))).view)

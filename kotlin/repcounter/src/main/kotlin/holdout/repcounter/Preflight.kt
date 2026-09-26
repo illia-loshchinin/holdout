@@ -128,7 +128,7 @@ class Preflight(
                     PreflightCheck.LIGHTING,
                     input.brightness in minBrightness..maxBrightness,
                 ),
-                PreflightStatus(PreflightCheck.WHOLE_BODY, wholeBodyVisible(input.world)),
+                PreflightStatus(PreflightCheck.WHOLE_BODY, wholeBodyVisible(input.world, input.image)),
                 // One placement per stakes ([Stakes]): head-on for the Daily 25,
                 // 45° when money is on it. Anywhere else, the pill says which.
                 PreflightStatus(
@@ -151,7 +151,7 @@ class Preflight(
      * goes wrong, and it is invisible to the member until the reps do not
      * register.
      */
-    private fun wholeBodyVisible(frame: PoseFrame?): Boolean {
+    private fun wholeBodyVisible(frame: PoseFrame?, image: PoseFrame?): Boolean {
         if (frame == null) return false
         val required = intArrayOf(
             // The head too: at the bottom of a rep it is the first thing to
@@ -163,7 +163,12 @@ class Preflight(
             PoseIndex.LEFT_HIP, PoseIndex.RIGHT_HIP,
             PoseIndex.LEFT_ANKLE, PoseIndex.RIGHT_ANKLE,
         )
-        return required.all { (frame[it]?.presence ?: 0f) >= Angles.PRESENCE_THRESHOLD }
+        val present = required.all { (frame[it]?.presence ?: 0f) >= Angles.PRESENCE_THRESHOLD }
+        // Presence is the model's confidence, and it stays high for a joint it
+        // extrapolated past the edge of a cropped picture. Only the joint's
+        // place in the picture says it is really in view.
+        val inPicture = image == null || required.all { i -> image[i]?.let { it.x in 0f..1f && it.y in 0f..1f } == true }
+        return present && inPicture
     }
 
     /**

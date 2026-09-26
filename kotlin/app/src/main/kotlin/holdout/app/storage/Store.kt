@@ -175,16 +175,16 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         }
     }
 
+    // One record, written in one go: a process killed between separate writes
+    // would pair a new chain time with an old uptime, and the restored clock
+    // would run ahead by the gap — up to the ten-minute refresh.
     override fun chainReading(): SavedChainReading? {
-        if (!kv.containsKey("chain_boot")) return null
-        return SavedChainReading(kv.decodeLong("chain_seconds"), kv.decodeLong("chain_slot"), kv.decodeInt("chain_boot"), kv.decodeLong("chain_elapsed"))
+        val f = kv.decodeString("chain_rec")?.split(',')?.takeIf { it.size == 4 } ?: return null
+        return SavedChainReading(f[0].toLong(), f[1].toLong(), f[2].toInt(), f[3].toLong())
     }
 
     override fun setChainReading(reading: SavedChainReading) {
-        kv.encode("chain_seconds", reading.chainSeconds)
-        kv.encode("chain_slot", reading.slot)
-        kv.encode("chain_elapsed", reading.elapsedMillis)
-        kv.encode("chain_boot", reading.boot)
+        kv.encode("chain_rec", "${reading.chainSeconds},${reading.slot},${reading.boot},${reading.elapsedMillis}")
     }
 }
 
