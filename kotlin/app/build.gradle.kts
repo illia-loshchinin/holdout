@@ -90,6 +90,27 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // The deployment this build talks to — devnet, always (README). Both
+        // can be overridden with Gradle properties for a rehearsal deployment.
+        buildConfigField("String", "RPC_URL", "\"${providers.gradleProperty("holdout.rpcUrl").getOrElse("https://api.devnet.solana.com")}\"")
+        buildConfigField("String", "PROGRAM_ID", "\"${providers.gradleProperty("holdout.programId").getOrElse("Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4")}\"")
+
+        // The faucet's fee sponsor (research R13): its secret SHIPS IN THE APK by
+        // design — a README known weakness, bounded on-chain by a 0.05 SOL float,
+        // a daily lamport budget and a permissionless refill. It is read at build
+        // time from the Solana CLI keypair file `holdout.sponsorKeypair` names
+        // (see docs/holdout_setup_runbook.md) and never committed. Without it the
+        // build still works: a wallet that holds SOL pays for its own claim, and
+        // one that holds none is told the faucet cannot pay out (ES-0b).
+        val sponsorHex =
+            providers.gradleProperty("holdout.sponsorKeypair").orNull?.let { path ->
+                File(path).readText().trim().removeSurrounding("[", "]").split(',')
+                    .map { it.trim().toInt() }
+                    .also { require(it.size == 64) { "$path is not a 64-byte Solana keypair" } }
+                    .joinToString("") { "%02x".format(it) }
+            } ?: ""
+        buildConfigField("String", "SPONSOR_KEYPAIR_HEX", "\"$sponsorHex\"")
     }
 
     buildTypes {
@@ -145,6 +166,11 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.mediapipe.tasks.vision)
+
+    // Ed25519 for the one key the app itself signs with — the faucet's fee
+    // sponsor (research R13). The JDK's own Ed25519 needs API 33; this runs on
+    // every level from minSdk 26. Member transactions are signed by the wallet.
+    implementation(libs.bouncycastle.prov)
 
     // Banked reps and the streak, written synchronously before the UI shows
     // them (T045, FR-023).

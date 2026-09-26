@@ -64,6 +64,22 @@ interface Store {
     fun chainReading(): SavedChainReading?
     fun setChainReading(reading: SavedChainReading)
 
+    /**
+     * The connected wallet and the auth token its wallet app issued, so a
+     * restart reconnects without asking again (contracts/android-app §3).
+     * Null after a disconnect.
+     */
+    fun walletSession(): WalletSession?
+    fun setWalletSession(session: WalletSession?)
+
+    /**
+     * A cohort day completed on this phone and not yet on chain — offline, or
+     * the send failed — waiting for "Done — tap to submit" (FR-024b, T066).
+     * The cohort day index, or null when nothing is waiting.
+     */
+    fun pendingCohortDay(wallet: String, cohort: String): Int?
+    fun setPendingCohortDay(wallet: String, cohort: String, day: Int?)
+
     companion object {
         /** The scope for the free Daily 25, which belongs to no cohort. */
         const val CHALLENGE = "challenge"
@@ -88,6 +104,9 @@ data class OfflineMark(val boot: Int, val elapsedMillis: Long, val settled: Sett
 
 /** An offline bucket being moved onto [day]: the day's total afterwards, absolute, and whether it completes it. */
 data class SettledOffline(val day: Long, val total: Int, val complete: Boolean)
+
+/** A wallet address and the auth token that lets the app reuse its authorisation. */
+data class WalletSession(val address: String, val authToken: String?)
 
 /** What the chain said, and when on this boot's monotonic clock it said it. */
 data class SavedChainReading(val chainSeconds: Long, val slot: Long, val boot: Int, val elapsedMillis: Long)
@@ -191,6 +210,23 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
     override fun setChainReading(reading: SavedChainReading) {
         kv.encode("chain_rec", "${reading.chainSeconds},${reading.slot},${reading.boot},${reading.elapsedMillis}")
     }
+
+    override fun walletSession(): WalletSession? = kv.decodeString("session_address")?.let { WalletSession(it, kv.decodeString("session_token")) }
+
+    override fun setWalletSession(session: WalletSession?) {
+        if (session == null) {
+            kv.removeValuesForKeys(arrayOf("session_address", "session_token"))
+        } else {
+            kv.encode("session_address", session.address)
+            if (session.authToken == null) kv.removeValueForKey("session_token") else kv.encode("session_token", session.authToken)
+        }
+    }
+
+    override fun pendingCohortDay(wallet: String, cohort: String): Int? = kv.decodeInt("pending:$wallet:$cohort", -1).takeIf { it >= 0 }
+
+    override fun setPendingCohortDay(wallet: String, cohort: String, day: Int?) {
+        if (day == null) kv.removeValueForKey("pending:$wallet:$cohort") else kv.encode("pending:$wallet:$cohort", day)
+    }
 }
 
 /** In-memory, for unit tests and Compose previews. */
@@ -254,5 +290,17 @@ class InMemoryStore : Store {
 
     override fun setChainReading(reading: SavedChainReading) {
         values["chain"] = reading
+    }
+
+    override fun walletSession(): WalletSession? = values["session"] as? WalletSession
+
+    override fun setWalletSession(session: WalletSession?) {
+        if (session == null) values.remove("session") else values["session"] = session
+    }
+
+    override fun pendingCohortDay(wallet: String, cohort: String): Int? = values["pending:$wallet:$cohort"] as? Int
+
+    override fun setPendingCohortDay(wallet: String, cohort: String, day: Int?) {
+        if (day == null) values.remove("pending:$wallet:$cohort") else values["pending:$wallet:$cohort"] = day
     }
 }

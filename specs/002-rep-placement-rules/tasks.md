@@ -55,7 +55,7 @@ description: "Task list for 002 rep placement and form rules — as built, with 
 - [X] T015 [US1] Knee push-ups count in the Daily 25 in both placements (FR-007) — `judgeKnees = stakes == STAKED` in `RepCounter.kt`, fixture `front-knees-01`
 - [X] T016 [P] [US1] Cobra refused in both stakes by push-phase body line ≥ 145° (FR-008, SC-002b), fixtures `angled-knees-cobra-01`, `angled-right-cobra-01`
 - [ ] T017 [US1] Record a head-on cobra set (5 reps, Daily 25), label it, commit as `fixtures/rep-traces/front-cobra-01.trace.csv`; if any rep counts, add a head-on cobra rule in `RepCounter.kt` with the failing fixture first
-- [ ] T018 [US1] State in the tour's counting card that the Daily 25 accepts the phone in front or at 45° and welcomes knee push-ups (FR-013) — owned by `specs/001-holdout-hackathon` T042, `kotlin/app/src/main/kotlin/holdout/app/tour/TourScreen.kt`
+- [X] T018 [US1] State in the tour's counting card that the Daily 25 accepts the phone in front or at 45° and welcomes knee push-ups (FR-013) — owned by `specs/001-holdout-hackathon` T042, `kotlin/app/src/main/kotlin/holdout/app/tour/TourScreen.kt` **Done 2026-09-26 with 001's T042.**
 
 ---
 
@@ -67,8 +67,8 @@ description: "Task list for 002 rep placement and form rules — as built, with 
 - [X] T020 [US2] Knees down on the push: legs-above-hands < 0.41 or knee median < 90° → "Knees off the floor" (FR-010) in `RepCounter.kt` and `ViewReading.kneesOffFloor`
 - [X] T021 [US2] Ready position held from the toes in staked sittings; the hint on every attempt (FR-011) in `kotlin/repcounter/src/main/kotlin/holdout/repcounter/ReadyGate.kt`
 - [X] T022 [US2] Staked rule sentence shown in the set-up guide in `kotlin/app/src/main/kotlin/holdout/app/sitting/PlacementGuide.kt`
-- [ ] T023 [US2] Show `Stakes.STAKED_RULE` verbatim on the stake sheet before staking (FR-012, FR-014, SC-006) — owned by `specs/001-holdout-hackathon` T059, `kotlin/app/src/main/kotlin/holdout/app/stake/StakeSheet.kt`
-- [ ] T024 [US2] Build staked sittings from the cohort (exercise, reps) with `Stakes.STAKED` — owned by `specs/001-holdout-hackathon` T065, `kotlin/app/src/main/kotlin/holdout/app/sitting/CohortDayController.kt`
+- [X] T023 [US2] Show `Stakes.STAKED_RULE` verbatim on the stake sheet before staking (FR-012, FR-014, SC-006) — owned by `specs/001-holdout-hackathon` T059, `kotlin/app/src/main/kotlin/holdout/app/stake/StakeSheet.kt` **Done 2026-09-26 with 001's T059.**
+- [X] T024 [US2] Build staked sittings from the cohort (exercise, reps) with `Stakes.STAKED` — owned by `specs/001-holdout-hackathon` T065, `kotlin/app/src/main/kotlin/holdout/app/sitting/CohortDayController.kt` **Done 2026-09-26 with 001's T065.**
 
 ---
 

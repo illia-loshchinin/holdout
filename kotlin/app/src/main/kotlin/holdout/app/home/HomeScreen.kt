@@ -3,11 +3,14 @@ package holdout.app.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -84,11 +87,17 @@ fun HomeScreen(
     onSpikeTransaction: (() -> Unit)? = null,
     /** What the last spike transaction said: its signature, or why it failed. */
     spikeMessage: String? = null,
+    /**
+     * Under the hero: the Holdouts open to join, with what is at stake in each
+     * (FR-053, T053), drawn by the shell from chain state.
+     */
+    below: @Composable ColumnScope.() -> Unit = {},
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(HoldoutColors.Canvas)
+            .verticalScroll(rememberScrollState())
             .padding(Spacing.screenGutter),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems, Alignment.CenterVertically),
@@ -204,6 +213,8 @@ fun HomeScreen(
             color = HoldoutColors.Accent,
             modifier = Modifier.padding(top = 8.dp),
         )
+
+        below()
     }
 }
 

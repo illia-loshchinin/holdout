@@ -4,46 +4,61 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import holdout.app.WalletUiState
+import holdout.app.chain.Holdout
+import holdout.app.ladder.HoldoutOffer
+import holdout.app.ui.Body
+import holdout.app.ui.Format
+import holdout.app.ui.HoldoutCard
+import holdout.app.ui.Notice
+import holdout.app.ui.PrimaryButton
+import holdout.app.ui.SectionLabel
+import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
+import holdout.core.CohortStatus
 
 /**
  * Connect wallet — required before anything else, **even for the free Daily 25**
- * (FR-001a, PRD §10.1 screen 2).
+ * (FR-001a, PRD §10.1 screen 2, T039, T041).
  *
- * One identity from the first tap. Guest mode was considered and dropped, and
- * the README names the cost of that honestly.
+ * The promise in two lines, one line each for the Daily 25 and a Holdout, and
+ * the Holdouts live right now — still standing and prize pool for the running
+ * ones, joined count and **at stake** for the open ones — read from devnet
+ * with no wallet. Then the button, and a quiet link for judges: the recorded
+ * walkthrough is the only screen reachable before a wallet is connected.
  *
- * This is the Daily 25's share of the screen: the promise, the two paths, and
- * the button. The live Holdouts, the judges' walkthrough link and the no-wallet
- * variant are the rest of T039 and T041, and arrive with the cohort screens
- * that supply their figures.
+ * With no wallet on the phone ([noWallet], ES-0): what a wallet is, how to get
+ * one, and the walkthrough, which plays without one.
  */
 @Composable
 fun ConnectScreen(
-    state: WalletUiState,
+    busy: Boolean,
+    message: String?,
+    noWallet: Boolean,
+    live: List<Holdout>,
+    now: Long?,
     onConnect: () -> Unit,
+    onWalkthrough: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(HoldoutColors.Canvas)
+            .verticalScroll(rememberScrollState())
             .padding(Spacing.screenGutter),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems, Alignment.CenterVertically),
@@ -54,48 +69,36 @@ fun ConnectScreen(
             color = HoldoutColors.TextPrimary,
             textAlign = TextAlign.Center,
         )
+        Body("The Daily 25 — 25 push-ups, free, counted on this phone.", center = true)
+        Body("A Holdout — put SKR on it and finish with the cohort.", center = true)
 
-        Text(
-            text = "The Daily 25 — 25 push-ups, free, counted on this phone.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = HoldoutColors.TextSecondary,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            text = "A Holdout — put SKR on it and finish with the cohort.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = HoldoutColors.TextSecondary,
-            textAlign = TextAlign.Center,
-        )
-
-        Button(
-            onClick = onConnect,
-            enabled = !state.isLoading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(Spacing.primaryButtonHeight),
-            shape = MaterialTheme.shapes.extraLarge,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = HoldoutColors.TextPrimary,
-                contentColor = HoldoutColors.OnLight,
-            ),
-        ) {
-            Text("Connect wallet", style = MaterialTheme.typography.titleMedium)
+        if (now != null && live.isNotEmpty()) {
+            SectionLabel("Live now")
+            live.forEach { h ->
+                if (h.status(now) == CohortStatus.Running) {
+                    HoldoutCard {
+                        Text("${h.cohort.durationDays}-day Holdout · running", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+                        Text("${h.cohort.memberCount} started · prize pool ${Format.skr(h.cohort.pool)}", style = AmountStyle, color = HoldoutColors.Accent)
+                    }
+                } else {
+                    HoldoutOffer(h, now, onClick = null)
+                }
+            }
         }
 
-        Text(
-            text = "TEST NETWORK · TEST TOKEN",
-            style = LabelStyle,
-            color = HoldoutColors.TextTertiary,
-        )
+        if (noWallet) {
+            HoldoutCard {
+                Text("You need a Solana wallet", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+                Body("A wallet is an app that holds your keys and signs for you. Holdout never holds them.")
+                Body("On a Seeker, Seed Vault Wallet is built in. On other phones, install a Solana wallet that supports Mobile Wallet Adapter, set it to devnet, then come back.")
+            }
+        }
 
-        state.message?.let {
-            Text(
-                text = it,
-                style = MaterialTheme.typography.bodyLarge,
-                color = HoldoutColors.Warning,
-                textAlign = TextAlign.Center,
-            )
+        PrimaryButton(if (busy) "Waiting for the wallet…" else "Connect wallet", onConnect, enabled = !busy)
+        Text("TEST NETWORK · TEST TOKEN", style = LabelStyle, color = HoldoutColors.TextTertiary)
+        Notice(message, warning = true)
+        TextButton(onClick = onWalkthrough) {
+            Text(if (noWallet) "Watch a full cycle (3 min)" else "For judges: watch a full cycle", color = HoldoutColors.TextTertiary)
         }
     }
 }
@@ -103,16 +106,11 @@ fun ConnectScreen(
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 private fun ConnectPreview() {
-    HoldoutTheme { ConnectScreen(state = WalletUiState(), onConnect = {}) }
+    HoldoutTheme { ConnectScreen(busy = false, message = null, noWallet = false, live = emptyList(), now = null, onConnect = {}, onWalkthrough = {}) }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 private fun NoWalletPreview() {
-    HoldoutTheme {
-        ConnectScreen(
-            state = WalletUiState(message = "Holdout needs a Solana wallet — even for the free Daily 25."),
-            onConnect = {},
-        )
-    }
+    HoldoutTheme { ConnectScreen(busy = false, message = null, noWallet = true, live = emptyList(), now = null, onConnect = {}, onWalkthrough = {}) }
 }

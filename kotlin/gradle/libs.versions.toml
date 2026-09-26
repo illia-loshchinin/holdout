@@ -17,6 +17,7 @@ mobileWalletAdapter = "2.2.0"
 multimult = "0.2.6"
 rpcCore = "0.2.8"
 web3Solana = "0.3.1"
+bouncycastle = "1.79"
 
 [libraries]
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
@@ -48,6 +49,7 @@ rpc-core = { group = "com.solanamobile", name = "rpc-core", version.ref = "rpcCo
 rpc-ktordriver = { group = "com.solanamobile", name = "rpc-ktordriver", version.ref = "rpcCore" }
 rpc-solana = { group = "com.solanamobile", name = "rpc-solana", version.ref = "rpcCore" }
 web3-solana = { group = "com.solanamobile", name = "web3-solana", version.ref = "web3Solana" }
+bouncycastle-prov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
