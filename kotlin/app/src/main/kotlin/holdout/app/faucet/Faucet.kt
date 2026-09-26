@@ -3,7 +3,6 @@ package holdout.app.faucet
 import com.funkatronics.encoders.Base58
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import com.solana.publickey.SolanaPublicKey
-import com.solana.transaction.Message
 import com.solana.transaction.Transaction
 import holdout.app.BuildConfig
 import holdout.app.wallet.SendResult
@@ -13,6 +12,7 @@ import holdout.core.HoldoutDay
 import holdout.core.Instructions
 import holdout.core.ProfileSnapshot
 import holdout.core.Rpc
+import holdout.core.Transactions
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
 
@@ -97,12 +97,8 @@ class FaucetClient(private val rpc: Rpc, private val wallet: WalletRepository, p
     /** Built with web3-solana, signed by the bundled sponsor, sent with rpc-core — no MWA in it (R13). */
     private suspend fun sponsorPaid(key: SponsorKey, recipient: SolanaPublicKey, config: ConfigSnapshot): SendResult {
         val blockhash = rpc.latestBlockhash() ?: return SendResult.Failed("Devnet did not answer. Check the connection and try again.")
-        val message =
-            Message
-                .Builder()
-                .addInstruction(Instructions.claimFaucet(programId, key.publicKey, recipient, config.skrMint, config.sponsor))
-                .setRecentBlockhash(blockhash)
-                .build()
+        // The sponsor both pays and is reimbursed: exactly the mixed-flags case Transactions exists for.
+        val message = Transactions.message(listOf(Instructions.claimFaucet(programId, key.publicKey, recipient, config.skrMint, config.sponsor)), blockhash)
         val signature = key.sign(message.serialize())
         val bytes = Transaction(listOf(signature), message).serialize()
         return when (val answer = rpc.send(bytes)) {

@@ -73,7 +73,8 @@ class ScriptedTest {
         val roster = syntheticRoster()
         assertEquals(20, Scripted.poolFor(roster, 0, 5).size)
         assertEquals(listOf("21d-a", "21d-b", "21d-c", "21d-a"), (0L..3L).map { Scripted.poolFor(roster, 1, it).map { w -> w.group }.distinct().single() })
-        assertTrue(Scripted.poolFor(roster, 100, 0).isEmpty(), "the short test cohort is filled by testers alone")
+        assertEquals(0, Scripted.Floors().of(100), "on devnet the short test cohort is filled by testers alone")
+        assertEquals(8, Scripted.Floors(test = 8).of(100))
     }
 
     @Test

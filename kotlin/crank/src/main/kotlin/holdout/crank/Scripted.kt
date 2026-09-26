@@ -80,8 +80,8 @@ object Scripted {
 
     fun checkArgs(args: Args) {
         when (args.words.getOrNull(1)) {
-            "plan" -> args.allow("cohort", "floor-7d", "floor-21d")
-            "run" -> args.allow("floor-7d", "floor-21d", "last-start")
+            "plan" -> args.allow("cohort", "floor-7d", "floor-21d", "floor-test")
+            "run" -> args.allow("floor-7d", "floor-21d", "floor-test", "last-start")
             "fund" -> args.allow("lamports")
             else -> configError("unknown command '${args.words.joinToString(" ")}'; try --help")
         }
@@ -110,12 +110,16 @@ object Scripted {
 
     // ---- the plan: pure ----------------------------------------------------
 
-    data class Floors(val sevenDay: Int = DEFAULT_FLOOR_7D, val twentyOneDay: Int = DEFAULT_FLOOR_21D) {
-        /** Test leagues get none: the short test cohort is filled by testers alone (FR-044a). */
+    /**
+     * [test] is 0 by default: on devnet the short test cohort is filled by
+     * testers alone (FR-044a). A local run (quickstart §5a) sets it to watch
+     * a whole cycle — forfeits, settlement — with nobody on a phone.
+     */
+    data class Floors(val sevenDay: Int = DEFAULT_FLOOR_7D, val twentyOneDay: Int = DEFAULT_FLOOR_21D, val test: Int = 0) {
         fun of(leagueId: Int): Int = when (leagueId) {
             LeagueParams.LEAGUE_7D -> sevenDay
             LeagueParams.LEAGUE_21D -> twentyOneDay
-            else -> 0
+            else -> test
         }
     }
 
@@ -140,7 +144,8 @@ object Scripted {
             val groups = roster.filter { it.league == "21d" }.map { it.group }.distinct().sorted()
             if (groups.isEmpty()) emptyList() else roster.filter { it.group == groups[(index % groups.size).toInt()] }
         }
-        else -> emptyList()
+        // Only ever with --floor-test, which judged runs never pass.
+        else -> roster.filter { it.group == "7d" }
     }.sortedBy { it.index }
 
     private fun seed(cohort: SolanaPublicKey, wallet: SolanaPublicKey, salt: String): Long {
@@ -207,7 +212,7 @@ object Scripted {
 
     private fun floors(args: Args): Floors {
         fun floor(name: String, default: Int) = args.option(name)?.let { it.toIntOrNull()?.takeIf { n -> n in 0..1_000 } ?: configError("--$name must be 0..1000, got $it") } ?: default
-        return Floors(floor("floor-7d", DEFAULT_FLOOR_7D), floor("floor-21d", DEFAULT_FLOOR_21D))
+        return Floors(floor("floor-7d", DEFAULT_FLOOR_7D), floor("floor-21d", DEFAULT_FLOOR_21D), floor("floor-test", 0))
     }
 
     suspend fun plan(args: Args, config: CrankConfig, rpc: Rpc, roster: List<ScriptedWallet> = roster()): JsonObject {

@@ -8,12 +8,14 @@ import com.solana.mobilewalletadapter.clientlib.MobileWalletAdapter
 import com.solana.mobilewalletadapter.clientlib.Solana
 import com.solana.mobilewalletadapter.clientlib.TransactionResult
 import com.solana.publickey.SolanaPublicKey
-import com.solana.transaction.Message
 import com.solana.transaction.TransactionInstruction
 import com.solana.transaction.toUnsignedTransaction
+import holdout.app.BuildConfig
+import holdout.app.chain.Deployment
 import holdout.app.storage.Store
 import holdout.app.storage.WalletSession
 import holdout.core.Rpc
+import holdout.core.Transactions
 import kotlinx.coroutines.delay
 
 /** What became of a transaction the member signed. */
@@ -84,13 +86,9 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
      */
     suspend fun send(sender: ActivityResultSender, instructions: List<TransactionInstruction>): SendResult {
         val blockhash = rpc.latestBlockhash() ?: return SendResult.Failed("Devnet did not answer. Check the connection and try again.")
-        val transaction =
-            Message
-                .Builder()
-                .apply { instructions.forEach { addInstruction(it) } }
-                .setRecentBlockhash(blockhash)
-                .build()
-                .toUnsignedTransaction()
+        // Never Message.Builder directly: it miscounts an account with mixed flags (see Transactions).
+        val transaction = Transactions.message(instructions, blockhash).toUnsignedTransaction()
+        if (signOnly) return signThenSend(sender, transaction)
         val result = adapter.transact(sender) { signAndSendTransactions(transaction) }
         store.walletSession()?.let { store.setWalletSession(it.copy(authToken = adapter.authToken)) }
         val signature =
@@ -100,6 +98,29 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
                 is TransactionResult.Failure -> return failure(result.message)
             }
         return confirm(rpc, signature)
+    }
+
+    /**
+     * Debug builds pointed at a local validator (quickstart §5a): the wallet
+     * sends to its own cluster — devnet — so here it only signs, and the app
+     * sends to the validator it reads from. Never in a release build.
+     */
+    private val signOnly: Boolean = BuildConfig.DEBUG && Deployment.rpcUrl != Rpc.DEVNET
+
+    private suspend fun signThenSend(sender: ActivityResultSender, transaction: com.solana.transaction.Transaction): SendResult {
+        val result = adapter.transact(sender) { signTransactions(arrayOf(transaction.serialize())) }
+        store.walletSession()?.let { store.setWalletSession(it.copy(authToken = adapter.authToken)) }
+        val signed =
+            when (result) {
+                is TransactionResult.Success -> result.payload.signedPayloads.firstOrNull() ?: return SendResult.Failed("The wallet returned no signed transaction.")
+                is TransactionResult.NoWalletFound -> return SendResult.NoWallet
+                is TransactionResult.Failure -> return failure(result.message)
+            }
+        return when (val answer = rpc.send(signed)) {
+            is Rpc.Answer.Ok -> confirm(rpc, answer.value)
+            is Rpc.Answer.Refused -> failure(answer.message)
+            is Rpc.Answer.Unanswered -> SendResult.Failed("The local validator did not answer: ${answer.message}")
+        }
     }
 
     companion object {
