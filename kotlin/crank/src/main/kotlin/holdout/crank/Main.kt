@@ -87,7 +87,19 @@ fun runCrank(
                     Run.checkArgs(parsed)
                     fun(config: CrankConfig) = runBlocking { Run.run(parsed, config, rpcFor(config.rpcUrl)) }
                 }
-                else -> notYet(parsed.words)
+                listOf("scripted", "plan") -> {
+                    Scripted.checkArgs(parsed)
+                    fun(config: CrankConfig) = runBlocking { Scripted.plan(parsed, config, rpcFor(config.rpcUrl)) }
+                }
+                listOf("scripted", "run") -> {
+                    Scripted.checkArgs(parsed)
+                    fun(config: CrankConfig) = runBlocking { Scripted.run(parsed, config, rpcFor(config.rpcUrl)) }
+                }
+                listOf("scripted", "fund") -> {
+                    Scripted.checkArgs(parsed)
+                    fun(config: CrankConfig) = runBlocking { Scripted.fund(parsed, config, rpcFor(config.rpcUrl)) }
+                }
+                else -> configError("unknown command '${parsed.words.joinToString(" ")}'; try --help")
             }
         out(command(CrankConfig.from(env)).toString())
         EXIT_OK
@@ -116,29 +128,13 @@ fun runCrank(
     }
 }
 
-/**
- * The commands contracts/crank-cli.md lists that later tasks implement. Named
- * with their task so a run of this build says why it did nothing.
- */
-private val LATER =
-    mapOf(
-        listOf("scripted", "plan") to "T088",
-        listOf("scripted", "fund") to "T088",
-        listOf("scripted", "run") to "T087",
-    )
-
-private fun notYet(words: List<String>): Nothing {
-    val task = LATER[words] ?: configError("unknown command '${words.joinToString(" ")}'; try --help")
-    configError("'${words.joinToString(" ")}' lands with $task; this build does not run it yet")
-}
-
 private fun usage(): JsonObject = buildJsonObject {
     put(
         "usage",
         "crank <command> [--dry-run]; commands: status, chips publish --rate <usd-per-skr> [--decimals <n>], " +
             "init [--admin <keypair>] --operator <pubkey> --sponsor <pubkey> --treasury <pubkey> --rate <usd-per-skr> [--first-start <iso>] [--fund-faucet <sol>], " +
             "init --test-league --day-seconds <n> --reps <n> --days <n> --first-start <iso> [--league-id <100..255>] [--cadence <s>] [--join-lock <s>], " +
-            "run, scripted plan|run|fund (contracts/crank-cli.md)",
+            "run, scripted plan --cohort <address> | scripted run [--floor-7d <n>] [--floor-21d <n>] [--last-start <iso>] | scripted fund [--lamports <n>] (contracts/crank-cli.md)",
     )
 }
 
