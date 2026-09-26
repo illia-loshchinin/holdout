@@ -253,10 +253,17 @@ class SittingViewModel(
             }
 
             // The overlay stays live through the countdown, so the member can
-            // still see they are in frame while they hold position.
+            // still see they are in frame while they hold position. The checks
+            // that started it keep running: a phone moved, or a placement
+            // these stakes do not accept, sends the sitting back to them.
             Step.COUNTDOWN -> {
-                _uiState.update { it.withFrame(observation) }
+                val report = preflight.evaluate(
+                    PreflightInput(observation.brightness, backgroundMotion, observation.world, observation.image),
+                )
+                _uiState.update { it.withFrame(observation).copy(preflight = report) }
                 record(observation, countingView)
+                val holds = report.canStart && report.view == countingView
+                if (countdownGuard.shouldAbort(observation.world.timestampMillis, holds)) backToChecks()
             }
 
             Step.COUNTING -> {
@@ -289,7 +296,17 @@ class SittingViewModel(
     /**
      * The pills are green and the position has held. Nothing was tapped.
      */
+    private val countdownGuard = holdout.repcounter.CountdownGuard()
+
+    /** The countdown's checks stopped passing: back to the pills, as if it had never started. */
+    private fun backToChecks() {
+        countdownGuard.reset()
+        readyGate.reset()
+        _uiState.update { it.copy(step = Step.PREFLIGHT, readyProgress = 0f) }
+    }
+
     private fun startCountdown() {
+        countdownGuard.reset()
         readyGate.reset()
         // The guide is dropped here and never comes back. A silhouette
         // reappearing over somebody mid-set is a distraction they cannot act on
