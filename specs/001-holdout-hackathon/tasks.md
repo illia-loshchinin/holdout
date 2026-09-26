@@ -82,11 +82,11 @@
 - [X] T029 Generate fixtures in `tests/fixtures/generate.ts` — accounts, PDAs, instruction bytes, derived figures — and commit them under `fixtures/` (contracts/program-instructions §7)
 - [ ] T030 Implement account codecs, PDA derivation and instruction builders in `kotlin/core/src/main/kotlin/holdout/core/` (`Accounts.kt`, `Pdas.kt`, `Instructions.kt`), with hand-written encodings pinned by the fixtures (research R2 deviation)
 - [ ] T031 Write the fixture replay tests in `kotlin/core/src/test/kotlin/holdout/core/FixtureReplayTest.kt` — every fixture decodes and re-encodes byte-identically
-- [ ] T032 [P] Implement `Derive.kt` in `kotlin/core/src/main/kotlin/holdout/core/` — survivor counter, projected pool, projected share, roster order, time left, warning window, **at stake**, carry-over received, time until joining closes (data-model §5)
+- [X] T032 [P] Implement `Derive.kt` in `kotlin/core/src/main/kotlin/holdout/core/` — survivor counter, projected pool, projected share, roster order, time left, warning window, **at stake**, carry-over received, time until joining closes (data-model §5)
 - [X] T033 [P] Implement chain-time tracking in `kotlin/core/src/main/kotlin/holdout/core/Clock.kt` — cached `{chainNow, slot, readAtElapsedRealtime}`, advanced with `SystemClock.elapsedRealtime()`, never the wall clock (research R7)
-- [ ] T034 [P] Implement RPC reads in `kotlin/core/src/main/kotlin/holdout/core/Rpc.kt` — `getProgramAccounts` with a `memcmp` on the cohort key and a `dataSlice`, 30-second refresh while a cohort screen is visible (research R8)
+- [X] T034 [P] Implement RPC reads in `kotlin/core/src/main/kotlin/holdout/core/Rpc.kt` — `getProgramAccounts` with a `memcmp` on the cohort key and a `dataSlice`, 30-second refresh while a cohort screen is visible (research R8)
 - [ ] T035 [P] Transcribe the design tokens into `kotlin/app/src/main/kotlin/holdout/app/ui/theme/` — `Color.kt`, `Type.kt`, `Shape.kt`, `Theme.kt`: one dark `ColorScheme`, **dynamic colour disabled**, JetBrains Mono in `kotlin/app/src/main/res/font/` (PRD §11, research R20)
-- [ ] T036 [P] Scaffold the crank in `kotlin/crank/src/main/kotlin/holdout/crank/Main.kt` — argument parsing, RPC config, `status` subcommand printing cohorts plus the faucet vault, the sponsor's balance against its float and the day's lamport spend, single runnable JAR (contracts/crank-cli.md)
+- [X] T036 [P] Scaffold the crank in `kotlin/crank/src/main/kotlin/holdout/crank/Main.kt` — argument parsing, RPC config, `status` subcommand printing cohorts plus the faucet vault, the sponsor's balance against its float and the day's lamport spend, single runnable JAR (contracts/crank-cli.md)
 
 **Checkpoint (21 Sep)**: math and schedule tests pass, accounts compile, `kotlin/core` replays every fixture, the theme renders, and the no-oracle check passes.
 
@@ -148,7 +148,7 @@
 - [ ] T059 [P] [US6] Build the stake-confirm sheet in `kotlin/app/src/main/kotlin/holdout/app/stake/StakeSheet.kt` — four tier chips with their exact SKR amounts and `≈ $` labels, daily obligation, time to the cutoff and the start, the pool including carry-over, and the sentence "if everyone finishes, you get your stake back plus your share of any carry-over" — what FR-041 promises, and what the sheet's own carry-over line already shows (US-6, FR-041, FR-059). **Above the stake button, `Stakes.STAKED_RULE`**: at 45° only (not in front, not straight beside), full push-ups from the toes, knee push-ups do not count — read before anything is staked, not discovered at the first sitting; every sitting of the cohort then runs with `Stakes.STAKED` (FR-021a)
 - [ ] T060 [P] [US2] Build the lobby in `kotlin/app/src/main/kotlin/holdout/app/lobby/LobbyScreen.kt` — countdowns to cutoff and start, live roster count, held stake, unconditional leave, and the locked variant with the final roster and no actions (US-2, ES-12a)
 - [ ] T061 [US6] Send transactions through MWA in `kotlin/app/src/main/kotlin/holdout/app/wallet/Signer.kt` — `transact { signAndSendTransactions(...) }`, the member as fee payer, retryable errors surfaced plainly (contracts/android-app §3)
-- [ ] T062 [P] [US6] Implement `crank chips publish --rate <usd-per-skr>` in `kotlin/crank/src/main/kotlin/holdout/crank/Chips.kt` — converts the four tiers, rounds down to the nearest 10 SKR, minimum 10 SKR (research R15)
+- [X] T062 [P] [US6] Implement `crank chips publish --rate <usd-per-skr>` in `kotlin/crank/src/main/kotlin/holdout/crank/Chips.kt` — converts the four tiers, rounds down to the nearest 10 SKR, minimum 10 SKR (research R15)
 
 **Checkpoint**: a member can stake into a Holdout and get out again before the cutoff.
 

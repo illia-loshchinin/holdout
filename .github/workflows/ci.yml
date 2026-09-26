@@ -251,6 +251,11 @@ jobs:
 
       - name: Install the Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The default also asks for `tools`, which cmdline-tools 16 no longer
+          # ships, and the step fails. AGP fetches the platform and build-tools
+          # the app needs itself once the licences are accepted.
+          packages: platform-tools
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
