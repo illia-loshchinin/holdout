@@ -783,12 +783,7 @@ private fun CameraFeed(viewModel: SittingViewModel) {
     val analyzer = remember {
         VisionAnalyzer(
             context = context,
-            onPose = { observation ->
-                // Background motion needs a frame-to-frame diff the analyser
-                // does not keep yet; until it does, the pill reports still,
-                // which is the permissive answer and never blocks a sitting.
-                viewModel.onPoseFrame(observation, backgroundMotion = 0f)
-            },
+            onPose = { observation -> viewModel.onPoseFrame(observation, observation.backgroundMotion) },
             onError = viewModel::onError,
         )
     }

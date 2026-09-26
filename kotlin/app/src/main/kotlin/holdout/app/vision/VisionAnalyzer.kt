@@ -12,6 +12,8 @@ import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
+import holdout.repcounter.BackgroundMotion
+import holdout.repcounter.BodyBox
 import holdout.repcounter.Landmark
 import holdout.repcounter.PoseFrame
 import holdout.repcounter.PoseIndex
@@ -49,6 +51,8 @@ class VisionAnalyzer(
         val world: PoseFrame,
         val image: PoseFrame,
         val brightness: Float,
+        /** Share of the background that moved lately, for the "Background still" check ([BackgroundMotion]). */
+        val backgroundMotion: Float,
         val frameWidth: Int,
         val frameHeight: Int,
     )
@@ -111,7 +115,9 @@ class VisionAnalyzer(
         val timestamp = maxOf(System.currentTimeMillis(), lastTimestampMillis + 1)
         lastTimestampMillis = timestamp
 
-        lastBrightness = bitmap.meanLuma()
+        val grid = bitmap.lumaGrid()
+        lastBrightness = grid.mean()
+        lastMotion = motion.update(grid.values, grid.cols, grid.rows, lastBody)
         synchronized(lock) {
             if (closed) return
             // A model that failed mid-sitting costs frames, never the app.
@@ -123,19 +129,32 @@ class VisionAnalyzer(
     @Volatile
     private var lastBrightness: Float = 0.5f
 
+    private val motion = BackgroundMotion()
+
+    @Volatile
+    private var lastMotion: Float = 0f
+
+    /** Where the member was in the last result: their own movement is not background. */
+    @Volatile
+    private var lastBody: BodyBox? = null
+
     private fun handlePose(result: PoseLandmarkerResult, width: Int, height: Int) {
         val image = result.landmarks().firstOrNull()
         val world = result.worldLandmarks().firstOrNull()
         if (image == null || world == null) {
-            onPose(Observation(EMPTY, EMPTY, lastBrightness, width, height))
+            lastBody = null
+            onPose(Observation(EMPTY, EMPTY, lastBrightness, lastMotion, width, height))
             return
         }
         val timestamp = result.timestampMs()
+        val imageFrame = PoseFrame(timestamp, image.map { Landmark(it.x(), it.y(), it.z(), presenceOf(it)) })
+        lastBody = BodyBox.of(imageFrame)
         onPose(
             Observation(
                 world = PoseFrame(timestamp, world.map { Landmark(it.x(), it.y(), it.z(), presenceOf(it)) }),
-                image = PoseFrame(timestamp, image.map { Landmark(it.x(), it.y(), it.z(), presenceOf(it)) }),
+                image = imageFrame,
                 brightness = lastBrightness,
+                backgroundMotion = lastMotion,
                 frameWidth = width,
                 frameHeight = height,
             ),
@@ -187,28 +206,28 @@ private fun Bitmap.rotated(degrees: Int): Bitmap {
     return Bitmap.createBitmap(this, 0, 0, width, height, matrix, true)
 }
 
+/** Luma on a coarse grid, row-major: the lighting check's mean and the motion check's cells. */
+private class LumaGrid(val values: FloatArray, val cols: Int, val rows: Int) {
+    fun mean(): Float = if (values.isEmpty()) 0.5f else values.average().toFloat()
+}
+
 /**
- * Mean luma over a coarse grid — the pre-flight lighting check needs a number,
- * not a photometric measurement, and sampling every pixel of a 640×480 frame
- * thirty times a second would cost more than the pose model does.
+ * Luma sampled every [step] pixels — the pre-flight checks need numbers, not a
+ * photometric measurement, and reading every pixel of a 640×480 frame thirty
+ * times a second would cost more than the pose model does.
  */
-private fun Bitmap.meanLuma(): Float {
-    val step = 16
-    var sum = 0.0
-    var samples = 0
-    var y = 0
-    while (y < height) {
-        var x = 0
-        while (x < width) {
-            val pixel = getPixel(x, y)
+private fun Bitmap.lumaGrid(step: Int = 16): LumaGrid {
+    val cols = (width + step - 1) / step
+    val rows = (height + step - 1) / step
+    val values = FloatArray(cols * rows)
+    for (row in 0 until rows) {
+        for (col in 0 until cols) {
+            val pixel = getPixel(col * step, row * step)
             val r = (pixel shr 16) and 0xFF
             val g = (pixel shr 8) and 0xFF
             val b = pixel and 0xFF
-            sum += (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0
-            samples++
-            x += step
+            values[row * cols + col] = ((0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0).toFloat()
         }
-        y += step
     }
-    return if (samples == 0) 0.5f else (sum / samples).toFloat()
+    return LumaGrid(values, cols, rows)
 }
