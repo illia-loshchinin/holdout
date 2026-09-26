@@ -232,6 +232,22 @@ class RepCounter(
     private val postureFilter = OneEuroFilter()
     private val kneeFilter = OneEuroFilter()
 
+    /**
+     * Frames so far that showed each side nearer the lens. At 45° a sitting is
+     * read from one side: the one most frames agree on. A frame where that
+     * side is hidden is dropped rather than read from the far side, which is
+     * MediaPipe guessing through the body — a far arm guessed straight in the
+     * middle of a descent can undo a whole set.
+     */
+    private val sideVotes = IntArray(2)
+
+    private fun nearSideFor(image: ImagePose?): Side? {
+        if (image == null || view == CameraView.FRONT) return null
+        val seen = Angles.nearSide(image) ?: return null
+        sideVotes[seen.ordinal]++
+        return if (sideVotes[Side.LEFT.ordinal] >= sideVotes[Side.RIGHT.ordinal]) Side.LEFT else Side.RIGHT
+    }
+
     private var phase = Phase.AWAITING_TOP
     private var count = 0
 
@@ -267,7 +283,7 @@ class RepCounter(
      * read, and a front-view frame without it is dropped.
      */
     fun onFrame(frame: PoseFrame, image: ImagePose? = null): RepEvent? {
-        val reading = ViewReading.of(view, frame, image) ?: return null
+        val reading = ViewReading.of(view, frame, image, side = nearSideFor(image)) ?: return null
 
         val elbow = elbowFilter.filter(reading.elbow, frame.timestampMillis)
         val posture = postureFilter.filter(reading.posture, frame.timestampMillis)

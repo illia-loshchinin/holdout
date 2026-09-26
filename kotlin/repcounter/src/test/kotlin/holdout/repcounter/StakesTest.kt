@@ -200,6 +200,33 @@ class StakesTest {
         assertFalse(gate.onFrame(top(2_000), 2_000, pillsGreen = true, view = CameraView.OBLIQUE, image = unseen(2_000)))
     }
 
+    /**
+     * [image] with the near arm lost and the far arm guessed straight — what
+     * MediaPipe does for a moment when the near arm is hidden.
+     */
+    private fun nearArmLost(image: ImagePose): ImagePose {
+        val l = image.frame.landmarks.toMutableList()
+        val shoulder = l[PoseIndex.LEFT_SHOULDER]
+        listOf(PoseIndex.LEFT_ELBOW, PoseIndex.LEFT_WRIST).forEach { l[it] = l[it].copy(presence = 0f) }
+        l[PoseIndex.RIGHT_SHOULDER] = shoulder.copy(presence = 1f)
+        l[PoseIndex.RIGHT_ELBOW] = shoulder.copy(y = shoulder.y + 0.3f, presence = 1f)
+        l[PoseIndex.RIGHT_WRIST] = shoulder.copy(y = shoulder.y + 0.6f, presence = 1f)
+        // The far leg guessed where the near one is, so the far side reads longer.
+        listOf(PoseIndex.LEFT_HIP to PoseIndex.RIGHT_HIP, PoseIndex.LEFT_KNEE to PoseIndex.RIGHT_KNEE, PoseIndex.LEFT_ANKLE to PoseIndex.RIGHT_ANKLE)
+            .forEach { (near, far) -> l[far] = l[near] }
+        return image.copy(frame = image.frame.copy(landmarks = l))
+    }
+
+    @Test
+    fun `a frame where the near arm is lost is skipped, not read from the far side`() {
+        val counter = RepCounter(view = CameraView.OBLIQUE, stakes = Stakes.DAILY)
+        Traces.set(count = 10).forEachIndexed { i, frame ->
+            val image = Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!)
+            counter.onFrame(frame, if (i > 10 && i % 4 == 0) nearArmLost(image) else image)
+        }
+        assertEquals(10, counter.total)
+    }
+
     @Test
     fun `the rule a member reads before staking names the placement and the knees`() {
         val rule = Stakes.STAKED_RULE.lowercase()

@@ -68,8 +68,12 @@ internal sealed interface ViewReading {
     }
 
     companion object {
-        /** `null` when the frame cannot be read in this view — dropped, not scored. */
-        fun of(view: CameraView, world: PoseFrame, image: ImagePose?): ViewReading? = when (view) {
+        /**
+         * `null` when the frame cannot be read in this view — dropped, not scored.
+         * [side], when given, is the side to read at 45°; otherwise the side the
+         * frame itself shows longer.
+         */
+        fun of(view: CameraView, world: PoseFrame, image: ImagePose?, side: Side? = null): ViewReading? = when (view) {
             CameraView.FRONT -> {
                 val elbow = image?.let(Angles::elbowInImage)
                 val torso = Angles.torsoElevation(world)
@@ -81,7 +85,7 @@ internal sealed interface ViewReading {
                 val bodyLine = Angles.bodyLine(world)
                 if (elbow == null || bodyLine == null) null else Angled(elbow, bodyLine, knee = null)
             } else {
-                Angles.nearSide(image)?.let { side ->
+                (side ?: Angles.nearSide(image))?.let { side ->
                     val elbow = Angles.elbowInImage(image, side)
                     val bodyLine = Angles.bodyLineInImage(image, side)
                     if (elbow == null || bodyLine == null) {
