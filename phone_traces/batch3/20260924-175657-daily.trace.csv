@@ -1,0 +1,4 @@
+# holdout-trace v2
+# stakes=DAILY width=720 height=1280 expectedReps=?
+# landmarks=11,12,13,14,15,16,23,24,25,26,27,28
+t,step,view,w11x,w11y,w11z,w11p,w12x,w12y,w12z,w12p,w13x,w13y,w13z,w13p,w14x,w14y,w14z,w14p,w15x,w15y,w15z,w15p,w16x,w16y,w16z,w16p,w23x,w23y,w23z,w23p,w24x,w24y,w24z,w24p,w25x,w25y,w25z,w25p,w26x,w26y,w26z,w26p,w27x,w27y,w27z,w27p,w28x,w28y,w28z,w28p,i11x,i11y,i11p,i12x,i12y,i12p,i13x,i13y,i13p,i14x,i14y,i14p,i15x,i15y,i15p,i16x,i16y,i16p,i23x,i23y,i23p,i24x,i24y,i24p,i25x,i25y,i25p,i26x,i26y,i26p,i27x,i27y,i27p,i28x,i28y,i28p,elbow,posture,knee,event

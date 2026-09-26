@@ -148,7 +148,7 @@ The same compressed idea, but on devnet with real testers and real phones: a tes
 java -jar kotlin/crank/build/libs/crank.jar init --test-league --day-seconds 600 --reps 5 --days 7
 ```
 
-**Expected:** 5–7 testers each complete a full cycle on the rehearsal program; bugs are fixed before the 28 Sep freeze. No footage from this run is ever used in the walkthrough or demo video (`docs/holdout_demo_video.md`).
+**Expected:** 5–7 testers each complete a full cycle on the short test cohort (FR-044a); bugs are fixed before the 5 October freeze. This run is the one the walkthrough and demo video are recorded from, labelled on screen as a short test cohort (constitution v1.4.0).
 
 ## 6. Devnet deployment
 
@@ -168,7 +168,7 @@ longer matches `declare_id!`:
 mkdir -p target/deploy && cp ~/.config/solana/holdout-program-keypair.json target/deploy/holdout-keypair.json && anchor keys list
 ```
 
-**Expected:** `holdout: Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4`, matching `Anchor.toml` and `declare_id!`. Back that file up — losing it means a new address and a redeploy, and after the 28 Sep freeze that would strand the judged cohort.
+**Expected:** `holdout: Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4`, matching `Anchor.toml` and `declare_id!`. Back that file up — losing it means a new address and a redeploy, and after the 5 October freeze that would strand the judged cohort.
 
 ```bash
 NO_DNA=1 anchor deploy --provider.cluster devnet
