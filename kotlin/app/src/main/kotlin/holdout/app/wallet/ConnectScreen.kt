@@ -11,13 +11,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import holdout.app.BuildConfig
 import holdout.app.WalletUiState
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
@@ -41,16 +39,6 @@ fun ConnectScreen(
     state: WalletUiState,
     onConnect: () -> Unit,
     modifier: Modifier = Modifier,
-    /**
-     * Spike S1's on-device path, kept reachable in debug builds until T040
-     * turns it into `WalletRepository` (T012a).
-     *
-     * S1 passed on a Seeker with Seed Vault on 22 September. Two legs are still
-     * open — a plain Android phone with its own MWA wallet, and `NoWalletFound`
-     * on a phone with none — and both are one tap from this screen. Compiled
-     * out of release.
-     */
-    onSpikeTransaction: (() -> Unit)? = null,
 ) {
     Column(
         modifier = modifier
@@ -108,12 +96,6 @@ fun ConnectScreen(
                 color = HoldoutColors.Warning,
                 textAlign = TextAlign.Center,
             )
-        }
-
-        if (BuildConfig.DEBUG && onSpikeTransaction != null) {
-            TextButton(onClick = onSpikeTransaction, enabled = !state.isLoading) {
-                Text("Spike S1: send devnet transaction", style = LabelStyle, color = HoldoutColors.TextTertiary)
-            }
         }
     }
 }

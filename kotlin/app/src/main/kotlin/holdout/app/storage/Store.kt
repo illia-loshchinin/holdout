@@ -52,14 +52,38 @@ interface Store {
     fun isSetupGuideHidden(wallet: String, stakes: String): Boolean
     fun hideSetupGuide(wallet: String, stakes: String)
 
+    /**
+     * When the last Daily 25 sitting started while chain time was unknown, on
+     * this boot's monotonic clock — so the reps it banked under [UNKNOWN_DAY]
+     * can be put on their real day once the chain answers (`OfflineDays`).
+     */
+    fun offlineSittingMark(wallet: String): OfflineMark?
+    fun setOfflineSittingMark(wallet: String, mark: OfflineMark?)
+
+    /** The chain's last answer, kept so an app restart offline still knows the day (research R7). */
+    fun chainReading(): SavedChainReading?
+    fun setChainReading(reading: SavedChainReading)
+
     companion object {
         /** The scope for the free Daily 25, which belongs to no cohort. */
         const val CHALLENGE = "challenge"
 
         /** Never set: a wallet that has never completed a day has no last day. */
         const val NO_DAY = Long.MIN_VALUE
+
+        /**
+         * Where a Daily 25 banks before the chain has ever been read. Never
+         * shown as a day: `OfflineDays` moves it onto the day it was done.
+         */
+        const val UNKNOWN_DAY = Long.MIN_VALUE + 1
     }
 }
+
+/** A moment on one boot's monotonic clock: meaningless after a reboot, so the boot is kept with it. */
+data class OfflineMark(val boot: Int, val elapsedMillis: Long)
+
+/** What the chain said, and when on this boot's monotonic clock it said it. */
+data class SavedChainReading(val chainSeconds: Long, val slot: Long, val boot: Int, val elapsedMillis: Long)
 
 /**
  * MMKV backs it: an mmap'd store, so a write is durable as soon as it returns
@@ -121,6 +145,32 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
     override fun setSeenTour(wallet: String) {
         kv.encode("tour:$wallet", true)
     }
+
+    override fun offlineSittingMark(wallet: String): OfflineMark? {
+        if (!kv.containsKey("offline_boot:$wallet")) return null
+        return OfflineMark(kv.decodeInt("offline_boot:$wallet"), kv.decodeLong("offline_elapsed:$wallet"))
+    }
+
+    override fun setOfflineSittingMark(wallet: String, mark: OfflineMark?) {
+        if (mark == null) {
+            kv.removeValuesForKeys(arrayOf("offline_boot:$wallet", "offline_elapsed:$wallet"))
+        } else {
+            kv.encode("offline_elapsed:$wallet", mark.elapsedMillis)
+            kv.encode("offline_boot:$wallet", mark.boot)
+        }
+    }
+
+    override fun chainReading(): SavedChainReading? {
+        if (!kv.containsKey("chain_boot")) return null
+        return SavedChainReading(kv.decodeLong("chain_seconds"), kv.decodeLong("chain_slot"), kv.decodeInt("chain_boot"), kv.decodeLong("chain_elapsed"))
+    }
+
+    override fun setChainReading(reading: SavedChainReading) {
+        kv.encode("chain_seconds", reading.chainSeconds)
+        kv.encode("chain_slot", reading.slot)
+        kv.encode("chain_elapsed", reading.elapsedMillis)
+        kv.encode("chain_boot", reading.boot)
+    }
 }
 
 /** In-memory, for unit tests and Compose previews. */
@@ -171,5 +221,17 @@ class InMemoryStore : Store {
 
     override fun setSeenTour(wallet: String) {
         values["tour:$wallet"] = true
+    }
+
+    override fun offlineSittingMark(wallet: String): OfflineMark? = values["offline:$wallet"] as? OfflineMark
+
+    override fun setOfflineSittingMark(wallet: String, mark: OfflineMark?) {
+        if (mark == null) values.remove("offline:$wallet") else values["offline:$wallet"] = mark
+    }
+
+    override fun chainReading(): SavedChainReading? = values["chain"] as? SavedChainReading
+
+    override fun setChainReading(reading: SavedChainReading) {
+        values["chain"] = reading
     }
 }

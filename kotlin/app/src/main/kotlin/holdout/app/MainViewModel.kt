@@ -189,10 +189,11 @@ class MainViewModel : ViewModel() {
      * (FR-024b), so a phone with no signal counts reps exactly as before and
      * the home screen simply does not show a countdown it cannot vouch for.
      */
-    fun refreshChainTime(clock: ChainClock) {
-        viewModelScope.launch {
-            rpcClient.chainTime()?.let { clock.observe(it.unixSeconds, it.slot) }
-        }
+    /** Asks the cluster for chain time; true when it answered and [clock] now has it. */
+    suspend fun refreshChainTime(clock: ChainClock): Boolean {
+        val time = rpcClient.chainTime() ?: return false
+        clock.observe(time.unixSeconds, time.slot)
+        return true
     }
 
     fun disconnect(sender: ActivityResultSender) {

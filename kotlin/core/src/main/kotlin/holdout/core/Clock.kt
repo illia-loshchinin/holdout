@@ -35,6 +35,15 @@ class ChainClock(
         reading = Reading(chainSeconds, slot, elapsedRealtimeMillis())
     }
 
+    /**
+     * Take back a reading made earlier on the same monotonic clock — the app's
+     * last one, saved across a restart. Never one from before a reboot: the
+     * clock restarted from zero then, and the caller must check that.
+     */
+    fun restore(chainSeconds: Long, slot: Long, readAtElapsedMillis: Long) {
+        if (readAtElapsedMillis <= elapsedRealtimeMillis()) reading = Reading(chainSeconds, slot, readAtElapsedMillis)
+    }
+
     /** Chain time now, or null when the chain has not been read yet. */
     fun nowSeconds(): Long? {
         val last = reading ?: return null

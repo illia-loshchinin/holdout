@@ -87,7 +87,7 @@ data class PreflightInput(
 class Preflight(
     private val minBrightness: Float = 0.25f,
     private val maxBrightness: Float = 0.92f,
-    private val maxBackgroundMotion: Float = 0.12f,
+    private val maxBackgroundMotion: Float = DEFAULT_MAX_BACKGROUND_MOTION,
     /**
      * Shoulder span against torso length, at or below which the camera is
      * beside the member rather than in front of them.
@@ -206,9 +206,12 @@ class Preflight(
         }
     }
 
-    private companion object {
+    companion object {
+        /** Share of the background ([BackgroundMotion]) allowed to change between frames. */
+        const val DEFAULT_MAX_BACKGROUND_MOTION = 0.12f
+
         /** Below this the torso is too short in frame for the ratio to mean anything. */
-        const val MIN_TORSO_LENGTH = 0.02f
+        private const val MIN_TORSO_LENGTH = 0.02f
     }
 
     private fun midpoint(a: Landmark?, b: Landmark?): Pair<Float, Float>? {
