@@ -13,9 +13,18 @@
          only; the lost audio anti-spoofing filter is named in the README as a
          known weakness with its real fix beside it. -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Every sitting binds the front camera and nothing else, so that is the
+         hardware required. The rear camera and autofocus are declared optional
+         explicitly: the CAMERA permission alone would imply both. -->
+    <uses-feature
+        android:name="android.hardware.camera.front"
+        android:required="true" />
     <uses-feature
         android:name="android.hardware.camera"
-        android:required="true" />
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
 
     <!-- Backup and device transfer are both off: banked reps and a completed day
          waiting for the network live only on this device, and a restore must never
