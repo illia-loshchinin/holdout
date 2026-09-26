@@ -116,9 +116,39 @@ fun SittingScreen(
                 PackageManager.PERMISSION_GRANTED,
         )
     }
+    // Whether the member has already answered the system prompt this sitting.
+    var askedCamera by remember { mutableStateOf(false) }
     val requestCamera = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { granted -> hasCamera = granted }
+    ) { granted ->
+        hasCamera = granted
+        askedCamera = true
+    }
+    // Back from the system settings with the camera allowed: pick it up.
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        hasCamera = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+    }
+
+    /**
+     * Denied once: ask again. Once Android stops showing the prompt ("don't
+     * ask again", or a second denial), only the app's settings page can grant
+     * it, so that is where the button goes.
+     */
+    fun allowCamera() {
+        val activity = context.findActivity()
+        val promptStillShown = !askedCamera ||
+            (activity != null && androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA))
+        if (promptStillShown) {
+            requestCamera.launch(Manifest.permission.CAMERA)
+        } else {
+            context.startActivity(
+                android.content.Intent(
+                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    android.net.Uri.fromParts("package", context.packageName, null),
+                ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }
+    }
 
     KeepScreenOn()
 
@@ -157,7 +187,7 @@ fun SittingScreen(
         ) {
             when (state.step) {
                 SittingViewModel.Step.PREFLIGHT -> {
-                    PreflightPills(state, hasCamera)
+                    PreflightPills(state, hasCamera, onAllowCamera = ::allowCamera, cameraAsked = askedCamera)
                     if (state.guidance?.aligned != true) {
                         TextButton(onClick = viewModel::openSetup) {
                             Text("How to set up", color = HoldoutColors.Accent)
@@ -284,7 +314,12 @@ private fun KeepScreenOn() {
  * text half. Once the member is aligned it all goes, leaving the skeleton.
  */
 @Composable
-private fun PreflightPills(state: SittingViewModel.UiState, hasCamera: Boolean) {
+private fun PreflightPills(
+    state: SittingViewModel.UiState,
+    hasCamera: Boolean,
+    onAllowCamera: () -> Unit = {},
+    cameraAsked: Boolean = false,
+) {
     if (!hasCamera) {
         Text(
             "Holdout counts your reps on this phone, so it needs the camera. " +
@@ -293,6 +328,10 @@ private fun PreflightPills(state: SittingViewModel.UiState, hasCamera: Boolean) 
             color = HoldoutColors.TextSecondary,
             textAlign = TextAlign.Center,
         )
+        // Denied, by accident or not: the sitting must not be a dead end.
+        if (cameraAsked) {
+            PrimaryButton("Allow camera", onAllowCamera)
+        }
         return
     }
 
@@ -872,4 +911,14 @@ private class BoundCamera {
         provider = null
         useCases = emptyArray()
     }
+}
+
+/** The activity behind a Compose context, which may be wrapped (a theme, a locale). */
+private fun android.content.Context.findActivity(): android.app.Activity? {
+    var c: android.content.Context? = this
+    while (c is android.content.ContextWrapper) {
+        if (c is android.app.Activity) return c
+        c = c.baseContext
+    }
+    return null
 }

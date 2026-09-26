@@ -282,6 +282,24 @@ class RepCounter(
      * picture saw it; head-on it is required, since that is where the elbow is
      * read, and a front-view frame without it is dropped.
      */
+    /**
+     * Follow a frame without judging it: the countdown. The member may start
+     * down on "1", so the counter tracks the top and the descent from the
+     * start of the countdown; a rep that would finish before "go" is neither
+     * counted nor refused. Always returns null.
+     */
+    fun prime(frame: PoseFrame, image: ImagePose? = null): RepEvent? {
+        priming = true
+        try {
+            onFrame(frame, image)
+        } finally {
+            priming = false
+        }
+        return null
+    }
+
+    private var priming = false
+
     fun onFrame(frame: PoseFrame, image: ImagePose? = null): RepEvent? {
         val reading = ViewReading.of(view, frame, image, side = nearSideFor(image)) ?: return null
 
@@ -337,7 +355,13 @@ class RepCounter(
                 }
                 if (elbow < rules.topTriggerDegrees) return null
 
-                // A full cycle: top → bottom → top. Now judge it.
+                // A full cycle: top → bottom → top. Now judge it — unless it
+                // happened during the countdown, before counting began.
+                if (priming) {
+                    phase = Phase.AT_TOP
+                    resetCycle()
+                    return null
+                }
                 val cycleMillis = frame.timestampMillis - cycleStartMillis
                 // Depth needs no check here: reaching this phase means the elbow
                 // passed `bottomTriggerDegrees`, which `RepRules` requires to be

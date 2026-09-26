@@ -105,4 +105,11 @@ class StreakStoreTest {
         store.setStreak(wallet, 5, 100)
         assertEquals(5, streaks.read(wallet, 100).longest)
     }
+
+    @Test
+    fun `the longest streak is saved with the streak, so it survives a lapse`() {
+        // A process killed after the streak write and before the longest-streak write.
+        store.setStreak(wallet, 5, 100)
+        assertEquals(5, streaks.read(wallet, dayIndex = 103).longest, "the streak lapsed; its record did not")
+    }
 }

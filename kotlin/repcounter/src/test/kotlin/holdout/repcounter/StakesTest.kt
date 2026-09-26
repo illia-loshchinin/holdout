@@ -228,6 +228,38 @@ class StakesTest {
     }
 
     @Test
+    fun `a descent started during the countdown still counts - the counter follows the countdown`() {
+        val frames = Traces.set(count = 1)
+        val go = frames.size * 2 / 5 // "go" lands part-way down
+        fun run(primed: Boolean): Int {
+            val counter = RepCounter(view = CameraView.OBLIQUE, stakes = Stakes.DAILY)
+            frames.forEachIndexed { i, frame ->
+                val image = Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!)
+                when {
+                    i < go && primed -> counter.prime(frame, image)
+                    i < go -> Unit
+                    else -> counter.onFrame(frame, image)
+                }
+            }
+            return counter.total
+        }
+        assertEquals(0, run(primed = false), "a counter that starts mid-descent loses the rep")
+        assertEquals(1, run(primed = true))
+    }
+
+    @Test
+    fun `a whole rep during the countdown is not counted before go`() {
+        val counter = RepCounter(view = CameraView.OBLIQUE, stakes = Stakes.DAILY)
+        val frames = Traces.set(count = 2)
+        val firstRepDone = Traces.set(count = 1).size // the countdown ends as the first rep does
+        frames.forEachIndexed { i, frame ->
+            val image = Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!)
+            if (i < firstRepDone) assertEquals(null, counter.prime(frame, image)) else counter.onFrame(frame, image)
+        }
+        assertEquals(1, counter.total)
+    }
+
+    @Test
     fun `the rule a member reads before staking names the placement and the knees`() {
         val rule = Stakes.STAKED_RULE.lowercase()
         assertTrue("45" in rule && "not in front" in rule, "the placement")
