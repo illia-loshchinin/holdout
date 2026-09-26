@@ -262,6 +262,9 @@ class SittingViewModel(
                 )
                 _uiState.update { it.withFrame(observation).copy(preflight = report) }
                 record(observation, countingView)
+                // The counter follows the countdown without judging it, so a
+                // descent begun on "1" is already tracked at "go".
+                repCounter.prime(observation.world, observation.imagePose())
                 val holds = report.canStart && report.view == countingView
                 if (countdownGuard.shouldAbort(observation.world.timestampMillis, holds)) backToChecks()
             }
@@ -306,6 +309,7 @@ class SittingViewModel(
     }
 
     private fun startCountdown() {
+        repCounter = RepCounter(view = countingView, stakes = stakes)
         countdownGuard.reset()
         readyGate.reset()
         // The guide is dropped here and never comes back. A silhouette
@@ -329,7 +333,7 @@ class SittingViewModel(
             backToChecks()
             return
         }
-        repCounter = RepCounter(view = countingView, stakes = stakes)
+        // The counter was built at the start of the countdown and has followed it.
         _uiState.update { it.copy(step = Step.COUNTING, hint = null, looseReps = 0) }
         _cues.tryEmit(Cue.Counting)
     }

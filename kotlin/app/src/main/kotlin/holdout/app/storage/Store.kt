@@ -130,17 +130,22 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
     // killed between two writes would otherwise leave a count with the wrong
     // day, and a later recovery would add to it twice. The two older keys are
     // still read for a record written before this.
-    private fun streakRecord(wallet: String): Pair<Int, Long>? = kv.decodeString("streak_rec:$wallet")?.split(',')?.let { (count, day) -> count.toInt() to day.toLong() }
+    private fun streakRecord(wallet: String): Triple<Int, Long, Int>? = kv.decodeString("streak_rec:$wallet")?.split(',')?.let { f ->
+        Triple(f[0].toInt(), f[1].toLong(), f.getOrNull(2)?.toInt() ?: 0)
+    }
 
     override fun streak(wallet: String): Int = streakRecord(wallet)?.first ?: kv.decodeInt("streak:$wallet", 0)
 
     override fun lastStreakDay(wallet: String): Long = streakRecord(wallet)?.second ?: kv.decodeLong("streak_day:$wallet", Store.NO_DAY)
 
     override fun setStreak(wallet: String, streak: Int, dayIndex: Long) {
-        kv.encode("streak_rec:$wallet", "$streak,$dayIndex")
+        // The longest rides in the same record, so a record-breaking day can
+        // never be saved without its record.
+        val longest = maxOf(longestStreak(wallet), streak)
+        kv.encode("streak_rec:$wallet", "$streak,$dayIndex,$longest")
     }
 
-    override fun longestStreak(wallet: String): Int = kv.decodeInt("streak_best:$wallet", 0)
+    override fun longestStreak(wallet: String): Int = maxOf(streakRecord(wallet)?.third ?: 0, kv.decodeInt("streak_best:$wallet", 0))
 
     override fun setLongestStreak(wallet: String, streak: Int) {
         kv.encode("streak_best:$wallet", streak)
@@ -218,6 +223,7 @@ class InMemoryStore : Store {
     override fun setStreak(wallet: String, streak: Int, dayIndex: Long) {
         values["streak:$wallet"] = streak
         values["streak_day:$wallet"] = dayIndex
+        values["streak_best:$wallet"] = maxOf(longestStreak(wallet), streak)
     }
 
     override fun longestStreak(wallet: String): Int = values["streak_best:$wallet"] as? Int ?: 0
