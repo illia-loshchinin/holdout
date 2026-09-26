@@ -17,7 +17,9 @@ import holdout.app.home.HomeState
 import holdout.app.sitting.SittingScreen
 import holdout.app.sitting.SittingViewModel
 import holdout.app.storage.MmkvStore
+import holdout.app.storage.SavedChainReading
 import holdout.app.storage.Store
+import holdout.app.streak.OfflineDays
 import holdout.app.streak.StreakStore
 import holdout.app.wallet.ConnectScreen
 import holdout.core.ChainClock
@@ -45,6 +47,8 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val store: Store = remember { MmkvStore.create(context) }
     val streaks = remember { StreakStore(store) }
+    val offlineDays = remember { OfflineDays(store, streaks, DAILY_25) }
+    val boot = remember { bootCount(context) }
 
     val walletViewModel: MainViewModel = viewModel()
     val wallet by walletViewModel.uiState.collectAsStateWithLifecycle()
@@ -52,9 +56,29 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     // Chain time, never the wall clock (research R7). The Daily 25 needs no
     // connection, so until the chain has been read once the screen says it does
     // not know how long is left rather than inventing a countdown.
-    val clock = remember { ChainClock { android.os.SystemClock.elapsedRealtime() } }
+    //
+    // The last answer is saved, so a restart offline still knows the day — on
+    // the same boot only, since the monotonic clock restarts with the phone.
+    // Until the chain answers it is asked every 30 seconds, then every 10
+    // minutes to keep drift small.
+    val clock =
+        remember {
+            ChainClock { android.os.SystemClock.elapsedRealtime() }.also { c ->
+                store.chainReading()?.takeIf { it.boot == boot }?.let { c.restore(it.chainSeconds, it.slot, it.elapsedMillis) }
+            }
+        }
     LaunchedEffect(wallet.address) {
-        if (wallet.address != null) walletViewModel.refreshChainTime(clock)
+        if (wallet.address == null) return@LaunchedEffect
+        while (true) {
+            if (walletViewModel.refreshChainTime(clock)) {
+                // Chain time and the monotonic clock sampled together.
+                val elapsed = android.os.SystemClock.elapsedRealtime()
+                val chainNow = clock.nowSeconds()
+                val slot = clock.slot
+                if (chainNow != null && slot != null) store.setChainReading(SavedChainReading(chainNow, slot, boot, elapsed))
+            }
+            delay(if (clock.hasReading) CHAIN_REFRESH_MILLIS else CHAIN_RETRY_MILLIS)
+        }
     }
 
     // The clock is a plain object, not Compose state: reading it in the body
@@ -94,12 +118,22 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             state = wallet,
             onConnect = { walletViewModel.connect(sender) },
             modifier = modifier,
-            onSpikeTransaction = { walletViewModel.sendDevnetTransaction(sender) },
         )
         return
     }
 
-    val dayIndex = now?.let { HoldoutDay.indexOf(it) } ?: LOCAL_DAY_UNKNOWN
+    val dayIndex = now?.let { HoldoutDay.indexOf(it) } ?: Store.UNKNOWN_DAY
+
+    // The chain has answered: a Daily 25 done before it did moves onto the
+    // day it was really done (FR-024b), and home reads it from there. Never
+    // mid-sitting: that sitting is still banking under the unknown day.
+    val known = now != null
+    val idle = sittingDay == null
+    LaunchedEffect(address, known, idle) {
+        if (!idle) return@LaunchedEffect
+        val chainNow = now ?: return@LaunchedEffect
+        if (offlineDays.settle(address, boot, android.os.SystemClock.elapsedRealtime(), chainNow) != null) refreshToken += 1
+    }
 
     val inSittingDay = sittingDay
     if (inSittingDay != null) {
@@ -154,12 +188,17 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             streak = streak.current,
             secondsLeftToday = now?.let { HoldoutDay.secondsLeftIn(it) },
         ),
-        onStart = { sittingDay = dayIndex },
+        onStart = {
+            if (dayIndex == Store.UNKNOWN_DAY) offlineDays.sittingStarted(address, boot, android.os.SystemClock.elapsedRealtime())
+            sittingDay = dayIndex
+        },
         modifier = modifier,
         stakedTest = stakedTest,
         onStakedTestChange = if (BuildConfig.DEBUG) ({ stakedTest = it }) else null,
         cleanScreen = cleanScreen,
         onCleanScreenChange = if (BuildConfig.DEBUG) ({ cleanScreen = it }) else null,
+        onSpikeTransaction = if (BuildConfig.DEBUG) ({ walletViewModel.sendDevnetTransaction(sender) }) else null,
+        spikeMessage = wallet.message,
         onResetToday = if (BuildConfig.DEBUG) {
             {
                 // Both scopes: the real Daily 25 and the staked-rules test runs.
@@ -179,12 +218,12 @@ private const val DAILY_25 = 25
 /** Where test sittings under staked rules bank, apart from the real Daily 25. */
 private const val TEST_STAKED_SCOPE = "test-staked"
 
+private const val CHAIN_RETRY_MILLIS = 30_000L
+private const val CHAIN_REFRESH_MILLIS = 600_000L
+
 /**
- * The day index used before the chain has been read once.
- *
- * It is a real, distinct slot rather than "today": a day's progress must never
- * be filed under a date the app only guessed at, and merged with a real one
- * later. The first successful chain read moves the member onto the true day,
- * and this slot is simply never looked at again.
+ * Which boot of the phone this is, to tell whether a monotonic-clock reading
+ * saved earlier still means anything. -1 when the platform will not say, which
+ * matches no saved boot, so nothing is restored on a guess.
  */
-private const val LOCAL_DAY_UNKNOWN = Long.MIN_VALUE + 1
+private fun bootCount(context: android.content.Context): Int = android.provider.Settings.Global.getInt(context.contentResolver, android.provider.Settings.Global.BOOT_COUNT, -1)

@@ -92,4 +92,19 @@ class ClockTest {
             assertEquals(Math.floorDiv(t - 18_000L, 86_400L), HoldoutDay.indexOf(t))
         }
     }
+
+    @Test
+    fun `a saved reading comes back and keeps advancing`() {
+        elapsed = 100_000
+        clock.restore(chainSeconds = 1_800_000_000, slot = 7, readAtElapsedMillis = 40_000)
+        assertEquals(1_800_000_060, clock.nowSeconds(), "60 s passed on the monotonic clock since it was read")
+    }
+
+    @Test
+    fun `a reading from later than now on the monotonic clock is refused`() {
+        // The clock restarted: a reboot, which the caller should have caught.
+        elapsed = 1_000
+        clock.restore(chainSeconds = 1_800_000_000, slot = 7, readAtElapsedMillis = 40_000)
+        assertNull(clock.nowSeconds())
+    }
 }

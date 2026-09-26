@@ -321,7 +321,9 @@ class SittingViewModel(
                 // nothing goes on-chain and no connection is needed (FR-051).
                 // A cohort day also submits — T061, not this task.
                 // Only the real Daily 25 extends the streak — never a test run.
-                if (scope == Store.CHALLENGE) streaks.recordCompletedDay(wallet, dayIndex)
+                // A day done before chain time was known has no date yet;
+                // OfflineDays records the streak once it has one.
+                if (scope == Store.CHALLENGE && dayIndex != Store.UNKNOWN_DAY) streaks.recordCompletedDay(wallet, dayIndex)
                 trace?.close()
                 _cues.tryEmit(Cue.DayComplete)
                 _uiState.update {
