@@ -53,6 +53,9 @@ class Keypair private constructor(
             return Keypair(seed.copyOf(), SolanaPublicKey(encode(public)))
         }
 
+        /** A new random key — the mock SKR mint `init` creates (T091). */
+        fun generate(): Keypair = fromSeed(ByteArray(32).also { SecureRandom().nextBytes(it) })
+
         /**
          * From the Solana CLI's 64-byte form. A file whose second half is not
          * the public key its seed derives is refused: signing with it would

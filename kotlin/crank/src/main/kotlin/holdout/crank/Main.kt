@@ -65,6 +65,10 @@ fun runCrank(
                     parsed.allow()
                     fun(config: CrankConfig) = runBlocking { Status.run(config, rpcFor(config.rpcUrl)) }
                 }
+                listOf("init") -> {
+                    Init.checkArgs(parsed)
+                    fun(config: CrankConfig) = runBlocking { Init.run(parsed, config, rpcFor(config.rpcUrl)) }
+                }
                 listOf("chips", "publish") -> {
                     Chips.checkArgs(parsed)
                     fun(config: CrankConfig) = runBlocking { Chips.publish(parsed, config, rpcFor(config.rpcUrl)) }
@@ -101,7 +105,6 @@ fun runCrank(
  */
 private val LATER =
     mapOf(
-        listOf("init") to "T091",
         listOf("run") to "T071",
         listOf("scripted", "plan") to "T088",
         listOf("scripted", "fund") to "T088",
@@ -117,7 +120,8 @@ private fun usage(): JsonObject = buildJsonObject {
     put(
         "usage",
         "crank <command> [--dry-run]; commands: status, chips publish --rate <usd-per-skr> [--decimals <n>], " +
-            "run, init, scripted plan|run|fund (contracts/crank-cli.md)",
+            "init [--admin <keypair>] --operator <pubkey> --sponsor <pubkey> --treasury <pubkey> --rate <usd-per-skr> [--first-start <iso>] [--fund-faucet <sol>], " +
+            "run, scripted plan|run|fund (contracts/crank-cli.md)",
     )
 }
 

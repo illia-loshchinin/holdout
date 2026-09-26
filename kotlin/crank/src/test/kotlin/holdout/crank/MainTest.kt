@@ -85,7 +85,7 @@ class MainTest {
 
     @Test
     fun `commands owned by later tasks say which, and send nothing`() {
-        for (words in listOf(listOf("run"), listOf("init"), listOf("scripted", "run"))) {
+        for (words in listOf(listOf("run"), listOf("scripted", "run"))) {
             val (code, json) = run(*words.toTypedArray())
             assertEquals(EXIT_CONFIG, code, "$words")
             assertTrue(json.getValue("error").jsonPrimitive.content.contains("T0"), "$words: ${json["error"]}")

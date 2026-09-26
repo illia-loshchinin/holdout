@@ -36,5 +36,14 @@ object Pdas {
 
     suspend fun profile(programId: SolanaPublicKey, wallet: SolanaPublicKey): SolanaPublicKey = derive(programId, "profile".encodeToByteArray(), wallet.bytes)
 
+    /**
+     * The upgradeable loader's `ProgramData` for [programId] — the account that
+     * names the upgrade authority `initialize` checks (research R14).
+     */
+    suspend fun programData(programId: SolanaPublicKey): SolanaPublicKey = derive(Instructions.UPGRADEABLE_LOADER, programId.bytes)
+
+    /** [owner]'s associated token account for [mint], under the classic token program. */
+    suspend fun associatedToken(owner: SolanaPublicKey, mint: SolanaPublicKey): SolanaPublicKey = derive(Instructions.ASSOCIATED_TOKEN_PROGRAM, owner.bytes, Instructions.TOKEN_PROGRAM.bytes, mint.bytes)
+
     private suspend fun derive(programId: SolanaPublicKey, vararg seeds: ByteArray): SolanaPublicKey = SolanaPublicKey(ProgramDerivedAddress.find(seeds.toList(), programId).getOrThrow().bytes)
 }
