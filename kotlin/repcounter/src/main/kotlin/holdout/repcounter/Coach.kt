@@ -21,7 +21,6 @@ enum class Coach(val words: String) {
     CLOSER("Closer"),
     LEFT("Move left"),
     RIGHT("Move right"),
-    STILL_BACKGROUND("Still background"),
     HOLD("Hold"),
     ;
 
@@ -41,7 +40,6 @@ enum class Coach(val words: String) {
                 guidance.hint == PositionHint.MOVE_CLOSER -> CLOSER
                 guidance.hint == PositionHint.MOVE_LEFT -> LEFT
                 guidance.hint == PositionHint.MOVE_RIGHT -> RIGHT
-                failing(PreflightCheck.BACKGROUND_STILL) -> STILL_BACKGROUND
                 else -> HOLD
             }
         }

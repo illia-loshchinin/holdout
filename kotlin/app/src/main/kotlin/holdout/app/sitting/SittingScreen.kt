@@ -340,7 +340,11 @@ private fun PreflightPills(state: SittingViewModel.UiState, hasCamera: Boolean) 
                     status.fix ?: status.check.label
                 },
                 style = LabelStyle,
-                color = if (status.passing) HoldoutColors.Success else HoldoutColors.TextSecondary,
+                color = when {
+                    status.passing -> HoldoutColors.Success
+                    status.check.advisory -> HoldoutColors.Warning
+                    else -> HoldoutColors.TextSecondary
+                },
                 textAlign = TextAlign.Center,
             )
         }

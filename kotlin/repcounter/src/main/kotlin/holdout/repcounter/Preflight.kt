@@ -13,7 +13,16 @@ import kotlin.math.hypot
  * does not request the microphone at all (FR-022a), and the missing
  * anti-spoofing filter is named in the README as a known weakness.
  */
-enum class PreflightCheck(val label: String, val fix: String) {
+enum class PreflightCheck(
+    val label: String,
+    val fix: String,
+    /**
+     * Shown and never blocking. Background motion is measured from a coarse
+     * luma grid with a threshold set on no real homes yet, so a TV or a
+     * passer-by must not keep a member from starting (decided 2026-09-26).
+     */
+    val advisory: Boolean = false,
+) {
     LIGHTING(
         label = "Lighting",
         fix = "Add light",
@@ -29,6 +38,7 @@ enum class PreflightCheck(val label: String, val fix: String) {
     BACKGROUND_STILL(
         label = "Background still",
         fix = "Find a spot with nothing moving behind you",
+        advisory = true,
     ),
 }
 
@@ -48,7 +58,8 @@ data class PreflightReport(
     /** Which way the camera is looking at the member; null when it cannot tell. */
     val view: CameraView? = null,
 ) {
-    val canStart: Boolean get() = statuses.all { it.passing }
+    /** Every gating check passes; an advisory one may still be red. */
+    val canStart: Boolean get() = statuses.all { it.passing || it.check.advisory }
     val fixes: List<String> get() = statuses.mapNotNull { it.fix }
 }
 

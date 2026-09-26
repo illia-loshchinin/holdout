@@ -56,7 +56,7 @@ class SittingViewModel(
     private val streaks: StreakStore,
     private val wallet: String,
     private val scope: String,
-    private val dayIndex: Long,
+    dayIndex: Long,
     private val target: Int,
     /** Chain time now, for the day's countdown. Null while the chain is unread. */
     private val chainSecondsNow: () -> Long?,
@@ -188,11 +188,26 @@ class SittingViewModel(
         holdout.core.HoldoutDay.secondsLeftIn(now)
     }
 
+    /**
+     * A sitting running across 05:00 UTC banks the rest into the new day
+     * ([BankingController.rollOverTo]). Not a sitting that started before
+     * chain time was known — `OfflineDays` dates that one — and not once the
+     * day is complete: the finished screen stays yesterday's.
+     */
+    private fun rollOverAtBoundary() {
+        if (banking.dayIndex == Store.UNKNOWN_DAY || _uiState.value.step == Step.COMPLETE) return
+        val today = chainSecondsNow()?.let { holdout.core.HoldoutDay.indexOf(it) } ?: return
+        if (banking.rollOverTo(today)) {
+            _uiState.update { it.copy(banked = banking.banked, looseReps = banking.loose) }
+        }
+    }
+
     /** Every pose frame while the pills are up, and while counting. */
     fun onPoseFrame(observation: VisionAnalyzer.Observation, backgroundMotion: Float) {
         // After Stop nothing is counted or banked, even while the screen is
         // still up for the member to log what they did.
         if (stopped) return
+        rollOverAtBoundary()
         when (_uiState.value.step) {
             Step.PREFLIGHT -> {
                 val report = preflight.evaluate(
@@ -323,7 +338,7 @@ class SittingViewModel(
                 // Only the real Daily 25 extends the streak — never a test run.
                 // A day done before chain time was known has no date yet;
                 // OfflineDays records the streak once it has one.
-                if (scope == Store.CHALLENGE && dayIndex != Store.UNKNOWN_DAY) streaks.recordCompletedDay(wallet, dayIndex)
+                if (scope == Store.CHALLENGE && banking.dayIndex != Store.UNKNOWN_DAY) streaks.recordCompletedDay(wallet, banking.dayIndex)
                 trace?.close()
                 _cues.tryEmit(Cue.DayComplete)
                 _uiState.update {
