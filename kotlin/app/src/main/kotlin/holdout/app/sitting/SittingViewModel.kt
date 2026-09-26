@@ -262,11 +262,16 @@ class SittingViewModel(
                 )
                 _uiState.update { it.withFrame(observation).copy(preflight = report) }
                 record(observation, countingView)
-                // The counter follows the countdown without judging it, so a
-                // descent begun on "1" is already tracked at "go".
-                repCounter.prime(observation.world, observation.imagePose())
                 val holds = report.canStart && report.view == countingView
-                if (countdownGuard.shouldAbort(observation.world.timestampMillis, holds)) backToChecks()
+                synchronized(countdownLock) {
+                    // The timer may have ended the countdown on the main
+                    // thread while this frame was being read.
+                    if (_uiState.value.step != Step.COUNTDOWN) return
+                    // The counter follows the countdown without judging it, so a
+                    // descent begun on "1" is already tracked at "go".
+                    repCounter.prime(observation.world, observation.imagePose())
+                    if (countdownGuard.shouldAbort(observation.world.timestampMillis, holds)) backToChecks()
+                }
             }
 
             Step.COUNTING -> {
@@ -296,10 +301,15 @@ class SittingViewModel(
         frameHeight = observation.frameHeight,
     )
 
-    /**
-     * The pills are green and the position has held. Nothing was tapped.
-     */
     private val countdownGuard = holdout.repcounter.CountdownGuard()
+
+    /**
+     * The countdown ends on two threads: the screen's timer (main) and the
+     * checks, read from pose results on MediaPipe's thread. Every step change
+     * out of the countdown, and the counter it hands over, happens under this
+     * lock, so the two can never both win.
+     */
+    private val countdownLock = Any()
 
     /** The countdown's checks stopped passing: back to the pills, as if it had never started. */
     private fun backToChecks() {
@@ -308,6 +318,7 @@ class SittingViewModel(
         _uiState.update { it.copy(step = Step.PREFLIGHT, readyProgress = 0f) }
     }
 
+    /** The pills are green and the position has held. Nothing was tapped. */
     private fun startCountdown() {
         repCounter = RepCounter(view = countingView, stakes = stakes)
         countdownGuard.reset()
@@ -323,18 +334,22 @@ class SittingViewModel(
         _cues.tryEmit(Cue.CountdownTick(remaining))
     }
 
-    /** The 3-second countdown finished. A fresh counter: this sitting starts at zero. */
+    /**
+     * The 3-second countdown finished. The counter was built when it started
+     * and has followed it, so a descent begun on "1" counts.
+     */
     fun startCounting() {
-        // The screen's timer ends the countdown on its own clock; the checks
-        // decide whether counting may begin. An abort that already happened,
-        // or a check failing at this very moment, wins over the timer.
-        if (_uiState.value.step != Step.COUNTDOWN) return
-        if (countdownGuard.isFailing) {
-            backToChecks()
-            return
+        synchronized(countdownLock) {
+            // The screen's timer ends the countdown on its own clock; the checks
+            // decide whether counting may begin. An abort that already happened,
+            // or a check failing at this very moment, wins over the timer.
+            if (_uiState.value.step != Step.COUNTDOWN) return
+            if (countdownGuard.isFailing) {
+                backToChecks()
+                return
+            }
+            _uiState.update { it.copy(step = Step.COUNTING, hint = null, looseReps = 0) }
         }
-        // The counter was built at the start of the countdown and has followed it.
-        _uiState.update { it.copy(step = Step.COUNTING, hint = null, looseReps = 0) }
         _cues.tryEmit(Cue.Counting)
     }
 
@@ -386,7 +401,9 @@ class SittingViewModel(
     private var stopped = false
 
     private var headGoneSince: Long? = null
-    private var headWarnedAt: Long = Long.MIN_VALUE
+
+    /** When "Move back" was last said; null until it first is. */
+    private var headWarnedAt: Long? = null
 
     /**
      * Warns, big and aloud, when the head leaves the picture while counting —
@@ -404,7 +421,9 @@ class SittingViewModel(
         val since = headGoneSince ?: now.also { headGoneSince = it }
         if (now - since < HEAD_GONE_MILLIS) return
         if (!_uiState.value.headOutOfView) _uiState.update { it.copy(headOutOfView = true) }
-        if (now - headWarnedAt >= HEAD_WARN_EVERY_MILLIS) {
+        // Null, not Long.MIN_VALUE: `now - MIN_VALUE` overflows negative and the
+        // warning would never be said at all.
+        if (headWarnedAt.let { it == null || now - it >= HEAD_WARN_EVERY_MILLIS }) {
             headWarnedAt = now
             _cues.tryEmit(Cue.Say("Move back"))
         }

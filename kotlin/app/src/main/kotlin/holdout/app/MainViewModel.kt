@@ -9,10 +9,8 @@ import com.solana.mobilewalletadapter.clientlib.ConnectionIdentity
 import com.solana.mobilewalletadapter.clientlib.MobileWalletAdapter
 import com.solana.mobilewalletadapter.clientlib.Solana
 import com.solana.mobilewalletadapter.clientlib.TransactionResult
-import com.solana.networking.KtorNetworkDriver
 import com.solana.programs.MemoProgram
 import com.solana.publickey.SolanaPublicKey
-import com.solana.rpc.SolanaRpcClient
 import com.solana.transaction.Message
 import com.solana.transaction.toUnsignedTransaction
 import holdout.core.ChainClock
@@ -47,11 +45,8 @@ class MainViewModel : ViewModel() {
         }
 
     // Devnet only, everywhere (README: nothing here touches mainnet). The app
-    // reads chain state through the same rpc-core client the crank uses, so
-    // there is one RPC path and not two (research R8, R12).
-    private val rpc = SolanaRpcClient(Rpc.DEVNET, KtorNetworkDriver())
-
-    /** The shared client, for everything that is not a wallet interaction. */
+    // reads chain state through the same client the crank uses, so there is
+    // one RPC path and not two (research R8, R12).
     private val rpcClient = Rpc()
 
     private val _uiState = MutableStateFlow(WalletUiState())
@@ -141,7 +136,7 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, message = "Fetching a blockhash…") }
 
-            val blockhash = runCatching { rpc.getLatestBlockhash().result?.blockhash }.getOrNull()
+            val blockhash = rpcClient.latestBlockhash()
             if (blockhash == null) {
                 _uiState.update { it.copy(isLoading = false, message = "Devnet did not answer. Try again.") }
                 return@launch
@@ -183,13 +178,11 @@ class MainViewModel : ViewModel() {
     }
 
     /**
-     * Read the cluster's clock into [clock] (research R7, T033).
-     *
-     * Failure is silent on purpose: the Daily 25 needs no connection at all
-     * (FR-024b), so a phone with no signal counts reps exactly as before and
-     * the home screen simply does not show a countdown it cannot vouch for.
+     * Reads the cluster's clock into [clock] (research R7, T033); true when it
+     * answered. Failure is silent on purpose: the Daily 25 needs no connection
+     * at all (FR-024b), so a phone with no signal counts reps exactly as
+     * before, and the caller simply asks again later.
      */
-    /** Asks the cluster for chain time; true when it answered and [clock] now has it. */
     suspend fun refreshChainTime(clock: ChainClock): Boolean {
         val time = rpcClient.chainTime() ?: return false
         clock.observe(time.unixSeconds, time.slot)
