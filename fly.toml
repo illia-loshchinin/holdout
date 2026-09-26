@@ -1,0 +1,29 @@
+# The crank on Fly.io (T094, research R12). Not a web service: one small
+# machine running scripts/crank-loop.sh, which passes every 10 minutes.
+#
+# Fly's scheduled machines run at most hourly, so the 10-minute cadence is a
+# loop in an always-on machine instead (the smallest size is enough).
+#
+# First time:
+#   fly apps create holdout-crank
+#   fly secrets set HOLDOUT_PAYER_KEY_JSON="$(cat ~/.config/solana/holdout/operator.json)" \
+#     HOLDOUT_SCRIPTED_KEYS_TGZ_B64="$(tar -czf - -C ~/.config/solana/holdout/scripted . | base64 -w0)"
+# Every deploy:
+#   (cd kotlin && ./gradlew :crank:jar) && fly deploy
+#
+# Anyone can run the same passes with their own payer (FR-030a); this machine
+# only means nobody has to. `crank status` is what the live period is watched on.
+app = "holdout-crank"
+primary_region = "ams"
+
+[build]
+  dockerfile = "crank.Dockerfile"
+
+[env]
+  HOLDOUT_RPC_URL = "https://api.devnet.solana.com"
+  HOLDOUT_PROGRAM_ID = "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4"
+  CRANK_INTERVAL_SECONDS = "600"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
