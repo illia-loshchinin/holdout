@@ -36,7 +36,11 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) {
     private var closed = false
     private var rowsSinceFlush = 0
 
-    /** The file being written, once the first frame has opened it. */
+    /**
+     * The file being written, once the first frame has opened it. Set under
+     * [lock] on the pose-result thread, read on the main thread without it.
+     */
+    @Volatile
     var file: File? = null
         private set
 
