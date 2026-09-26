@@ -71,10 +71,14 @@ fun runCrank(
                     parsed.allow()
                     fun(config: CrankConfig) = runBlocking { Status.run(config, rpcFor(config.rpcUrl)) }
                 }
-                listOf("init") -> {
-                    Init.checkArgs(parsed)
-                    fun(config: CrankConfig) = runBlocking { Init.run(parsed, config, rpcFor(config.rpcUrl)) }
-                }
+                listOf("init") ->
+                    if ("test-league" in parsed.flags) {
+                        Init.checkTestLeagueArgs(parsed)
+                        fun(config: CrankConfig) = runBlocking { Init.runTestLeague(parsed, config, rpcFor(config.rpcUrl)) }
+                    } else {
+                        Init.checkArgs(parsed)
+                        fun(config: CrankConfig) = runBlocking { Init.run(parsed, config, rpcFor(config.rpcUrl)) }
+                    }
                 listOf("chips", "publish") -> {
                     Chips.checkArgs(parsed)
                     fun(config: CrankConfig) = runBlocking { Chips.publish(parsed, config, rpcFor(config.rpcUrl)) }
@@ -133,6 +137,7 @@ private fun usage(): JsonObject = buildJsonObject {
         "usage",
         "crank <command> [--dry-run]; commands: status, chips publish --rate <usd-per-skr> [--decimals <n>], " +
             "init [--admin <keypair>] --operator <pubkey> --sponsor <pubkey> --treasury <pubkey> --rate <usd-per-skr> [--first-start <iso>] [--fund-faucet <sol>], " +
+            "init --test-league --day-seconds <n> --reps <n> --days <n> --first-start <iso> [--league-id <100..255>] [--cadence <s>] [--join-lock <s>], " +
             "run, scripted plan|run|fund (contracts/crank-cli.md)",
     )
 }
@@ -156,7 +161,7 @@ data class Args(
 }
 
 /** Flags that never take a value. Every other `--name` does. */
-private val FLAGS = setOf("dry-run", "auto", "help")
+private val FLAGS = setOf("dry-run", "auto", "help", "test-league")
 
 fun parseArgs(args: List<String>): Args {
     val words = mutableListOf<String>()
