@@ -52,6 +52,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -74,10 +75,13 @@ import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 import holdout.app.vision.PhoneTilt
 import holdout.app.vision.VisionAnalyzer
+import holdout.repcounter.Angles
 import holdout.repcounter.CameraView
 import holdout.repcounter.Coach
+import holdout.repcounter.ImagePose
 import holdout.repcounter.Lens
 import holdout.repcounter.PoseIndex
+import holdout.repcounter.Side
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 import kotlin.math.atan
@@ -96,6 +100,12 @@ fun SittingScreen(
     onFinished: () -> Unit,
     onCancelled: (discarded: Int) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Debug builds: nothing drawn over the camera, for screen recordings that
+     * train the knee classifier — dots and text on the legs would be learnt
+     * instead of the legs. Sounds still play.
+     */
+    cleanScreen: Boolean = false,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -112,6 +122,9 @@ fun SittingScreen(
 
     KeepScreenOn()
 
+    /** Debug builds: where to go once the member has labelled the trace. */
+    var labelThen by remember { mutableStateOf<(() -> Unit)?>(null) }
+
     // Every transition after Start is a sound: the member is on the floor with
     // the screen out of sight and their hands on the ground.
     val cues = remember { SittingCues(context) }
@@ -126,8 +139,10 @@ fun SittingScreen(
         if (state.step != SittingViewModel.Step.COMPLETE) {
             if (hasCamera) {
                 CameraFeed(viewModel)
-                PositionOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
-                SkeletonOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
+                if (!cleanScreen) {
+                    PositionOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
+                    SkeletonOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
+                }
             } else {
                 LaunchedEffect(Unit) { requestCamera.launch(Manifest.permission.CAMERA) }
             }
@@ -153,8 +168,15 @@ fun SittingScreen(
                     onTick = viewModel::onCountdownTick,
                     onDone = viewModel::startCounting,
                 )
-                SittingViewModel.Step.COUNTING -> CountingOverlay(state)
-                SittingViewModel.Step.COMPLETE -> DayComplete(state, onFinished)
+                SittingViewModel.Step.COUNTING -> if (cleanScreen) {
+                    // Clean screen: the count up in the corner, out of the way of the body.
+                    Unit
+                } else {
+                    CountingOverlay(state)
+                }
+                SittingViewModel.Step.COMPLETE -> DayComplete(state) {
+                    if (BuildConfig.DEBUG && viewModel.canLabelTrace) labelThen = onFinished else onFinished()
+                }
             }
 
             state.error?.let {
@@ -172,9 +194,60 @@ fun SittingScreen(
             )
         }
 
+        if (cleanScreen && state.step == SittingViewModel.Step.COUNTING) {
+            Text(
+                "${state.doneToday}",
+                style = LabelStyle,
+                color = HoldoutColors.TextSecondary,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(Spacing.betweenItems),
+            )
+        }
+
+        // The head left the picture: said aloud too, but shown as big as the
+        // coach's words, because the frame needs fixing now.
+        if (state.headOutOfView && state.step == SittingViewModel.Step.COUNTING && !cleanScreen) {
+            Text(
+                "Head out of view · move back",
+                style = MaterialTheme.typography.headlineMedium,
+                color = HoldoutColors.Warning,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 56.dp)
+                    .background(HoldoutColors.Scrim, MaterialTheme.shapes.large)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+        }
+
+        // Debug builds: log what was really done before leaving, so the
+        // trace this sitting wrote arrives already labelled.
+        labelThen?.let { leave ->
+            TraceLabelDialog(
+                counted = state.repsCounted,
+                onSave = { done, note ->
+                    viewModel.labelTrace(done, note)
+                    labelThen = null
+                    leave()
+                },
+                onSkip = {
+                    labelThen = null
+                    leave()
+                },
+            )
+        }
+
         if (state.step != SittingViewModel.Step.COMPLETE) {
             TextButton(
-                onClick = { onCancelled(viewModel.endSitting()) },
+                onClick = {
+                    val discarded = viewModel.endSitting()
+                    if (BuildConfig.DEBUG && viewModel.canLabelTrace) {
+                        labelThen = { onCancelled(discarded) }
+                    } else {
+                        onCancelled(discarded)
+                    }
+                },
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(Spacing.tight),
@@ -567,6 +640,29 @@ private fun SkeletonOverlay(viewModel: SittingViewModel, mirrored: Boolean) {
                     y = offsetY + landmark.y * drawnHeight,
                 )
 
+                // Every joint the rule reads, as a point, joined as the body is:
+                // arms, torso, and the legs through the knee — the knee is what
+                // the staked check reads, so it has to be visible, not skipped.
+                //
+                // The side nearer the camera is drawn bright and the far side
+                // dim: at 45° the counter measures only the near side, and the
+                // far limbs are the model's guess from behind the body.
+                val near = Angles.nearSide(ImagePose(skeleton, state.frameWidth, state.frameHeight))
+                fun sideOf(index: Int): Side? = when (index) {
+                    PoseIndex.LEFT_SHOULDER, PoseIndex.LEFT_ELBOW, PoseIndex.LEFT_WRIST,
+                    PoseIndex.LEFT_HIP, PoseIndex.LEFT_KNEE, PoseIndex.LEFT_ANKLE,
+                    -> Side.LEFT
+                    PoseIndex.RIGHT_SHOULDER, PoseIndex.RIGHT_ELBOW, PoseIndex.RIGHT_WRIST,
+                    PoseIndex.RIGHT_HIP, PoseIndex.RIGHT_KNEE, PoseIndex.RIGHT_ANKLE,
+                    -> Side.RIGHT
+                    else -> null
+                }
+                fun colourOf(vararg indices: Int): Color {
+                    val sides = indices.toList().mapNotNull(::sideOf).toSet()
+                    val far = near != null && sides.size == 1 && sides.single() != near
+                    return if (far) HoldoutColors.Accent.copy(alpha = 0.35f) else HoldoutColors.Accent
+                }
+
                 val bones = listOf(
                     PoseIndex.LEFT_SHOULDER to PoseIndex.LEFT_ELBOW,
                     PoseIndex.LEFT_ELBOW to PoseIndex.LEFT_WRIST,
@@ -574,8 +670,10 @@ private fun SkeletonOverlay(viewModel: SittingViewModel, mirrored: Boolean) {
                     PoseIndex.RIGHT_ELBOW to PoseIndex.RIGHT_WRIST,
                     PoseIndex.LEFT_SHOULDER to PoseIndex.LEFT_HIP,
                     PoseIndex.RIGHT_SHOULDER to PoseIndex.RIGHT_HIP,
-                    PoseIndex.LEFT_HIP to PoseIndex.LEFT_ANKLE,
-                    PoseIndex.RIGHT_HIP to PoseIndex.RIGHT_ANKLE,
+                    PoseIndex.LEFT_HIP to PoseIndex.LEFT_KNEE,
+                    PoseIndex.LEFT_KNEE to PoseIndex.LEFT_ANKLE,
+                    PoseIndex.RIGHT_HIP to PoseIndex.RIGHT_KNEE,
+                    PoseIndex.RIGHT_KNEE to PoseIndex.RIGHT_ANKLE,
                     PoseIndex.LEFT_SHOULDER to PoseIndex.RIGHT_SHOULDER,
                     PoseIndex.LEFT_HIP to PoseIndex.RIGHT_HIP,
                 )
@@ -584,10 +682,43 @@ private fun SkeletonOverlay(viewModel: SittingViewModel, mirrored: Boolean) {
                     val b = skeleton[to] ?: return@forEach
                     if (a.presence < 0.5f || b.presence < 0.5f) return@forEach
                     drawLine(
-                        color = HoldoutColors.Accent,
+                        color = colourOf(from, to),
                         start = project(a),
                         end = project(b),
                         strokeWidth = 4f,
+                    )
+                }
+
+                val joints = listOf(
+                    PoseIndex.LEFT_SHOULDER, PoseIndex.RIGHT_SHOULDER,
+                    PoseIndex.LEFT_ELBOW, PoseIndex.RIGHT_ELBOW,
+                    PoseIndex.LEFT_WRIST, PoseIndex.RIGHT_WRIST,
+                    PoseIndex.LEFT_HIP, PoseIndex.RIGHT_HIP,
+                    PoseIndex.LEFT_KNEE, PoseIndex.RIGHT_KNEE,
+                    PoseIndex.LEFT_ANKLE, PoseIndex.RIGHT_ANKLE,
+                )
+                // Hips and knees a little larger: they are what the body-line,
+                // cobra and knees-off-the-floor checks read.
+                val keyJoints = setOf(PoseIndex.LEFT_HIP, PoseIndex.RIGHT_HIP, PoseIndex.LEFT_KNEE, PoseIndex.RIGHT_KNEE)
+
+                // The head: a larger dot, joined to the middle of the shoulders.
+                val nose = skeleton[PoseIndex.NOSE]
+                val ls = skeleton[PoseIndex.LEFT_SHOULDER]
+                val rs = skeleton[PoseIndex.RIGHT_SHOULDER]
+                if (nose != null && nose.presence >= 0.5f) {
+                    if (ls != null && rs != null && ls.presence >= 0.5f && rs.presence >= 0.5f) {
+                        val neck = holdout.repcounter.Landmark((ls.x + rs.x) / 2f, (ls.y + rs.y) / 2f, 0f, 1f)
+                        drawLine(color = HoldoutColors.Accent, start = project(neck), end = project(nose), strokeWidth = 4f)
+                    }
+                    drawCircle(color = HoldoutColors.Accent, radius = 14f, center = project(nose))
+                }
+                joints.forEach { index ->
+                    val joint = skeleton[index] ?: return@forEach
+                    if (joint.presence < 0.5f) return@forEach
+                    drawCircle(
+                        color = colourOf(index),
+                        radius = if (index in keyJoints) 11f else 8f,
+                        center = project(joint),
                     )
                 }
             },

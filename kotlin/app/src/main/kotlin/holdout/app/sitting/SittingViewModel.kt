@@ -129,6 +129,10 @@ class SittingViewModel(
         val coach: Coach? = null,
         /** Debug builds: the trace file this sitting is being recorded to. */
         val traceName: String? = null,
+        /** Reps the counter credited in this sitting — shown next to the member's own count. */
+        val repsCounted: Int = 0,
+        /** The head has been out of the picture for a moment while counting. */
+        val headOutOfView: Boolean = false,
     ) {
         val doneToday: Int get() = banked + looseReps
         val remaining: Int get() = (target - doneToday).coerceAtLeast(0)
@@ -186,6 +190,9 @@ class SittingViewModel(
 
     /** Every pose frame while the pills are up, and while counting. */
     fun onPoseFrame(observation: VisionAnalyzer.Observation, backgroundMotion: Float) {
+        // After Stop nothing is counted or banked, even while the screen is
+        // still up for the member to log what they did.
+        if (stopped) return
         when (_uiState.value.step) {
             Step.PREFLIGHT -> {
                 val report = preflight.evaluate(
@@ -241,8 +248,12 @@ class SittingViewModel(
                 val event = repCounter.onFrame(observation.world, observation.imagePose())
                 _uiState.update { it.withFrame(observation).copy(readout = repCounter.readout) }
                 record(observation, countingView, repCounter.readout, event)
+                watchHead(observation)
                 when (event) {
-                    is RepEvent.Counted -> onVerifiedRep()
+                    is RepEvent.Counted -> {
+                        _uiState.update { it.copy(repsCounted = repCounter.total) }
+                        onVerifiedRep()
+                    }
                     is RepEvent.Discarded -> _uiState.update { it.copy(hint = event.hint?.message) }
                     null -> Unit
                 }
@@ -325,10 +336,53 @@ class SittingViewModel(
         }
     }
 
+    @Volatile
+    private var stopped = false
+
+    private var headGoneSince: Long? = null
+    private var headWarnedAt: Long = Long.MIN_VALUE
+
+    /**
+     * Warns, big and aloud, when the head leaves the picture while counting —
+     * a frame set up too tight. Reps are not thrown away for it: the arms may
+     * still be measured perfectly well. After [HEAD_GONE_MILLIS] out of view;
+     * spoken at most every [HEAD_WARN_EVERY_MILLIS].
+     */
+    private fun watchHead(observation: VisionAnalyzer.Observation) {
+        val now = observation.world.timestampMillis
+        if (holdout.repcounter.Angles.headInFrame(observation.image)) {
+            headGoneSince = null
+            if (_uiState.value.headOutOfView) _uiState.update { it.copy(headOutOfView = false) }
+            return
+        }
+        val since = headGoneSince ?: now.also { headGoneSince = it }
+        if (now - since < HEAD_GONE_MILLIS) return
+        if (!_uiState.value.headOutOfView) _uiState.update { it.copy(headOutOfView = true) }
+        if (now - headWarnedAt >= HEAD_WARN_EVERY_MILLIS) {
+            headWarnedAt = now
+            _cues.tryEmit(Cue.Say("Move back"))
+        }
+    }
+
     /** The member stopped, or the screen went away. Loose reps go; blocks stay. */
     fun endSitting(): Int {
+        stopped = true
         trace?.close()
         return banking.endSitting()
+    }
+
+    /** Debug builds: whether this sitting wrote a trace that can be labelled. */
+    val canLabelTrace: Boolean get() = trace?.file != null
+
+    /**
+     * Debug builds: what the member says they did, written into the trace. The
+     * expected count is what the rule should credit: full push-ups, and in the
+     * Daily 25 push-ups from the knees as well (FR-021a).
+     */
+    fun labelTrace(done: Map<String, Int>, note: String) {
+        val recorder = trace ?: return
+        val expected = (done["honest"] ?: 0) + if (stakes == Stakes.DAILY) done["knees"] ?: 0 else 0
+        Thread { recorder.label(expected, done, note) }.start()
     }
 
     override fun onCleared() {
@@ -392,6 +446,8 @@ class SittingViewModel(
     }
 
     private companion object {
+        const val HEAD_GONE_MILLIS = 500L
+        const val HEAD_WARN_EVERY_MILLIS = 5_000L
         const val COACH_SETTLE_MILLIS = 700L
         const val COACH_REPEAT_MILLIS = 5_000L
     }

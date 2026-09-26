@@ -82,6 +82,10 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     // Test builds only: sittings under staked rules, filed under their own
     // scope so a test run never banks into — or completes — the real Daily 25.
     var stakedTest by remember { mutableStateOf(false) }
+
+    // Test builds only: a camera view with nothing drawn over it, for screen
+    // recordings that train the knee classifier.
+    var cleanScreen by remember { mutableStateOf(false) }
     var refreshToken by remember { mutableStateOf(0) }
 
     val address = wallet.address
@@ -119,6 +123,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         DisposableEffect(sitting) { onDispose { sitting.release() } }
         SittingScreen(
             viewModel = sitting,
+            cleanScreen = cleanScreen,
             onFinished = {
                 sittingDay = null
                 refreshToken += 1
@@ -153,6 +158,8 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         modifier = modifier,
         stakedTest = stakedTest,
         onStakedTestChange = if (BuildConfig.DEBUG) ({ stakedTest = it }) else null,
+        cleanScreen = cleanScreen,
+        onCleanScreenChange = if (BuildConfig.DEBUG) ({ cleanScreen = it }) else null,
         onResetToday = if (BuildConfig.DEBUG) {
             {
                 // Both scopes: the real Daily 25 and the staked-rules test runs.

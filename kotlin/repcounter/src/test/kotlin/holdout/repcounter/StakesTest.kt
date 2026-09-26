@@ -103,7 +103,7 @@ class StakesTest {
 
     @Test
     fun `at 45 degrees, push-ups from the knees count nothing, and say why`() {
-        val (count, hints) = angledSet(kneeDegrees = 100f)
+        val (count, hints) = angledSet(kneeDegrees = 70f)
         assertEquals(0, count)
         assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.UP_ON_YOUR_TOES }, "got $hints")
     }
@@ -112,7 +112,7 @@ class StakesTest {
     fun `a leg bent a little in the air is fine - only knees on the floor are refused`() {
         // The rule is knees off the floor, not legs dead straight.
         assertEquals(10, angledSet(kneeDegrees = 150f).first)
-        assertEquals(0, angledSet(kneeDegrees = 125f).first)
+        assertEquals(0, angledSet(kneeDegrees = 70f).first)
     }
 
     @Test
@@ -146,17 +146,17 @@ class StakesTest {
     fun `the Daily 25 counts push-ups from the knees - staked sittings do not`() {
         val daily = RepCounter(view = CameraView.OBLIQUE, stakes = Stakes.DAILY)
         for (frame in Traces.set(count = 10)) {
-            daily.onFrame(frame, Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = 100f))
+            daily.onFrame(frame, Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = 70f))
         }
         assertEquals(10, daily.total, "the Daily 25 is a habit for building strength; knees are allowed")
-        assertEquals(0, angledSet(kneeDegrees = 100f).first, "money is only staked on full push-ups")
+        assertEquals(0, angledSet(kneeDegrees = 70f).first, "money is only staked on full push-ups")
     }
 
     @Test
     fun `the Daily 25 may start from the knees`() {
         val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.DAILY)
         val top = { t: Long -> Traces.frame(t, elbowDegrees = 175f, bodyLineDegrees = 180f) }
-        val knees = { t: Long -> Traces.angledImage(t, elbowDegrees = 175f, kneeDegrees = 100f) }
+        val knees = { t: Long -> Traces.angledImage(t, elbowDegrees = 175f, kneeDegrees = 70f) }
         gate.onFrame(top(0), 0, pillsGreen = true, view = CameraView.OBLIQUE, image = knees(0))
         assertTrue(gate.onFrame(top(2_000), 2_000, pillsGreen = true, view = CameraView.OBLIQUE, image = knees(2_000)))
     }
@@ -165,7 +165,7 @@ class StakesTest {
     fun `the staked ready position is not held from the knees`() {
         val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.STAKED)
         val top = { t: Long -> Traces.frame(t, elbowDegrees = 175f, bodyLineDegrees = 180f) }
-        val knees = { t: Long -> Traces.angledImage(t, elbowDegrees = 175f, kneeDegrees = 100f) }
+        val knees = { t: Long -> Traces.angledImage(t, elbowDegrees = 175f, kneeDegrees = 70f) }
         gate.onFrame(top(0), 0, pillsGreen = true, view = CameraView.OBLIQUE, image = knees(0))
         assertFalse(gate.onFrame(top(2_000), 2_000, pillsGreen = true, view = CameraView.OBLIQUE, image = knees(2_000)))
     }

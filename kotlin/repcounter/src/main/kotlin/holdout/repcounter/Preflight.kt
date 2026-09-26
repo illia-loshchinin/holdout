@@ -143,6 +143,9 @@ class Preflight(
     private fun wholeBodyVisible(frame: PoseFrame?): Boolean {
         if (frame == null) return false
         val required = intArrayOf(
+            // The head too: at the bottom of a rep it is the first thing to
+            // leave a frame that was set up too tight.
+            PoseIndex.NOSE,
             PoseIndex.LEFT_SHOULDER, PoseIndex.RIGHT_SHOULDER,
             PoseIndex.LEFT_ELBOW, PoseIndex.RIGHT_ELBOW,
             PoseIndex.LEFT_WRIST, PoseIndex.RIGHT_WRIST,

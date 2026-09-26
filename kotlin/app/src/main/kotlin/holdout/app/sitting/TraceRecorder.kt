@@ -80,6 +80,20 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) {
         }
     }
 
+    /**
+     * Writes a person's account of the sitting into the closed trace's header
+     * (`Trace.label`). Called off the main thread; a failure leaves the trace
+     * as it was, unlabelled.
+     */
+    fun label(expectedReps: Int, done: Map<String, Int>, note: String) {
+        val target = file ?: return
+        close()
+        runCatching {
+            val labelled = Trace.label(target.readLines(), expectedReps, done, note)
+            target.writeText(labelled.joinToString("\n", postfix = "\n"))
+        }
+    }
+
     fun close() {
         closed = true
         runCatching { writer?.close() }

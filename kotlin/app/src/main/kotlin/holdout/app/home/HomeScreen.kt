@@ -72,6 +72,9 @@ fun HomeScreen(
     onStakedTestChange: ((Boolean) -> Unit)? = null,
     /** Test builds only: start today over from zero. Null hides the button. */
     onResetToday: (() -> Unit)? = null,
+    /** Test builds only: nothing drawn over the camera, for training recordings. */
+    cleanScreen: Boolean = false,
+    onCleanScreenChange: ((Boolean) -> Unit)? = null,
 ) {
     Column(
         modifier = modifier
@@ -127,6 +130,24 @@ fun HomeScreen(
                 color = HoldoutColors.TextSecondary,
                 textAlign = TextAlign.Center,
             )
+        }
+
+        if (onCleanScreenChange != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.tight),
+            ) {
+                Switch(
+                    checked = cleanScreen,
+                    onCheckedChange = onCleanScreenChange,
+                    colors = SwitchDefaults.colors(checkedTrackColor = HoldoutColors.Accent),
+                )
+                Text(
+                    text = if (cleanScreen) "TEST · clean screen: no dots or text, for training recordings" else "TEST · clean screen off",
+                    style = LabelStyle,
+                    color = if (cleanScreen) HoldoutColors.Accent else HoldoutColors.TextTertiary,
+                )
+            }
         }
 
         if (onResetToday != null) {

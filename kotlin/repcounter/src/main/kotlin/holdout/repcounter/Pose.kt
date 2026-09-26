@@ -48,6 +48,8 @@ data class ImagePose(
 
 /** MediaPipe pose landmark indices, for the joints the rule names. */
 object PoseIndex {
+    /** The head, as MediaPipe marks it: the nose. */
+    const val NOSE = 0
     const val LEFT_SHOULDER = 11
     const val RIGHT_SHOULDER = 12
     const val LEFT_ELBOW = 13

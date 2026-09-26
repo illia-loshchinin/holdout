@@ -57,13 +57,28 @@ data class RepRules(
      */
     val maxTorsoElevationDegrees: Float = 55f,
     /**
-     * Knees off the floor: a rep whose **median** knee reading (hip–knee–ankle,
-     * near leg) is below this is a push-up from the knees. The median, not the
-     * lowest reading, because single frames glitch; and a margin that leaves
-     * room for a leg bent in the air, which is allowed. Measured at 45° on the
-     * phone: honest reps 150–172°, knees on the floor 116–137°.
+     * Knees off the floor, staked sittings, judged on the **push back up**
+     * (the same window as the cobra check — over the whole rep the flat bottom
+     * hides a bent knee). Either signal below its line means knees down:
+     *
+     * - the **median knee angle** (hip–knee–ankle, near leg) below this — a
+     *   deep kneel or feet raised behind (40–98°). It is low on purpose: with
+     *   the phone on the member's right, honest reps read the near knee at
+     *   99–125°, so any higher line refuses honest push-ups. Knees on the
+     *   floor with the feet down are caught by the legs' height instead;
+     * - the **median legs-above-hands** below [minLegsAboveHands].
+     *
+     * Both are stopgaps measured on one person (fixtures/rep-traces); the
+     * knee-on-the-floor image classifier replaces them.
      */
-    val kneesDownDegrees: Float = 140f,
+    val kneesDownDegrees: Float = 90f,
+    /**
+     * Near knee + ankle height over the near hand, in arm lengths, median over
+     * the push. The hands are on the floor, so this is the legs' height off
+     * it. On the phone: honest 0.44–0.65 (three sets, 30 reps), push-ups from
+     * the knees 0.32–0.39 (two sets), cobras 0.17–0.32.
+     */
+    val minLegsAboveHands: Float = 0.41f,
     /**
      * Head-on depth: at the bottom the shoulders must come down to within this
      * share of their height above the hands at the top. The elbow angle alone
@@ -72,11 +87,27 @@ data class RepRules(
      */
     val maxShoulderHeightAtBottom: Float = 0.25f,
     /**
+     * Depth at 45°: at the bottom the near shoulder must come down to within
+     * this many arm-lengths of the near hand. On the phone honest reps reached
+     * 0.20–0.28; half push-ups stopped at 0.43–0.68, and the elbow angle alone
+     * had counted most of them.
+     */
+    val maxAngledShoulderOverHand: Float = 0.32f,
+    /**
      * At 45°, the lowest **median** body line a rep may have. Coarse on
      * purpose: honest planks read 152–167° there, so this catches a hip fold,
      * not a slight sag.
      */
     val angledBodyLineFloorDegrees: Float = 140f,
+    /**
+     * At 45°, the lowest median body line allowed **while pushing up** — from
+     * the bottom back to the top, once the elbow is past 100°. This is what
+     * refuses a "cobra": lying flat, then pressing the chest up with the hips
+     * left on the floor. Over the whole rep the flat part hides the arch; on
+     * the push it cannot. On the phone the push read 157–174° on honest reps
+     * and 120–134° on cobra reps.
+     */
+    val angledPushBodyLineFloorDegrees: Float = 145f,
 ) {
     init {
         require(topTriggerDegrees >= topDegrees) {
@@ -207,7 +238,13 @@ class RepCounter(
     private var bodyLineHeld = true
     private val cycleKnees = mutableListOf<Float>()
     private val cyclePostures = mutableListOf<Float>()
+
+    /** The body line while pushing back up — after the bottom, elbow past [PUSH_FROM_ELBOW]. */
+    private val pushPostures = mutableListOf<Float>()
+    private val pushKnees = mutableListOf<Float>()
+    private val pushLegs = mutableListOf<Float>()
     private var minShoulderHeightInCycle = Float.MAX_VALUE
+    private var minShoulderOverHandInCycle = Float.MAX_VALUE
     private var topShoulderHeight: Float? = null
 
     val total: Int get() = count
@@ -234,6 +271,9 @@ class RepCounter(
         val knee = reading.knee?.let { kneeFilter.filter(it, frame.timestampMillis) }
         val straight = postureHeld(view, reading, posture, rules)
         val shoulderHeight = (reading as? ViewReading.HeadOn)?.shoulderHeight
+        (reading as? ViewReading.Angled)?.shoulderOverHand?.let {
+            if (cycleStartMillis != 0L && it < minShoulderOverHandInCycle) minShoulderOverHandInCycle = it
+        }
         readout = Readout(view, elbow, posture, knee)
         // The shoulders' height over the hands at the top — the reference the
         // head-on depth check is a share of. Tracked while the arms are straight.
@@ -271,6 +311,11 @@ class RepCounter(
 
             Phase.AT_BOTTOM -> {
                 observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight)
+                if (elbow >= PUSH_FROM_ELBOW) {
+                    pushPostures += posture
+                    knee?.let { pushKnees += it }
+                    (reading as? ViewReading.Angled)?.legsAboveHands?.let { pushLegs += it }
+                }
                 if (elbow < rules.topTriggerDegrees) return null
 
                 // A full cycle: top → bottom → top. Now judge it.
@@ -284,8 +329,9 @@ class RepCounter(
                 val verdict = when {
                     // Knees first: a push-up from the knees is a different
                     // exercise, and "keep your body straight" would not say so.
-                    judgeKnees && !kneesOffFloor(cycleKnees.medianOrNull(), rules) -> RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
-                    tooShallowHeadOn() -> RepEvent.Discarded(RepHint.GO_LOWER)
+                    judgeKnees && !kneesOffFloor(pushKnees.medianOrNull(), pushLegs.medianOrNull(), rules) ->
+                        RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
+                    tooShallowHeadOn() || tooShallowAngled() -> RepEvent.Discarded(RepHint.GO_LOWER)
                     !bodyHeld() -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)
                     cycleMillis < rules.minCycleMillis -> RepEvent.Discarded(RepHint.SLOW_DOWN)
                     cycleMillis > rules.maxCycleMillis -> RepEvent.Discarded(null)
@@ -335,17 +381,29 @@ class RepCounter(
         return minShoulderHeightInCycle / top > rules.maxShoulderHeightAtBottom
     }
 
+    /** At 45°: the near shoulder never came down close enough to the hand. */
+    private fun tooShallowAngled(): Boolean {
+        if (view != CameraView.OBLIQUE || minShoulderOverHandInCycle == Float.MAX_VALUE) return false
+        return minShoulderOverHandInCycle > rules.maxAngledShoulderOverHand
+    }
+
     /**
      * The body held through the rep. At 45° judged on the rep's median, which
      * one glitching frame cannot move; elsewhere every frame must hold.
      */
     private fun bodyHeld(): Boolean = if (view == CameraView.OBLIQUE) {
-        (cyclePostures.medianOrNull() ?: 180f) >= rules.angledBodyLineFloorDegrees
+        (cyclePostures.medianOrNull() ?: 180f) >= rules.angledBodyLineFloorDegrees &&
+            (pushPostures.medianOrNull() ?: 180f) >= rules.angledPushBodyLineFloorDegrees
     } else {
         bodyLineHeld
     }
 
     private fun List<Float>.medianOrNull(): Float? = if (isEmpty()) null else sorted()[size / 2]
+
+    private companion object {
+        /** Past this on the way up, the arms are pushing the body, not still at the bottom. */
+        const val PUSH_FROM_ELBOW = 100f
+    }
 
     /**
      * A descent that came back up without reaching the bottom. Silent unless it
@@ -363,6 +421,10 @@ class RepCounter(
         bodyLineHeld = true
         cycleKnees.clear()
         cyclePostures.clear()
+        pushPostures.clear()
+        pushKnees.clear()
+        pushLegs.clear()
         minShoulderHeightInCycle = Float.MAX_VALUE
+        minShoulderOverHandInCycle = Float.MAX_VALUE
     }
 }

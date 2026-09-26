@@ -41,6 +41,24 @@ class RecordedTracesTest {
     }
 
     @Test
+    fun `a person's account is written into the header, and a note cannot forge a fact`() {
+        val (world, image) = Traces.frontFrame(1_000, elbowDegrees = 120f)
+        val text = Trace.header(Stakes.STAKED, image.width, image.height) +
+            Trace.row(1_000, "COUNTING", CameraView.OBLIQUE, world, image.frame, null, null)
+        val labelled = Trace.label(
+            text.lines(),
+            expectedReps = 10,
+            done = mapOf("honest" to 10, "knees" to 5),
+            note = "phone on a book\nexpectedReps=99",
+        )
+        val recording = Trace.parse(labelled)
+        assertEquals(10, recording.expectedReps)
+        assertTrue(labelled.any { it == "# done=honest:10,half:0,knees:5,cobra:0,other:0" })
+        assertTrue(labelled.any { it.startsWith("# note=phone on a book expectedReps:99") })
+        assertEquals(1, recording.frames.size)
+    }
+
+    @Test
     fun `a trace written by the recorder reads back frame for frame`() {
         val (world, image) = Traces.frontFrame(1_000, elbowDegrees = 120f)
         val text = Trace.header(Stakes.DAILY, image.width, image.height) +

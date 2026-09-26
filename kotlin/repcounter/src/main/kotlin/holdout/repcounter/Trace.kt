@@ -32,6 +32,8 @@ object Trace {
         PoseIndex.LEFT_HIP, PoseIndex.RIGHT_HIP,
         PoseIndex.LEFT_KNEE, PoseIndex.RIGHT_KNEE,
         PoseIndex.LEFT_ANKLE, PoseIndex.RIGHT_ANKLE,
+        // Recorded since 2026-09-25; older traces simply do not list it.
+        PoseIndex.NOSE,
     )
 
     fun header(stakes: Stakes, width: Int, height: Int): String = buildString {
@@ -73,6 +75,29 @@ object Trace {
             },
         )
         appendLine()
+    }
+
+    /** What a person says they did in a sitting, by movement — the ground truth a trace is judged against. */
+    val MOVEMENTS = listOf("honest", "half", "knees", "cobra", "other")
+
+    /**
+     * [lines] with a person's account written into the header: the expected
+     * count, what was done by movement, and a note. Written on the phone right
+     * after the sitting, so a pulled trace is already a test.
+     *
+     * The note is kept to one header line and cannot forge a header fact:
+     * `=` becomes `:`.
+     */
+    fun label(lines: List<String>, expectedReps: Int, done: Map<String, Int>, note: String): List<String> {
+        require(lines.firstOrNull() == MAGIC) { "not a holdout trace v2" }
+        val out = lines.toMutableList()
+        out[1] = out[1].replace(Regex("""expectedReps=\S+"""), "expectedReps=$expectedReps")
+        val account = MOVEMENTS.joinToString(",") { "$it:${done[it] ?: 0}" }
+        val extra = mutableListOf("# done=$account")
+        val clean = note.replace(Regex("""\s+"""), " ").replace('=', ':').trim()
+        if (clean.isNotEmpty()) extra += "# note=$clean"
+        out.addAll(2, extra)
+        return out
     }
 
     private fun Float?.fmt(decimals: Int = 4): String = this?.let { "%.${decimals}f".format(java.util.Locale.ROOT, it) } ?: ""

@@ -207,6 +207,63 @@ object Angles {
         return ((lw!!.y + rw!!.y) - (ls!!.y + rs!!.y)) / 2f * image.height
     }
 
+    /**
+     * At 45°: how high the near knee and ankle stand above the near hand in the
+     * picture, added together, in lengths of the near arm. The hands are on the
+     * floor, so this is the legs' height off it — a knee on the floor sits at
+     * the hands' height; on the toes knees and ankles are raised. Measured on
+     * the push back up on the phone: honest reps 0.44–0.65, push-ups from the
+     * knees 0.32–0.39, cobras 0.17–0.32. `null` when any of those joints is
+     * not clearly in frame.
+     */
+    fun legsAboveHandsInImage(image: ImagePose, side: Side): Float? {
+        val (s, e, w) = ARM.getValue(side)
+        val (_, k, a) = LEG.getValue(side)
+        val shoulder = image.frame[s]
+        val elbow = image.frame[e]
+        val wrist = image.frame[w]
+        val knee = image.frame[k]
+        val ankle = image.frame[a]
+        if (!visible(shoulder, elbow, wrist, knee, ankle)) return null
+        val arm = shoulder!!.distanceTo(elbow!!, image) + elbow.distanceTo(wrist!!, image)
+        if (arm <= 0f) return null
+        // y points down the picture, so "above the hand" is the hand's y minus the joint's.
+        val above = ((wrist.y - knee!!.y) + (wrist.y - ankle!!.y)) * image.height
+        return above / arm
+    }
+
+    /**
+     * At 45°: how high the near shoulder stands above the near hand in the
+     * picture, in lengths of the near arm. At the bottom of a full push-up the
+     * chest is near the floor, so this is small; a half push-up stops with the
+     * shoulder well above the hand. On the phone, at the bottom: honest reps
+     * 0.20–0.28, half push-ups 0.43–0.68 — where the elbow angle alone had
+     * read some half reps as deep as honest ones (55–67°). `null` when the
+     * near arm is not clearly in frame.
+     */
+    fun shoulderOverHandInImage(image: ImagePose, side: Side): Float? {
+        val (s, e, w) = ARM.getValue(side)
+        val shoulder = image.frame[s]
+        val elbow = image.frame[e]
+        val wrist = image.frame[w]
+        if (!visible(shoulder, elbow, wrist)) return null
+        val arm = shoulder!!.distanceTo(elbow!!, image) + elbow.distanceTo(wrist!!, image)
+        if (arm <= 0f) return null
+        return (wrist.y - shoulder.y) * image.height / arm
+    }
+
+    /**
+     * Whether the head is clearly inside the picture. At the bottom of a rep,
+     * with the phone set too close, the head drops out of frame first — and
+     * the model then guesses the rest of the body.
+     */
+    fun headInFrame(image: PoseFrame, margin: Float = 0.02f): Boolean {
+        val nose = image[PoseIndex.NOSE] ?: return false
+        return nose.presence >= PRESENCE_THRESHOLD &&
+            nose.x in margin..(1f - margin) &&
+            nose.y in margin..(1f - margin)
+    }
+
     /** The near leg's knee. */
     fun kneeInImage(image: ImagePose): Float? = nearSide(image)?.let { kneeInImage(image, it) }
 

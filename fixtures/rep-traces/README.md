@@ -86,7 +86,12 @@ within one of it. A trace with `expectedReps=?` is evidence, not a test.
 | `front-half-01` | head-on | half push-ups | 0 (was 3 before the shoulder-depth rule) |
 | `front-half-02` | head-on | 5 half push-ups | 0 |
 | `front-knees-01` | head-on | 5 push-ups from the knees, Daily 25 | 5 — **correct**: knee push-ups count in the Daily 25 (FR-021a). It also shows why staked sittings are 45° only: head-on, knee angle, knee and ankle height, hip height, torso angle and body line all overlapped the honest set; the closest signal (hip width ÷ shoulder width, 0.48–0.49 honest vs 0.50–0.53 knees) is one session's 0.01 margin |
-| `angled-honest-01` | 45° | honest set | 8 of about 9 (was 0 before the median knee rule and the 160° top) |
+| `angled-honest-01` | 45° | honest set, Daily 25 | 8 of about 9 (was 0 before the median knee rule and the 160° top) |
+| `angled-honest-02` | 45° | 10 honest, staked | 10 |
+| `angled-knees-cobra-01` | 45° | staked: push-ups from the knees, then cobra reps (lying flat, chest pressed up, hips on the floor) | 0 — knees refused by the median knee rule; cobras (5 had counted) refused by the body line on the push back up: 120–134° against 157–174° honest |
+| `angled-half-01` | 45° | staked: half push-ups | 0 — was 7 of 11 on the elbow alone (some half reps read 55–67°, as deep as honest). Refused by depth at 45°: at the bottom the near shoulder stood 0.43–0.68 arm-lengths over the hand; honest reps 0.20–0.28, line at 0.32 |
+| `angled-mixed-02` | 45° | staked: 10 honest, 5 cobra, 5 push-ups from the knees with the shins flat | 10 — the shallow kneel had counted (knee 124–139°, too close to honest); refused by the legs' height above the hands on the push: honest 0.44–0.65, knees 0.32–0.39 |
+| `angled-mixed-03` | 45° | staked: 10 honest, 5 cobra, 5 from the knees — recorded on the build with the legs-above-hands rule | 10, live and on replay |
 
 ## What the suite must hold — 10 honest, 3 cheats, **in each placement**
 

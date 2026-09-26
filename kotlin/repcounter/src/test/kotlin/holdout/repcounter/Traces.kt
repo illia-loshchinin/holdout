@@ -69,6 +69,8 @@ object Traces {
             landmarks[side[3]] = hip
             landmarks[side[4]] = ankle
         }
+        // The head, just beyond the shoulders: the whole-body check needs it.
+        landmarks[PoseIndex.NOSE] = Landmark(-0.3f, 0.2f, 0f, presence)
 
         return PoseFrame(timestampMillis, landmarks)
     }
@@ -310,31 +312,40 @@ object Traces {
      * The picture of a body at 45°, as far as the angled reading needs it: the
      * near side only (the far one is hidden, as it is on a phone), drawn in
      * pixels with the elbow at [elbowDegrees] and the knee at [kneeDegrees].
-     * The thigh continues the shoulder–hip line, so with a straight knee the
-     * whole body is straight and a bent knee bends the body line with it.
+     * Shoulder, hip and ankle stay on one line whatever the knee does; the
+     * knee drops off it as it bends, as a push-up from the knees looks.
      */
     fun angledImage(timestampMillis: Long, elbowDegrees: Float, kneeDegrees: Float = 178f, presence: Float = 1f): ImagePose {
         val landmarks = MutableList(PoseIndex.COUNT) { Landmark(0f, 0f, 0f, 0f) }
         fun at(x: Double, y: Double) = Landmark((x / IMAGE_WIDTH).toFloat(), (y / IMAGE_HEIGHT).toFloat(), 0f, presence)
-        fun rotate(dx: Double, dy: Double, degrees: Float): Pair<Double, Double> {
-            val r = Math.toRadians(degrees.toDouble())
-            return (dx * cos(r) - dy * sin(r)) to (dx * sin(r) + dy * cos(r))
-        }
+        // Arm: the hand stays on the floor and the shoulder comes down towards
+        // it as the elbow bends, as on the phone — at the bottom of an honest
+        // rep the shoulder stood 0.20–0.28 arm-lengths over the hand at an
+        // elbow of about 50°, and a half rep stopped at 0.43–0.68.
+        val upper = 170.0
+        val wrist = 200.0 to 1_300.0
+        val span = 2 * upper * sin(Math.toRadians(elbowDegrees / 2.0))
+        val rise = minOf(span, 2 * upper * ((elbowDegrees - 40.0) / 140.0).coerceIn(0.02, 1.0))
+        val ahead = kotlin.math.sqrt(maxOf(span * span - rise * rise, 0.0))
+        val shoulder = wrist.first + ahead to wrist.second - rise
+        // The elbow at the apex of the arm's triangle, bent outward.
+        val mid = (shoulder.first + wrist.first) / 2 to (shoulder.second + wrist.second) / 2
+        val apex = kotlin.math.sqrt(maxOf(upper * upper - (span / 2) * (span / 2), 0.0))
+        val (dx, dy) = if (span > 0) (wrist.first - shoulder.first) / span to (wrist.second - shoulder.second) / span else 0.0 to 1.0
+        val elbow = mid.first - dy * apex to mid.second + dx * apex
 
-        // Body: shoulder, hip and knee on one line sloping down to the feet.
-        val shoulder = 200.0 to 900.0
-        val (ux, uy) = 0.97 to 0.24
+        // Body: shoulder, hip and ankle on one line running away from the
+        // lens — the feet are farther off, so they sit higher in the picture
+        // than the hands, as on the phone. A push-up from the knees keeps the
+        // shin lying back along that line (it read 168–173° shoulder–hip–ankle);
+        // bending the knee drops it off the line, towards the floor.
+        val (ux, uy) = 0.97 to -0.24
         val hip = shoulder.first + 330 * ux to shoulder.second + 330 * uy
-        val knee = hip.first + 230 * ux to hip.second + 230 * uy
-        // The shin leaves the knee at `kneeDegrees` from the thigh.
-        val (sx, sy) = rotate(-ux, -uy, kneeDegrees)
-        val ankle = knee.first + 230 * sx to knee.second + 230 * sy
-
-        // Arm: the upper arm hangs from the shoulder, the forearm leaves the
-        // elbow at `elbowDegrees` from it.
-        val elbow = shoulder.first to shoulder.second + 170
-        val (fx, fy) = rotate(0.0, -1.0, elbowDegrees)
-        val wrist = elbow.first + 170 * fx to elbow.second + 170 * fy
+        val half = Math.toRadians(kneeDegrees / 2.0)
+        val reach = 2 * 230 * sin(half)
+        val ankle = hip.first + reach * ux to hip.second + reach * uy
+        val drop = 230 * cos(half)
+        val knee = hip.first + reach / 2 * ux - drop * uy to hip.second + reach / 2 * uy + drop * ux
 
         landmarks[PoseIndex.LEFT_SHOULDER] = at(shoulder.first, shoulder.second)
         landmarks[PoseIndex.LEFT_ELBOW] = at(elbow.first, elbow.second)

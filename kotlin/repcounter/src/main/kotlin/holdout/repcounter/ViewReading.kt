@@ -44,7 +44,15 @@ internal sealed interface ViewReading {
     val knee: Float?
 
     /** At 45° (or side-on): the rule's own angles, near side, in the picture. */
-    data class Angled(override val elbow: Float, val bodyLine: Float, override val knee: Float?) : ViewReading {
+    data class Angled(
+        override val elbow: Float,
+        val bodyLine: Float,
+        override val knee: Float?,
+        /** Near knee + ankle height above the near hand, in arm lengths; null when not all visible. */
+        val legsAboveHands: Float? = null,
+        /** Near shoulder height above the near hand, in arm lengths — depth at 45°. */
+        val shoulderOverHand: Float? = null,
+    ) : ViewReading {
         override val posture: Float get() = bodyLine
     }
 
@@ -76,7 +84,17 @@ internal sealed interface ViewReading {
                 Angles.nearSide(image)?.let { side ->
                     val elbow = Angles.elbowInImage(image, side)
                     val bodyLine = Angles.bodyLineInImage(image, side)
-                    if (elbow == null || bodyLine == null) null else Angled(elbow, bodyLine, Angles.kneeInImage(image, side))
+                    if (elbow == null || bodyLine == null) {
+                        null
+                    } else {
+                        Angled(
+                            elbow,
+                            bodyLine,
+                            Angles.kneeInImage(image, side),
+                            Angles.legsAboveHandsInImage(image, side),
+                            Angles.shoulderOverHandInImage(image, side),
+                        )
+                    }
                 }
             }
         }
@@ -84,13 +102,15 @@ internal sealed interface ViewReading {
 }
 
 /**
- * Whether [knee] is off the floor — asked of staked sittings only; the Daily 25
- * counts push-ups from the knees. Unknown passes. The rule is **knees off the
- * floor**, not legs dead straight: a knee on the floor bends the leg a long way
- * (116–137° on a real recording, per rep), while a leg held in the air —
- * straight or a little bent — stayed at 150–172°.
+ * Whether the knees are off the floor — asked of staked sittings only; the
+ * Daily 25 counts push-ups from the knees. Two independent signals, either of
+ * which says "knees down": the legs stand low over the hands (the hands are on
+ * the floor), or the knee is bent a long way. Unknown passes. The rule is
+ * **knees off the floor**, not legs dead straight: a leg bent a little in the
+ * air is allowed. The thresholds and the data behind them are on [RepRules].
  */
-internal fun kneesOffFloor(knee: Float?, rules: RepRules): Boolean = knee == null || knee >= rules.kneesDownDegrees
+internal fun kneesOffFloor(knee: Float?, legsAboveHands: Float?, rules: RepRules): Boolean = (knee == null || knee >= rules.kneesDownDegrees) &&
+    (legsAboveHands == null || legsAboveHands >= rules.minLegsAboveHands)
 
 /**
  * Whether [posture] — already smoothed — is a body in push-up position, by
