@@ -53,18 +53,26 @@ class PlacementTest {
 
     @Test
     fun `gravity gives the pitch of the front camera`() {
-        // Upright, screen facing the member: the camera looks along the horizon.
-        assertEquals(0f, Placement.pitchFromGravity(0f, -9.81f, 0f).pitchDegrees, 0.5f)
-        // Flat on its back, screen up: the camera looks straight up.
-        assertEquals(90f, Placement.pitchFromGravity(0f, 0f, -9.81f).pitchDegrees, 0.5f)
-        // Face down on a table: the camera looks straight at the table.
-        assertEquals(-90f, Placement.pitchFromGravity(0f, 0f, 9.81f).pitchDegrees, 0.5f)
+        // Readings as Android reports them: at rest, the gravity sensor and the
+        // accelerometer both give +9.81 on the axis pointing away from the ground.
+        // Upright, screen facing the member: +y. The camera looks along the horizon.
+        assertEquals(0f, Placement.pitchFromGravity(0f, 9.81f, 0f).pitchDegrees, 0.5f)
+        // Flat on its back, screen up: +z. The front camera looks straight up.
+        assertEquals(90f, Placement.pitchFromGravity(0f, 0f, 9.81f).pitchDegrees, 0.5f)
+        // Face down on a table: −z. The camera looks straight at the table.
+        assertEquals(-90f, Placement.pitchFromGravity(0f, 0f, -9.81f).pitchDegrees, 0.5f)
+    }
+
+    @Test
+    fun `a phone lying on its back is told to stand up - it sees the ceiling, not the floor`() {
+        val tilt = Placement.pitchFromGravity(0f, 0f, 9.81f)
+        assertEquals(FloorView.NoFloor, Placement.floorView(tilt, Lens.DEFAULT))
     }
 
     @Test
     fun `a leaning phone reads as a partial tilt`() {
-        // Propped back about 30° from upright.
-        val tilt = Placement.pitchFromGravity(0f, -8.5f, -4.9f)
+        // Propped back about 30° from upright: the screen, and the camera, face a little up.
+        val tilt = Placement.pitchFromGravity(0f, 8.5f, 4.9f)
         assertTrue(tilt.pitchDegrees in 25f..35f, "expected about 30°, got ${tilt.pitchDegrees}")
     }
 

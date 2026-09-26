@@ -40,7 +40,8 @@ class OfflineDays(
             store.setOfflineSittingMark(wallet, null)
             return null
         }
-        if (mark.boot != boot || mark.elapsedMillis > elapsedMillis) return null
+        // An unknown boot (-1) matches nothing: two unknown boots may differ.
+        if (boot < 0 || mark.boot != boot || mark.elapsedMillis > elapsedMillis) return null
 
         val startedAt = chainNow - (elapsedMillis - mark.elapsedMillis) / 1000
         val day = HoldoutDay.indexOf(startedAt)

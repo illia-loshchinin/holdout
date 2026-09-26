@@ -98,14 +98,20 @@ object Placement {
      * Android's sensor frame with the phone held upright: +x right, +y up the
      * screen, +z out of the screen towards the viewer. The **front** camera
      * looks along +z, so the angle between +z and the horizontal plane is the
-     * pitch, and gravity's z component gives it directly: lying on its back the
-     * phone has gravity along −z and the camera points straight up.
+     * pitch.
+     *
+     * **Android's sign, not physics'.** At rest the gravity sensor reports the
+     * same as the accelerometer: +9.81 on the axis pointing *away* from the
+     * ground (the floor pushing up), not gravity pulling down. So a phone lying
+     * on its back reads +z, and its front camera points straight up. The first
+     * version took the physical sign and read a phone aimed at the ceiling as
+     * one aimed at the floor.
      */
     fun pitchFromGravity(x: Float, y: Float, z: Float): Tilt {
         val magnitude = kotlin.math.sqrt(x * x + y * y + z * z)
         if (magnitude < 1e-3f) return Tilt(0f)
-        // −z·g normalised is sin(pitch): +1 looking straight up, −1 straight down.
-        val sine = (-z / magnitude).coerceIn(-1f, 1f)
+        // z over |g| is sin(pitch): +1 looking straight up, −1 straight down.
+        val sine = (z / magnitude).coerceIn(-1f, 1f)
         return Tilt(degrees(kotlin.math.asin(sine)))
     }
 
