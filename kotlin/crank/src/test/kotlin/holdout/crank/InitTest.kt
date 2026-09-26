@@ -68,7 +68,7 @@ class InitTest {
         var config: ByteArray? = null,
         val leagues: MutableSet<Int> = mutableSetOf(),
         var vaultLamports: Long = 0,
-        /** Chain time: Sunday 27 September 2026, noon UTC — before the default first start's cutoff. */
+        /** Chain time: Sunday 4 October 2026, noon UTC — before the default first start's cutoff. */
         var chainNow: Long = LeagueParams.FIRST_JUDGED_START - 17 * 3_600,
     ) : HttpNetworkDriver {
         val sent = mutableListOf<Transaction>()
@@ -206,7 +206,7 @@ class InitTest {
     }
 
     @Test
-    fun `the leagues start Monday 28 September 0500 UTC unless told otherwise`() {
+    fun `the leagues start Monday 5 October 0500 UTC unless told otherwise`() {
         val chain = Chain()
         init(chain, *fullArgs)
         val data = chain.sent[2].message.instructions.single().data
@@ -214,7 +214,7 @@ class InitTest {
         assertEquals(LeagueParams.FIRST_JUDGED_START, firstStart)
 
         val later = Chain()
-        init(later, *fullArgs, "--first-start", "2026-10-05T05:00:00Z")
+        init(later, *fullArgs, "--first-start", "2026-10-12T05:00:00Z")
         val laterStart = ByteBuffer.wrap(later.sent[2].message.instructions.single().data, 13, 8).order(ByteOrder.LITTLE_ENDIAN).long
         assertEquals(LeagueParams.FIRST_JUDGED_START + 604_800, laterStart)
     }
@@ -321,7 +321,7 @@ class InitTest {
         assertTrue("later Monday" in e.message!!, e.message)
         assertTrue(chain.sent.isEmpty(), "not even initialize: the whole run needs a start that can still be joined")
 
-        init(chain, *fullArgs, "--first-start", "2026-10-05T05:00:00Z")
+        init(chain, *fullArgs, "--first-start", "2026-10-12T05:00:00Z")
         assertEquals(4, chain.sent.size)
     }
 

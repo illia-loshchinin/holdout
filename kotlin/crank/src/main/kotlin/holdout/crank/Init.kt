@@ -29,7 +29,7 @@ import java.time.format.DateTimeParseException
  *    (`HOLDOUT_OPERATOR_KEYPAIR`) — **before any league exists**, so no cohort
  *    can ever be opened against a zero chip set (6012, FR-055b).
  * 3. `create_league` for the 7-day (0) and 21-day (1) leagues on the devnet
- *    clock, first start Monday 28 September 2026 05:00 UTC unless
+ *    clock, first start Monday 5 October 2026 05:00 UTC unless
  *    `--first-start` says otherwise.
  * 4. With `--fund-faucet <sol>`, a transfer from the admin that tops the
  *    faucet vault up to that balance (research R13).

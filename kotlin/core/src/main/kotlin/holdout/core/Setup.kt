@@ -28,8 +28,11 @@ data class LeagueParams(
         const val DEVNET_CADENCE = 604_800L
         const val DEVNET_JOIN_LOCK = 3_600L
 
-        /** Monday 28 September 2026, 05:00 UTC — the plan's first judged start (quickstart §6). */
-        const val FIRST_JUDGED_START = 1_790_571_600L
+        /**
+         * Monday 5 October 2026, 05:00 UTC — the first judged start, moved a
+         * week from 28 September by the product owner on 26 September.
+         */
+        const val FIRST_JUDGED_START = 1_791_176_400L
 
         /** 1 January 1970 was a Thursday, so Monday's boundary is 4 days into a week (`MONDAY_0500_UTC`). */
         private const val MONDAY_0500_UTC = 4 * HoldoutDay.SECONDS_PER_DAY + HoldoutDay.BOUNDARY_OFFSET_SECONDS

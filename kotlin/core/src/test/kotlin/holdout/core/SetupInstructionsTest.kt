@@ -115,8 +115,9 @@ class SetupInstructionsTest {
             assertEquals(604_800L, it.cadence)
             assertEquals(3_600L, it.joinLock)
         }
-        // The fixture's first start: Monday 28 September 2026, 05:00 UTC.
-        assertEquals(fixture("create_league").arg("firstStart").long, first)
+        // Monday 5 October 2026, 05:00 UTC: a week after the fixture's 28 September.
+        assertEquals(java.time.Instant.parse("2026-10-05T05:00:00Z").epochSecond, first)
+        assertEquals(fixture("create_league").arg("firstStart").long + 604_800L, first)
         assertFailsWith<IllegalArgumentException> { LeagueParams.judged(2, first) }
     }
 

@@ -184,7 +184,7 @@ java -jar kotlin/crank/build/libs/crank.jar init --admin <keypair> --operator <p
 java -jar kotlin/crank/build/libs/crank.jar chips publish --rate <usd-per-skr>
 ```
 
-**Expected:** `Config`, the 7-day and 21-day `LeagueConfig`s (first start Monday 28 September 05:00 UTC, so cohort index 0 is cohort #3 and its lobby can open immediately), the mock SKR mint and a funded faucet vault exist; `crank status` lists the leagues with no cohorts yet.
+**Expected:** `Config`, the 7-day and 21-day `LeagueConfig`s (first start Monday 5 October 05:00 UTC by default — moved from 28 September on 26 September — so cohort index 0 is the first judged cohort and its lobby can open immediately), the mock SKR mint and a funded faucet vault exist; `crank status` lists the leagues with no cohorts yet.
 
 ```bash
 java -jar kotlin/crank/build/libs/crank.jar run
