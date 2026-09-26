@@ -108,4 +108,33 @@ class OfflineDaysTest {
         assertNull(days.settle(wallet, boot = -1, elapsedMillis = 60_000, chainNow = chainAt(day, 600)))
         assertEquals(10, store.bankedReps(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY))
     }
+
+    /** A store whose first clearDay dies, as a process killed mid-settlement would. */
+    private class DiesOnceClearing(private val inner: Store) : Store by inner {
+        var dies = true
+
+        override fun clearDay(wallet: String, scope: String, dayIndex: Long) {
+            if (dies) {
+                dies = false
+                throw IllegalStateException("killed")
+            }
+            inner.clearDay(wallet, scope, dayIndex)
+        }
+    }
+
+    @Test
+    fun `a settlement killed half-way and run again moves the reps once`() {
+        val dying = DiesOnceClearing(store)
+        val days = OfflineDays(dying, StreakStore(dying), target = 25)
+        store.setBankedReps(wallet, Store.CHALLENGE, day, 10)
+        days.sittingStarted(wallet, boot = 7, elapsedMillis = 0)
+        store.setBankedReps(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY, 10)
+
+        kotlin.runCatching { days.settle(wallet, boot = 7, elapsedMillis = 60_000, chainNow = chainAt(day, 600)) }
+        assertEquals(day, days.settle(wallet, boot = 7, elapsedMillis = 90_000, chainNow = chainAt(day, 630)))
+
+        assertEquals(20, store.bankedReps(wallet, Store.CHALLENGE, day), "10 dated + 10 offline, not 10 + 10 + 10")
+        assertFalse(store.isDayComplete(wallet, Store.CHALLENGE, day))
+        assertEquals(0, store.bankedReps(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY))
+    }
 }

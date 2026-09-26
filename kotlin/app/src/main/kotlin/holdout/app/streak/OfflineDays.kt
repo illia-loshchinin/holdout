@@ -1,6 +1,7 @@
 package holdout.app.streak
 
 import holdout.app.storage.OfflineMark
+import holdout.app.storage.SettledOffline
 import holdout.app.storage.Store
 import holdout.core.HoldoutDay
 
@@ -33,6 +34,8 @@ class OfflineDays(
      */
     fun settle(wallet: String, boot: Int, elapsedMillis: Long, chainNow: Long): Long? {
         val mark = store.offlineSittingMark(wallet) ?: return null
+        // A transfer journalled and then interrupted: finish it as written.
+        mark.settled?.let { return apply(wallet, it) }
         val scope = Store.CHALLENGE
         val banked = store.bankedReps(wallet, scope, Store.UNKNOWN_DAY)
         val done = store.isDayComplete(wallet, scope, Store.UNKNOWN_DAY)
@@ -46,15 +49,25 @@ class OfflineDays(
         val startedAt = chainNow - (elapsedMillis - mark.elapsedMillis) / 1000
         val day = HoldoutDay.indexOf(startedAt)
         val total = (store.bankedReps(wallet, scope, day) + banked).coerceAtMost(target)
-        store.setBankedReps(wallet, scope, day, total)
-        if (done || total >= target) {
-            store.markDayComplete(wallet, scope, day)
+        // Journal first, in one write, then apply absolute values: whatever
+        // point a killed process stops at, running this again lands the same
+        // numbers instead of adding the offline reps a second time.
+        val settled = SettledOffline(day, total, complete = done || total >= target)
+        store.setOfflineSittingMark(wallet, mark.copy(settled = settled))
+        return apply(wallet, settled)
+    }
+
+    private fun apply(wallet: String, settled: SettledOffline): Long {
+        val scope = Store.CHALLENGE
+        store.setBankedReps(wallet, scope, settled.day, settled.total)
+        if (settled.complete) {
+            store.markDayComplete(wallet, scope, settled.day)
             // Never walk the streak back: a later day already on it stays.
             val last = store.lastStreakDay(wallet)
-            if (last == Store.NO_DAY || last < day) streaks.recordCompletedDay(wallet, day)
+            if (last == Store.NO_DAY || last < settled.day) streaks.recordCompletedDay(wallet, settled.day)
         }
         store.clearDay(wallet, scope, Store.UNKNOWN_DAY)
         store.setOfflineSittingMark(wallet, null)
-        return day
+        return settled.day
     }
 }

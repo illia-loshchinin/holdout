@@ -36,4 +36,13 @@ class CountdownGuardTest {
         guard.reset()
         assertFalse(guard.shouldAbort(600, holds = false))
     }
+
+    @Test
+    fun `a check failing when the countdown ends is known, even inside the grace`() {
+        val guard = CountdownGuard()
+        assertFalse(guard.shouldAbort(2_900, holds = false))
+        assertTrue(guard.isFailing, "the counter must not start on a failing check")
+        guard.shouldAbort(2_933, holds = true)
+        assertFalse(guard.isFailing)
+    }
 }
