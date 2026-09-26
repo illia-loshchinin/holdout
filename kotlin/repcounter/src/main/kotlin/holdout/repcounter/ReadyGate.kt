@@ -91,5 +91,5 @@ class ReadyGate(
 
     private fun isAtTop(view: CameraView, reading: ViewReading, rules: RepRules): Boolean = reading.elbow >= rules.topTriggerDegrees &&
         postureHeld(view, reading, reading.posture, rules) &&
-        (stakes != Stakes.STAKED || kneesOffFloor(reading.knee, (reading as? ViewReading.Angled)?.legsAboveHands, rules))
+        (stakes != Stakes.STAKED || kneesSeenOffFloor(reading.knee, (reading as? ViewReading.Angled)?.legsAboveHands, rules))
 }

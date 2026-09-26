@@ -25,6 +25,7 @@ More light · Stand phone up · Get in view · Phone to 45° · Get down · Furt
 - "Keep your body straight" — folded, or cobra
 - "Slow down" — too fast
 - "Knees off the floor" — staked only
+- "Keep your legs in view" — staked only: no knee reading on the push
 
 ## Framing (FR-024)
 

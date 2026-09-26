@@ -113,6 +113,12 @@ internal fun kneesOffFloor(knee: Float?, legsAboveHands: Float?, rules: RepRules
     (legsAboveHands == null || legsAboveHands >= rules.minLegsAboveHands)
 
 /**
+ * [kneesOffFloor], where an unknown does **not** pass: staked sittings, where
+ * a knee the camera never saw cannot be taken as off the floor.
+ */
+internal fun kneesSeenOffFloor(knee: Float?, legsAboveHands: Float?, rules: RepRules): Boolean = (knee != null || legsAboveHands != null) && kneesOffFloor(knee, legsAboveHands, rules)
+
+/**
  * Whether [posture] — already smoothed — is a body in push-up position, by
  * what [view] can measure:
  *

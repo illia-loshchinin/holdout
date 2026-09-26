@@ -170,6 +170,36 @@ class StakesTest {
         assertFalse(gate.onFrame(top(2_000), 2_000, pillsGreen = true, view = CameraView.OBLIQUE, image = knees(2_000)))
     }
 
+    /** [image] with the near knee gone from the picture, as when MediaPipe loses it. */
+    private fun withoutKnee(image: ImagePose): ImagePose {
+        val landmarks = image.frame.landmarks.toMutableList()
+        landmarks[PoseIndex.LEFT_KNEE] = landmarks[PoseIndex.LEFT_KNEE].copy(presence = 0f)
+        return image.copy(frame = image.frame.copy(landmarks = landmarks))
+    }
+
+    @Test
+    fun `a staked push with no knee in the picture is not credited - the knees were never seen`() {
+        for ((stakes, expected) in listOf(Stakes.STAKED to 0, Stakes.DAILY to 10)) {
+            val counter = RepCounter(view = CameraView.OBLIQUE, stakes = stakes)
+            val hints = mutableListOf<RepHint?>()
+            for (frame in Traces.set(count = 10)) {
+                val image = withoutKnee(Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = 70f))
+                (counter.onFrame(frame, image) as? RepEvent.Discarded)?.let { hints += it.hint }
+            }
+            assertEquals(expected, counter.total, "$stakes")
+            if (stakes == Stakes.STAKED) assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.LEGS_IN_VIEW }, "got $hints")
+        }
+    }
+
+    @Test
+    fun `the staked ready position needs the knees in the picture`() {
+        val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.STAKED)
+        val top = { t: Long -> Traces.frame(t, elbowDegrees = 175f, bodyLineDegrees = 180f) }
+        val unseen = { t: Long -> withoutKnee(Traces.angledImage(t, elbowDegrees = 175f)) }
+        gate.onFrame(top(0), 0, pillsGreen = true, view = CameraView.OBLIQUE, image = unseen(0))
+        assertFalse(gate.onFrame(top(2_000), 2_000, pillsGreen = true, view = CameraView.OBLIQUE, image = unseen(2_000)))
+    }
+
     @Test
     fun `the rule a member reads before staking names the placement and the knees`() {
         val rule = Stakes.STAKED_RULE.lowercase()
