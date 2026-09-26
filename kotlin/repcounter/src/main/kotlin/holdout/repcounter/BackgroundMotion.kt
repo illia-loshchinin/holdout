@@ -42,28 +42,40 @@ class BackgroundMotion(
     private var previousCols = 0
     private var smoothed = 0f
 
+    // Reused frame to frame: this runs on the camera thread thirty times a
+    // second, next to the pose model, and allocates nothing once warm.
+    private var differences = FloatArray(0)
+    private var sorted = FloatArray(0)
+
     fun update(grid: FloatArray, cols: Int, rows: Int, body: BodyBox?): Float {
         require(grid.size == cols * rows) { "a $cols×$rows grid has ${cols * rows} cells, got ${grid.size}" }
         val last = previous
-        previous = grid.copyOf()
         if (last == null || last.size != grid.size || previousCols != cols) {
+            previous = grid.copyOf()
             previousCols = cols
+            differences = FloatArray(grid.size)
+            sorted = FloatArray(grid.size)
             smoothed = 0f
             return 0f
         }
 
-        val background = ArrayList<Float>(grid.size)
+        var n = 0
         for (i in grid.indices) {
             val x = (i % cols + 0.5f) / cols
             val y = (i / cols + 0.5f) / rows
-            if (body?.contains(x, y) == true) continue
-            background += grid[i] - last[i]
+            if (body?.contains(x, y) != true) differences[n++] = grid[i] - last[i]
         }
-        if (background.isEmpty()) return smoothed
+        grid.copyInto(last)
+        if (n == 0) return smoothed
 
-        val shift = background.sorted()[background.size / 2]
-        val changed = background.count { kotlin.math.abs(it - shift) > cellChange }.toFloat() / background.size
-        smoothed += smoothing * (changed - smoothed)
+        // The median difference is the whole frame's exposure shift. A primitive
+        // sort of a reused buffer: no boxing, no garbage.
+        differences.copyInto(sorted, endIndex = n)
+        java.util.Arrays.sort(sorted, 0, n)
+        val shift = sorted[n / 2]
+        var changed = 0
+        for (k in 0 until n) if (kotlin.math.abs(differences[k] - shift) > cellChange) changed++
+        smoothed += smoothing * (changed.toFloat() / n - smoothed)
         return smoothed
     }
 }

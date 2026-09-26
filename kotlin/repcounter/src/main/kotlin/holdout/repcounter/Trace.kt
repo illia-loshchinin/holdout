@@ -123,6 +123,19 @@ object Trace {
         val countingView: CameraView? get() = frames.firstOrNull { it.step == "COUNTING" }?.view
 
         val countingFrames: List<Frame> get() = frames.filter { it.step == "COUNTING" }
+
+        /**
+         * The countdown that led into counting — the last unbroken run of
+         * `COUNTDOWN` frames before the first `COUNTING` one. The app's counter
+         * follows it without judging (`RepCounter.prime`), so a replay must too.
+         */
+        val countdownFrames: List<Frame> get() {
+            val first = frames.indexOfFirst { it.step == "COUNTING" }
+            if (first <= 0) return emptyList()
+            var start = first
+            while (start > 0 && frames[start - 1].step == "COUNTDOWN") start--
+            return frames.subList(start, first)
+        }
     }
 
     fun parse(lines: List<String>): Recording {

@@ -25,12 +25,22 @@ import java.util.TimeZone
  */
 class TraceRecorder(private val dir: File, private val stakes: Stakes) {
 
+    // Three threads touch one file: frames arrive on MediaPipe's result
+    // thread, Stop and leaving close it on the main thread, and labelling
+    // rewrites it on its own. Every method holds this lock, so a row is never
+    // half-written when the file is closed or relabelled.
+    private val lock = Any()
+
     private var writer: BufferedWriter? = null
     private var failed = false
     private var closed = false
     private var rowsSinceFlush = 0
 
-    /** The file being written, once the first frame has opened it. */
+    /**
+     * The file being written, once the first frame has opened it. Set under
+     * [lock] on the pose-result thread, read on the main thread without it.
+     */
+    @Volatile
     var file: File? = null
         private set
 
@@ -45,9 +55,25 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) {
         readout: Readout? = null,
         event: RepEvent? = null,
     ) {
-        // After close, never again: a camera frame still in flight when the
-        // member presses Stop would otherwise open a fresh, near-empty file.
-        if (failed || closed) return
+        synchronized(lock) {
+            // After close, never again: a camera frame still in flight when the
+            // member presses Stop would otherwise open a fresh, near-empty file.
+            if (failed || closed) return
+            write(timestampMillis, step, view, world, image, width, height, readout, event)
+        }
+    }
+
+    private fun write(
+        timestampMillis: Long,
+        step: String,
+        view: CameraView?,
+        world: PoseFrame,
+        image: PoseFrame,
+        width: Int,
+        height: Int,
+        readout: Readout?,
+        event: RepEvent?,
+    ) {
         runCatching {
             val out = writer ?: open(width, height)
             out.write(Trace.row(timestampMillis, step, view, world, image, readout, event))
@@ -62,14 +88,19 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) {
             // A trace is a debugging aid; failing to write one must never
             // disturb the sitting it is recording.
             failed = true
-            close()
+            closeLocked()
         }
     }
 
     private fun open(width: Int, height: Int): BufferedWriter {
         dir.mkdirs()
         val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date())
-        val target = File(dir, "$stamp-${stakes.name.lowercase()}.trace.csv")
+        // Never an existing name: two sittings started in the same second
+        // would otherwise truncate the first one's trace.
+        val base = "$stamp-${stakes.name.lowercase()}"
+        val target = generateSequence(0) { it + 1 }
+            .map { n -> File(dir, if (n == 0) "$base.trace.csv" else "$base-$n.trace.csv") }
+            .first { !it.exists() }
         file = target
         return target.bufferedWriter().also {
             it.write(Trace.header(stakes, width, height))
@@ -86,15 +117,21 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) {
      * as it was, unlabelled.
      */
     fun label(expectedReps: Int, done: Map<String, Int>, note: String) {
-        val target = file ?: return
-        close()
-        runCatching {
-            val labelled = Trace.label(target.readLines(), expectedReps, done, note)
-            target.writeText(labelled.joinToString("\n", postfix = "\n"))
+        synchronized(lock) {
+            val target = file ?: return
+            closeLocked()
+            runCatching {
+                val labelled = Trace.label(target.readLines(), expectedReps, done, note)
+                target.writeText(labelled.joinToString("\n", postfix = "\n"))
+            }
         }
     }
 
     fun close() {
+        synchronized(lock) { closeLocked() }
+    }
+
+    private fun closeLocked() {
         closed = true
         runCatching { writer?.close() }
         writer = null

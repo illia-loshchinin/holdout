@@ -174,9 +174,18 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         return
     }
 
+    // Finish anything a killed process left half-written, then read the day
+    // again. An effect, not composition: composition may run and be thrown
+    // away, and must not write storage.
+    LaunchedEffect(address, dayIndex) {
+        if (dayIndex != Store.UNKNOWN_DAY &&
+            BankingController.recover(store, streaks, address, Store.CHALLENGE, dayIndex, DAILY_25)
+        ) {
+            refreshToken += 1
+        }
+    }
+
     val banked = remember(address, dayIndex, refreshToken) {
-        // Finish anything a killed process left half-written before reading it.
-        if (dayIndex != Store.UNKNOWN_DAY) BankingController.recover(store, streaks, address, Store.CHALLENGE, dayIndex, DAILY_25)
         store.bankedReps(address, Store.CHALLENGE, dayIndex)
     }
     val complete = remember(address, dayIndex, refreshToken) {

@@ -25,6 +25,8 @@ class RecordedTracesTest {
     private fun replay(recording: Trace.Recording): Int {
         val view = recording.countingView ?: return 0
         val counter = RepCounter(view = view, stakes = recording.stakes)
+        // As on the phone: the counter follows the countdown, then counts.
+        for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
         for (frame in recording.countingFrames) counter.onFrame(frame.world, frame.image)
         return counter.total
     }
@@ -56,6 +58,18 @@ class RecordedTracesTest {
         assertTrue(labelled.any { it == "# done=honest:10,half:0,knees:5,cobra:0,other:0" })
         assertTrue(labelled.any { it.startsWith("# note=phone on a book expectedReps:99") })
         assertEquals(1, recording.frames.size)
+    }
+
+    @Test
+    fun `the replay primes with the countdown that led into counting, not an aborted one`() {
+        val (world, image) = Traces.frontFrame(1_000, elbowDegrees = 170f)
+        fun row(t: Long, step: String) = Trace.row(t, step, CameraView.FRONT, world, image.frame, null, null)
+        val text = Trace.header(Stakes.DAILY, image.width, image.height) +
+            row(1, "PREFLIGHT") + row(2, "COUNTDOWN") + row(3, "COUNTDOWN") + // aborted: back to the checks
+            row(4, "PREFLIGHT") + row(5, "COUNTDOWN") + row(6, "COUNTDOWN") + row(7, "COUNTING")
+        val recording = Trace.parse(text.lines())
+        assertEquals(listOf(5L, 6L), recording.countdownFrames.map { it.timestampMillis })
+        assertEquals(listOf(7L), recording.countingFrames.map { it.timestampMillis })
     }
 
     @Test
