@@ -310,6 +310,49 @@ describe('create_league (data-model §1.2, H30)', () => {
     });
   });
 
+  describe("a real league's duration is fixed by which league it is", () => {
+    // `open_cohort` copies `duration_days` into every cohort permanently, so a
+    // wrong figure here can never be corrected. Zero is the dangerous one:
+    // `settle_count` calls a member finished when
+    // `days_completed == duration_days`, so in a zero-day league everyone who
+    // never sat a single day is a finisher — an immediate clear, a payout and
+    // the 21-day unlock, with no push-ups at all.
+    it.each([
+      ['a zero-day league 0', { durationDays: 0 }],
+      ['a one-day league 0', { durationDays: 1 }],
+      ['a 21-day league 0', { durationDays: 21 }],
+    ])('rejects %s with InvalidLeagueTiming', async (_name, over) => {
+      expectProgramError(await create(over), 'InvalidLeagueTiming');
+      expect(await readLeague(0)).toBeNull();
+    });
+
+    it.each([
+      ['a zero-rep league', { repsPerDay: 0 }],
+      ['a league of one rep', { repsPerDay: 1 }],
+      ['a league of more than the Daily 25', { repsPerDay: 50 }],
+    ])('rejects %s with InvalidLeagueTiming', async (_name, over) => {
+      // Copied into every cohort as permanently as the duration. A zero-rep
+      // league would be a daily obligation with nothing to do: a submission
+      // that means nothing and a forfeit nobody could have avoided.
+      expectProgramError(await create(over), 'InvalidLeagueTiming');
+      expect(await readLeague(0)).toBeNull();
+    });
+
+    it('rejects a 7-day league 1, which is the 21-day league', async () => {
+      expectProgramError(await create({ leagueId: 1, durationDays: 7 }), 'InvalidLeagueTiming');
+      expect(await readLeague(1)).toBeNull();
+    });
+
+    it('rejects an id no league is defined for', async () => {
+      // Not a test league — those start at 100 — and not one of the two judged
+      // leagues either. `Profile::slot_of` would send its progress to the test
+      // slot, so a "real" league here would write judged progress where test
+      // runs live (data-model §1.2).
+      expectProgramError(await create({ leagueId: 2 }), 'InvalidLeagueTiming');
+      expect(await readLeague(2)).toBeNull();
+    });
+  });
+
   describe('a test league (id 100 and up) needs a test-leagues build', () => {
     it('is refused by the judged build, whatever its timing', async () => {
       // Compressed timing, the case a test league exists for…

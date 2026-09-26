@@ -61,15 +61,44 @@ pub fn genesis_gate_ok(enabled: bool, holds_genesis: bool) -> bool {
     !enabled || holds_genesis
 }
 
-/// Whether this member may take a place in `cohort`, given the profile after
-/// slot normalisation. Two rules, both about obligations never overlapping
-/// (FR-006a, FR-006b, INV-4): at most one lobby place, and a new cohort may not
-/// start before the running one's final deadline.
-pub fn require_slot_free(profile: &Profile, cohort: &Cohort, now: i64) -> Result<()> {
+/// Whether this member may take a place in `cohort`. Two rules, both about
+/// obligations never overlapping (FR-006a, FR-006b, INV-4): at most one lobby
+/// place, and a new cohort may not start before the running one's final
+/// deadline.
+///
+/// `running` is the profile's running cohort — its address and its account —
+/// and the caller must supply it whenever `profile.running` is set, else
+/// `AccountMismatch`. **The end comes from that account, never from
+/// `profile.running.end`.** The cached figure is filled in now — the lobby
+/// place carries the cohort's end and the promotion hands it over (data-model
+/// §1.5) — but a guard that trusted it would still be one write away from
+/// reading `0` as "no obligation", and a profile whose place was promoted
+/// before the end travelled with it is carrying exactly that zero until its
+/// member next acts. Reading the cohort makes the rule depend on chain state
+/// alone (constitution II), which is the only figure that cannot go stale.
+pub fn require_slot_free(
+    profile: &Profile,
+    cohort: &Cohort,
+    running: Option<(&Pubkey, &Cohort)>,
+    now: i64,
+) -> Result<()> {
     require!(profile.pending.is_none(), HoldoutError::LobbyPlaceTaken);
-    if !profile.running.is_none() && profile.running.end > now {
+    if profile.running.is_none() {
+        return Ok(());
+    }
+
+    let (running_key, running_cohort) = running.ok_or(error!(HoldoutError::AccountMismatch))?;
+    require_keys_eq!(
+        *running_key,
+        profile.running.cohort,
+        HoldoutError::AccountMismatch
+    );
+
+    // A running cohort whose final deadline has passed owes the member nothing,
+    // even before settlement has released the slot.
+    if running_cohort.end() > now {
         require!(
-            cohort.start >= profile.running.end,
+            cohort.start >= running_cohort.end(),
             HoldoutError::ObligationsOverlap
         );
     }
@@ -289,21 +318,24 @@ mod tests {
 
     #[test]
     fn two_obligations_can_never_overlap() {
-        let running_end = FIRST_START + 7 * DEVNET_DAY_LENGTH;
+        let running = cohort(FIRST_START, 7);
+        let running_key = Pubkey::new_unique();
+        let running_end = running.end();
         let mut p = profile();
         p.running = RunningSlot {
-            cohort: Pubkey::new_unique(),
+            cohort: running_key,
             end: running_end,
         };
+        let supplied = Some((&running_key, &running));
 
         let touching = cohort(running_end, 7);
         assert!(
-            require_slot_free(&p, &touching, FIRST_START).is_ok(),
+            require_slot_free(&p, &touching, supplied, FIRST_START).is_ok(),
             "starting exactly as the running one ends is allowed (FR-006b)"
         );
 
         let overlapping = cohort(running_end - 1, 7);
-        assert!(require_slot_free(&p, &overlapping, FIRST_START).is_err());
+        assert!(require_slot_free(&p, &overlapping, supplied, FIRST_START).is_err());
 
         p.pending = PendingSlot {
             cohort: Pubkey::new_unique(),
@@ -311,7 +343,7 @@ mod tests {
             end: running_end + 7 * DEVNET_DAY_LENGTH,
         };
         assert!(
-            require_slot_free(&p, &touching, FIRST_START).is_err(),
+            require_slot_free(&p, &touching, supplied, FIRST_START).is_err(),
             "one lobby place at a time (FR-006a)"
         );
     }
@@ -319,9 +351,10 @@ mod tests {
     #[test]
     fn a_promoted_lobby_place_still_blocks_an_overlapping_join() {
         let started = cohort(FIRST_START, 7);
+        let started_key = Pubkey::new_unique();
         let mut p = profile();
         p.pending = PendingSlot {
-            cohort: Pubkey::new_unique(),
+            cohort: started_key,
             start: started.start,
             end: started.end(),
         };
@@ -332,18 +365,86 @@ mod tests {
         let now = started.start;
         p.normalise_slots(now);
         assert!(p.pending.is_none(), "promoted");
+        assert_eq!(p.running.end, started.end(), "the end travelled with it");
 
         let overlapping = cohort(started.end() - 1, 7);
         assert!(
-            require_slot_free(&p, &overlapping, now).is_err(),
+            require_slot_free(&p, &overlapping, Some((&started_key, &started)), now).is_err(),
             "a cohort starting inside the promoted obligation (FR-006b, INV-4)"
         );
 
         let after = cohort(started.end(), 7);
         assert!(
-            require_slot_free(&p, &after, now).is_ok(),
+            require_slot_free(&p, &after, Some((&started_key, &started)), now).is_ok(),
             "one starting as it ends is fine"
         );
+    }
+
+    #[test]
+    fn the_overlap_is_read_from_the_cohort_not_the_cached_end() {
+        // The second defence, and the reason the guard asks for the account at
+        // all: a `running.end` of 0 reads as "no obligation". The promotion
+        // fills it now, but a profile whose place was promoted before it did is
+        // still carrying the zero, and nothing rewrites one until its member
+        // acts. The rule holds anyway, because the end comes from the cohort.
+        let a = cohort(FIRST_START, 7);
+        let a_key = Pubkey::new_unique();
+        let mut p = profile();
+        p.running = RunningSlot {
+            cohort: a_key,
+            end: 0,
+        };
+
+        let b = cohort(FIRST_START + DEVNET_DAY_LENGTH, 7);
+        assert!(
+            require_slot_free(&p, &b, Some((&a_key, &a)), a.start).is_err(),
+            "B starts before A ends, so the place must be refused"
+        );
+
+        let after = cohort(a.end(), 7);
+        assert!(
+            require_slot_free(&p, &after, Some((&a_key, &a)), a.start).is_ok(),
+            "the rule is the cohort's own end"
+        );
+    }
+
+    #[test]
+    fn a_running_slot_without_its_cohort_is_refused() {
+        let a = cohort(FIRST_START, 7);
+        let a_key = Pubkey::new_unique();
+        let mut p = profile();
+        p.running = RunningSlot {
+            cohort: a_key,
+            end: 0,
+        };
+        let b = cohort(FIRST_START + DEVNET_DAY_LENGTH, 7);
+
+        assert!(
+            require_slot_free(&p, &b, None, a.start).is_err(),
+            "the caller cannot omit the account and have the rule skipped"
+        );
+
+        let stranger = Pubkey::new_unique();
+        assert!(
+            require_slot_free(&p, &b, Some((&stranger, &a)), a.start).is_err(),
+            "nor substitute another cohort for it"
+        );
+    }
+
+    #[test]
+    fn a_finished_run_frees_the_slot_even_before_settlement() {
+        let a = cohort(FIRST_START, 7);
+        let a_key = Pubkey::new_unique();
+        let mut p = profile();
+        p.running = RunningSlot {
+            cohort: a_key,
+            end: 0,
+        };
+
+        // A's last deadline has passed; settlement has not released the slot yet.
+        let now = a.end();
+        let b = cohort(a.end(), 7);
+        assert!(require_slot_free(&p, &b, Some((&a_key, &a)), now).is_ok());
     }
 
     #[test]
