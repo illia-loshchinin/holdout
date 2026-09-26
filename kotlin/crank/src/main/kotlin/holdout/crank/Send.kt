@@ -22,6 +22,10 @@ internal suspend fun signAndSend(
     signers: List<Keypair>,
     dryRun: Boolean,
     pause: suspend (Long) -> Unit,
+    /** What a refusal means for the member of the team reading it. */
+    refusedMeans: String = "it did not land",
+    /** What to do before running again when the outcome is unknown. */
+    beforeRetrying: String = "check that signature, then run again",
 ): String? {
     val blockhash = rpc.latestBlockhash() ?: failed("could not read a recent blockhash for $what")
     val message =
@@ -53,8 +57,8 @@ internal suspend fun signAndSend(
 
     val signature =
         when (val answer = rpc.send(transaction)) {
-            is Rpc.Answer.Refused -> failed("$what was refused and did not land: ${answer.message}")
-            is Rpc.Answer.Unanswered -> failed("sent $what $expected but got no answer (${answer.message}); it may have landed — check that signature, then run again")
+            is Rpc.Answer.Refused -> failed("$what was refused and $refusedMeans: ${answer.message}")
+            is Rpc.Answer.Unanswered -> failed("sent $what $expected but got no answer (${answer.message}); it may have landed. $beforeRetrying")
             is Rpc.Answer.Ok -> answer.value
         }
     repeat(Chips.CONFIRM_ATTEMPTS) {
@@ -64,5 +68,5 @@ internal suspend fun signAndSend(
             Rpc.Landing.Pending, null -> pause(Chips.CONFIRM_PAUSE_MILLIS)
         }
     }
-    failed("sent $what $signature but it was not confirmed in time; check that signature, then run again")
+    failed("sent $what $signature but it was not confirmed within ${Chips.CONFIRM_ATTEMPTS * Chips.CONFIRM_PAUSE_MILLIS / 1000} s; $beforeRetrying")
 }

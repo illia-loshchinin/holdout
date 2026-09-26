@@ -1,8 +1,5 @@
 package holdout.crank
 
-import com.funkatronics.encoders.Base58
-import com.solana.transaction.Message
-import com.solana.transaction.Transaction
 import holdout.core.ConfigSnapshot
 import holdout.core.Instructions
 import holdout.core.Pdas
@@ -160,27 +157,20 @@ object Chips {
         }
         val tiers = pricing { price(rate, mintDecimals) }
 
-        val blockhash = rpc.latestBlockhash() ?: failed("could not read a recent blockhash from ${config.rpcUrl}")
-        val message =
-            Message
-                .Builder()
-                .addInstruction(Instructions.publishChipSet(config.programId, operator.publicKey, configAddress, tiers.map { it.baseUnits }))
-                .setRecentBlockhash(blockhash)
-                .build()
-        val signed = operator.sign(message.serialize())
-        val transaction = Transaction(listOf(signed), message).serialize()
-        // A transaction's ID is its first signature, known before it is sent —
-        // so even a send that gets no answer can say what to look up.
-        val expectedSignature = Base58.encodeToString(signed)
-
-        if (args.dryRun) {
-            val simulation =
-                when (val answer = rpc.simulate(transaction)) {
-                    is Rpc.Answer.Refused -> failed("simulating publish_chip_set was refused: ${answer.message}")
-                    is Rpc.Answer.Unanswered -> failed("could not simulate publish_chip_set: ${answer.message}")
-                    is Rpc.Answer.Ok -> answer.value
-                }
-            simulation.error?.let { failed("publish_chip_set would fail: $it; ${simulation.logs.lastOrNull().orEmpty()}") }
+        val instruction = Instructions.publishChipSet(config.programId, operator.publicKey, configAddress, tiers.map { it.baseUnits })
+        // Not retried: every publish is a new version (FR-055a).
+        val signature =
+            signAndSend(
+                rpc,
+                "publish_chip_set",
+                listOf(instruction),
+                listOf(operator),
+                args.dryRun,
+                pause,
+                refusedMeans = "nothing was published",
+                beforeRetrying = "Check that signature before publishing again, since a second publish is a new version",
+            )
+        if (signature == null) {
             return summary(rate, mintDecimals, tiers, dryRun = true) {
                 put("operator", operator.publicKey.base58())
                 put("simulated", true)
@@ -188,43 +178,20 @@ object Chips {
                 put("nextVersion", onChain.chipVersion + 1)
             }
         }
-
-        val signature =
-            when (val answer = rpc.send(transaction)) {
-                is Rpc.Answer.Refused -> failed("publish_chip_set was refused and nothing was published: ${answer.message}")
-                is Rpc.Answer.Unanswered ->
-                    failed(
-                        "sent publish_chip_set $expectedSignature but got no answer (${answer.message}); it may have landed. " +
-                            "Check that signature before publishing again, since a second publish is a new version",
-                    )
-                is Rpc.Answer.Ok -> answer.value
-            }
-        repeat(CONFIRM_ATTEMPTS) {
-            when (val landing = rpc.landing(signature)) {
-                Rpc.Landing.Confirmed -> {
-                    // What actually landed, not what the read before signing
-                    // implied: another publish may have landed in between.
-                    val after = rpc.accountData(configAddress)?.let { runCatching { ConfigSnapshot.decode(it) }.getOrNull() }
-                    return summary(rate, mintDecimals, tiers, dryRun = false) {
-                        put("operator", operator.publicKey.base58())
-                        put("sent", true)
-                        put("signature", signature)
-                        if (after != null) {
-                            put("version", after.chipVersion)
-                        } else {
-                            put("version", JsonNull)
-                            put("note", "confirmed, but Config could not be read back; run crank status for the version")
-                        }
-                    }
-                }
-                is Rpc.Landing.Failed -> failed("publish_chip_set $signature landed and failed: ${landing.error}")
-                Rpc.Landing.Pending, null -> pause(CONFIRM_PAUSE_MILLIS)
+        // What actually landed, not what the read before signing implied:
+        // another publish may have landed in between.
+        val after = rpc.accountData(configAddress)?.let { runCatching { ConfigSnapshot.decode(it) }.getOrNull() }
+        return summary(rate, mintDecimals, tiers, dryRun = false) {
+            put("operator", operator.publicKey.base58())
+            put("sent", true)
+            put("signature", signature)
+            if (after != null) {
+                put("version", after.chipVersion)
+            } else {
+                put("version", JsonNull)
+                put("note", "confirmed, but Config could not be read back; run crank status for the version")
             }
         }
-        failed(
-            "sent publish_chip_set $signature but it was not confirmed within ${CONFIRM_ATTEMPTS * CONFIRM_PAUSE_MILLIS / 1000} s; " +
-                "check that signature before publishing again, since a second publish is a new version",
-        )
     }
 
     /**

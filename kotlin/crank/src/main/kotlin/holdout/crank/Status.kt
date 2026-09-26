@@ -5,6 +5,8 @@ import holdout.core.CohortSnapshot
 import holdout.core.ConfigSnapshot
 import holdout.core.Derive
 import holdout.core.HoldoutDay
+import holdout.core.LeagueParams
+import holdout.core.LeagueSnapshot
 import holdout.core.Pdas
 import holdout.core.Rpc
 import kotlinx.serialization.json.JsonNull
@@ -41,6 +43,17 @@ internal object Status {
                     }
             }
         val cohorts = rpc.cohorts(config.programId) ?: failed("could not list cohorts from ${config.rpcUrl}")
+        // The two judged leagues, so a run after `crank init` shows they exist and when they start.
+        val leagues =
+            listOf(LeagueParams.LEAGUE_7D, LeagueParams.LEAGUE_21D).map { id ->
+                val address = Pdas.league(config.programId, id)
+                id to
+                    when (val read = rpc.account(address)) {
+                        is Rpc.Answer.Refused -> failed("could not read league $id at $address: ${read.message}")
+                        is Rpc.Answer.Unanswered -> failed("could not read league $id at $address: ${read.message}")
+                        is Rpc.Answer.Ok -> read.value?.let { runCatching { LeagueSnapshot.decode(it) }.getOrNull() ?: failed("the account at $address is not a LeagueConfig") }
+                    }
+            }
         val vaultLamports = rpc.balance(faucetVault) ?: failed("could not read the faucet vault's balance")
         val sponsorLamports = snapshot?.let { rpc.balance(it.sponsor) ?: failed("could not read the sponsor's balance") }
 
@@ -53,6 +66,7 @@ internal object Status {
             faucetVaultLamports = vaultLamports,
             sponsorLamports = sponsorLamports,
             cohorts = cohorts,
+            leagues = leagues,
         )
     }
 
@@ -66,6 +80,8 @@ internal object Status {
         faucetVaultLamports: Long,
         sponsorLamports: Long?,
         cohorts: List<Pair<SolanaPublicKey, CohortSnapshot>>,
+        /** Each judged league id, with its stored account or null when it does not exist yet. */
+        leagues: List<Pair<Int, LeagueSnapshot?>> = emptyList(),
     ): JsonObject {
         val today = HoldoutDay.indexOf(chainTime)
         return buildJsonObject {
@@ -107,6 +123,21 @@ internal object Status {
                     },
                 )
                 put("lamportSpend", config?.let { "${it.lamportsSpentOn(today)} / ${it.dailyLamportCap}" })
+            }
+
+            putJsonArray("leagues") {
+                leagues.forEach { (id, league) ->
+                    addJsonObject {
+                        put("league", id)
+                        put("exists", league != null)
+                        if (league != null) {
+                            put("durationDays", league.params.durationDays)
+                            put("repsPerDay", league.params.repsPerDay)
+                            put("firstStart", league.params.firstStart)
+                            put("nextIndex", league.nextIndex)
+                        }
+                    }
+                }
             }
 
             putJsonArray("cohorts") {

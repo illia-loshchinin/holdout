@@ -140,4 +140,24 @@ class SetupInstructionsTest {
         assertContentEquals(byteArrayOf(2, 0, 0, 0, 0, 0xCA.toByte(), 0x9A.toByte(), 0x3B, 0, 0, 0, 0), ix.data)
         assertEquals(listOf(3, 1), ix.accounts.map(::role))
     }
+
+    @Test
+    fun `a stored league decodes as the fixture says`() {
+        val leagues =
+            Json
+                .parseToJsonElement(RepoFiles.read("fixtures/accounts.json"))
+                .jsonObject
+                .getValue("accounts")
+                .jsonArray
+                .map { it.jsonObject }
+                .filter { it.getValue("name").jsonPrimitive.content == "LeagueConfig" }
+        assertEquals(2, leagues.size)
+        leagues.forEach { f ->
+            val fields = f.getValue("fields").jsonObject
+            val league = LeagueSnapshot.decode(RepoFiles.hex(f.getValue("bytes").jsonPrimitive.content))
+            assertEquals(LeagueParams.judged(fields.getValue("leagueId").jsonPrimitive.int, fields.getValue("firstStart").jsonPrimitive.content.toLong()), league.params)
+            assertEquals(fields.getValue("nextIndex").jsonPrimitive.long, league.nextIndex)
+        }
+        assertFailsWith<IllegalArgumentException> { LeagueSnapshot.decode(ByteArray(50)) }
+    }
 }

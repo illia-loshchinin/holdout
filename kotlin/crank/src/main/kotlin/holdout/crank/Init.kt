@@ -10,6 +10,7 @@ import holdout.core.Rpc
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
@@ -55,6 +56,7 @@ object Init {
         val programId = config.programId
         val firstStart = firstStart(args.option("first-start"))
         val faucetTarget = args.option("fund-faucet")?.let(::lamports)
+        val notes = mutableListOf<String>()
 
         // ---- read what is already there ------------------------------------
         val configAddress = Pdas.config(programId)
@@ -68,6 +70,24 @@ object Init {
                     is Rpc.Answer.Unanswered -> failed("could not read league $id at $address: ${read.message}")
                 }
             }
+        // A league's first start is fixed for life, and create_league happens
+        // once per id: a start whose joining has already closed would leave
+        // the league with an empty first cohort that can never be undone.
+        if (missingLeagues.isNotEmpty()) {
+            val now = rpc.chainTime()?.unixSeconds ?: failed("could not read chain time to check --first-start")
+            if (now >= firstStart - LeagueParams.DEVNET_JOIN_LOCK) {
+                configError(
+                    "joining for a first start at ${Instant.ofEpochSecond(firstStart)} closed at ${Instant.ofEpochSecond(firstStart - LeagueParams.DEVNET_JOIN_LOCK)}; " +
+                        "pass --first-start with a later Monday 05:00 UTC",
+                )
+            }
+        }
+        if (onChain != null) {
+            // Fixed by `initialize`: re-running init cannot change them, and must not look as if it did.
+            listOf("operator", "sponsor", "treasury").filter { args.option(it) != null }.forEach {
+                notes += "--$it ignored: the program is already initialized; Config keeps its own"
+            }
+        }
         val vault = Pdas.faucetVault(programId)
         val vaultBalance = if (onChain != null) rpc.balance(vault) ?: failed("could not read the faucet vault's balance") else 0L
 
@@ -170,6 +190,7 @@ object Init {
             put("command", "init")
             put("dryRun", dryRun)
             put("config", configAddress.base58())
+            if (notes.isNotEmpty()) putJsonArray("notes") { notes.forEach { add(JsonPrimitive(it)) } }
             putJsonArray("steps") {
                 steps.forEach { s ->
                     add(
@@ -215,6 +236,6 @@ object Init {
 
     private fun lamports(sol: String): Long {
         val amount = runCatching { BigDecimal(sol.trim()) }.getOrNull()?.takeIf { it.signum() >= 0 } ?: configError("--fund-faucet must be a number of SOL, got $sol")
-        return amount.movePointRight(9).toBigInteger().toLong()
+        return runCatching { amount.movePointRight(9).toBigInteger().longValueExact() }.getOrNull() ?: configError("--fund-faucet $sol SOL is more lamports than a u64 amount can hold")
     }
 }

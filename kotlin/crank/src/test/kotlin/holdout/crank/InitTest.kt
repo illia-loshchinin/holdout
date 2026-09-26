@@ -68,6 +68,8 @@ class InitTest {
         var config: ByteArray? = null,
         val leagues: MutableSet<Int> = mutableSetOf(),
         var vaultLamports: Long = 0,
+        /** Chain time: Sunday 27 September 2026, noon UTC — before the default first start's cutoff. */
+        var chainNow: Long = LeagueParams.FIRST_JUDGED_START - 17 * 3_600,
     ) : HttpNetworkDriver {
         val sent = mutableListOf<Transaction>()
         val simulated = mutableListOf<Transaction>()
@@ -127,6 +129,8 @@ class InitTest {
                         mint.publicKey.base58() -> accountInfo(ByteArray(82).also { it[44] = 6 })
                         else -> accountInfo(null)
                     }
+                "getSlot" -> ok("100")
+                "getBlockTime" -> ok("$chainNow")
                 "getBalance" -> ok("""{"context":{"slot":1},"value":$vaultLamports}""")
                 "getLatestBlockhash" -> ok("""{"context":{"slot":1},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":9}}""")
                 "simulateTransaction" -> {
@@ -307,5 +311,31 @@ class InitTest {
         val code = runCrank(listOf("init", "--nonsense", "x"), env) { lines += it }
         assertEquals(EXIT_CONFIG, code)
         assertTrue("does not take --nonsense" in lines.single(), lines.single())
+    }
+
+    @Test
+    fun `a first start whose joining has closed is refused before anything is sent`() {
+        val chain = Chain(chainNow = LeagueParams.FIRST_JUDGED_START - 3_600)
+        val e = assertFailsWith<CrankException> { init(chain, *fullArgs) }
+        assertEquals(EXIT_CONFIG, e.exitCode)
+        assertTrue("later Monday" in e.message!!, e.message)
+        assertTrue(chain.sent.isEmpty(), "not even initialize: the whole run needs a start that can still be joined")
+
+        init(chain, *fullArgs, "--first-start", "2026-10-05T05:00:00Z")
+        assertEquals(4, chain.sent.size)
+    }
+
+    @Test
+    fun `setup flags on an initialized program are reported as ignored, not silently dropped`() {
+        val chain = Chain()
+        init(chain, *fullArgs)
+        val json = init(chain, "--sponsor", treasury.base58())
+        assertTrue(json.getValue("notes").jsonArray.single().jsonPrimitive.content.contains("--sponsor ignored"))
+    }
+
+    @Test
+    fun `a faucet target too large for a u64 is refused, not wrapped`() {
+        val e = assertFailsWith<CrankException> { init(Chain(), *fullArgs, "--fund-faucet", "1e11") }
+        assertEquals(EXIT_CONFIG, e.exitCode)
     }
 }

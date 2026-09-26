@@ -24,15 +24,15 @@ data class LeagueParams(
 
         const val EXERCISE_PUSHUP = 0
         const val DEVNET_REPS_PER_DAY = 25
-        const val DEVNET_DAY_LENGTH = 86_400L
+        const val DEVNET_DAY_LENGTH = HoldoutDay.SECONDS_PER_DAY
         const val DEVNET_CADENCE = 604_800L
         const val DEVNET_JOIN_LOCK = 3_600L
 
         /** Monday 28 September 2026, 05:00 UTC — the plan's first judged start (quickstart §6). */
         const val FIRST_JUDGED_START = 1_790_571_600L
 
-        /** 1 January 1970 was a Thursday, so Monday 05:00 UTC is 4 days and 5 hours into a week (`MONDAY_0500_UTC`). */
-        private const val MONDAY_0500_UTC = 4 * DEVNET_DAY_LENGTH + 5 * 3_600L
+        /** 1 January 1970 was a Thursday, so Monday's boundary is 4 days into a week (`MONDAY_0500_UTC`). */
+        private const val MONDAY_0500_UTC = 4 * HoldoutDay.SECONDS_PER_DAY + HoldoutDay.BOUNDARY_OFFSET_SECONDS
 
         /** The program's `is_monday_0500_utc`: a real league refuses any other first start. */
         fun isMonday0500Utc(at: Long): Boolean = Math.floorMod(at, DEVNET_CADENCE) == MONDAY_0500_UTC
@@ -46,6 +46,34 @@ data class LeagueParams(
                     else -> throw IllegalArgumentException("the judged leagues are 0 (7-day) and 1 (21-day), not $leagueId")
                 }
             return LeagueParams(leagueId, days, DEVNET_REPS_PER_DAY, EXERCISE_PUSHUP, firstStart, DEVNET_DAY_LENGTH, DEVNET_CADENCE, DEVNET_JOIN_LOCK)
+        }
+    }
+}
+
+/** A `LeagueConfig` account as stored: its parameters and the next cohort index to open. */
+data class LeagueSnapshot(val params: LeagueParams, val nextIndex: Long) {
+    companion object {
+        /** 8 + league_id, duration_days, reps_per_day, exercise, four i64, next_index, bump. */
+        const val SIZE = 50
+
+        /** `sha256("account:LeagueConfig")[..8]`. */
+        private val DISCRIMINATOR = byteArrayOf(0xe0.toByte(), 0xce.toByte(), 0x26, 0x66, 0x62, 0x6a, 0x21, 0x28)
+
+        fun decode(data: ByteArray): LeagueSnapshot {
+            require(data.size >= SIZE && data.copyOf(8).contentEquals(DISCRIMINATOR)) { "not a LeagueConfig account" }
+            val b = java.nio.ByteBuffer.wrap(data).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+            val params =
+                LeagueParams(
+                    leagueId = data[8].toInt() and 0xFF,
+                    durationDays = data[9].toInt() and 0xFF,
+                    repsPerDay = b.getShort(10).toInt() and 0xFFFF,
+                    exercise = data[12].toInt() and 0xFF,
+                    dayLength = b.getLong(13),
+                    firstStart = b.getLong(21),
+                    cadence = b.getLong(29),
+                    joinLock = b.getLong(37),
+                )
+            return LeagueSnapshot(params, b.getInt(45).toLong() and 0xFFFF_FFFFL)
         }
     }
 }
