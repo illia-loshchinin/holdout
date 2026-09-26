@@ -79,8 +79,15 @@ interface Store {
     }
 }
 
-/** A moment on one boot's monotonic clock: meaningless after a reboot, so the boot is kept with it. */
-data class OfflineMark(val boot: Int, val elapsedMillis: Long)
+/**
+ * A moment on one boot's monotonic clock: meaningless after a reboot, so the
+ * boot is kept with it. [settled] journals a transfer onto a real day before
+ * it is applied, so a transfer killed half-way is finished, never repeated.
+ */
+data class OfflineMark(val boot: Int, val elapsedMillis: Long, val settled: SettledOffline? = null)
+
+/** An offline bucket being moved onto [day]: the day's total afterwards, absolute, and whether it completes it. */
+data class SettledOffline(val day: Long, val total: Int, val complete: Boolean)
 
 /** What the chain said, and when on this boot's monotonic clock it said it. */
 data class SavedChainReading(val chainSeconds: Long, val slot: Long, val boot: Int, val elapsedMillis: Long)
@@ -119,13 +126,18 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         )
     }
 
-    override fun streak(wallet: String): Int = kv.decodeInt("streak:$wallet", 0)
+    // The streak and its day are one record, written in one go: a process
+    // killed between two writes would otherwise leave a count with the wrong
+    // day, and a later recovery would add to it twice. The two older keys are
+    // still read for a record written before this.
+    private fun streakRecord(wallet: String): Pair<Int, Long>? = kv.decodeString("streak_rec:$wallet")?.split(',')?.let { (count, day) -> count.toInt() to day.toLong() }
 
-    override fun lastStreakDay(wallet: String): Long = kv.decodeLong("streak_day:$wallet", Store.NO_DAY)
+    override fun streak(wallet: String): Int = streakRecord(wallet)?.first ?: kv.decodeInt("streak:$wallet", 0)
+
+    override fun lastStreakDay(wallet: String): Long = streakRecord(wallet)?.second ?: kv.decodeLong("streak_day:$wallet", Store.NO_DAY)
 
     override fun setStreak(wallet: String, streak: Int, dayIndex: Long) {
-        kv.encode("streak:$wallet", streak)
-        kv.encode("streak_day:$wallet", dayIndex)
+        kv.encode("streak_rec:$wallet", "$streak,$dayIndex")
     }
 
     override fun longestStreak(wallet: String): Int = kv.decodeInt("streak_best:$wallet", 0)
@@ -146,17 +158,20 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         kv.encode("tour:$wallet", true)
     }
 
+    // One record too: `boot,elapsed` or, once a transfer is journalled,
+    // `boot,elapsed,day,total,complete`.
     override fun offlineSittingMark(wallet: String): OfflineMark? {
-        if (!kv.containsKey("offline_boot:$wallet")) return null
-        return OfflineMark(kv.decodeInt("offline_boot:$wallet"), kv.decodeLong("offline_elapsed:$wallet"))
+        val f = kv.decodeString("offline_rec:$wallet")?.split(',') ?: return null
+        val settled = if (f.size >= 5) SettledOffline(f[2].toLong(), f[3].toInt(), f[4].toBoolean()) else null
+        return OfflineMark(f[0].toInt(), f[1].toLong(), settled)
     }
 
     override fun setOfflineSittingMark(wallet: String, mark: OfflineMark?) {
         if (mark == null) {
-            kv.removeValuesForKeys(arrayOf("offline_boot:$wallet", "offline_elapsed:$wallet"))
+            kv.removeValueForKey("offline_rec:$wallet")
         } else {
-            kv.encode("offline_elapsed:$wallet", mark.elapsedMillis)
-            kv.encode("offline_boot:$wallet", mark.boot)
+            val settled = mark.settled?.let { ",${it.day},${it.total},${it.complete}" }.orEmpty()
+            kv.encode("offline_rec:$wallet", "${mark.boot},${mark.elapsedMillis}$settled")
         }
     }
 

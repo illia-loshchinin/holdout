@@ -23,6 +23,9 @@ class CountdownGuard(private val graceMillis: Long = 500) {
         return nowMillis - since >= graceMillis
     }
 
+    /** A check is failing right now, grace or not — the counter must not start on it. */
+    val isFailing: Boolean get() = failingSince != null
+
     fun reset() {
         failingSince = null
     }

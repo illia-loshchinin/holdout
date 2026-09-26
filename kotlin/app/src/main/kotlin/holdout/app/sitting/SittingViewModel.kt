@@ -321,6 +321,14 @@ class SittingViewModel(
 
     /** The 3-second countdown finished. A fresh counter: this sitting starts at zero. */
     fun startCounting() {
+        // The screen's timer ends the countdown on its own clock; the checks
+        // decide whether counting may begin. An abort that already happened,
+        // or a check failing at this very moment, wins over the timer.
+        if (_uiState.value.step != Step.COUNTDOWN) return
+        if (countdownGuard.isFailing) {
+            backToChecks()
+            return
+        }
         repCounter = RepCounter(view = countingView, stakes = stakes)
         _uiState.update { it.copy(step = Step.COUNTING, hint = null, looseReps = 0) }
         _cues.tryEmit(Cue.Counting)

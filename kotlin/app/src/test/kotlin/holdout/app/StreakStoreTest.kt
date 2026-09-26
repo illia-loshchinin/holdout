@@ -98,4 +98,11 @@ class StreakStoreTest {
             .toSet()
         assertEquals(setOf("read", "recordCompletedDay"), methods)
     }
+
+    @Test
+    fun `the longest streak is never shown below the current one`() {
+        // A process killed after the streak write and before the longest-streak write.
+        store.setStreak(wallet, 5, 100)
+        assertEquals(5, streaks.read(wallet, 100).longest)
+    }
 }

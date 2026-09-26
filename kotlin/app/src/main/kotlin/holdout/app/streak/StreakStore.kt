@@ -43,7 +43,9 @@ class StreakStore(private val store: Store) {
             last == dayIndex || last == dayIndex - 1 -> stored
             else -> 0
         }
-        return Streak(current, longest, completedToday = last == dayIndex)
+        // A process killed between the two streak writes leaves the longest
+        // behind the current; it is never shown below it.
+        return Streak(current, maxOf(longest, current), completedToday = last == dayIndex)
     }
 
     /**
