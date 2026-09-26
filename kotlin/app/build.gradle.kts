@@ -188,3 +188,36 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
+
+// FR-022a: the app never declares RECORD_AUDIO — not in its own manifest and
+// not through any library's (T101). Checked on the *merged* manifest of every
+// variant, and wired into assemble, so an audio permission cannot ship by
+// accident: the build fails instead.
+abstract class CheckNoAudioPermission : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val mergedManifest: RegularFileProperty
+
+    @TaskAction
+    fun check() {
+        val text = mergedManifest.get().asFile.readText()
+        if ("android.permission.RECORD_AUDIO" in text) {
+            throw GradleException("RECORD_AUDIO appears in the merged manifest (${mergedManifest.get().asFile}). Holdout never records audio (FR-022a).")
+        }
+    }
+}
+
+val checkNoAudioPermission = tasks.register("checkNoAudioPermission") {
+    description = "Fails the build if RECORD_AUDIO appears in any variant's merged manifest (FR-022a, T101)."
+}
+
+androidComponents {
+    onVariants { variant ->
+        val name = variant.name.replaceFirstChar { it.uppercase() }
+        val check = tasks.register<CheckNoAudioPermission>("check${name}NoAudioPermission") {
+            mergedManifest.set(variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.MERGED_MANIFEST))
+        }
+        checkNoAudioPermission.configure { dependsOn(check) }
+        tasks.matching { it.name == "assemble$name" }.configureEach { dependsOn(check) }
+    }
+}
