@@ -17,7 +17,9 @@ Shown today in the set-up guide for staked sittings. Must appear on the stake sh
 
 ## Getting into position (FR-018, FR-019) — `Coach`, in priority order, shown large and spoken
 
-More light · Stand phone up · Get in view · Phone to 45° · Get down · Further · Closer · Move left · Move right · Still background · Hold
+More light · Stand phone up · Get in view · Phone to 45° · Get down · Further · Closer · Move left · Move right · Hold
+
+A moving background is not a correction: its pill turns amber with "Find a spot with nothing moving behind you", and the countdown still starts.
 
 ## Refused reps — `RepHint`, shown and spoken
 

@@ -5,6 +5,7 @@ import holdout.app.storage.InMemoryStore
 import holdout.app.storage.Store
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -127,5 +128,31 @@ class BankingControllerTest {
         val banking = BankingController(store, wallet, "cohort-test", day, target = 5)
         val outcomes = banking.doReps(5)
         assertIs<BankingController.Outcome.DayComplete>(outcomes.last())
+    }
+
+    @Test
+    fun `at 0500 UTC a running sitting rolls over - blocks stay on yesterday, the rest counts for today`() {
+        val store = InMemoryStore()
+        val banking = controller(store)
+        banking.doReps(14) // one block banked yesterday, four loose
+
+        banking.rollOverTo(day + 1)
+        assertEquals(4, banking.loose, "reps done across the boundary are not lost")
+        assertEquals(0, banking.banked, "today starts from what today has")
+        banking.doReps(6)
+
+        assertEquals(10, store.bankedReps(wallet, Store.CHALLENGE, day))
+        assertEquals(10, store.bankedReps(wallet, Store.CHALLENGE, day + 1))
+        assertFalse(store.isDayComplete(wallet, Store.CHALLENGE, day))
+    }
+
+    @Test
+    fun `rolling over to the same or an earlier day changes nothing`() {
+        val store = InMemoryStore()
+        val banking = controller(store)
+        banking.doReps(10)
+        assertFalse(banking.rollOverTo(day))
+        assertFalse(banking.rollOverTo(day - 1))
+        assertEquals(10, banking.banked)
     }
 }

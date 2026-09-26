@@ -46,6 +46,14 @@ class PreflightTest {
     }
 
     @Test
+    fun `a moving background is shown but never blocks the start`() {
+        val report = preflight.evaluate(good(backgroundMotion = 0.5f))
+        assertTrue(report.canStart)
+        assertFalse(report.statuses.single { it.check == PreflightCheck.BACKGROUND_STILL }.passing)
+        assertEquals(listOf("Find a spot with nothing moving behind you"), report.fixes)
+    }
+
+    @Test
     fun `a blown-out frame fails the same check`() {
         assertFalse(preflight.evaluate(good(brightness = 0.99f)).canStart)
     }
@@ -132,13 +140,6 @@ class PreflightTest {
         assertEquals(null, report.view)
         assertFalse(report.canStart)
         assertTrue(report.fixes.contains("Move the phone so it can see all of you"))
-    }
-
-    @Test
-    fun `a busy background fails, and says to move`() {
-        val report = preflight.evaluate(good(backgroundMotion = 0.6f))
-        assertFalse(report.canStart)
-        assertEquals(listOf("Find a spot with nothing moving behind you"), report.fixes)
     }
 
     @Test

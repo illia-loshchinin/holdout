@@ -25,11 +25,28 @@ class BankingController(
     private val store: Store,
     private val wallet: String,
     private val scope: String,
-    private val dayIndex: Long,
+    dayIndex: Long,
     private val target: Int,
 ) {
     companion object {
         const val BLOCK = 10
+    }
+
+    /** The day this sitting banks into; moves forward once, at 05:00 UTC, if the sitting runs across it. */
+    var dayIndex: Long = dayIndex
+        private set
+
+    /**
+     * The day turned over mid-sitting (05:00 UTC, by chain time). Blocks
+     * already banked stay on the day they were done; the reps not yet in a
+     * block, and everything after, count for [newDay] — one clock, and no
+     * effort lost to the boundary (decided 2026-09-26). Returns whether it
+     * moved: never backwards, never to the same day.
+     */
+    fun rollOverTo(newDay: Long): Boolean {
+        if (newDay <= dayIndex) return false
+        dayIndex = newDay
+        return true
     }
 
     /** Verified reps in the current sitting that have not yet formed a block. */
