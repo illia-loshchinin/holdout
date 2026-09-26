@@ -34,7 +34,7 @@ Named here on purpose (constitution XI). Each has its real fix beside it.
 | "Stake back" is true in SKR, not in dollars | Everything is SKR-denominated with no oracle in the contract | A known property of SKR-native staking, stated in the app |
 | `ladder_gate_enabled = false` — both leagues open from first launch | Nobody should have to spend a week before reaching the 21-day league; the unlock is still computed and recorded | Flip the flag |
 | `genesis_gate_enabled = false` | Testers have no Seeker | Flip the flag on mainnet |
-| Non-default `day_seconds` for test cohorts | Lets a full cycle run in minutes during testing | Admin-guarded; real cohorts always use 24 hours |
+| Non-default `day_seconds` for test cohorts — including **one short test cohort on devnet**, from which the walkthrough and the demo video are recorded | Lets a full cycle run in minutes during testing | Admin-guarded; real cohorts always use 24 hours |
 | A completed day's proof is client-signed | No backend in the build | Server-side attestation signer with pinned traces |
 | Reps banked during the day (in blocks of 10), and a completed day waiting for network, live only on the phone | No wallet prompt mid-workout; a lost phone loses that day's partial progress, and a rooted phone could edit it. A day finished offline counts only if it reaches the network before the deadline | Covered by the attestation fix; cross-device progress later |
 | No audio anti-spoofing in rep verification | Microphone permission adds first-run friction and protects no real value on devnet | Reinstate the audio check and audio rep condition together |
