@@ -1,6 +1,7 @@
 package holdout.app.sitting
 
 import holdout.app.storage.Store
+import holdout.app.streak.StreakStore
 
 /**
  * Banked reps (T051, FR-024, FR-023, PRD §8.6).
@@ -30,6 +31,34 @@ class BankingController(
 ) {
     companion object {
         const val BLOCK = 10
+
+        /**
+         * Finishes what a killed process may have left half-written for the
+         * Daily 25: the target banked but the day not marked complete (two
+         * writes, and the process can die between them), or the day complete
+         * but its streak never recorded. Idempotent; returns whether anything
+         * was written. Never walks a later streak day back.
+         */
+        fun recover(
+            store: Store,
+            streaks: StreakStore,
+            wallet: String,
+            scope: String,
+            dayIndex: Long,
+            target: Int,
+        ): Boolean {
+            var wrote = false
+            if (!store.isDayComplete(wallet, scope, dayIndex) && store.bankedReps(wallet, scope, dayIndex) >= target) {
+                store.markDayComplete(wallet, scope, dayIndex)
+                wrote = true
+            }
+            val last = store.lastStreakDay(wallet)
+            if (scope == Store.CHALLENGE && store.isDayComplete(wallet, scope, dayIndex) && (last == Store.NO_DAY || last < dayIndex)) {
+                streaks.recordCompletedDay(wallet, dayIndex)
+                wrote = true
+            }
+            return wrote
+        }
     }
 
     /** The day this sitting banks into; moves forward once, at 05:00 UTC, if the sitting runs across it. */
@@ -61,7 +90,8 @@ class BankingController(
 
     val remaining: Int get() = (target - total).coerceAtLeast(0)
 
-    val isDayComplete: Boolean get() = store.isDayComplete(wallet, scope, dayIndex)
+    /** Marked complete, or the target banked — the process may have died between the two writes. */
+    val isDayComplete: Boolean get() = store.isDayComplete(wallet, scope, dayIndex) || banked >= target
 
     sealed interface Outcome {
         /** Nothing to announce; the rep is counted but the block is not full. */

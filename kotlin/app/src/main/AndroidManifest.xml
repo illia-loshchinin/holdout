@@ -31,8 +31,14 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Holdout">
+        <!-- Portrait, and never recreated under a sitting: the placement
+             thresholds are set on portrait frames, and a recreated activity
+             would drop the sitting and its unbanked reps. Compose takes the
+             listed changes in place. -->
         <activity
             android:name=".MainActivity"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|locale|layoutDirection"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.Holdout">

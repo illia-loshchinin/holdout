@@ -14,6 +14,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import holdout.app.home.HomeScreen
 import holdout.app.home.HomeState
+import holdout.app.sitting.BankingController
 import holdout.app.sitting.SittingScreen
 import holdout.app.sitting.SittingViewModel
 import holdout.app.storage.MmkvStore
@@ -64,7 +65,9 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     val clock =
         remember {
             ChainClock { android.os.SystemClock.elapsedRealtime() }.also { c ->
-                store.chainReading()?.takeIf { it.boot == boot }?.let { c.restore(it.chainSeconds, it.slot, it.elapsedMillis) }
+                // Only on a boot the platform can name: an unknown boot (-1)
+                // could be any boot, and an uptime from another is meaningless.
+                store.chainReading()?.takeIf { boot >= 0 && it.boot == boot }?.let { c.restore(it.chainSeconds, it.slot, it.elapsedMillis) }
             }
         }
     LaunchedEffect(wallet.address) {
@@ -75,7 +78,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 val elapsed = android.os.SystemClock.elapsedRealtime()
                 val chainNow = clock.nowSeconds()
                 val slot = clock.slot
-                if (chainNow != null && slot != null) store.setChainReading(SavedChainReading(chainNow, slot, boot, elapsed))
+                if (boot >= 0 && chainNow != null && slot != null) store.setChainReading(SavedChainReading(chainNow, slot, boot, elapsed))
             }
             delay(if (clock.hasReading) CHAIN_REFRESH_MILLIS else CHAIN_RETRY_MILLIS)
         }
@@ -172,6 +175,8 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     }
 
     val banked = remember(address, dayIndex, refreshToken) {
+        // Finish anything a killed process left half-written before reading it.
+        if (dayIndex != Store.UNKNOWN_DAY) BankingController.recover(store, streaks, address, Store.CHALLENGE, dayIndex, DAILY_25)
         store.bankedReps(address, Store.CHALLENGE, dayIndex)
     }
     val complete = remember(address, dayIndex, refreshToken) {

@@ -155,4 +155,31 @@ class BankingControllerTest {
         assertFalse(banking.rollOverTo(day - 1))
         assertEquals(10, banking.banked)
     }
+
+    @Test
+    fun `a day killed between banking 25 and marking it complete is recovered as complete`() {
+        val store = InMemoryStore()
+        val streaks = holdout.app.streak.StreakStore(store)
+        store.setBankedReps(wallet, Store.CHALLENGE, day, 25) // the process died before markDayComplete
+
+        assertTrue(controller(store).isDayComplete, "25 banked is a complete day")
+        assertTrue(BankingController.recover(store, streaks, wallet, Store.CHALLENGE, day, target = 25))
+        assertTrue(store.isDayComplete(wallet, Store.CHALLENGE, day))
+        assertEquals(day, store.lastStreakDay(wallet), "and the streak it earned")
+        assertFalse(BankingController.recover(store, streaks, wallet, Store.CHALLENGE, day, target = 25), "once")
+    }
+
+    @Test
+    fun `a completed day whose streak write was lost gets its streak back, and never a later day walked back`() {
+        val store = InMemoryStore()
+        val streaks = holdout.app.streak.StreakStore(store)
+        store.setBankedReps(wallet, Store.CHALLENGE, day, 25)
+        store.markDayComplete(wallet, Store.CHALLENGE, day)
+        BankingController.recover(store, streaks, wallet, Store.CHALLENGE, day, target = 25)
+        assertEquals(day, store.lastStreakDay(wallet))
+
+        streaks.recordCompletedDay(wallet, day + 1)
+        BankingController.recover(store, streaks, wallet, Store.CHALLENGE, day, target = 25)
+        assertEquals(day + 1, store.lastStreakDay(wallet))
+    }
 }

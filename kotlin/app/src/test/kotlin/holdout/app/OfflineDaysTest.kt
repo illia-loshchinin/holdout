@@ -100,4 +100,12 @@ class OfflineDaysTest {
         assertNull(days.settle(wallet, boot = 8, elapsedMillis = 1_000, chainNow = chainAt(day, 600)))
         assertEquals(10, store.bankedReps(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY))
     }
+
+    @Test
+    fun `an unknown boot never dates an offline sitting`() {
+        days.sittingStarted(wallet, boot = -1, elapsedMillis = 5_000)
+        store.setBankedReps(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY, 10)
+        assertNull(days.settle(wallet, boot = -1, elapsedMillis = 60_000, chainNow = chainAt(day, 600)))
+        assertEquals(10, store.bankedReps(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY))
+    }
 }
