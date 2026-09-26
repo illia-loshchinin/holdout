@@ -150,6 +150,9 @@ enum class RepHint(val message: String) {
     KEEP_BODY_STRAIGHT("Keep your body straight"),
     SLOW_DOWN("Slow down"),
     UP_ON_YOUR_TOES("Knees off the floor"),
+
+    /** Staked only: the knee was not in the picture on the push, so nothing proved it off the floor. */
+    LEGS_IN_VIEW("Keep your legs in view"),
 }
 
 /**
@@ -329,6 +332,9 @@ class RepCounter(
                 val verdict = when {
                     // Knees first: a push-up from the knees is a different
                     // exercise, and "keep your body straight" would not say so.
+                    // Where money is staked, knees never seen on the push are
+                    // not knees off the floor: the rep cannot be judged.
+                    judgeKnees && pushKnees.isEmpty() && pushLegs.isEmpty() -> RepEvent.Discarded(RepHint.LEGS_IN_VIEW)
                     judgeKnees && !kneesOffFloor(pushKnees.medianOrNull(), pushLegs.medianOrNull(), rules) ->
                         RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
                     tooShallowHeadOn() || tooShallowAngled() -> RepEvent.Discarded(RepHint.GO_LOWER)
