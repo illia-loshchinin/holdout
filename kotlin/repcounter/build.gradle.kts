@@ -17,4 +17,8 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    // Recorded landmark traces live with the other shared fixtures, at the repo root.
+    val traces = rootProject.file("../fixtures/rep-traces")
+    inputs.dir(traces)
+    systemProperty("holdout.repTraces", traces.absolutePath)
 }

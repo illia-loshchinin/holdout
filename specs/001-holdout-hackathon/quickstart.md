@@ -75,7 +75,7 @@ idl/                   Anchor IDL from the build
 tests/                 TypeScript (Kit + LiteSVM) integration tests, Codama client, Surfpool smoke tests, fixture generation
 fixtures/              Golden JSON shared by Rust, TypeScript and Kotlin
 kotlin/core/           Kotlin/JVM: codecs, PDAs, instruction builders, Derive.kt
-kotlin/repcounter/     Kotlin/JVM: pre-flight, palm and rep rules
+kotlin/repcounter/     Kotlin/JVM: pre-flight, start position and rep rules
 kotlin/app/            Android app (Jetpack Compose)
 kotlin/crank/          Kotlin/JVM CLI (automation, scripted members, chips)
 ```
@@ -116,7 +116,7 @@ git diff --exit-code fixtures/
 cd kotlin && ./gradlew :core:test :repcounter:test
 ```
 
-**Expected:** `core` replays every fixture (accounts, PDAs, instructions, derived figures) with no mismatch; `repcounter` passes the recorded landmark traces — 10 honest push-up videos counted within 1 rep of 25, 3 cheat videos rejected, palm timeout after 30 s.
+**Expected:** `core` replays every fixture (accounts, PDAs, instructions, derived figures) with no mismatch; `repcounter` passes the recorded landmark traces — 10 honest push-up videos counted within 1 rep of 25, 3 cheat videos rejected, and the start position opening the gate only once it is held.
 
 ```bash
 cd kotlin && ./gradlew :app:lint :app:checkNoAudioPermission
@@ -222,6 +222,6 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 14 **[Phase 2]** | Leaderboard ranking | Devnet or *local* with seeded profiles | Ranking and "not ranked yet" as specified; no amounts; scripted labels |
 | 15 | Banked reps across sittings | Device: 10 + 10 + 5; stop at 17; kill app | Day lands only after rep 25; 10 kept at 17; blocks survive kill; late sitting allowed with warning |
 | 16 | Faucet from zero, and after a drained sponsor | Device with a brand-new wallet; then empty the sponsor's float with the bundled devnet key and try a second brand-new wallet before and after one `crank run` | One tap funds a full 7-day cycle; second tap the same day refused with the time it returns. With the float empty the claim fails as ES-0b and blames nobody; after the crank's `top_up_sponsor` the next brand-new wallet funds normally, and `crank status` shows the day's spend against `daily_lamport_cap` (AC-16, FR-042b) |
-| 17 | Palm timeout | Device: cover camera at palm step | Tip after 30 s, back to pre-flight; banked reps unchanged |
+| 17 | Start position | Device: with the four pills green, hold the top of a push-up; then drop out of it before the countdown ends | Counting starts on the hold alone, with no tap and a spoken countdown; dropping out restarts the hold; banked reps unchanged |
 | 18 | Offline completion | Device in airplane mode | Warning shown; reconnect before deadline + tap submit lands the day (automatic **[Phase 2]**); after deadline, breach |
 | 19 | Submission complete | 7–8 Oct: install the final APK on a Seeker and a plain phone; build from a clean clone on a machine that has never built the project, following only the README; review the demo video and deck (R18) | Both installs run; clean clone builds the app and the program; video ≈ 3 min shows join, sitting, forfeit, settlement and claim from cohort #3; scripted members and the test network disclosed in app, README, video and deck; submitted before 9 Oct 08:59 CEST |

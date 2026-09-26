@@ -59,11 +59,32 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
   - **Smoothing before thresholding.** A one-euro filter on the landmarks feeding each angle. Published validation puts BlazePose's joint-angle error at roughly **2° mean absolute, RMSE ≈ 2.6°**, so raw per-frame angles cannot be compared against a hard edge.
   - **Hysteresis wider than that error.** The PRD's rule stays *top > 160°, bottom < 90°, body line ±10°, cycle 0.8–6 s* (FR-021), but the state machine triggers at **≥ 165° for the top and ≤ 85° for the bottom**, so a 2–3° jitter band cannot flip a state or double-count a rep. A rep is counted by the state machine completing top → bottom → top, never by a single frame.
   - **Visibility gating.** Frames where elbow, shoulder, hip or ankle fall below the landmark presence threshold are dropped rather than scored; a run of dropped frames ends the attempt with the "can't see you" hint instead of guessing.
-  - **Framing is checked, not assumed.** A front-on phone cannot see elbow flexion at all, which is why the side-on camera-angle check is one of the four pre-flight checks (FR-019).
+  - **Framing is classified, not required (corrected 2026-09-23).** This bullet previously read "a front-on phone cannot see elbow flexion at all", which contradicts the world-landmark bullet three lines above it and is wrong. The landmarks are 3D, so the angles are **geometrically recoverable from any view**. What changes with placement is *precision*: a single camera estimates depth far worse than position within the image, and a push-up seen head-on puts nearly all of its movement along the depth axis. Side-on keeps that movement in the image plane, which is the strongest signal; head-on leans on the weakest. Both are accepted — see the placement decision below.
   - **Every number here is provisional until spike S2 measures it** against the 10 honest and 3 cheat videos; S2's deliverable is `fixtures/rep-traces/s2-angles.json`, the measured per-frame angle table the final thresholds are set from, committed with the traces so the tuning is evidence rather than recollection.
 - **Rationale:** MediaPipe's Android task library with CameraX is Google's reference path, and the Hand Landmarker for palm liveness (R5) shares the same runtime and frame stream. Keeping the rules in a JVM module makes them unit-testable against recorded traces — including deliberate cheats — without a phone. No part of the pipeline has a network path, so frames never leave the device (constitution X).
 - **Alternatives considered:** ML Kit Pose Detection (fewer landmarks, no world coordinates); MoveNet Thunder via TFLite (17 keypoints, and the body-line rule needs hips and ankles; validation puts its upper-limb error under 10° RMSE, worse than BlazePose for this measurement); server inference (forbidden by constitution X).
 - **Sources:** MediaPipe Pose Landmarker task documentation; BlazePose joint-angle validation (MAE ≈ 2.11°, RMSE ≈ 2.63°); MoveNet upper-limb range-of-motion validity study.
+
+- **Which placement (decided 2026-09-23, after the first sitting):** **both.** People put the phone on the floor in front of them, and the pre-flight check that demanded a side-on view blocked the commonest placement, which is a check that stops the app working. `Preflight.classifyView` now names the view — `SIDE`, `OBLIQUE` or `FRONT` — from shoulder span against torso length in the image, a ratio that is independent of how the phone is rotated. The check fails only when it cannot tell what it is looking at.
+  - **One rule set, for now.** `RepRules.forView` exists so spike S2 can give the front view its own triggers, and returns the same rules for every view today. Inventing front-view numbers before the traces exist is the tuning-without-evidence this research keeps refusing.
+  - **What must never happen:** widening a front-view trigger past the rule to make head-on counting work. Triggers are *stricter* than the rule by construction so jitter cannot count a rep; a looser one counts reps FR-021 forbids, which changes what a rep is. `RepRules`'s `require` refuses it and `RepRulesViewTest` checks every view.
+  - **Expected cost:** sag detection is weaker head-on, because the shoulder–hip–ankle line points away from the lens. Named in the README rather than engineered around.
+- **Positioning overlay (added 2026-09-23):** accepting both placements exposed the thing the four text checks never solved — the member has no idea where to put their body. The app now finds the floor from **gravity and the lens**, with no body required: `Placement.floorView` projects the horizon from the phone's pitch and its vertical field of view, so a phone lying on its back can be told it is looking at the ceiling *before* anyone gets down on the floor. A dashed outline is drawn on the floor, shaped for the placement — long and flat for a side view, foreshortened head-on — with one correction at a time. It fades out the moment the member is aligned and does not return once the countdown starts: scaffolding, not furniture.
+- **Model: FULL, as decided here.** LITE was shipped by mistake on 2026-09-22 and corrected on 2026-09-23. Better landmarks matter most in the depth direction, which is exactly what the newly accepted front placement depends on. LITE remains the documented fallback if S2 measures under 15 FPS on a Seeker.
+- **Which camera (decided 2026-09-22, on the device):** the **front** camera. A
+  sitting is self-recorded — the phone is propped at chest height beside the
+  member — so they have to see the preview to get their whole body in frame, the
+  angle right and a palm where the model can read it. With the back camera they
+  aim a lens they cannot see through, which is the exact framing problem the
+  pre-flight pills exist to catch; being told to fix something you cannot see is
+  worse than no check. Two consequences: the preview is mirrored by
+  `PreviewView` while `ImageAnalysis` frames are not, so the skeleton overlay
+  mirrors the landmarks back (the count is unaffected — a reflection does not
+  change an angle, and the rule averages both sides); and **spike S2 now
+  measures the front camera**, whose resolution and field of view are lower. If
+  it cannot hold ≥ 15 FPS, or loses the ankles at arm's length, that is a
+  finding for the spike and its documented fallbacks, not a reason to point the
+  camera away from the member.
 
 ## R5 · Palm liveness
 
@@ -268,6 +289,27 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
 | **S1 · Wallet on real hardware** | R3, R12, R13 | The Kotlin Compose Minimal template (fixed root build file) builds; on a Seeker it connects Seed Vault Wallet via MWA and lands a devnet transaction with `signAndSendTransactions`; a sponsor-paid transaction built with `web3-solana` + `rpc-core` lands too; `NoWalletFound` is returned on a phone with no wallet; `web3-solana` and `rpc-core` also run in a plain JVM module (for the crank); **`scrcpy --record` captures the app, and whether the wallet's approval screen records or comes out black (`FLAG_SECURE`)**, which decides whether those moments need the second camera (R18) | Try another MWA wallet on a plain Android phone; if a library blocks, or doesn't run on the plain JVM, use sol4k for transaction building in that module; film blocked screens with the second camera |
 | **S2 · Rep counting on real video** | R4, R5 | ≥ 15 FPS pose inference on a Seeker; correct count on 10 real push-up videos (≤ 1 miscounted rep in 25) and rejection of 3 cheat videos (half reps, sagging hips, too fast); open palm detected in normal indoor light | Lite model; lower analysis resolution; CPU delegate; relax thresholds with recorded evidence |
 | **S3 · Full cycle on a manipulated clock** | R1, R2, R9, R10 | In WSL2 with Anchor 1.1.2 / Solana CLI 3.1.10, on LiteSVM: open → join (incl. lobby place) → lock → daily submits → forfeits in out-of-order repeated pages → count → finalize with remainder → claim, for a 1,000-member cohort; vectors V1–V22 pass; Kotlin `core` replays the fixtures | Reduce page size; add address lookup tables |
+
+### S1 · passed 22 September 2026
+
+R3, R12 and R13 are confirmed on the device of record. No fallback was needed:
+the template's libraries work as researched, and nothing moves to sol4k.
+
+| Leg | |
+|---|---|
+| Seeker, Seed Vault Wallet | **Passed.** Connect, `signMessagesDetached`, and `signAndSendTransactions` landing a devnet memo — signature `3PN4nN1L…fJwzzL`, slot 502,517,648, 22 Sep 16:46 UTC, signer `CkJn1a53c1ZXe5XLZ38ZgsPa1WX28PUiMWHqtJayjfWE`, no error. Shot log S-01 |
+| `web3-solana` + `rpc-core` on a plain JVM | **Passed**, and kept as a test: `kotlin/core/.../S1JvmSpikeTest.kt` builds a transaction, derives the `mint_authority` and `faucet_vault` addresses and reads a devnet blockhash with no Android on the classpath. The crank and the app can share one client (R12) |
+| `scrcpy --record` | **Passed, and better than assumed.** The wallet's approval screen records — it is not `FLAG_SECURE`. The second camera is not needed for those seconds (R18, `docs/holdout_demo_video.md` §4) |
+| A plain Android phone with its own MWA wallet | **Not run.** Compatibility for beta testers rather than a gate on the API; it is answered by the first tester install (T011) |
+| `NoWalletFound` on a phone with no wallet | **Not run.** It is the acceptance criterion of T041, the no-wallet screen, and is checked there |
+
+**Found on the way, and it constrains the code:** Seed Vault returned a
+transaction carrying **two `ComputeBudget` instructions the wallet added
+itself**. What `signAndSendTransactions` sends is therefore *not* byte-identical
+to the message the app built. Nothing may assume it is — in particular a
+completed-day proof (R16) must be over payload the app controls, never over the
+serialised transaction, and any future check of "did the wallet send what we
+asked" has to compare instructions, not bytes.
 
 ## Sources checked for this research (September 2026)
 

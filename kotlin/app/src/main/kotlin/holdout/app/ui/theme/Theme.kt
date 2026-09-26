@@ -1,58 +1,52 @@
 package holdout.app.ui.theme
 
-import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
+/**
+ * One theme, dark, fixed (PRD §11, T035).
+ *
+ * **No light variant and no dynamic colour.** Material You would repaint the
+ * app from the member's wallpaper, and the palette here is the product's
+ * identity — the survivor counter reading Solana Green is a decision, not a
+ * default. There is deliberately no `dynamicColor` parameter to pass `true` to.
+ *
+ * The mapping below is PRD §11.1's table, slot for slot, so the theme is a
+ * transcription rather than a reinterpretation.
+ */
+private val HoldoutColorScheme = darkColorScheme(
+    background = HoldoutColors.Canvas,
+    onBackground = HoldoutColors.TextPrimary,
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    surface = HoldoutColors.Surface1,
+    onSurface = HoldoutColors.TextPrimary,
+    surfaceContainer = HoldoutColors.Surface2,
+    surfaceContainerHigh = HoldoutColors.Surface3,
+    onSurfaceVariant = HoldoutColors.TextSecondary,
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = HoldoutColors.Accent,
+    onPrimary = HoldoutColors.OnAccent,
+    secondary = HoldoutColors.Success,
+    onSecondary = HoldoutColors.OnSuccess,
+    tertiary = HoldoutColors.Celebration,
+
+    error = HoldoutColors.Warning,
+    onError = HoldoutColors.OnWarning,
+
+    outline = HoldoutColors.Hairline,
+
+    // The primary button is a white pill with a black label.
+    inverseSurface = HoldoutColors.TextPrimary,
+    inverseOnSurface = HoldoutColors.OnLight,
 )
 
 @Composable
-fun HoldoutTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
+fun HoldoutTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
+        colorScheme = HoldoutColorScheme,
+        typography = HoldoutTypography,
+        shapes = HoldoutShapes,
+        content = content,
     )
 }
