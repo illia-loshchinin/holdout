@@ -1,0 +1,163 @@
+package holdout.repcounter
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+/** T046 — the four environment checks, and what each red pill says (FR-019, PRD §8.2). */
+class PreflightTest {
+
+    private val preflight = Preflight()
+
+    private fun good(
+        brightness: Float = 0.5f,
+        backgroundMotion: Float = 0.0f,
+        world: PoseFrame? = Traces.frame(0, elbowDegrees = 175f, bodyLineDegrees = 180f),
+        // Head-on: the Daily 25's placement, which `Preflight()` checks for.
+        image: PoseFrame? = Traces.imageFrame(shoulderSpan = 0.7f),
+    ) = PreflightInput(brightness, backgroundMotion, world, image)
+
+    @Test
+    fun `four checks, no more - there is no audio check`() {
+        val report = preflight.evaluate(good())
+        assertEquals(4, report.statuses.size)
+        assertEquals(
+            setOf(
+                PreflightCheck.LIGHTING,
+                PreflightCheck.WHOLE_BODY,
+                PreflightCheck.CAMERA_ANGLE,
+                PreflightCheck.BACKGROUND_STILL,
+            ),
+            report.statuses.map { it.check }.toSet(),
+        )
+    }
+
+    @Test
+    fun `a good frame starts the sitting`() {
+        assertTrue(preflight.evaluate(good()).canStart)
+    }
+
+    @Test
+    fun `a dark room fails, and says to add light`() {
+        val report = preflight.evaluate(good(brightness = 0.05f))
+        assertFalse(report.canStart)
+        assertEquals(listOf("Add light"), report.fixes)
+    }
+
+    @Test
+    fun `a moving background is shown but never blocks the start`() {
+        val report = preflight.evaluate(good(backgroundMotion = 0.5f))
+        assertTrue(report.canStart)
+        assertFalse(report.statuses.single { it.check == PreflightCheck.BACKGROUND_STILL }.passing)
+        assertEquals(listOf("Find a spot with nothing moving behind you"), report.fixes)
+    }
+
+    @Test
+    fun `a blown-out frame fails the same check`() {
+        assertFalse(preflight.evaluate(good(brightness = 0.99f)).canStart)
+    }
+
+    @Test
+    fun `nobody in frame fails the body and angle checks, and says to step back`() {
+        val report = preflight.evaluate(good(world = null, image = null))
+        assertFalse(report.canStart)
+        assertTrue(report.fixes.contains("Step back so your whole body is visible"))
+    }
+
+    @Test
+    fun `a body with its ankles out of frame fails`() {
+        val frame = Traces.frame(0, 175f, 180f)
+        val cropped = PoseFrame(
+            frame.timestampMillis,
+            frame.landmarks.mapIndexed { i, landmark ->
+                if (i == PoseIndex.LEFT_ANKLE || i == PoseIndex.RIGHT_ANKLE) {
+                    landmark.copy(presence = 0.2f)
+                } else {
+                    landmark
+                }
+            },
+        )
+        val report = preflight.evaluate(good(world = cropped))
+        assertFalse(report.canStart)
+        assertTrue(report.fixes.contains("Step back so your whole body is visible"))
+    }
+
+    @Test
+    fun `a joint the model places outside the picture is not in view, however sure it is`() {
+        // MediaPipe extrapolates a cropped ankle with high presence; only its
+        // position in the picture says it is not there.
+        val image = Traces.imageFrame(shoulderSpan = 0.7f)
+        val cropped = PoseFrame(
+            image.timestampMillis,
+            image.landmarks.mapIndexed { i, l -> if (i == PoseIndex.LEFT_ANKLE) l.copy(y = 1.08f) else l },
+        )
+        val report = preflight.evaluate(good(image = cropped))
+        assertFalse(report.canStart)
+        assertTrue(report.fixes.contains("Step back so your whole body is visible"))
+    }
+
+    @Test
+    fun `every placement is named`() {
+        assertEquals(CameraView.SIDE, preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.05f))).view)
+        assertEquals(CameraView.OBLIQUE, preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.4f))).view)
+        assertEquals(CameraView.FRONT, preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.7f))).view)
+    }
+
+    @Test
+    fun `45 degrees is not mistaken for head-on`() {
+        // The bug the 1.55 cut-off fixed: at 45° the shoulder span against the
+        // torso reached 1.35 on a real recording, and the old 0.9 called most
+        // of those frames head-on — refusing a correctly placed phone.
+        val atFortyFive = Traces.imageFrame(shoulderSpan = 0.4f * 1.35f)
+        assertEquals(CameraView.OBLIQUE, preflight.evaluate(good(image = atFortyFive)).view)
+    }
+
+    @Test
+    fun `the Daily 25 starts head-on or at 45 degrees, and square side-on says where the phone goes`() {
+        assertTrue(preflight.evaluate(good()).canStart)
+        assertTrue(preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.4f))).canStart)
+        val report = preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.05f)))
+        assertFalse(report.canStart)
+        assertEquals(listOf(Stakes.DAILY.cameraFix), report.fixes)
+    }
+
+    @Test
+    fun `the view is the same however the phone is propped`() {
+        // The bug this replaced: frames are rotated to the display's
+        // orientation and the app is portrait-locked, so a phone propped in
+        // landscape made a correctly positioned member read as vertical. The
+        // only way to pass was to lie along one axis of the frame.
+        for (rotation in listOf(0f, 30f, 45f, 90f, 135f, 180f, 270f)) {
+            assertEquals(
+                CameraView.SIDE,
+                preflight.evaluate(
+                    good(image = Traces.imageFrame(shoulderSpan = 0.05f, torsoDegrees = rotation)),
+                ).view,
+                "a side-on body at $rotation° in frame should still read as side-on",
+            )
+        }
+    }
+
+    @Test
+    fun `a body too small to judge fails the view check, and says so`() {
+        // The one thing this pill still gates on: not knowing what it is
+        // looking at. "Move the phone so it can see all of you" is the fix for
+        // somebody too far away to measure.
+        val tiny = Traces.imageFrame(shoulderSpan = 0.5f).let { frame ->
+            PoseFrame(
+                frame.timestampMillis,
+                frame.landmarks.map { it.copy(x = it.x * 0.01f, y = it.y * 0.01f) },
+            )
+        }
+        val report = preflight.evaluate(good(image = tiny))
+        assertEquals(null, report.view)
+        assertFalse(report.canStart)
+        assertTrue(report.fixes.contains("Move the phone so it can see all of you"))
+    }
+
+    @Test
+    fun `a green pill carries no fix`() {
+        assertTrue(preflight.evaluate(good()).statuses.all { it.fix == null })
+    }
+}

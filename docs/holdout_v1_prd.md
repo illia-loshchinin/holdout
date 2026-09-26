@@ -58,7 +58,7 @@ Holdout is a Solana Mobile fitness commitment app. Anyone can do a **free Daily 
 | Lever | Squadletics | Holdout |
 |---|---|---|
 | Fee | 0% entry, 35% slash | **One fee: 20% of forfeited stakes.** Finishers pay nothing |
-| Verification | Pose detection only | Pose detection + palm liveness + four-check pre-flight, all on-device |
+| Verification | Pose detection only | Pose detection + four-check pre-flight + a held start position, all on-device |
 | Currency | WLD or USDC | **SKR only** — stakes, pool, payouts, fee |
 | Structure | 21-day, single tier | **Free Daily 25 + staked 7-day and 21-day leagues** |
 | Pool | One shared pool | **One pool per cohort** |
@@ -323,20 +323,32 @@ Before **every** sitting — not only the day's first — the app runs four chec
 
 1. **Lighting adequate** — average frame brightness within the target range
 2. **Whole body in frame** — every pose keypoint visible
-3. **Camera angle correct** — torso orientation within the expected range for push-ups
+3. **Camera view readable** — the app can tell how it is looking at the member, in front of them or beside them; both are fine, and only a view it cannot classify is refused
 4. **Background still** — no major motion outside the person
 
-**The sitting cannot start until all four are green** (FR-019). A red pill says exactly what to fix: *"Add light"* · *"Step back so your whole body is visible"* · *"Lower the phone to chest height"* · *"Find a spot with nothing moving behind you."*
+**The sitting cannot start until all four are green** (FR-019), and while they are going green the screen shows **where to lie**: the floor line, found from the phone's own tilt before the model has seen anybody, and a dashed outline on it shaped for the placement in use — long and flat when the phone is beside the member, foreshortened when it is in front of them. One correction at a time, shown and spoken: *"Stand the phone up so it can see the floor"* · *"Move back"* · *"Move closer"* · *"Move left"* · *"Move right"* · *"Get down into a plank"*. The outline turns green when they are in it, then **the whole helper fades away and only the skeleton is left** — it is there to get somebody into position and is noise once they are. It does not come back once the countdown starts.
 
-### 8.3 Palm liveness
+The four checks shrink to status chips beside it. Each red chip still states its own fix.
+
+**Either placement works** (decided 2026-09-23). The phone may stand in front of the member or beside them; the app names which view it has and counts from both. Side-on is the more accurate of the two, because a push-up seen head-on puts nearly all of its movement along the depth axis, which is the weakest thing a single camera estimates — see the README for what that costs. A red pill says exactly what to fix: *"Add light"* · *"Step back so your whole body is visible"* · *"Move the phone so it can see all of you"* · *"Find a spot with nothing moving behind you."*
+
+### 8.3 The start position
+
+*Replaced palm liveness on 2026-09-22, after the first sitting on real hardware (FR-020, spec OD-3).*
 
 With all four pills green:
 
-> Show your palm to the camera for 3 seconds.
+> Get into position and hold
 
-An open palm held for 3 continuous seconds confirms a live person (FR-020). A 3-second countdown follows and counting begins. **At the start of every sitting, never mid-sitting** — mid-sitting prompts break the flow, and re-checking on each return is what stops one person banking the first 10 reps and another doing the rest.
+The member takes **the top of a push-up** — arms extended, body straight — and holds it for about a second. A ring fills while they hold. Then a spoken **three, two, one, go** and counting begins.
 
-**If no palm is detected within 30 seconds** (FR-020): the app shows *"Can't see your palm — try more light, and hold it flat toward the camera"* and returns to the pre-flight checks, since light or framing is the likely cause. Retries are unlimited, the member can cancel at any moment, and banked reps are never touched.
+**Nothing is tapped and nothing is gestured.** By the time the pills are green the member is face-down on the floor with the phone propped beside them; the palm asked them to lift a hand off the ground, and the button before it asked for a tap. The position the app is about to measure is the best possible readiness signal, and it is free: the pose model is already watching for it, and it is the same "top" the rep rule uses (§8.4), so the two can never drift apart.
+
+Leaving the position restarts the hold. There is no timeout and nothing to fail — only a position not yet reached — so the screen simply keeps saying what to do, and banked reps are never touched.
+
+**Known weakness.** This is a *readiness* check, not a *liveness* check: it confirms a body in push-up position, not a live person and not the same person who set the phone up. Named in the README, with audio anti-spoofing in a later phase as the real fix.
+
+**Everything after Start is spoken or chimed**, because the screen is out of sight: the countdown, "go", a chime each time ten reps bank, and a success chime at the end. That is audio **out**; the microphone is still never requested (FR-022a).
 
 ### 8.4 Push-up rules
 
@@ -368,7 +380,7 @@ evening   ──  sitting 3:   5 reps   →  day complete at the 25th rep     do
 - **A block banks the instant its 10th verified rep is counted.** The screen shows it: *"10 banked · 15 to go."*
 - **The day completes the moment banked + current reps reach the target**, so the last block can be smaller than 10.
 - **When a sitting ends for any reason** — the member stops, the app closes, the phone crashes — reps short of the next block are discarded. Banked blocks stay.
-- **No pause limit.** The member comes back whenever they like before the deadline; every return starts with pre-flight and palm liveness again (§8.2, §8.3).
+- **No pause limit.** The member comes back whenever they like before the deadline; every return starts with pre-flight and the start position again (§8.2, §8.3).
 - **On the device only.** No server, no Firebase, nothing on-chain until the day is complete (FR-024a). A lost or wiped phone loses that day's banked reps; the member can still do the whole day from zero on another device (ES-3a).
 - **Banked reps expire at the day's deadline** — they never carry into tomorrow (FR-016).
 - **Works offline.** Counting and banking need no connection (FR-024b). See §8.7 for what happens when a cohort day completes offline.
@@ -404,11 +416,11 @@ Either way: If it lands before the deadline, the day counts. If it lands after, 
 
 | Attack | Mitigation in this build |
 |---|---|
-| Play a recorded video to the camera | Palm liveness at the start of every sitting; pre-flight rejects a static or wrong-angle scene |
+| Play a recorded video to the camera | **Not defended** — palm liveness was what stood here and it was dropped on 2026-09-22 (FR-020, OD-3). Pre-flight still rejects a static or wrong-angle scene, which is a bar, not a defence. Real fix: audio anti-spoofing, a later phase |
 | Freeze the frame mid-sitting | Rep cycle bounds and full-range rules; **no audio filter** — documented weakness |
 | Impossibly fast reps | 0.8-second minimum cycle |
 | Camera covered or off | Pre-flight requires a live, lit, full-body frame |
-| Hand the phone over between sittings | Every sitting re-runs pre-flight and palm liveness (FR-019, FR-020) — raises the bar, doesn't prove identity |
+| Hand the phone over between sittings | Every sitting re-runs pre-flight and the start position (FR-019, FR-020) — raises the bar, doesn't prove identity, and proves it less than the palm did |
 | Someone else does all the reps | Not defended — one wallet is one member and the Genesis gate is off; documented |
 | Submit a completed day late, claiming it finished in time offline | Rejected — only chain time at submission counts (FR-017, FR-024b) |
 | Edit banked progress on the device | Not defended — banked reps are device-local and the completed-day proof is client-signed; documented |
@@ -501,7 +513,7 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 7. **Lobby** — countdown to cutoff and start, live roster count, held stake, leave button (§5.2). **Locked variant:** joining closed, final roster, countdown to start (ES-12a)
 
 **Sitting**
-8. **Sitting** — start card (*"10 banked · 15 to go · 5h 12m left today"*) → pre-flight (four pills) → palm liveness → 3-second countdown → counting (camera, skeleton overlay, rep counter, banked blocks, form hint, time left today) → block banked (*"20 banked"*) → day complete. Variants: **stopped part-way** (*"17 done — 10 banked, 7 not kept. Come back any time before 5h 12m runs out."*), **reopened after a crash** (*"Your 10 banked reps are safe."*), **last 10 minutes** (warning on the start card and during counting, never a block — FR-047), **palm not detected** (tip after 30 seconds, back to pre-flight — FR-020), **offline** (warning before a cohort sitting; *"Done — waiting for network"* on completion — FR-024b)
+8. **Sitting** — pre-flight (four pills, straight from Home — the home screen *is* the start card) → hold the start position → 3-second countdown → counting (camera, skeleton overlay, rep counter, banked blocks, form hint, time left today) → block banked (*"20 banked"*) → day complete. Variants: **stopped part-way** (*"17 done — 10 banked, 7 not kept. Come back any time before 5h 12m runs out."*), **reopened after a crash** (*"Your 10 banked reps are safe."*), **last 10 minutes** (warning on the start card and during counting, never a block — FR-047), **offline** (warning before a cohort sitting; *"Done — waiting for network"* on completion — FR-024b)
 
 **Outcomes**
 9. **Forfeit** — *"Your 21-day run ended on day 6. Your stake went to the members still standing. Your 9-day streak is still alive."* CTAs: **Do today's challenge** · **Join the next 7-day cohort** (US-4)
@@ -569,7 +581,7 @@ Open app (first run)
   ↓  connect wallet (required — no wallet, no app) · test-network notice · scripted-member disclosure
 Home: today's challenge
   ↓  start
-Pre-flight → palm → countdown → push-ups (banked every 10)
+Pre-flight → hold the start position → countdown → push-ups (banked every 10)
   ↓
 Done at 25 — streak 1 — "Want money on it? Join a 7-day cohort."
    or stop early — "10 banked. Come back later today for 15 more."
@@ -593,7 +605,6 @@ Done at 25 — streak 1 — "Want money on it? Join a 7-day cohort."
 | No test SKR or fee SOL | The faucet sheet, in place — on the stake screen, before submitting a completed day, before a claim (ES-0a) |
 | Faucet already used today | *"You've had today's test tokens. Available again in 6h 40m."* (ES-0a) |
 | Faucet can't pay out | *"The faucet can't send tokens right now."* The Daily 25 and browsing stay available (ES-0b) |
-| Palm not detected for 30 seconds | *"Can't see your palm — try more light, and hold it flat toward the camera."* Back to pre-flight; retry or cancel (FR-020) |
 | Offline before a cohort sitting | *"You're offline. Today counts only if it reaches the network before the deadline — 2h 14m left."* **Start anyway** (FR-024b) |
 | Day completed offline | Phase 1: home shows *"Done — tap to submit"* with the countdown once online. **[Phase 2]** *"Done — waiting for network"*, submitted automatically on reconnect. If it lands late, the forfeit screen (ES-3b) |
 | Pre-flight fails three times | Tip sheet with the common fixes |
@@ -829,7 +840,7 @@ Constitution XIII, applied to every screen, notification and README line.
 | Risk | Severity | Mitigation |
 |---|---|---|
 | Rep counter rejects honest reps | High | Pre-flight refuses bad conditions; silent discard with hints; test against real video in the risk spike |
-| Rep counter accepts cheats | Medium | Palm liveness, cycle bounds, full-range rules; no audio filter and client-signed proofs documented as known weaknesses |
+| Rep counter accepts cheats | Medium | Cycle bounds, full-range rules, four-check pre-flight; no liveness check, no audio filter and client-signed proofs all documented as known weaknesses |
 | Scheduler misses a run | Low | Breach is derived, so outcomes never change; counters move at the deadline anyway; any wallet can record forfeits, settle and open cohorts; acceptance criteria 5 and 8 |
 | A 1,000-member cohort is too heavy to process | Medium | Forfeits and settlement paged, no step grows with cohort size; tested at 1,000 with pages out of order and repeated (acceptance criterion 7) |
 | Members confused by banking | Medium | Always show *"10 banked · 15 to go"*; say which reps weren't kept when a sitting ends part-way |
@@ -941,7 +952,7 @@ For every cohort: `fee = 0.20 × Σ forfeited`, taken at forfeit time. Cross-che
 | **A Holdout** | What members call a staked run — "a 7-day Holdout", "a 21-day Holdout". The system stores it as a `Cohort` in one of the two leagues; spec §1a maps the two vocabularies |
 | **At stake** | The sum of the stakes held in a Holdout. What a lobby shows, and never called a prize: only forfeits create a prize pool |
 | **Daily streak** | Days in a row with a completed day, challenge or cohort. On the device, cosmetic, survives a forfeit, never on a leaderboard |
-| **Sitting** | One continuous run of pre-flight, palm liveness and counting. A day can take any number of sittings; each re-verifies |
+| **Sitting** | One continuous run of pre-flight, the held start position and counting. A day can take any number of sittings; each re-verifies |
 | **Banked block** | 10 verified reps saved on the device the instant the 10th is counted. Kept until the day's deadline; reps short of a block are lost when a sitting ends |
 | **Completed day** | The banked total reaching the day's requirement. A cohort day is then recorded on-chain; a challenge day only on the device |
 | **League** | The 7-day or 21-day staked league, both 25 reps a day — a Holdout's length. Human Flag is a locked rung in the UI only |

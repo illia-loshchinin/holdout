@@ -12,6 +12,10 @@ kotlin {
 
 dependencies {
     implementation(project(":core"))
+    // Every command prints a JSON summary (contracts/crank-cli.md).
+    implementation(libs.kotlinx.serialization.json)
+    // Base58, for a transaction's signature before it is sent.
+    implementation(libs.multimult)
     testImplementation(kotlin("test"))
 }
 

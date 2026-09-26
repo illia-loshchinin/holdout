@@ -75,7 +75,7 @@ idl/                   Anchor IDL from the build
 tests/                 TypeScript (Kit + LiteSVM) integration tests, Codama client, Surfpool smoke tests, fixture generation
 fixtures/              Golden JSON shared by Rust, TypeScript and Kotlin
 kotlin/core/           Kotlin/JVM: codecs, PDAs, instruction builders, Derive.kt
-kotlin/repcounter/     Kotlin/JVM: pre-flight, palm and rep rules
+kotlin/repcounter/     Kotlin/JVM: pre-flight, start position and rep rules
 kotlin/app/            Android app (Jetpack Compose)
 kotlin/crank/          Kotlin/JVM CLI (automation, scripted members, chips)
 ```
@@ -116,7 +116,7 @@ git diff --exit-code fixtures/
 cd kotlin && ./gradlew :core:test :repcounter:test
 ```
 
-**Expected:** `core` replays every fixture (accounts, PDAs, instructions, derived figures) with no mismatch; `repcounter` passes the recorded landmark traces — 10 honest push-up videos counted within 1 rep of 25, 3 cheat videos rejected, palm timeout after 30 s.
+**Expected:** `core` replays every fixture (accounts, PDAs, instructions, derived figures) with no mismatch; `repcounter` passes the recorded landmark traces — 10 honest push-up videos counted within 1 rep of 25, 3 cheat videos rejected, and the start position opening the gate only once it is held.
 
 ```bash
 cd kotlin && ./gradlew :app:lint :app:checkNoAudioPermission
@@ -148,7 +148,7 @@ The same compressed idea, but on devnet with real testers and real phones: a tes
 java -jar kotlin/crank/build/libs/crank.jar init --test-league --day-seconds 600 --reps 5 --days 7
 ```
 
-**Expected:** 5–7 testers each complete a full cycle on the rehearsal program; bugs are fixed before the 28 Sep freeze. No footage from this run is ever used in the walkthrough or demo video (`docs/holdout_demo_video.md`).
+**Expected:** 5–7 testers each complete a full cycle on the short test cohort (FR-044a); bugs are fixed before the 5 October freeze. This run is the one the walkthrough and demo video are recorded from, labelled on screen as a short test cohort (constitution v1.4.0).
 
 ## 6. Devnet deployment
 
@@ -168,7 +168,7 @@ longer matches `declare_id!`:
 mkdir -p target/deploy && cp ~/.config/solana/holdout-program-keypair.json target/deploy/holdout-keypair.json && anchor keys list
 ```
 
-**Expected:** `holdout: Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4`, matching `Anchor.toml` and `declare_id!`. Back that file up — losing it means a new address and a redeploy, and after the 28 Sep freeze that would strand the judged cohort.
+**Expected:** `holdout: Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4`, matching `Anchor.toml` and `declare_id!`. Back that file up — losing it means a new address and a redeploy, and after the 5 October freeze that would strand the judged cohort.
 
 ```bash
 NO_DNA=1 anchor deploy --provider.cluster devnet
@@ -184,7 +184,7 @@ java -jar kotlin/crank/build/libs/crank.jar init --admin <keypair> --operator <p
 java -jar kotlin/crank/build/libs/crank.jar chips publish --rate <usd-per-skr>
 ```
 
-**Expected:** `Config`, the 7-day and 21-day `LeagueConfig`s (first start Monday 28 September 05:00 UTC, so cohort index 0 is cohort #3 and its lobby can open immediately), the mock SKR mint and a funded faucet vault exist; `crank status` lists the leagues with no cohorts yet.
+**Expected:** `Config`, the 7-day and 21-day `LeagueConfig`s (first start Monday 5 October 05:00 UTC by default — moved from 28 September on 26 September — so cohort index 0 is the first judged cohort and its lobby can open immediately), the mock SKR mint and a funded faucet vault exist; `crank status` lists the leagues with no cohorts yet.
 
 ```bash
 java -jar kotlin/crank/build/libs/crank.jar run
@@ -222,6 +222,6 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 14 **[Phase 2]** | Leaderboard ranking | Devnet or *local* with seeded profiles | Ranking and "not ranked yet" as specified; no amounts; scripted labels |
 | 15 | Banked reps across sittings | Device: 10 + 10 + 5; stop at 17; kill app | Day lands only after rep 25; 10 kept at 17; blocks survive kill; late sitting allowed with warning |
 | 16 | Faucet from zero, and after a drained sponsor | Device with a brand-new wallet; then empty the sponsor's float with the bundled devnet key and try a second brand-new wallet before and after one `crank run` | One tap funds a full 7-day cycle; second tap the same day refused with the time it returns. With the float empty the claim fails as ES-0b and blames nobody; after the crank's `top_up_sponsor` the next brand-new wallet funds normally, and `crank status` shows the day's spend against `daily_lamport_cap` (AC-16, FR-042b) |
-| 17 | Palm timeout | Device: cover camera at palm step | Tip after 30 s, back to pre-flight; banked reps unchanged |
+| 17 | Start position | Device: with the four pills green, hold the top of a push-up; then drop out of it before the countdown ends | Counting starts on the hold alone, with no tap and a spoken countdown; dropping out restarts the hold; banked reps unchanged |
 | 18 | Offline completion | Device in airplane mode | Warning shown; reconnect before deadline + tap submit lands the day (automatic **[Phase 2]**); after deadline, breach |
 | 19 | Submission complete | 7–8 Oct: install the final APK on a Seeker and a plain phone; build from a clean clone on a machine that has never built the project, following only the README; review the demo video and deck (R18) | Both installs run; clean clone builds the app and the program; video ≈ 3 min shows join, sitting, forfeit, settlement and claim from cohort #3; scripted members and the test network disclosed in app, README, video and deck; submitted before 9 Oct 08:59 CEST |

@@ -15,6 +15,25 @@ indent_size = 2
 
 [*.{kt,kts}]
 indent_size = 4
+# ktlint (T008). `intellij_idea`, not `ktlint_official`: the Solana Mobile
+# template and Android Studio both write this style, and the official style
+# would rewrite every file the template gave us for no gain.
+ktlint_code_style = intellij_idea
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+# Composables are PascalCase by convention, and the whole app is Compose.
+ktlint_function_naming_ignore_when_annotated_with = Composable
+# Android Studio's own formatter does not wrap assignments or method chains this
+# way, and a rule the IDE fights on every save is a rule that gets switched off
+# in anger. Both stay disabled.
+ktlint_standard_multiline-expression-wrapping = disabled
+ktlint_standard_chain-method-continuation = disabled
+
+# Compose theme files are named by convention — Color.kt, Type.kt, Shape.kt,
+# Theme.kt — which every Android project and tasks.md T035 both use. ktlint's
+# filename rule would rename them after the single declaration each contains.
+[kotlin/app/src/main/kotlin/holdout/app/ui/theme/*.kt]
+ktlint_standard_filename = disabled
 
 [*.md]
 trim_trailing_whitespace = false
