@@ -187,6 +187,8 @@ object Traces {
         )) {
             landmarks[i] = limb
         }
+        // The head, just beyond the shoulders.
+        landmarks[PoseIndex.NOSE] = Landmark(shoulderX + dx * 0.05f, shoulderY + dy * 0.05f, 0f, presence)
         return PoseFrame(timestampMillis, landmarks)
     }
 
