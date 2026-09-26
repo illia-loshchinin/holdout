@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-24
 
-**Status**: Draft
+**Status**: Implemented for recognition (2026-09-26); the staked flow it guards — stake sheet, tour card — lands with `specs/001-holdout-hackathon` T042, T059, T065
 
 **Input**: User description: "Update the existing feature spec (specs/001-holdout-hackathon/spec.md) for rep verification placement and form rules, decided 2026-09-23/24 from two Seeker recordings: (1) Daily 25 accepts the phone head-on or at ~45°; staked Holdouts accept ~45° only; square side-on is accepted by neither. (2) Head-on verifies depth, lockout and tempo only (elbow read from the picture, torso-is-down check instead of body line); knee push-ups and sagging hips are not detected head-on and the app says so. (3) At 45° the elbow, body line and knee are read in the picture on the side nearer the lens; a push-up from the knees is discarded with "Up on your toes, knees off the floor" (knee threshold 150°, provisional until an honest 45° set is recorded). (4) The staked rule is stated in one sentence before staking (stake sheet) and again by the camera check; view cut-off head-on at shoulder-span/torso ratio 1.55. (5) Sitting UX: a set-up guide dialog (Phone / Body / Start tabs, "Don't show this again" per wallet and stakes) opens when a sitting starts while the member still holds the phone, and the countdown cannot start behind it; while getting into position one short correction (≤3 words: Closer, Further, Phone to 45°, More light, Get down, Hold…) is shown large and spoken; each counted rep plays a short tone and a "+1" animation."
 
@@ -30,6 +30,15 @@ Decided from sittings recorded by the app itself on a Solana Seeker (six traces,
 - Q: How is depth judged at 45°, where some half push-ups read 55–67° at the elbow, as deep as honest ones? → A: The near shoulder must also come down to 0.32 arm-lengths or less above the near hand at the bottom: honest 0.20–0.28, half push-ups 0.43–0.68.
 - Q: Does a "cobra" count — lying flat, then pressing the chest up with the hips left on the floor? → A: No, in the Daily 25 or staked: it is not a push-up. At 45° the body line is judged on the push back up (from the bottom, once the elbow is past 100°): its median must be at least 145°. On the phone the push read 157–174° on honest reps and 120–134° on cobra reps, which had counted because the flat part of the rep hid the arch in the whole-rep median.
 - Q: How are thresholds kept honest as they are tuned? → A: Debug builds record one trace per sitting — landmarks and the counter's decisions, never a picture; committed traces that carry a person's count replay as tests and must count within one rep of it.
+
+### Session 2026-09-25/26
+
+Decided from eleven more labelled phone traces (seventeen in all), with the phone on the member's left and right.
+
+- Q: Honest reps with the phone on the member's right read 99–125° at the knee and were refused as knee push-ups — where is the knee-angle line? → A: 90°. A deep kneel or raised feet read 40–98°; the knee-and-ankle height rule (0.41 arm-lengths) still catches knees down with the feet flat. Swept on all seventeen traces: no honest rep refused.
+- Q: The head dropped out of frame at the bottom of reps with the phone set too close — what then? → A: The head (the pose model's nose point) becomes a tracked point. The camera check requires it in view before counting; while counting, a head out of the picture for half a second shows "Head out of view · move back" large and says "Move back" at most every 5 seconds. Reps are not thrown away for it.
+- Q: How does a trace get its ground truth? → A: In debug builds, pressing Stop (or finishing the day) opens a form asking what was really done — full, half, from the knees, cobra, other, and a note — and writes it into the trace's header before the member leaves. The expected count is full push-ups, plus knee push-ups in the Daily 25.
+- Q: Should a small image classifier decide "knee on the floor" instead of the landmark rules? → A: Yes, eventually, and not now. It needs recordings from several people; until then the landmark rules stand, stated as measured on one person. A debug "clean screen" switch — nothing drawn over the camera — exists so screen recordings can be used as training data later.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -105,7 +114,8 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 
 - The phone is placed between head-on and 45°, near the boundary: the view must not flicker between placements while the member holds still at the top of a push-up; a correctly placed phone is never refused because of the boundary.
 - The member starts a staked sitting on their knees: nothing counts, and they are told why rather than met with silence.
-- The member lies flat and presses only the chest up, hips on the floor ("cobra"), at 45°: nothing counts, with "Keep your body straight". Head-on, a cobra has not been recorded yet and its detection is unproven.
+- The member lies flat and presses only the chest up, hips on the floor ("cobra"), at 45°: nothing counts, with "Keep your body straight". On the phone, at most one cobra rep in a set of five has slipped through; head-on, a cobra has not been recorded yet and its detection is unproven.
+- The phone is set too close and the head leaves the picture at the bottom of a rep: the member is told to move back, big and aloud; counting goes on.
 - Half push-ups at 45°: 7 of 11 had counted on the elbow alone; refused by the shoulder-over-hand depth rule (FR-008) since 2026-09-25.
 - The side of the body nearer the camera is briefly hidden (a hand, the member's own arm): that moment is skipped, not scored from the far side.
 - Speech is unavailable on the device: corrections are still shown large; tones still play.
@@ -152,6 +162,10 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 
 - **FR-021**: Each counted rep MUST play a short tone and show a "+1" that rises from the count, unless the rep completes a block of ten, which plays the banked chime instead.
 
+**Framing**
+
+- **FR-024**: The head MUST be tracked as a point. The camera check MUST NOT pass until the head is in view; while counting, if the head stays out of the picture for half a second, the screen MUST show "Head out of view · move back" in type readable from about two metres and say "Move back", at most every 5 seconds. Reps MUST NOT be discarded for it.
+
 **Privacy**
 
 - **FR-022**: All of the above MUST work with camera frames processed on the device and discarded, as today.
@@ -159,6 +173,7 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 **Tuning evidence**
 
 - **FR-023**: Debug builds MUST record one trace per sitting in the app's private storage — landmarks and the counter's decisions per frame, never a picture — and a trace MUST be complete however the sitting ends (Stop, finishing, or leaving the screen). Committed traces that carry a person's count MUST replay as tests and count within one rep of it. Release builds record nothing.
+- **FR-025**: In debug builds, when a sitting that wrote a trace ends — by Stop or by finishing the day — the member MUST be asked what they really did, by movement (full, half, from the knees, cobra, other) with an optional note, before leaving; the answer MUST be written into the trace so a pulled trace is already a test. Skipping leaves the trace unlabelled. Debug builds MUST also offer switches to run a sitting under staked rules without a stake, to draw nothing over the camera ("clean screen"), and to reset today's Daily 25.
 
 ### Key Entities
 
@@ -181,10 +196,12 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 
 ## Assumptions
 
-- Thresholds are set from sittings recorded on the phone itself (debug builds record landmarks per sitting; committed ones live in `fixtures/rep-traces/` and replay as tests that must count within one rep of a person's count). On 24 September: an honest head-on set, a head-on half-rep set and an honest 45° set. A 45° set of knee push-ups recorded on the phone is still needed to confirm the 140° knee threshold, which so far rests on a desktop re-run of a screen recording.
+- Thresholds are set from sittings recorded on the phone itself (debug builds record landmarks per sitting; committed ones live in `fixtures/rep-traces/` and replay as tests that must count within one rep of a person's count). By 26 September: seventeen labelled traces of one person on one Seeker — head-on honest, half and knee sets; 45° honest sets with the phone on either side; 45° half, knee (feet down and feet raised), cobra and mixed sets. Every one counts within one rep.
+- Every threshold rests on one person, filmed from the floor. Another body, other clothes or another phone may move them; this is a stated weakness until traces from several people exist.
 - Knee push-ups filmed at a flatter angle than 45° (nearer head-on) read like honest reps at the knee and are not caught; the camera check refuses head-on, but the boundary between 45° and head-on is where this weakness lives.
 - Placement is recognised from how wide the shoulders appear against the torso's length. On the two recordings that ratio stayed at or under 1.35 at 45° and never fell below 1.73 head-on, so the head-on boundary sits at 1.55; the earlier boundary of 0.9 mistook most 45° frames for head-on.
 - Square side-on is dropped because a body lying across a portrait frame needs the phone about two metres away; 45° needs about one and a half.
 - The device may have no text-to-speech voice; spoken corrections are best effort, shown corrections are not.
 - Head-on limitations are acceptable for the free Daily 25 and are stated there, consistent with the constitution's rule that weaknesses are documented, not hidden.
 - Out of scope: detecting knee push-ups head-on, which would need a classifier trained on the lower body and labelled recordings from several people. Not needed for this feature: the Daily 25 counts knee push-ups, and staked sittings are never head-on.
+- Deferred: a "knee on the floor" image classifier on crops of the legs, run on the device during the push phase of staked sittings only, trained on screen recordings made with the clean-screen switch. Training frames would come from members' own recordings shared by them, which needs a constitution note on principle X before any is collected from anyone other than the developer.
