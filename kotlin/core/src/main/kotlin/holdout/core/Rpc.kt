@@ -154,6 +154,21 @@ class Rpc(
         return runCatching { accounts.map { it.address to MembershipAccount.decode(it.data) } }.getOrNull()
     }
 
+    /** Every membership [wallet] holds, in any cohort — one call, however many cohorts exist. */
+    suspend fun walletMemberships(programId: SolanaPublicKey, wallet: SolanaPublicKey): List<MembershipAccount>? {
+        val accounts = programAccounts(programId, AccountQueries.membershipsOfWallet(wallet)) ?: return null
+        return runCatching { accounts.map { MembershipAccount.decode(it.data) } }.getOrNull()
+    }
+
+    /**
+     * An SPL token account's balance in base units: `0` when the account does
+     * not exist yet (a wallet that has never claimed), null when the read failed.
+     */
+    suspend fun tokenAmount(tokenAccount: SolanaPublicKey): ULong? = when (val read = account(tokenAccount)) {
+        is Answer.Ok -> read.value?.let { if (it.size < 72) null else java.nio.ByteBuffer.wrap(it, 64, 8).order(java.nio.ByteOrder.LITTLE_ENDIAN).long.toULong() } ?: 0uL
+        else -> null
+    }
+
     /** Every league of the program, judged and test alike, keyed by id. */
     suspend fun leagues(programId: SolanaPublicKey): List<LeagueSnapshot>? {
         val accounts = programAccounts(programId, AccountQueries.leagues()) ?: return null
@@ -483,6 +498,14 @@ object AccountQueries {
         val l = AccountLayout.Membership
         return ProgramAccountsQuery(
             filters = listOf(AccountFilter.DataSize(l.SIZE), AccountFilter.Memcmp(0, l.DISCRIMINATOR), AccountFilter.Memcmp(l.COHORT, cohort.bytes)),
+        )
+    }
+
+    /** Every membership of [wallet], whole. */
+    fun membershipsOfWallet(wallet: SolanaPublicKey): ProgramAccountsQuery {
+        val l = AccountLayout.Membership
+        return ProgramAccountsQuery(
+            filters = listOf(AccountFilter.DataSize(l.SIZE), AccountFilter.Memcmp(0, l.DISCRIMINATOR), AccountFilter.Memcmp(l.WALLET, wallet.bytes)),
         )
     }
 
