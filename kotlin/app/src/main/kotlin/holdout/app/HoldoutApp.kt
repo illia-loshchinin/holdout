@@ -194,12 +194,15 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     }
     val wallet = me.base58()
 
-    if (!store.hasSeenTour(wallet) || route == Route.Tour) {
+    // Compose state, not a storage read: storage is not observed, so finishing the
+    // tour must change something this composition reads or the screen never leaves it.
+    var tourSeen by remember(wallet) { mutableStateOf(store.hasSeenTour(wallet)) }
+    if (!tourSeen || route == Route.Tour) {
         TourScreen(
             onDone = {
                 store.setSeenTour(wallet)
+                tourSeen = true
                 route = Route.Home
-                refreshToken += 1
             },
             modifier = modifier,
         )
