@@ -65,6 +65,9 @@ fun CohortHome(
     onRoster: () -> Unit,
     onDaily25: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Test builds only: record sittings as video (constitution X, v1.5.0). Null hides the switch. */
+    recordVideo: Boolean = false,
+    onRecordVideoChange: ((Boolean) -> Unit)? = null,
 ) {
     val c = h.cohort
     val figures = members?.let { Derive.figures(c, it, now) }
@@ -123,5 +126,6 @@ fun CohortHome(
         SecondaryButton("Who's still standing", onRoster)
         TextButton(onClick = onDetail) { Text("Holdout details", color = HoldoutColors.TextSecondary) }
         TextButton(onClick = onDaily25) { Text("The Daily 25", color = HoldoutColors.TextTertiary) }
+        onRecordVideoChange?.let { holdout.app.ui.RecordVideoSwitch(recordVideo, it) }
     }
 }

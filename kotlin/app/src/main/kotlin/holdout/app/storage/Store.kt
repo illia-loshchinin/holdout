@@ -80,6 +80,10 @@ interface Store {
     fun pendingCohortDay(wallet: String, cohort: String): Int?
     fun setPendingCohortDay(wallet: String, cohort: String, day: Int?)
 
+    /** Debug builds: whether sittings record the camera as video (constitution X, v1.5.0). Off until switched on. */
+    fun recordsVideo(): Boolean
+    fun setRecordsVideo(on: Boolean)
+
     companion object {
         /** The scope for the free Daily 25, which belongs to no cohort. */
         const val CHALLENGE = "challenge"
@@ -222,6 +226,12 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         }
     }
 
+    override fun recordsVideo(): Boolean = kv.decodeBool("records_video", false)
+
+    override fun setRecordsVideo(on: Boolean) {
+        kv.encode("records_video", on)
+    }
+
     override fun pendingCohortDay(wallet: String, cohort: String): Int? = kv.decodeInt("pending:$wallet:$cohort", -1).takeIf { it >= 0 }
 
     override fun setPendingCohortDay(wallet: String, cohort: String, day: Int?) {
@@ -296,6 +306,12 @@ class InMemoryStore : Store {
 
     override fun setWalletSession(session: WalletSession?) {
         if (session == null) values.remove("session") else values["session"] = session
+    }
+
+    override fun recordsVideo(): Boolean = values["records_video"] as? Boolean ?: false
+
+    override fun setRecordsVideo(on: Boolean) {
+        values["records_video"] = on
     }
 
     override fun pendingCohortDay(wallet: String, cohort: String): Int? = values["pending:$wallet:$cohort"] as? Int

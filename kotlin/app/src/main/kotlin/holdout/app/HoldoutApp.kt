@@ -158,6 +158,16 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     var refreshToken by remember { mutableStateOf(0) }
     var stakedTest by remember { mutableStateOf(false) }
     var cleanScreen by remember { mutableStateOf(false) }
+    // Test builds only, off until switched on: record sittings as video (constitution X, v1.5.0).
+    var recordVideo by remember { mutableStateOf(BuildConfig.DEBUG && store.recordsVideo()) }
+    val onRecordVideoChange: ((Boolean) -> Unit)? = if (BuildConfig.DEBUG) {
+        { on: Boolean ->
+            store.setRecordsVideo(on)
+            recordVideo = on
+        }
+    } else {
+        null
+    }
     var beforeWallet by remember { mutableStateOf(false) }
 
     val me = address
@@ -243,7 +253,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 sitting = null
                 refreshToken += 1
             }
-            SittingScreen(viewModel = vm, cleanScreen = cleanScreen, onFinished = done, onCancelled = { done() }, modifier = modifier)
+            SittingScreen(viewModel = vm, cleanScreen = cleanScreen, onFinished = done, onCancelled = { done() }, modifier = modifier, recordVideo = recordVideo)
             return
         }
         is Sitting.CohortDay -> {
@@ -286,6 +296,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 onCancelled = { done() },
                 modifier = modifier,
                 finishLabel = "Submit day ${s.day + 1} to the chain",
+                recordVideo = recordVideo,
             )
             return
         }
@@ -437,6 +448,8 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             onRoster = { route = Route.Roster(h.address) },
             onDaily25 = { sitting = Sitting.Daily25(dayIndex) },
             modifier = modifier,
+            recordVideo = recordVideo,
+            onRecordVideoChange = onRecordVideoChange,
         )
         return
     }
@@ -463,6 +476,8 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         onStakedTestChange = if (BuildConfig.DEBUG) ({ stakedTest = it }) else null,
         cleanScreen = cleanScreen,
         onCleanScreenChange = if (BuildConfig.DEBUG) ({ cleanScreen = it }) else null,
+        recordVideo = recordVideo,
+        onRecordVideoChange = onRecordVideoChange,
         onResetToday = if (BuildConfig.DEBUG) {
             {
                 store.clearDay(wallet, Store.CHALLENGE, dayIndex)

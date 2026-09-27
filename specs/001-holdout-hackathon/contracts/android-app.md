@@ -21,7 +21,7 @@
 | The configured devnet RPC endpoint | Account reads, Clock sysvar, sending signed transactions |
 | Local MWA wallet app (Android intents / local websocket) | Authorisation and signing |
 
-Nothing else — reminders (FR-068) are scheduled and shown on the device and use no network. **Camera frames, landmarks and rep traces are never sent anywhere** (FR-022, constitution X); the only rep-derived data leaving the device is the 32-byte `proof_hash` inside `submit_day`. Acceptance criterion 10 is checked by capturing all outbound traffic during a sitting and finding only RPC calls.
+Nothing else — reminders (FR-068) are scheduled and shown on the device and use no network. Debug builds may save a sitting's camera as video in private storage for rep-recognition testing (constitution X v1.5.0, spec 002 FR-026); the app never sends it anywhere, and release builds contain no recorder. **Camera frames, landmarks and rep traces are never sent anywhere** (FR-022, constitution X); the only rep-derived data leaving the device is the 32-byte `proof_hash` inside `submit_day`. Acceptance criterion 10 is checked by capturing all outbound traffic during a sitting and finding only RPC calls.
 
 ## 3. Wallet use (Mobile Wallet Adapter)
 

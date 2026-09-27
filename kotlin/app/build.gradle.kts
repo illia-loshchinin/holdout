@@ -166,6 +166,11 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.mediapipe.tasks.vision)
+    // Debug builds only: a sitting's camera saved as video for testing rep
+    // recognition and training the knee classifier (constitution X, v1.5.0).
+    // camera-view already brings it in transitively; this only makes the debug
+    // recorder's dependency explicit. checkReleaseHasNoRecorder keeps release code off it.
+    debugImplementation(libs.androidx.camera.video)
 
     // Ed25519 for the one key the app itself signs with — the faucet's fee
     // sponsor (research R13). The JDK's own Ed25519 needs API 33; this runs on
@@ -221,3 +226,32 @@ androidComponents {
         tasks.matching { it.name == "assemble$name" }.configureEach { dependsOn(check) }
     }
 }
+
+// Constitution X (v1.5.0): only a debug build may record a sitting's camera.
+// The recorder's library must never reach the release classpath; if it does,
+// the release build fails here rather than ship a recorder.
+//
+// The *library* cannot be kept off it: camera-view (PreviewView) depends on
+// camera-video. What the constitution forbids is the recorder, so this checks
+// the code a release build compiles — src/main and src/release — and fails if
+// any of it touches androidx.camera.video. The recorder lives in src/debug
+// alone, and R8 strips library classes that nothing references.
+abstract class CheckReleaseHasNoRecorder : DefaultTask() {
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val releaseSources: ConfigurableFileCollection
+
+    @TaskAction
+    fun check() {
+        val offenders = releaseSources.asFileTree.filter { it.extension in setOf("kt", "java") && "androidx.camera.video" in it.readText() }.files
+        if (offenders.isNotEmpty()) {
+            throw GradleException("Code compiled into a release build uses androidx.camera.video: $offenders. Only src/debug may record video (constitution X).")
+        }
+    }
+}
+
+val checkReleaseHasNoRecorder = tasks.register<CheckReleaseHasNoRecorder>("checkReleaseHasNoRecorder") {
+    description = "Fails if code compiled into a release build can record video (constitution X)."
+    releaseSources.from(listOf("src/main/kotlin", "src/main/java", "src/release/kotlin", "src/release/java").map { layout.projectDirectory.dir(it) })
+}
+tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.configureEach { dependsOn(checkReleaseHasNoRecorder) }

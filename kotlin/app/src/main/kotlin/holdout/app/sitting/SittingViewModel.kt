@@ -137,6 +137,10 @@ class SittingViewModel(
         val coach: Coach? = null,
         /** Debug builds: the trace file this sitting is being recorded to. */
         val traceName: String? = null,
+        /** Debug builds: pose frames analysed per second, over the last few seconds. */
+        val analysisFps: Float? = null,
+        /** Debug builds: true while the camera records video, false if asked for and it could not start, null if not asked. */
+        val recordingVideo: Boolean? = null,
         /** Reps the counter credited in this sitting — shown next to the member's own count. */
         val repsCounted: Int = 0,
         /** The head has been out of the picture for a moment while counting. */
@@ -212,6 +216,7 @@ class SittingViewModel(
 
     /** Every pose frame while the pills are up, and while counting. */
     fun onPoseFrame(observation: VisionAnalyzer.Observation, backgroundMotion: Float) {
+        measureFps(observation.world.timestampMillis)
         // After Stop nothing is counted or banked, even while the screen is
         // still up for the member to log what they did.
         if (stopped) return
@@ -501,6 +506,21 @@ class SittingViewModel(
             trace?.file?.name?.let { name -> _uiState.update { it.copy(traceName = name) } }
         }
     }
+
+    private val frameTimes = ArrayDeque<Long>()
+
+    /** Frames per second over the last three seconds of camera time. */
+    private fun measureFps(timestampMillis: Long) {
+        frameTimes.addLast(timestampMillis)
+        while (frameTimes.size > 1 && timestampMillis - frameTimes.first() > 3_000) frameTimes.removeFirst()
+        if (frameTimes.size < 2) return
+        val span = (frameTimes.last() - frameTimes.first()).coerceAtLeast(1)
+        val fps = (frameTimes.size - 1) * 1_000f / span
+        if (frameTimes.size % 10 == 0) _uiState.update { it.copy(analysisFps = fps) }
+    }
+
+    /** Whether the camera is recording this sitting as video (debug builds). */
+    fun onRecordingVideo(on: Boolean) = _uiState.update { it.copy(recordingVideo = on) }
 
     /** The last refused rep's reason, to say it aloud if the next rep fails the same way. */
     private var lastRefusal: holdout.repcounter.RepHint? = null

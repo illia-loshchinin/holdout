@@ -78,6 +78,9 @@ fun HomeScreen(
     /** Test builds only: nothing drawn over the camera, for training recordings. */
     cleanScreen: Boolean = false,
     onCleanScreenChange: ((Boolean) -> Unit)? = null,
+    /** Test builds only: record sittings as video (constitution X, v1.5.0). Null hides the switch. */
+    recordVideo: Boolean = false,
+    onRecordVideoChange: ((Boolean) -> Unit)? = null,
     /**
      * Test builds only: spike S1's on-device path — a devnet transaction
      * signed by the connected wallet — kept reachable until T040 turns it into
@@ -167,6 +170,8 @@ fun HomeScreen(
                 )
             }
         }
+
+        onRecordVideoChange?.let { holdout.app.ui.RecordVideoSwitch(recordVideo, it) }
 
         if (onResetToday != null) {
             TextButton(onClick = onResetToday) {

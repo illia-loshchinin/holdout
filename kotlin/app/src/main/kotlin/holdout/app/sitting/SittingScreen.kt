@@ -108,6 +108,8 @@ fun SittingScreen(
     cleanScreen: Boolean = false,
     /** The finished screen's button: "Back" for the Daily 25, the submit for a Holdout day. */
     finishLabel: String = "Back",
+    /** Debug builds: record this sitting's camera as video (constitution X, v1.5.0). */
+    recordVideo: Boolean = false,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -170,7 +172,7 @@ fun SittingScreen(
     ) {
         if (state.step != SittingViewModel.Step.COMPLETE) {
             if (hasCamera) {
-                CameraFeed(viewModel)
+                CameraFeed(viewModel, recordVideo)
                 if (!cleanScreen) {
                     PositionOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
                     SkeletonOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
@@ -487,6 +489,17 @@ private fun CountingOverlay(state: SittingViewModel.UiState) {
         state.traceName?.let {
             Text("rec · $it", style = LabelStyle, color = HoldoutColors.TextTertiary)
         }
+        // Pose analysis must hold ≥ 15 FPS (research R4) — watched most while video records.
+        Text(
+            "analysis ${state.analysisFps?.let { "%.0f".format(it) } ?: "—"} fps" +
+                when (state.recordingVideo) {
+                    true -> " · video on"
+                    false -> " · video could not start"
+                    null -> ""
+                },
+            style = LabelStyle,
+            color = if ((state.analysisFps ?: 99f) < 15f) HoldoutColors.Warning else HoldoutColors.TextTertiary,
+        )
         state.readout?.let { r ->
             val posture = if (r.view == CameraView.FRONT) "torso" else "line"
             Text(
@@ -816,10 +829,17 @@ private val SITTING_RESOLUTION = ResolutionSelector.Builder()
     .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
     .build()
 
-/** CameraX preview plus the analyser, bound to this screen's lifecycle. */
+/**
+ * CameraX preview plus the analyser, bound to this screen's lifecycle — and in
+ * a debug build with [recordVideo] on, the camera saved as video beside the
+ * sitting's trace (constitution X, v1.5.0).
+ */
 @Composable
-private fun CameraFeed(viewModel: SittingViewModel) {
+private fun CameraFeed(viewModel: SittingViewModel, recordVideo: Boolean) {
     val context = LocalContext.current
+    val video = remember(recordVideo) {
+        if (recordVideo) sittingVideo(context, java.io.File(context.filesDir, "traces"), viewModel.uiState.value.stakes.name.lowercase()) else null
+    }
     val lifecycleOwner = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }
 
@@ -847,6 +867,8 @@ private fun CameraFeed(viewModel: SittingViewModel) {
     val bound = remember { BoundCamera() }
     DisposableEffect(Unit) {
         onDispose {
+            // Named after the trace, so the video and its landmarks pair up.
+            video?.stop(viewModel.uiState.value.traceName)
             bound.release()
             executor.execute { analyzer.close() }
             executor.shutdown()
@@ -878,13 +900,22 @@ private fun CameraFeed(viewModel: SittingViewModel) {
 
                 runCatching {
                     provider.unbindAll()
-                    val camera = provider.bindToLifecycle(
-                        lifecycleOwner,
-                        SITTING_CAMERA,
-                        preview,
-                        analysis,
-                    )
-                    bound.hold(provider, preview, analysis)
+                    // With video when asked, and the camera can carry all three; a
+                    // sitting never fails for want of a recording.
+                    val withVideo = video?.let { v ->
+                        runCatching { provider.bindToLifecycle(lifecycleOwner, SITTING_CAMERA, preview, analysis, v.useCase) }
+                            .onFailure { provider.unbindAll() }
+                            .getOrNull()
+                    }
+                    val camera = withVideo ?: provider.bindToLifecycle(lifecycleOwner, SITTING_CAMERA, preview, analysis)
+                    if (withVideo != null) {
+                        bound.hold(provider, preview, analysis, video.useCase)
+                        video.start()
+                        viewModel.onRecordingVideo(true)
+                    } else {
+                        bound.hold(provider, preview, analysis)
+                        if (video != null) viewModel.onRecordingVideo(false)
+                    }
                     viewModel.onLens(verticalFovOf(camera.cameraInfo))
                 }.onFailure { viewModel.onError("The camera could not start: ${it.message}") }
             }, ContextCompat.getMainExecutor(ctx))
