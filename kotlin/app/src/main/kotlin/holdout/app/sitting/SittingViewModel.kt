@@ -67,6 +67,14 @@ class SittingViewModel(
      */
     private val stakes: Stakes = Stakes.DAILY,
     /**
+     * Which day a chain instant falls on, in this sitting's own days: the
+     * global 05:00 UTC day for the Daily 25, the cohort's day for a Holdout.
+     * A sitting that runs across a boundary banks the rest into the new day —
+     * measured in the wrong days, a cohort sitting once filed its reps under
+     * global day 20,723 instead of cohort day 0, and the day never submitted.
+     */
+    private val dayOf: (Long) -> Long = holdout.core.HoldoutDay::indexOf,
+    /**
      * Debug builds: where to write this sitting's trace (`TraceRecorder`).
      * Null in release builds, where nothing is recorded.
      */
@@ -196,7 +204,7 @@ class SittingViewModel(
      */
     private fun rollOverAtBoundary() {
         if (banking.dayIndex == Store.UNKNOWN_DAY || _uiState.value.step == Step.COMPLETE) return
-        val today = chainSecondsNow()?.let { holdout.core.HoldoutDay.indexOf(it) } ?: return
+        val today = chainSecondsNow()?.let(dayOf) ?: return
         if (banking.rollOverTo(today)) {
             _uiState.update { it.copy(banked = banking.banked, looseReps = banking.loose) }
         }
@@ -281,10 +289,18 @@ class SittingViewModel(
                 watchHead(observation)
                 when (event) {
                     is RepEvent.Counted -> {
+                        lastRefusal = null
                         _uiState.update { it.copy(repsCounted = repCounter.total) }
                         onVerifiedRep()
                     }
-                    is RepEvent.Discarded -> _uiState.update { it.copy(hint = event.hint?.message) }
+                    is RepEvent.Discarded -> {
+                        _uiState.update { it.copy(hint = event.hint?.message) }
+                        // Face-down, the member cannot read the screen: the same
+                        // failure twice in a row is said out loud.
+                        val hint = event.hint
+                        if (hint != null && hint == lastRefusal) _cues.tryEmit(Cue.Say(hint.message))
+                        lastRefusal = hint
+                    }
                     null -> Unit
                 }
             }
@@ -485,6 +501,9 @@ class SittingViewModel(
             trace?.file?.name?.let { name -> _uiState.update { it.copy(traceName = name) } }
         }
     }
+
+    /** The last refused rep's reason, to say it aloud if the next rep fails the same way. */
+    private var lastRefusal: holdout.repcounter.RepHint? = null
 
     private var coachSince: Pair<Coach, Long>? = null
     private var spoken: Pair<Coach, Long>? = null

@@ -53,6 +53,7 @@ import holdout.app.ui.theme.HoldoutColors
 import holdout.app.wallet.ConnectScreen
 import holdout.app.wallet.WalletRepository
 import holdout.core.ChainClock
+import holdout.core.Derive
 import holdout.core.HoldoutDay
 import holdout.core.Journey
 import holdout.core.LeagueParams
@@ -259,6 +260,8 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                     chainSecondsNow = { clock.nowSeconds() },
                     // Every sitting of a staked Holdout: 45° only, from the toes (FR-021a).
                     stakes = Stakes.STAKED,
+                    // The cohort's own days — one hour each in the short test cohort.
+                    dayOf = { Derive.dayIndex(h.cohort, it).toLong() },
                     traceDir = if (BuildConfig.DEBUG) java.io.File(context.filesDir, "traces") else null,
                 )
             }
@@ -266,14 +269,24 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             val done = {
                 sitting = null
                 refreshToken += 1
-                if (store.isDayComplete(wallet, cohortScope, s.day.toLong())) {
+                // The day it started on, or the next one if it ran across a boundary.
+                val today = clock.nowSeconds()?.let { Derive.dayIndex(h.cohort, it) }
+                val completed = listOfNotNull(s.day, today).distinct().firstOrNull { store.isDayComplete(wallet, cohortScope, it.toLong()) }
+                if (completed != null) {
                     // A completed cohort day is that day's training for the streak too, so
                     // nobody trains twice (FR-050) — judged leagues only, whose days are real days.
                     if (!h.isTest && dayIndex != Store.UNKNOWN_DAY) streaks.recordCompletedDay(wallet, dayIndex)
-                    holdouts.submitDay(sender, h, s.day, h.cohort.repsPerDay)
+                    holdouts.submitDay(sender, h, completed, h.cohort.repsPerDay)
                 }
             }
-            SittingScreen(viewModel = vm, cleanScreen = cleanScreen, onFinished = done, onCancelled = { done() }, modifier = modifier)
+            SittingScreen(
+                viewModel = vm,
+                cleanScreen = cleanScreen,
+                onFinished = done,
+                onCancelled = { done() },
+                modifier = modifier,
+                finishLabel = "Submit day ${s.day + 1} to the chain",
+            )
             return
         }
         null -> Unit

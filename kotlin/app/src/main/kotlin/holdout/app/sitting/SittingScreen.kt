@@ -106,6 +106,8 @@ fun SittingScreen(
      * instead of the legs. Sounds still play.
      */
     cleanScreen: Boolean = false,
+    /** The finished screen's button: "Back" for the Daily 25, the submit for a Holdout day. */
+    finishLabel: String = "Back",
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -204,7 +206,7 @@ fun SittingScreen(
                 } else {
                     CountingOverlay(state)
                 }
-                SittingViewModel.Step.COMPLETE -> DayComplete(state) {
+                SittingViewModel.Step.COMPLETE -> DayComplete(state, finishLabel) {
                     if (BuildConfig.DEBUG && viewModel.canLabelTrace) labelThen = onFinished else onFinished()
                 }
             }
@@ -469,8 +471,15 @@ private fun CountingOverlay(state: SittingViewModel.UiState) {
         style = AmountStyle,
         color = HoldoutColors.TextSecondary,
     )
+    // Twice the title size: read from the floor, at arm's length.
     state.hint?.let {
-        Text(it, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Accent)
+        val title = MaterialTheme.typography.titleMedium
+        Text(
+            it,
+            style = title.copy(fontSize = title.fontSize * 2, lineHeight = title.lineHeight * 2),
+            color = HoldoutColors.Accent,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
     }
 
     // Test builds only: what the counter is reading, to tune it on a real body.
@@ -491,10 +500,10 @@ private fun CountingOverlay(state: SittingViewModel.UiState) {
 }
 
 @Composable
-private fun DayComplete(state: SittingViewModel.UiState, onFinished: () -> Unit) {
+private fun DayComplete(state: SittingViewModel.UiState, label: String, onFinished: () -> Unit) {
     Text("${state.target}", style = CounterStyle, color = HoldoutColors.Success)
     Text("done", style = LabelStyle, color = HoldoutColors.TextSecondary)
-    PrimaryButton("Back", onFinished)
+    PrimaryButton(label, onFinished)
 }
 
 @Composable
