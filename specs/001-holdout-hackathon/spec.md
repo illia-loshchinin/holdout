@@ -80,6 +80,13 @@ Product owner decisions, with constitution v1.4.0.
 - Q: When does the first judged cohort start, and when is the freeze? → A: **Monday 5 October 2026, 05:00 UTC**, moved a week from 28 September, and the feature freeze moves with it. A 7-day Holdout starting then settles on 12 October — after the 9 October submission.
 - Q: How is the whole cycle shown before the deadline, then? → A: On **one short test cohort, devnet only** (FR-044a): a test league with a compressed day, created by the admin on the devnet program built with the `test-leagues` feature, labelled as a short test cohort wherever it appears, and disclosed in the README, the demo video and the pitch deck. The walkthrough and the demo video may be recorded from it (FR-044). The judged 7-day and 21-day leagues keep real 24-hour days. A mainnet build never carries `test-leagues`. *(Supersedes the 2026-09-17 answer that no shortened-day recording is used.)*
 
+### Session 2026-09-27
+
+Product owner decisions, from the first local run on a Seeker.
+
+- Q: How long is the short test cohort's day, and how many reps? (FR-044a) → A: **Seven one-hour days at 5 reps a day** — a 7-day Holdout in 7 hours (H32). The judged leagues keep 24-hour days and 25 reps.
+- Q: Does a member get a notification when their Holdout starts, or before a deadline? → A: **Yes — on-device reminders** (FR-068, H33). The app schedules them on the phone itself when the member joins: one when the Holdout starts, and one before each day's deadline while that day is not yet recorded. No server and no push service; nothing leaves the device. Timed from chain time, delivered by the phone's alarm service, so a reminder may arrive a few minutes late — the deadline is the chain's, never the reminder's. A member who declines notifications loses nothing else. *(Supersedes "notification infrastructure (manual for the demo)" in §3.)*
+
 ---
 
 ### Session 2026-09-23
@@ -106,7 +113,7 @@ Product owner decisions, with constitution v1.4.0.
 
 ## 3. Out of scope
 
-Human Flag league (locked rung in the UI only) · **free cohorts of any league** · geo-blocking · terms of service · calibration flow · Swelfie · conditional pre-joining (a lobby place that depends on clearing the current cohort and is refunded automatically on forfeit — the unconditional lobby place of FR-006a is in scope) · cohort cancellation and minimum size · cold-start bonus matching · insurance fund · demotion · notification infrastructure (manual for the demo) · share cards · badges · a daily-streak leaderboard, or any leaderboard fed by a server · audio of any kind in verification — no audio environment check, no audio rep condition, no microphone access *(§9 OD-3)* · publishing on the Solana dApp Store, and any mainnet deployment — not required for submission; if the app wins, the dApp Store listing is due within 30 calendar days of the winners' announcement, as post-hackathon work.
+Human Flag league (locked rung in the UI only) · **free cohorts of any league** · geo-blocking · terms of service · calibration flow · Swelfie · conditional pre-joining (a lobby place that depends on clearing the current cohort and is refunded automatically on forfeit — the unconditional lobby place of FR-006a is in scope) · cohort cancellation and minimum size · cold-start bonus matching · insurance fund · demotion · push notifications from a server (reminders are on-device only, FR-068) · share cards · badges · a daily-streak leaderboard, or any leaderboard fed by a server · audio of any kind in verification — no audio environment check, no audio rep condition, no microphone access *(§9 OD-3)* · publishing on the Solana dApp Store, and any mainnet deployment — not required for submission; if the app wins, the dApp Store listing is due within 30 calendar days of the winners' announcement, as post-hackathon work.
 
 ## 3a. Phasing
 
@@ -163,6 +170,9 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 **Then** each sitting starts with the checks and the liveness step again, banked blocks carry across sittings for the whole day, and reps short of the next block of 10 when a sitting ends are not kept.
 
 **And** the survivor counter, the prize figure and their own day counter update on completion.
+
+**And given** they allowed notifications when they joined
+**Then** the phone reminds them when the Holdout starts and, on any day not yet recorded, before that day's deadline — and stays quiet on a day already done (FR-068).
 
 ### US-4 · Missing a day
 
@@ -305,6 +315,8 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 - **FR-016** No grace day, no postponement, no carry-forward. One missed day ends the cohort for that member.
 - **FR-017** A member is in breach the moment their current day's deadline passes without that day recorded as complete, independently of whether any automated process has run. Banked reps short of the requirement do not count.
 - **FR-018** A member in breach cannot submit a completed day.
+- **FR-068** *(added 2026-09-27)* **On-device reminders.** When a member joins a Holdout, the app schedules reminders on the phone itself: **one when the Holdout starts**, and **one before each day's deadline** while that day is not yet recorded complete — `min(3 hours, day length ÷ 4)` ahead, so 3 hours before a 24-hour day's deadline and 15 minutes before a one-hour test day's. Each names the Holdout (and labels the short test cohort, FR-044a), the reps still needed and the time left; none shows an amount. Reminders stop for a day once it is completed on the phone or recorded on-chain, and stop altogether when the member leaves, forfeits or the Holdout ends.
+- **FR-068a** Reminders are **a convenience, never a promise**: scheduled from chain time (FR-017) with no server, no push service and no network use of their own; delivered by the phone's alarm service, which may hold them for a few minutes; re-scheduled whenever the app next reads the chain — so after the phone restarts, reminders resume once the app is opened. The member is asked for notification permission once, when they first join, with the reason stated; declining changes nothing else, and a missed reminder never excuses a missed deadline.
 
 ### Session verification
 
@@ -546,3 +558,4 @@ The build is done when all of the following are demonstrable on devnet:
 17. *(amended 2026-09-22 with FR-020.)* With the four checks green, a sitting begins only once the member holds the top of a push-up for about a second — no tap — and the countdown is spoken aloud, because the screen is out of sight. Dropping out of the position before the countdown ends restarts the hold; the member can wait as long as they like or cancel, and the day's banked reps are unchanged throughout.
 18. With the phone in airplane mode, a member runs a cohort sitting, sees the offline warning, banks blocks and completes the day. Reconnecting before the deadline and tapping submit (automatically, without the tap, **[Phase 2]**) lands the day and it counts; in a second run, reconnecting one minute after the deadline submits nothing that counts, and the member is in breach.
 19. The submission is complete before 9 October 2026 08:59 CEST (FR-066): the submitted APK installs and runs on a Seeker and on an ordinary Android phone; someone who has not worked on the project clones the repository and builds the app and the contract by following the README alone; the demo video runs about three minutes and shows a join, a sitting, a forfeit, settlement and a real claim from the first judged 7-day cohort; and the app, README, demo video and pitch deck all disclose the scripted members and the test network.
+20. *(added 2026-09-27.)* A member who allowed notifications joins a Holdout and receives a reminder when it starts; on a day they have not done, a reminder arrives before the deadline; on a day already done, none does; after leaving, none does. A member who declined notifications joins, sits and submits exactly as before (FR-068, FR-068a).

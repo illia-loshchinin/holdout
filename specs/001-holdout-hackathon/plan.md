@@ -50,6 +50,7 @@ Work follows the spec's phasing (spec §3a): **Phase 1** is the full loop and mu
 - **Price-free contract:** no instruction reads a price, and the contract stores no fiat figure.
 - **Chain time:** every deadline is judged by chain time, never the device clock.
 - **Offline:** sittings and banking work without a connection.
+- **Reminders:** on-device only — `AlarmManager` on chain-derived elapsed-realtime instants, no server or push service; `POST_NOTIFICATIONS` asked once at the first join (FR-068, R21).
 - **Deadlines:** feature freeze 28 September 2026; submission (APK, GitHub repository, demo video of about three minutes, pitch deck) before 9 October 2026 08:59 CEST (FR-066).
 - **Live period:** no manual intervention from submission through the winners' announcement on 11 November 2026 (FR-042a, FR-043).
 - **Upgrades:** the contract stays upgradeable for defect fixes only (FR-007b, R14).

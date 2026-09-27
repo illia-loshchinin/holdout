@@ -572,6 +572,18 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 
 ---
 
+### H33. On-device reminders, no push
+
+**Decided (2026-09-27, product owner):** a member who joins a Holdout is reminded **by the phone itself** — when the Holdout starts, and before each day's deadline while that day is not yet done (FR-068). Replaces "notification infrastructure: manual for the demo".
+
+**Why:** the first local run on a Seeker: a cohort started and nothing said so. Reminders computed on the device from chain state need no server and send nothing anywhere, so the build stays server-free and constitution X holds; a push service would need a server that knows every member's deadlines.
+
+**Consequences:** one runtime permission (`POST_NOTIFICATIONS`, asked at the first join). Reminders are inexact, resume after a reboot only once the app is opened, and never excuse a missed deadline — named in the README (FR-068a, R21).
+
+**Source:** spec FR-068, FR-068a, clarification 2026-09-27; research R21; tasks T067a, T067b.
+
+---
+
 ## 2. Still valid from the product-vision record
 
 Carried forward unchanged; full reasoning in the archive.
@@ -638,7 +650,7 @@ By decision, not by omission.
 | Calibration flow, Swelfie | Not in the video, not load-bearing |
 | Cold-start bonus matching, insurance fund | No treasury on devnet |
 | Demotion | Archived D10 |
-| Notification infrastructure | Manual for the demo |
+| Push notifications from a server | On-device reminders instead (H33) |
 | Audio in verification | H13 |
 | Backend deadline evaluation | H5 |
 | USDC, Jupiter swap, any on-chain price oracle | H7, H8 |

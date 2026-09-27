@@ -11,7 +11,8 @@
 | `RECORD_AUDIO` | **Never declared** in the manifest (FR-022a) — a build check fails if it appears |
 | `INTERNET` | Declared; used only as in §2 |
 | Merged from the MWA client library | `ACCESS_NETWORK_STATE`, `REORDER_TASKS` and the generated `holdout.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` — all normal, none requested at runtime; read off the built APK with `aapt2 dump badging` |
-| Other dangerous permissions | None |
+| `POST_NOTIFICATIONS` | Runtime on Android 13+: asked **once, at the first join**, with the reason stated (FR-068). Declining disables reminders and nothing else |
+| Other dangerous permissions | None. No `SCHEDULE_EXACT_ALARM` and no `RECEIVE_BOOT_COMPLETED` — reminders are inexact and come back when the app next reads the chain (R21) |
 
 ## 2. Network egress
 
@@ -20,7 +21,7 @@
 | The configured devnet RPC endpoint | Account reads, Clock sysvar, sending signed transactions |
 | Local MWA wallet app (Android intents / local websocket) | Authorisation and signing |
 
-Nothing else. **Camera frames, landmarks and rep traces are never sent anywhere** (FR-022, constitution X); the only rep-derived data leaving the device is the 32-byte `proof_hash` inside `submit_day`. Acceptance criterion 10 is checked by capturing all outbound traffic during a sitting and finding only RPC calls.
+Nothing else — reminders (FR-068) are scheduled and shown on the device and use no network. **Camera frames, landmarks and rep traces are never sent anywhere** (FR-022, constitution X); the only rep-derived data leaving the device is the 32-byte `proof_hash` inside `submit_day`. Acceptance criterion 10 is checked by capturing all outbound traffic during a sitting and finding only RPC calls.
 
 ## 3. Wallet use (Mobile Wallet Adapter)
 

@@ -282,6 +282,22 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
 - **Rationale:** the tour is the only onboarding a member gets now that the walkthrough is judge-facing (H29), and it must be finished before the app slice ends on 26 September — a pager over three static pages is hours of work, not days. Keeping the tokens in one file makes the design freeze on 20 September enforceable.
 - **Alternatives considered:** a video-only explainer (nothing to ship at the freeze, since cohort #3 is not filmed until October); an interactive coach-mark overlay on the real screens (more code, and it fights the camera screens); Material You dynamic colour (recolours the brand on every device).
 
+## R21 · On-device reminders (added 2026-09-27)
+
+- **Decision:** reminders (FR-068) are **local notifications scheduled by the app with `AlarmManager`**, no server:
+  - **Clock:** alarms are set on `ELAPSED_REALTIME_WAKEUP`, converted from the cohort's chain-time instants through the same `ChainClock` reading the screens use (R7) — so the device's wall clock never decides when a reminder fires (FR-017, constitution VI).
+  - **Precision:** inexact `setAndAllowWhileIdle`, which Android may hold for a few minutes in Doze. No `SCHEDULE_EXACT_ALARM`: that is a special permission the member would have to grant in settings, for a reminder that is a courtesy (FR-068a).
+  - **What is scheduled:** the start of each Holdout the member holds a place in, and for every day not yet done, `deadline − min(3 h, day length ÷ 4)`. The schedule is **recomputed from chain state on every refresh** (R8) and on app start: joins, leaves, completed days and forfeits simply change what the next computation produces — there is no separate schedule to keep in sync. Past instants are skipped.
+  - **At fire time:** the receiver re-checks the phone's own record (MMKV, data-model §4) and stays silent for a day already completed or waiting to submit.
+  - **Permission:** `POST_NOTIFICATIONS` (runtime on Android 13+), asked once at the first join with the reason; declining is remembered and never asked again unprompted.
+  - **Reboots:** `ELAPSED_REALTIME` restarts with the phone and a chain reading is valid for one boot only (R7), so alarms are not restored by a boot receiver; they come back the next time the app reads the chain (FR-068a). No `RECEIVE_BOOT_COMPLETED`.
+- **Rationale:** it is the whole of what a member needs — "you're on, and today isn't done" — with nothing new trusted, stored or sent: constitution X holds (no data leaves the device), the build stays server-free, and chain time stays the only clock.
+- **Alternatives considered:**
+  - **Firebase Cloud Messaging or any push service:** a server that knows each member's cohort and deadline, plus Google Play services — against the server-free build, for the same messages.
+  - **WorkManager periodic work:** a 15-minute minimum period and no timing guarantee; fine for a daily nudge, too loose before a one-hour test day's deadline.
+  - **Exact alarms:** a settings-screen permission for a convenience; rejected (above).
+- **Weakness, named in the README:** reminders can arrive a few minutes late, not at all after a reboot until the app is opened, and never if notifications are declined — the deadline is the chain's (constitution XI).
+
 ## Spikes that confirm this research
 
 | Spike | Confirms | Pass bar | If it fails |

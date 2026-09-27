@@ -97,9 +97,9 @@
       "fix": "Keep one record per offline sitting and date each separately"
     },
     {
-      "what": "Notifications are sent manually",
-      "why": "No notification infrastructure in the build",
-      "fix": "Push notification service"
+      "what": "Reminders are on-device only — no push",
+      "why": "No server knows anyone's deadlines. The phone schedules a reminder when a Holdout starts and before each day's deadline (FR-068), from chain time; Android may deliver it a few minutes late, not at all after a restart until the app is opened, and never if notifications are declined. The deadline is the chain's, never the reminder's",
+      "fix": "A push service fed by the chain, alongside the on-device reminders"
     }
   ]
 }
