@@ -214,7 +214,10 @@ object Angles {
      * the hands' height; on the toes knees and ankles are raised. Measured on
      * the push back up on the phone: honest reps 0.44–0.65, push-ups from the
      * knees 0.32–0.39, cobras 0.17–0.32. `null` when any of those joints is
-     * not clearly in frame.
+     * not clearly in frame — **or when the legs read below the hand**: the hand
+     * is on the floor, so that is a misplaced landmark, not knees down. On the
+     * Seeker such frames read −2.6 to −6.8 with the knee at 174–178°, and
+     * refused honest reps (27 Sep); the knee angle decides them instead.
      */
     fun legsAboveHandsInImage(image: ImagePose, side: Side): Float? {
         val (s, e, w) = ARM.getValue(side)
@@ -229,7 +232,7 @@ object Angles {
         if (arm <= 0f) return null
         // y points down the picture, so "above the hand" is the hand's y minus the joint's.
         val above = ((wrist.y - knee!!.y) + (wrist.y - ankle!!.y)) * image.height
-        return above / arm
+        return (above / arm).takeIf { it >= 0f }
     }
 
     /**

@@ -170,6 +170,27 @@ class StakesTest {
         assertFalse(gate.onFrame(top(2_000), 2_000, pillsGreen = true, view = CameraView.OBLIQUE, image = knees(2_000)))
     }
 
+    /** [image] with the near leg read below the hand — a knee and ankle under a hand that is on the floor. */
+    private fun legsBelowHand(image: ImagePose): ImagePose {
+        val landmarks = image.frame.landmarks.toMutableList()
+        val wrist = landmarks[PoseIndex.LEFT_WRIST]
+        for (i in listOf(PoseIndex.LEFT_KNEE, PoseIndex.LEFT_ANKLE)) landmarks[i] = landmarks[i].copy(y = wrist.y + 0.3f)
+        return image.copy(frame = image.frame.copy(landmarks = landmarks))
+    }
+
+    @Test
+    fun `legs read below the hands are a misread, not knees down - straight legs still count`() {
+        // On the Seeker, 27 Sep: honest reps with the knee at 174-178° were refused
+        // "Knees off the floor" because the legs read 2.6-6.8 arm-lengths *below* the
+        // hands — which are on the floor. Impossible, so it is unreadable, and the
+        // knee angle, which saw straight legs, decides.
+        val image = legsBelowHand(Traces.angledImage(1_000, elbowDegrees = 170f, kneeDegrees = 178f))
+        assertEquals(null, Angles.legsAboveHandsInImage(image, Side.LEFT))
+        assertTrue(kneesOffFloor(knee = 176f, legsAboveHands = null, rules = RepRules()))
+        // Knees really down still read above zero (0.32-0.39) and are still refused.
+        assertEquals(0, angledSet(kneeDegrees = 70f).first)
+    }
+
     /** [image] with the near knee gone from the picture, as when MediaPipe loses it. */
     private fun withoutKnee(image: ImagePose): ImagePose {
         val landmarks = image.frame.landmarks.toMutableList()
