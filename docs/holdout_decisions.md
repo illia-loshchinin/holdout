@@ -562,9 +562,9 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 
 ### H32. The short test cohort is a 7-day Holdout in 7 hours
 
-**Decided (2026-09-27, product owner):** the disclosed short test cohort (FR-044a, constitution v1.4.0) runs **seven one-hour days at 25 reps a day** — a 7-day Holdout in 7 hours. `crank init --test-league` makes that the default; `--day-seconds`, `--days` and `--reps` still override it. Replaces the earlier plan of seven 10-minute days at 5 reps.
+**Decided (2026-09-27, product owner):** the disclosed short test cohort (FR-044a, constitution v1.4.0) runs **seven one-hour days at 5 reps a day** — a 7-day Holdout in 7 hours. `crank init --test-league` makes that the default; `--day-seconds`, `--days` and `--reps` still override it. Replaces the earlier plan of seven 10-minute days at 5 reps.
 
-**Why:** ten-minute days at 5 reps left no room for a real sitting — the set-up checks, the ready hold and the counting — and 5 reps is not the product. With one-hour days everything but the length of a day is the real 7-day league: a tester does the Daily 25 seven times, forfeits by missing a real deadline, and sees a real settlement and claim in an afternoon, which is also what the walkthrough and the demo video show.
+**Why:** ten-minute days left no room for a real sitting — the set-up checks, the ready hold and the counting — and a first try at 25 reps a day (the same morning) asked 175 push-ups of a tester in seven hours. One-hour days at 5 reps keep every step real — the checks, the counting, a missed real deadline, settlement and the claim — in an afternoon, which is also what the walkthrough and the demo video show. The real 7-day and 21-day leagues stay at 25.
 
 **Consequences:** the beta cycle takes about 7 hours per tester instead of about 70 minutes, so it starts early in the day. Back-to-back cohorts (the default cadence) open a new lobby every 7 hours.
 
