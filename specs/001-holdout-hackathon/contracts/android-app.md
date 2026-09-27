@@ -34,6 +34,7 @@ Client: `com.solanamobile:mobile-wallet-adapter-clientlib-ktx` 2.2.0, used as in
 | Join, leave, submit completed day, claim | `walletAdapter.transact(sender) { signAndSendTransactions(...) }` | The member's wallet is the fee payer; `Failure` results show a retryable error |
 | Faucet | **none** | Built with `web3-solana`, signed with the bundled sponsor key as fee payer and sent with `rpc-core`; recipient = connected address; no member signature (R13). If the sponsor's float has been emptied and the connected wallet already holds SOL, the same claim is re-sent through `transact` with the member as fee payer — `claim_faucet` accepts either (FR-042b) |
 | Reconnect | Stored auth token reused on resume; `connect` again if it was revoked | — |
+| Network | Authorized on `solana:devnet` only: the chains the wallet reports for its accounts are checked at `connect` and inside every `transact` before a signature is requested; any other network is refused and the saved token dropped (FR-001b) | A wallet reporting no chains (MWA 1.x) is allowed |
 | Disconnect | `walletAdapter.disconnect(sender)` | Returns to the connect screen |
 
 ## 3a. Appearance

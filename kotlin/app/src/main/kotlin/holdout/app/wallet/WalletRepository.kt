@@ -1,12 +1,14 @@
 package holdout.app.wallet
 
 import android.net.Uri
+import android.util.Log
 import com.funkatronics.encoders.Base58
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import com.solana.mobilewalletadapter.clientlib.ConnectionIdentity
 import com.solana.mobilewalletadapter.clientlib.MobileWalletAdapter
 import com.solana.mobilewalletadapter.clientlib.Solana
 import com.solana.mobilewalletadapter.clientlib.TransactionResult
+import com.solana.mobilewalletadapter.clientlib.protocol.MobileWalletAdapterClient
 import com.solana.publickey.SolanaPublicKey
 import com.solana.transaction.TransactionInstruction
 import com.solana.transaction.toUnsignedTransaction
@@ -66,12 +68,44 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
 
     suspend fun connect(sender: ActivityResultSender): ConnectResult = when (val result = adapter.connect(sender)) {
         is TransactionResult.Success -> {
-            val address = SolanaPublicKey(result.authResult.accounts.first().publicKey)
-            store.setWalletSession(WalletSession(address.base58(), adapter.authToken))
-            ConnectResult.Connected(address)
+            if (Network.of(result.authResult) == Network.Other) {
+                // Authorized on another network: nothing is kept, so the next connect asks afresh.
+                adapter.authToken = null
+                ConnectResult.Failed(WRONG_NETWORK)
+            } else {
+                val address = SolanaPublicKey(result.authResult.accounts.first().publicKey)
+                store.setWalletSession(WalletSession(address.base58(), adapter.authToken))
+                ConnectResult.Connected(address)
+            }
         }
         is TransactionResult.NoWalletFound -> ConnectResult.NoWallet
         is TransactionResult.Failure -> ConnectResult.Failed(result.message)
+    }
+
+    /**
+     * Which network the wallet authorized Holdout on, from the chains it reports
+     * for its accounts (MWA 2.0). Holdout is devnet only (constitution,
+     * Hackathon Constraints): a wallet that reports any other network is
+     * refused before anything is signed. A wallet that reports no chains
+     * (MWA 1.x) cannot be checked, and is allowed.
+     */
+    private enum class Network {
+        Devnet,
+        Other,
+        Unknown,
+        ;
+
+        companion object {
+            fun of(auth: MobileWalletAdapterClient.AuthorizationResult): Network {
+                val chains = auth.accounts.orEmpty().flatMap { it.chains?.toList().orEmpty() }
+                Log.i(TAG, "wallet authorized chains: $chains")
+                return when {
+                    chains.isEmpty() -> Unknown
+                    DEVNET_CHAIN in chains -> Devnet
+                    else -> Other
+                }
+            }
+        }
     }
 
     suspend fun disconnect(sender: ActivityResultSender) {
@@ -89,11 +123,13 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
         // Never Message.Builder directly: it miscounts an account with mixed flags (see Transactions).
         val transaction = Transactions.message(instructions, blockhash).toUnsignedTransaction()
         if (signOnly) return signThenSend(sender, transaction)
-        val result = adapter.transact(sender) { signAndSendTransactions(transaction) }
+        // Checked inside the session, on the authorization the wallet has just
+        // confirmed, before anything is signed.
+        val result = adapter.transact(sender) { auth -> if (Network.of(auth) == Network.Other) null else signAndSendTransactions(transaction) }
         store.walletSession()?.let { store.setWalletSession(it.copy(authToken = adapter.authToken)) }
         val signature =
             when (result) {
-                is TransactionResult.Success -> result.payload.signatures.firstOrNull()?.let { Base58.encodeToString(it) } ?: return SendResult.Failed("The wallet returned no signature.")
+                is TransactionResult.Success -> result.payload?.signatures?.firstOrNull()?.let { Base58.encodeToString(it) } ?: return wrongNetworkOr("The wallet returned no signature.", result.payload == null)
                 is TransactionResult.NoWalletFound -> return SendResult.NoWallet
                 is TransactionResult.Failure -> return failure(result.message)
             }
@@ -108,11 +144,11 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
     private val signOnly: Boolean = BuildConfig.DEBUG && Deployment.rpcUrl != Rpc.DEVNET
 
     private suspend fun signThenSend(sender: ActivityResultSender, transaction: com.solana.transaction.Transaction): SendResult {
-        val result = adapter.transact(sender) { signTransactions(arrayOf(transaction.serialize())) }
+        val result = adapter.transact(sender) { auth -> if (Network.of(auth) == Network.Other) null else signTransactions(arrayOf(transaction.serialize())) }
         store.walletSession()?.let { store.setWalletSession(it.copy(authToken = adapter.authToken)) }
         val signed =
             when (result) {
-                is TransactionResult.Success -> result.payload.signedPayloads.firstOrNull() ?: return SendResult.Failed("The wallet returned no signed transaction.")
+                is TransactionResult.Success -> result.payload?.signedPayloads?.firstOrNull() ?: return wrongNetworkOr("The wallet returned no signed transaction.", result.payload == null)
                 is TransactionResult.NoWalletFound -> return SendResult.NoWallet
                 is TransactionResult.Failure -> return failure(result.message)
             }
@@ -123,7 +159,22 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
         }
     }
 
+    /** A session refused for the network: the saved authorization is dropped, so reconnecting asks afresh. */
+    private fun wrongNetworkOr(otherwise: String, wrongNetwork: Boolean): SendResult.Failed {
+        if (!wrongNetwork) return SendResult.Failed(otherwise)
+        adapter.authToken = null
+        store.walletSession()?.let { store.setWalletSession(it.copy(authToken = null)) }
+        return SendResult.Failed(WRONG_NETWORK)
+    }
+
     companion object {
+        private const val TAG = "HoldoutWallet"
+        private const val DEVNET_CHAIN = "solana:devnet"
+
+        /** Said when the wallet authorized another network — nothing was signed. */
+        const val WRONG_NETWORK =
+            "Your wallet is not on devnet, so nothing was signed. Holdout runs on devnet only: switch the wallet to devnet, then connect again (About · wallet → Disconnect)."
+
         private const val CONFIRM_ATTEMPTS = 30
         private const val CONFIRM_PAUSE_MILLIS = 1_000L
 
