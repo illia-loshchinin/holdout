@@ -30,6 +30,17 @@ class RemindersTest {
     }
 
     @Test
+    fun `a reminder may come late, but always before its deadline`() {
+        for (dayLength in listOf(3_600L, 86_400L)) {
+            val window = Reminders.windowMillis(dayLength) / 1_000
+            assertTrue(window >= 10 * 60, "Android's shortest window without the exact-alarm permission")
+            assertTrue(window < Reminders.leadSeconds(dayLength), "day length $dayLength: the latest delivery is still before the deadline")
+        }
+        assertEquals(10 * 60L, Reminders.windowMillis(3_600) / 1_000)
+        assertEquals(3_600L, Reminders.windowMillis(86_400) / 1_000)
+    }
+
+    @Test
     fun `in the lobby - a start reminder, then one before every day's deadline`() {
         val c = cohort()
         val r = schedule(c, member(), now = start - 86_400)

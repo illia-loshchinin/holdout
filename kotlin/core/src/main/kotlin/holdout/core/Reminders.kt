@@ -61,6 +61,15 @@ object Reminders {
     }.sortedBy { it.at }
 
     /**
+     * How late the phone may deliver a reminder: a third of the lead, and never
+     * under 10 minutes — the shortest window Android grants without the
+     * exact-alarm permission. So a one-hour day's reminder comes 15 to 5 minutes
+     * before its deadline, and a 24-hour day's 3 to 2 hours before: always
+     * before the deadline itself.
+     */
+    fun windowMillis(dayLength: Long): Long = maxOf(10 * 60L, leadSeconds(dayLength) / 3) * 1_000
+
+    /**
      * A chain instant as a moment on the phone's monotonic clock, from one
      * reading of both taken together (research R7): the wall clock never
      * decides when a reminder fires.

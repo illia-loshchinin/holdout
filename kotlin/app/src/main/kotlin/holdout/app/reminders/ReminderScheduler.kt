@@ -38,7 +38,9 @@ class ReminderScheduler(context: Context) {
         wanted.forEach { r ->
             val at = Reminders.elapsedMillisAt(r.at, chainNow, elapsedNow)
             val deadline = Reminders.elapsedMillisAt(r.deadline, chainNow, elapsedNow)
-            alarms.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pending(r.id, intent(wallet, r, deadline)))
+            // A bounded window, not setAndAllowWhileIdle: on the Seeker that let
+            // Android hold a reminder ~57 minutes — past a one-hour day's deadline.
+            alarms.setWindow(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, Reminders.windowMillis(r.dayLength), pending(r.id, intent(wallet, r, deadline)))
         }
         prefs.edit().putStringSet(KEY_IDS, wanted.map { it.id.toString() }.toSet()).apply()
     }
