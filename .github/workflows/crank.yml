@@ -1,8 +1,10 @@
 # The crank's fallback schedule (T094, research R12): the same pass as the Fly
 # machine, from GitHub Actions. **Disabled by default** — it runs on its
 # schedule only when the repository variable HOLDOUT_CRANK_ENABLED is "true",
-# so it never races the Fly machine by accident (both would be harmless — every
-# step is idempotent — but one payer should carry the fees).
+# so it never races the Fly machine by accident. Two `crank run`s are harmless —
+# every step is idempotent — but two `crank scripted run`s at once each read the
+# member count before the other's joins land and over-fill a lobby past its
+# floor (seen on a local validator, 2026-09-27). Run one scheduler.
 #
 # Secrets: HOLDOUT_PAYER_KEY_JSON and HOLDOUT_SCRIPTED_KEYS_TGZ_B64, as in fly.toml.
 name: Crank (fallback)
