@@ -40,7 +40,9 @@ class TestLeagueTest {
     private val now = Instant.parse("2026-09-27T12:00:00Z").epochSecond
     private val start = "2026-09-27T15:00:00Z"
     private val env = mapOf("HOLDOUT_RPC_URL" to "http://rpc.test", "HOLDOUT_PROGRAM_ID" to programId.base58(), "HOLDOUT_ADMIN_KEYPAIR" to "/keys/admin.json")
-    private val quickstart = arrayOf("--day-seconds", "600", "--reps", "5", "--days", "7", "--first-start", start)
+
+    /** The quickstart's command: the first start alone, everything else the default. */
+    private val quickstart = arrayOf("--first-start", start)
 
     private inner class Chain(val initialized: Boolean = true, val refusal: String? = null) : HttpNetworkDriver {
         val sent = mutableListOf<Transaction>()
@@ -94,9 +96,11 @@ class TestLeagueTest {
     }
 
     @Test
-    fun `the quickstart's league is seven 10-minute days at 5 reps, back to back, as league 100`() {
+    fun `by default the test league is a 7-day Holdout in 7 hours - seven 1-hour days at 25 reps, back to back, as league 100`() {
         val p = Init.testLeagueParams(parseArgs(listOf("init", "--test-league") + quickstart))
-        assertEquals(LeagueParams(100, 7, 5, 0, Instant.parse(start).epochSecond, 600, 4_200, 300), p)
+        assertEquals(LeagueParams(100, 7, 25, 0, Instant.parse(start).epochSecond, 3_600, 25_200, 300), p)
+        val quick = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--day-seconds", "600", "--reps", "5", "--days", "3") + quickstart))
+        assertEquals(listOf(600L, 5L, 3L, 1_800L), listOf(quick.dayLength, quick.repsPerDay.toLong(), quick.durationDays.toLong(), quick.cadence), "every default can be overridden")
         val custom = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--league-id", "101", "--cadence", "7200", "--join-lock", "60") + quickstart))
         assertEquals(listOf(101L, 7_200L, 60L), listOf(custom.leagueId.toLong(), custom.cadence, custom.joinLock))
     }
@@ -117,7 +121,7 @@ class TestLeagueTest {
         val json = testLeague(chain, *quickstart)
         assertEquals("sent", json.getValue("status").jsonPrimitive.content)
         assertEquals(100, json.getValue("league").jsonPrimitive.int)
-        assertEquals(600, json.getValue("daySeconds").jsonPrimitive.long)
+        assertEquals(3_600, json.getValue("daySeconds").jsonPrimitive.long)
         val tx = chain.sent.single()
         assertEquals(admin.publicKey, tx.message.accounts[0])
         val ix = tx.message.instructions.single()

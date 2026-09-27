@@ -137,7 +137,7 @@ Five to seven real people, recruited by 21 September. They are the point: real m
 
 ### The rehearsal run, 24–26 September
 
-On the rehearsal deployment, with a test league of **seven 10-minute days at 5 reps a day**, each tester runs faucet → join → sittings → a deliberate forfeit → settlement → claim in about 70 minutes. This is how bugs are found before the freeze; the footage is never used.
+On the rehearsal deployment, with a test league of **seven one-hour days at 25 reps a day** — a 7-day Holdout in 7 hours (H32) — each tester runs faucet → join → sittings → a deliberate forfeit → settlement → claim in an afternoon. This is how bugs are found before the freeze; the footage is never used.
 
 ### Consent
 

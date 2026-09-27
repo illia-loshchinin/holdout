@@ -220,20 +220,31 @@ object Init {
     private const val INVALID_LEAGUE_TIMING = 6010
 
     /**
+     * The short test cohort, by default (decision 2026-09-27): **a 7-day Holdout
+     * in 7 hours** — seven one-hour days at the Daily 25's 25 reps. Everything
+     * but the length of a day is the real 7-day league, so a tester lives
+     * through the real thing in an afternoon.
+     */
+    const val DEFAULT_TEST_DAY_SECONDS = 3_600L
+    const val DEFAULT_TEST_DAYS = 7L
+    const val DEFAULT_TEST_REPS = 25L
+
+    /**
      * The short test league's parameters from the command line (quickstart §5):
-     * `--day-seconds`, `--reps` and `--days` are required, `--first-start` is
-     * any instant the admin chooses, `--cadence` defaults to back-to-back
-     * cohorts (`days × day-seconds`) and `--join-lock` to [DEFAULT_TEST_JOIN_LOCK].
+     * `--first-start` is required — any instant the admin chooses; `--day-seconds`,
+     * `--days` and `--reps` default to seven one-hour days at 25 reps;
+     * `--cadence` defaults to back-to-back cohorts (`days × day-seconds`) and
+     * `--join-lock` to [DEFAULT_TEST_JOIN_LOCK].
      */
     fun testLeagueParams(args: Args): LeagueParams {
-        fun number(name: String, range: LongRange): Long {
-            val text = args.option(name) ?: configError("init --test-league needs --$name")
+        fun number(name: String, range: LongRange, default: Long? = null): Long {
+            val text = args.option(name) ?: return default ?: configError("init --test-league needs --$name")
             return text.toLongOrNull()?.takeIf { it in range } ?: configError("--$name must be a whole number in $range, got $text")
         }
-        val leagueId = args.option("league-id")?.let { number("league-id", LeagueParams.TEST_LEAGUE_MIN.toLong()..255L) } ?: LeagueParams.TEST_LEAGUE_MIN.toLong()
-        val daySeconds = number("day-seconds", MIN_TEST_DAY_SECONDS..HoldoutDay.SECONDS_PER_DAY)
-        val reps = number("reps", 1L..65_535L)
-        val days = number("days", 1L..255L)
+        val leagueId = number("league-id", LeagueParams.TEST_LEAGUE_MIN.toLong()..255L, LeagueParams.TEST_LEAGUE_MIN.toLong())
+        val daySeconds = number("day-seconds", MIN_TEST_DAY_SECONDS..HoldoutDay.SECONDS_PER_DAY, DEFAULT_TEST_DAY_SECONDS)
+        val reps = number("reps", 1L..65_535L, DEFAULT_TEST_REPS)
+        val days = number("days", 1L..255L, DEFAULT_TEST_DAYS)
         val firstStart =
             args.option("first-start")?.let {
                 try {

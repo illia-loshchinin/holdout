@@ -252,7 +252,7 @@
 - [X] T089a [P] [US9] Label the short test cohort, with its day length, everywhere it appears — ladder, stake sheet, lobby, home, roster, cohort detail — from `LeagueConfig.league_id ≥ 100` (FR-044a) **Built 2026-09-26; compiles and its pure parts are unit-tested, not yet exercised on a device or against a deployed program.**
 - [ ] T093 [US9] Run the `NO_DNA=1 anchor test` Surfpool smoke suite in `tests/smoke/` — one happy path per instruction plus a time-travelled settlement — then deploy the judged program keeping its upgrade authority (FR-007b, quickstart §6)
 - [ ] T094 [US9] Schedule `crank run && crank scripted run` every 10 minutes as a Fly.io machine via `fly.toml`, with `.github/workflows/crank.yml` as the disabled-by-default fallback (research R12) **Files ready 2026-09-26** (`fly.toml`, `crank.Dockerfile`, `scripts/crank-loop.sh`, `.github/workflows/crank.yml`): Fly's scheduled machines run at most hourly, so the 10-minute cadence is a loop in one small always-on machine. Not deployed — needs the Fly account, its secrets and a live program (T093).
-- [ ] T095 [US9] Run the beta test on the rehearsal deployment, 24–26 Sep: seven 10-minute days at 5 reps, each tester completing a full cycle, findings triaged the same day (`docs/holdout_demo_video.md` §9)
+- [ ] T095 [US9] Run the beta test on the rehearsal deployment, 24–26 Sep: seven one-hour days at 25 reps — a 7-day Holdout in 7 hours (H32, amended 2026-09-27) — each tester completing a full cycle, findings triaged the same day (`docs/holdout_demo_video.md` §9)
 
 **Checkpoint (5 Oct, moved from 28 Sep on 2026-09-26)**: the first judged cohort starts with real testers and scripted members in it. **Feature freeze.** The short test cohort (FR-044a) has run the whole cycle before it.
 

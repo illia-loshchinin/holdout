@@ -307,8 +307,8 @@ doing today.
   `docs/holdout_demo_video.md` §9 — do not rewrite it.
 - Collect filming consent in writing, in the chat, from anyone who might appear
   on camera. Keep the messages.
-- Book the rehearsal run, **24–26 September**: a test league of seven 10-minute
-  days at 5 reps, about 70 minutes per tester, on the rehearsal deployment. Its
+- Book the rehearsal run, **24–26 September**: a test league of seven one-hour
+  days at 25 reps (H32), about 7 hours per tester, on the rehearsal deployment. Its
   footage is never used.
 
 Real members are the point. Scripted wallets top a cohort up to its floor and no

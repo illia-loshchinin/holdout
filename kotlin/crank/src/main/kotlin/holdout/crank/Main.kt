@@ -133,7 +133,7 @@ private fun usage(): JsonObject = buildJsonObject {
         "usage",
         "crank <command> [--dry-run]; commands: status, chips publish --rate <usd-per-skr> [--decimals <n>], " +
             "init [--admin <keypair>] --operator <pubkey> --sponsor <pubkey> --treasury <pubkey> --rate <usd-per-skr> [--first-start <iso>] [--fund-faucet <sol>], " +
-            "init --test-league --day-seconds <n> --reps <n> --days <n> --first-start <iso> [--league-id <100..255>] [--cadence <s>] [--join-lock <s>], " +
+            "init --test-league --first-start <iso> [--day-seconds <n, default 3600>] [--days <n, default 7>] [--reps <n, default 25>] [--league-id <100..255>] [--cadence <s>] [--join-lock <s>], " +
             "run, scripted plan --cohort <address> | scripted run [--floor-7d <n>] [--floor-21d <n>] [--last-start <iso>] | scripted fund [--lamports <n>] (contracts/crank-cli.md)",
     )
 }
