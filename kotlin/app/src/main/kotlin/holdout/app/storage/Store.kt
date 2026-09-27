@@ -84,6 +84,10 @@ interface Store {
     fun recordsVideo(): Boolean
     fun setRecordsVideo(on: Boolean)
 
+    /** Whether the member has been asked for notification permission — asked once, at the first join (FR-068a). */
+    fun askedForNotifications(): Boolean
+    fun setAskedForNotifications()
+
     companion object {
         /** The scope for the free Daily 25, which belongs to no cohort. */
         const val CHALLENGE = "challenge"
@@ -226,6 +230,12 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         }
     }
 
+    override fun askedForNotifications(): Boolean = kv.decodeBool("asked_notifications", false)
+
+    override fun setAskedForNotifications() {
+        kv.encode("asked_notifications", true)
+    }
+
     override fun recordsVideo(): Boolean = kv.decodeBool("records_video", false)
 
     override fun setRecordsVideo(on: Boolean) {
@@ -306,6 +316,12 @@ class InMemoryStore : Store {
 
     override fun setWalletSession(session: WalletSession?) {
         if (session == null) values.remove("session") else values["session"] = session
+    }
+
+    override fun askedForNotifications(): Boolean = values["asked_notifications"] as? Boolean ?: false
+
+    override fun setAskedForNotifications() {
+        values["asked_notifications"] = true
     }
 
     override fun recordsVideo(): Boolean = values["records_video"] as? Boolean ?: false

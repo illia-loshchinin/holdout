@@ -11,7 +11,7 @@
 | `RECORD_AUDIO` | **Never declared** in the manifest (FR-022a) — a build check fails if it appears |
 | `INTERNET` | Declared; used only as in §2 |
 | Merged from the MWA client library | `ACCESS_NETWORK_STATE`, `REORDER_TASKS` and the generated `holdout.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` — all normal, none requested at runtime; read off the built APK with `aapt2 dump badging` |
-| `POST_NOTIFICATIONS` | Runtime on Android 13+: asked **once, at the first join**, with the reason stated (FR-068). Declining disables reminders and nothing else |
+| `POST_NOTIFICATIONS` | Runtime on Android 13+: asked **once** — at the first join, or the first time the app finds the member already in a Holdout — with the reason on the stake sheet (FR-068). Declining disables reminders and nothing else |
 | Other dangerous permissions | None. No `SCHEDULE_EXACT_ALARM` and no `RECEIVE_BOOT_COMPLETED` — reminders are inexact and come back when the app next reads the chain (R21) |
 
 ## 2. Network egress

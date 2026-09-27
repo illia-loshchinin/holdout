@@ -33,6 +33,7 @@ import holdout.app.home.HomeState
 import holdout.app.ladder.HoldoutOffer
 import holdout.app.ladder.LadderScreen
 import holdout.app.lobby.LobbyScreen
+import holdout.app.reminders.ReminderScheduler
 import holdout.app.roster.RosterScreen
 import holdout.app.sitting.BankingController
 import holdout.app.sitting.SittingScreen
@@ -57,6 +58,7 @@ import holdout.core.Derive
 import holdout.core.HoldoutDay
 import holdout.core.Journey
 import holdout.core.LeagueParams
+import holdout.core.Reminders
 import holdout.core.Stage
 import holdout.repcounter.Stakes
 import kotlinx.coroutines.delay
@@ -152,6 +154,51 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         }
     }
     LaunchedEffect(address) { holdouts.watch(address) }
+
+    // On-device reminders (FR-068): the whole schedule, recomputed from each
+    // chain read and handed to the alarm service. A day done on this phone —
+    // complete, or waiting to submit — is not reminded.
+    val reminders = remember { ReminderScheduler(context) }
+    LaunchedEffect(address, chain.view) {
+        val me = address ?: return@LaunchedEffect
+        val view = chain.view ?: return@LaunchedEffect
+        val chainNow = clock.nowSeconds() ?: return@LaunchedEffect
+        val elapsed = android.os.SystemClock.elapsedRealtime()
+        val wallet = me.base58()
+        val held = view.holdouts.mapNotNull { h -> h.membership?.let { h.cohort to it } }
+        val schedule = Reminders.schedule(held, { c -> view.holdouts.first { it.cohort == c }.address }, chainNow) { cohort, day ->
+            store.isDayComplete(wallet, "cohort:${cohort.base58()}", day.toLong()) || store.pendingCohortDay(wallet, cohort.base58()) == day
+        }
+        reminders.sync(wallet, schedule, chainNow, elapsed)
+    }
+
+    // Asked once, at the first join, with the reason (FR-068a); the join goes ahead either way.
+    var joinAfterAsking by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val askForNotifications = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) {
+        joinAfterAsking?.invoke()
+        joinAfterAsking = null
+    }
+    // A member already in a Holdout — joined before reminders existed, or on
+    // another install — is asked the first time the app finds them in one.
+    LaunchedEffect(address, chain.view) {
+        val now = clock.nowSeconds() ?: return@LaunchedEffect
+        if (address == null || android.os.Build.VERSION.SDK_INT < 33 || store.askedForNotifications()) return@LaunchedEffect
+        if (chain.view?.mine(now).isNullOrEmpty()) return@LaunchedEffect
+        store.setAskedForNotifications()
+        askForNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    fun joinAsking(join: () -> Unit) {
+        if (android.os.Build.VERSION.SDK_INT >= 33 && !store.askedForNotifications()) {
+            store.setAskedForNotifications()
+            joinAfterAsking = join
+            askForNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            join()
+        }
+    }
 
     var route by remember { mutableStateOf<Route>(Route.Home) }
     var sitting by remember { mutableStateOf<Sitting?>(null) }
@@ -343,7 +390,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 busy = chain.busy,
                 message = chain.message,
                 messageIsWarning = chain.messageIsWarning,
-                onStake = { tier -> holdouts.join(sender, target, tier, chainNow) },
+                onStake = { tier -> joinAsking { holdouts.join(sender, target, tier, chainNow) } },
                 onGetTokens = { route = Route.Faucet },
                 onBack = goHome,
                 modifier = modifier,
@@ -523,6 +570,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             TextButton(onClick = {
                 scope.launch {
                     holdouts.wallet.disconnect(sender)
+                    reminders.clear()
                     address = null
                 }
             }) { Text("Disconnect ${Format.short(wallet)}", color = HoldoutColors.TextTertiary) }
