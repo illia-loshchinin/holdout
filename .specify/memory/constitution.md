@@ -38,6 +38,16 @@ Every state in the specification is reachable in the UI or provably unreachable 
 ### X. Camera Frames Never Leave the Device
 No upload, no server-side inference, no video persistence, no human review. This is not a performance choice; it is the product's promise.
 
+**One narrow exception, for rep recognition only.** So counting can be tested against what really happened and a knee classifier can be trained, a **debug build** MAY save the camera stream of a sitting as a video file, on these terms and no others:
+
+- **Debug builds only.** A release build MUST NOT contain the recorder, and a build check MUST fail the release build if it does. A release APK never persists a frame.
+- **Video only, no audio** — the microphone rule of FR-022a is untouched.
+- **On that device only**, in the app's private storage. The app never uploads, shares or sends a recording anywhere.
+- **Pulled by the team over USB** (`adb`), labelled beside the landmark trace of the same sitting, and **deleted from the phone** once pulled.
+- **Only people who agreed in writing to be filmed** — the team and consenting beta testers. A recording of anyone else is deleted unused.
+
+Members of the public sharing their own recordings as training data is a separate, later decision and is **not** permitted by this exception.
+
 ### XI. Weaknesses Documented, Not Hidden
 Anything faked, stubbed, flagged off or left trusting is named in the README with its real fix beside it. No submission material — demo video or pitch deck — hides or contradicts what the README names. A judge who discovers a shortcut reads deception; a judge who is told reads competence. Under the hackathon rules, misleading submission materials also disqualify the entry.
 
@@ -72,4 +82,4 @@ Those cohorts MAY be populated by scripted members, and only on these terms: the
 
 This constitution supersedes other practice in this repository. Anything not required by a scenario in `specs/001-holdout-hackathon/spec.md` is out of scope; additions are made by amending the spec, not by writing code. Amendments are recorded here with a version bump and a line in `docs/holdout_decisions.md`. The deadline is what makes scope discipline load-bearing rather than decorative.
 
-**Version**: 1.4.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-09-26
+**Version**: 1.5.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-09-27
