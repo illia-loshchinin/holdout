@@ -446,7 +446,20 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             return
         }
         Route.About -> {
-            AboutScreen(onWalkthrough = { route = Route.Walkthrough }, onTour = { route = Route.Tour }, onBack = goHome, modifier = modifier)
+            AboutScreen(
+                onWalkthrough = { route = Route.Walkthrough },
+                onTour = { route = Route.Tour },
+                onBack = goHome,
+                modifier = modifier,
+                onDisconnect = {
+                    scope.launch {
+                        holdouts.wallet.disconnect(sender)
+                        reminders.clear()
+                        route = Route.Home
+                        address = null
+                    }
+                },
+            )
             return
         }
         Route.Walkthrough -> {
@@ -493,6 +506,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             },
             onSubmit = { day -> holdouts.submitDay(sender, h, day, h.cohort.repsPerDay) },
             onDetail = { route = Route.Detail(h.address) },
+            onAbout = { route = Route.About },
             onRoster = { route = Route.Roster(h.address) },
             onDaily25 = { sitting = Sitting.Daily25(dayIndex) },
             modifier = modifier,

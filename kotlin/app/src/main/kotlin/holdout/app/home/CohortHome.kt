@@ -62,6 +62,7 @@ fun CohortHome(
     onStart: () -> Unit,
     onSubmit: (day: Int) -> Unit,
     onDetail: () -> Unit,
+    onAbout: () -> Unit,
     onRoster: () -> Unit,
     onDaily25: () -> Unit,
     modifier: Modifier = Modifier,
@@ -125,6 +126,7 @@ fun CohortHome(
         Notice(message, messageIsWarning)
         SecondaryButton("Who's still standing", onRoster)
         TextButton(onClick = onDetail) { Text("Holdout details", color = HoldoutColors.TextSecondary) }
+        TextButton(onClick = onAbout) { Text("About · wallet", color = HoldoutColors.TextTertiary) }
         TextButton(onClick = onDaily25) { Text("The Daily 25", color = HoldoutColors.TextTertiary) }
         onRecordVideoChange?.let { holdout.app.ui.RecordVideoSwitch(recordVideo, it) }
     }

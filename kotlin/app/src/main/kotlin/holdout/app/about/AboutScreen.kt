@@ -41,6 +41,12 @@ fun AboutScreen(
     onTour: (() -> Unit)?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Disconnects the wallet and returns to the connect screen. Also how to get a
+     * fresh authorization after switching the wallet's network: the wallet ties
+     * an authorization to the network it was on when it was granted.
+     */
+    onDisconnect: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val weaknesses = remember { loadWeaknesses(context.assets.open("weaknesses.json").bufferedReader().use { it.readText() }) }
@@ -57,6 +63,10 @@ fun AboutScreen(
         item { Body("Devnet only, with a mock SKR token. Nothing here touches mainnet or real value.") }
         item { SecondaryButton("Watch a full cycle (3 min)", onWalkthrough) }
         onTour?.let { item { SecondaryButton("The three-card tour again", it) } }
+        onDisconnect?.let {
+            item { SecondaryButton("Disconnect wallet", it) }
+            item { Body("Switched your wallet to another network? Disconnect and connect again, so the wallet authorizes Holdout on devnet.") }
+        }
 
         item { SectionLabel("Known weaknesses · ${weaknesses.size}") }
         items(weaknesses) { w ->
