@@ -22,8 +22,19 @@ JAR="$ROOT/kotlin/crank/build/libs/crank.jar"
 
 crank() { java -jar "$JAR" "$@" 2>/dev/null; }
 
+# A phone over USB reaches the validator through `adb reverse`, which Android
+# drops whenever the phone reconnects. Re-applied on every pass, quietly, for
+# every attached device, so a replugged phone finds the chain again.
+reverse() {
+  command -v adb >/dev/null 2>&1 || return 0
+  for d in $(adb devices | awk 'NR > 1 && $2 == "device" { print $1 }'); do
+    adb -s "$d" reverse tcp:8899 tcp:8899 >/dev/null 2>&1 || true
+  done
+}
+
 if [[ "${1:-}" == "--loop" ]]; then
   while true; do
+    reverse
     echo "=== $(date -u +%FT%TZ)"
     crank run
     echo

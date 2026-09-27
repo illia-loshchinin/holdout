@@ -19,6 +19,9 @@ object Deployment {
     val programId: SolanaPublicKey = SolanaPublicKey.from(BuildConfig.PROGRAM_ID)
     val rpcUrl: String = BuildConfig.RPC_URL
 
+    /** What the member is told failed to answer: devnet, or in a local test build the local validator. */
+    val networkName: String = if (rpcUrl == holdout.core.Rpc.DEVNET) "Devnet" else "The local validator"
+
     /** A test league (FR-044a): the short test cohort, labelled wherever it appears. */
     fun isTestLeague(leagueId: Int): Boolean = leagueId >= holdout.core.LeagueParams.TEST_LEAGUE_MIN
 }

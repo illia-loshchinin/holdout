@@ -21,6 +21,7 @@ import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.about.AboutScreen
 import holdout.app.about.WalkthroughScreen
+import holdout.app.chain.Deployment
 import holdout.app.chain.Holdout
 import holdout.app.claim.ClaimScreen
 import holdout.app.cohort.CohortDetailScreen
@@ -536,7 +537,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         },
         below = {
             if (chainNow == null || view == null) {
-                SectionLabel(if (chain.offline) "Devnet unreachable — the Daily 25 still works" else "Reading devnet…")
+                SectionLabel(if (chain.offline) "${Deployment.networkName} unreachable — the Daily 25 still works" else "Reading the chain…")
                 return@HomeScreen
             }
             if (view.config == null) {

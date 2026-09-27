@@ -85,7 +85,7 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
      * payer — has the wallet sign and send it, and waits for devnet to confirm.
      */
     suspend fun send(sender: ActivityResultSender, instructions: List<TransactionInstruction>): SendResult {
-        val blockhash = rpc.latestBlockhash() ?: return SendResult.Failed("Devnet did not answer. Check the connection and try again.")
+        val blockhash = rpc.latestBlockhash() ?: return SendResult.Failed("${Deployment.networkName} did not answer. Check the connection and try again.")
         // Never Message.Builder directly: it miscounts an account with mixed flags (see Transactions).
         val transaction = Transactions.message(instructions, blockhash).toUnsignedTransaction()
         if (signOnly) return signThenSend(sender, transaction)
