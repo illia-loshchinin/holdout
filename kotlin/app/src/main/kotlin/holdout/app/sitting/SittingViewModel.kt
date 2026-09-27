@@ -516,8 +516,13 @@ class SittingViewModel(
         if (frameTimes.size < 2) return
         val span = (frameTimes.last() - frameTimes.first()).coerceAtLeast(1)
         val fps = (frameTimes.size - 1) * 1_000f / span
-        if (frameTimes.size % 10 == 0) _uiState.update { it.copy(analysisFps = fps) }
+        // Once a second of camera time: a frame count would stall once the window fills.
+        if (timestampMillis - fpsShownAt < 1_000) return
+        fpsShownAt = timestampMillis
+        _uiState.update { it.copy(analysisFps = fps) }
     }
+
+    private var fpsShownAt = Long.MIN_VALUE / 2
 
     /** Whether the camera is recording this sitting as video (debug builds). */
     fun onRecordingVideo(on: Boolean) = _uiState.update { it.copy(recordingVideo = on) }

@@ -42,11 +42,8 @@ class HoldoutPiecesTest {
     }
 
     @Test
-    fun `a refusal is read the way the node, the wallet or the logs word it`() {
-        assertEquals(6021, WalletRepository.programErrorIn("Transaction simulation failed: custom program error: 0x1785"))
-        assertEquals(6033, WalletRepository.programErrorIn("""{"InstructionError":[0,{"Custom":6033}]}"""))
-        assertEquals(6044, WalletRepository.programErrorIn("InstructionError(0, Custom(6044))"))
-        assertNull(WalletRepository.programErrorIn("user declined"))
+    fun `a refusal is explained in words a member can act on`() {
+        assertEquals(6021, WalletRepository.failure("Transaction simulation failed: custom program error: 0x1785").programError)
         assertEquals("Joining for this Holdout has closed.", ProgramErrors.explain(6021))
         assertNull(ProgramErrors.explain(null))
     }

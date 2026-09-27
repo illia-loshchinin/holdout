@@ -36,15 +36,19 @@ object Reminders {
     /**
      * Every reminder still to come for one wallet at [now]: for each Holdout it
      * holds and has not forfeited, finished or left — a start reminder while it
-     * has not started, and for every day not recorded on chain and not done on
-     * the phone ([doneOnPhone]), one at `deadline − lead`. Nothing in the past;
-     * nothing once the member is in breach.
+     * has not started, and for every day not recorded on chain, one at
+     * `deadline − lead`. Nothing in the past; nothing once the member is in
+     * breach.
+     *
+     * A day done on the phone but not yet on chain is still reminded: until it
+     * reaches the chain it counts for nothing, and a submit that failed is
+     * exactly when a reminder is worth having. The notification says to submit
+     * it rather than to do it.
      */
     fun schedule(
         memberships: List<Pair<CohortSnapshot, MembershipSnapshot>>,
         cohortAddress: (CohortSnapshot) -> SolanaPublicKey,
         now: Long,
-        doneOnPhone: (SolanaPublicKey, Int) -> Boolean = { _, _ -> false },
     ): List<Reminder> = memberships.flatMap { (c, m) ->
         if (m.state != MembershipSnapshot.State.Joined || c.settled || Derive.inBreach(m, c, now) || now >= Derive.end(c)) return@flatMap emptyList()
         val address = cohortAddress(c)
@@ -53,7 +57,6 @@ object Reminders {
             if (now < c.start) add(reminder(Reminder.Kind.Start, 0, c.start))
             val lead = leadSeconds(c.dayLength)
             for (day in m.daysCompleted until c.durationDays) {
-                if (doneOnPhone(address, day)) continue
                 val at = Derive.deadlineOf(c, day) - lead
                 if (at > now) add(reminder(Reminder.Kind.Deadline, day, at))
             }

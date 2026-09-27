@@ -172,7 +172,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 **And** the survivor counter, the prize figure and their own day counter update on completion.
 
 **And given** they allowed notifications when they joined
-**Then** the phone reminds them when the Holdout starts and, on any day not yet recorded, before that day's deadline — and stays quiet on a day already done (FR-068).
+**Then** the phone reminds them when the Holdout starts and, on any day not yet recorded, before that day's deadline — and stays quiet on a day already on chain; a day done on the phone but not yet on chain is reminded to be submitted (FR-068).
 
 ### US-4 · Missing a day
 

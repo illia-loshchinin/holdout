@@ -8,6 +8,7 @@ import holdout.core.Instructions
 import holdout.core.LeagueParams
 import holdout.core.LeagueSnapshot
 import holdout.core.Pdas
+import holdout.core.ProgramErrorCode
 import holdout.core.Rpc
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonObject
@@ -321,7 +322,7 @@ object Init {
             try {
                 signAndSend(rpc, "create_league ${params.leagueId}", listOf(Instructions.createLeague(programId, admin.publicKey, params)), listOf(admin), args.dryRun, pause)
             } catch (e: CrankException) {
-                if (Run.programError(e.message) == INVALID_LEAGUE_TIMING) {
+                if (ProgramErrorCode.of(e.message) == INVALID_LEAGUE_TIMING) {
                     configError("the program at $programId refuses a test league: it was built without the test-leagues feature (6010, FR-044a)")
                 }
                 throw e

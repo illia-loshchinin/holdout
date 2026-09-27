@@ -19,10 +19,11 @@ import holdout.app.ui.Format
 import holdout.core.Reminder
 
 /**
- * Posts a reminder when its alarm fires (FR-068) — after re-checking the
- * phone's own record, so a day completed since the schedule was last synced
- * stays quiet. Names the Holdout, labels the short test cohort, and says the
- * reps still needed and the time left; never an amount. Nothing is sent
+ * Posts a reminder when the first of its alarms fires (FR-068), and nothing
+ * once the deadline has passed. A day done on the phone but not on chain is
+ * reminded to be submitted; a day that reached the chain was cancelled by the
+ * app's next sync. Names the Holdout, labels the short test cohort, and says
+ * the reps still needed and the time left; never an amount. Nothing is sent
  * anywhere: the notification is the whole of it.
  */
 class ReminderReceiver : BroadcastReceiver() {
@@ -41,14 +42,20 @@ class ReminderReceiver : BroadcastReceiver() {
         val store = MmkvStore.create(context)
         val scope = "cohort:$cohort"
         if (store.walletSession()?.address != wallet) return
-        if (store.isDayComplete(wallet, scope, day.toLong()) || store.pendingCohortDay(wallet, cohort) == day) return
+        // A deadline already gone: a late alarm (Doze) says nothing rather than something wrong.
+        val left = (deadline - SystemClock.elapsedRealtime()) / 1_000
+        if (left <= 0) return
+        // Each reminder has two alarms (ReminderScheduler); only the first to fire posts.
+        if (intent.hasExtra(EXTRA_ID) && !ReminderScheduler.markPosted(context, intent.getIntExtra(EXTRA_ID, 0))) return
+        // Done on this phone is not done: only the chain counts it, so say to submit it.
+        val doneHere = store.isDayComplete(wallet, scope, day.toLong()) || store.pendingCohortDay(wallet, cohort) == day
         val owed = (reps - store.bankedReps(wallet, scope, day.toLong())).coerceAtLeast(0)
-        val left = ((deadline - SystemClock.elapsedRealtime()) / 1_000).coerceAtLeast(0)
 
         val holdout = "$days-day Holdout" + if (test) " · short test cohort, ${Format.dayLength(dayLength)} days" else ""
-        val (title, text) = when (kind) {
-            Reminder.Kind.Start -> "Your $holdout has started" to "Day 1 is open: $reps push-ups before the deadline, ${Format.countdown(left)} from now."
-            Reminder.Kind.Deadline -> "Day ${day + 1}: $owed push-ups still to do" to "About ${Format.countdown(left)} left in your $holdout. The deadline is the chain's, not this reminder's."
+        val (title, text) = when {
+            kind == Reminder.Kind.Start -> "Your $holdout has started" to "Day 1 is open: $reps push-ups before the deadline, ${Format.countdown(left)} from now."
+            doneHere -> "Day ${day + 1} is done, but not on chain yet" to "Open Holdout and submit it: about ${Format.countdown(left)} left in your $holdout. Only the chain counts it."
+            else -> "Day ${day + 1}: $owed push-ups still to do" to "About ${Format.countdown(left)} left in your $holdout. The deadline is the chain's, not this reminder's."
         }
         post(context, requestId = intent.hashCode(), id = 31 * cohort.hashCode() + day * 2 + kind.ordinal, title = title, text = text)
     }
@@ -82,6 +89,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
     companion object {
         const val CHANNEL = "holdout_reminders"
+        const val EXTRA_ID = "id"
         const val EXTRA_WALLET = "wallet"
         const val EXTRA_COHORT = "cohort"
         const val EXTRA_KIND = "kind"

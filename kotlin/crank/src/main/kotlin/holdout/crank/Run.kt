@@ -10,6 +10,7 @@ import holdout.core.Instructions
 import holdout.core.LeagueSnapshot
 import holdout.core.MembershipSnapshot
 import holdout.core.Pdas
+import holdout.core.ProgramErrorCode
 import holdout.core.Rpc
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonObject
@@ -90,14 +91,6 @@ object Run {
 
     // ---- the pass ----------------------------------------------------------
 
-    /** The program error a refusal names (`custom program error: 0x…` or `"Custom":n`), if any. */
-    fun programError(message: String?): Int? {
-        if (message == null) return null
-        Regex("custom program error: 0x([0-9a-fA-F]+)").find(message)?.let { return it.groupValues[1].toInt(16) }
-        Regex("\"Custom\"\\s*:\\s*(\\d+)").find(message)?.let { return it.groupValues[1].toInt() }
-        return null
-    }
-
     const val CARRY_OVER_TARGET_NOT_OPEN = 6047
     const val FAUCET_CAP_REACHED = 6051
     const val FAUCET_EMPTY = 6052
@@ -133,7 +126,7 @@ object Run {
             Outcome.Landed
         } catch (e: CrankException) {
             if (e.exitCode == EXIT_CONFIG) throw e
-            val code = programError(e.message)
+            val code = ProgramErrorCode.of(e.message)
             if (code != null && code in expected) {
                 record(step, "refused") {
                     detail()

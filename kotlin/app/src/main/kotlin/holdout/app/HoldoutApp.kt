@@ -157,20 +157,17 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     LaunchedEffect(address) { holdouts.watch(address) }
 
     // On-device reminders (FR-068): the whole schedule, recomputed from each
-    // chain read and handed to the alarm service. A day done on this phone —
-    // complete, or waiting to submit — is not reminded.
+    // chain read and handed to the alarm service. A day done on this phone but
+    // not on chain is still reminded — to submit it (ReminderReceiver).
     val reminders = remember { ReminderScheduler(context) }
     LaunchedEffect(address, chain.view) {
         val me = address ?: return@LaunchedEffect
         val view = chain.view ?: return@LaunchedEffect
         val chainNow = clock.nowSeconds() ?: return@LaunchedEffect
         val elapsed = android.os.SystemClock.elapsedRealtime()
-        val wallet = me.base58()
         val held = view.holdouts.mapNotNull { h -> h.membership?.let { h.cohort to it } }
-        val schedule = Reminders.schedule(held, { c -> view.holdouts.first { it.cohort == c }.address }, chainNow) { cohort, day ->
-            store.isDayComplete(wallet, "cohort:${cohort.base58()}", day.toLong()) || store.pendingCohortDay(wallet, cohort.base58()) == day
-        }
-        reminders.sync(wallet, schedule, chainNow, elapsed)
+        val schedule = Reminders.schedule(held, { c -> view.holdouts.first { it.cohort == c }.address }, chainNow)
+        reminders.sync(me.base58(), schedule, chainNow, elapsed)
     }
 
     // Asked once, at the first join, with the reason (FR-068a); the join goes ahead either way.
@@ -495,7 +492,8 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             stage = stage,
             now = chainNow,
             banked = banked,
-            pendingDay = pending ?: stage.dayIndex.takeIf { locallyDone && !stage.todayDone },
+            // Only today's pending day counts: an older one left behind must not hide today's.
+            pendingDay = pending?.takeIf { it == stage.dayIndex } ?: stage.dayIndex.takeIf { locallyDone && !stage.todayDone },
             busy = chain.busy,
             message = chain.message,
             messageIsWarning = chain.messageIsWarning,

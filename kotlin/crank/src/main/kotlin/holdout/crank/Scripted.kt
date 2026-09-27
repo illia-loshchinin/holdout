@@ -255,9 +255,6 @@ object Scripted {
 
     // ---- run ---------------------------------------------------------------
 
-    /** An SPL token account's `amount`: bytes 64..72, little-endian. */
-    private fun tokenAmount(data: ByteArray?): ULong = if (data == null || data.size < 72) 0uL else ByteBuffer.wrap(data, 64, 8).order(ByteOrder.LITTLE_ENDIAN).long.toULong()
-
     suspend fun run(
         args: Args,
         config: CrankConfig,
@@ -336,7 +333,8 @@ object Scripted {
                     val runningEnd = running?.let { r -> byAddress[r]?.let(Derive::end) }
                     if (!canJoin(profile, c, runningEnd, now)) continue
                     val tier = tierOf(address, w.pubkey)
-                    val balance = tokenAmount(rpc.accountData(Pdas.associatedToken(w.pubkey, onChain.skrMint)))
+                    // A read that failed is not an empty account: skip the wallet this pass rather than spend its faucet claim.
+                    val balance = rpc.tokenAmount(Pdas.associatedToken(w.pubkey, onChain.skrMint)) ?: continue
                     val needsFaucet = balance < c.chips[tier]
                     if (needsFaucet && profile?.claimedFaucetOn(today) == true) continue
                     val key = keyOf(w)

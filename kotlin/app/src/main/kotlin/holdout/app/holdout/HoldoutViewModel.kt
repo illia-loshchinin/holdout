@@ -160,14 +160,20 @@ class HoldoutViewModel(
      * Sends the completed [day] of [h], recorded first as pending so a failed
      * or offline send leaves "Done — tap to submit" rather than nothing (FR-024b).
      */
-    fun submitDay(sender: ActivityResultSender, h: Holdout, day: Int, reps: Int) = act {
-        val me = address ?: return@act
+    fun submitDay(sender: ActivityResultSender, h: Holdout, day: Int, reps: Int) {
+        val me = address ?: return
+        // Recorded before anything else, so a send that never starts — another
+        // action still busy — leaves "Done — tap to submit", not nothing.
         store.setPendingCohortDay(me.base58(), h.address.base58(), day)
-        val ix = Instructions.submitDay(Deployment.programId, me, h.address, day, proofOf(h.address, day, reps))
-        val landed = describe(wallet.send(sender, listOf(ix)), "Day ${day + 1} is on chain.")
-        // The program refuses a day already on chain (6033): that is landed too.
-        val result = _state.value
-        if (landed || result.message == ProgramErrors.explain(DAY_ALREADY_COMPLETED)) store.setPendingCohortDay(me.base58(), h.address.base58(), null)
+        act {
+            val ix = Instructions.submitDay(Deployment.programId, me, h.address, day, proofOf(h.address, day, reps))
+            val result = wallet.send(sender, listOf(ix))
+            describe(result, "Day ${day + 1} is on chain.")
+            // Landed, already on chain (6033), or past saving — not today's day
+            // (6031) or past its deadline (6032): nothing is left to submit.
+            val settled = result is SendResult.Landed || (result as? SendResult.Failed)?.programError in NOTHING_LEFT_TO_SUBMIT
+            if (settled) store.setPendingCohortDay(me.base58(), h.address.base58(), null)
+        }
     }
 
     fun pendingDay(h: Holdout): Int? = address?.let { store.pendingCohortDay(it.base58(), h.address.base58()) }
@@ -184,6 +190,9 @@ class HoldoutViewModel(
     companion object {
         private const val REFRESH_MILLIS = 30_000L
         const val DAY_ALREADY_COMPLETED = 6033
+
+        /** Refusals after which a pending day has nothing left to send: wrong day, deadline passed, already on chain. */
+        private val NOTHING_LEFT_TO_SUBMIT = setOf(6031, 6032, DAY_ALREADY_COMPLETED)
 
         /**
          * The 32 bytes a completed day carries: SHA-256 of the day's summary —

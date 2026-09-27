@@ -21,7 +21,7 @@ class RemindersTest {
 
     private fun member(days: Int = 0, state: MembershipSnapshot.State = MembershipSnapshot.State.Joined) = MembershipSnapshot(wallet, 0, 10uL, start - 86_400, days, state)
 
-    private fun schedule(c: CohortSnapshot, m: MembershipSnapshot, now: Long, done: (SolanaPublicKey, Int) -> Boolean = { _, _ -> false }) = Reminders.schedule(listOf(c to m), { address }, now, done)
+    private fun schedule(c: CohortSnapshot, m: MembershipSnapshot, now: Long) = Reminders.schedule(listOf(c to m), { address }, now)
 
     @Test
     fun `3 hours before a 24-hour day's deadline, 15 minutes before a one-hour day's`() {
@@ -62,11 +62,11 @@ class RemindersTest {
     }
 
     @Test
-    fun `nothing for a day on chain, done on the phone, or already past its reminder`() {
+    fun `nothing for a day on chain, or already past its reminder - but a day only on the phone is still owed`() {
         val c = cohort()
         val midDay2 = start + 2 * 86_400 + 60
-        val r = schedule(c, member(days = 2), now = midDay2) { _, day -> day == 3 }
-        assertEquals(listOf(2, 4, 5, 6), r.map { it.dayIndex }, "day 2 still owed today, day 3 done on the phone")
+        val r = schedule(c, member(days = 2), now = midDay2)
+        assertEquals(listOf(2, 3, 4, 5, 6), r.map { it.dayIndex }, "day 2 still owed today, whether or not the phone has it done")
         val late = start + 3 * 86_400 - 1 - 60 // past day 2's reminder, before its deadline
         assertTrue(schedule(c, member(days = 2), now = late).none { it.dayIndex == 2 })
     }

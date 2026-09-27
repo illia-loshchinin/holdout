@@ -16,6 +16,7 @@ import holdout.app.BuildConfig
 import holdout.app.chain.Deployment
 import holdout.app.storage.Store
 import holdout.app.storage.WalletSession
+import holdout.core.ProgramErrorCode
 import holdout.core.Rpc
 import holdout.core.Transactions
 import kotlinx.coroutines.delay
@@ -155,7 +156,11 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
         return when (val answer = rpc.send(signed)) {
             is Rpc.Answer.Ok -> confirm(rpc, answer.value)
             is Rpc.Answer.Refused -> failure(answer.message)
-            is Rpc.Answer.Unanswered -> SendResult.Failed("The local validator did not answer: ${answer.message}")
+            // It may have reached the validator all the same: its own signature says.
+            is Rpc.Answer.Unanswered ->
+                com.solana.transaction.Transaction.from(signed).signatures.firstOrNull()
+                    ?.let { confirm(rpc, Base58.encodeToString(it)) }
+                    ?: SendResult.Failed("${Deployment.networkName} did not answer: ${answer.message}")
         }
     }
 
@@ -190,15 +195,6 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
             return SendResult.Failed("Sent, but devnet has not confirmed it yet. It may still land — pull to refresh in a minute.")
         }
 
-        fun failure(message: String): SendResult.Failed = SendResult.Failed(message, programErrorIn(message))
-
-        /** The program error a failure names, however the node or the wallet words it. */
-        fun programErrorIn(message: String?): Int? {
-            if (message == null) return null
-            Regex("custom program error: 0x([0-9a-fA-F]+)").find(message)?.let { return it.groupValues[1].toInt(16) }
-            Regex("\"Custom\"\\s*:\\s*(\\d+)").find(message)?.let { return it.groupValues[1].toInt() }
-            Regex("Custom\\((\\d+)\\)").find(message)?.let { return it.groupValues[1].toInt() }
-            return null
-        }
+        fun failure(message: String): SendResult.Failed = SendResult.Failed(message, ProgramErrorCode.of(message))
     }
 }

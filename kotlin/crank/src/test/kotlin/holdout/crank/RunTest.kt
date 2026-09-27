@@ -105,14 +105,6 @@ class RunTest {
         assertNull(Run.carryOverTargetIndex(nextIndex = 0, cohortIndex = 0))
     }
 
-    @Test
-    fun `a refusal names its program error however the node words it`() {
-        assertEquals(6054, Run.programError("Transaction simulation failed: Error processing Instruction 0: custom program error: 0x17a6"))
-        assertEquals(6047, Run.programError("""{"InstructionError":[0,{"Custom":6047}]}"""))
-        assertNull(Run.programError("blockhash not found"))
-        assertNull(Run.programError(null))
-    }
-
     // ---- one whole pass ----------------------------------------------------
 
     private fun le(size: Int) = ByteBuffer.allocate(size).order(ByteOrder.LITTLE_ENDIAN)

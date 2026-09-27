@@ -78,15 +78,7 @@ class FaucetClient(private val rpc: Rpc, private val wallet: WalletRepository, p
         if (profile?.claimedFaucetOn(today) == true) return FaucetOutcome.UsedToday(HoldoutDay.endOf(today))
 
         val viaSponsor = sponsor?.takeIf { it.publicKey == config.sponsor }
-        if (viaSponsor != null && lamports < memberCanPay) {
-            when (val sent = sponsorPaid(viaSponsor, recipient, config)) {
-                is SendResult.Landed -> return FaucetOutcome.Funded(sent.signature)
-                is SendResult.Failed -> classify(sent, today)?.let { return it }
-                SendResult.NoWallet -> Unit
-            }
-            if (lamports < memberCanPay) return FaucetOutcome.CannotPayOut
-        }
-        if (lamports < memberCanPay) return FaucetOutcome.CannotPayOut
+        if (lamports < memberCanPay) return viaSponsor?.let { sponsorPaid(it, recipient, config, today) } ?: FaucetOutcome.CannotPayOut
         val ix = Instructions.claimFaucet(programId, recipient, recipient, config.skrMint, config.sponsor)
         return when (val sent = wallet.send(sender, listOf(ix))) {
             is SendResult.Landed -> FaucetOutcome.Funded(sent.signature)
@@ -95,17 +87,30 @@ class FaucetClient(private val rpc: Rpc, private val wallet: WalletRepository, p
         }
     }
 
-    /** Built with web3-solana, signed by the bundled sponsor, sent with rpc-core — no MWA in it (R13). */
-    private suspend fun sponsorPaid(key: SponsorKey, recipient: SolanaPublicKey, config: ConfigSnapshot): SendResult {
-        val blockhash = rpc.latestBlockhash() ?: return SendResult.Failed("${Deployment.networkName} did not answer. Check the connection and try again.")
+    /**
+     * Built with web3-solana, signed by the bundled sponsor, sent with rpc-core — no MWA in it (R13).
+     *
+     * Only a refusal is the faucet's to own (ES-0b): a node that does not answer,
+     * or a claim sent but not yet confirmed, is said as it is, so the member
+     * tries again rather than being told the faucet cannot pay.
+     */
+    private suspend fun sponsorPaid(key: SponsorKey, recipient: SolanaPublicKey, config: ConfigSnapshot, today: Long): FaucetOutcome {
+        val blockhash = rpc.latestBlockhash() ?: return FaucetOutcome.Failed("${Deployment.networkName} did not answer. Check the connection and try again.")
         // The sponsor both pays and is reimbursed: exactly the mixed-flags case Transactions exists for.
         val message = Transactions.message(listOf(Instructions.claimFaucet(programId, key.publicKey, recipient, config.skrMint, config.sponsor)), blockhash)
         val signature = key.sign(message.serialize())
         val bytes = Transaction(listOf(signature), message).serialize()
-        return when (val answer = rpc.send(bytes)) {
-            is Rpc.Answer.Ok -> WalletRepository.confirm(rpc, answer.value)
-            is Rpc.Answer.Refused -> WalletRepository.failure(answer.message)
-            is Rpc.Answer.Unanswered -> WalletRepository.confirm(rpc, Base58.encodeToString(signature))
+        val sent =
+            when (val answer = rpc.send(bytes)) {
+                is Rpc.Answer.Ok -> WalletRepository.confirm(rpc, answer.value)
+                // Refused before it ran — the float or the day's budget is spent, or the program said no.
+                is Rpc.Answer.Refused -> return classify(WalletRepository.failure(answer.message), today) ?: FaucetOutcome.CannotPayOut
+                is Rpc.Answer.Unanswered -> WalletRepository.confirm(rpc, Base58.encodeToString(signature))
+            }
+        return when (sent) {
+            is SendResult.Landed -> FaucetOutcome.Funded(sent.signature)
+            is SendResult.Failed -> classify(sent, today) ?: FaucetOutcome.Failed(sent.message)
+            SendResult.NoWallet -> FaucetOutcome.CannotPayOut
         }
     }
 
