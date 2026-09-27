@@ -144,8 +144,10 @@ object Scripted {
             val groups = roster.filter { it.league == "21d" }.map { it.group }.distinct().sorted()
             if (groups.isEmpty()) emptyList() else roster.filter { it.group == groups[(index % groups.size).toInt()] }
         }
-        // Only ever with --floor-test, which judged runs never pass.
-        else -> roster.filter { it.group == "7d" }
+        // Only ever with --floor-test, which judged runs never pass: every scripted
+        // wallet, since test cohorts may start every few minutes and each wallet
+        // can hold only one running Holdout at a time (FR-006b).
+        else -> roster
     }.sortedBy { it.index }
 
     private fun seed(cohort: SolanaPublicKey, wallet: SolanaPublicKey, salt: String): Long {

@@ -252,7 +252,8 @@ object Init {
                     configError("--first-start must be an instant such as 2026-09-27T15:00:00Z, got $it")
                 }
             } ?: configError("init --test-league needs --first-start: a test league starts when the admin chooses")
-        val cadence = args.option("cadence")?.let { number("cadence", daySeconds..Long.MAX_VALUE / 1024) } ?: (days * daySeconds)
+        // Cohorts may overlap: a new one every few minutes lets a tester join at any time.
+        val cadence = args.option("cadence")?.let { number("cadence", MIN_TEST_DAY_SECONDS..Long.MAX_VALUE / 1024) } ?: (days * daySeconds)
         val joinLock = args.option("join-lock")?.let { number("join-lock", 0L..cadence) } ?: minOf(DEFAULT_TEST_JOIN_LOCK, cadence)
         return LeagueParams(leagueId.toInt(), days.toInt(), reps.toInt(), LeagueParams.EXERCISE_PUSHUP, firstStart, daySeconds, cadence, joinLock)
     }

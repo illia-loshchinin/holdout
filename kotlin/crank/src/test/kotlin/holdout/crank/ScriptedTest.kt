@@ -75,6 +75,7 @@ class ScriptedTest {
         assertEquals(listOf("21d-a", "21d-b", "21d-c", "21d-a"), (0L..3L).map { Scripted.poolFor(roster, 1, it).map { w -> w.group }.distinct().single() })
         assertEquals(0, Scripted.Floors().of(100), "on devnet the short test cohort is filled by testers alone")
         assertEquals(8, Scripted.Floors(test = 8).of(100))
+        assertEquals(56, Scripted.poolFor(roster, 102, 5).size, "a local test run may use every scripted wallet")
     }
 
     @Test

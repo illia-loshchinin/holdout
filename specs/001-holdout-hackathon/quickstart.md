@@ -168,6 +168,8 @@ bash scripts/localnet.sh start && bash scripts/localnet.sh fund
 cd kotlin && ./gradlew :crank:jar && cd ..
 bash scripts/localnet-crank.sh init --operator <operator> --sponsor <sponsor> --treasury <treasury> --rate 0.0213 --fund-faucet 20
 bash scripts/localnet-crank.sh init --test-league --first-start <iso, ~20 min ahead>
+# or: a new 7-hour cohort every 10 minutes, so a tester can always join one soon (local only)
+bash scripts/localnet-crank.sh init --test-league --league-id 102 --cadence 600 --join-lock 60 --first-start <iso>
 bash scripts/localnet-crank.sh scripted fund
 bash scripts/localnet-crank.sh --loop      # leave running: opens, fills, forfeits, settles
 ```

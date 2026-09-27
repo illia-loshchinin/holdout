@@ -101,8 +101,8 @@ class TestLeagueTest {
         assertEquals(LeagueParams(100, 7, 5, 0, Instant.parse(start).epochSecond, 3_600, 25_200, 300), p)
         val quick = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--day-seconds", "600", "--reps", "10", "--days", "3") + quickstart))
         assertEquals(listOf(600L, 10L, 3L, 1_800L), listOf(quick.dayLength, quick.repsPerDay.toLong(), quick.durationDays.toLong(), quick.cadence), "every default can be overridden")
-        val custom = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--league-id", "101", "--cadence", "7200", "--join-lock", "60") + quickstart))
-        assertEquals(listOf(101L, 7_200L, 60L), listOf(custom.leagueId.toLong(), custom.cadence, custom.joinLock))
+        val custom = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--league-id", "101", "--cadence", "600", "--join-lock", "60") + quickstart))
+        assertEquals(listOf(101L, 600L, 60L), listOf(custom.leagueId.toLong(), custom.cadence, custom.joinLock), "a cohort every 10 minutes, overlapping")
     }
 
     @Test
