@@ -245,22 +245,6 @@ fun SittingScreen(
             )
         }
 
-        // The head left the picture: said aloud too, but shown as big as the
-        // coach's words, because the frame needs fixing now.
-        if (state.headOutOfView && state.step == SittingViewModel.Step.COUNTING && !cleanScreen) {
-            Text(
-                "Head out of view · move back",
-                style = MaterialTheme.typography.headlineMedium,
-                color = HoldoutColors.Warning,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 56.dp)
-                    .background(HoldoutColors.Scrim, MaterialTheme.shapes.large)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-        }
-
         // Debug builds: log what was really done before leaving, so the
         // trace this sitting wrote arrives already labelled.
         labelThen?.let { leave ->

@@ -80,6 +80,21 @@ data class RepRules(
      */
     val minLegsAboveHands: Float = 0.41f,
     /**
+     * Staked: how far inside the picture the near knee must stay, as a share of
+     * each side. A knee that leaves the frame is not dropped by the model: it
+     * is placed just inside the edge, with full confidence, and the knee check
+     * then judges a guess. On 29 Sep a set with the knees out of camera had the
+     * knee within 12 % of the edge in 28–50 % of every rep's frames; honest sets
+     * at 45° had it there in 0–3 %.
+     */
+    val legEdgeMargin: Float = 0.13f,
+    /**
+     * Staked: the largest share of the push back up the near knee may spend
+     * inside [legEdgeMargin] (or unseen) before the rep cannot be judged and is
+     * refused with [RepHint.LEGS_IN_VIEW]. Calibrated on the phone's traces.
+     */
+    val maxLegsUnseenShare: Float = 0.25f,
+    /**
      * Head-on depth: at the bottom the shoulders must come down to within this
      * share of their height above the hands at the top. The elbow angle alone
      * over-reads the bend head-on; on the phone honest reps reached 0.16–0.19
@@ -151,8 +166,8 @@ enum class RepHint(val message: String) {
     SLOW_DOWN("Slow down"),
     UP_ON_YOUR_TOES("Knees off the floor"),
 
-    /** Staked only: the knee was not in the picture on the push, so nothing proved it off the floor. */
-    LEGS_IN_VIEW("Keep your legs in view"),
+    /** Staked only: the knee was not in the picture on the push — unseen, or at its edge, where the model guesses — so nothing proved it off the floor. */
+    LEGS_IN_VIEW("Keep your knees in the picture"),
 }
 
 /**
@@ -262,6 +277,10 @@ class RepCounter(
     private val pushPostures = mutableListOf<Float>()
     private val pushKnees = mutableListOf<Float>()
     private val pushLegs = mutableListOf<Float>()
+
+    /** Push frames, and those whose near knee was unseen or at the picture's edge (staked). */
+    private var pushFrames = 0
+    private var pushLegsUnseen = 0
     private var minShoulderHeightInCycle = Float.MAX_VALUE
     private var minShoulderOverHandInCycle = Float.MAX_VALUE
     private var topShoulderHeight: Float? = null
@@ -301,7 +320,8 @@ class RepCounter(
     private var priming = false
 
     fun onFrame(frame: PoseFrame, image: ImagePose? = null): RepEvent? {
-        val reading = ViewReading.of(view, frame, image, side = nearSideFor(image)) ?: return null
+        val side = nearSideFor(image)
+        val reading = ViewReading.of(view, frame, image, side = side) ?: return null
 
         val elbow = elbowFilter.filter(reading.elbow, frame.timestampMillis)
         val posture = postureFilter.filter(reading.posture, frame.timestampMillis)
@@ -350,8 +370,16 @@ class RepCounter(
                 observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight)
                 if (elbow >= PUSH_FROM_ELBOW) {
                     pushPostures += posture
-                    knee?.let { pushKnees += it }
-                    (reading as? ViewReading.Angled)?.legsAboveHands?.let { pushLegs += it }
+                    // A knee at the edge of the picture is the model's guess, not
+                    // a knee seen: it neither passes nor fails the knee check.
+                    val kneeSeen = !judgeKnees || (image != null && side != null && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin))
+                    pushFrames++
+                    if (kneeSeen) {
+                        knee?.let { pushKnees += it }
+                        (reading as? ViewReading.Angled)?.legsAboveHands?.let { pushLegs += it }
+                    } else {
+                        pushLegsUnseen++
+                    }
                 }
                 if (elbow < rules.topTriggerDegrees) return null
 
@@ -373,8 +401,11 @@ class RepCounter(
                     // Knees first: a push-up from the knees is a different
                     // exercise, and "keep your body straight" would not say so.
                     // Where money is staked, knees never seen on the push are
-                    // not knees off the floor: the rep cannot be judged.
-                    judgeKnees && pushKnees.isEmpty() && pushLegs.isEmpty() -> RepEvent.Discarded(RepHint.LEGS_IN_VIEW)
+                    // not knees off the floor: the rep cannot be judged. Nor
+                    // can one whose knee spent much of the push out of the
+                    // picture or at its edge — the knees may have been down.
+                    judgeKnees && (pushKnees.isEmpty() && pushLegs.isEmpty() || legsUnseenShare() > rules.maxLegsUnseenShare) ->
+                        RepEvent.Discarded(RepHint.LEGS_IN_VIEW)
                     judgeKnees && !kneesOffFloor(pushKnees.medianOrNull(), pushLegs.medianOrNull(), rules) ->
                         RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
                     tooShallowHeadOn() || tooShallowAngled() -> RepEvent.Discarded(RepHint.GO_LOWER)
@@ -392,6 +423,8 @@ class RepCounter(
             }
         }
     }
+
+    private fun legsUnseenShare(): Float = if (pushFrames == 0) 0f else pushLegsUnseen.toFloat() / pushFrames
 
     private fun startCycle(timestampMillis: Long) {
         resetCycle()
@@ -470,6 +503,8 @@ class RepCounter(
         pushPostures.clear()
         pushKnees.clear()
         pushLegs.clear()
+        pushFrames = 0
+        pushLegsUnseen = 0
         minShoulderHeightInCycle = Float.MAX_VALUE
         minShoulderOverHandInCycle = Float.MAX_VALUE
     }

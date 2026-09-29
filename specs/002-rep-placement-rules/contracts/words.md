@@ -27,11 +27,13 @@ A moving background is not a correction: its pill turns amber with "Find a spot 
 - "Keep your body straight" — folded, or cobra
 - "Slow down" — too fast
 - "Knees off the floor" — staked only
-- "Keep your legs in view" — staked only: no knee reading on the push
+- "Keep your knees in the picture" — staked only: the near knee unseen, or at the picture's edge, on the push; said aloud the first time
 
-## Framing (FR-024)
+## Framing (FR-024, FR-010) — the whole-body check, before the hold
 
-- Shown: "Head out of view · move back"; spoken: "Move back"
+- "Keep your head in the picture" — the head at or past an edge
+- "Keep your knees in the picture — move the phone further away" — staked: the near knee at or past an edge
+- While counting nothing is said about the head *(revised 2026-09-29)*
 
 ## Feedback (FR-021)
 

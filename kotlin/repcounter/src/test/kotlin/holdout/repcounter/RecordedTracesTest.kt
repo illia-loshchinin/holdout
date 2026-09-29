@@ -43,6 +43,17 @@ class RecordedTracesTest {
     }
 
     @Test
+    fun `knees out of the picture are not counted as knees off the floor, and the member is told why`() {
+        val file = traces().single { it.name == "angled-knees-out-of-frame-01.trace.csv" }
+        val recording = Trace.parse(file.readLines())
+        val counter = RepCounter(view = recording.countingView!!, stakes = recording.stakes)
+        for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
+        val events = recording.countingFrames.mapNotNull { counter.onFrame(it.world, it.image) }
+        assertEquals(0, counter.total, "every rep was done with the knees out of camera")
+        assertEquals(List(5) { RepEvent.Discarded(RepHint.LEGS_IN_VIEW) }, events)
+    }
+
+    @Test
     fun `a person's account is written into the header, and a note cannot forge a fact`() {
         val (world, image) = Traces.frontFrame(1_000, elbowDegrees = 120f)
         val text = Trace.header(Stakes.STAKED, image.width, image.height) +

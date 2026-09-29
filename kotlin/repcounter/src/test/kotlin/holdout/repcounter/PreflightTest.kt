@@ -156,6 +156,42 @@ class PreflightTest {
         assertTrue(report.fixes.contains("Move the phone so it can see all of you"))
     }
 
+    private fun wholeBody(report: PreflightReport) = report.statuses.single { it.check == PreflightCheck.WHOLE_BODY }
+
+    @Test
+    fun `the hold starts only with the head clearly in the picture`() {
+        val image = Traces.imageFrame(shoulderSpan = 0.7f)
+        fun withNose(y: Float) = PoseFrame(image.timestampMillis, image.landmarks.mapIndexed { i, l -> if (i == PoseIndex.NOSE) l.copy(y = y) else l })
+        assertTrue(wholeBody(preflight.evaluate(good(image = withNose(0.3f)))).passing)
+        val atTheEdge = wholeBody(preflight.evaluate(good(image = withNose(0.01f))))
+        assertFalse(atTheEdge.passing, "a head at the picture's edge is on its way out of it")
+        assertEquals(Preflight.HEAD_FIX, atTheEdge.fix)
+    }
+
+    @Test
+    fun `a staked sitting starts only with the near knee clear of the picture's edges`() {
+        val staked = Preflight(stakes = Stakes.STAKED)
+        fun pose(kneeX: Float): ImagePose {
+            val base = Traces.angledImage(0, elbowDegrees = 175f)
+            val landmarks = base.frame.landmarks.mapIndexed { i, l ->
+                when (i) {
+                    PoseIndex.LEFT_KNEE -> Landmark(kneeX, 0.5f, 0f, 1f)
+                    PoseIndex.NOSE -> Landmark(0.5f, 0.3f, 0f, 1f)
+                    else -> l
+                }
+            }
+            return ImagePose(PoseFrame(0, landmarks), base.width, base.height)
+        }
+        fun report(kneeX: Float) = pose(kneeX).let { p -> staked.evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), p.frame, p)) }
+        assertTrue(wholeBody(report(0.5f)).passing)
+        // Where the model puts a knee that has left the frame: just inside the edge.
+        val guessed = wholeBody(report(0.05f))
+        assertFalse(guessed.passing)
+        assertEquals(Preflight.KNEES_FIX, guessed.fix)
+        // The Daily 25 does not judge knees, so it does not ask for them.
+        assertTrue(wholeBody(Preflight().evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), pose(0.05f).frame, pose(0.05f)))).passing)
+    }
+
     @Test
     fun `a green pill carries no fix`() {
         assertTrue(preflight.evaluate(good()).statuses.all { it.fix == null })

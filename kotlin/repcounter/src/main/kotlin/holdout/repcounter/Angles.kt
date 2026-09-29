@@ -152,6 +152,18 @@ object Angles {
     fun kneeInImage(image: ImagePose, side: Side): Float? = inImage(image, LEG.getValue(side))
 
     /**
+     * Whether the knee on [side] is clearly in the picture: confidently placed,
+     * and at least [margin] of the frame inside every edge. The model does not
+     * drop a knee that leaves the frame — it puts one just inside the edge, at
+     * full confidence — so only the margin tells a seen knee from a guessed one.
+     */
+    fun kneeClearOfEdge(image: ImagePose, side: Side, margin: Float): Boolean {
+        val knee = image.frame[LEG.getValue(side).second]
+        if (!visible(knee)) return false
+        return knee!!.x in margin..(1f - margin) && knee.y in margin..(1f - margin)
+    }
+
+    /**
      * Head-on: the elbow as the picture shows it, **both arms averaged**, or
      * `null` when either is not clearly in frame. From the front both arms are
      * always visible, the elbows flare across the image as they bend, and

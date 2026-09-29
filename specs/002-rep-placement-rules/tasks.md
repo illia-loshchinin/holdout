@@ -96,6 +96,7 @@ description: "Task list for 002 rep placement and form rules — as built, with 
 - [ ] T032 [P] Measure SC-003 from committed traces: share of top-of-rep frames classified `OBLIQUE` in every angled fixture, as a test in `kotlin/repcounter/src/test/kotlin/holdout/repcounter/PlacementTest.kt` (≥ 99%)
 - [ ] T033 Collect labelled traces from at least three more people (beta testers, 001 T095) — one honest, one knee, one cobra set each at 45°, staked switch on — and commit them to `fixtures/rep-traces/`; re-tune thresholds only with a failing fixture first
 - [ ] T034 [P] Keep the README weaknesses row for rep counting in sync with T033's results, `README.md`
+- [X] T034a *(Added 2026-09-29, FR-010, FR-024 revised.)* Close the knees-out-of-camera loophole and move the head to entry only: `Angles.kneeClearOfEdge`; `RepRules.legEdgeMargin` (13 %) and `maxLegsUnseenShare` (25 %) in `RepCounter`, refusing with `LEGS_IN_VIEW` ("Keep your knees in the picture", said at once); the whole-body pre-flight check requires the head clearly in frame and, staked, the near knee clear of the edges; the counting-time head warning removed. Calibrated by replaying all 22 staked phone traces: the knees-out set goes 5 → 0, every honest set unchanged; the set is committed as `fixtures/rep-traces/angled-knees-out-of-frame-01.trace.csv` with its own test
 
 ---
 

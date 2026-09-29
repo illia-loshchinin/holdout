@@ -93,6 +93,8 @@ data class PreflightInput(
     val world: PoseFrame?,
     /** Image landmarks: normalised 0..1. Null when the model found nobody. */
     val image: PoseFrame? = world,
+    /** [image] with the picture's size, which the near side is read from. Without it the staked knee check is skipped. */
+    val imagePose: ImagePose? = null,
 )
 
 class Preflight(
@@ -118,6 +120,8 @@ class Preflight(
      * still be refused ([Stakes]).
      */
     private val stakes: Stakes = Stakes.DAILY,
+    /** Staked: how far inside the picture the near knee must be to start — the counter's own margin. */
+    private val legEdgeMargin: Float = RepRules().legEdgeMargin,
 ) {
 
     fun evaluate(input: PreflightInput): PreflightReport {
@@ -128,7 +132,7 @@ class Preflight(
                     PreflightCheck.LIGHTING,
                     input.brightness in minBrightness..maxBrightness,
                 ),
-                PreflightStatus(PreflightCheck.WHOLE_BODY, wholeBodyVisible(input.world, input.image)),
+                wholeBody(input),
                 // One placement per stakes ([Stakes]): head-on for the Daily 25,
                 // 45° when money is on it. Anywhere else, the pill says which.
                 PreflightStatus(
@@ -143,6 +147,30 @@ class Preflight(
             ),
             view = view,
         )
+    }
+
+    /**
+     * The whole-body pill, which the ready hold and the countdown both need
+     * green. On top of every joint being present:
+     *
+     * - **the head clearly inside the picture** — the entry is held with the
+     *   head in frame. Once counting starts the head is not read at all: a head
+     *   that dips out at the bottom of a rep costs nothing;
+     * - **staked: the near knee clear of the edges** by the counter's own
+     *   margin. A knee out of frame is placed just inside the edge at full
+     *   confidence, and a rep read from it is refused ([RepHint.LEGS_IN_VIEW]),
+     *   so the sitting does not start that way.
+     */
+    private fun wholeBody(input: PreflightInput): PreflightStatus {
+        fun failing(fix: String? = null) = PreflightStatus(PreflightCheck.WHOLE_BODY, passing = false, specificFix = fix)
+        if (!wholeBodyVisible(input.world, input.image)) return failing()
+        if (input.image != null && !Angles.headInFrame(input.image)) return failing(HEAD_FIX)
+        val pose = input.imagePose
+        if (stakes == Stakes.STAKED && pose != null) {
+            val side = Angles.nearSide(pose)
+            if (side == null || !Angles.kneeClearOfEdge(pose, side, legEdgeMargin)) return failing(KNEES_FIX)
+        }
+        return PreflightStatus(PreflightCheck.WHOLE_BODY, passing = true)
     }
 
     /**
@@ -233,6 +261,12 @@ class Preflight(
     companion object {
         /** Share of the background ([BackgroundMotion]) allowed to change between frames. */
         const val DEFAULT_MAX_BACKGROUND_MOTION = 0.12f
+
+        /** The whole-body pill's fix when the head is at or past the picture's edge. */
+        const val HEAD_FIX = "Keep your head in the picture"
+
+        /** Staked: the fix when the near knee is at or past the edge. */
+        const val KNEES_FIX = "Keep your knees in the picture — move the phone further away"
 
         /** Below this the torso is too short in frame for the ratio to mean anything. */
         private const val MIN_TORSO_LENGTH = 0.02f

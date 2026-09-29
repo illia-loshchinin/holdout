@@ -92,6 +92,7 @@ within one of it. A trace with `expectedReps=?` is evidence, not a test.
 | `angled-half-01` | 45° | staked: half push-ups | 0 — was 7 of 11 on the elbow alone (some half reps read 55–67°, as deep as honest). Refused by depth at 45°: at the bottom the near shoulder stood 0.43–0.68 arm-lengths over the hand; honest reps 0.20–0.28, line at 0.32 |
 | `angled-mixed-02` | 45° | staked: 10 honest, 5 cobra, 5 push-ups from the knees with the shins flat | 10 — the shallow kneel had counted (knee 124–139°, too close to honest); refused by the legs' height above the hands on the push: honest 0.44–0.65, knees 0.32–0.39 |
 | `angled-mixed-03` | 45° | staked: 10 honest, 5 cobra, 5 from the knees — recorded on the build with the legs-above-hands rule | 10, live and on replay |
+| `angled-knees-out-of-frame-01` | 45° | staked: 5 full push-ups with the knees out of the picture (Seeker, 29 Sep, a 10-minute test day) | 0 — all 5 had counted: the model placed the knees just inside the frame at full confidence. Refused as `LEGS_IN_VIEW` once the knee spends over 25 % of the push within 13 % of an edge; it was there 28–50 % of every rep, honest sets 0–3 % |
 
 ## What the suite must hold — 10 honest, 3 cheats, **in each placement**
 

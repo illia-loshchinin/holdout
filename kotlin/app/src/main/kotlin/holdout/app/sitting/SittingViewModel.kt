@@ -156,8 +156,6 @@ class SittingViewModel(
         val recordingVideo: Boolean? = null,
         /** Reps the counter credited in this sitting — shown next to the member's own count. */
         val repsCounted: Int = 0,
-        /** The head has been out of the picture for a moment while counting. */
-        val headOutOfView: Boolean = false,
     ) {
         val doneToday: Int get() = banked + looseReps
         val remaining: Int get() = (target - doneToday).coerceAtLeast(0)
@@ -260,6 +258,7 @@ class SittingViewModel(
                         backgroundMotion,
                         observation.world,
                         observation.image,
+                        observation.imagePose(),
                     ),
                 )
                 val guidance = positionGuide.guide(
@@ -302,7 +301,7 @@ class SittingViewModel(
             // these stakes do not accept, sends the sitting back to them.
             Step.COUNTDOWN -> {
                 val report = preflight.evaluate(
-                    PreflightInput(observation.brightness, backgroundMotion, observation.world, observation.image),
+                    PreflightInput(observation.brightness, backgroundMotion, observation.world, observation.image, observation.imagePose()),
                 )
                 _uiState.update { it.withFrame(observation).copy(preflight = report) }
                 record(observation, countingView)
@@ -322,7 +321,6 @@ class SittingViewModel(
                 val event = repCounter.onFrame(observation.world, observation.imagePose())
                 _uiState.update { it.withFrame(observation).copy(readout = repCounter.readout) }
                 record(observation, countingView, repCounter.readout, event)
-                watchHead(observation)
                 when (event) {
                     is RepEvent.Counted -> {
                         lastRefusal = null
@@ -334,7 +332,9 @@ class SittingViewModel(
                         // Face-down, the member cannot read the screen: the same
                         // failure twice in a row is said out loud.
                         val hint = event.hint
-                        if (hint != null && hint == lastRefusal) _cues.tryEmit(Cue.Say(hint.message))
+                        // Knees out of the picture is said at once: every rep fails the
+                        // same way until the phone or the member moves.
+                        if (hint != null && (hint == lastRefusal || hint == holdout.repcounter.RepHint.LEGS_IN_VIEW)) _cues.tryEmit(Cue.Say(hint.message))
                         lastRefusal = hint
                     }
                     null -> Unit
@@ -452,35 +452,6 @@ class SittingViewModel(
     @Volatile
     private var stopped = false
 
-    private var headGoneSince: Long? = null
-
-    /** When "Move back" was last said; null until it first is. */
-    private var headWarnedAt: Long? = null
-
-    /**
-     * Warns, big and aloud, when the head leaves the picture while counting —
-     * a frame set up too tight. Reps are not thrown away for it: the arms may
-     * still be measured perfectly well. After [HEAD_GONE_MILLIS] out of view;
-     * spoken at most every [HEAD_WARN_EVERY_MILLIS].
-     */
-    private fun watchHead(observation: VisionAnalyzer.Observation) {
-        val now = observation.world.timestampMillis
-        if (holdout.repcounter.Angles.headInFrame(observation.image)) {
-            headGoneSince = null
-            if (_uiState.value.headOutOfView) _uiState.update { it.copy(headOutOfView = false) }
-            return
-        }
-        val since = headGoneSince ?: now.also { headGoneSince = it }
-        if (now - since < HEAD_GONE_MILLIS) return
-        if (!_uiState.value.headOutOfView) _uiState.update { it.copy(headOutOfView = true) }
-        // Null, not Long.MIN_VALUE: `now - MIN_VALUE` overflows negative and the
-        // warning would never be said at all.
-        if (headWarnedAt.let { it == null || now - it >= HEAD_WARN_EVERY_MILLIS }) {
-            headWarnedAt = now
-            _cues.tryEmit(Cue.Say("Move back"))
-        }
-    }
-
     /** The member stopped, or the screen went away. Loose reps go; blocks stay. */
     fun endSitting(): Int {
         stopped = true
@@ -586,8 +557,6 @@ class SittingViewModel(
     }
 
     private companion object {
-        const val HEAD_GONE_MILLIS = 500L
-        const val HEAD_WARN_EVERY_MILLIS = 5_000L
         const val COACH_SETTLE_MILLIS = 700L
         const val COACH_REPEAT_MILLIS = 5_000L
     }
