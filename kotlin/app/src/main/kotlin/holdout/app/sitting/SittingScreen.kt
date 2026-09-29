@@ -820,22 +820,31 @@ private val SITTING_CAMERA = CameraSelector.DEFAULT_FRONT_CAMERA
 private const val CAMERA_IS_FRONT_FACING = true
 
 /**
- * 16:9, on **both** the preview and the analysis.
+ * 4:3 — the sensor's own shape — on the preview, the analysis **and** the
+ * debug recording, bound as one group sharing one crop ([sittingViewPort]).
  *
- * Two problems, one setting. Left to their defaults both use cases pick 4:3,
- * which `FIT_CENTER` letterboxes into a square in the middle of the Seeker's
- * tall screen — too little picture to judge how far away to stand. And left to
- * their defaults they can resolve to *different* ratios, while the skeleton
- * overlay letterboxes using the **analysis** frame size against a preview
- * showing the **preview** stream; pinning both closes a misalignment that has
- * simply not been noticed yet.
- *
- * 16:9 is usually a vertical crop of the sensor, so there is slightly less room
- * to step back than 4:3 gave. Whether the whole body still fits at a propped
- * phone's distance is **spike S2's** to measure, on this camera.
+ * Until 29 Sep preview and analysis were 16:9, a crop of the sensor about 12 %
+ * narrower each side, while the recorder took the full 4:3: the video showed a
+ * whole body while the counter had already lost the head or the knees at its
+ * edge ("Move back" on a set the video shows in frame). Now all three see the
+ * same, and the counter gets the widest picture the camera has. The cost: on
+ * the Seeker's tall screen `FIT_CENTER` leaves the preview shorter. The
+ * placement thresholds were measured in 9:16 and read x through
+ * `holdout.repcounter.Aspect`, so they still mean what they did.
  */
 private val SITTING_RESOLUTION = ResolutionSelector.Builder()
-    .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+    .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+    .build()
+
+/** One crop for every use case: portrait 3:4, the whole sensor. The app is portrait-locked. */
+private val sittingViewPort = androidx.camera.core.ViewPort
+    .Builder(android.util.Rational(3, 4), android.view.Surface.ROTATION_0)
+    .setScaleType(androidx.camera.core.ViewPort.FIT)
+    .build()
+
+private fun sittingGroup(vararg useCases: androidx.camera.core.UseCase) = androidx.camera.core.UseCaseGroup.Builder()
+    .setViewPort(sittingViewPort)
+    .apply { useCases.forEach { addUseCase(it) } }
     .build()
 
 /**
@@ -912,11 +921,11 @@ private fun CameraFeed(viewModel: SittingViewModel, recordVideo: Boolean) {
                     // With video when asked, and the camera can carry all three; a
                     // sitting never fails for want of a recording.
                     val withVideo = video?.let { v ->
-                        runCatching { provider.bindToLifecycle(lifecycleOwner, SITTING_CAMERA, preview, analysis, v.useCase) }
+                        runCatching { provider.bindToLifecycle(lifecycleOwner, SITTING_CAMERA, sittingGroup(preview, analysis, v.useCase)) }
                             .onFailure { provider.unbindAll() }
                             .getOrNull()
                     }
-                    val camera = withVideo ?: provider.bindToLifecycle(lifecycleOwner, SITTING_CAMERA, preview, analysis)
+                    val camera = withVideo ?: provider.bindToLifecycle(lifecycleOwner, SITTING_CAMERA, sittingGroup(preview, analysis))
                     if (withVideo != null) {
                         bound.hold(provider, preview, analysis, video.useCase)
                         video.start()

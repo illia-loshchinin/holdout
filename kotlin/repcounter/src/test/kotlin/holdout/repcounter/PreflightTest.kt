@@ -156,6 +156,19 @@ class PreflightTest {
         assertTrue(report.fixes.contains("Move the phone so it can see all of you"))
     }
 
+    @Test
+    fun `the same body is the same placement in the sensor's full 3 by 4 picture`() {
+        // The 9:16 picture the thresholds were set in is the middle three
+        // quarters of the 3:4 one, at the same height.
+        fun widened(frame: PoseFrame) = PoseFrame(frame.timestampMillis, frame.landmarks.map { it.copy(x = 0.125f + 0.75f * it.x) })
+        val xScale = Aspect.xScale(width = 960, height = 1280)
+        assertEquals(0.75f, xScale)
+        for (span in listOf(0.05f, 0.4f, 0.4f * 1.35f, 0.7f)) {
+            val narrow = Traces.imageFrame(shoulderSpan = span)
+            assertEquals(preflight.classifyView(narrow), preflight.classifyView(widened(narrow), xScale), "shoulder span $span")
+        }
+    }
+
     private fun wholeBody(report: PreflightReport) = report.statuses.single { it.check == PreflightCheck.WHOLE_BODY }
 
     @Test

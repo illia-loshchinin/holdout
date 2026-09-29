@@ -46,6 +46,25 @@ data class ImagePose(
     val height: Int,
 )
 
+/**
+ * The picture shape the placement thresholds were measured in: portrait 9:16
+ * (width ÷ height), the analysis frame until 29 Sep. The camera now gives the
+ * sensor's full 3:4, the same height and a third wider. Checks that were
+ * tuned in normalised picture units — the placement ratio, the guide's
+ * outline — read x through [calibratedX] so they keep meaning what they were
+ * measured to mean; checks about the picture's **edges** use the real frame,
+ * which is what the wider view is for.
+ */
+object Aspect {
+    const val CALIBRATED = 9f / 16f
+
+    /** How much narrower a normalised x-length is here than it was in 9:16: 1 there, 0.75 at 3:4. */
+    fun xScale(width: Int, height: Int): Float = if (width <= 0 || height <= 0) 1f else CALIBRATED / (width.toFloat() / height)
+
+    /** A normalised x-length here, as it would have read in the 9:16 picture. */
+    fun calibratedX(dx: Float, xScale: Float): Float = dx / xScale
+}
+
 /** MediaPipe pose landmark indices, for the joints the rule names. */
 object PoseIndex {
     /** The head, as MediaPipe marks it: the nose. */

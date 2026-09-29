@@ -125,7 +125,7 @@ class Preflight(
 ) {
 
     fun evaluate(input: PreflightInput): PreflightReport {
-        val view = classifyView(input.image)
+        val view = classifyView(input.image, input.imagePose?.let { Aspect.xScale(it.width, it.height) } ?: 1f)
         return PreflightReport(
             statuses = listOf(
                 PreflightStatus(
@@ -227,14 +227,15 @@ class Preflight(
      * Returns null when there is not enough of a body to judge — which is the
      * only thing the camera-view check now fails on.
      */
-    fun classifyView(frame: PoseFrame?): CameraView? {
+    fun classifyView(frame: PoseFrame?, xScale: Float = 1f): CameraView? {
         if (frame == null) return null
         val leftShoulder = frame[PoseIndex.LEFT_SHOULDER]
         val rightShoulder = frame[PoseIndex.RIGHT_SHOULDER]
         val shoulder = midpoint(leftShoulder, rightShoulder) ?: return null
         val hip = midpoint(frame[PoseIndex.LEFT_HIP], frame[PoseIndex.RIGHT_HIP]) ?: return null
 
-        val torsoLength = hypot(shoulder.first - hip.first, shoulder.second - hip.second)
+        // x read as it was in the 9:16 picture the thresholds were set in ([Aspect]).
+        val torsoLength = hypot(Aspect.calibratedX(shoulder.first - hip.first, xScale), shoulder.second - hip.second)
         if (torsoLength < MIN_TORSO_LENGTH) return null
 
         // One shoulder occluded by the other is the strongest side-on signal
@@ -247,7 +248,7 @@ class Preflight(
         }
 
         val shoulderSpan = hypot(
-            leftShoulder.x - rightShoulder.x,
+            Aspect.calibratedX(leftShoulder.x - rightShoulder.x, xScale),
             leftShoulder.y - rightShoulder.y,
         )
         val ratio = shoulderSpan / torsoLength

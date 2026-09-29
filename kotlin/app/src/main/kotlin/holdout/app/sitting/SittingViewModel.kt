@@ -266,6 +266,7 @@ class SittingViewModel(
                     view = report.view,
                     floor = Placement.floorView(tilt, lens),
                     allowedViews = stakes.allowedViews,
+                    xScale = holdout.repcounter.Aspect.xScale(observation.frameWidth, observation.frameHeight),
                 )
                 // Nobody can be in position while reading the guide, and a
                 // countdown must never start behind it.

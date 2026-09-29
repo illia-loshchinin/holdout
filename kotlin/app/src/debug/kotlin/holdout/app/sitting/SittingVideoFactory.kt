@@ -34,6 +34,9 @@ private class CameraXSittingVideo(private val context: Context, private val dir:
         Recorder
             .Builder()
             .setQualitySelector(QualitySelector.from(Quality.SD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)))
+            // The analysis frame's shape, so video and trace show the same picture
+            // (with the shared crop the sitting binds all three under).
+            .setAspectRatio(androidx.camera.core.AspectRatio.RATIO_4_3)
             .build()
     private val capture = VideoCapture.withOutput(recorder)
     private var recording: Recording? = null
