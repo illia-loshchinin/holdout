@@ -82,6 +82,12 @@ class SittingViewModel(
      */
     private val rollsOver: Boolean = true,
     /**
+     * A Holdout day's time left at a chain instant — shown through the whole
+     * sitting, since the deadline is what it is held to. Null for the Daily 25,
+     * whose day has no stake on it.
+     */
+    private val timeLeftAt: ((Long) -> Long?)? = null,
+    /**
      * Debug builds: where to write this sitting's trace (`TraceRecorder`).
      * Null in release builds, where nothing is recorded.
      */
@@ -201,6 +207,9 @@ class SittingViewModel(
     // that thread must never block waiting for the UI to collect one.
     private val _cues = MutableSharedFlow<Cue>(extraBufferCapacity = 8)
     val cues: SharedFlow<Cue> = _cues.asSharedFlow()
+
+    /** Seconds to this Holdout day's deadline; null for the Daily 25, or while the chain is unread. */
+    fun deadlineSecondsLeft(): Long? = timeLeftAt?.let { at -> chainSecondsNow()?.let(at) }
 
     /** Seconds left in today, for the header. Null while the chain is unread. */
     fun secondsLeftToday(): Long? = chainSecondsNow()?.let { now ->

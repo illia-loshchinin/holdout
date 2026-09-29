@@ -218,6 +218,12 @@ fun SittingScreen(
             }
         }
 
+        // A Holdout day's deadline stays in view the whole sitting: the home
+        // screen's countdown and last-minutes warning are gone while the camera is up.
+        if (state.step != SittingViewModel.Step.COMPLETE && !cleanScreen) {
+            DeadlineBanner(viewModel, Modifier.align(Alignment.TopCenter).padding(top = Spacing.screenGutter))
+        }
+
         // Read while the phone is still in hand: it opens with the sitting, and
         // the countdown cannot start behind it.
         if (state.showSetup && state.step == SittingViewModel.Step.PREFLIGHT) {
@@ -510,6 +516,25 @@ private fun CountingOverlay(state: SittingViewModel.UiState) {
             )
         }
     }
+}
+
+/** Time to a Holdout day's deadline, in the warning colour for its last minutes (FR-047); nothing for the Daily 25. */
+@Composable
+private fun DeadlineBanner(viewModel: SittingViewModel, modifier: Modifier) {
+    var left by remember { mutableStateOf(viewModel.deadlineSecondsLeft()) }
+    LaunchedEffect(viewModel) {
+        while (true) {
+            left = viewModel.deadlineSecondsLeft()
+            kotlinx.coroutines.delay(1_000)
+        }
+    }
+    val seconds = left ?: return
+    Text(
+        "${holdout.app.ui.Format.countdown(seconds)} to today's deadline",
+        style = MaterialTheme.typography.titleMedium,
+        color = if (holdout.core.Derive.inWarningWindow(seconds)) HoldoutColors.Warning else HoldoutColors.TextSecondary,
+        modifier = modifier,
+    )
 }
 
 @Composable

@@ -155,6 +155,8 @@ class RunTest {
         val now: Long,
         val sponsorLamports: Long,
         val refuse: Map<String, String> = emptyMap(),
+        // Instructions whose simulation fails with this program error.
+        val refuseSimulation: Map<String, Int> = emptyMap(),
     ) : HttpNetworkDriver {
         val accounts = mutableMapOf<SolanaPublicKey, ByteArray>()
         val sent = mutableListOf<String>()
@@ -200,7 +202,10 @@ class RunTest {
                 "getBlockTime" -> ok("$now")
                 "getBalance" -> ok("""{"context":{"slot":1},"value":$sponsorLamports}""")
                 "getLatestBlockhash" -> ok("""{"context":{"slot":1},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":9}}""")
-                "simulateTransaction" -> ok("""{"context":{"slot":1},"value":{"err":null,"logs":[]}}""")
+                "simulateTransaction" -> {
+                    val err = refuseSimulation[nameOf(tx())]?.let { """{"InstructionError":[0,{"Custom":$it}]}""" } ?: "null"
+                    ok("""{"context":{"slot":1},"value":{"err":$err,"logs":[]}}""")
+                }
                 "sendTransaction" -> {
                     val t = tx()
                     val name = nameOf(t)
@@ -233,9 +238,9 @@ class RunTest {
      * with two uncounted members, cohort 2 on its second day with one member
      * who missed day 0, and cohort 3 due to open because cohort 2 has started.
      */
-    private fun liveLeague(sponsorLamports: Long, refuse: Map<String, String> = emptyMap()): Chain = runBlocking {
+    private fun liveLeague(sponsorLamports: Long, refuse: Map<String, String> = emptyMap(), refuseSimulation: Map<String, Int> = emptyMap()): Chain = runBlocking {
         val now = first + 2 * week + day + day / 2
-        val chain = Chain(now, sponsorLamports, refuse)
+        val chain = Chain(now, sponsorLamports, refuse, refuseSimulation)
         chain.accounts[Pdas.config(programId)] = configBytes(sponsorFloat = 50_000_000)
         chain.accounts[Pdas.league(programId, 0)] = leagueBytes(league0)
         val c1 = Pdas.cohort(programId, 0, 1)
@@ -330,6 +335,21 @@ class RunTest {
         val opens = json.getValue("steps").jsonArray.map { it.jsonObject }.filter { it.getValue("step").jsonPrimitive.content == "open_cohort" && it["league"]?.jsonPrimitive?.int == 0 }
         assertEquals(listOf(1 to "simulated", 2 to "skipped", 3 to "skipped"), opens.map { it.getValue("index").jsonPrimitive.int to it.getValue("status").jsonPrimitive.content })
         assertEquals(0, json.getValue("failed").jsonPrimitive.int)
+    }
+
+    @Test
+    fun `a dry run whose finalize needs a lobby only simulated reports it skipped, not failed`() = runBlocking {
+        val chain = liveLeague(sponsorLamports = 50_000_000, refuseSimulation = mapOf("settle_finalize" to Run.CARRY_OVER_TARGET_NOT_OPEN))
+        // Cohort 1 already counted, so the dry run reaches its finalize.
+        val c1 = Pdas.cohort(programId, 0, 1)
+        chain.accounts[c1] = cohortBytes(cohort(1, memberCount = 2, counted = 2))
+        listOf(member(1, 7, MembershipSnapshot.State.Finished), member(2, 3, MembershipSnapshot.State.Forfeited)).forEach {
+            chain.accounts[Pdas.membership(programId, c1, it.wallet)] = membershipBytes(c1, it, counted = true)
+        }
+        val json = pass(chain, "--dry-run")
+        assertEquals(0, json.getValue("failed").jsonPrimitive.int)
+        val finalize = json.getValue("steps").jsonArray.map { it.jsonObject }.filter { it.getValue("step").jsonPrimitive.content == "settle_finalize" }
+        assertEquals(listOf("refused", "skipped"), finalize.map { it.getValue("status").jsonPrimitive.content })
     }
 
     @Test

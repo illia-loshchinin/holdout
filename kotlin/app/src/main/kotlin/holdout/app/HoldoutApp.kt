@@ -319,6 +319,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                     dayOf = { Derive.dayIndex(h.cohort, it).toLong() },
                     // A Holdout day ends at its deadline: no rolling into the next (a missed day is a breach).
                     rollsOver = false,
+                    timeLeftAt = { Derive.timeLeftToday(h.cohort, it) },
                     traceDir = if (BuildConfig.DEBUG) java.io.File(context.filesDir, "traces") else null,
                 )
             }

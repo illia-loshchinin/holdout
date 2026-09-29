@@ -319,7 +319,15 @@ object Run {
                     send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, leagueId, address, target)))
                 }
                 var outcome = finalize()
-                if (outcome == Outcome.Refused) {
+                if (outcome == Outcome.Refused && args.dryRun) {
+                    // 6047 in a dry run: the lobby it needs would be opened first, but
+                    // only simulated — a retry against unchanged chain state proves nothing.
+                    leagues.firstOrNull { it.params.leagueId == leagueId }?.let { openDue(it) }
+                    pass.record("settle_finalize", "skipped") {
+                        detail()
+                        put("reason", "dry run: needs the league's next cohort open first, which was only simulated")
+                    }
+                } else if (outcome == Outcome.Refused) {
                     // 6047: no open lobby to carry into. Open the league's next cohort and retry once.
                     leagues.firstOrNull { it.params.leagueId == leagueId }?.let { openDue(it) }
                     outcome = finalize()
