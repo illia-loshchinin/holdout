@@ -321,6 +321,18 @@ class RunTest {
     }
 
     @Test
+    fun `a dry run behind by several cohorts simulates the first open and reports the rest as planned`() = runBlocking {
+        val chain = Chain(first + 2 * week + day, 50_000_000)
+        chain.accounts[Pdas.config(programId)] = configBytes(sponsorFloat = 50_000_000)
+        chain.accounts[Pdas.league(programId, 0)] = leagueBytes(league0.copy(nextIndex = 1))
+        chain.accounts[Pdas.cohort(programId, 0, 0)] = cohortBytes(cohort(0, settled = true))
+        val json = pass(chain, "--dry-run")
+        val opens = json.getValue("steps").jsonArray.map { it.jsonObject }.filter { it.getValue("step").jsonPrimitive.content == "open_cohort" && it["league"]?.jsonPrimitive?.int == 0 }
+        assertEquals(listOf(1 to "simulated", 2 to "skipped", 3 to "skipped"), opens.map { it.getValue("index").jsonPrimitive.int to it.getValue("status").jsonPrimitive.content })
+        assertEquals(0, json.getValue("failed").jsonPrimitive.int)
+    }
+
+    @Test
     fun `an uninitialized program is a configuration error`() = runBlocking {
         val chain = Chain(first, 0)
         val e = assertFailsWith<CrankException> { pass(chain) }

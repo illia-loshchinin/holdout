@@ -75,6 +75,10 @@ class HoldoutViewModel(
     /** Starts reading for [wallet] (or with none, for the connect screen's live list), every 30 s. */
     fun watch(wallet: SolanaPublicKey?) {
         if (refresher != null && wallet == address) return
+        // Another wallet: the last view was the previous wallet's memberships,
+        // profile and balances. It is kept across failed reads of the same
+        // wallet only, never shown as the new one's.
+        if (wallet != address) _state.value = UiState()
         address = wallet
         refresher?.cancel()
         refresher = viewModelScope.launch {
@@ -90,7 +94,10 @@ class HoldoutViewModel(
     }
 
     private suspend fun refreshNow() {
-        val view = chain.load(address)
+        val wallet = address
+        val view = chain.load(wallet)
+        // The wallet changed while this read was out: its answer is not the new wallet's.
+        if (wallet != address) return
         _state.update { if (view == null) it.copy(offline = true) else it.copy(view = view, offline = false) }
     }
 

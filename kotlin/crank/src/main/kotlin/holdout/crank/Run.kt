@@ -179,7 +179,8 @@ object Run {
         suspend fun openDue(league: LeagueSnapshot) {
             val id = league.params.leagueId
             val current = league.copy(nextIndex = nextIndex.getValue(id))
-            for (index in dueOpens(current, now) { cohorts[id to it]?.start ?: scheduledStart(league, it) }) {
+            val due = dueOpens(current, now) { cohorts[id to it]?.start ?: scheduledStart(league, it) }
+            for ((position, index) in due.withIndex()) {
                 val previous = if (index == 0L) null else Pdas.cohort(programId, id, index - 1)
                 val opened =
                     pass.send("open_cohort", {
@@ -190,6 +191,19 @@ object Run {
                     }
                 if (opened != Outcome.Landed) break
                 nextIndex[id] = index + 1
+                // A simulated open created nothing, and the next one names this
+                // cohort as its predecessor: simulating it against unchanged chain
+                // state would fail. The rest are reported as planned.
+                if (args.dryRun) {
+                    due.drop(position + 1).forEach { later ->
+                        pass.record("open_cohort", "skipped") {
+                            put("league", id)
+                            put("index", later)
+                            put("reason", "dry run: opens after cohort $index, which was only simulated")
+                        }
+                    }
+                    break
+                }
             }
         }
         leagues.forEach { openDue(it) }

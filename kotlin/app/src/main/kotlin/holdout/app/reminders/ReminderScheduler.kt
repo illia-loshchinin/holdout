@@ -44,10 +44,12 @@ class ReminderScheduler(context: Context) {
         val cancelled = previous - wanted.map { it.id }.toSet()
         cancelled.forEach { cancel(it) }
         wanted.forEach { r ->
-            // Already due and inside its delivery window: its alarms are set and
-            // may still fire late. Setting them again would fire them at once,
-            // and a second time if the first has posted — so they are left alone.
-            if (r.at <= chainNow) return@forEach
+            // Already due and inside its delivery window, with its alarm still
+            // live: it may yet fire late, so it is left alone rather than set
+            // again. With no live alarm — after a reboot or a force-stop, both of
+            // which drop them, or a membership first seen after its time — it is
+            // set now, to fire at once; a reminder already posted stays quiet.
+            if (r.at <= chainNow && alive(r.id)) return@forEach
             val at = Reminders.elapsedMillisAt(r.at, chainNow, elapsedNow)
             val deadline = Reminders.elapsedMillisAt(r.deadline, chainNow, elapsedNow)
             alarms.setWindow(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, Reminders.windowMillis(r.dayLength), pending(r.id, intent(ACTION_ON_TIME, wallet, r, deadline)))
@@ -84,6 +86,14 @@ class ReminderScheduler(context: Context) {
         putExtra(ReminderReceiver.EXTRA_TEST, Deployment.isTestLeague(r.leagueId))
         putExtra(ReminderReceiver.EXTRA_DEADLINE_ELAPSED, deadlineElapsed)
     }
+
+    /** Whether [id]'s on-time alarm is still held: its PendingIntent exists until cancelled, a reboot or a force-stop. */
+    private fun alive(id: Int): Boolean = PendingIntent.getBroadcast(
+        context,
+        id,
+        Intent(ACTION_ON_TIME, null, context, ReminderReceiver::class.java),
+        PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
+    ) != null
 
     // The action tells the two alarms of one reminder apart: same request code, different intent.
     private fun pending(id: Int, intent: Intent): PendingIntent = PendingIntent.getBroadcast(context, id, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
