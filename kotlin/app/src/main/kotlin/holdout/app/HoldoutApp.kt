@@ -376,10 +376,12 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         }
         val members = rosters[target.address]
         val stage = target.stage(chainNow)
-        // A join that landed moves the stake sheet on to the lobby; a leave, the lobby back home.
+        // A join that landed moves the stake sheet on to the lobby. The lobby lasts
+        // until the start: a leave, or the Holdout starting, takes it home, where
+        // the day's sitting is (or the forfeit, or the claim).
         LaunchedEffect(routed, stage) {
             if (routed is Route.Stake && (stage == Stage.Lobby || stage == Stage.LobbyLocked)) route = Route.Lobby(target.address)
-            if (routed is Route.Lobby && stage == Stage.NotJoined) route = Route.Home
+            if (routed is Route.Lobby && stage != Stage.Lobby && stage != Stage.LobbyLocked) route = Route.Home
         }
         when (routed) {
             is Route.Stake -> StakeSheet(

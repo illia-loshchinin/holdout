@@ -47,7 +47,8 @@ fun LobbyScreen(
     modifier: Modifier = Modifier,
 ) {
     val c = h.cohort
-    val locked = h.status(now) == CohortStatus.Locked
+    // Anything past Open is locked here: a lobby still shown at the start must not offer a leave the program refuses.
+    val locked = h.status(now) != CohortStatus.Open
     Column(
         modifier = modifier
             .fillMaxSize()
