@@ -317,6 +317,8 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                     stakes = Stakes.STAKED,
                     // The cohort's own days — ten minutes each in the short test cohort.
                     dayOf = { Derive.dayIndex(h.cohort, it).toLong() },
+                    // A Holdout day ends at its deadline: no rolling into the next (a missed day is a breach).
+                    rollsOver = false,
                     traceDir = if (BuildConfig.DEBUG) java.io.File(context.filesDir, "traces") else null,
                 )
             }

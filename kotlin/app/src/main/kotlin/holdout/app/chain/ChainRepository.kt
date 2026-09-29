@@ -79,9 +79,12 @@ class ChainRepository(private val rpc: Rpc = Rpc(Deployment.rpcUrl), private val
         val leagues = rpc.leagues(programId) ?: return null
         val cohorts = rpc.cohorts(programId) ?: return null
         val mine = wallet?.let { rpc.walletMemberships(programId, it) ?: return null }.orEmpty().associateBy({ it.cohort }, { it.member })
-        val profile = wallet?.let { w -> (rpc.profile(programId, w) as? Rpc.Answer.Ok)?.value }
-        val skr = wallet?.let { rpc.tokenAmount(Pdas.associatedToken(it, config.skrMint)) } ?: 0uL
-        val lamports = wallet?.let { rpc.balance(it) } ?: 0L
+        // A read that failed is unknown, not absent: no profile or a zero balance would
+        // be shown as real (faucet offered to a funded wallet, a join without its
+        // running cohort), so the whole view waits for the next refresh instead.
+        val profile = wallet?.let { w -> (rpc.profile(programId, w) as? Rpc.Answer.Ok ?: return null).value }
+        val skr = wallet?.let { rpc.tokenAmount(Pdas.associatedToken(it, config.skrMint)) ?: return null } ?: 0uL
+        val lamports = wallet?.let { rpc.balance(it) ?: return null } ?: 0L
         val holdouts =
             cohorts
                 .map { (address, c) -> Holdout(address, c, leagues.firstOrNull { it.params.leagueId == c.leagueId }, mine[address]) }

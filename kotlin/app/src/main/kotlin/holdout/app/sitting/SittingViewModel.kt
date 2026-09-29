@@ -75,6 +75,13 @@ class SittingViewModel(
      */
     private val dayOf: (Long) -> Long = holdout.core.HoldoutDay::indexOf,
     /**
+     * Whether reps keep counting into the next day when the sitting runs across
+     * a boundary. The Daily 25 does; a Holdout day does not — a day not finished
+     * by its deadline is already a breach, so a set done after it could never
+     * be submitted, and the sitting ends there instead.
+     */
+    private val rollsOver: Boolean = true,
+    /**
      * Debug builds: where to write this sitting's trace (`TraceRecorder`).
      * Null in release builds, where nothing is recorded.
      */
@@ -209,9 +216,22 @@ class SittingViewModel(
     private fun rollOverAtBoundary() {
         if (banking.dayIndex == Store.UNKNOWN_DAY || _uiState.value.step == Step.COMPLETE) return
         val today = chainSecondsNow()?.let(dayOf) ?: return
+        if (!rollsOver) {
+            if (today != banking.dayIndex) deadlinePassed()
+            return
+        }
         if (banking.rollOverTo(today)) {
             _uiState.update { it.copy(banked = banking.banked, looseReps = banking.loose) }
         }
+    }
+
+    /** A Holdout day's deadline passed mid-sitting: nothing more is counted, and the member is told why, aloud. */
+    private fun deadlinePassed() {
+        if (stopped) return
+        stopped = true
+        val message = "The deadline for day ${banking.dayIndex + 1} has passed. Reps from here would not count."
+        _uiState.update { it.copy(error = message, hint = null) }
+        _cues.tryEmit(Cue.Say(message))
     }
 
     /** Every pose frame while the pills are up, and while counting. */
