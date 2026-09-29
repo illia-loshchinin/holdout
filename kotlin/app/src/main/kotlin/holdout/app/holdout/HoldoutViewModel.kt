@@ -52,8 +52,8 @@ class HoldoutViewModel(
         val message: String? = null,
         val messageIsWarning: Boolean = false,
         val lastFaucet: FaucetOutcome? = null,
-        /** The signature of the last claim that landed, for the claim screen's link. */
-        val lastClaimSignature: String? = null,
+        /** The last claim that landed — its cohort and signature — for that cohort's link only. */
+        val lastClaim: Pair<SolanaPublicKey, String>? = null,
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -191,7 +191,7 @@ class HoldoutViewModel(
         val me = address ?: return@act
         val config = _state.value.view?.config ?: return@act
         val result = wallet.send(sender, listOf(Instructions.claimPayout(Deployment.programId, me, config.skrMint, h.address)))
-        if (describe(result, "Claimed.")) _state.update { it.copy(lastClaimSignature = (result as SendResult.Landed).signature) }
+        if (describe(result, "Claimed.")) _state.update { it.copy(lastClaim = h.address to (result as SendResult.Landed).signature) }
     }
 
     companion object {

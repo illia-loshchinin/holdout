@@ -70,15 +70,12 @@ sealed interface FaucetOutcome {
  * empty (FR-042b).
  */
 class FaucetClient(private val rpc: Rpc, private val wallet: WalletRepository, private val programId: SolanaPublicKey, private val sponsor: SponsorKey? = SponsorKey.bundled) {
-    /** Enough SOL for the member to pay a claim's fee and first-time rent themselves. */
-    private val memberCanPay = 5_000_000L
-
     suspend fun claim(sender: ActivityResultSender, recipient: SolanaPublicKey, config: ConfigSnapshot, profile: ProfileSnapshot?, lamports: Long, now: Long): FaucetOutcome {
         val today = HoldoutDay.indexOf(now)
         if (profile?.claimedFaucetOn(today) == true) return FaucetOutcome.UsedToday(HoldoutDay.endOf(today))
 
         val viaSponsor = sponsor?.takeIf { it.publicKey == config.sponsor }
-        if (lamports < memberCanPay) return viaSponsor?.let { sponsorPaid(it, recipient, config, today) } ?: FaucetOutcome.CannotPayOut
+        if (lamports < MEMBER_CAN_PAY_LAMPORTS) return viaSponsor?.let { sponsorPaid(it, recipient, config, today) } ?: FaucetOutcome.CannotPayOut
         val ix = Instructions.claimFaucet(programId, recipient, recipient, config.skrMint, config.sponsor)
         return when (val sent = wallet.send(sender, listOf(ix))) {
             is SendResult.Landed -> FaucetOutcome.Funded(sent.signature)
@@ -121,6 +118,9 @@ class FaucetClient(private val rpc: Rpc, private val wallet: WalletRepository, p
     }
 
     companion object {
+        /** Enough SOL for a member to pay a transaction's fee and first-time rent themselves — a claim or a join. */
+        const val MEMBER_CAN_PAY_LAMPORTS = 5_000_000L
+
         const val FAUCET_ALREADY_CLAIMED_TODAY = 6050
         const val FAUCET_CAP_REACHED = 6051
         const val FAUCET_EMPTY = 6052

@@ -52,6 +52,8 @@ import holdout.repcounter.Stakes
 fun StakeSheet(
     h: Holdout,
     skrBalance: ULong,
+    /** The wallet's SOL, in lamports: the member pays the join's fee and rent. */
+    lamports: Long,
     now: Long,
     joinBlocker: Journey.JoinBlocker?,
     busy: Boolean,
@@ -120,6 +122,8 @@ fun StakeSheet(
         }
 
         val short = skrBalance < chip
+        // Enough SKR is not enough: the join is the member's own transaction, paid in SOL.
+        val noFees = lamports < holdout.app.faucet.FaucetClient.MEMBER_CAN_PAY_LAMPORTS
         when {
             joinBlocker != null -> Notice(
                 when (joinBlocker) {
@@ -133,12 +137,16 @@ fun StakeSheet(
                 Notice("You hold ${Format.skr(skrBalance)}. This chip needs ${Format.skr(chip)}.", warning = true)
                 SecondaryButton("Get test tokens", onGetTokens)
             }
+            noFees -> {
+                Notice("Your wallet has too little devnet SOL to pay for joining. The faucet sends some with the test tokens.", warning = true)
+                SecondaryButton("Get test tokens", onGetTokens)
+            }
         }
         Notice(message, messageIsWarning)
         PrimaryButton(
             text = if (busy) "Waiting for the wallet…" else "Stake ${Format.skr(chip)}",
             onClick = { onStake(tier) },
-            enabled = !busy && joinBlocker == null && !short,
+            enabled = !busy && joinBlocker == null && !short && !noFees,
         )
     }
 }

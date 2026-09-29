@@ -377,6 +377,8 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         }
         val members = rosters[target.address]
         val stage = target.stage(chainNow)
+        // Only the claim made from this cohort: another cohort's transaction is never shown as this one's.
+        val claimSignature = chain.lastClaim?.takeIf { it.first == target.address }?.second
         // A join that landed moves the stake sheet on to the lobby. The lobby lasts
         // until the start: a leave, or the Holdout starting, takes it home, where
         // the day's sitting is (or the forfeit, or the claim).
@@ -388,6 +390,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             is Route.Stake -> StakeSheet(
                 h = target,
                 skrBalance = view?.skr ?: 0uL,
+                lamports = view?.lamports ?: 0L,
                 now = chainNow,
                 joinBlocker = Journey.joinBlocker(target.cohort, view?.profile, view?.runningEnd(chainNow), chainNow),
                 busy = chain.busy,
@@ -399,7 +402,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 modifier = modifier,
             )
             is Route.Lobby -> LobbyScreen(target, chainNow, chain.busy, chain.message, chain.messageIsWarning, { holdouts.leave(sender, target) }, { route = Route.Roster(target.address) }, goHome, modifier)
-            is Route.Detail -> CohortDetailScreen(target, members, stage, chainNow, chain.lastClaimSignature, { route = Route.Roster(target.address) }, goHome, modifier)
+            is Route.Detail -> CohortDetailScreen(target, members, stage, chainNow, claimSignature, { route = Route.Roster(target.address) }, goHome, modifier)
             is Route.Roster -> RosterScreen(target, members, wallet, chainNow, goHome, modifier)
             is Route.Forfeit -> ForfeitScreen(
                 h = target,
@@ -410,7 +413,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 onBack = goHome,
                 modifier = modifier,
             )
-            is Route.Claim -> ClaimScreen(target, stage, chain.busy, chain.message, chain.messageIsWarning, chain.lastClaimSignature, { holdouts.claim(sender, target) }, goHome, modifier)
+            is Route.Claim -> ClaimScreen(target, stage, chain.busy, chain.message, chain.messageIsWarning, claimSignature, { holdouts.claim(sender, target) }, goHome, modifier)
             else -> Unit
         }
         return
