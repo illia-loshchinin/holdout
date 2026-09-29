@@ -20,8 +20,10 @@ dest="${1:-phone_traces}"
 mkdir -p "$dest"
 
 # Only real file names: when the folder does not exist yet, `ls` prints its
-# complaint on the same stream.
-listing=$(adb exec-out run-as holdout.app sh -c 'ls files/traces 2>/dev/null' | tr -d '\r' || true)
+# complaint on the same stream. One per line (-1): over some adb transports
+# `ls` prints columns, and a trace sharing a line with a video was once taken
+# for a video — copied, then deleted from the phone.
+listing=$(adb exec-out run-as holdout.app sh -c 'ls -1 files/traces 2>/dev/null' | tr -d '\r' || true)
 traces=$(grep '\.trace\.csv$' <<<"$listing" || true)
 videos=$(grep -E '\.mp4$|\.video\.json$' <<<"$listing" | grep -v '\.recording\.mp4$' || true)
 
