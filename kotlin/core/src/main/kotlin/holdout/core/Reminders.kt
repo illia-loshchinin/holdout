@@ -30,8 +30,17 @@ data class Reminder(
 }
 
 object Reminders {
-    /** How long before a deadline: 3 hours before a 24-hour day's, 15 minutes before a one-hour day's (FR-068). */
-    fun leadSeconds(dayLength: Long): Long = minOf(3 * 3_600L, dayLength / 4)
+    /**
+     * How long before a deadline (FR-068): a quarter of the day, at most 3 hours
+     * — 3 hours before a 24-hour day's deadline, 15 minutes before a one-hour
+     * day's. Never less than the 10 minutes Android may take to deliver it
+     * ([MIN_WINDOW_SECONDS]), nor more than the day itself: a 10-minute test
+     * day is reminded as it opens.
+     */
+    fun leadSeconds(dayLength: Long): Long = minOf(3 * 3_600L, maxOf(dayLength / 4, MIN_WINDOW_SECONDS), dayLength - 1)
+
+    /** The shortest window Android grants an inexact alarm without the exact-alarm permission. */
+    const val MIN_WINDOW_SECONDS = 10 * 60L
 
     /**
      * Every reminder still to come for one wallet at [now]: for each Holdout it
@@ -58,19 +67,21 @@ object Reminders {
             val lead = leadSeconds(c.dayLength)
             for (day in m.daysCompleted until c.durationDays) {
                 val at = Derive.deadlineOf(c, day) - lead
-                if (at > now) add(reminder(Reminder.Kind.Deadline, day, at))
+                // A day reminded as it opens: the first one is the start reminder's.
+                if (at > now && at > c.start) add(reminder(Reminder.Kind.Deadline, day, at))
             }
         }
     }.sortedBy { it.at }
 
     /**
      * How late the phone may deliver a reminder: a third of the lead, and never
-     * under 10 minutes — the shortest window Android grants without the
-     * exact-alarm permission. So a one-hour day's reminder comes 15 to 5 minutes
-     * before its deadline, and a 24-hour day's 3 to 2 hours before: always
-     * before the deadline itself.
+     * under [MIN_WINDOW_SECONDS]. So a one-hour day's reminder comes 15 to 5
+     * minutes before its deadline, and a 24-hour day's 3 to 2 hours before:
+     * always before the deadline itself. A 10-minute test day's comes at any
+     * point of the day — the window is the whole day — and one that would land
+     * after the deadline is not shown (ReminderReceiver).
      */
-    fun windowMillis(dayLength: Long): Long = maxOf(10 * 60L, leadSeconds(dayLength) / 3) * 1_000
+    fun windowMillis(dayLength: Long): Long = maxOf(MIN_WINDOW_SECONDS, leadSeconds(dayLength) / 3) * 1_000
 
     /**
      * A chain instant as a moment on the phone's monotonic clock, from one

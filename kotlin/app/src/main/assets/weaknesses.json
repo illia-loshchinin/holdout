@@ -23,7 +23,7 @@
     },
     {
       "what": "Non-default `day_seconds` for test cohorts — including **one short test cohort on devnet**, from which the walkthrough and the demo video are recorded",
-      "why": "Lets a full 7-day cycle run in 7 hours — one-hour days (H32) — during testing",
+      "why": "Lets a full 7-day cycle run in 70 minutes — 10-minute days (H32) — during testing",
       "fix": "Admin-guarded; real cohorts always use 24 hours"
     },
     {

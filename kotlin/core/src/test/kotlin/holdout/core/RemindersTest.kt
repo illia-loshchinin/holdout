@@ -41,6 +41,18 @@ class RemindersTest {
     }
 
     @Test
+    fun `a 10-minute test day is reminded as it opens, and its first day by the start reminder alone`() {
+        assertEquals(599L, Reminders.leadSeconds(600))
+        val c = cohort(dayLength = 600, reps = 5)
+        val r = schedule(c, member(), now = start - 60)
+        assertEquals(Reminder.Kind.Start, r.first().kind)
+        assertTrue(r.none { it.kind == Reminder.Kind.Deadline && it.dayIndex == 0 }, "day 1 opens with the start: one notification, not two")
+        val deadlines = r.filter { it.kind == Reminder.Kind.Deadline }
+        assertEquals((1 until 7).toList(), deadlines.map { it.dayIndex })
+        deadlines.forEach { assertEquals(start + it.dayIndex * 600L, it.at, "day ${it.dayIndex} reminded as it opens") }
+    }
+
+    @Test
     fun `in the lobby - a start reminder, then one before every day's deadline`() {
         val c = cohort()
         val r = schedule(c, member(), now = start - 86_400)

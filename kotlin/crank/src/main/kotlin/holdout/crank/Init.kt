@@ -221,18 +221,18 @@ object Init {
     private const val INVALID_LEAGUE_TIMING = 6010
 
     /**
-     * The short test cohort, by default (decision H32, 2026-09-27): **a 7-day
-     * Holdout in 7 hours** — seven one-hour days at 5 reps a day, so a tester
-     * lives through a whole cycle in an afternoon without 175 push-ups.
+     * The short test cohort, by default (decision H32, amended 2026-09-29): **a 7-day
+     * Holdout in 70 minutes** — seven 10-minute days at 5 reps a day, so a tester
+     * lives through a whole cycle in about an hour, without 175 push-ups.
      */
-    const val DEFAULT_TEST_DAY_SECONDS = 3_600L
+    const val DEFAULT_TEST_DAY_SECONDS = 600L
     const val DEFAULT_TEST_DAYS = 7L
     const val DEFAULT_TEST_REPS = 5L
 
     /**
      * The short test league's parameters from the command line (quickstart §5):
      * `--first-start` is required — any instant the admin chooses; `--day-seconds`,
-     * `--days` and `--reps` default to seven one-hour days at 5 reps;
+     * `--days` and `--reps` default to seven 10-minute days at 5 reps;
      * `--cadence` defaults to back-to-back cohorts (`days × day-seconds`) and
      * `--join-lock` to [DEFAULT_TEST_JOIN_LOCK].
      */

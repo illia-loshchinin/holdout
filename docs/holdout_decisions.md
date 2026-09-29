@@ -560,13 +560,13 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 
 ---
 
-### H32. The short test cohort is a 7-day Holdout in 7 hours
+### H32. The short test cohort is a 7-day Holdout in 70 minutes
 
-**Decided (2026-09-27, product owner):** the disclosed short test cohort (FR-044a, constitution v1.4.0) runs **seven one-hour days at 5 reps a day** — a 7-day Holdout in 7 hours. `crank init --test-league` makes that the default; `--day-seconds`, `--days` and `--reps` still override it. Replaces the earlier plan of seven 10-minute days at 5 reps.
+**Decided (2026-09-29, product owner; amends 2026-09-27):** the disclosed short test cohort (FR-044a, constitution v1.4.0) runs **seven 10-minute days at 5 reps a day** — a 7-day Holdout in 70 minutes. `crank init --test-league` makes that the default; `--day-seconds`, `--days` and `--reps` still override it (`--day-seconds 3600` gives the one-hour days of the 27 September version).
 
-**Why:** ten-minute days left no room for a real sitting — the set-up checks, the ready hold and the counting — and a first try at 25 reps a day (the same morning) asked 175 push-ups of a tester in seven hours. One-hour days at 5 reps keep every step real — the checks, the counting, a missed real deadline, settlement and the claim — in an afternoon, which is also what the walkthrough and the demo video show. The real 7-day and 21-day leagues stay at 25.
+**Why:** one-hour days (27 Sep) proved hard to test: a tester who missed one sitting waited hours for the next cohort, and a full cycle took most of a day. At 5 reps, a real sitting — the set-up checks, the ready hold and the counting — fits in a 10-minute day, which the 27 September version doubted when the target was 25. Every step stays real — the checks, the counting, a missed real deadline, settlement and the claim — within about an hour. The real 7-day and 21-day leagues stay at 24-hour days and 25 reps.
 
-**Consequences:** the beta cycle takes about 7 hours per tester instead of about 70 minutes, so it starts early in the day. Back-to-back cohorts (the default cadence) open a new lobby every 7 hours.
+**Consequences:** the beta cycle takes about 70 minutes per tester. A day leaves about 10 minutes for the sitting and the submit, so a tester starts each day's sitting as it opens. A reminder for a 10-minute day comes as the day opens, at any point within it (FR-068): Android may take up to 10 minutes to deliver one. Back-to-back cohorts (the default cadence) open a new lobby every 70 minutes; `--cadence 600` opens one every 10.
 
 **Source:** quickstart §5 and §5a; `Init.testLeagueParams`; `TestLeagueTest`.
 

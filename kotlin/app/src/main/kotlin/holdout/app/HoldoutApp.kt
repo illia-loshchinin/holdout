@@ -315,7 +315,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                     chainSecondsNow = { clock.nowSeconds() },
                     // Every sitting of a staked Holdout: 45° only, from the toes (FR-021a).
                     stakes = Stakes.STAKED,
-                    // The cohort's own days — one hour each in the short test cohort.
+                    // The cohort's own days — ten minutes each in the short test cohort.
                     dayOf = { Derive.dayIndex(h.cohort, it).toLong() },
                     traceDir = if (BuildConfig.DEBUG) java.io.File(context.filesDir, "traces") else null,
                 )
