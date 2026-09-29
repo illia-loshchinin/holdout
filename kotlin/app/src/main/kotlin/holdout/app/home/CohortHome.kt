@@ -54,6 +54,8 @@ fun CohortHome(
     now: Long,
     /** Reps banked on this phone toward today's day. */
     banked: Int,
+    /** The last chain read failed: what is shown is the previous one, and nothing can be submitted until it answers. */
+    offline: Boolean,
     /** A completed day waiting to be submitted, or null. */
     pendingDay: Int?,
     busy: Boolean,
@@ -103,6 +105,10 @@ fun CohortHome(
             }
         }
 
+        // Offline, a sitting can still be done, but not submitted: said before it starts, not after the set.
+        if (offline && !stage.todayDone) {
+            Notice("${holdout.app.chain.Deployment.networkName} can't be reached right now. You can still do today's reps, but the day only counts once it is submitted before the deadline, so check the connection first.", warning = true)
+        }
         when {
             stage.todayDone -> {
                 Text("Today is done and on chain.", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)

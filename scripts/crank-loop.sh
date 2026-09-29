@@ -7,6 +7,8 @@
 #   HOLDOUT_PAYER_KEY_JSON        the payer's Solana CLI keypair (a JSON array)
 #   HOLDOUT_SCRIPTED_KEYS_TGZ_B64 base64 of a .tar.gz of the 56 scripted keypairs
 #                                 (tar -czf - -C ~/.config/solana/holdout/scripted . | base64 -w0)
+#                                 required: the loop exits 2 without it, unless
+#                                 CRANK_WITHOUT_SCRIPTED=1 runs the automation alone
 # plus HOLDOUT_RPC_URL and HOLDOUT_PROGRAM_ID (contracts/crank-cli.md).
 #
 # A failed pass is logged and the loop carries on: every step is idempotent, so
@@ -25,6 +27,13 @@ if [[ -n "${HOLDOUT_SCRIPTED_KEYS_TGZ_B64:-}" ]]; then
   mkdir -p "$KEYS/scripted"
   printf '%s' "$HOLDOUT_SCRIPTED_KEYS_TGZ_B64" | base64 -d | tar -xzf - -C "$KEYS/scripted"
   export HOLDOUT_SCRIPTED_KEYS_DIR="$KEYS/scripted"
+elif [[ -z "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" && "${CRANK_WITHOUT_SCRIPTED:-}" != "1" ]]; then
+  # A missing secret reads as empty (GitHub) or unset (Fly): without the keys no
+  # scripted member ever joins or submits, and the cohort floors go unmet — so
+  # the scheduler fails here rather than stay green. CRANK_WITHOUT_SCRIPTED=1
+  # runs the automation alone, on purpose.
+  echo "crank-loop: HOLDOUT_SCRIPTED_KEYS_TGZ_B64 is not set; set it, or CRANK_WITHOUT_SCRIPTED=1 to run without scripted members" >&2
+  exit 2
 fi
 chmod 600 "$KEYS"/*.json "$KEYS"/scripted/*.json 2>/dev/null || true
 

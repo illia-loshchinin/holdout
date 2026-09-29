@@ -502,6 +502,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             banked = banked,
             // Only today's pending day counts: an older one left behind must not hide today's.
             pendingDay = pending?.takeIf { it == stage.dayIndex } ?: stage.dayIndex.takeIf { locallyDone && !stage.todayDone },
+            offline = chain.offline,
             busy = chain.busy,
             message = chain.message,
             messageIsWarning = chain.messageIsWarning,
