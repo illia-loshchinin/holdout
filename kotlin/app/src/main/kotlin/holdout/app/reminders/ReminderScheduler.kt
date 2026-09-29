@@ -41,19 +41,23 @@ class ReminderScheduler(context: Context) {
     fun sync(wallet: String, reminders: List<Reminder>, chainNow: Long, elapsedNow: Long = SystemClock.elapsedRealtime()) {
         val wanted = if (NotificationManagerCompat.from(context).areNotificationsEnabled()) reminders else emptyList()
         val previous = ids(KEY_IDS)
-        (previous - wanted.map { it.id }.toSet()).forEach { cancel(it) }
+        val cancelled = previous - wanted.map { it.id }.toSet()
+        cancelled.forEach { cancel(it) }
         wanted.forEach { r ->
+            // Already due and inside its delivery window: its alarms are set and
+            // may still fire late. Setting them again would fire them at once,
+            // and a second time if the first has posted — so they are left alone.
+            if (r.at <= chainNow) return@forEach
             val at = Reminders.elapsedMillisAt(r.at, chainNow, elapsedNow)
             val deadline = Reminders.elapsedMillisAt(r.deadline, chainNow, elapsedNow)
             alarms.setWindow(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, Reminders.windowMillis(r.dayLength), pending(r.id, intent(ACTION_ON_TIME, wallet, r, deadline)))
             alarms.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pending(r.id, intent(ACTION_WHILE_IDLE, wallet, r, deadline)))
         }
-        // Every alarm of a delivered reminder is cancelled above or still to
-        // come, so its "posted" mark is only needed until this sync.
-        val touched = previous + wanted.map { it.id }
+        // A cancelled reminder has no alarm left to fire, so its "posted" mark is
+        // no longer needed; one still in its window keeps the mark, so its second alarm stays quiet.
         prefs.edit()
             .putStringSet(KEY_IDS, wanted.map { it.id.toString() }.toSet())
-            .putStringSet(KEY_POSTED, (ids(KEY_POSTED) - touched).map { it.toString() }.toSet())
+            .putStringSet(KEY_POSTED, (ids(KEY_POSTED) - cancelled).map { it.toString() }.toSet())
             .apply()
     }
 

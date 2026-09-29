@@ -31,12 +31,15 @@ chmod 600 "$KEYS"/*.json "$KEYS"/scripted/*.json 2>/dev/null || true
 pass() {
   echo "=== $(date -u +%FT%TZ) crank run"
   java -jar "$JAR" run
-  local run=$?
+  local run=$? scripted=0
   if [[ -n "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" ]]; then
     echo "=== $(date -u +%FT%TZ) crank scripted run"
     java -jar "$JAR" scripted run
+    scripted=$?
   fi
-  return $run
+  # Either failing fails the pass: an underfilled cohort or a missed scripted day is a failure too.
+  (( run != 0 )) && return $run
+  return $scripted
 }
 
 if [[ "${1:-}" == "--once" ]]; then

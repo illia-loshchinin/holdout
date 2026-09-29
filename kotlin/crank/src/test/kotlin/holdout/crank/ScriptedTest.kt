@@ -24,6 +24,7 @@ import java.nio.ByteOrder
 import java.util.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -145,6 +146,9 @@ class ScriptedTest {
         val accounts = mutableMapOf<SolanaPublicKey, ByteArray>()
         val sent = mutableListOf<Transaction>()
 
+        // Fee payers whose transactions the node refuses.
+        val refused = mutableSetOf<SolanaPublicKey>()
+
         fun names(t: Transaction) = t.message.instructions.map { ix ->
             listOf("claim_faucet", "join_cohort", "submit_day").first { Instructions.discriminator(it).contentEquals(ix.data.copyOf(8)) }
         }
@@ -172,7 +176,9 @@ class ScriptedTest {
                 "getBlockTime" -> ok("$now")
                 "getLatestBlockhash" -> ok("""{"context":{"slot":1},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":9}}""")
                 "sendTransaction" -> {
-                    sent += Transaction.from(Base64.getDecoder().decode(params!![0].jsonPrimitive.content))
+                    val tx = Transaction.from(Base64.getDecoder().decode(params!![0].jsonPrimitive.content))
+                    if (tx.message.accounts[0] in refused) return """{"jsonrpc":"2.0","error":{"code":-32002,"message":"Transaction simulation failed: custom program error: 0x1"},"id":"x"}"""
+                    sent += tx
                     ok("\"sig${sent.size}\"")
                 }
                 "getSignatureStatuses" -> ok("""{"context":{"slot":1},"value":[{"err":null,"confirmationStatus":"confirmed"}]}""")
@@ -252,5 +258,24 @@ class ScriptedTest {
         assertNull(stopped.firstOrNull()?.let { s -> submits.firstOrNull { it.message.accounts[0] == s.pubkey } })
         // Every transaction is paid by the scripted wallet itself, never by the faucet's sponsor.
         chain.sent.forEach { assertTrue(it.message.accounts[0] in keys.keys) }
+    }
+
+    @Test
+    fun `a join that fails does not fill a place - the next wallet in the pool takes it`() = runBlocking {
+        val roster = syntheticRoster()
+        val keys = (0 until 56).associate { key(it).publicKey to key(it) }
+        val open = cohort(leagueId = 0, index = 1, memberCount = 3)
+        val chain = Chain(open.joinCutoff - 3 * day) // target 10: 7 places to fill
+        chain.accounts[Pdas.config(programId)] = configBytes()
+        chain.accounts[Pdas.cohort(programId, 0, 1)] = cohortBytes(open)
+        // The first two wallets the pass would try are refused every time.
+        chain.refused += Scripted.poolFor(roster, 0, 1).take(2).map { it.pubkey }
+
+        val byFile = roster.associate { w -> w.fileName to keys.getValue(w.pubkey) }
+        val json = assertFailsWith<CrankSummaryException> {
+            Scripted.run(parseArgs(listOf("scripted", "run")), CrankConfig.from(env), Rpc("http://rpc.test", Rpc20Driver("http://rpc.test", chain)), roster, loadKeypair = { path, _ -> byFile.getValue(java.io.File(path).name) }, pause = {})
+        }.summary
+        assertEquals(2, json.getValue("failed").jsonPrimitive.int)
+        assertEquals(7, chain.sent.count { "join_cohort" in chain.names(it) }, "all 7 places filled by the wallets after the refused ones")
     }
 }

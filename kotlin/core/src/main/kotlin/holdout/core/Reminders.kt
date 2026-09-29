@@ -46,8 +46,12 @@ object Reminders {
      * Every reminder still to come for one wallet at [now]: for each Holdout it
      * holds and has not forfeited, finished or left — a start reminder while it
      * has not started, and for every day not recorded on chain, one at
-     * `deadline − lead`. Nothing in the past; nothing once the member is in
-     * breach.
+     * `deadline − lead`. Nothing once the member is in breach.
+     *
+     * A reminder stays in the schedule until its delivery window has closed
+     * (or its deadline passed), not merely until `at`: the phone may deliver
+     * it late within that window, and one dropped from the schedule is
+     * cancelled — so a refresh just after `at` must not take it away.
      *
      * A day done on the phone but not yet on chain is still reminded: until it
      * reaches the chain it counts for nothing, and a submit that failed is
@@ -61,14 +65,16 @@ object Reminders {
     ): List<Reminder> = memberships.flatMap { (c, m) ->
         if (m.state != MembershipSnapshot.State.Joined || c.settled || Derive.inBreach(m, c, now) || now >= Derive.end(c)) return@flatMap emptyList()
         val address = cohortAddress(c)
+        val window = windowSeconds(c.dayLength)
         fun reminder(kind: Reminder.Kind, day: Int, at: Long) = Reminder(kind, address, c.leagueId, day, at, Derive.deadlineOf(c, day), c.repsPerDay, c.durationDays, c.dayLength)
+        fun deliverable(at: Long, deadline: Long) = minOf(at + window, deadline) > now
         buildList {
-            if (now < c.start) add(reminder(Reminder.Kind.Start, 0, c.start))
+            if (deliverable(c.start, Derive.deadlineOf(c, 0))) add(reminder(Reminder.Kind.Start, 0, c.start))
             val lead = leadSeconds(c.dayLength)
             for (day in m.daysCompleted until c.durationDays) {
                 val at = Derive.deadlineOf(c, day) - lead
                 // A day reminded as it opens: the first one is the start reminder's.
-                if (at > now && at > c.start) add(reminder(Reminder.Kind.Deadline, day, at))
+                if (at > c.start && deliverable(at, Derive.deadlineOf(c, day))) add(reminder(Reminder.Kind.Deadline, day, at))
             }
         }
     }.sortedBy { it.at }
@@ -81,7 +87,9 @@ object Reminders {
      * point of the day — the window is the whole day — and one that would land
      * after the deadline is not shown (ReminderReceiver).
      */
-    fun windowMillis(dayLength: Long): Long = maxOf(MIN_WINDOW_SECONDS, leadSeconds(dayLength) / 3) * 1_000
+    fun windowMillis(dayLength: Long): Long = windowSeconds(dayLength) * 1_000
+
+    private fun windowSeconds(dayLength: Long): Long = maxOf(MIN_WINDOW_SECONDS, leadSeconds(dayLength) / 3)
 
     /**
      * A chain instant as a moment on the phone's monotonic clock, from one

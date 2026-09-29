@@ -66,7 +66,7 @@ class RemindersTest {
     @Test
     fun `a one-hour test day is reminded 15 minutes before its deadline`() {
         val c = cohort(dayLength = 3_600, reps = 5)
-        val day0 = schedule(c, member(), now = start + 60).first()
+        val day0 = schedule(c, member(), now = start + 60).first { it.kind == Reminder.Kind.Deadline }
         assertEquals(Reminder.Kind.Deadline, day0.kind)
         assertEquals(0, day0.dayIndex)
         assertEquals(start + 3_600 - 1 - 15 * 60, day0.at)
@@ -79,8 +79,18 @@ class RemindersTest {
         val midDay2 = start + 2 * 86_400 + 60
         val r = schedule(c, member(days = 2), now = midDay2)
         assertEquals(listOf(2, 3, 4, 5, 6), r.map { it.dayIndex }, "day 2 still owed today, whether or not the phone has it done")
-        val late = start + 3 * 86_400 - 1 - 60 // past day 2's reminder, before its deadline
+        val late = start + 3 * 86_400 - 1 - 60 // past day 2's reminder window, before its deadline
         assertTrue(schedule(c, member(days = 2), now = late).none { it.dayIndex == 2 })
+    }
+
+    @Test
+    fun `a reminder just past its time stays scheduled until its window closes, so a refresh does not cancel it undelivered`() {
+        val c = cohort(dayLength = 3_600, reps = 5)
+        val day0At = start + 3_600 - 1 - 15 * 60
+        val window = Reminders.windowMillis(3_600) / 1_000
+        assertTrue(schedule(c, member(), now = day0At + 30).any { it.kind == Reminder.Kind.Deadline && it.dayIndex == 0 }, "30 s after its time: Android may still deliver it")
+        assertTrue(schedule(c, member(), now = day0At + window).none { it.kind == Reminder.Kind.Deadline && it.dayIndex == 0 }, "its window has closed")
+        assertTrue(schedule(c, member(), now = start + 30).any { it.kind == Reminder.Kind.Start }, "the start reminder too")
     }
 
     @Test

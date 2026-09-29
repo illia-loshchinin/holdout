@@ -283,7 +283,9 @@ object Scripted {
 
         val steps = mutableListOf<JsonObject>()
         var failures = 0
-        suspend fun attempt(step: String, detail: JsonObjectBuilder.() -> Unit, block: suspend () -> String?) {
+
+        // True when the transaction landed (or simulated cleanly).
+        suspend fun attempt(step: String, detail: JsonObjectBuilder.() -> Unit, block: suspend () -> String?): Boolean {
             try {
                 val signature = block()
                 steps += buildJsonObject {
@@ -292,6 +294,7 @@ object Scripted {
                     detail()
                     signature?.let { put("signature", it) }
                 }
+                return true
             } catch (e: CrankException) {
                 if (e.exitCode == EXIT_CONFIG) throw e
                 failures++
@@ -301,6 +304,7 @@ object Scripted {
                     detail()
                     put("error", e.message)
                 }
+                return false
             }
         }
 
@@ -338,7 +342,8 @@ object Scripted {
                     val needsFaucet = balance < c.chips[tier]
                     if (needsFaucet && profile?.claimedFaucetOn(today) == true) continue
                     val key = keyOf(w)
-                    attempt("join", {
+                    // Only a join that landed fills a place; after a failed one the next wallet is tried.
+                    val joined = attempt("join", {
                         detail()
                         put("wallet", w.pubkey.base58())
                         put("tier", tier)
@@ -350,7 +355,7 @@ object Scripted {
                         }
                         signAndSend(rpc, "scripted join ${c.leagueId}/${c.index}", ixs, listOf(key), args.dryRun, pause, beforeRetrying = "the next pass re-reads the roster")
                     }
-                    needed--
+                    if (joined) needed--
                 }
             }
 
