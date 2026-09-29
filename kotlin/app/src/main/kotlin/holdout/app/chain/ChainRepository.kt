@@ -60,6 +60,9 @@ data class ChainView(
     /** Cohorts the wallet is in and has not claimed out of — what home leads with. */
     fun mine(now: Long): List<Holdout> = holdouts.filter { h -> h.membership != null && h.stage(now) !is Stage.Claimed }
 
+    /** Holdouts the wallet finished and claimed out of — kept reachable, for their detail and history. */
+    fun claimed(now: Long): List<Holdout> = holdouts.filter { h -> h.membership != null && h.stage(now) is Stage.Claimed }
+
     /** Cohorts running or open, with or without the wallet — the connect screen's live list (FR-001a). */
     fun live(now: Long): List<Holdout> = holdouts.filter { it.status(now) == CohortStatus.Open || it.status(now) == CohortStatus.Running }
 

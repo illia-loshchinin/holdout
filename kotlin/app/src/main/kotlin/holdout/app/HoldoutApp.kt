@@ -512,6 +512,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             onAbout = { route = Route.About },
             onRoster = { route = Route.Roster(h.address) },
             onDaily25 = { sitting = Sitting.Daily25(dayIndex) },
+            onGetTokens = { route = Route.Faucet },
             modifier = modifier,
             recordVideo = recordVideo,
             onRecordVideoChange = onRecordVideoChange,
@@ -577,6 +578,16 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                         Text("${h.cohort.durationDays}-day Holdout", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
                         Text(label, style = MaterialTheme.typography.bodyLarge, color = if (stage is Stage.Forfeited) HoldoutColors.Warning else HoldoutColors.Success)
                     }
+                }
+            }
+            val past = view.claimed(chainNow)
+            if (past.isNotEmpty()) SectionLabel("Past Holdouts")
+            past.forEach { h ->
+                val claimed = h.stage(chainNow) as? Stage.Claimed ?: return@forEach
+                HoldoutCard(Modifier.clickable { route = Route.Detail(h.address) }) {
+                    if (h.isTest) TestCohortBadge(h.cohort.dayLength)
+                    Text("${h.cohort.durationDays}-day Holdout", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+                    Text("Finished · claimed ${Format.skr(claimed.amount)}", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
                 }
             }
             val open = view.openToJoin(chainNow)
