@@ -250,8 +250,8 @@ fun SittingScreen(
         labelThen?.let { leave ->
             TraceLabelDialog(
                 counted = state.repsCounted,
-                onSave = { done, note ->
-                    viewModel.labelTrace(done, note)
+                onSave = { done, note, placement, phoneSide ->
+                    viewModel.labelTrace(done, note, placement, phoneSide)
                     labelThen = null
                     leave()
                 },

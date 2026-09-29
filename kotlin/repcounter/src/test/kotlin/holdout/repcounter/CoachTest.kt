@@ -24,7 +24,8 @@ class CoachTest {
     @Test
     fun `every correction fits on the screen from the floor - three short words at most`() {
         for (coach in Coach.entries) {
-            assertTrue(coach.words.split(' ').size <= 3 && coach.words.length <= 18, "\"${coach.words}\" is too long")
+            // 19 characters: "Turn slightly right", still three words.
+            assertTrue(coach.words.split(' ').size <= 3 && coach.words.length <= 19, "\"${coach.words}\" is too long")
         }
     }
 
@@ -48,6 +49,18 @@ class CoachTest {
         assertEquals(Coach.FURTHER, Coach.next(report(), guidance(PositionHint.MOVE_BACK)))
         assertEquals(Coach.FURTHER, Coach.next(report(PreflightCheck.WHOLE_BODY), guidance(null)))
         assertEquals(Coach.CLOSER, Coach.next(report(), guidance(PositionHint.MOVE_CLOSER)))
+    }
+
+    @Test
+    fun `a hidden knee asks the member to turn away, a knee at the edge asks for the phone further off`() {
+        fun kneesReport(fix: String) = PreflightReport(
+            statuses = PreflightCheck.entries.map { if (it == PreflightCheck.WHOLE_BODY) PreflightStatus(it, passing = false, specificFix = fix) else PreflightStatus(it, passing = true) },
+            view = CameraView.OBLIQUE,
+        )
+        assertEquals(Coach.TURN_LEFT, Coach.next(kneesReport(Preflight.KNEES_TURN_LEFT_FIX), guidance(null)), "phone on the right: turn left, away from it")
+        assertEquals(Coach.TURN_RIGHT, Coach.next(kneesReport(Preflight.KNEES_TURN_RIGHT_FIX), guidance(null)))
+        assertEquals(Coach.TURN_AWAY, Coach.next(kneesReport(Preflight.KNEES_TURN_FIX), guidance(null)), "which side faces the phone is unclear")
+        assertEquals(Coach.FURTHER, Coach.next(kneesReport(Preflight.KNEES_FIX), guidance(null)))
     }
 
     @Test

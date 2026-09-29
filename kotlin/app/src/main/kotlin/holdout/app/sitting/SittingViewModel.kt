@@ -468,10 +468,10 @@ class SittingViewModel(
      * expected count is what the rule should credit: full push-ups, and in the
      * Daily 25 push-ups from the knees as well (FR-021a).
      */
-    fun labelTrace(done: Map<String, Int>, note: String) {
+    fun labelTrace(done: Map<String, Int>, note: String, placement: String? = null, phoneSide: String? = null) {
         val recorder = trace ?: return
         val expected = (done["honest"] ?: 0) + if (stakes == Stakes.DAILY) done["knees"] ?: 0 else 0
-        Thread { recorder.label(expected, done, note) }.start()
+        Thread { recorder.label(expected, done, note, placement, phoneSide) }.start()
     }
 
     override fun onCleared() {

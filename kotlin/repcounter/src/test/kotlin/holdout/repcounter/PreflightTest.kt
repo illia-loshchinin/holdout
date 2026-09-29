@@ -201,6 +201,12 @@ class PreflightTest {
         val guessed = wholeBody(report(0.05f))
         assertFalse(guessed.passing)
         assertEquals(Preflight.KNEES_FIX, guessed.fix)
+        // A knee the model cannot find at all is hidden behind the body: turning shows it.
+        val hidden = pose(0.5f).let { p ->
+            ImagePose(PoseFrame(0, p.frame.landmarks.mapIndexed { i, l -> if (i == PoseIndex.LEFT_KNEE) l.copy(presence = 0.2f) else l }), p.width, p.height)
+        }
+        // This synthetic body shows its left side to the lens: the phone is on its left, so it turns right.
+        assertEquals(Preflight.KNEES_TURN_RIGHT_FIX, wholeBody(staked.evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), hidden.frame, hidden))).fix)
         // The Daily 25 does not judge knees, so it does not ask for them.
         assertTrue(wholeBody(Preflight().evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), pose(0.05f).frame, pose(0.05f)))).passing)
     }

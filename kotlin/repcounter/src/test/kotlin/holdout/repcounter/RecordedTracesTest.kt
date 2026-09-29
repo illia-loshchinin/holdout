@@ -54,6 +54,19 @@ class RecordedTracesTest {
     }
 
     @Test
+    fun `where the phone stood is written into the header and read back, and nothing else is accepted`() {
+        val (world, image) = Traces.frontFrame(1_000, elbowDegrees = 120f)
+        val text = Trace.header(Stakes.STAKED, image.width, image.height) +
+            Trace.row(1_000, "COUNTING", CameraView.OBLIQUE, world, image.frame, null, null)
+        val labelled = Trace.parse(Trace.label(text.lines(), 5, mapOf("honest" to 5), "", placement = "50", phoneSide = "right"))
+        assertEquals("50", labelled.placement)
+        assertEquals("right", labelled.phoneSide)
+        val forged = Trace.parse(Trace.label(text.lines(), 5, emptyMap(), "", placement = "50 expectedReps=99", phoneSide = "up"))
+        assertEquals(null, forged.placement)
+        assertEquals(5, forged.expectedReps)
+    }
+
+    @Test
     fun `a person's account is written into the header, and a note cannot forge a fact`() {
         val (world, image) = Traces.frontFrame(1_000, elbowDegrees = 120f)
         val text = Trace.header(Stakes.STAKED, image.width, image.height) +

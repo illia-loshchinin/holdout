@@ -33,6 +33,7 @@ A moving background is not a correction: its pill turns amber with "Find a spot 
 
 - "Keep your head in the picture" — the head at or past an edge
 - "Keep your knees in the picture — move the phone further away" — staked: the near knee at or past an edge
+- "Turn your body slightly to your left (right), away from the phone, so it sees your knees" — staked: the near knee hidden behind the body; the coach says "Turn slightly left" or "Turn slightly right" by the side the phone is on ("Turn slightly away" when that is unclear)
 - While counting nothing is said about the head *(revised 2026-09-29)*
 
 ## Feedback (FR-021)

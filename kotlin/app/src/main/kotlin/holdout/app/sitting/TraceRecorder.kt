@@ -116,12 +116,12 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) {
      * (`Trace.label`). Called off the main thread; a failure leaves the trace
      * as it was, unlabelled.
      */
-    fun label(expectedReps: Int, done: Map<String, Int>, note: String) {
+    fun label(expectedReps: Int, done: Map<String, Int>, note: String, placement: String? = null, phoneSide: String? = null) {
         synchronized(lock) {
             val target = file ?: return
             closeLocked()
             runCatching {
-                val labelled = Trace.label(target.readLines(), expectedReps, done, note)
+                val labelled = Trace.label(target.readLines(), expectedReps, done, note, placement, phoneSide)
                 target.writeText(labelled.joinToString("\n", postfix = "\n"))
             }
         }

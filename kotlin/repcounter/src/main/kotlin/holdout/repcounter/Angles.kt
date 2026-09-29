@@ -163,6 +163,9 @@ object Angles {
         return knee!!.x in margin..(1f - margin) && knee.y in margin..(1f - margin)
     }
 
+    /** Whether the model found the knee on [side] with confidence, wherever it is. */
+    fun kneeSeen(image: ImagePose, side: Side): Boolean = visible(image.frame[LEG.getValue(side).second])
+
     /**
      * Head-on: the elbow as the picture shows it, **both arms averaged**, or
      * `null` when either is not clearly in frame. From the front both arms are

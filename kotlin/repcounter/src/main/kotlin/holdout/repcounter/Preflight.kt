@@ -167,8 +167,14 @@ class Preflight(
         if (input.image != null && !Angles.headInFrame(input.image)) return failing(HEAD_FIX)
         val pose = input.imagePose
         if (stakes == Stakes.STAKED && pose != null) {
-            val side = Angles.nearSide(pose)
-            if (side == null || !Angles.kneeClearOfEdge(pose, side, legEdgeMargin)) return failing(KNEES_FIX)
+            // Two different problems, two different fixes: a knee the model
+            // cannot find is hidden behind the body — turning a little away from
+            // the phone shows it; one at the picture's edge needs more room.
+            val side = Angles.nearSide(pose) ?: return failing(KNEES_TURN_FIX)
+            // The side facing the phone is the side the phone is on; turning the
+            // other way opens the angle and brings the near knee out.
+            if (!Angles.kneeSeen(pose, side)) return failing(if (side == Side.RIGHT) KNEES_TURN_LEFT_FIX else KNEES_TURN_RIGHT_FIX)
+            if (!Angles.kneeClearOfEdge(pose, side, legEdgeMargin)) return failing(KNEES_FIX)
         }
         return PreflightStatus(PreflightCheck.WHOLE_BODY, passing = true)
     }
@@ -228,6 +234,22 @@ class Preflight(
      * only thing the camera-view check now fails on.
      */
     fun classifyView(frame: PoseFrame?, xScale: Float = 1f): CameraView? {
+        val ratio = placementRatio(frame, xScale) ?: return null
+        return when {
+            ratio <= sideRatio -> CameraView.SIDE
+            ratio >= frontRatio -> CameraView.FRONT
+            else -> CameraView.OBLIQUE
+        }
+    }
+
+    /**
+     * What [classifyView] decides on: shoulder span over torso length, in the
+     * 9:16 units the thresholds were set in. `0` when one shoulder hides the
+     * other — the model cannot see through a torso, so that is side-on — and
+     * null when there is not enough of a body to judge. Public for calibration
+     * (`replayTraces`), which groups it by the placement a person labelled.
+     */
+    fun placementRatio(frame: PoseFrame?, xScale: Float = 1f): Float? {
         if (frame == null) return null
         val leftShoulder = frame[PoseIndex.LEFT_SHOULDER]
         val rightShoulder = frame[PoseIndex.RIGHT_SHOULDER]
@@ -238,25 +260,14 @@ class Preflight(
         val torsoLength = hypot(Aspect.calibratedX(shoulder.first - hip.first, xScale), shoulder.second - hip.second)
         if (torsoLength < MIN_TORSO_LENGTH) return null
 
-        // One shoulder occluded by the other is the strongest side-on signal
-        // there is: the model cannot see through a torso.
-        if (leftShoulder == null || rightShoulder == null) return CameraView.SIDE
-        if (leftShoulder.presence < Angles.PRESENCE_THRESHOLD ||
-            rightShoulder.presence < Angles.PRESENCE_THRESHOLD
-        ) {
-            return CameraView.SIDE
-        }
+        if (leftShoulder == null || rightShoulder == null) return 0f
+        if (leftShoulder.presence < Angles.PRESENCE_THRESHOLD || rightShoulder.presence < Angles.PRESENCE_THRESHOLD) return 0f
 
         val shoulderSpan = hypot(
             Aspect.calibratedX(leftShoulder.x - rightShoulder.x, xScale),
             leftShoulder.y - rightShoulder.y,
         )
-        val ratio = shoulderSpan / torsoLength
-        return when {
-            ratio <= sideRatio -> CameraView.SIDE
-            ratio >= frontRatio -> CameraView.FRONT
-            else -> CameraView.OBLIQUE
-        }
+        return shoulderSpan / torsoLength
     }
 
     companion object {
@@ -268,6 +279,15 @@ class Preflight(
 
         /** Staked: the fix when the near knee is at or past the edge. */
         const val KNEES_FIX = "Keep your knees in the picture — move the phone further away"
+
+        /** Staked: the near knee cannot be found — hidden behind the body — and which side faces the phone is unclear. */
+        const val KNEES_TURN_FIX = "Turn your body a little away from the phone, so it sees your knees"
+
+        /** Staked: as [KNEES_TURN_FIX], with the phone on the member's right — they turn left. */
+        const val KNEES_TURN_LEFT_FIX = "Turn your body slightly to your left, away from the phone, so it sees your knees"
+
+        /** Staked: as [KNEES_TURN_FIX], with the phone on the member's left — they turn right. */
+        const val KNEES_TURN_RIGHT_FIX = "Turn your body slightly to your right, away from the phone, so it sees your knees"
 
         /** Below this the torso is too short in frame for the ratio to mean anything. */
         private const val MIN_TORSO_LENGTH = 0.02f

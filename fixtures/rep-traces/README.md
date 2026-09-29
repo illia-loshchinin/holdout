@@ -124,3 +124,44 @@ table, not here.
 `docs/holdout_setup_runbook.md` step 7 has the procedure. Ten honest videos need
 ten sets of 25; spread them over people and light if you can, since one person
 in one room is one set of angles, not a sample.
+
+## Calibration session — the 4:3 picture, 30–60° (2026-09-29, spec 002 T034c)
+
+The camera now gives the counter the sensor's full 4:3 picture (T034b), and staked
+sittings are meant to work anywhere from 45° to 55°. The placement thresholds were
+set on 16:9 recordings at about 45°; they are converted exactly, but this session
+checks them on real 4:3 frames and widens the 45° band if the data says so.
+
+**The angle** is between your line from head to feet and the line to the phone:
+0 would be the phone straight ahead of your head, 90 square beside you. On the
+floor, measure from your shoulder 1 m **sideways**, then this far **ahead**:
+
+| angle | ahead | | angle | ahead |
+|---|---|---|---|---|
+| 30° | 1.73 m | | 50° | 0.84 m |
+| 35° | 1.43 m | | 55° | 0.70 m |
+| 40° | 1.19 m | | 60° | 0.58 m |
+| 45° | 1.00 m | | | |
+
+**Set-up, once:** debug build, "record video" on, the Daily 25 home's *staked test*
+switch on (staked rules, no stake). In the "What did you just do?" form after each
+set, pick the angle and the phone's side — both are remembered for the next set.
+
+**Record** (about 25 sets, 10 push-ups each unless said):
+
+| placement | phone on your right | phone on your left |
+|---|---|---|
+| 45°, 50°, 55° | 10 honest · 5 from the knees · 5 cobra | 10 honest |
+| 35°, 40°, 60° | 10 honest | — |
+| head-on | 10 honest, *staked test* switched off (only the Daily 25 accepts head-on) | — |
+| square side-on | hold the plank about 10 s — no sitting accepts side-on, so it never starts: press Stop and label it | — |
+
+If the whole-body pill asks you to turn away or move the phone, do what it says
+and note it in the form: those moments are part of what is being measured.
+
+**Then:** `bash scripts/pull-traces.sh` and `./gradlew :repcounter:replayTraces`
+(from `kotlin/`). The report gives, per labelled angle, the placement ratio's
+5th/50th/95th percentile, what the camera check decided, and how many sets counted
+within one rep of you. The 45° band's limits (`sideRatio`, `frontRatio`) are set
+from it so every angle you want accepted falls inside; the traces that pin a
+decision are committed here with the rest.
