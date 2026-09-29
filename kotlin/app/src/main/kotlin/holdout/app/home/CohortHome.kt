@@ -75,7 +75,8 @@ fun CohortHome(
     val standing by animateIntAsState(figures?.survivors?.standing ?: c.memberCount.toInt(), animationSpec = tween(900), label = "survivors")
     val timeLeft = Derive.timeLeftToday(c, now)
     val warning = Derive.inWarningWindow(timeLeft)
-    val daysLeft = c.durationDays - stage.dayIndex
+    // The member's own days still to do: a day already on chain is not one to go.
+    val daysLeft = c.durationDays - (h.membership?.daysCompleted ?: 0)
 
     Column(
         modifier = modifier
