@@ -241,6 +241,8 @@ class SittingViewModel(
         // still up for the member to log what they did.
         if (stopped) return
         rollOverAtBoundary()
+        // A Holdout day that just ended stops the sitting: not even this frame counts.
+        if (stopped) return
         when (_uiState.value.step) {
             Step.PREFLIGHT -> {
                 val report = preflight.evaluate(

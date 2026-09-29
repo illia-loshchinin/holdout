@@ -190,11 +190,13 @@ object Run {
                         send("open_cohort $id/$index", listOf(Instructions.openCohort(programId, payer.publicKey, onChain.skrMint, id, index, previous)))
                     }
                 if (opened != Outcome.Landed) break
-                nextIndex[id] = index + 1
-                // A simulated open created nothing, and the next one names this
-                // cohort as its predecessor: simulating it against unchanged chain
-                // state would fail. The rest are reported as planned.
-                if (args.dryRun) {
+                // A simulated open created nothing, so nothing downstream may treat
+                // it as existing: the league's index stays the on-chain one (the
+                // carry-over target settlement names), and the later opens, which
+                // name this cohort as their predecessor, are reported as planned.
+                if (!args.dryRun) {
+                    nextIndex[id] = index + 1
+                } else {
                     due.drop(position + 1).forEach { later ->
                         pass.record("open_cohort", "skipped") {
                             put("league", id)

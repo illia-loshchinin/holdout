@@ -87,7 +87,8 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
      * Which network the wallet authorized Holdout on, from the chains it reports
      * for its accounts (MWA 2.0). Holdout is devnet only (constitution,
      * Hackathon Constraints): a wallet that reports any other network is
-     * refused before anything is signed. A wallet that reports no chains
+     * refused before anything is signed, and so is one that reports devnet
+     * alongside another network. A wallet that reports no chains
      * (MWA 1.x) cannot be checked, and is allowed.
      */
     private enum class Network {
@@ -100,9 +101,11 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
             fun of(auth: MobileWalletAdapterClient.AuthorizationResult): Network {
                 val chains = auth.accounts.orEmpty().flatMap { it.chains?.toList().orEmpty() }
                 Log.i(TAG, "wallet authorized chains: $chains")
+                // Devnet only when every chain reported is devnet: with any other
+                // among them, the first account — the one connect keeps — may not be.
                 return when {
                     chains.isEmpty() -> Unknown
-                    DEVNET_CHAIN in chains -> Devnet
+                    chains.all { it == DEVNET_CHAIN } -> Devnet
                     else -> Other
                 }
             }
