@@ -213,6 +213,31 @@ class StakesTest {
     }
 
     @Test
+    fun `a leg hidden through the push back up is not credited, even though those frames cannot be read at all`() {
+        // Knee and ankle gone: no body line, so the whole frame is unreadable and dropped.
+        fun withoutLeg(image: ImagePose): ImagePose {
+            val landmarks = image.frame.landmarks.toMutableList()
+            for (i in listOf(PoseIndex.LEFT_KNEE, PoseIndex.LEFT_ANKLE)) landmarks[i] = landmarks[i].copy(presence = 0f)
+            return image.copy(frame = image.frame.copy(landmarks = landmarks))
+        }
+        for ((stakes, expected) in listOf(Stakes.STAKED to 0, Stakes.DAILY to 10)) {
+            val counter = RepCounter(view = CameraView.OBLIQUE, stakes = stakes)
+            val hints = mutableListOf<RepHint?>()
+            var previous = 180f
+            for (frame in Traces.set(count = 10)) {
+                val elbow = Angles.elbow(frame)!!
+                // Visible down to the bottom, hidden on the way up, back in view at the top.
+                val rising = elbow > previous && elbow in 80f..165f
+                previous = elbow
+                val image = Traces.angledImage(frame.timestampMillis, elbow)
+                (counter.onFrame(frame, if (rising) withoutLeg(image) else image) as? RepEvent.Discarded)?.let { hints += it.hint }
+            }
+            assertEquals(expected, counter.total, "$stakes")
+            if (stakes == Stakes.STAKED) assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.LEGS_IN_VIEW }, "got $hints")
+        }
+    }
+
+    @Test
     fun `the staked ready position needs the knees in the picture`() {
         val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.STAKED)
         val top = { t: Long -> Traces.frame(t, elbowDegrees = 175f, bodyLineDegrees = 180f) }

@@ -342,7 +342,17 @@ class RepCounter(
 
     fun onFrame(frame: PoseFrame, image: ImagePose? = null): RepEvent? {
         val side = nearSideFor(image)
-        val reading = ViewReading.of(view, frame, image, side = side) ?: return null
+        val reading = ViewReading.of(view, frame, image, side = side) ?: run {
+            // A frame that cannot be read is dropped, not scored — but where
+            // money is staked, one on the way back up is a frame the knee was
+            // not seen in: a leg hidden through the push must not leave only
+            // the frames it showed in to be judged.
+            if (judgeKnees && !priming && phase == Phase.AT_BOTTOM) {
+                pushFrames++
+                pushLegsUnseen++
+            }
+            return null
+        }
 
         val elbow = elbowFilter.filter(reading.elbow, frame.timestampMillis)
         val posture = postureFilter.filter(reading.posture, frame.timestampMillis)
