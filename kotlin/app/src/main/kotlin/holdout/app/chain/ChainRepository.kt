@@ -75,10 +75,12 @@ class ChainRepository(private val rpc: Rpc = Rpc(Deployment.rpcUrl), private val
     suspend fun load(wallet: SolanaPublicKey?): ChainView? {
         val config =
             when (val read = rpc.account(Pdas.config(programId))) {
-                is Rpc.Answer.Ok -> read.value?.let { runCatching { ConfigSnapshot.decode(it) }.getOrNull() }
+                // No account at all: Holdout is not live here. An account that
+                // does not decode is a failed read, not an absent one — the last
+                // snapshot stays rather than an empty view saying "not live".
+                is Rpc.Answer.Ok -> (read.value ?: return ChainView(null, emptyList(), null, 0uL, 0L)).let { runCatching { ConfigSnapshot.decode(it) }.getOrNull() ?: return null }
                 else -> return null
             }
-        if (config == null) return ChainView(null, emptyList(), null, 0uL, 0L)
         val leagues = rpc.leagues(programId) ?: return null
         val cohorts = rpc.cohorts(programId) ?: return null
         val mine = wallet?.let { rpc.walletMemberships(programId, it) ?: return null }.orEmpty().associateBy({ it.cohort }, { it.member })
