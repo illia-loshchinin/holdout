@@ -93,11 +93,21 @@ class HoldoutViewModel(
         viewModelScope.launch { refreshNow() }
     }
 
+    /** Reads started, and the latest one whose answer was taken — both on the main thread. */
+    private var refreshesStarted = 0
+    private var newestApplied = 0
+
     private suspend fun refreshNow() {
         val wallet = address
+        val started = ++refreshesStarted
         val view = chain.load(wallet)
         // The wallet changed while this read was out: its answer is not the new wallet's.
         if (wallet != address) return
+        // Reads overlap — the 30-second pass, a pull to refresh, the one after an
+        // action — and a slow early one must not put back what a later one replaced:
+        // a join or a claim that landed would look undone until the next pass.
+        if (started < newestApplied) return
+        newestApplied = started
         _state.update { if (view == null) it.copy(offline = true) else it.copy(view = view, offline = false) }
     }
 

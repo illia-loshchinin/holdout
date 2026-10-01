@@ -160,7 +160,10 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     // chain read and handed to the alarm service. A day done on this phone but
     // not on chain is still reminded — to submit it (ReminderReceiver).
     val reminders = remember { ReminderScheduler(context) }
-    LaunchedEffect(address, chain.view) {
+    // Also when a member falls into breach: nothing on chain changes at a missed
+    // deadline until the crank records it, but every later reminder must go at once.
+    val inBreach = now?.let { n -> chain.view?.holdouts?.count { h -> h.membership?.let { Derive.inBreach(it, h.cohort, n) } == true } }
+    LaunchedEffect(address, chain.view, inBreach) {
         val me = address ?: return@LaunchedEffect
         val view = chain.view ?: return@LaunchedEffect
         val chainNow = clock.nowSeconds() ?: return@LaunchedEffect

@@ -45,6 +45,11 @@ class ReminderReceiver : BroadcastReceiver() {
         // A deadline already gone: a late alarm (Doze) says nothing rather than something wrong.
         val left = (deadline - SystemClock.elapsedRealtime()) / 1_000
         if (left <= 0) return
+        // A member who missed the day before is out, recorded yet or not, and the
+        // app may not have run since to cancel what it scheduled: no reminder to
+        // go on. The phone's own record decides — a day done on another phone is
+        // the one case this stays quiet for wrongly, until the app is next opened.
+        if (kind == Reminder.Kind.Deadline && day > 0 && !store.isDayComplete(wallet, scope, day - 1L) && store.pendingCohortDay(wallet, cohort) != day - 1) return
         // Each reminder has two alarms (ReminderScheduler); only the first to fire posts.
         if (intent.hasExtra(EXTRA_ID) && !ReminderScheduler.markPosted(context, intent.getIntExtra(EXTRA_ID, 0))) return
         // Done on this phone is not done: only the chain counts it, so say to submit it.
