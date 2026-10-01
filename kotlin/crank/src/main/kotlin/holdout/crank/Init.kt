@@ -158,7 +158,10 @@ object Init {
             steps +=
                 when {
                     id !in missingLeagues -> Step(name, "skipped")
-                    !live -> Step(name, "planned") { put("firstStart", firstStart) }
+                    // A league needs a published chip set (6012). In a dry run that
+                    // publication was only simulated, so the league cannot be
+                    // simulated against it: it is planned, as after a simulated initialize.
+                    !live || (dryRun && needChips) -> Step(name, "planned") { put("firstStart", firstStart) }
                     else -> {
                         val ix = Instructions.createLeague(programId, admin!!.publicKey, LeagueParams.judged(id, firstStart))
                         val signature = signAndSend(rpc, "create_league $id", listOf(ix), listOf(admin), dryRun, pause)

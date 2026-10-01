@@ -264,6 +264,19 @@ class InitTest {
     }
 
     @Test
+    fun `a dry run of a half-done setup plans the leagues behind a chip set only simulated`() {
+        // Initialized, but no chip set published and no leagues: a run that stopped after `initialize`.
+        val chain = Chain()
+        chain.config = chain.configBytes(admin.publicKey, operator.publicKey, mint.publicKey, version = 0)
+        val json = init(chain, "--rate", "0.0213", "--dry-run")
+        assertTrue(chain.sent.isEmpty())
+        assertEquals("skipped", steps(json)["initialize"])
+        assertEquals("simulated", steps(json)["chips"])
+        assertEquals("planned", steps(json)["league 0"], "create_league would be refused (6012) against the unpublished chip set")
+        assertEquals("planned", steps(json)["league 1"])
+    }
+
+    @Test
     fun `a fresh program needs the operator, sponsor, treasury and rate before anything is sent`() {
         listOf("--operator", "--sponsor", "--treasury", "--rate").forEach { missing ->
             val chain = Chain()

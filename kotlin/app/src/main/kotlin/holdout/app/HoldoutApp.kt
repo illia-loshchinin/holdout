@@ -222,12 +222,23 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             WalkthroughScreen(onBack = { beforeWallet = false }, modifier = modifier)
             return
         }
+        // The live list's running Holdouts show figures derived from their rosters,
+        // as every screen behind the wallet does — read here, and kept fresh.
+        val liveNow = now?.let { n -> chain.view?.live(n) }.orEmpty()
+        val runningNow = now?.let { n -> liveNow.filter { it.status(n) == holdout.core.CohortStatus.Running }.map { it.address } }.orEmpty()
+        LaunchedEffect(runningNow) {
+            while (runningNow.isNotEmpty()) {
+                runningNow.forEach { holdouts.loadRoster(it) }
+                delay(ROSTER_REFRESH_MILLIS)
+            }
+        }
         ConnectScreen(
             busy = connecting,
             message = connectMessage,
             noWallet = noWallet,
-            live = now?.let { n -> chain.view?.live(n) }.orEmpty(),
+            live = liveNow,
             now = now,
+            rosters = rosters,
             onConnect = {
                 scope.launch {
                     connecting = true
