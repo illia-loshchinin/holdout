@@ -147,12 +147,12 @@ floor, measure from your shoulder 1 m **sideways**, then this far **ahead**:
 switch on (staked rules, no stake). In the "What did you just do?" form after each
 set, pick the angle and the phone's side — both are remembered for the next set.
 
-**Record** (about 25 sets, 10 push-ups each unless said):
+**Record** (about 16 sets, 10 push-ups each unless said; 30° and 35° need more room ahead than most floors have, and are optional):
 
 | placement | phone on your right | phone on your left |
 |---|---|---|
 | 45°, 50°, 55° | 10 honest · 5 from the knees · 5 cobra | 10 honest |
-| 35°, 40°, 60° | 10 honest | — |
+| 40°, 60° | 10 honest | — |
 | head-on | 10 honest, *staked test* switched off (only the Daily 25 accepts head-on) | — |
 | square side-on | hold the plank about 10 s — no sitting accepts side-on, so it never starts: press Stop and label it | — |
 
