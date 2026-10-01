@@ -69,7 +69,9 @@ object Reminders {
         fun reminder(kind: Reminder.Kind, day: Int, at: Long) = Reminder(kind, address, c.leagueId, day, at, Derive.deadlineOf(c, day), c.repsPerDay, c.durationDays, c.dayLength)
         fun deliverable(at: Long, deadline: Long) = minOf(at + window, deadline) > now
         buildList {
-            if (deliverable(c.start, Derive.deadlineOf(c, 0))) add(reminder(Reminder.Kind.Start, 0, c.start))
+            // Not once the first day is on chain: an alarm still waiting in its
+            // window would say day 1 is open and owed after it was submitted.
+            if (m.daysCompleted == 0 && deliverable(c.start, Derive.deadlineOf(c, 0))) add(reminder(Reminder.Kind.Start, 0, c.start))
             val lead = leadSeconds(c.dayLength)
             for (day in m.daysCompleted until c.durationDays) {
                 val at = Derive.deadlineOf(c, day) - lead

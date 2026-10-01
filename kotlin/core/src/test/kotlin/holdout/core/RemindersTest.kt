@@ -91,6 +91,7 @@ class RemindersTest {
         assertTrue(schedule(c, member(), now = day0At + 30).any { it.kind == Reminder.Kind.Deadline && it.dayIndex == 0 }, "30 s after its time: Android may still deliver it")
         assertTrue(schedule(c, member(), now = day0At + window).none { it.kind == Reminder.Kind.Deadline && it.dayIndex == 0 }, "its window has closed")
         assertTrue(schedule(c, member(), now = start + 30).any { it.kind == Reminder.Kind.Start }, "the start reminder too")
+        assertTrue(schedule(c, member(days = 1), now = start + 30).none { it.kind == Reminder.Kind.Start }, "but not once day 1 is on chain: it would say day 1 is still owed")
     }
 
     @Test

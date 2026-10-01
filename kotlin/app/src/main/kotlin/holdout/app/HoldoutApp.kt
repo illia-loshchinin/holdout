@@ -344,7 +344,9 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 if (completed != null) {
                     // A completed cohort day is that day's training for the streak too, so
                     // nobody trains twice (FR-050) — judged leagues only, whose days are real days.
-                    if (!h.isTest && dayIndex != Store.UNKNOWN_DAY) streaks.recordCompletedDay(wallet, dayIndex)
+                    // The day the reps were done on — the cohort day's own date — not the day
+                    // this screen is left on: across 05:00 UTC those are two different days.
+                    if (!h.isTest) streaks.recordCompletedDay(wallet, HoldoutDay.indexOf(h.cohort.start + completed * h.cohort.dayLength))
                     holdouts.submitDay(sender, h, completed, h.cohort.repsPerDay)
                 }
             }
