@@ -104,8 +104,14 @@ class Preflight(
     /**
      * Shoulder span against torso length, at or below which the camera is
      * beside the member rather than in front of them.
+     *
+     * **0.25, provisional (2026-10-01).** At 0.5 a phone measured at 45° on
+     * the floor read side-on in 12 % of counting frames and at 50° in 35 %
+     * (ratio 5th percentile 0.46 and 0.36), which kept resetting the ready
+     * hold. 55°, 60° and a square side-on hold are still to be recorded
+     * (002 T034c); the line is set from them.
      */
-    private val sideRatio: Float = 0.5f,
+    private val sideRatio: Float = 0.25f,
     /**
      * At or above which it is in front of them. Between the two is oblique —
      * the 45° placement staked sittings use. Set from two recordings: at 45°

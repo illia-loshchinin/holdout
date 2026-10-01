@@ -836,6 +836,23 @@ private val SITTING_RESOLUTION = ResolutionSelector.Builder()
     .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
     .build()
 
+/**
+ * The analysis frame: 4:3 at 960×720 (720×960 upright). Left to its default
+ * CameraX gives analysis 640×480, which put a member's arm at about 107 pixels
+ * where the 16:9 frame had 270 — the first 4:3 build did exactly that (1 Oct).
+ * This is the same width the counter had before; more would cost analysis
+ * frames, which must stay at 15 a second or better (research R4).
+ */
+private val ANALYSIS_RESOLUTION = ResolutionSelector.Builder()
+    .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+    .setResolutionStrategy(
+        androidx.camera.core.resolutionselector.ResolutionStrategy(
+            android.util.Size(960, 720),
+            androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+        ),
+    )
+    .build()
+
 /** One crop for every use case: portrait 3:4, the whole sensor. The app is portrait-locked. */
 private val sittingViewPort = androidx.camera.core.ViewPort
     .Builder(android.util.Rational(3, 4), android.view.Surface.ROTATION_0)
@@ -910,7 +927,7 @@ private fun CameraFeed(viewModel: SittingViewModel, recordVideo: Boolean) {
                     .build()
                     .also { it.surfaceProvider = previewView.surfaceProvider }
                 val analysis = ImageAnalysis.Builder()
-                    .setResolutionSelector(SITTING_RESOLUTION)
+                    .setResolutionSelector(ANALYSIS_RESOLUTION)
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                     .build()

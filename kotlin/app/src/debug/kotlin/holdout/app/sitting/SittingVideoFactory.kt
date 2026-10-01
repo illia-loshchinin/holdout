@@ -26,14 +26,16 @@ fun sittingVideo(context: Context, dir: File, stakes: String): SittingVideo? = C
 /**
  * CameraX `VideoCapture` bound beside the preview and the analysis: the raw
  * camera, with nothing drawn over it — the clean footage the knee classifier
- * needs. SD quality (about 100 MB for a five-minute sitting) keeps the encoder
- * from taking frames from pose analysis, which must hold ≥ 15 FPS (research R4).
+ * needs. HD — 960×720, the analysis frame's own size (raised from SD on 1 Oct:
+ * 480×640 left too little of the legs to label) — and no more, so the encoder
+ * does not take frames from pose analysis, which must hold ≥ 15 FPS (research
+ * R4; the debug readout shows it while recording). Falls back to SD.
  */
 private class CameraXSittingVideo(private val context: Context, private val dir: File, private val stakes: String) : SittingVideo {
     private val recorder =
         Recorder
             .Builder()
-            .setQualitySelector(QualitySelector.from(Quality.SD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)))
+            .setQualitySelector(QualitySelector.from(Quality.HD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)))
             // The analysis frame's shape, so video and trace show the same picture
             // (with the shared crop the sitting binds all three under).
             .setAspectRatio(androidx.camera.core.AspectRatio.RATIO_4_3)

@@ -31,6 +31,27 @@ package holdout.repcounter
 data class RepRules(
     /** The rule's top. A rep is only ever credited for a cycle that clears this. */
     val topDegrees: Float = 160f,
+    /**
+     * The **floor** of the rule's top at 45° (decided 2026-10-01, product
+     * owner): 148°. Seen from 45–50° measured on the floor, a locked-out arm
+     * reads 150–158° in the picture — the forearm near vertical, the upper arm
+     * leaning forward about 25° — and the model's 3D reading agrees. At 160°
+     * two honest sets of ten counted nothing and the ready hold took a minute
+     * (fixtures `angled45-right-mixed-04`, `angled50-right-mixed-05`).
+     *
+     * It is a floor, not the line: from a more frontal spot the same arm reads
+     * 167–173°, and a flat 148° there cut each rep short — three honest sets
+     * lost reps to the body-line check and two counted too many. So the line is
+     * set per sitting from the arm the member holds through the countdown
+     * ([RepCounter]'s `top`), between this and [topDegrees]. The ready hold,
+     * which comes before any of that, accepts this floor.
+     */
+    val obliqueTopDegrees: Float = 148f,
+    /**
+     * At 45°: how far under the arm held through the countdown a rep's top may
+     * fall. Set by replaying every staked phone trace.
+     */
+    val obliqueTopMarginDegrees: Float = 10f,
     /** The rule's bottom. */
     val bottomDegrees: Float = 90f,
     /** The rule's body-line tolerance, either side of straight. */
@@ -152,10 +173,10 @@ data class RepRules(
  */
 fun RepRules.forView(view: CameraView): RepRules = when (view) {
     CameraView.SIDE, CameraView.FRONT -> this
-    // At 45° a straight arm reads 158–163° in the picture (the phone trace of
-    // 24 Sep), so 165° is rarely reached and reps merge. The rule's own 160° —
-    // never looser than the rule. A rep still needs a full bottom to count, so
-    // jitter at the top cannot add one.
+    // At 45° the trigger is the rule's own top, not the stricter head-on one — and
+    // the counter then sets the sitting's line under it from the held arm, down to
+    // [RepRules.obliqueTopDegrees] (see RepCounter.top). A rep still needs a full
+    // bottom to count, so jitter at the top cannot add one.
     CameraView.OBLIQUE -> copy(topTriggerDegrees = topDegrees)
 }
 
@@ -326,6 +347,7 @@ class RepCounter(
         val elbow = elbowFilter.filter(reading.elbow, frame.timestampMillis)
         val posture = postureFilter.filter(reading.posture, frame.timestampMillis)
         val knee = reading.knee?.let { kneeFilter.filter(it, frame.timestampMillis) }
+        calibrateTop(elbow)
         val straight = postureHeld(view, reading, posture, rules)
         val shoulderHeight = (reading as? ViewReading.HeadOn)?.shoulderHeight
         (reading as? ViewReading.Angled)?.shoulderOverHand?.let {
@@ -334,7 +356,7 @@ class RepCounter(
         readout = Readout(view, elbow, posture, knee)
         // The shoulders' height over the hands at the top — the reference the
         // head-on depth check is a share of. Tracked while the arms are straight.
-        if (elbow >= rules.topTriggerDegrees && shoulderHeight != null) {
+        if (elbow >= top && shoulderHeight != null) {
             topShoulderHeight = topShoulderHeight?.let { it * 0.9f + shoulderHeight * 0.1f } ?: shoulderHeight
         }
 
@@ -344,19 +366,19 @@ class RepCounter(
                 // gate already held a proper plank before counting began, and
                 // somebody who then drops to their knees or sags should hear why
                 // nothing counts, not silence.
-                if (elbow >= rules.topTriggerDegrees) phase = Phase.AT_TOP
+                if (elbow >= top) phase = Phase.AT_TOP
                 null
             }
 
             Phase.AT_TOP -> {
-                if (cycleStartMillis == 0L && elbow < rules.topTriggerDegrees) {
+                if (cycleStartMillis == 0L && elbow < top) {
                     startCycle(frame.timestampMillis)
                 }
                 if (cycleStartMillis != 0L) {
                     observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight)
                     if (elbow <= rules.bottomTriggerDegrees) {
                         phase = Phase.AT_BOTTOM
-                    } else if (elbow >= rules.topTriggerDegrees) {
+                    } else if (elbow >= top) {
                         // Back at the top without ever reaching the bottom.
                         return abandonCycle(
                             if (minElbowInCycle <= rules.descentAttemptDegrees) RepHint.GO_LOWER else null,
@@ -381,7 +403,7 @@ class RepCounter(
                         pushLegsUnseen++
                     }
                 }
-                if (elbow < rules.topTriggerDegrees) return null
+                if (elbow < top) return null
 
                 // A full cycle: top → bottom → top. Now judge it — unless it
                 // happened during the countdown, before counting began.
@@ -422,6 +444,35 @@ class RepCounter(
                 verdict
             }
         }
+    }
+
+    /**
+     * The top of a rep in force. Head-on it is the view's trigger. **At 45° it
+     * is this sitting's own**: how a locked-out arm reads depends on exactly
+     * where the phone stands — 150–158° at 45–50° measured on the floor,
+     * 167–173° from a more frontal spot — so no one number serves. The member
+     * holds the top through the countdown ([prime]); the line is that reading
+     * less [RepRules.obliqueTopMarginDegrees], never under
+     * [RepRules.obliqueTopDegrees] and never over the rule's own top. Until it
+     * is set the floor is used, so the countdown is followed; with no
+     * countdown to read, the rule's own top stands.
+     */
+    private var top = if (view == CameraView.OBLIQUE) this.rules.obliqueTopDegrees else this.rules.topTriggerDegrees
+    private var topSet = view != CameraView.OBLIQUE
+    private val heldElbows = mutableListOf<Float>()
+
+    private fun calibrateTop(elbow: Float) {
+        if (topSet) return
+        if (priming) {
+            if (elbow >= rules.obliqueTopDegrees) heldElbows += elbow
+            return
+        }
+        top = if (heldElbows.size < MIN_HELD_FRAMES) {
+            rules.topTriggerDegrees
+        } else {
+            (heldElbows.sorted()[heldElbows.size / 2] - rules.obliqueTopMarginDegrees).coerceIn(rules.obliqueTopDegrees, rules.topTriggerDegrees)
+        }
+        topSet = true
     }
 
     private fun legsUnseenShare(): Float = if (pushFrames == 0) 0f else pushLegsUnseen.toFloat() / pushFrames
@@ -482,6 +533,9 @@ class RepCounter(
     private companion object {
         /** Past this on the way up, the arms are pushing the body, not still at the bottom. */
         const val PUSH_FROM_ELBOW = 100f
+
+        /** Countdown frames at the top needed to set the 45° top from: about half a second. */
+        const val MIN_HELD_FRAMES = 10
     }
 
     /**

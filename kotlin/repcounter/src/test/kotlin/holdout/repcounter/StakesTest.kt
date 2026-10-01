@@ -248,6 +248,34 @@ class StakesTest {
         assertEquals(10, counter.total)
     }
 
+    /** Five reps topping out at [repTop], after a countdown held at [held] (or none). */
+    private fun countAt45(held: Float?, repTop: Float): Int {
+        val counter = RepCounter(view = CameraView.OBLIQUE, stakes = Stakes.DAILY)
+        var start = 0L
+        if (held != null) {
+            Traces.settleAtTop(0, millis = 1_000, elbow = held).forEach { counter.prime(it, Traces.angledImage(it.timestampMillis, held)) }
+            start = 1_100
+        }
+        Traces.set(count = 5, top = repTop).forEach { frame ->
+            val at = frame.copy(timestampMillis = frame.timestampMillis + start)
+            counter.onFrame(at, Traces.angledImage(at.timestampMillis, Angles.elbow(frame)!!))
+        }
+        return counter.total
+    }
+
+    @Test
+    fun `at 45 degrees the top of a rep is the member's own held arm, never under 148 nor over the rule`() {
+        // From 45–50° on the floor a locked-out arm reads 150–158°: held at 158, reps back to 154 count.
+        assertEquals(5, countAt45(held = 158f, repTop = 154f))
+        // From a more frontal spot the same arm reads 175°: there the rule's own 160° stands, and 154° is not a lockout.
+        assertEquals(0, countAt45(held = 175f, repTop = 154f))
+        assertEquals(5, countAt45(held = 175f, repTop = 170f))
+        // The floor: an arm held bent does not buy a lower line than 148°.
+        assertEquals(0, countAt45(held = 150f, repTop = 144f))
+        // No countdown to read (never so on the phone): the rule's own top.
+        assertEquals(0, countAt45(held = null, repTop = 154f))
+    }
+
     @Test
     fun `a descent started during the countdown still counts - the counter follows the countdown`() {
         val frames = Traces.set(count = 1)

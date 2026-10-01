@@ -89,7 +89,10 @@ class ReadyGate(
         progress = 0f
     }
 
-    private fun isAtTop(view: CameraView, reading: ViewReading, rules: RepRules): Boolean = reading.elbow >= rules.topTriggerDegrees &&
+    // At 45° the hold accepts the floor of the top: how a locked-out arm reads
+    // there depends on where the phone stands, and the counter sets the sitting's
+    // line from what is held through the countdown that follows.
+    private fun isAtTop(view: CameraView, reading: ViewReading, rules: RepRules): Boolean = reading.elbow >= (if (view == CameraView.OBLIQUE) rules.obliqueTopDegrees else rules.topTriggerDegrees) &&
         postureHeld(view, reading, reading.posture, rules) &&
         (stakes != Stakes.STAKED || kneesSeenOffFloor(reading.knee, (reading as? ViewReading.Angled)?.legsAboveHands, rules))
 }
