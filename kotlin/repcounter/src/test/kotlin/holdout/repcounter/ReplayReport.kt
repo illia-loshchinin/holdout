@@ -68,6 +68,26 @@ fun main(args: Array<String>) {
         } else {
             hints["never counted"] = 1
         }
+        if (detail && recording.stakes == Stakes.STAKED) {
+            // The ready hold, as the gate judged it on set-up frames the placement check passed.
+            val rules = RepRules()
+            val setUp = recording.frames.filter { it.step == "PREFLIGHT" && it.view == CameraView.OBLIQUE }
+                .mapNotNull { ViewReading.of(CameraView.OBLIQUE, it.world, it.image) as? ViewReading.Angled }
+            if (setUp.isNotEmpty()) {
+                fun share(n: Int) = "${100 * n / setUp.size}%"
+                val arms = setUp.count { it.elbow < rules.obliqueTopDegrees }
+                val body = setUp.count { !postureHeld(CameraView.OBLIQUE, it, it.posture, rules) }
+                val unseen = setUp.count { it.knee == null && it.legsAboveHands == null }
+                val kneeLow = setUp.count { k -> k.knee?.let { it < rules.kneesDownDegrees } == true }
+                val legsLow = setUp.count { k -> k.legsAboveHands?.let { it < rules.minLegsAboveHands } == true }
+                val bent = setUp.count { !kneesOffFloor(it.knee, it.legsAboveHands, rules) } - setUp.count { k -> k.knee?.let { it < rules.kneesDownDegrees } == true || k.legsAboveHands?.let { it < rules.minLegsAboveHands } == true }
+                val straightArms = setUp.filter { it.elbow >= rules.obliqueTopDegrees }
+                cycles[file.name + " (hold)"] = listOf(
+                    "set-up frames at 45°: ${setUp.size}; failing — arms ${share(arms)}, body ${share(body)}, knee unseen ${share(unseen)}, knee angle ${share(kneeLow)}, legs low ${share(legsLow)}, bent knee with legs under the higher line ${share(bent)}",
+                    "with the arms straight (${straightArms.size}): body p50 ${pct0(straightArms.map { it.posture }, 0.5)}, knee p50 ${pct0(straightArms.mapNotNull { it.knee }, 0.5)}, legs p10/p50/p90 ${pct0(straightArms.mapNotNull { it.legsAboveHands }, 0.1)} / ${pct0(straightArms.mapNotNull { it.legsAboveHands }, 0.5)} / ${pct0(straightArms.mapNotNull { it.legsAboveHands }, 0.9)}",
+                )
+            }
+        }
         Row(file.name.removeSuffix(".trace.csv"), recording.placement, recording.phoneSide, recording.stakes, ratios, views, total, recording.expectedReps, hints)
     }
 
