@@ -28,6 +28,8 @@ fun main(args: Array<String>) {
     val detail = args.getOrNull(1) == "detail"
     val cycles = mutableMapOf<String, List<String>>()
 
+    fun pct0(values: List<Float>, p: Double): String = values.sorted().let { s -> if (s.isEmpty()) "-" else "%.2f".format(s[((s.size - 1) * p).toInt()]) }
+
     data class Row(val name: String, val placement: String?, val side: String?, val stakes: Stakes, val ratios: List<Float>, val views: Map<CameraView?, Int>, val counted: Int, val expected: Int?, val hints: Map<String, Int>)
 
     val rows = files.mapNotNull { file ->
@@ -56,11 +58,12 @@ fun main(args: Array<String>) {
                 val c = counter.lastCycle ?: continue
                 val what = if (event is RepEvent.Counted) "counted" else (event as RepEvent.Discarded).hint?.name ?: "none"
                 lines += "| %.1f | %s | %.0f | %.0f | %s | %s | %s | %s | %s | %.0f%% | %s | %s | %d |".format(
-                    (frame.world.timestampMillis - t0) / 1000f, what, c.top, c.minElbow, f(c.shoulderOverHand), f(c.pushKnee), f(c.pushLegsAboveHands), f(c.descentKnee), f(c.descentLegsAboveHands),
+                    (frame.world.timestampMillis - t0) / 1000f, what, c.top, c.minElbow, f(c.shoulderOverHand ?: c.shoulderHeightShare), f(c.pushKnee), f(c.pushLegsAboveHands), f(c.descentKnee), f(c.descentLegsAboveHands),
                     c.legsUnseenShare * 100, f(c.posture), f(c.pushPosture), c.cycleMillis,
                 )
             }
-            cycles[file.name] = lines
+            val held = recording.countdownFrames.mapNotNull { preflight.placementRatio(it.image.frame, xScale) }
+            cycles[file.name] = listOf("held ratio p5/p50/p95: ${pct0(held, 0.05)} / ${pct0(held, 0.5)} / ${pct0(held, 0.95)} placement=${recording.placement} ${recording.phoneSide}") + lines
             total = counter.total
         } else {
             hints["never counted"] = 1
@@ -87,7 +90,7 @@ fun main(args: Array<String>) {
     if (detail) {
         for ((name, lines) in cycles) {
             println("\n### $name\n")
-            println("| s | verdict | top | min elbow | shoulder over hand | push knee | push legs | descent knee | descent legs | knee unseen | body | push body | ms |")
+            println("| s | verdict | top | min elbow | shoulder over hand (head-on: share of top height) | push knee | push legs | descent knee | descent legs | knee unseen | body | push body | ms |")
             println("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
             lines.forEach(::println)
         }

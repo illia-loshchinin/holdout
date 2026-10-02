@@ -101,6 +101,17 @@ data class RepRules(
      */
     val minLegsAboveHands: Float = 0.41f,
     /**
+     * A knee bent under [bentKneeDegrees] on the push needs the legs this high
+     * instead. Kneeling with the feet half raised reads between the two lines
+     * above: on 2 Oct, from a spot more frontal than 40°, five such reps
+     * counted at a knee of 90–112° with the legs at 0.43–0.45, the raised
+     * ankle carrying the sum. The one honest set that reads a bent knee
+     * (`angled-right-honest-01`, 98–134°) has the legs at 0.51–0.56; every
+     * other honest rep recorded reads the knee at 142° or more.
+     */
+    val bentKneeDegrees: Float = 135f,
+    val minLegsAboveHandsBentKnee: Float = 0.48f,
+    /**
      * Staked: how far inside the picture the near knee must stay, as a share of
      * each side. A knee that leaves the frame is not dropped by the model: it
      * is placed just inside the edge, with full confidence, and the knee check
@@ -120,8 +131,13 @@ data class RepRules(
      * share of their height above the hands at the top. The elbow angle alone
      * over-reads the bend head-on; on the phone honest reps reached 0.16–0.19
      * and half reps stopped at 0.26–0.53.
+     *
+     * 0.285 since 2 Oct (was 0.25): on the 4:3 picture a Daily 25 set of
+     * fifteen read 0.22–0.30 throughout, and the old line refused seven of
+     * them (`front-honest-knees-04`). The price is the deepest of the recorded
+     * half reps (0.26, one of fifteen), in a sitting no money rides on.
      */
-    val maxShoulderHeightAtBottom: Float = 0.25f,
+    val maxShoulderHeightAtBottom: Float = 0.285f,
     /**
      * Depth at 45°: at the bottom the near shoulder must come down to within
      * this many arm-lengths of the near hand. On the phone honest reps reached
@@ -225,6 +241,8 @@ data class CycleReadout(
     val minElbow: Float,
     /** At 45°: the nearest the shoulder came to the hand, in arm lengths. */
     val shoulderOverHand: Float?,
+    /** Head-on: the lowest the shoulders came, as a share of their height over the hands at the top. */
+    val shoulderHeightShare: Float?,
     val pushKnee: Float?,
     val pushLegsAboveHands: Float?,
     val descentKnee: Float?,
@@ -395,6 +413,7 @@ class RepCounter(
         top = top,
         minElbow = minElbowInCycle,
         shoulderOverHand = minShoulderOverHandInCycle.takeIf { it != Float.MAX_VALUE },
+        shoulderHeightShare = topShoulderHeight?.takeIf { it > 0f && minShoulderHeightInCycle != Float.MAX_VALUE }?.let { minShoulderHeightInCycle / it },
         pushKnee = pushKnees.medianOrNull(),
         pushLegsAboveHands = pushLegs.medianOrNull(),
         descentKnee = descentKnees.medianOrNull(),

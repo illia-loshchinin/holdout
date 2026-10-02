@@ -114,7 +114,9 @@ internal sealed interface ViewReading {
  * air is allowed. The thresholds and the data behind them are on [RepRules].
  */
 internal fun kneesOffFloor(knee: Float?, legsAboveHands: Float?, rules: RepRules): Boolean = (knee == null || knee >= rules.kneesDownDegrees) &&
-    (legsAboveHands == null || legsAboveHands >= rules.minLegsAboveHands)
+    (legsAboveHands == null || legsAboveHands >= rules.minLegsAboveHands) &&
+    // A bent knee has to stand clearly higher: kneeling with the feet raised lifts the ankle, and with it the sum.
+    (knee == null || legsAboveHands == null || knee >= rules.bentKneeDegrees || legsAboveHands >= rules.minLegsAboveHandsBentKnee)
 
 /**
  * [kneesOffFloor], where an unknown does **not** pass: staked sittings, where

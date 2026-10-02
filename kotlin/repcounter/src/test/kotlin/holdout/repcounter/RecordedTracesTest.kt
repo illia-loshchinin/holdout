@@ -97,6 +97,18 @@ class RecordedTracesTest {
     }
 
     @Test
+    fun `kneeling with the feet raised is refused though the legs read high`() {
+        // One honest rep, half reps, then push-ups from the knees with the feet up:
+        // knee 90–112° and legs 0.43–0.45, between the two knee lines. Five had counted.
+        val recording = Trace.parse(traces().single { it.name == "angled30-right-knees-feetup-13.trace.csv" }.readLines())
+        val counter = RepCounter(view = recording.countingView!!, stakes = recording.stakes)
+        for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
+        val events = recording.countingFrames.mapNotNull { counter.onFrame(it.world, it.image) }
+        assertEquals(10, events.count { it == RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES) })
+        assertTrue(events.takeLast(10).none { it is RepEvent.Counted }, "nothing counts once the knees are down")
+    }
+
+    @Test
     fun `knees out of the picture are not counted as knees off the floor, and the member is told why`() {
         val file = traces().single { it.name == "angled-knees-out-of-frame-01.trace.csv" }
         val recording = Trace.parse(file.readLines())
