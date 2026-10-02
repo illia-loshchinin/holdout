@@ -101,6 +101,12 @@ class HoldoutViewModel(
         }
     }
 
+    /** The app left the foreground: no reads until [watch] is called again. The last view stays. */
+    fun pause() {
+        refresher?.cancel()
+        refresher = null
+    }
+
     fun refresh() {
         viewModelScope.launch { refreshNow() }
     }

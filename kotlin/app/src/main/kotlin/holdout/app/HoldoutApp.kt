@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import com.solana.publickey.SolanaPublicKey
@@ -135,8 +136,10 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 store.chainReading()?.takeIf { boot >= 0 && it.boot == boot }?.let { c.restore(it.chainSeconds, it.slot, it.elapsedMillis) }
             }
         }
-    LaunchedEffect(Unit) {
-        while (true) {
+    // Nothing is read from the chain while the app is not in front: every loop
+    // below runs only while started, and starts again on return.
+    InFrontLoop(Unit) {
+        run {
             if (clockViewModel.refreshChainTime(clock)) {
                 val elapsed = android.os.SystemClock.elapsedRealtime()
                 val chainNow = clock.nowSeconds()
@@ -154,7 +157,17 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             delay(1_000)
         }
     }
-    LaunchedEffect(address) { holdouts.watch(address) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    LaunchedEffect(address, lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            holdouts.watch(address)
+            try {
+                kotlinx.coroutines.awaitCancellation()
+            } finally {
+                holdouts.pause()
+            }
+        }
+    }
 
     // On-device reminders (FR-068): the whole schedule, recomputed from each
     // chain read and handed to the alarm service. A day done on this phone but
@@ -388,8 +401,8 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         else -> null
     }
     if (target != null && chainNow != null) {
-        LaunchedEffect(target.address) {
-            while (true) {
+        InFrontLoop(target.address) {
+            run {
                 holdouts.loadRoster(target.address)
                 delay(ROSTER_REFRESH_MILLIS)
             }
@@ -503,8 +516,8 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     val active = chainNow?.let { n -> view?.mine(n)?.firstNotNullOfOrNull { h -> (h.stage(n) as? Stage.Active)?.let { h to it } } }
     if (active != null && chainNow != null) {
         val (h, stage) = active
-        LaunchedEffect(h.address) {
-            while (true) {
+        InFrontLoop(h.address) {
+            run {
                 holdouts.loadRoster(h.address)
                 delay(ROSTER_REFRESH_MILLIS)
             }
@@ -653,3 +666,14 @@ private const val ROSTER_REFRESH_MILLIS = 30_000L
  * saved earlier still means anything. -1 when the platform will not say.
  */
 private fun bootCount(context: android.content.Context): Int = android.provider.Settings.Global.getInt(context.contentResolver, android.provider.Settings.Global.BOOT_COUNT, -1)
+
+/** Repeats [pass] for as long as the app is in front; stops when it is not, and starts again on return. */
+@Composable
+private fun InFrontLoop(key: Any?, pass: suspend () -> Unit) {
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    LaunchedEffect(key, owner) {
+        owner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            while (true) pass()
+        }
+    }
+}
