@@ -148,6 +148,8 @@ class SittingViewModel(
         val showSetup: Boolean = false,
         /** The one short correction to show big while getting into position. */
         val coach: Coach? = null,
+        /** With the pills green and the hold not filling: the sentence that says why (`HoldBlocker.fix`). */
+        val holdFix: String? = null,
         /** Debug builds: the trace file this sitting is being recorded to. */
         val traceName: String? = null,
         /** Debug builds: pose frames analysed per second, over the last few seconds. */
@@ -279,13 +281,17 @@ class SittingViewModel(
                         view = report.view,
                         image = observation.imagePose(),
                     )
-                val coach = Coach.next(report, guidance)
+                // What the position still lacks, once nothing about the phone or the
+                // picture does — and only then, so it never talks over a pill's own fix.
+                val blocker = readyGate.blocker.takeIf { !_uiState.value.showSetup }
+                val coach = Coach.next(report, guidance, blocker)
                 _uiState.update {
                     it.withFrame(observation).copy(
                         preflight = report,
                         readyProgress = readyGate.progress,
                         guidance = guidance,
                         coach = coach,
+                        holdFix = blocker?.fix?.takeIf { coach != Coach.HOLD && report.canStart },
                     )
                 }
                 speak(coach, observation.world.timestampMillis)

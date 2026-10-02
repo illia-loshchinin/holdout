@@ -67,4 +67,15 @@ class CoachTest {
     fun `all green says hold`() {
         assertEquals(Coach.HOLD, Coach.next(report(), guidance(null)))
     }
+
+    @Test
+    fun `all green and not yet in position says what the position lacks`() {
+        assertEquals(Coach.ARMS_STRAIGHT, Coach.next(report(), guidance(null), HoldBlocker.ARMS))
+        assertEquals(Coach.KNEES_UP, Coach.next(report(), guidance(null), HoldBlocker.KNEES))
+        assertEquals(Coach.KNEES_UNCLEAR, Coach.next(report(), guidance(null), HoldBlocker.KNEES_UNREADABLE))
+        assertEquals(Coach.BODY_STRAIGHT, Coach.next(report(), guidance(null), HoldBlocker.BODY))
+        // A pill's own fix comes first: the position is not judged until the picture is right.
+        assertEquals(Coach.FURTHER, Coach.next(report(PreflightCheck.WHOLE_BODY), guidance(null), HoldBlocker.ARMS))
+        assertEquals(Coach.CLOSER, Coach.next(report(), guidance(PositionHint.MOVE_CLOSER), HoldBlocker.KNEES))
+    }
 }

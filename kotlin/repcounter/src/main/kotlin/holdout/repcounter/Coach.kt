@@ -8,8 +8,9 @@ package holdout.repcounter
  * nobody lying on the floor can read those. This picks the single most useful
  * correction, in the order they have to happen: light before anything the
  * model reads, the phone before the body, the body down before it is lined up,
- * distance before left and right. When everything passes it says [HOLD]: the
- * ready gate is filling its ring.
+ * distance before left and right. Then the position itself — arms, knees, the
+ * line of the body — and when everything passes it says [HOLD]: the ready gate
+ * is filling its ring.
  */
 enum class Coach(val words: String) {
     MORE_LIGHT("More light"),
@@ -26,11 +27,17 @@ enum class Coach(val words: String) {
     CLOSER("Closer"),
     LEFT("Move left"),
     RIGHT("Move right"),
+
+    /** The pills are green and the position is not yet the top of a push-up ([HoldBlocker]). */
+    ARMS_STRAIGHT("Arms straight"),
+    KNEES_UP("Knees up"),
+    KNEES_UNCLEAR("Can't see knees"),
+    BODY_STRAIGHT("Body straight"),
     HOLD("Hold"),
     ;
 
     companion object {
-        fun next(report: PreflightReport?, guidance: Guidance?): Coach {
+        fun next(report: PreflightReport?, guidance: Guidance?, hold: HoldBlocker? = null): Coach {
             if (report == null || guidance == null) return GET_IN_VIEW
             fun failing(check: PreflightCheck) = report.statuses.any { it.check == check && !it.passing }
             val wholeBodyFix = report.statuses.firstOrNull { it.check == PreflightCheck.WHOLE_BODY }?.fix
@@ -49,6 +56,11 @@ enum class Coach(val words: String) {
                 guidance.hint == PositionHint.MOVE_CLOSER -> CLOSER
                 guidance.hint == PositionHint.MOVE_LEFT -> LEFT
                 guidance.hint == PositionHint.MOVE_RIGHT -> RIGHT
+                // Everything about the phone and the picture passes: what is left is the position.
+                report.canStart && hold == HoldBlocker.ARMS -> ARMS_STRAIGHT
+                report.canStart && hold == HoldBlocker.KNEES -> KNEES_UP
+                report.canStart && hold == HoldBlocker.KNEES_UNREADABLE -> KNEES_UNCLEAR
+                report.canStart && hold == HoldBlocker.BODY -> BODY_STRAIGHT
                 else -> HOLD
             }
         }

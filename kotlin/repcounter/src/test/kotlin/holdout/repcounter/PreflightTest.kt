@@ -212,6 +212,29 @@ class PreflightTest {
     }
 
     @Test
+    fun `a staked sitting starts only with the near foot clear of the picture's edges`() {
+        val staked = Preflight(stakes = Stakes.STAKED)
+        fun pose(ankleX: Float): ImagePose {
+            val base = Traces.angledImage(0, elbowDegrees = 175f)
+            val landmarks = base.frame.landmarks.mapIndexed { i, l ->
+                when (i) {
+                    PoseIndex.LEFT_ANKLE -> l.copy(x = ankleX)
+                    PoseIndex.NOSE -> Landmark(0.5f, 0.3f, 0f, 1f)
+                    else -> l
+                }
+            }
+            return ImagePose(PoseFrame(0, landmarks), base.width, base.height)
+        }
+        fun report(stakes: Preflight, ankleX: Float) = pose(ankleX).let { p -> stakes.evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), p.frame, p)) }
+        assertTrue(wholeBody(report(staked, 0.8f)).passing)
+        // In the picture, but at its edge: the model drops it every few frames once the reps start.
+        val atTheEdge = wholeBody(report(staked, 0.97f))
+        assertFalse(atTheEdge.passing)
+        assertEquals(Preflight.FEET_FIX, atTheEdge.fix)
+        assertTrue(wholeBody(report(Preflight(), 0.97f)).passing, "the Daily 25 does not judge the legs")
+    }
+
+    @Test
     fun `a green pill carries no fix`() {
         assertTrue(preflight.evaluate(good()).statuses.all { it.fix == null })
     }

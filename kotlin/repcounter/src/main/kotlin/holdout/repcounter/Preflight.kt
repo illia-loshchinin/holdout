@@ -168,7 +168,9 @@ class Preflight(
      * - **staked: the near knee clear of the edges** by the counter's own
      *   margin. A knee out of frame is placed just inside the edge at full
      *   confidence, and a rep read from it is refused ([RepHint.LEGS_IN_VIEW]),
-     *   so the sitting does not start that way.
+     *   so the sitting does not start that way;
+     * - **staked: the near foot clear of the edges** by [FEET_EDGE_MARGIN], for
+     *   the same reason: a foot at the edge drops out of frames mid-rep.
      */
     private fun wholeBody(input: PreflightInput): PreflightStatus {
         fun failing(fix: String? = null) = PreflightStatus(PreflightCheck.WHOLE_BODY, passing = false, specificFix = fix)
@@ -184,6 +186,9 @@ class Preflight(
             // other way opens the angle and brings the near knee out.
             if (!Angles.kneeSeen(pose, side)) return failing(if (side == Side.RIGHT) KNEES_TURN_LEFT_FIX else KNEES_TURN_RIGHT_FIX)
             if (!Angles.kneeClearOfEdge(pose, side, legEdgeMargin)) return failing(KNEES_FIX)
+            // The foot too, with room to spare: at the very edge the model loses it
+            // every few frames, and each of those frames is a leg not seen.
+            if (!Angles.ankleClearOfEdge(pose, side, FEET_EDGE_MARGIN)) return failing(FEET_FIX)
         }
         return PreflightStatus(PreflightCheck.WHOLE_BODY, passing = true)
     }
@@ -285,6 +290,12 @@ class Preflight(
 
         /** The whole-body pill's fix when the head is at or past the picture's edge. */
         const val HEAD_FIX = "Keep your head in the picture"
+
+        /** Staked: the fix when the near foot is at the edge. */
+        const val FEET_FIX = "Keep your feet in the picture — move the phone further away"
+
+        /** Staked: how far inside the picture the near ankle must be to start. */
+        const val FEET_EDGE_MARGIN = 0.06f
 
         /** Staked: the fix when the near knee is at or past the edge. */
         const val KNEES_FIX = "Keep your knees in the picture — move the phone further away"

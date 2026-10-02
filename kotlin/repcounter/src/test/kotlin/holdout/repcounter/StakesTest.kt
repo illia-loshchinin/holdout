@@ -257,6 +257,28 @@ class StakesTest {
     }
 
     @Test
+    fun `with the pills green the ready hold says what the position lacks`() {
+        val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.STAKED)
+        fun blockerAt(elbow: Float, knee: Float = 178f, bodyLine: Float = 180f, image: (ImagePose) -> ImagePose = { it }): HoldBlocker? {
+            gate.onFrame(Traces.frame(0, elbowDegrees = elbow, bodyLineDegrees = bodyLine), 0, pillsGreen = true, view = CameraView.OBLIQUE, image = image(Traces.angledImage(0, elbow, kneeDegrees = knee)))
+            return gate.blocker
+        }
+        assertEquals(null, blockerAt(elbow = 175f), "the top of a push-up, on the toes: nothing is missing")
+        assertEquals(HoldBlocker.ARMS, blockerAt(elbow = 120f))
+        assertEquals(HoldBlocker.KNEES, blockerAt(elbow = 175f, knee = 70f))
+        // The knee put on the ankle, as the model does in loose trousers: not a knee at all.
+        val collapsed = { image: ImagePose ->
+            val l = image.frame.landmarks.toMutableList()
+            l[PoseIndex.LEFT_KNEE] = l[PoseIndex.LEFT_ANKLE]
+            image.copy(frame = image.frame.copy(landmarks = l))
+        }
+        assertEquals(HoldBlocker.KNEES_UNREADABLE, blockerAt(elbow = 175f, image = collapsed))
+        // Not a word about the position until the pills are green.
+        gate.onFrame(Traces.frame(0, 120f, 180f), 0, pillsGreen = false, view = CameraView.OBLIQUE, image = Traces.angledImage(0, 120f))
+        assertEquals(null, gate.blocker)
+    }
+
+    @Test
     fun `the staked ready position needs the knees in the picture`() {
         val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.STAKED)
         val top = { t: Long -> Traces.frame(t, elbowDegrees = 175f, bodyLineDegrees = 180f) }

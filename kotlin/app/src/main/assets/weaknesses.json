@@ -47,8 +47,13 @@
       "fix": "More recorded sets, especially 45° knee push-ups recorded on the phone; a lower-body classifier if the angle proves too loose"
     },
     {
+      "what": "Loose trousers hide the knees from the pose model",
+      "why": "In loose trousers the model cannot find the knee and puts it on the ankle, so nothing about the knee can be judged: a staked sitting does not start, and says so (\"Can't see knees\"). Measured on one person in loose white trousers — the knee unreadable in 60–67 % of frames, against 0–1 % for fitted clothing",
+      "fix": "Wear something fitted or roll the trousers up; the knee-on-the-floor image classifier would not depend on the knee landmark"
+    },
+    {
       "what": "A cobra is refused at 45°, not proven head-on",
-      "why": "Lying flat and pressing only the chest up, hips on the floor, counted at 45° until the body line was judged on the push back up (honest 157–174°, cobra 120–134°). Head-on no cobra has been recorded",
+      "why": "Lying flat and pressing only the chest up, hips on the floor, counted at 45° until the body line was judged on the push back up (honest 157–174°, cobra 120–134°). A cobra done with the body nearly straight, and a rep pushed up from lying on the floor, passed that check; they are refused by how far the hips have risen half-way up the push against the shoulders (honest 0.92–1.06, those 0.63–0.87, line 0.90) — from 35° round to the side only, and with a margin of 0.02–0.03 measured on two people. Head-on no cobra has been recorded",
       "fix": "Record head-on cobra reps before relying on the Daily 25 there"
     },
     {

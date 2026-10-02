@@ -359,6 +359,18 @@ private fun PreflightPills(
                 .padding(horizontal = 20.dp, vertical = 8.dp),
         )
     }
+    // Every pill is green and the hold is not filling: the reason, in a sentence.
+    state.holdFix?.let { fix ->
+        Text(
+            text = fix,
+            style = LabelStyle,
+            color = HoldoutColors.Warning,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .background(HoldoutColors.Scrim, MaterialTheme.shapes.medium)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+        )
+    }
 
     Column(
         modifier = Modifier.alpha(helperAlpha),

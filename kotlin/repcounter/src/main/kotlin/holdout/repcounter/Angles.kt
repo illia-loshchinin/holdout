@@ -163,6 +163,62 @@ object Angles {
         return knee!!.x in margin..(1f - margin) && knee.y in margin..(1f - margin)
     }
 
+    /**
+     * Whether the knee on [side] is placed where a knee can be: the shin at
+     * least [MIN_SHIN_SHARE] of the thigh in the picture. In loose trousers the
+     * model cannot find the knee and puts it on the ankle — full confidence, a
+     * shin of no length — and the knee angle then reads anything from 10° to
+     * 120° on a body held in a clean plank. On 2 Oct a second person in loose
+     * white trousers read under the line in 60–67 % of frames; every other
+     * recording on the 4:3 picture in 0–1 %.
+     */
+    fun kneeReadable(image: ImagePose, side: Side): Boolean = legSeen(image, side) && !kneeCollapsed(image, side)
+
+    /** The whole leg found with confidence, and the knee put where no knee can be — on the ankle. */
+    fun kneeCollapsed(image: ImagePose, side: Side): Boolean {
+        if (!legSeen(image, side)) return false
+        val (h, k, a) = LEG.getValue(side)
+        val knee = image.frame[k]!!
+        return knee.distanceTo(image.frame[a]!!, image) < MIN_SHIN_SHARE * image.frame[h]!!.distanceTo(knee, image)
+    }
+
+    private fun legSeen(image: ImagePose, side: Side): Boolean {
+        val (h, k, a) = LEG.getValue(side)
+        return visible(image.frame[h], image.frame[k], image.frame[a])
+    }
+
+    const val MIN_SHIN_SHARE = 0.35f
+
+    /**
+     * At 45°: how high the near hip stands above the near hand, in lengths of
+     * the near arm. Read against the shoulder's own height, it says whether the
+     * body comes up as one piece ([RepRules.minHipRise]).
+     */
+    fun hipAboveHandInImage(image: ImagePose, side: Side): Float? {
+        val (s, e, w) = ARM.getValue(side)
+        val shoulder = image.frame[s]
+        val elbow = image.frame[e]
+        val wrist = image.frame[w]
+        val hip = image.frame[LEG.getValue(side).first]
+        if (!visible(shoulder, elbow, wrist, hip)) return null
+        val arm = shoulder!!.distanceTo(elbow!!, image) + elbow.distanceTo(wrist!!, image)
+        if (arm <= 0f) return null
+        return (wrist.y - hip!!.y) * image.height / arm
+    }
+
+    /**
+     * Whether the foot on [side] is clearly in the picture: the ankle
+     * confidently placed and at least [margin] inside every edge. A foot at
+     * the edge flickers in and out of the model's confidence, and a frame
+     * without it has no body line and no knee angle — on 2 Oct two honest
+     * reps of eleven were refused that way, the ankle 0.02–0.05 from the edge.
+     */
+    fun ankleClearOfEdge(image: ImagePose, side: Side, margin: Float): Boolean {
+        val ankle = image.frame[LEG.getValue(side).third]
+        if (!visible(ankle)) return false
+        return ankle!!.x in margin..(1f - margin) && ankle.y in margin..(1f - margin)
+    }
+
     /** Whether the model found the knee on [side] with confidence, wherever it is. */
     fun kneeSeen(image: ImagePose, side: Side): Boolean = visible(image.frame[LEG.getValue(side).second])
 

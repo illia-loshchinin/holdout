@@ -109,6 +109,40 @@ class RecordedTracesTest {
     }
 
     @Test
+    fun `a rep pushed up from lying on the floor is refused - the body must come up as one piece`() {
+        // Phone on the left at 45°: eleven full reps, five from the knees, two cobras, then
+        // three let down onto the floor and pushed up from there. One of those had counted.
+        val recording = Trace.parse(traces().single { it.name == "angled45-left-floor-start-15.trace.csv" }.readLines())
+        val counter = RepCounter(view = recording.countingView!!, stakes = recording.stakes)
+        for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
+        val events = recording.countingFrames.mapNotNull { counter.onFrame(it.world, it.image) }
+        assertEquals(9, counter.total, "nine of the eleven full reps: the foot at the picture's edge cost the other two")
+        assertEquals(2, events.count { it == RepEvent.Discarded(RepHint.LEGS_IN_VIEW) })
+        assertTrue(events.drop(11).none { it is RepEvent.Counted }, "nothing after the full reps counts")
+        assertEquals(1, events.count { it == RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT) }, "the one whose legs read honest: the chest came up first")
+    }
+
+    @Test
+    fun `cobras with the body nearly straight are refused, on a second person`() {
+        val recording = Trace.parse(traces().single { it.name == "angled45-right-loose-trousers-cobra-16.trace.csv" }.readLines())
+        assertEquals(0, replay(recording), "three had counted: their body line read 145–150°, over the cobra line")
+    }
+
+    @Test
+    fun `a knee the model puts on the ankle is not read, and the hold says so`() {
+        // A proper plank in loose white trousers: the knee angle read 10–120° and the hold never said why.
+        val recording = Trace.parse(traces().single { it.name == "angled45-right-loose-trousers-hold-17.trace.csv" }.readLines())
+        assertEquals(null, recording.countingView)
+        val gate = ReadyGate(stakes = Stakes.STAKED)
+        val blockers = recording.frames.filter { it.view == CameraView.OBLIQUE }.mapNotNull { frame ->
+            gate.onFrame(frame.world, frame.world.timestampMillis, pillsGreen = true, view = CameraView.OBLIQUE, image = frame.image)
+            gate.blocker
+        }
+        val unreadable = blockers.count { it == HoldBlocker.KNEES_UNREADABLE }
+        assertTrue(unreadable > blockers.size / 2, "the knees unreadable in $unreadable of ${blockers.size} blocked frames")
+    }
+
+    @Test
     fun `knees out of the picture are not counted as knees off the floor, and the member is told why`() {
         val file = traces().single { it.name == "angled-knees-out-of-frame-01.trace.csv" }
         val recording = Trace.parse(file.readLines())

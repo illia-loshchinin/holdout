@@ -52,6 +52,10 @@ internal sealed interface ViewReading {
         val legsAboveHands: Float? = null,
         /** Near shoulder height above the near hand, in arm lengths — depth at 45°. */
         val shoulderOverHand: Float? = null,
+        /** The leg is in the picture but its knee is not where a knee can be ([Angles.kneeReadable]): nothing about the knee is read. */
+        val kneeUnreadable: Boolean = false,
+        /** Near hip height above the near hand, in arm lengths; null when the hip is not clearly in frame. */
+        val hipAboveHand: Float? = null,
     ) : ViewReading {
         override val posture: Float get() = bodyLine
     }
@@ -91,12 +95,17 @@ internal sealed interface ViewReading {
                     if (elbow == null || bodyLine == null) {
                         null
                     } else {
+                        // A knee the model put on the ankle is no knee: its angle and
+                        // its height are both the ankle's.
+                        val readable = Angles.kneeReadable(image, side)
                         Angled(
                             elbow,
                             bodyLine,
-                            Angles.kneeInImage(image, side),
-                            Angles.legsAboveHandsInImage(image, side),
+                            if (readable) Angles.kneeInImage(image, side) else null,
+                            if (readable) Angles.legsAboveHandsInImage(image, side) else null,
                             Angles.shoulderOverHandInImage(image, side),
+                            kneeUnreadable = Angles.kneeCollapsed(image, side),
+                            hipAboveHand = Angles.hipAboveHandInImage(image, side),
                         )
                     }
                 }
