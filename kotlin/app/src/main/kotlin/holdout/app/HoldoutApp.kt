@@ -245,11 +245,10 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         // as every screen behind the wallet does — read here, and kept fresh.
         val liveNow = now?.let { n -> chain.view?.live(n) }.orEmpty()
         val runningNow = now?.let { n -> liveNow.filter { it.status(n) == holdout.core.CohortStatus.Running }.map { it.address } }.orEmpty()
-        LaunchedEffect(runningNow) {
-            while (runningNow.isNotEmpty()) {
-                runningNow.forEach { holdouts.loadRoster(it) }
-                delay(ROSTER_REFRESH_MILLIS)
-            }
+        InFrontLoop(runningNow) {
+            if (runningNow.isEmpty()) kotlinx.coroutines.awaitCancellation()
+            runningNow.forEach { holdouts.loadRoster(it) }
+            delay(ROSTER_REFRESH_MILLIS)
         }
         ConnectScreen(
             busy = connecting,

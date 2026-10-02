@@ -3,6 +3,7 @@ package holdout.app.claim
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -85,7 +86,15 @@ fun ClaimScreen(
                 Body("Your share of the prize pool: ${Format.skr(it.share)}")
             }
         }
-        (lastClaimSignature ?: null)?.takeIf { claimed != null }?.let { Body("Transaction: ${Format.explorer(it)}") }
+        val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+        (lastClaimSignature ?: null)?.takeIf { claimed != null }?.let { signature ->
+            val url = Format.explorer(signature)
+            // Tapped, it opens in the browser; a phone with none leaves the address to read.
+            Body(
+                "Transaction (tap to open): $url",
+                modifier = Modifier.clickable(onClickLabel = "Open the transaction in the explorer") { runCatching { uriHandler.openUri(url) } },
+            )
+        }
         Notice(message, messageIsWarning)
         if (ready != null) PrimaryButton(if (busy) "Waiting for the wallet…" else "Claim ${Format.skr(ready.amount)}", onClaim, enabled = !busy)
     }
