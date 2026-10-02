@@ -55,8 +55,8 @@ fun main(args: Array<String>) {
                 (event as? RepEvent.Discarded)?.let { hints.merge(it.hint?.name ?: "none", 1, Int::plus) }
                 val c = counter.lastCycle ?: continue
                 val what = if (event is RepEvent.Counted) "counted" else (event as RepEvent.Discarded).hint?.name ?: "none"
-                lines += "| %.1f | %s | %.0f | %.0f | %s | %s | %s | %.0f%% | %s | %s | %d |".format(
-                    (frame.world.timestampMillis - t0) / 1000f, what, c.top, c.minElbow, f(c.shoulderOverHand), f(c.pushKnee), f(c.pushLegsAboveHands),
+                lines += "| %.1f | %s | %.0f | %.0f | %s | %s | %s | %s | %s | %.0f%% | %s | %s | %d |".format(
+                    (frame.world.timestampMillis - t0) / 1000f, what, c.top, c.minElbow, f(c.shoulderOverHand), f(c.pushKnee), f(c.pushLegsAboveHands), f(c.descentKnee), f(c.descentLegsAboveHands),
                     c.legsUnseenShare * 100, f(c.posture), f(c.pushPosture), c.cycleMillis,
                 )
             }
@@ -87,8 +87,8 @@ fun main(args: Array<String>) {
     if (detail) {
         for ((name, lines) in cycles) {
             println("\n### $name\n")
-            println("| s | verdict | top | min elbow | shoulder over hand | push knee | push legs | knee unseen | body | push body | ms |")
-            println("|---|---|---|---|---|---|---|---|---|---|---|")
+            println("| s | verdict | top | min elbow | shoulder over hand | push knee | push legs | descent knee | descent legs | knee unseen | body | push body | ms |")
+            println("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
             lines.forEach(::println)
         }
     }

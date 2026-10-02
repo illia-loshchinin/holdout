@@ -227,6 +227,8 @@ data class CycleReadout(
     val shoulderOverHand: Float?,
     val pushKnee: Float?,
     val pushLegsAboveHands: Float?,
+    val descentKnee: Float?,
+    val descentLegsAboveHands: Float?,
     val legsUnseenShare: Float,
     val posture: Float?,
     val pushPosture: Float?,
@@ -327,6 +329,19 @@ class RepCounter(
     private val pushKnees = mutableListOf<Float>()
     private val pushLegs = mutableListOf<Float>()
 
+    /**
+     * The same two readings on the way **down**, until the elbow passes
+     * [PUSH_FROM_ELBOW]. A rep let down from the knees and pushed up on the
+     * toes showed honest legs on the push alone, and counted (2 Oct, 60°).
+     * Only the knee angle is judged here: on that descent it read 77°, on
+     * honest ones 108° at the least (135° but for one) — while the legs'
+     * height on the way down read as low on honest reps with the phone on the
+     * left (0.33–0.40) as on that one (0.34), so it decides nothing. The
+     * height is kept for the readout.
+     */
+    private val descentKnees = mutableListOf<Float>()
+    private val descentLegs = mutableListOf<Float>()
+
     /** Push frames, and those whose near knee was unseen or at the picture's edge (staked). */
     private var pushFrames = 0
     private var pushLegsUnseen = 0
@@ -378,6 +393,8 @@ class RepCounter(
         shoulderOverHand = minShoulderOverHandInCycle.takeIf { it != Float.MAX_VALUE },
         pushKnee = pushKnees.medianOrNull(),
         pushLegsAboveHands = pushLegs.medianOrNull(),
+        descentKnee = descentKnees.medianOrNull(),
+        descentLegsAboveHands = descentLegs.medianOrNull(),
         legsUnseenShare = legsUnseenShare(),
         posture = cyclePostures.medianOrNull(),
         pushPosture = pushPostures.medianOrNull(),
@@ -430,6 +447,10 @@ class RepCounter(
                 }
                 if (cycleStartMillis != 0L) {
                     observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight)
+                    if (judgeKnees && elbow >= PUSH_FROM_ELBOW && image != null && side != null && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin)) {
+                        knee?.let { descentKnees += it }
+                        (reading as? ViewReading.Angled)?.legsAboveHands?.let { descentLegs += it }
+                    }
                     if (elbow <= rules.bottomTriggerDegrees) {
                         phase = Phase.AT_BOTTOM
                     } else if (elbow >= top) {
@@ -485,6 +506,10 @@ class RepCounter(
                     judgeKnees && (pushKnees.isEmpty() && pushLegs.isEmpty() || legsUnseenShare() > rules.maxLegsUnseenShare) ->
                         RepEvent.Discarded(RepHint.LEGS_IN_VIEW)
                     judgeKnees && !kneesOffFloor(pushKnees.medianOrNull(), pushLegs.medianOrNull(), rules) ->
+                        RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
+                    // Down from the knees, up on the toes: half of it was on the
+                    // floor. A descent too quick to have been read passes.
+                    judgeKnees && !kneesOffFloor(descentKnees.medianOrNull(), null, rules) ->
                         RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
                     tooShallowHeadOn() || tooShallowAngled() -> RepEvent.Discarded(RepHint.GO_LOWER)
                     !bodyHeld() -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)
@@ -614,6 +639,8 @@ class RepCounter(
         pushPostures.clear()
         pushKnees.clear()
         pushLegs.clear()
+        descentKnees.clear()
+        descentLegs.clear()
         pushFrames = 0
         pushLegsUnseen = 0
         minShoulderHeightInCycle = Float.MAX_VALUE

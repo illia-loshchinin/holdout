@@ -76,6 +76,27 @@ class RecordedTracesTest {
     }
 
     @Test
+    fun `full reps that stop just over the depth line count when the elbow closed`() {
+        // Twelve honest reps from a spot near 40°; three stopped with the shoulder
+        // 0.33–0.34 arm-lengths over the hand, elbow at 62–64°, and had been refused.
+        val recording = Trace.parse(traces().single { it.name == "angled-right-honest-10.trace.csv" }.readLines())
+        assertEquals(12, replay(recording))
+    }
+
+    @Test
+    fun `a rep let down from the knees and pushed up on the toes is refused`() {
+        val recording = Trace.parse(traces().single { it.name == "angled60-right-knees-down-up-09.trace.csv" }.readLines())
+        val counter = RepCounter(view = recording.countingView!!, stakes = recording.stakes)
+        for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
+        val events = recording.countingFrames.mapNotNull { counter.onFrame(it.world, it.image) }
+        // Five honest, then knees all the way: the sixth count was the one whose
+        // push alone was on the toes.
+        assertEquals(5, counter.total)
+        assertEquals(List(5) { true }, events.take(5).map { it is RepEvent.Counted })
+        assertEquals(12, events.count { it == RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES) })
+    }
+
+    @Test
     fun `knees out of the picture are not counted as knees off the floor, and the member is told why`() {
         val file = traces().single { it.name == "angled-knees-out-of-frame-01.trace.csv" }
         val recording = Trace.parse(file.readLines())
