@@ -1,6 +1,6 @@
 # holdout-trace v2
-# stakes=STAKED width=720 height=960 expectedReps=10
-# done=honest:10,half:5,knees:5,cobra:5,other:2
+# stakes=STAKED width=720 height=960 expectedReps=11
+# done=honest:11,half:5,knees:5,cobra:5,other:2
 # placement=45 phoneSide=left
 # note=full, knees, cobra, half, and full push up from knees
 # landmarks=11,12,13,14,15,16,23,24,25,26,27,28,0

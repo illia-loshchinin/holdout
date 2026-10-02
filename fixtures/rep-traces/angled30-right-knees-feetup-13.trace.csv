@@ -1,6 +1,6 @@
 # holdout-trace v2
-# stakes=STAKED width=720 height=960 expectedReps=1
-# done=honest:1,half:0,knees:5,cobra:3,other:0
+# stakes=STAKED width=720 height=960 expectedReps=2
+# done=honest:2,half:4,knees:5,cobra:3,other:0
 # placement=30 phoneSide=right
 # note=more sharp angle and counted well full, but knees something too and cobras.
 # landmarks=11,12,13,14,15,16,23,24,25,26,27,28,0
