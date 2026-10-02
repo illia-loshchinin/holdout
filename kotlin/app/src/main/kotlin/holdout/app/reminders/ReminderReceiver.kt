@@ -47,12 +47,12 @@ class ReminderReceiver : BroadcastReceiver() {
         if (left <= 0) return
         // A member who missed the day before is out, recorded yet or not, and the
         // app may not have run since to cancel what it scheduled: no reminder to
-        // go on. A day the chain had when this was scheduled is done wherever it
-        // was done — another phone, or this one before a reinstall; for a later
-        // day only the phone's own record can say.
+        // go on. Only the chain says a day is done: one done on this phone and
+        // never submitted was forfeited at its deadline all the same. So the alarm
+        // carries the days on chain when it was scheduled — every submit that lands
+        // reschedules them — and a day past those stays quiet.
         val daysOnChain = intent.getIntExtra(EXTRA_DAYS_ON_CHAIN, 0)
-        val previousDone = day <= daysOnChain || store.isDayComplete(wallet, scope, day - 1L) || store.pendingCohortDay(wallet, cohort) == day - 1
-        if (kind == Reminder.Kind.Deadline && !previousDone) return
+        if (kind == Reminder.Kind.Deadline && day > daysOnChain) return
         // Each reminder has two alarms (ReminderScheduler); only the first to fire posts.
         if (intent.hasExtra(EXTRA_ID) && !ReminderScheduler.markPosted(context, intent.getIntExtra(EXTRA_ID, 0))) return
         // Done on this phone is not done: only the chain counts it, so say to submit it.

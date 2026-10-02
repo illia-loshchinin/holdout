@@ -523,6 +523,12 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             }
         }
         val cohortScope = cohortScope(h)
+        // A process killed between banking the last block and marking the day done
+        // leaves the target banked and no marker: finish it, as for the Daily 25,
+        // or the day could be neither trained again nor submitted.
+        LaunchedEffect(wallet, h.address, stage.dayIndex) {
+            if (BankingController.recover(store, streaks, wallet, cohortScope, stage.dayIndex.toLong(), h.cohort.repsPerDay)) refreshToken += 1
+        }
         val banked = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.bankedReps(wallet, cohortScope, stage.dayIndex.toLong()) }
         val pending = remember(wallet, h.address, refreshToken, chain.busy) { holdouts.pendingDay(h) }
         val locallyDone = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.isDayComplete(wallet, cohortScope, stage.dayIndex.toLong()) }
