@@ -69,8 +69,20 @@ class HoldoutViewModel(
 
     /** Reads [cohort]'s roster (one `getProgramAccounts`, sliced — R8); a failed read keeps the last one. */
     fun loadRoster(cohort: SolanaPublicKey) {
-        viewModelScope.launch { chain.roster(cohort)?.let { r -> _rosters.update { it + (cohort to r) } } }
+        // Loads overlap — the 30-second pass, a screen opened twice — and a slow
+        // early one must not put an older roster back over a newer one.
+        val started = ++rosterLoadsStarted
+        viewModelScope.launch {
+            val roster = chain.roster(cohort) ?: return@launch
+            if (started < (newestRoster[cohort] ?: 0)) return@launch
+            newestRoster[cohort] = started
+            _rosters.update { it + (cohort to roster) }
+        }
     }
+
+    /** Roster loads started, and per cohort the latest one whose answer was taken — both on the main thread. */
+    private var rosterLoadsStarted = 0
+    private val newestRoster = mutableMapOf<SolanaPublicKey, Int>()
 
     /** Starts reading for [wallet] (or with none, for the connect screen's live list), every 30 s. */
     fun watch(wallet: SolanaPublicKey?) {

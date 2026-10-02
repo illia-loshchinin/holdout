@@ -163,7 +163,9 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     // Also when a member falls into breach: nothing on chain changes at a missed
     // deadline until the crank records it, but every later reminder must go at once.
     val inBreach = now?.let { n -> chain.view?.holdouts?.count { h -> h.membership?.let { Derive.inBreach(it, h.cohort, n) } == true } }
-    LaunchedEffect(address, chain.view, inBreach) {
+    // And when the notification prompt is answered: until then nothing could be scheduled.
+    var notificationsAnswered by remember { mutableStateOf(0) }
+    LaunchedEffect(address, chain.view, inBreach, notificationsAnswered) {
         val me = address ?: return@LaunchedEffect
         val view = chain.view ?: return@LaunchedEffect
         val chainNow = clock.nowSeconds() ?: return@LaunchedEffect
@@ -178,6 +180,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     val askForNotifications = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
     ) {
+        notificationsAnswered++
         joinAfterAsking?.invoke()
         joinAfterAsking = null
     }
