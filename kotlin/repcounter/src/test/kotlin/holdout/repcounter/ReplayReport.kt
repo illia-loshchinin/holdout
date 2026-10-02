@@ -25,6 +25,9 @@ fun main(args: Array<String>) {
     val files = dir.listFiles { f -> f.name.endsWith(".trace.csv") }?.sortedBy { it.name }.orEmpty()
     require(files.isNotEmpty()) { "no .trace.csv files in ${dir.absolutePath}" }
 
+    val detail = args.getOrNull(1) == "detail"
+    val cycles = mutableMapOf<String, List<String>>()
+
     data class Row(val name: String, val placement: String?, val side: String?, val stakes: Stakes, val ratios: List<Float>, val views: Map<CameraView?, Int>, val counted: Int, val expected: Int?, val hints: Map<String, Int>)
 
     val rows = files.mapNotNull { file ->
@@ -44,9 +47,20 @@ fun main(args: Array<String>) {
         val counter = view?.let { runCatching { RepCounter(view = it, stakes = recording.stakes) }.getOrNull() }
         if (counter != null) {
             for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
+            val lines = mutableListOf<String>()
+            val t0 = counting.first().world.timestampMillis
+            fun f(v: Float?) = v?.let { "%.2f".format(it) } ?: "-"
             for (frame in counting) {
-                (counter.onFrame(frame.world, frame.image) as? RepEvent.Discarded)?.let { hints.merge(it.hint?.name ?: "none", 1, Int::plus) }
+                val event = counter.onFrame(frame.world, frame.image) ?: continue
+                (event as? RepEvent.Discarded)?.let { hints.merge(it.hint?.name ?: "none", 1, Int::plus) }
+                val c = counter.lastCycle ?: continue
+                val what = if (event is RepEvent.Counted) "counted" else (event as RepEvent.Discarded).hint?.name ?: "none"
+                lines += "| %.1f | %s | %.0f | %.0f | %s | %s | %s | %.0f%% | %s | %s | %d |".format(
+                    (frame.world.timestampMillis - t0) / 1000f, what, c.top, c.minElbow, f(c.shoulderOverHand), f(c.pushKnee), f(c.pushLegsAboveHands),
+                    c.legsUnseenShare * 100, f(c.posture), f(c.pushPosture), c.cycleMillis,
+                )
             }
+            cycles[file.name] = lines
             total = counter.total
         } else {
             hints["never counted"] = 1
@@ -70,6 +84,15 @@ fun main(args: Array<String>) {
         println("| ${r.name} | $where | ${r.stakes.name.lowercase()} | ${pct(r.ratios, 0.05)} / ${pct(r.ratios, 0.5)} / ${pct(r.ratios, 0.95)} | ${share(r.views)} | $accuracy | ${r.hints.entries.joinToString(" ") { "${it.key}×${it.value}" }} |")
     }
 
+    if (detail) {
+        for ((name, lines) in cycles) {
+            println("\n### $name\n")
+            println("| s | verdict | top | min elbow | shoulder over hand | push knee | push legs | knee unseen | body | push body | ms |")
+            println("|---|---|---|---|---|---|---|---|---|---|---|")
+            lines.forEach(::println)
+        }
+    }
+
     val labelled = rows.filter { it.placement != null }
     println("\n## By labelled placement\n")
     if (labelled.isEmpty()) {
@@ -85,5 +108,5 @@ fun main(args: Array<String>) {
         val within = judged.count { abs(it.counted - it.expected!!) <= 1 }
         println("| $placement | ${group.size} | ${pct(ratios, 0.05)} / ${pct(ratios, 0.5)} / ${pct(ratios, 0.95)} | ${share(views)} | $within of ${judged.size} |")
     }
-    println("\nIn force: side ≤ 0.50 < 45° < 1.55 ≤ head-on (Preflight's sideRatio and frontRatio, in 9:16 units).")
+    println("\nIn force: side ≤ 0.25 < 45° < 1.55 ≤ head-on (Preflight's sideRatio and frontRatio, in 9:16 units).")
 }

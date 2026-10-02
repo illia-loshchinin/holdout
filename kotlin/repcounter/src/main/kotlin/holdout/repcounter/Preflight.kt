@@ -105,11 +105,14 @@ class Preflight(
      * Shoulder span against torso length, at or below which the camera is
      * beside the member rather than in front of them.
      *
-     * **0.25, provisional (2026-10-01).** At 0.5 a phone measured at 45° on
-     * the floor read side-on in 12 % of counting frames and at 50° in 35 %
+     * **0.25 (settled 2026-10-02, 002 T034c).** At 0.5 a phone measured at 45°
+     * on the floor read side-on in 12 % of counting frames and at 50° in 35 %
      * (ratio 5th percentile 0.46 and 0.36), which kept resetting the ready
-     * hold. 55°, 60° and a square side-on hold are still to be recorded
-     * (002 T034c); the line is set from them.
+     * hold. At 0.25, sets at 40°, 55° and 60° read side-on in 0 %, 0 % and 2 %
+     * of counting frames (5th percentile 0.53, 0.33, 0.27), and a plank held
+     * square side-on read side-on in every frame of the hold (median 0.13)
+     * and never started (fixture `side-right-hold-01`). 60° is the edge:
+     * past it the ready hold starts to reset.
      */
     private val sideRatio: Float = 0.25f,
     /**

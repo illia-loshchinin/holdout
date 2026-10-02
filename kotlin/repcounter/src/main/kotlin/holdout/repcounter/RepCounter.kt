@@ -130,6 +130,17 @@ data class RepRules(
      */
     val maxAngledShoulderOverHand: Float = 0.32f,
     /**
+     * Depth at 45°, the doubtful band: a shoulder that stopped just over
+     * [maxAngledShoulderOverHand] — up to this — is still a full rep when the
+     * elbow itself closed to [deepElbowDegrees]. On 2 Oct, from an unmeasured
+     * spot near 40°, three honest reps of ten were refused at 0.33–0.34 with
+     * the elbow at 62–64°; half push-ups in the same band (0.34–0.35, two
+     * sets) kept the elbow at 68–71°. Either reading alone has counted a half
+     * rep or refused a full one; both must say shallow here.
+     */
+    val maxAngledShoulderOverHandDeepElbow: Float = 0.36f,
+    val deepElbowDegrees: Float = 66f,
+    /**
      * At 45°, the lowest **median** body line a rep may have. Coarse on
      * purpose: honest planks read 152–167° there, so this catches a hip fold,
      * not a slight sag.
@@ -203,6 +214,23 @@ data class Readout(
     val posture: Float,
     /** Near leg at 45°; null head-on, or when the leg is not clearly in frame. */
     val knee: Float?,
+)
+
+/**
+ * What the counter judged the last cycle on, as the rule saw it. Like
+ * [Readout], for tuning from recorded traces — never for deciding anything.
+ */
+data class CycleReadout(
+    val top: Float,
+    val minElbow: Float,
+    /** At 45°: the nearest the shoulder came to the hand, in arm lengths. */
+    val shoulderOverHand: Float?,
+    val pushKnee: Float?,
+    val pushLegsAboveHands: Float?,
+    val legsUnseenShare: Float,
+    val posture: Float?,
+    val pushPosture: Float?,
+    val cycleMillis: Long,
 )
 
 sealed interface RepEvent {
@@ -340,6 +368,22 @@ class RepCounter(
 
     private var priming = false
 
+    /** The last cycle judged or abandoned, for a debug readout. Null until one is. */
+    var lastCycle: CycleReadout? = null
+        private set
+
+    private fun cycleReadout(cycleMillis: Long) = CycleReadout(
+        top = top,
+        minElbow = minElbowInCycle,
+        shoulderOverHand = minShoulderOverHandInCycle.takeIf { it != Float.MAX_VALUE },
+        pushKnee = pushKnees.medianOrNull(),
+        pushLegsAboveHands = pushLegs.medianOrNull(),
+        legsUnseenShare = legsUnseenShare(),
+        posture = cyclePostures.medianOrNull(),
+        pushPosture = pushPostures.medianOrNull(),
+        cycleMillis = cycleMillis,
+    )
+
     fun onFrame(frame: PoseFrame, image: ImagePose? = null): RepEvent? {
         val side = nearSideFor(image)
         val reading = ViewReading.of(view, frame, image, side = side) ?: run {
@@ -390,6 +434,7 @@ class RepCounter(
                         phase = Phase.AT_BOTTOM
                     } else if (elbow >= top) {
                         // Back at the top without ever reaching the bottom.
+                        lastCycle = cycleReadout(frame.timestampMillis - cycleStartMillis)
                         return abandonCycle(
                             if (minElbowInCycle <= rules.descentAttemptDegrees) RepHint.GO_LOWER else null,
                         )
@@ -423,6 +468,7 @@ class RepCounter(
                     return null
                 }
                 val cycleMillis = frame.timestampMillis - cycleStartMillis
+                lastCycle = cycleReadout(cycleMillis)
                 // Depth needs no check here: reaching this phase means the elbow
                 // passed `bottomTriggerDegrees`, which `RepRules` requires to be
                 // at least as strict as the rule's `bottomDegrees`. The same
@@ -524,7 +570,8 @@ class RepCounter(
     /** At 45°: the near shoulder never came down close enough to the hand. */
     private fun tooShallowAngled(): Boolean {
         if (view != CameraView.OBLIQUE || minShoulderOverHandInCycle == Float.MAX_VALUE) return false
-        return minShoulderOverHandInCycle > rules.maxAngledShoulderOverHand
+        if (minShoulderOverHandInCycle <= rules.maxAngledShoulderOverHand) return false
+        return minShoulderOverHandInCycle > rules.maxAngledShoulderOverHandDeepElbow || minElbowInCycle > rules.deepElbowDegrees
     }
 
     /**

@@ -43,6 +43,39 @@ class RecordedTracesTest {
     }
 
     @Test
+    fun `a plank held square side-on is read as side-on and a staked sitting never starts`() {
+        val recording = Trace.parse(traces().single { it.name == "side-right-hold-01.trace.csv" }.readLines())
+        assertEquals(null, recording.countingView, "the phone never started a countdown that led to counting")
+        val preflight = Preflight(stakes = recording.stakes)
+        val xScale = recording.frames.first().image.let { Aspect.xScale(it.width, it.height) }
+        val views = recording.frames.mapNotNull { preflight.classifyView(it.image.frame, xScale) }
+        // Walking in and getting down read as anything; the hold is most of the frames.
+        assertTrue(views.count { it == CameraView.SIDE } > views.size * 3 / 4, "side-on in ${views.count { it == CameraView.SIDE }} of ${views.size} frames")
+    }
+
+    @Test
+    fun `from 40 to 55 degrees the placement reads as 45 degrees, and half push-ups at the depth line stay refused`() {
+        for (name in listOf("angled40-right-mixed-08", "angled55-right-mixed-07")) {
+            val recording = Trace.parse(traces().single { it.name == "$name.trace.csv" }.readLines())
+            val preflight = Preflight(stakes = recording.stakes)
+            val counting = recording.countingFrames
+            val xScale = counting.first().image.let { Aspect.xScale(it.width, it.height) }
+            val oblique = counting.count { preflight.classifyView(it.image.frame, xScale) == CameraView.OBLIQUE }
+            assertTrue(oblique > counting.size * 9 / 10, "$name: 45° in $oblique of ${counting.size} counting frames")
+
+            val counter = RepCounter(view = recording.countingView!!, stakes = recording.stakes)
+            for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
+            val events = counting.mapNotNull { counter.onFrame(it.world, it.image) }
+            // Exactly, not within one: at 40° three of the five half push-ups stopped
+            // with the shoulder at 0.34–0.35 — inside the doubtful band — and the
+            // elbow at 69–71°, which is what refuses them.
+            assertEquals(recording.expectedReps, counter.total, name)
+            assertTrue(events.count { it == RepEvent.Discarded(RepHint.GO_LOWER) } >= 5, "$name: the five half push-ups")
+            assertEquals(10, events.count { it == RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES) }, "$name: five from the knees, five cobra")
+        }
+    }
+
+    @Test
     fun `knees out of the picture are not counted as knees off the floor, and the member is told why`() {
         val file = traces().single { it.name == "angled-knees-out-of-frame-01.trace.csv" }
         val recording = Trace.parse(file.readLines())

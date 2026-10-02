@@ -95,6 +95,9 @@ within one of it. A trace with `expectedReps=?` is evidence, not a test.
 | `angled45-right-mixed-04` | 45° measured on the floor, phone on the right, 4:3 at 480×640 | staked: 10 honest, then 5 from the knees, then 5 cobra | 10 — had counted 0: the locked-out arm reads 150–158° here, under the 160° top. Counted once the top is the arm held through the countdown less 10° (floor 148°); the knee and cobra reps are all still refused |
 | `angled50-right-mixed-05` | 50°, as above | staked: 10 honest, 5 from the knees, 5 cobra | 10 — had counted 0, as above |
 | `angled50-right-mixed-06` | 50°, phone on the right, 4:3 at 720×960 — the first set recorded **on** the per-sitting top | staked: 10 honest, 5 from the knees, 5 cobra, 5 half | 10, live and on replay — ten in a row, then all 15 cheats refused (knees and cobras as "Knees off the floor", halves as "Go lower"). Arm held at 156° through the countdown, so the top sat at the 148° floor; tops read 154–163°. Hold reached in 27 s (68 s before); 23 analysis frames a second while counting, with HD video recording |
+| `angled55-right-mixed-07` | 55°, phone on the right, 720×960 | staked: 10 honest, 5 from the knees, 5 cobra, 5 half, 1 honest | 11, live and on replay — every cheat refused under its own hint. Placement ratio 0.33 / 0.47 / 0.60 (5th / 50th / 95th); read as 45° in 95 % of counting frames, side-on in none |
+| `angled40-right-mixed-08` | 40°, phone on the right | staked: 5 honest, 5 half, 5 from the knees, 5 cobra | 5, live and on replay. Three of the half push-ups stopped with the shoulder 0.34–0.35 arm-lengths over the hand and the elbow at 69–71°: they pin the elbow side of the depth band (`deepElbowDegrees` 66). Ratio 0.53 / 0.72 / 1.02 |
+| `side-right-hold-01` | square side-on, 1–1.5 m away | staked: a plank held about 10 s | 0 — it never starts: side-on in every frame of the hold (ratio median 0.13 against `sideRatio` 0.25) |
 | `angled-knees-out-of-frame-01` | 45° | staked: 5 full push-ups with the knees out of the **counter's** picture (Seeker, 29 Sep, a 10-minute test day). The debug video of the same set shows the whole body: it records the sensor's full 4:3 width, while analysis and the preview use a 16:9 crop, about 12 % narrower each side — the knees were inside the one and outside the other | 0 — all 5 had counted: the model placed the knees just inside the frame at full confidence. Refused as `LEGS_IN_VIEW` once the knee spends over 25 % of the push within 13 % of an edge; it was there 28–50 % of every rep, honest sets 0–3 % |
 
 ## What the suite must hold — 10 honest, 3 cheats, **in each placement**
@@ -163,6 +166,7 @@ If the whole-body pill asks you to turn away or move the phone, do what it says
 and note it in the form: those moments are part of what is being measured.
 
 **Then:** `bash scripts/pull-traces.sh` and `./gradlew :repcounter:replayTraces`
+(add `-Pdetail` for every cycle's verdict and the readings it was judged on)
 (from `kotlin/`). The report gives, per labelled angle, the placement ratio's
 5th/50th/95th percentile, what the camera check decided, and how many sets counted
 within one rep of you. The 45° band's limits (`sideRatio`, `frontRatio`) are set

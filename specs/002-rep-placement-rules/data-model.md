@@ -30,7 +30,7 @@ Lengths are in arm-lengths so the distance from the phone does not matter.
 | Descent starts the rep clock | elbow < 140° | all |
 | Torso down, head-on | elevation ≤ 55° | head-on |
 | Head-on depth | shoulder height at bottom ≤ 0.25 × top | head-on |
-| 45° depth | shoulder over hand ≤ 0.32 | 45° |
+| 45° depth | shoulder over hand ≤ 0.32 — or ≤ 0.36 with the elbow closed to 66° or less | 45° |
 | Body line, rep median | ≥ 140° | 45° |
 | Body line, push median | ≥ 145° | 45° |
 | Knees down | push median legs-above-hands < 0.41, or push median knee < 90° | staked |

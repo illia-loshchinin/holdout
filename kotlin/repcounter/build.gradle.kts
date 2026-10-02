@@ -31,5 +31,9 @@ tasks.register<JavaExec>("replayTraces") {
     group = "verification"
     classpath = sourceSets["test"].runtimeClasspath
     mainClass.set("holdout.repcounter.ReplayReportKt")
-    args(providers.gradleProperty("traces").getOrElse(rootProject.file("../phone_traces").absolutePath))
+    args(
+        providers.gradleProperty("traces").getOrElse(rootProject.file("../phone_traces").absolutePath),
+        // -Pdetail: every cycle's verdict and what it was judged on.
+        if (providers.gradleProperty("detail").isPresent) "detail" else "summary",
+    )
 }
