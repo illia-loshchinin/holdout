@@ -22,6 +22,8 @@ data class Reminder(
     val repsPerDay: Int,
     val durationDays: Int,
     val dayLength: Long,
+    /** Days the chain had recorded when this was scheduled: those are done, whatever the phone holds. */
+    val daysOnChain: Int = 0,
 ) {
     enum class Kind { Start, Deadline }
 
@@ -66,7 +68,7 @@ object Reminders {
         if (m.state != MembershipSnapshot.State.Joined || c.settled || Derive.inBreach(m, c, now) || now >= Derive.end(c)) return@flatMap emptyList()
         val address = cohortAddress(c)
         val window = windowSeconds(c.dayLength)
-        fun reminder(kind: Reminder.Kind, day: Int, at: Long) = Reminder(kind, address, c.leagueId, day, at, Derive.deadlineOf(c, day), c.repsPerDay, c.durationDays, c.dayLength)
+        fun reminder(kind: Reminder.Kind, day: Int, at: Long) = Reminder(kind, address, c.leagueId, day, at, Derive.deadlineOf(c, day), c.repsPerDay, c.durationDays, c.dayLength, m.daysCompleted)
         fun deliverable(at: Long, deadline: Long) = minOf(at + window, deadline) > now
         buildList {
             // Not once the first day is on chain: an alarm still waiting in its

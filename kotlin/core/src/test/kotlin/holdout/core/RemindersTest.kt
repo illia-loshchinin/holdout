@@ -79,6 +79,7 @@ class RemindersTest {
         val midDay2 = start + 2 * 86_400 + 60
         val r = schedule(c, member(days = 2), now = midDay2)
         assertEquals(listOf(2, 3, 4, 5, 6), r.map { it.dayIndex }, "day 2 still owed today, whether or not the phone has it done")
+        assertTrue(r.all { it.daysOnChain == 2 }, "the alarm carries what the chain had: day 2's needs no record on this phone of day 1")
         val late = start + 3 * 86_400 - 1 - 60 // past day 2's reminder window, before its deadline
         assertTrue(schedule(c, member(days = 2), now = late).none { it.dayIndex == 2 })
     }

@@ -83,6 +83,7 @@ class ReminderScheduler(context: Context) {
         putExtra(ReminderReceiver.EXTRA_REPS, r.repsPerDay)
         putExtra(ReminderReceiver.EXTRA_DAYS, r.durationDays)
         putExtra(ReminderReceiver.EXTRA_DAY_LENGTH, r.dayLength)
+        putExtra(ReminderReceiver.EXTRA_DAYS_ON_CHAIN, r.daysOnChain)
         putExtra(ReminderReceiver.EXTRA_TEST, Deployment.isTestLeague(r.leagueId))
         putExtra(ReminderReceiver.EXTRA_DEADLINE_ELAPSED, deadlineElapsed)
     }

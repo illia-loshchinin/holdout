@@ -527,7 +527,13 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 if (h.cohort.exercise != LeagueParams.EXERCISE_PUSHUP) return@CohortHome
                 sitting = Sitting.CohortDay(h, stage.dayIndex)
             },
-            onSubmit = { day -> holdouts.submitDay(sender, h, day, h.cohort.repsPerDay) },
+            onSubmit = { day ->
+                // A day recovered from the phone's own record — the app closed after the
+                // last rep, before the sitting's own exit ran — is that day's training for
+                // the streak as well. Recording the same date twice changes nothing.
+                if (!h.isTest) streaks.recordCompletedDay(wallet, HoldoutDay.indexOf(h.cohort.start + day * h.cohort.dayLength))
+                holdouts.submitDay(sender, h, day, h.cohort.repsPerDay)
+            },
             onDetail = { route = Route.Detail(h.address) },
             onAbout = { route = Route.About },
             onRoster = { route = Route.Roster(h.address) },
