@@ -128,6 +128,8 @@ fun SittingScreen(
         hasCamera = granted
         askedCamera = true
     }
+    // Left the foreground: the camera stops, and counting does not resume where it was.
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_STOP) { viewModel.onLeftForeground() }
     // Back from the system settings with the camera allowed: pick it up.
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
         hasCamera = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED

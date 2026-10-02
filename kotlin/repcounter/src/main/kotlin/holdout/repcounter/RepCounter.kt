@@ -431,7 +431,9 @@ class RepCounter(
             // money is staked, one on the way back up is a frame the knee was
             // not seen in: a leg hidden through the push must not leave only
             // the frames it showed in to be judged.
-            if (judgeKnees && !priming && phase == Phase.AT_BOTTOM) {
+            // During the countdown too: a rep begun on "1" is judged once counting
+            // starts, on everything since its bottom.
+            if (judgeKnees && phase == Phase.AT_BOTTOM) {
                 pushFrames++
                 pushLegsUnseen++
             }

@@ -453,6 +453,22 @@ class SittingViewModel(
     @Volatile
     private var stopped = false
 
+    /**
+     * The app left the foreground mid-sitting: the camera stopped watching, so
+     * what follows is a new sitting. Loose reps go, banked blocks stay, and the
+     * checks and the ready hold are passed again before anything counts — nine
+     * loose reps before a break must not be finished by one rep after it.
+     */
+    fun onLeftForeground() {
+        synchronized(countdownLock) {
+            val step = _uiState.value.step
+            if (stopped || (step != Step.COUNTDOWN && step != Step.COUNTING)) return
+            banking.endSitting()
+            backToChecks()
+            _uiState.update { it.copy(looseReps = 0, hint = null) }
+        }
+    }
+
     /** The member stopped, or the screen went away. Loose reps go; blocks stay. */
     fun endSitting(): Int {
         stopped = true
