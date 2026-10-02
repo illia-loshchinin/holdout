@@ -128,7 +128,9 @@ data class RepRules(
      *
      * Judged only inside [maxHipRisePlacementRatio]: from further in front the
      * hips sit behind the shoulders in the picture and the reading drops —
-     * honest reps recorded there read down to 0.84.
+     * honest reps recorded there read down to 0.84. A staked sitting cannot
+     * start from there (`Preflight.stakedFrontRatio`, the same line), so this
+     * exempts only the Daily 25 and recordings older than the line.
      */
     val minHipRise: Float = 0.90f,
     /** The placement ratio (`Preflight.placementRatio`, held through the countdown) under which [minHipRise] is judged: about 35° and further round to the side. */

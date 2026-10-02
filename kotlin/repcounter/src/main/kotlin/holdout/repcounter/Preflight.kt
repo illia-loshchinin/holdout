@@ -124,6 +124,17 @@ class Preflight(
      */
     private val frontRatio: Float = 1.55f,
     /**
+     * **Staked: at or above which the phone is too far in front** — about 35°
+     * (decided 2026-10-02, product owner: no placement may be left where a
+     * cheat counts). From further in front the hips sit behind the shoulders in
+     * the picture, and the check that the body comes up as one piece
+     * ([RepRules.minHipRise]) reads honest reps as low as a rep pushed up off
+     * the floor; knee push-ups with the feet raised were also only caught there
+     * by a rule of their own. It is the counter's own line, so the counter never
+     * runs unjudged: 30° held 1.05–1.26 on the phone, 40° 0.78–0.95.
+     */
+    private val stakedFrontRatio: Float = RepRules().maxHipRisePlacementRatio,
+    /**
      * A staked sitting accepts the side view only, and its camera pill says so
      * in those words — a member told only "move the phone" would move it and
      * still be refused ([Stakes]).
@@ -134,7 +145,8 @@ class Preflight(
 ) {
 
     fun evaluate(input: PreflightInput): PreflightReport {
-        val view = classifyView(input.image, input.imagePose?.let { Aspect.xScale(it.width, it.height) } ?: 1f)
+        val xScale = input.imagePose?.let { Aspect.xScale(it.width, it.height) } ?: 1f
+        val view = classifyView(input.image, xScale)
         return PreflightReport(
             statuses = listOf(
                 PreflightStatus(
@@ -147,7 +159,11 @@ class Preflight(
                 PreflightStatus(
                     PreflightCheck.CAMERA_ANGLE,
                     passing = stakes.accepts(view),
-                    specificFix = if (view != null) stakes.cameraFix else null,
+                    specificFix = when {
+                        view == null -> null
+                        stakes == Stakes.STAKED -> stakedCameraFix(view, placementRatio(input.image, xScale), input.imagePose)
+                        else -> stakes.cameraFix
+                    },
                 ),
                 PreflightStatus(
                     PreflightCheck.BACKGROUND_STILL,
@@ -156,6 +172,31 @@ class Preflight(
             ),
             view = view,
         )
+    }
+
+    /**
+     * Staked, the phone in the wrong place: which way to turn, when that can be
+     * said. A phone a little too far in front, or beside the member, shows one
+     * side of the body nearer — the side it stands on — and the body turning a
+     * little is the quickest fix: **away** from the phone when it is too far in
+     * front, **towards** it when it is beside them. Square head-on neither side
+     * is nearer, and only the phone moving will do.
+     */
+    private fun stakedCameraFix(view: CameraView, ratio: Float?, pose: ImagePose?): String {
+        val phoneOn = pose?.let(Angles::nearSide)
+        return when {
+            view == CameraView.FRONT && ratio != null && ratio < frontRatio -> when (phoneOn) {
+                Side.RIGHT -> TOO_FRONT_TURN_LEFT_FIX
+                Side.LEFT -> TOO_FRONT_TURN_RIGHT_FIX
+                null -> stakes.cameraFix
+            }
+            view == CameraView.SIDE -> when (phoneOn) {
+                Side.RIGHT -> TOO_SIDE_TURN_RIGHT_FIX
+                Side.LEFT -> TOO_SIDE_TURN_LEFT_FIX
+                null -> stakes.cameraFix
+            }
+            else -> stakes.cameraFix
+        }
     }
 
     /**
@@ -251,7 +292,8 @@ class Preflight(
         val ratio = placementRatio(frame, xScale) ?: return null
         return when {
             ratio <= sideRatio -> CameraView.SIDE
-            ratio >= frontRatio -> CameraView.FRONT
+            // Where money is staked, "in front" starts sooner: see [stakedFrontRatio].
+            ratio >= (if (stakes == Stakes.STAKED) minOf(frontRatio, stakedFrontRatio) else frontRatio) -> CameraView.FRONT
             else -> CameraView.OBLIQUE
         }
     }
@@ -290,6 +332,18 @@ class Preflight(
 
         /** The whole-body pill's fix when the head is at or past the picture's edge. */
         const val HEAD_FIX = "Keep your head in the picture"
+
+        /** Staked: the phone too far in front, standing on the member's right — they turn left, away from it. */
+        const val TOO_FRONT_TURN_LEFT_FIX = "The phone is too far in front of you: turn your body slightly to your left, away from it"
+
+        /** Staked: as [TOO_FRONT_TURN_LEFT_FIX], the phone on the member's left. */
+        const val TOO_FRONT_TURN_RIGHT_FIX = "The phone is too far in front of you: turn your body slightly to your right, away from it"
+
+        /** Staked: the phone beside the member, on their right — they turn right, towards it. */
+        const val TOO_SIDE_TURN_RIGHT_FIX = "The phone is too far round to your side: turn your body slightly to your right, towards it"
+
+        /** Staked: as [TOO_SIDE_TURN_RIGHT_FIX], the phone on the member's left. */
+        const val TOO_SIDE_TURN_LEFT_FIX = "The phone is too far round to your side: turn your body slightly to your left, towards it"
 
         /** Staked: the fix when the near foot is at the edge. */
         const val FEET_FIX = "Keep your feet in the picture — move the phone further away"

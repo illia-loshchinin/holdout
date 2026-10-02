@@ -235,6 +235,33 @@ class PreflightTest {
     }
 
     @Test
+    fun `a staked sitting refuses a phone too far in front, and says which way to turn`() {
+        val staked = Preflight(stakes = Stakes.STAKED)
+        fun report(image: PoseFrame) = staked.evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), image, ImagePose(image, 720, 1280)))
+        fun cameraFix(report: PreflightReport) = report.statuses.single { it.check == PreflightCheck.CAMERA_ANGLE }.fix
+
+        // Ratio 1.25 — about 30° on the floor: the Daily 25 counts from there, a staked sitting does not start.
+        val tooFarInFront = Traces.imageFrame(shoulderSpan = 0.5f)
+        assertEquals(CameraView.OBLIQUE, preflight.evaluate(good(image = tooFarInFront)).view)
+        val refused = report(tooFarInFront)
+        assertEquals(CameraView.FRONT, refused.view)
+        assertFalse(refused.canStart)
+        // Away from the phone, whichever side it stands on.
+        val phoneOn = Angles.nearSide(ImagePose(tooFarInFront, 720, 1280))
+        assertEquals(if (phoneOn == Side.RIGHT) Preflight.TOO_FRONT_TURN_LEFT_FIX else Preflight.TOO_FRONT_TURN_RIGHT_FIX, cameraFix(refused))
+
+        // Beside the member: towards it.
+        val beside = Traces.imageFrame(shoulderSpan = 0.05f)
+        val besideSide = Angles.nearSide(ImagePose(beside, 720, 1280))
+        assertEquals(if (besideSide == Side.RIGHT) Preflight.TOO_SIDE_TURN_RIGHT_FIX else Preflight.TOO_SIDE_TURN_LEFT_FIX, cameraFix(report(beside)))
+
+        // Square head-on neither side is nearer: only the phone moving will do.
+        assertEquals(Stakes.STAKED.cameraFix, cameraFix(report(Traces.imageFrame(shoulderSpan = 0.7f))))
+        // And at 45° it starts.
+        assertEquals(CameraView.OBLIQUE, report(Traces.imageFrame(shoulderSpan = 0.3f)).view)
+    }
+
+    @Test
     fun `a green pill carries no fix`() {
         assertTrue(preflight.evaluate(good()).statuses.all { it.fix == null })
     }

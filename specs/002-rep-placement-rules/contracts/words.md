@@ -13,7 +13,9 @@ Shown today in the set-up guide for staked sittings. Must appear on the stake sh
 ## Refused placement (FR-004) — `Stakes.cameraFix`
 
 - Daily 25: "Put the phone in front of you, or at 45°"
-- Staked: "Turn the phone to 45°"
+- Staked: "Turn the phone to 45°" — square head-on, where no side of the body is nearer the phone
+- Staked, the phone a little too far in front *(added 2026-10-02: from in front of about 35°)*: "The phone is too far in front of you: turn your body slightly to your left (right), away from it" — the coach says "Turn slightly left" or "Turn slightly right"
+- Staked, the phone beside the member: "The phone is too far round to your side: turn your body slightly to your right (left), towards it" — the coach says the same two words
 
 ## Getting into position (FR-018, FR-019) — `Coach`, in priority order, shown large and spoken
 

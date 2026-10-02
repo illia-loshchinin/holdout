@@ -20,7 +20,12 @@ enum class Coach(val words: String) {
     GET_DOWN("Get down"),
     FURTHER("Further"),
 
-    /** Staked: the near knee is hidden behind the body — turning away from the phone shows it. The direction when the phone's side is known. */
+    /**
+     * Staked: the near knee is hidden behind the body — turning away from the
+     * phone shows it — or the phone is a little too far in front (turn away
+     * from it) or beside the member (turn towards it). The direction when the
+     * phone's side is known.
+     */
     TURN_LEFT("Turn slightly left"),
     TURN_RIGHT("Turn slightly right"),
     TURN_AWAY("Turn slightly away"),
@@ -41,12 +46,16 @@ enum class Coach(val words: String) {
             if (report == null || guidance == null) return GET_IN_VIEW
             fun failing(check: PreflightCheck) = report.statuses.any { it.check == check && !it.passing }
             val wholeBodyFix = report.statuses.firstOrNull { it.check == PreflightCheck.WHOLE_BODY }?.fix
+            val cameraFix = report.statuses.firstOrNull { it.check == PreflightCheck.CAMERA_ANGLE && !it.passing }?.fix
 
             return when {
                 failing(PreflightCheck.LIGHTING) -> MORE_LIGHT
                 guidance.hint == PositionHint.AIM_AT_THE_FLOOR -> AIM_AT_FLOOR
                 guidance.hint == PositionHint.GET_IN_FRAME -> GET_IN_VIEW
                 failing(PreflightCheck.CAMERA_ANGLE) && report.view == null -> GET_IN_VIEW
+                // Staked, the phone a little too far in front or beside the member: which way to turn.
+                cameraFix == Preflight.TOO_FRONT_TURN_LEFT_FIX || cameraFix == Preflight.TOO_SIDE_TURN_LEFT_FIX -> TURN_LEFT
+                cameraFix == Preflight.TOO_FRONT_TURN_RIGHT_FIX || cameraFix == Preflight.TOO_SIDE_TURN_RIGHT_FIX -> TURN_RIGHT
                 guidance.hint == PositionHint.PHONE_AT_45 || failing(PreflightCheck.CAMERA_ANGLE) -> TURN_45
                 guidance.hint == PositionHint.GET_DOWN -> GET_DOWN
                 wholeBodyFix == Preflight.KNEES_TURN_LEFT_FIX -> TURN_LEFT

@@ -64,6 +64,20 @@ class CoachTest {
     }
 
     @Test
+    fun `a staked phone a little too far in front, or beside the member, says which way to turn`() {
+        fun cameraReport(fix: String) = PreflightReport(
+            statuses = PreflightCheck.entries.map { if (it == PreflightCheck.CAMERA_ANGLE) PreflightStatus(it, passing = false, specificFix = fix) else PreflightStatus(it, passing = true) },
+            view = CameraView.FRONT,
+        )
+        assertEquals(Coach.TURN_LEFT, Coach.next(cameraReport(Preflight.TOO_FRONT_TURN_LEFT_FIX), guidance(PositionHint.PHONE_AT_45)))
+        assertEquals(Coach.TURN_RIGHT, Coach.next(cameraReport(Preflight.TOO_FRONT_TURN_RIGHT_FIX), guidance(PositionHint.PHONE_AT_45)))
+        assertEquals(Coach.TURN_RIGHT, Coach.next(cameraReport(Preflight.TOO_SIDE_TURN_RIGHT_FIX), guidance(PositionHint.PHONE_AT_45)))
+        assertEquals(Coach.TURN_LEFT, Coach.next(cameraReport(Preflight.TOO_SIDE_TURN_LEFT_FIX), guidance(PositionHint.PHONE_AT_45)))
+        // Square head-on there is no side to turn from: the phone has to move.
+        assertEquals(Coach.TURN_45, Coach.next(cameraReport(Stakes.STAKED.cameraFix), guidance(PositionHint.PHONE_AT_45)))
+    }
+
+    @Test
     fun `all green says hold`() {
         assertEquals(Coach.HOLD, Coach.next(report(), guidance(null)))
     }

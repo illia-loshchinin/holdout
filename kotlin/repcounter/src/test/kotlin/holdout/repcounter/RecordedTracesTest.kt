@@ -143,6 +143,23 @@ class RecordedTracesTest {
     }
 
     @Test
+    fun `a staked sitting does not start from in front of about 35 degrees, and does from 40`() {
+        fun held(name: String): Pair<Int, Int> {
+            val recording = Trace.parse(traces().single { it.name == "$name.trace.csv" }.readLines())
+            val preflight = Preflight(stakes = Stakes.STAKED)
+            val frames = recording.countdownFrames
+            val xScale = frames.first().image.let { Aspect.xScale(it.width, it.height) }
+            return frames.count { preflight.classifyView(it.image.frame, xScale) == CameraView.OBLIQUE } to frames.size
+        }
+        // Recorded at about 30°, close to the body, before the line: the plank held through its countdown.
+        val (accepted30, frames30) = held("angled30-right-honest-12")
+        assertEquals(0, accepted30, "30°: accepted in $accepted30 of $frames30 countdown frames")
+        // The most frontal spot the band still takes: a little in front of 40°.
+        val (accepted40, frames40) = held("angled-right-honest-10")
+        assertEquals(frames40, accepted40, "near 40°: accepted in $accepted40 of $frames40 countdown frames")
+    }
+
+    @Test
     fun `knees out of the picture are not counted as knees off the floor, and the member is told why`() {
         val file = traces().single { it.name == "angled-knees-out-of-frame-01.trace.csv" }
         val recording = Trace.parse(file.readLines())
