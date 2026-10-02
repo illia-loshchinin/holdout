@@ -342,6 +342,10 @@ class RepCounter(
     private val descentKnees = mutableListOf<Float>()
     private val descentLegs = mutableListOf<Float>()
 
+    /** Descent frames, and those whose near knee was unseen, unreadable or at the picture's edge (staked). */
+    private var descentFrames = 0
+    private var descentKneeUnseen = 0
+
     /** Push frames, and those whose near knee was unseen or at the picture's edge (staked). */
     private var pushFrames = 0
     private var pushLegsUnseen = 0
@@ -412,6 +416,11 @@ class RepCounter(
                 pushFrames++
                 pushLegsUnseen++
             }
+            // The same on the way down, once the arms have really started.
+            if (judgeKnees && phase == Phase.AT_TOP && minElbowInCycle <= rules.descentAttemptDegrees) {
+                descentFrames++
+                descentKneeUnseen++
+            }
             return null
         }
 
@@ -447,9 +456,14 @@ class RepCounter(
                 }
                 if (cycleStartMillis != 0L) {
                     observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight)
-                    if (judgeKnees && elbow >= PUSH_FROM_ELBOW && image != null && side != null && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin)) {
-                        knee?.let { descentKnees += it }
-                        (reading as? ViewReading.Angled)?.legsAboveHands?.let { descentLegs += it }
+                    if (judgeKnees && elbow >= PUSH_FROM_ELBOW) {
+                        descentFrames++
+                        if (knee != null && image != null && side != null && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin)) {
+                            descentKnees += knee
+                            (reading as? ViewReading.Angled)?.legsAboveHands?.let { descentLegs += it }
+                        } else {
+                            descentKneeUnseen++
+                        }
                     }
                     if (elbow <= rules.bottomTriggerDegrees) {
                         phase = Phase.AT_BOTTOM
@@ -505,10 +519,13 @@ class RepCounter(
                     // picture or at its edge — the knees may have been down.
                     judgeKnees && (pushKnees.isEmpty() && pushLegs.isEmpty() || legsUnseenShare() > rules.maxLegsUnseenShare) ->
                         RepEvent.Discarded(RepHint.LEGS_IN_VIEW)
+                    // The way down is held to the same: a knee hidden while
+                    // lowering onto it, then shown for the push, proves nothing.
+                    judgeKnees && (descentKnees.isEmpty() || descentKneeUnseen > rules.maxLegsUnseenShare * descentFrames) ->
+                        RepEvent.Discarded(RepHint.LEGS_IN_VIEW)
                     judgeKnees && !kneesOffFloor(pushKnees.medianOrNull(), pushLegs.medianOrNull(), rules) ->
                         RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
-                    // Down from the knees, up on the toes: half of it was on the
-                    // floor. A descent too quick to have been read passes.
+                    // Down from the knees, up on the toes: half of it was on the floor.
                     judgeKnees && !kneesOffFloor(descentKnees.medianOrNull(), null, rules) ->
                         RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
                     tooShallowHeadOn() || tooShallowAngled() -> RepEvent.Discarded(RepHint.GO_LOWER)
@@ -641,6 +658,8 @@ class RepCounter(
         pushLegs.clear()
         descentKnees.clear()
         descentLegs.clear()
+        descentFrames = 0
+        descentKneeUnseen = 0
         pushFrames = 0
         pushLegsUnseen = 0
         minShoulderHeightInCycle = Float.MAX_VALUE

@@ -238,6 +238,25 @@ class StakesTest {
     }
 
     @Test
+    fun `a knee hidden on the way down is not credited, though the push shows it`() {
+        for ((stakes, expected) in listOf(Stakes.STAKED to 0, Stakes.DAILY to 10)) {
+            val counter = RepCounter(view = CameraView.OBLIQUE, stakes = stakes)
+            val hints = mutableListOf<RepHint?>()
+            var previous = 180f
+            for (frame in Traces.set(count = 10)) {
+                val elbow = Angles.elbow(frame)!!
+                // Hidden while lowering — onto the knees, for all the camera knows — and back for the push.
+                val lowering = elbow < previous && elbow in 80f..165f
+                previous = elbow
+                val image = Traces.angledImage(frame.timestampMillis, elbow)
+                (counter.onFrame(frame, if (lowering) withoutKnee(image) else image) as? RepEvent.Discarded)?.let { hints += it.hint }
+            }
+            assertEquals(expected, counter.total, "$stakes")
+            if (stakes == Stakes.STAKED) assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.LEGS_IN_VIEW }, "got $hints")
+        }
+    }
+
+    @Test
     fun `the staked ready position needs the knees in the picture`() {
         val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.STAKED)
         val top = { t: Long -> Traces.frame(t, elbowDegrees = 175f, bodyLineDegrees = 180f) }
