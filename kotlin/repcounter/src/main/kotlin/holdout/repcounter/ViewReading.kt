@@ -125,9 +125,11 @@ internal sealed interface ViewReading {
 internal fun kneesOffFloor(knee: Float?, legsAboveHands: Float?, rules: RepRules, descentKnee: Float? = null): Boolean = (knee == null || knee >= rules.kneesDownDegrees) &&
     (legsAboveHands == null || legsAboveHands >= rules.minLegsAboveHands) &&
     // A bent knee has to stand clearly higher: kneeling with the feet raised lifts the ankle, and with it the sum.
-    (knee == null || legsAboveHands == null || knee >= rules.bentKneeDegrees || legsAboveHands >= rules.minLegsAboveHandsBentKnee ||
-        // Unless the knee came down near straight: kneeling is lowered onto a bent knee.
-        knee >= rules.bentKneeAlwaysDegrees && descentKnee != null && descentKnee >= rules.bentKneeDescentDegrees)
+    (knee == null || legsAboveHands == null || legsAboveHands >= rules.minLegsAboveHandsBentKnee || !bentKnee(knee, descentKnee, rules))
+
+/** A knee bent on the push — unless it came down near straight: kneeling is lowered onto a bent knee. */
+private fun bentKnee(knee: Float, descentKnee: Float?, rules: RepRules): Boolean = knee < rules.bentKneeDegrees &&
+    (knee < rules.bentKneeAlwaysDegrees || descentKnee == null || descentKnee < rules.bentKneeDescentDegrees)
 
 /**
  * [kneesOffFloor], where an unknown does **not** pass: staked sittings, where
