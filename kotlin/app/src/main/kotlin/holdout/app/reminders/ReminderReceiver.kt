@@ -28,6 +28,9 @@ import holdout.core.Reminder
  */
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        // This alarm is spent whatever happens below: the next chain read sets it
+        // again if the reminder is still due and has not been said.
+        ReminderScheduler.spent(context, intent)
         val wallet = intent.getStringExtra(EXTRA_WALLET) ?: return
         val cohort = intent.getStringExtra(EXTRA_COHORT) ?: return
         val kind = intent.getStringExtra(EXTRA_KIND)?.let { runCatching { Reminder.Kind.valueOf(it) }.getOrNull() } ?: return

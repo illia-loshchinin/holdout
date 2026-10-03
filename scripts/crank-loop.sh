@@ -25,7 +25,13 @@ if [[ -n "${HOLDOUT_PAYER_KEY_JSON:-}" ]]; then
 fi
 if [[ -n "${HOLDOUT_SCRIPTED_KEYS_TGZ_B64:-}" ]]; then
   mkdir -p "$KEYS/scripted"
-  printf '%s' "$HOLDOUT_SCRIPTED_KEYS_TGZ_B64" | base64 -d | tar -xzf - -C "$KEYS/scripted"
+  # A truncated or garbled secret fails here too: without `set -e` the pipeline's
+  # failure would pass unnoticed until some cohort needed a key that is not there.
+  if ! printf '%s' "$HOLDOUT_SCRIPTED_KEYS_TGZ_B64" | base64 -d | tar -xzf - -C "$KEYS/scripted" ||
+    ! compgen -G "$KEYS/scripted/*.json" > /dev/null; then
+    echo "crank-loop: HOLDOUT_SCRIPTED_KEYS_TGZ_B64 does not unpack to the scripted keypairs; build it again (see the top of this file)" >&2
+    exit 2
+  fi
   export HOLDOUT_SCRIPTED_KEYS_DIR="$KEYS/scripted"
 elif [[ -z "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" && "${CRANK_WITHOUT_SCRIPTED:-}" != "1" ]]; then
   # A missing secret reads as empty (GitHub) or unset (Fly): without the keys no

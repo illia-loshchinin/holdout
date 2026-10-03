@@ -43,17 +43,20 @@ class ReminderScheduler(context: Context) {
         val previous = ids(KEY_IDS)
         val cancelled = previous - wanted.map { it.id }.toSet()
         cancelled.forEach { cancel(it) }
+        val posted = ids(KEY_POSTED)
         wanted.forEach { r ->
+            // Due and already said: nothing left to fire.
+            if (r.at <= chainNow && r.id in posted) return@forEach
             val at = Reminders.elapsedMillisAt(r.at, chainNow, elapsedNow)
             val deadline = Reminders.elapsedMillisAt(r.deadline, chainNow, elapsedNow)
             // Already due and inside its delivery window, with its alarm still
             // live: it may yet fire late, so its time is left alone — but what it
             // carries is refreshed in place (FLAG_UPDATE_CURRENT), or a day
             // confirmed after the reminder came due would still read as missing
-            // and the deadline reminder stay quiet. With no live alarm — after a
-            // reboot or a force-stop, both of which drop them, or a membership
-            // first seen after its time — it is set now, to fire at once; a
-            // reminder already posted stays quiet.
+            // and the deadline reminder stay quiet. With no live alarm — fired
+            // and spent (the receiver cancels its token), dropped by a reboot or
+            // a force-stop, or a membership first seen after its time — it is set
+            // now, to fire at once, with what the chain says now.
             if (r.at <= chainNow && alive(r.id)) {
                 pending(r.id, intent(ACTION_ON_TIME, wallet, r, deadline))
                 pending(r.id, intent(ACTION_WHILE_IDLE, wallet, r, deadline))
@@ -95,7 +98,11 @@ class ReminderScheduler(context: Context) {
         putExtra(ReminderReceiver.EXTRA_DEADLINE_ELAPSED, deadlineElapsed)
     }
 
-    /** Whether [id]'s on-time alarm is still held: its PendingIntent exists until cancelled, a reboot or a force-stop. */
+    /**
+     * Whether [id]'s on-time alarm is still held. Its PendingIntent outlives the
+     * alarm unless cancelled, so the receiver cancels it once it fires
+     * ([spent]); a reboot or a force-stop drops it too.
+     */
     private fun alive(id: Int): Boolean = PendingIntent.getBroadcast(
         context,
         id,
@@ -114,6 +121,20 @@ class ReminderScheduler(context: Context) {
 
         /** Reminders already posted, so the second of a reminder's two alarms stays quiet. */
         const val KEY_POSTED = "posted_ids"
+
+        /**
+         * The fired alarm's token, cancelled: a PendingIntent outlives the alarm
+         * that sent it, and [alive] would take a spent one for one still to fire.
+         */
+        fun spent(context: Context, intent: Intent) {
+            if (!intent.hasExtra(ReminderReceiver.EXTRA_ID)) return
+            PendingIntent.getBroadcast(
+                context,
+                intent.getIntExtra(ReminderReceiver.EXTRA_ID, 0),
+                Intent(intent.action, null, context, ReminderReceiver::class.java),
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
+            )?.cancel()
+        }
 
         /** Marks [id] posted; false when it already was. */
         fun markPosted(context: Context, id: Int): Boolean {

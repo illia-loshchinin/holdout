@@ -325,11 +325,13 @@ object Scripted {
 
             // ---- fill an open lobby to its target -----------------------------
             if (status == CohortStatus.Open && c.start <= lastStart) {
-                if (deficit(c, floor, now) == 0) continue
-                val members = rpc.memberships(programId, address) ?: failed("could not read the roster of cohort ${c.leagueId}/${c.index}")
-                // From the roster just read: anyone who joined since the cohort was read leaves one place fewer.
-                var needed = deficit(c, floor, now, members.size)
-                val inCohort = members.map { it.wallet }.toSet()
+                if (target(c, floor, now) == 0) continue
+                // The cohort and its roster read again, together: a member who joined or
+                // left since the cohort list was read moves the deficit either way.
+                val fresh = rpc.cohortRead(programId, address) ?: failed("could not read cohort ${c.leagueId}/${c.index} and its roster")
+                var needed = deficit(fresh.cohort, floor, now, fresh.members.size)
+                if (needed == 0) continue
+                val inCohort = fresh.members.map { it.wallet }.toSet()
                 for (w in pool) {
                     if (needed == 0) break
                     if (w.pubkey in inCohort) continue
