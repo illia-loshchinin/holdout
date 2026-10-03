@@ -89,6 +89,8 @@ class ScriptedTest {
         assertEquals(17, Scripted.deficit(c, 20, late))
         assertEquals(0, Scripted.deficit(c.copy(memberCount = 25), 20, late), "real members past the floor leave no room for scripted ones")
         assertEquals(0, Scripted.deficit(c, 20, c.joinCutoff), "joining has closed")
+        assertEquals(12, Scripted.deficit(c, 20, late, members = 8), "real members who joined after the cohort was read take places")
+        assertEquals(17, Scripted.deficit(c, 20, late, members = 2), "a roster read short never adds places")
         assertEquals(6, Scripted.target(cohort(leagueId = 1), 12, early))
         assertEquals(0, Scripted.target(c, 0, early))
     }

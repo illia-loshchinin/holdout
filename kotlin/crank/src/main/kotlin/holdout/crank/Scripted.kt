@@ -134,8 +134,12 @@ object Scripted {
         else -> (floor + 1) / 2
     }
 
-    /** Scripted wallets to add now: never negative, never past the target. */
-    fun deficit(c: CohortSnapshot, floor: Int, now: Long): Int = (target(c, floor, now) - c.memberCount.toInt()).coerceAtLeast(0)
+    /**
+     * Scripted wallets to add now: never negative, never past the target.
+     * [members] is the roster read just before filling, when there is one: real
+     * members who joined after [c] was read count too.
+     */
+    fun deficit(c: CohortSnapshot, floor: Int, now: Long, members: Int = 0): Int = (target(c, floor, now) - maxOf(c.memberCount.toInt(), members)).coerceAtLeast(0)
 
     /** The wallets that may play [leagueId]'s cohort [index]: the 7-day twenty, or the 21-day group whose turn it is. */
     fun poolFor(roster: List<ScriptedWallet>, leagueId: Int, index: Long): List<ScriptedWallet> = when (leagueId) {
@@ -321,9 +325,10 @@ object Scripted {
 
             // ---- fill an open lobby to its target -----------------------------
             if (status == CohortStatus.Open && c.start <= lastStart) {
-                var needed = deficit(c, floor, now)
-                if (needed == 0) continue
+                if (deficit(c, floor, now) == 0) continue
                 val members = rpc.memberships(programId, address) ?: failed("could not read the roster of cohort ${c.leagueId}/${c.index}")
+                // From the roster just read: anyone who joined since the cohort was read leaves one place fewer.
+                var needed = deficit(c, floor, now, members.size)
                 val inCohort = members.map { it.wallet }.toSet()
                 for (w in pool) {
                     if (needed == 0) break
