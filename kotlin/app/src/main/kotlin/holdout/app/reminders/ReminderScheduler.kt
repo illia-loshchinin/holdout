@@ -81,8 +81,19 @@ class ReminderScheduler(context: Context) {
 
     private fun ids(key: String): Set<Int> = prefs.getStringSet(key, emptySet()).orEmpty().mapNotNull { it.toIntOrNull() }.toSet()
 
-    // Null: the single alarm an earlier build set, with no action.
-    private fun cancel(id: Int) = listOf(null, ACTION_ON_TIME, ACTION_WHILE_IDLE).forEach { alarms.cancel(pending(id, Intent(it, null, context, ReminderReceiver::class.java))) }
+    // Null: the single alarm an earlier build set, with no action. The token goes
+    // with the alarm: left behind, [alive] would take it for an alarm still set.
+    private fun cancel(id: Int) = listOf(null, ACTION_ON_TIME, ACTION_WHILE_IDLE).forEach { action ->
+        PendingIntent.getBroadcast(
+            context,
+            id,
+            Intent(action, null, context, ReminderReceiver::class.java),
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
+        )?.let { token ->
+            alarms.cancel(token)
+            token.cancel()
+        }
+    }
 
     private fun intent(action: String, wallet: String, r: Reminder, deadlineElapsed: Long) = Intent(action, null, context, ReminderReceiver::class.java).apply {
         putExtra(ReminderReceiver.EXTRA_ID, r.id)

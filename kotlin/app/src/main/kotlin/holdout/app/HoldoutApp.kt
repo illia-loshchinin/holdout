@@ -178,7 +178,14 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     val inBreach = now?.let { n -> chain.view?.holdouts?.count { h -> h.membership?.let { Derive.inBreach(it, h.cohort, n) } == true } }
     // And when the notification prompt is answered: until then nothing could be scheduled.
     var notificationsAnswered by remember { mutableStateOf(0) }
-    LaunchedEffect(address, chain.view, inBreach, notificationsAnswered) {
+    // And when notifications are switched on or off in the phone's settings: read
+    // again every time the app comes back to the front.
+    var notificationsOn by remember { mutableStateOf(androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) }
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        notificationsOn = androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
+        onPauseOrDispose { }
+    }
+    LaunchedEffect(address, chain.view, inBreach, notificationsAnswered, notificationsOn) {
         val me = address ?: return@LaunchedEffect
         val view = chain.view ?: return@LaunchedEffect
         val chainNow = clock.nowSeconds() ?: return@LaunchedEffect
