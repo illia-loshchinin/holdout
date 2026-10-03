@@ -44,14 +44,21 @@ class ReminderScheduler(context: Context) {
         val cancelled = previous - wanted.map { it.id }.toSet()
         cancelled.forEach { cancel(it) }
         wanted.forEach { r ->
-            // Already due and inside its delivery window, with its alarm still
-            // live: it may yet fire late, so it is left alone rather than set
-            // again. With no live alarm — after a reboot or a force-stop, both of
-            // which drop them, or a membership first seen after its time — it is
-            // set now, to fire at once; a reminder already posted stays quiet.
-            if (r.at <= chainNow && alive(r.id)) return@forEach
             val at = Reminders.elapsedMillisAt(r.at, chainNow, elapsedNow)
             val deadline = Reminders.elapsedMillisAt(r.deadline, chainNow, elapsedNow)
+            // Already due and inside its delivery window, with its alarm still
+            // live: it may yet fire late, so its time is left alone — but what it
+            // carries is refreshed in place (FLAG_UPDATE_CURRENT), or a day
+            // confirmed after the reminder came due would still read as missing
+            // and the deadline reminder stay quiet. With no live alarm — after a
+            // reboot or a force-stop, both of which drop them, or a membership
+            // first seen after its time — it is set now, to fire at once; a
+            // reminder already posted stays quiet.
+            if (r.at <= chainNow && alive(r.id)) {
+                pending(r.id, intent(ACTION_ON_TIME, wallet, r, deadline))
+                pending(r.id, intent(ACTION_WHILE_IDLE, wallet, r, deadline))
+                return@forEach
+            }
             alarms.setWindow(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, Reminders.windowMillis(r.dayLength), pending(r.id, intent(ACTION_ON_TIME, wallet, r, deadline)))
             alarms.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pending(r.id, intent(ACTION_WHILE_IDLE, wallet, r, deadline)))
         }
