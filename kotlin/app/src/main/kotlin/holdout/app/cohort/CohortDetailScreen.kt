@@ -1,6 +1,7 @@
 package holdout.app.cohort
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import holdout.app.chain.Holdout
 import holdout.app.ui.Body
 import holdout.app.ui.Format
@@ -65,7 +67,15 @@ fun CohortDetailScreen(
             }
             is Stage.Claimed -> HoldoutCard {
                 Text("Claimed · ${Format.skr(stage.amount)}", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
-                lastClaimSignature?.let { Body("Transaction: ${Format.explorer(it)}") }
+                val uriHandler = LocalUriHandler.current
+                lastClaimSignature?.let { signature ->
+                    val url = Format.explorer(signature)
+                    // As on the claim screen: tapped, it opens in the browser; a phone with none leaves the address to read.
+                    Body(
+                        "Transaction (tap to open): $url",
+                        modifier = Modifier.clickable(onClickLabel = "Open the transaction in the explorer") { runCatching { uriHandler.openUri(url) } },
+                    )
+                }
             }
             else -> Unit
         }
