@@ -511,6 +511,30 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         if (dayIndex != Store.UNKNOWN_DAY && BankingController.recover(store, streaks, wallet, Store.CHALLENGE, dayIndex, DAILY_25)) refreshToken += 1
     }
 
+    // The member's own Holdouts that are not running today: lobby, forfeit, settling, claim.
+    // Shown under a running one too: a lobby joined for later must stay reachable, or
+    // its Leave — the whole stake back — could not be had before joining closes.
+    @Composable
+    fun ownHoldoutCards(now: Long) {
+        view?.mine(now)?.forEach { h ->
+            val stage = h.stage(now)
+            val (label, next) = when (stage) {
+                Stage.Lobby, Stage.LobbyLocked -> "In the lobby · starts in ${Format.countdown(h.cohort.start - now)}" to Route.Lobby(h.address)
+                is Stage.Forfeited -> "Out after ${stage.daysLasted} day${if (stage.daysLasted == 1) "" else "s"}" to Route.Forfeit(h.address)
+                Stage.Settling -> "You finished · settlement in progress" to Route.Detail(h.address)
+                is Stage.ReadyToClaim -> "You finished · claim ${Format.skr(stage.amount)}" to Route.Claim(h.address)
+                else -> null to null
+            }
+            if (label != null && next != null) {
+                HoldoutCard(Modifier.clickable { route = next }) {
+                    if (h.isTest) TestCohortBadge(h.cohort.dayLength)
+                    Text("${h.cohort.durationDays}-day Holdout", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+                    Text(label, style = MaterialTheme.typography.bodyLarge, color = if (stage is Stage.Forfeited) HoldoutColors.Warning else HoldoutColors.Success)
+                }
+            }
+        }
+    }
+
     // A Holdout running with the member standing in it leads home (PRD §10.1a).
     val active = chainNow?.let { n -> view?.mine(n)?.firstNotNullOfOrNull { h -> (h.stage(n) as? Stage.Active)?.let { h to it } } }
     if (active != null && chainNow != null) {
@@ -563,6 +587,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             modifier = modifier,
             recordVideo = recordVideo,
             onRecordVideoChange = onRecordVideoChange,
+            otherHoldouts = { ownHoldoutCards(chainNow) },
         )
         return
     }
@@ -609,24 +634,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 SectionLabel("Holdouts are not live on devnet yet")
                 return@HomeScreen
             }
-            // The member's own Holdouts that are not running today: lobby, forfeit, settling, claim.
-            view.mine(chainNow).forEach { h ->
-                val stage = h.stage(chainNow)
-                val (label, next) = when (stage) {
-                    Stage.Lobby, Stage.LobbyLocked -> "In the lobby · starts in ${Format.countdown(h.cohort.start - chainNow)}" to Route.Lobby(h.address)
-                    is Stage.Forfeited -> "Out after ${stage.daysLasted} day${if (stage.daysLasted == 1) "" else "s"}" to Route.Forfeit(h.address)
-                    Stage.Settling -> "You finished · settlement in progress" to Route.Detail(h.address)
-                    is Stage.ReadyToClaim -> "You finished · claim ${Format.skr(stage.amount)}" to Route.Claim(h.address)
-                    else -> null to null
-                }
-                if (label != null && next != null) {
-                    HoldoutCard(Modifier.clickable { route = next }) {
-                        if (h.isTest) TestCohortBadge(h.cohort.dayLength)
-                        Text("${h.cohort.durationDays}-day Holdout", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
-                        Text(label, style = MaterialTheme.typography.bodyLarge, color = if (stage is Stage.Forfeited) HoldoutColors.Warning else HoldoutColors.Success)
-                    }
-                }
-            }
+            ownHoldoutCards(chainNow)
             val past = view.claimed(chainNow)
             if (past.isNotEmpty()) SectionLabel("Past Holdouts")
             past.forEach { h ->

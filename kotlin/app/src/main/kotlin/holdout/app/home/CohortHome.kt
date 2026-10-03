@@ -73,6 +73,8 @@ fun CohortHome(
     /** Test builds only: record sittings as video (constitution X, v1.5.0). Null hides the switch. */
     recordVideo: Boolean = false,
     onRecordVideoChange: ((Boolean) -> Unit)? = null,
+    /** The member's other Holdouts — a lobby joined for later, a claim waiting — as cards. */
+    otherHoldouts: @Composable () -> Unit = {},
 ) {
     val c = h.cohort
     val figures = members?.let { Derive.figures(c, it, now) }
@@ -133,6 +135,7 @@ fun CohortHome(
             }
         }
         Notice(message, messageIsWarning)
+        otherHoldouts()
         SecondaryButton("Who's still standing", onRoster)
         TextButton(onClick = onDetail) { Text("Holdout details", color = HoldoutColors.TextSecondary) }
         TextButton(onClick = onGetTokens) { Text("Get test tokens", color = HoldoutColors.TextTertiary) }
