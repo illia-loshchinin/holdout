@@ -122,10 +122,12 @@ internal sealed interface ViewReading {
  * **knees off the floor**, not legs dead straight: a leg bent a little in the
  * air is allowed. The thresholds and the data behind them are on [RepRules].
  */
-internal fun kneesOffFloor(knee: Float?, legsAboveHands: Float?, rules: RepRules): Boolean = (knee == null || knee >= rules.kneesDownDegrees) &&
+internal fun kneesOffFloor(knee: Float?, legsAboveHands: Float?, rules: RepRules, descentKnee: Float? = null): Boolean = (knee == null || knee >= rules.kneesDownDegrees) &&
     (legsAboveHands == null || legsAboveHands >= rules.minLegsAboveHands) &&
     // A bent knee has to stand clearly higher: kneeling with the feet raised lifts the ankle, and with it the sum.
-    (knee == null || legsAboveHands == null || knee >= rules.bentKneeDegrees || legsAboveHands >= rules.minLegsAboveHandsBentKnee)
+    (knee == null || legsAboveHands == null || knee >= rules.bentKneeDegrees || legsAboveHands >= rules.minLegsAboveHandsBentKnee ||
+        // Unless the knee came down near straight: kneeling is lowered onto a bent knee.
+        knee >= rules.bentKneeAlwaysDegrees && descentKnee != null && descentKnee >= rules.bentKneeDescentDegrees)
 
 /**
  * [kneesOffFloor], where an unknown does **not** pass: staked sittings, where

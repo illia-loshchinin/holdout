@@ -109,6 +109,26 @@ class RecordedTracesTest {
     }
 
     @Test
+    fun `a half push-up on the toes is told to go lower, not to get the knees off the floor`() {
+        // 45°: ten full, five from the knees, four pushed up from the floor, one with the body
+        // bent, then half push-ups on the toes. Live, four halves were refused as knees: the leg
+        // a little bent (knee 127–132°) and the legs at 0.41–0.48, on or between the knee lines.
+        val recording = Trace.parse(traces().single { it.name == "angled45-right-mixed-18.trace.csv" }.readLines())
+        val counter = RepCounter(view = recording.countingView!!, stakes = recording.stakes)
+        for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
+        val events = recording.countingFrames.mapNotNull { counter.onFrame(it.world, it.image) }
+        assertEquals(List(10) { true }, events.take(10).map { it is RepEvent.Counted })
+        assertEquals(List(9) { RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES) }, events.subList(10, 19), "the knee reps and those pushed from the floor")
+        val halves = events.drop(20)
+        // 1:59, and 2:07 at the depth line (shoulder 0.317, line 0.32): full, the member says.
+        // 2:07 read knee 130°, legs 0.47 on the push and was refused as knees; it came down at 135°.
+        assertEquals(2, halves.count { it is RepEvent.Counted }, "the two full ones among them")
+        assertEquals(8, halves.count { it == RepEvent.Discarded(RepHint.GO_LOWER) })
+        assertEquals(0, halves.count { it == RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES) })
+        assertEquals(12, counter.total)
+    }
+
+    @Test
     fun `a rep pushed up from lying on the floor is refused - the body must come up as one piece`() {
         // Phone on the left at 45°: eleven full reps, five from the knees, two cobras, then
         // three let down onto the floor and pushed up from there. One of those had counted.

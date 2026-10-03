@@ -106,11 +106,30 @@ data class RepRules(
      * above: on 2 Oct, from a spot more frontal than 40°, five such reps
      * counted at a knee of 90–112° with the legs at 0.43–0.45, the raised
      * ankle carrying the sum. The one honest set that reads a bent knee
-     * (`angled-right-honest-01`, 98–134°) has the legs at 0.51–0.56; every
-     * other honest rep recorded reads the knee at 142° or more.
+     * (`angled-right-honest-01`, 98–134°) has the legs at 0.51–0.56. Late in
+     * a set, on 3 Oct, honest reps read the knee at 130–135° with the legs at
+     * 0.46–0.47 — see [bentKneeDescentDegrees].
      */
     val bentKneeDegrees: Float = 135f,
     val minLegsAboveHandsBentKnee: Float = 0.48f,
+    /**
+     * The bent-knee line judges the push alone, where a leg a little bent on
+     * the toes reads like kneeling with the feet raised: on 3 Oct a full rep
+     * on the toes read knee 130°, legs 0.47, and was refused. The way down
+     * tells them apart. Every push-up from the knees recorded between the
+     * lines was lowered onto a bent knee, 61–106°; every rep on the toes there
+     * came down at 117–147°. So from [bentKneeAlwaysDegrees] up to
+     * [bentKneeDegrees], the bent-knee line refuses a rep only if the knee
+     * was also under this on the way down.
+     *
+     * Under [bentKneeAlwaysDegrees] the push alone refuses: pushes from the
+     * knees with the feet raised read 90–112° there, so lowering on the toes
+     * and dropping to the knees at the bottom does not get past. Reps on the
+     * toes between the lines read 127–134°; the one knee push-up recorded
+     * above 120° (`angled30-right-knees-14`, 126°) came down at 104°.
+     */
+    val bentKneeDescentDegrees: Float = 112f,
+    val bentKneeAlwaysDegrees: Float = 120f,
     /**
      * At 45°: **the body comes up as one piece.** Half-way up the push (elbow
      * 110–140°) the hips must have risen as far as the shoulders have, each
@@ -615,8 +634,6 @@ class RepCounter(
                 // being wider — the rule is satisfied by construction, and S2
                 // can move them without weakening it.
                 val verdict = when {
-                    // Knees first: a push-up from the knees is a different
-                    // exercise, and "keep your body straight" would not say so.
                     // Where money is staked, knees never seen on the push are
                     // not knees off the floor: the rep cannot be judged. Nor
                     // can one whose knee spent much of the push out of the
@@ -627,12 +644,21 @@ class RepCounter(
                     // lowering onto it, then shown for the push, proves nothing.
                     judgeKnees && (descentKnees.isEmpty() || descentKneeUnseen > rules.maxLegsUnseenShare * descentFrames) ->
                         RepEvent.Discarded(RepHint.LEGS_IN_VIEW)
-                    judgeKnees && !kneesOffFloor(pushKnees.medianOrNull(), pushLegs.medianOrNull(), rules) ->
+                    // Depth before knees: it is read off the arms, which the
+                    // camera sees best, while a half push-up on the toes reads
+                    // the legs lower and the knee more bent than a full one —
+                    // on 3 Oct four were told "Knees off the floor". No knee
+                    // push-up recorded has stopped short. A rep failing both
+                    // is refused either way; only the words change.
+                    tooShallowHeadOn() || tooShallowAngled() -> RepEvent.Discarded(RepHint.GO_LOWER)
+                    // Knees before the body line: a push-up from the knees is a
+                    // different exercise, and "keep your body straight" would
+                    // not say so.
+                    judgeKnees && !kneesOffFloor(pushKnees.medianOrNull(), pushLegs.medianOrNull(), rules, descentKnees.medianOrNull()) ->
                         RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
                     // Down from the knees, up on the toes: half of it was on the floor.
                     judgeKnees && !kneesOffFloor(descentKnees.medianOrNull(), null, rules) ->
                         RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
-                    tooShallowHeadOn() || tooShallowAngled() -> RepEvent.Discarded(RepHint.GO_LOWER)
                     !bodyHeld() -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)
                     // The chest first and the hips after: off the floor, or a cobra.
                     hipRiseTooLow() -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)

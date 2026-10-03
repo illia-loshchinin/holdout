@@ -191,6 +191,19 @@ class StakesTest {
         assertEquals(0, angledSet(kneeDegrees = 70f).first)
     }
 
+    @Test
+    fun `a leg a little bent on the toes passes the bent-knee line when it came down near straight, a knee push-up never does`() {
+        val rules = RepRules()
+        // 3 Oct, a full rep on the toes late in a set: push knee 130°, legs 0.47, down at 135°.
+        assertTrue(kneesOffFloor(knee = 130f, legsAboveHands = 0.47f, rules = rules, descentKnee = 135f))
+        // The one knee push-up recorded over 120° on the push was lowered onto the knee at 104°.
+        assertFalse(kneesOffFloor(knee = 126f, legsAboveHands = 0.41f, rules = rules, descentKnee = 104f))
+        // Lowered on the toes, pushed from the knees with the feet raised (90–112° on the push).
+        assertFalse(kneesOffFloor(knee = 110f, legsAboveHands = 0.44f, rules = rules, descentKnee = 150f))
+        // The hold has no way down to read: the push line alone.
+        assertFalse(kneesOffFloor(knee = 130f, legsAboveHands = 0.47f, rules = rules))
+    }
+
     /** [image] with the near knee gone from the picture, as when MediaPipe loses it. */
     private fun withoutKnee(image: ImagePose): ImagePose {
         val landmarks = image.frame.landmarks.toMutableList()

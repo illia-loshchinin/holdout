@@ -40,7 +40,7 @@ Lengths are in arm-lengths so the distance from the phone does not matter.
 
 ## Rep verdict order
 
-knees (staked) → too shallow → go lower → body held → timing → **counted**. Each refusal carries a `RepHint` shown and spoken ("Knees off the floor", "Go lower", "Keep your body straight", …).
+legs in the picture (staked) → too shallow → knees (staked) → body held → timing → **counted**. Each refusal carries a `RepHint` shown and spoken ("Keep your legs in the picture", "Go lower", "Knees off the floor", "Keep your body straight", …). Depth comes before knees (3 Oct): a half push-up on the toes reads the legs lower and the knee more bent than a full one, and was told "Knees off the floor". The order picks the words only; a rep counts when it passes every check.
 
 ## Set-up guide preference (`app`, MMKV)
 
