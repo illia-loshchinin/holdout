@@ -13,7 +13,7 @@
   select, input, textarea, button { font:inherit; color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:6px; }
   select { margin:0 12px; padding:6px; }
   #reps { list-style:none; margin:0; padding:0 0 12px; }
-  #reps li { display:grid; grid-template-columns: 28px 48px 1fr auto; gap:6px; padding:5px 12px; cursor:pointer; border-left:3px solid transparent; }
+  #reps li { display:grid; grid-template-columns: 28px 48px 1fr auto auto; gap:6px; padding:5px 12px; cursor:pointer; border-left:3px solid transparent; }
   #reps li:hover { background:var(--panel); }
   #reps li.on { background:var(--panel); border-left-color:var(--accent); }
   #reps .n, #reps .tm { color:var(--dim); font-variant-numeric:tabular-nums; }
@@ -37,6 +37,11 @@
   #note { flex:1; min-width:240px; }
   .muted { color:var(--dim); }
   #status { margin-left:auto; color:var(--dim); }
+  .flag { color:var(--warn); }
+  .by-claude { color:var(--dim); font-size:11px; margin-left:3px; }
+  #claudeNote { color:var(--dim); font-style:italic; }
+  #flagBtn.on { background:var(--warn); color:#2a1d00; border-color:var(--warn); }
+  #reviewed:checked + span { color:var(--ok); }
 </style>
 </head>
 <body>
@@ -62,13 +67,19 @@
     </div>
     <div class="row labels" id="labelButtons"></div>
     <div class="row">
-      <input id="note" type="text" placeholder="Note on this rep (n)">
+      <button id="flagBtn" title="Ask Claude to look at this rep: say why in your note (f)">⚑ check this <kbd>f</kbd></button>
+      <input id="note" type="text" placeholder="Your note on this rep (n) — what Claude should know or check">
+    </div>
+    <div class="row">
+      <label>Should say <select id="hint" title="The words you would want the app to refuse this rep with (h)"></select></label>
+      <span id="claudeNote"></span>
     </div>
     <div class="row">
       <label>Person <input id="person" type="text" placeholder="a pseudonym, e.g. p1"></label>
       <label>Clothing <input id="clothing" type="text" placeholder="fitted / loose trousers / T-shirt…"></label>
       <label>Trace lag, s <input id="offset" type="text" size="4"></label>
-      <span class="muted">← → rep · space pause · s slow · o skeleton</span>
+      <label><input id="reviewed" type="checkbox"> <span>Sitting reviewed</span></label>
+      <span class="muted">← → rep · space pause · s slow · o skeleton · f flag · h should say</span>
     </div>
   </footer>
 </main>
@@ -84,12 +95,23 @@ const LABELS = [
   ['7', 'other', 'Anything else that is not a push-up'],
   ['0', 'unsure', 'Cannot tell from the video: left out of the test bench'],
 ];
+// The words the app can refuse a rep with (RepHint), for "Should say".
+const HINTS = {
+  GO_LOWER: 'Go lower',
+  UP_ON_YOUR_TOES: 'Knees off the floor',
+  HIPS_OFF_FLOOR: 'Hips off the floor',
+  KEEP_BODY_STRAIGHT: 'Keep your body straight',
+  SLOW_DOWN: 'Slow down',
+  LEGS_IN_VIEW: 'Keep your legs in the picture',
+};
+const said = (verdict) => (verdict === 'counted' ? 'counted' : HINTS[verdict] ?? verdict);
 const $ = (id) => document.getElementById(id);
 const video = $('video'), overlay = $('overlay');
 let S = null;          // the sitting on screen
 let current = 0;       // rep index
 let slow = false, skeleton = true, saveTimer = null;
 
+$('hint').innerHTML = '<option value="">— no preference</option>' + Object.entries(HINTS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
 for (const [key, name, hint] of LABELS) {
   const b = document.createElement('button');
   b.innerHTML = `<kbd>${key}</kbd>${name}`;
@@ -113,14 +135,44 @@ function parseTrace(text) {
   return { facts, note, head, col, rows };
 }
 
+/** One CSV line into fields: quoted fields may hold commas and doubled quotes. */
+function csvSplit(line) {
+  const out = [];
+  let cur = '', quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quoted) {
+      if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') quoted = false; else cur += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ',') { out.push(cur); cur = ''; } else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+const csvField = (v) => (/[",]/.test(v ?? '') ? `"${v.replace(/"/g, '""')}"` : (v ?? ''));
+const oneLine = (v) => (v ?? '').replace(/[\r\n]+/g, ' ').trim();
+
+/**
+ * A labels file: `# key=value` lines, then `t,label,by,flag,note,claude`.
+ * `by` is who set the label (reviewer or claude), `flag` asks Claude to check
+ * the rep, `note` is the reviewer's, `claude` is Claude's and shown read-only.
+ * A v1 file (`t,label,note`) reads as the reviewer's labels and notes.
+ */
 function parseLabels(text) {
   const meta = {}, byT = new Map();
+  let cols = null;
   for (const l of text.split(/\r?\n/)) {
     const m = /^#\s*(\w+)=(.*)$/.exec(l);
     if (m) { meta[m[1]] = m[2].trim(); continue; }
+    if (l.startsWith('t,')) { cols = csvSplit(l); continue; }
     if (!/^\d/.test(l)) continue;
-    const [t, label, ...note] = l.split(',');
-    byT.set(Number(t), { label, note: note.join(',') });
+    if (!cols || cols.length === 3) {
+      const [t, label, ...note] = l.split(',');
+      byT.set(Number(t), { label, by: 'reviewer', flag: '', hint: '', note: note.join(','), claude: '' });
+      continue;
+    }
+    const f = csvSplit(l), get = (n) => f[cols.indexOf(n)] ?? '';
+    byT.set(Number(get('t')), { label: get('label'), by: get('by') || 'reviewer', flag: get('flag'), hint: get('hint'), note: get('note'), claude: get('claude') });
   }
   return { meta, byT };
 }
@@ -203,6 +255,7 @@ async function open(base) {
   $('person').value = labels.meta.person ?? '';
   $('clothing').value = labels.meta.clothing ?? '';
   $('offset').value = S.offset;
+  $('reviewed').checked = Boolean(labels.meta.reviewed);
   video.src = `/files/${base}.mp4`;
   current = S.reps.findIndex((r) => !S.labels.byT.has(r.end));
   if (current < 0) current = 0;
@@ -216,12 +269,14 @@ const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart
 function renderList() {
   const done = S.reps.filter((r) => S.labels.byT.has(r.end));
   const agree = done.filter((r) => verdictMatches(r) === true).length;
-  $('repsTitle').textContent = `Reps · ${done.length}/${S.reps.length} labelled · app agrees on ${agree}`;
+  const flagged = done.filter((r) => S.labels.byT.get(r.end).flag).length;
+  $('repsTitle').textContent = `Reps · ${done.length}/${S.reps.length} labelled · app agrees on ${agree}${flagged ? ` · ⚑ ${flagged}` : ''}`;
   $('reps').innerHTML = S.reps.map((r, i) => {
     const l = S.labels.byT.get(r.end);
     const ok = verdictMatches(r);
     const cls = ok === undefined ? '' : ok ? 'match' : 'miss';
-    return `<li class="${i === current ? 'on' : ''}" data-i="${i}"><span class="n">${i + 1}</span><span class="tm">${mmss(vt(r.end))}</span><span class="verdict">${r.verdict}</span><span class="tag ${cls}">${l ? l.label : '·'}</span></li>`;
+    const marks = `${l?.flag ? '<span class="flag" title="flagged for Claude">⚑</span>' : ''}${l?.by === 'claude' ? '<span class="by-claude" title="set by Claude; press its key to confirm">C</span>' : ''}`;
+    return `<li class="${i === current ? 'on' : ''}" data-i="${i}"><span class="n">${i + 1}</span><span class="tm">${mmss(vt(r.end))}</span><span class="verdict">${said(r.verdict)}</span><span class="tag ${cls}">${l ? l.label : '·'}</span><span>${marks}</span></li>`;
   }).join('');
   for (const li of $('reps').children) li.onclick = () => show(Number(li.dataset.i));
 }
@@ -239,9 +294,13 @@ function show(i) {
   const r = S.reps[current];
   const l = S.labels.byT.get(r.end);
   $('note').value = l?.note ?? '';
+  $('claudeNote').textContent = l?.claude ? `Claude: ${l.claude}` : '';
+  $('flagBtn').classList.toggle('on', Boolean(l?.flag));
+  $('hint').value = l?.hint ?? '';
   for (const b of $('labelButtons').children) b.classList.toggle('on', b.dataset.label === l?.label);
-  const verdictText = r.verdict === 'counted' ? 'counted' : `refused (${r.verdict})`;
-  $('repInfo').innerHTML = `Rep <strong>${current + 1}</strong> of ${S.reps.length} · ${mmss(vt(r.start))}–${mmss(vt(r.end))} · the app: <strong>${verdictText}</strong>`;
+  const byText = l ? (l.by === 'claude' ? ' · label set by Claude — press its key to confirm' : ' · label yours') : '';
+  const verdictText = r.verdict === 'counted' ? 'counted' : `refused — "${said(r.verdict)}"`;
+  $('repInfo').innerHTML = `Rep <strong>${current + 1}</strong> of ${S.reps.length} · ${mmss(vt(r.start))}–${mmss(vt(r.end))} · the app: <strong>${verdictText}</strong>${byText}`;
   renderList();
   $('reps').children[current]?.scrollIntoView({ block: 'nearest' });
   video.playbackRate = slow ? 0.5 : 1;
@@ -291,24 +350,52 @@ function drawSkeleton() {
   chain([near[0], near[3], near[4], near[5]], '#ff78c8', 3);
 }
 
+/** The current rep's entry, made (as `unsure`) when there is none yet. */
+function entry() {
+  const r = S.reps[current];
+  if (!S.labels.byT.has(r.end)) S.labels.byT.set(r.end, { label: 'unsure', by: 'reviewer', flag: '', hint: '', note: '', claude: '' });
+  return S.labels.byT.get(r.end);
+}
+
 function setLabel(name) {
   if (!S) return;
-  const r = S.reps[current];
-  S.labels.byT.set(r.end, { label: name, note: $('note').value.replace(/[\r\n]/g, ' ') });
+  const e = entry();
+  // Pressed by the reviewer, the label is theirs — a label of Claude's pressed again is confirmed.
+  Object.assign(e, { label: name, by: 'reviewer', note: oneLine($('note').value) });
   save();
   const next = S.reps.findIndex((x, i) => i > current && !S.labels.byT.has(x.end));
   show(next >= 0 ? next : current);
+}
+
+function toggleFlag() {
+  if (!S) return;
+  const e = entry();
+  e.flag = e.flag ? '' : 'check';
+  e.note = oneLine($('note').value);
+  save();
+  show(current);
+  if (e.flag && !e.note) $('note').focus();
 }
 
 function save() {
   if (!S) return;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
-    const meta = { trace: `${S.base.split('/').pop()}.trace.csv`, person: $('person').value.trim(), clothing: $('clothing').value.trim(), offset: S.offset };
-    const lines = ['# holdout-rep-labels v1', ...Object.entries(meta).filter(([, v]) => v !== '').map(([k, v]) => `# ${k}=${v}`), 't,label,note'];
+    // Every header line the file had is kept; these are the page's own.
+    const meta = {
+      ...S.labels.meta,
+      trace: `${S.base.split('/').pop()}.trace.csv`,
+      person: oneLine($('person').value),
+      clothing: oneLine($('clothing').value),
+      offset: S.offset,
+      reviewed: $('reviewed').checked ? (S.labels.meta.reviewed || new Date().toISOString().slice(0, 10)) : '',
+    };
+    delete meta.holdout;
+    S.labels.meta = meta;
+    const lines = ['# holdout-rep-labels v2', ...Object.entries(meta).filter(([, v]) => v !== '' && v !== undefined).map(([k, v]) => `# ${k}=${v}`), 't,label,by,flag,hint,note,claude'];
     for (const r of S.reps) {
       const l = S.labels.byT.get(r.end);
-      if (l) lines.push(`${r.end},${l.label},${l.note ?? ''}`);
+      if (l) lines.push([r.end, l.label, l.by, l.flag, l.hint ?? '', oneLine(l.note), oneLine(l.claude)].map((v) => csvField(String(v ?? ''))).join(','));
     }
     const res = await fetch(`/files/${S.base}.labels.csv`, { method: 'PUT', body: lines.join('\n') + '\n' });
     $('status').textContent = res.ok ? `saved ${new Date().toLocaleTimeString()}` : `NOT saved (${res.status})`;
@@ -318,13 +405,16 @@ function save() {
 $('note').addEventListener('input', () => {
   const r = S?.reps[current];
   const l = r && S.labels.byT.get(r.end);
-  if (l) { l.note = $('note').value.replace(/[\r\n]/g, ' '); save(); }
+  if (l) { l.note = oneLine($('note').value); save(); }
 });
 for (const id of ['person', 'clothing']) $(id).addEventListener('input', save);
+$('reviewed').addEventListener('change', save);
+$('hint').addEventListener('change', () => { if (!S) return; entry().hint = $('hint').value; save(); renderList(); $('hint').blur(); });
+$('flagBtn').addEventListener('click', toggleFlag);
 $('offset').addEventListener('change', () => { const v = Number($('offset').value); if (S && Number.isFinite(v)) { S.offset = v; save(); show(current); } });
 
 document.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT') { if (e.key === 'Escape' || e.key === 'Enter') e.target.blur(); return; }
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') { if (e.key === 'Escape' || e.key === 'Enter') e.target.blur(); return; }
   const label = LABELS.find(([k]) => k === e.key);
   if (label) return setLabel(label[1]);
   if (e.key === 'ArrowRight') return show(current + 1);
@@ -332,6 +422,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === ' ') { e.preventDefault(); return video.paused ? video.play() : video.pause(); }
   if (e.key === 's') { slow = !slow; video.playbackRate = slow ? 0.5 : 1; return; }
   if (e.key === 'o') { skeleton = !skeleton; return; }
+  if (e.key === 'f') return toggleFlag();
+  if (e.key === 'h') { e.preventDefault(); $('hint').focus(); return; }
   if (e.key === 'n') { e.preventDefault(); $('note').focus(); }
 });
 

@@ -5,14 +5,30 @@ import kotlin.math.abs
 import kotlin.system.exitProcess
 
 /**
- * What a person saw each rep of a sitting was, from its video: the trace time
- * the rep ended (the row its verdict was written on), a label and a note.
- * Written by `scripts/label-reps.mjs` beside the trace as `<sitting>.labels.csv`.
+ * What a person saw each rep of a sitting was, from its video. Written by
+ * `scripts/label-reps.mjs` beside the trace as `<sitting>.labels.csv`:
+ * `# key=value` lines, then `t,label,by,flag,hint,note,claude` — the trace
+ * time the rep ended (the row its verdict was written on), the label, who set
+ * it (`reviewer` or `claude`), `check` when the reviewer asks Claude to look at
+ * it, the [RepHint] the reviewer would want it refused with, the reviewer's
+ * note and Claude's. A v1 file (`t,label,note`) reads as the reviewer's.
  */
 data class RepLabels(val meta: Map<String, String>, val reps: List<Rep>) {
-    data class Rep(val endMillis: Long, val label: String, val note: String)
+    data class Rep(
+        val endMillis: Long,
+        val label: String,
+        val note: String,
+        val by: String = "reviewer",
+        val flagged: Boolean = false,
+        val claudeNote: String = "",
+        /** The [RepHint] name the reviewer wants this rep refused with; empty for no preference. */
+        val hint: String = "",
+    )
 
     val person: String get() = meta["person"]?.takeIf { it.isNotBlank() } ?: "unnamed"
+
+    /** The reviewer ticked the sitting as done. */
+    val reviewed: Boolean get() = !meta["reviewed"].isNullOrBlank()
 
     companion object {
         /** Only `honest` should count; `unsure` is left out. */
@@ -21,17 +37,64 @@ data class RepLabels(val meta: Map<String, String>, val reps: List<Rep>) {
 
         fun parse(lines: List<String>): RepLabels {
             val meta = lines.mapNotNull { Regex("""^#\s*(\w+)=(.*)$""").find(it)?.destructured?.let { (k, v) -> k to v.trim() } }.toMap()
+            val columns = lines.firstOrNull { it.startsWith("t,") }?.let(::csvFields)
             val reps = lines.filter { it.firstOrNull()?.isDigit() == true }.map { line ->
-                val parts = line.split(",", limit = 3)
-                Rep(parts[0].trim().toLong(), parts[1].trim(), parts.getOrElse(2) { "" }.trim())
+                if (columns == null || columns.size == 3) {
+                    val parts = line.split(",", limit = 3)
+                    Rep(parts[0].trim().toLong(), parts[1].trim(), parts.getOrElse(2) { "" }.trim())
+                } else {
+                    val fields = csvFields(line)
+                    fun get(name: String) = columns.indexOf(name).takeIf { it >= 0 }?.let { fields.getOrNull(it) }.orEmpty().trim()
+                    Rep(get("t").toLong(), get("label"), get("note"), get("by").ifEmpty { "reviewer" }, get("flag").isNotEmpty(), get("claude"), get("hint"))
+                }
             }
             return RepLabels(meta, reps)
+        }
+
+        /** One CSV line: a quoted field may hold commas and doubled quotes. */
+        fun csvFields(line: String): List<String> {
+            val out = mutableListOf<String>()
+            val cur = StringBuilder()
+            var quoted = false
+            var i = 0
+            while (i < line.length) {
+                val c = line[i]
+                when {
+                    quoted && c == '"' && line.getOrNull(i + 1) == '"' -> {
+                        cur.append('"')
+                        i++
+                    }
+                    quoted && c == '"' -> quoted = false
+                    quoted -> cur.append(c)
+                    c == '"' -> quoted = true
+                    c == ',' -> {
+                        out += cur.toString()
+                        cur.clear()
+                    }
+                    else -> cur.append(c)
+                }
+                i++
+            }
+            out += cur.toString()
+            return out
         }
     }
 }
 
 /** One labelled rep as the counter judges it today. */
-data class BenchRep(val sitting: String, val person: String, val placement: String, val secondsIn: Float, val label: String, val note: String, val verdict: String) {
+data class BenchRep(
+    val sitting: String,
+    val person: String,
+    val placement: String,
+    val secondsIn: Float,
+    val label: String,
+    val note: String,
+    val verdict: String,
+    val by: String = "reviewer",
+    val flagged: Boolean = false,
+    val claudeNote: String = "",
+    val wantedHint: String = "",
+) {
     val counted: Boolean get() = verdict == "counted"
     val right: Boolean get() = counted == (label in RepLabels.SHOULD_COUNT)
 }
@@ -61,7 +124,7 @@ fun benchSitting(name: String, recording: Trace.Recording, labels: RepLabels, to
             is RepEvent.Counted -> "counted"
             is RepEvent.Discarded -> event.hint?.name ?: "refused"
         }
-        BenchRep(name, labels.person, placement, (t - t0) / 1000f, label.label, label.note, verdict)
+        BenchRep(name, labels.person, placement, (t - t0) / 1000f, label.label, label.note, verdict, label.by, label.flagged, label.claudeNote, label.hint)
     }
     return judged to labels.reps.filter { it !in used && it.label != "unsure" }
 }
@@ -142,12 +205,41 @@ fun main(args: Array<String>) {
     val misses = reps.filter { !it.right }
     println("\n## Misses (${misses.size})\n")
     if (misses.isNotEmpty()) {
-        println("| sitting | s into counting | label | the counter | note |")
-        println("|---|---|---|---|---|")
-        misses.forEach { println("| ${it.sitting} | %.1f | ${it.label} | ${it.verdict} | ${it.note} |".format(it.secondsIn)) }
+        println("| sitting | s into counting | label (by) | the counter | reviewer's note | Claude's note |")
+        println("|---|---|---|---|---|---|")
+        misses.forEach { println("| ${it.sitting} | %.1f | ${it.label} (${it.by}) | ${it.verdict} | ${it.note} | ${it.claudeNote} |".format(it.secondsIn)) }
     }
+
+    // What the reviewer asked Claude to look at: flagged reps, and reps whose
+    // label the reviewer changed from Claude's.
+    val flagged = reps.filter { it.flagged }
+    println("\n## Flagged by the reviewer (${flagged.size})\n")
+    if (flagged.isNotEmpty()) {
+        println("| sitting | s into counting | label | the counter | reviewer's note | Claude's note |")
+        println("|---|---|---|---|---|---|")
+        flagged.forEach { println("| ${it.sitting} | %.1f | ${it.label} | ${it.verdict} | ${it.note} | ${it.claudeNote} |".format(it.secondsIn)) }
+    }
+    // Refused, but not in the words the reviewer chose: not a gate, the reviewer's call on wording.
+    val words = reps.filter { !it.counted && it.wantedHint.isNotEmpty() && it.verdict != it.wantedHint }
+    println("\n## Refused with other words than the reviewer chose (${words.size})\n")
+    if (words.isNotEmpty()) {
+        println("| sitting | s into counting | label | the counter said | the reviewer wants | reviewer's note |")
+        println("|---|---|---|---|---|---|")
+        fun say(name: String) = RepHint.entries.firstOrNull { it.name == name }?.message ?: name
+        words.forEach { println("| ${it.sitting} | %.1f | ${it.label} | ${say(it.verdict)} | ${say(it.wantedHint)} | ${it.note} |".format(it.secondsIn)) }
+    }
+    val unconfirmed = reps.count { it.by == "claude" }
+    if (unconfirmed > 0) println("\n$unconfirmed labels set by Claude are not yet confirmed by a reviewer.")
     if (lost.isNotEmpty()) println("\n## Labels with no judged rep near them\n\n" + lost.joinToString("\n") { "- $it" })
-    if (unlabelled.isNotEmpty()) println("\n## Not labelled yet (${unlabelled.size})\n\n" + unlabelled.joinToString(", "))
+    // Only what can be labelled — a sitting with its video — and each recording once:
+    // pull-traces.sh copies every trace still on the phone into each new folder.
+    val labelled = reps.map { it.sitting.substringAfterLast('/') }.toSet()
+    val withVideo = unlabelled
+        .filter { File(dir, "$it.mp4").exists() }
+        .distinctBy { it.substringAfterLast('/') }
+        .filter { it.substringAfterLast('/') !in labelled }
+    if (withVideo.isNotEmpty()) println("\n## With video, not labelled yet (${withVideo.size})\n\n" + withVideo.joinToString(", "))
+    if (unlabelled.size > withVideo.size) println("\n${unlabelled.size - withVideo.size} more traces have no labels, and no video beside them to label from (or are copies).")
 
     println("\n${reps.size} labelled reps in ${reps.map { it.sitting }.distinct().size} sittings, ${reps.map { it.person }.distinct().size} people. Gate: ${if (failures.isEmpty()) "pass" else "FAIL (${failures.joinToString()})"}")
     if (gate && failures.isNotEmpty()) exitProcess(1)

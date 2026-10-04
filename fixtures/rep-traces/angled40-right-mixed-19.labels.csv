@@ -1,30 +1,30 @@
-# holdout-rep-labels v1
+# holdout-rep-labels v2
 # trace=angled40-right-mixed-19.trace.csv
+# source=20261004-071455-staked
 # person=p2
 # clothing=loose white T-shirt, loose shorts
-# source=20261004-071455-staked
 # offset=0.5
-t,label,note
-2840597786,unsure,3:07, before the full reps; not checked
-2840601089,unsure,3:10, before the full reps; not checked
-2840607329,honest,person's account; 3:19 checked on video
-2840611234,honest,person's account; 3:19 checked on video
-2840615171,honest,person's account; 3:19 checked on video
-2840618475,honest,person's account; 3:19 checked on video
-2840622079,honest,person's account; 3:19 checked on video
-2840625449,honest,person's account; 3:19 checked on video
-2840628886,honest,person's account; 3:19 checked on video
-2840632757,honest,person's account; 3:19 checked on video
-2840636428,honest,person's account; 3:19 checked on video
-2840640032,honest,person's account; 3:19 checked on video
-2840649042,knees,checked on video
-2840654882,knees,checked on video
-2840661990,knees,checked on video
-2840667329,knees,checked on video
-2840675872,knees,checked on video
-2840682379,cobra,checked on video (4:31)
-2840699264,cobra,checked on video (4:48)
-2840708574,cobra,4:56–4:59, two reps not told apart on video
-2840710343,cobra,4:56–4:59, two reps not told apart on video
-2840724225,half,person's account
-2840729998,half,person's account
+t,label,by,flag,note,claude
+2840597786,honest,reviewer,,too close to honest - let's count this.,"3:07, before the full reps; not checked"
+2840601089,honest,reviewer,,"too close to honest, count as honest","3:10, before the full reps; not checked"
+2840607329,honest,claude,,,person's account; 3:19 checked on video
+2840611234,honest,claude,,,person's account; 3:19 checked on video
+2840615171,honest,claude,,,person's account; 3:19 checked on video
+2840618475,honest,claude,,,person's account; 3:19 checked on video
+2840622079,honest,claude,,,person's account; 3:19 checked on video
+2840625449,honest,claude,,,person's account; 3:19 checked on video
+2840628886,honest,claude,,,person's account; 3:19 checked on video
+2840632757,honest,claude,,,person's account; 3:19 checked on video
+2840636428,honest,claude,,,person's account; 3:19 checked on video
+2840640032,honest,claude,,,person's account; 3:19 checked on video
+2840649042,knees,claude,,,checked on video
+2840654882,knees,claude,,,checked on video
+2840661990,knees,claude,,,checked on video
+2840667329,knees,claude,,,checked on video
+2840675872,knees,claude,,,checked on video
+2840682379,cobra,claude,,,checked on video (4:31)
+2840699264,cobra,claude,,,checked on video (4:48)
+2840708574,cobra,claude,,,"4:56–4:59, two reps not told apart on video"
+2840710343,floor,reviewer,,,"4:56–4:59, two reps not told apart on video"
+2840724225,knees,reviewer,,,person's account
+2840729998,half,claude,,,person's account
