@@ -38,6 +38,16 @@ tasks.register<JavaExec>("replayTraces") {
     )
 }
 
+// Today's verdict on every rep of every sitting with a video, written beside
+// the trace as <sitting>.today.csv for the labelling page to show.
+tasks.register<JavaExec>("todayVerdicts") {
+    description = "Replays every sitting with a video through today's counter and writes each rep's verdict beside it."
+    group = "verification"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("holdout.repcounter.TodayVerdictsKt")
+    args(rootProject.file(providers.gradleProperty("traces").getOrElse("../phone_traces")).absolutePath)
+}
+
 // The test bench: every sitting with a labels file (scripts/label-reps.mjs),
 // replayed and scored rep by rep against what a person saw on the video.
 // `-Ptraces=<dir>` (relative to kotlin/) to point it elsewhere than

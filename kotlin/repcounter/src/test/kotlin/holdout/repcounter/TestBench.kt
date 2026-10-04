@@ -10,7 +10,8 @@ import kotlin.system.exitProcess
  * `# key=value` lines, then `t,label,by,flag,hint,note,claude` — the trace
  * time the rep ended (the row its verdict was written on), the label, who set
  * it (`reviewer` or `claude`), `check` when the reviewer asks Claude to look at
- * it, the [RepHint] the reviewer would want it refused with, the reviewer's
+ * it (`answered` once Claude has replied), the [RepHint] the reviewer would
+ * want it refused with, the reviewer's
  * note and Claude's. A v1 file (`t,label,note`) reads as the reviewer's.
  */
 data class RepLabels(val meta: Map<String, String>, val reps: List<Rep>) {
@@ -45,7 +46,7 @@ data class RepLabels(val meta: Map<String, String>, val reps: List<Rep>) {
                 } else {
                     val fields = csvFields(line)
                     fun get(name: String) = columns.indexOf(name).takeIf { it >= 0 }?.let { fields.getOrNull(it) }.orEmpty().trim()
-                    Rep(get("t").toLong(), get("label"), get("note"), get("by").ifEmpty { "reviewer" }, get("flag").isNotEmpty(), get("claude"), get("hint"))
+                    Rep(get("t").toLong(), get("label"), get("note"), get("by").ifEmpty { "reviewer" }, get("flag") == "check", get("claude"), get("hint"))
                 }
             }
             return RepLabels(meta, reps)

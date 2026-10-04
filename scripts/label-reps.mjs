@@ -5,6 +5,8 @@
 //   node scripts/label-reps.mjs [dir]           default: phone_traces/
 //   then open http://localhost:8766
 //   node scripts/label-reps.mjs --flags [dir]   the reps the reviewer ticked for Claude
+//   node scripts/label-reps.mjs --reply <sitting> <t> <answer…> [--dir dir]
+//                                                Claude's answer to a ticked rep
 //
 // Serves, on this machine only, the sittings `scripts/pull-traces.sh` pulled
 // into [dir] (a trace, its video and the video's .video.json) and a page that
@@ -12,8 +14,14 @@
 // `<sitting>.labels.csv` beside the trace: the trace time each rep ended, the
 // label, who set it, whether the reviewer ticked "Review & fix", the words the
 // reviewer would want the app to refuse it with, the reviewer's note and
-// Claude's — never a picture. "Sitting finished" marks every rep labelled: the
-// labels are final, and the sitting can become a fixture.
+// Claude's, and Claude's answer to a ticked rep — never a picture. "Sitting
+// finished" marks every rep labelled: the labels are final, and the sitting can
+// become a fixture. `<sitting>.today.csv`, when `./gradlew
+// :repcounter:todayVerdicts` has written it, is today's counter's verdict on
+// each rep, shown beside the one the app gave when the sitting was recorded.
+//
+// The page opens on "Needs you": Claude's answers to read, Claude's labels to
+// confirm (those the app disagrees with first), then reps nobody has labelled.
 //
 // `--flags` prints the labelled sittings, finished or not, and the reps ticked
 // "Review & fix" — only those are Claude's to take up. A changed label or chosen
@@ -29,8 +37,15 @@ import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const flagsOnly = process.argv.includes('--flags');
-const root = resolve(process.argv.slice(2).find((a) => !a.startsWith('--')) ?? join(here, '..', 'phone_traces'));
+const argv = process.argv.slice(2);
+const flagsOnly = argv.includes('--flags');
+const replyAt = argv.indexOf('--reply');
+const dirAt = argv.indexOf('--dir');
+const root = resolve(
+  dirAt >= 0 ? argv[dirAt + 1]
+    : replyAt >= 0 ? join(here, '..', 'phone_traces')
+      : argv.find((a) => !a.startsWith('--')) ?? join(here, '..', 'phone_traces'),
+);
 const port = Number(process.env.LABEL_PORT ?? 8766);
 const page = join(here, 'label-reps.html');
 const types = { '.html': 'text/html; charset=utf-8', '.mp4': 'video/mp4', '.json': 'application/json', '.csv': 'text/plain; charset=utf-8' };
@@ -79,13 +94,90 @@ function readLabels(path) {
     if (!/^\d/.test(l)) continue;
     if (!cols || cols.length === 3) {
       const [t, label, ...note] = l.split(',');
-      reps.push({ t: Number(t), label, by: 'reviewer', flag: '', hint: '', note: note.join(','), claude: '' });
+      reps.push({ t: Number(t), label, by: 'reviewer', flag: '', hint: '', note: note.join(','), claude: '', reply: '' });
     } else {
       const f = csvSplit(l), get = (n) => f[cols.indexOf(n)] ?? '';
-      reps.push({ t: Number(get('t')), label: get('label'), by: get('by') || 'reviewer', flag: get('flag'), hint: get('hint'), note: get('note'), claude: get('claude') });
+      reps.push({ t: Number(get('t')), label: get('label'), by: get('by') || 'reviewer', flag: get('flag'), hint: get('hint'), note: get('note'), claude: get('claude'), reply: get('reply') });
     }
   }
   return { meta, reps };
+}
+
+const COLUMNS = ['t', 'label', 'by', 'flag', 'hint', 'note', 'claude', 'reply'];
+const csvField = (v) => (/[",]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+const oneLine = (v) => String(v ?? '').replace(/[\r\n]+/g, ' ').trim();
+
+/** The same file the page writes: header lines kept, then one row per rep. */
+function writeLabels(path, meta, reps) {
+  const lines = ['# holdout-rep-labels v2', ...Object.entries(meta).filter(([k, v]) => k !== 'holdout' && v !== '').map(([k, v]) => `# ${k}=${v}`), COLUMNS.join(',')];
+  for (const r of reps) lines.push(COLUMNS.map((c) => csvField(oneLine(r[c]))).join(','));
+  writeFileSync(path, lines.join('\n') + '\n');
+}
+
+/** Today's counter's verdict per trace time, from `<sitting>.today.csv`; empty when not written. */
+function today(base) {
+  const byT = new Map();
+  if (!existsSync(`${base}.today.csv`)) return byT;
+  for (const l of readFileSync(`${base}.today.csv`, 'utf8').split(/\r?\n/)) {
+    if (!/^\d/.test(l)) continue;
+    const [t, v] = l.split(',');
+    byT.set(Number(t), v);
+  }
+  return byT;
+}
+
+/** The value at the time nearest [t], within 400 ms: a counter that cut reps a little differently still lines up. */
+function near(byT, t) {
+  let best = null;
+  for (const [k, v] of byT) if (Math.abs(k - t) <= 400 && (best === null || Math.abs(k - t) < Math.abs(best[0] - t))) best = [k, v];
+  return best?.[1];
+}
+
+/**
+ * What needs the reviewer, across every sitting with a video, in order:
+ * Claude's answers to read; Claude's labels to confirm, those the app gets
+ * wrong today first; then reps nobody has labelled, newest sitting first.
+ */
+function queue() {
+  const items = [];
+  for (const { base } of sittings()) {
+    const abs = join(root, base);
+    const recorded = verdicts(`${abs}.trace.csv`);
+    const now = today(abs);
+    const labels = existsSync(`${abs}.labels.csv`) ? readLabels(`${abs}.labels.csv`).reps : [];
+    const byT = new Map(labels.map((r) => [r.t, r]));
+    for (const [t, was] of recorded) {
+      const l = byT.get(t);
+      const verdict = near(now, t) ?? was;
+      const wrong = l && l.label !== 'unsure' && (l.label === 'honest') !== (verdict === 'counted');
+      const rank = !l ? 3 : l.flag === 'answered' ? 0 : l.by === 'claude' ? (wrong ? 1 : 2) : null;
+      if (rank === null) continue;
+      const why = ['Claude answered', "Claude's label: the app disagrees", "Claude's label", 'not labelled'][rank];
+      items.push({ base, t, rank, why, label: l?.label ?? '', verdict });
+    }
+  }
+  const order = sittings().map((x) => x.base);
+  return items.sort((a, b) => a.rank - b.rank || order.indexOf(a.base) - order.indexOf(b.base) || a.t - b.t);
+}
+
+/** `--reply <sitting> <t> <answer…>`: Claude's answer to a ticked rep; the tick becomes "answered". */
+function reply() {
+  const [base, t, ...words] = argv.slice(replyAt + 1).filter((a, i, all) => a !== '--dir' && all[i - 1] !== '--dir');
+  const path = join(root, `${base}.labels.csv`);
+  if (!base || !t || !words.length || !existsSync(path)) {
+    console.error('label-reps: --reply <sitting, e.g. batch12/20261004-071455-staked> <trace time> <answer>');
+    process.exit(2);
+  }
+  const { meta, reps } = readLabels(path);
+  const rep = reps.find((r) => r.t === Number(t));
+  if (!rep) {
+    console.error(`label-reps: no labelled rep at t=${t} in ${base}`);
+    process.exit(2);
+  }
+  rep.reply = words.join(' ');
+  rep.flag = 'answered';
+  writeLabels(path, meta, reps);
+  console.log(`answered ${base} t=${t}`);
 }
 
 /** The verdict the app wrote at each trace time, and when counting began. */
@@ -117,8 +209,8 @@ function flagsReport() {
     const when = (t) => (started === null ? `t=${t}` : mmss((t - started) / 1000 - offset));
     const disagree = reps.filter((r) => r.label !== 'unsure' && said.has(r.t) && (r.label === 'honest') !== (said.get(r.t) === 'counted')).length;
     sittingsRows.push(`| ${name} | ${meta.person ?? ''} | ${meta.reviewed || 'no'} | ${reps.length} | ${reps.filter((r) => r.by !== 'claude').length} | ${reps.filter((r) => r.flag).length} | ${disagree} |`);
-    // Only what the reviewer ticked "Review & fix".
-    for (const r of reps.filter((x) => x.flag)) {
+    // Only what the reviewer ticked "Review & fix" and Claude has not answered yet.
+    for (const r of reps.filter((x) => x.flag === 'check')) {
       asked.push(`| ${name} | ${when(r.t)} | ${r.label} | ${said.get(r.t) ?? '?'} | ${r.hint || ''} | ${r.note} | ${r.claude} |`);
     }
   }
@@ -138,6 +230,10 @@ if (flagsOnly) {
   flagsReport();
   process.exit(0);
 }
+if (replyAt >= 0) {
+  reply();
+  process.exit(0);
+}
 
 /** A path under the root, or null: nothing outside it is served or written. */
 function inside(urlPath) {
@@ -150,6 +246,10 @@ createServer((req, res) => {
   if (url.pathname === '/') {
     res.writeHead(200, { 'Content-Type': types['.html'] });
     return createReadStream(page).pipe(res);
+  }
+  if (url.pathname === '/api/queue') {
+    res.writeHead(200, { 'Content-Type': types['.json'] });
+    return res.end(JSON.stringify(queue()));
   }
   if (url.pathname === '/api/sittings') {
     res.writeHead(200, { 'Content-Type': types['.json'] });

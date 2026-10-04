@@ -44,14 +44,35 @@
   #flagLabel:has(input:checked) { background:var(--warn); color:#2a1d00; border-color:var(--warn); }
   #finished { display:flex; align-items:center; gap:6px; padding:4px 10px; border:1px solid var(--line); border-radius:6px; cursor:pointer; white-space:nowrap; }
   #finished:has(input:checked) { border-color:var(--ok); color:var(--ok); }
+  .tabs { display:flex; gap:6px; margin:12px 12px 0; }
+  .tabs button { flex:1; padding:6px; cursor:pointer; }
+  .tabs button.on { background:var(--accent); color:#001428; border-color:var(--accent); }
+  #queue { list-style:none; margin:0; padding:0 0 12px; }
+  #queue li { padding:5px 12px; cursor:pointer; border-left:3px solid transparent; display:grid; grid-template-columns: 1fr auto; gap:2px 6px; }
+  #queue li:hover { background:var(--panel); }
+  #queue li.on { background:var(--panel); border-left-color:var(--accent); }
+  #queue .where { color:var(--dim); font-size:12px; }
+  #queue .why { font-size:12px; color:var(--warn); grid-column: 1 / -1; }
+  #queue .why.r2, #queue .why.r3 { color:var(--dim); }
+  .was { color:var(--dim); font-size:11px; }
+  #reply { border-left:3px solid var(--accent); padding:4px 10px; background:var(--panel); border-radius:4px; flex:1; }
+  #reply:empty { display:none; }
+  #doneBtn { padding:5px 10px; cursor:pointer; }
 </style>
 </head>
 <body>
 <aside>
-  <h2>Sitting</h2>
-  <select id="sitting"></select>
-  <h2 id="repsTitle">Reps</h2>
-  <ul id="reps"></ul>
+  <div class="tabs"><button id="tabQueue" class="on">Needs you</button><button id="tabSitting">Sitting</button></div>
+  <div id="queuePane">
+    <h2 id="queueTitle">Needs you</h2>
+    <ul id="queue"></ul>
+  </div>
+  <div id="sittingPane" hidden>
+    <h2>Sitting</h2>
+    <select id="sitting"></select>
+    <h2 id="repsTitle">Reps</h2>
+    <ul id="reps"></ul>
+  </div>
 </aside>
 <main>
   <header>
@@ -74,6 +95,10 @@
       <input id="note" type="text" placeholder="Your note on this rep (n) — for a ticked rep: what is wrong, what you expect">
     </div>
     <div class="row">
+      <span id="reply"></span>
+      <button id="doneBtn" hidden title="You have read Claude's answer: close it (d)">Done <kbd>d</kbd></button>
+    </div>
+    <div class="row">
       <label>Should say <select id="hint" title="The words you would want the app to refuse this rep with (h)"></select></label>
       <span id="claudeNote"></span>
     </div>
@@ -81,7 +106,7 @@
       <label>Person <input id="person" type="text" placeholder="a pseudonym, e.g. p1"></label>
       <label>Clothing <input id="clothing" type="text" placeholder="fitted / loose trousers / T-shirt…"></label>
       <label>Trace lag, s <input id="offset" type="text" size="4"></label>
-      <span class="muted">← → rep · space pause · s slow · o skeleton · f review &amp; fix · h should say</span>
+      <span class="muted">Enter confirm · ← → rep · space pause · s slow · o skeleton · f review &amp; fix · h should say · d done</span>
     </div>
   </footer>
 </main>
@@ -112,6 +137,10 @@ const video = $('video'), overlay = $('overlay');
 let S = null;          // the sitting on screen
 let current = 0;       // rep index
 let slow = false, skeleton = true, saveTimer = null;
+let saving = Promise.resolve();   // the last save: a refresh from disk waits for it
+let Q = [];            // "Needs you": [{ base, t, rank, why, label, verdict }]
+let mode = 'queue';    // 'queue' or 'sitting'
+let qAt = -1;          // the queue item on screen
 
 $('hint').innerHTML = '<option value="">— no preference</option>' + Object.entries(HINTS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
 for (const [key, name, hint] of LABELS) {
@@ -155,9 +184,11 @@ const csvField = (v) => (/[",]/.test(v ?? '') ? `"${v.replace(/"/g, '""')}"` : (
 const oneLine = (v) => (v ?? '').replace(/[\r\n]+/g, ' ').trim();
 
 /**
- * A labels file: `# key=value` lines, then `t,label,by,flag,note,claude`.
- * `by` is who set the label (reviewer or claude), `flag` asks Claude to check
- * the rep, `note` is the reviewer's, `claude` is Claude's and shown read-only.
+ * A labels file: `# key=value` lines, then `t,label,by,flag,hint,note,claude,reply`.
+ * `by` is who set the label (reviewer or claude); `flag` is `check` when the
+ * reviewer ticked "Review & fix" and `answered` once Claude has replied in
+ * `reply`; `hint` is the words the reviewer wants; `note` is the reviewer's,
+ * `claude` is Claude's and shown read-only.
  * A v1 file (`t,label,note`) reads as the reviewer's labels and notes.
  */
 function parseLabels(text) {
@@ -170,11 +201,11 @@ function parseLabels(text) {
     if (!/^\d/.test(l)) continue;
     if (!cols || cols.length === 3) {
       const [t, label, ...note] = l.split(',');
-      byT.set(Number(t), { label, by: 'reviewer', flag: '', hint: '', note: note.join(','), claude: '' });
+      byT.set(Number(t), { label, by: 'reviewer', flag: '', hint: '', note: note.join(','), claude: '', reply: '' });
       continue;
     }
     const f = csvSplit(l), get = (n) => f[cols.indexOf(n)] ?? '';
-    byT.set(Number(get('t')), { label: get('label'), by: get('by') || 'reviewer', flag: get('flag'), hint: get('hint'), note: get('note'), claude: get('claude') });
+    byT.set(Number(get('t')), { label: get('label'), by: get('by') || 'reviewer', flag: get('flag'), hint: get('hint'), note: get('note'), claude: get('claude'), reply: get('reply') });
   }
   return { meta, byT };
 }
@@ -208,6 +239,22 @@ function sidesOf(trace) {
   });
 }
 
+/** `<sitting>.today.csv`: today's counter's verdict per trace time (todayVerdicts). */
+function parseToday(text) {
+  const byT = new Map();
+  for (const l of text.split(/\r?\n/)) if (/^\d/.test(l)) { const [t, v] = l.split(','); byT.set(Number(t), v); }
+  return byT;
+}
+/** The verdict today on the rep that ended at [t]: the replay's nearest, within 400 ms. */
+function todayAt(t) {
+  if (!S?.today?.size) return undefined;
+  let best;
+  for (const [k, v] of S.today) if (Math.abs(k - t) <= 400 && (!best || Math.abs(k - t) < Math.abs(best[0] - t))) best = [k, v];
+  return best?.[1];
+}
+/** What judges a rep now: today's verdict when the replay has been run, else the recorded one. */
+const verdictOf = (r) => todayAt(r.end) ?? r.verdict;
+
 /** Each judged rep: from the end of the one before (or the start of counting) to its own event. */
 function repsOf(trace) {
   const reps = [];
@@ -229,23 +276,96 @@ async function loadSittings() {
   const sel = $('sitting');
   sel.innerHTML = list.map((s) => `<option value="${s.base}">${s.base}${s.labels ? ` · ${s.labels} labelled` : ''}</option>`).join('');
   if (!list.length) { $('repInfo').textContent = 'No sitting with a video here: pull one with scripts/pull-traces.sh.'; return; }
-  const wanted = new URLSearchParams(location.search).get('s');
-  sel.value = list.some((s) => s.base === wanted) ? wanted : list[0].base;
   sel.onchange = () => open(sel.value);
+  const wanted = new URLSearchParams(location.search).get('s');
+  await loadQueue();
+  if (wanted && list.some((s) => s.base === wanted)) { setMode('sitting'); sel.value = wanted; return open(wanted); }
+  if (Q.length) return goQueue(0);
+  setMode('sitting');
+  sel.value = list[0].base;
   open(sel.value);
 }
 
-async function open(base) {
-  history.replaceState(null, '', `?s=${encodeURIComponent(base)}`);
-  const [traceText, meta, labelsText] = await Promise.all([
+async function loadQueue() {
+  Q = await (await fetch('/api/queue', { cache: 'no-store' })).json();
+  renderQueue();
+}
+
+const short = (base) => base.split('/').pop().replace(/-staked|-daily/, '');
+
+function renderQueue() {
+  const left = Q.length;
+  $('tabQueue').textContent = `Needs you (${left})`;
+  $('queueTitle').textContent = left ? `${left} to look at · Enter confirms · a digit changes` : 'Nothing needs you';
+  $('queue').innerHTML = Q.slice(0, 300).map((q, i) => `<li class="${i === qAt ? 'on' : ''}" data-i="${i}"><span>${short(q.base)}</span><span class="where">${q.label || '·'} · app: ${said(q.verdict)}</span><span class="why r${q.rank}">${q.why}</span></li>`).join('');
+  for (const li of $('queue').children) li.onclick = () => goQueue(Number(li.dataset.i));
+  $('queue').children[qAt]?.scrollIntoView({ block: 'nearest' });
+}
+
+function setMode(m) {
+  mode = m;
+  $('tabQueue').classList.toggle('on', m === 'queue');
+  $('tabSitting').classList.toggle('on', m === 'sitting');
+  $('queuePane').hidden = m !== 'queue';
+  $('sittingPane').hidden = m !== 'sitting';
+}
+$('tabQueue').onclick = async () => { setMode('queue'); await refreshSitting(); await loadQueue(); goQueue(Math.max(0, Math.min(qAt, Q.length - 1))); };
+$('tabSitting').onclick = () => { setMode('sitting'); if (S) $('sitting').value = S.base; };
+
+/** Shows queue item [i]: its sitting opened if another is on screen, at its rep. */
+async function goQueue(i) {
+  if (!Q.length) { qAt = -1; renderQueue(); return; }
+  qAt = Math.max(0, Math.min(Q.length - 1, i));
+  const q = Q[qAt];
+  renderQueue();
+  if (S?.base !== q.base) await open(q.base, q.t);
+  else show(S.reps.findIndex((r) => r.end === q.t));
+}
+
+/**
+ * The sitting's labels and today's verdicts read again from disk: Claude writes
+ * answers into the same file (`--reply`) while the page is open.
+ */
+async function refreshSitting() {
+  if (!S) return;
+  // A save still to run, or running, would be read back half-written: wait for it.
+  if (saveTimer) { clearTimeout(saveTimer); writeNow(); }
+  await saving;
+  const [labelsText, todayText] = await Promise.all([
+    fetch(`/files/${S.base}.labels.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')),
+    fetch(`/files/${S.base}.today.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')),
+  ]);
+  S.labels = parseLabels(labelsText);
+  S.today = parseToday(todayText);
+  $('reviewed').checked = Boolean(S.labels.meta.reviewed);
+  show(current, false);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshSitting(); });
+
+/** After acting on the rep on screen: off the queue, and on to the next item. */
+function nextInQueue() {
+  if (mode !== 'queue' || qAt < 0) return false;
+  const r = S.reps[current];
+  const at = Q.findIndex((q) => q.base === S.base && q.t === r.end);
+  if (at >= 0) Q.splice(at, 1);
+  goQueue(at >= 0 ? at : qAt);
+  return true;
+}
+
+async function open(base, atT) {
+  history.replaceState(null, '', mode === 'sitting' ? `?s=${encodeURIComponent(base)}` : location.pathname);
+  const [traceText, meta, labelsText, todayText] = await Promise.all([
     fetch(`/files/${base}.trace.csv`).then((r) => r.text()),
     fetch(`/files/${base}.video.json`).then((r) => r.json()),
     fetch(`/files/${base}.labels.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')),
+    fetch(`/files/${base}.today.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')),
   ]);
   const trace = parseTrace(traceText);
   const labels = parseLabels(labelsText);
   S = {
     base, trace, labels,
+    wasComplete: false,
+    today: parseToday(todayText),
     reps: repsOf(trace),
     sides: sidesOf(trace),
     startedMs: meta.startedElapsedRealtimeNanos / 1e6,
@@ -259,10 +379,12 @@ async function open(base) {
   $('offset').value = S.offset;
   $('reviewed').checked = Boolean(labels.meta.reviewed);
   video.src = `/files/${base}.mp4`;
-  current = S.reps.findIndex((r) => !S.labels.byT.has(r.end));
+  current = atT !== undefined ? S.reps.findIndex((r) => r.end === atT) : S.reps.findIndex((r) => !S.labels.byT.has(r.end));
   if (current < 0) current = 0;
+  S.wasComplete = S.reps.every((r) => S.labels.byT.get(r.end)?.by === 'reviewer');
   renderList();
-  video.addEventListener('loadedmetadata', () => show(current), { once: true });
+  await new Promise((done) => video.addEventListener('loadedmetadata', done, { once: true }));
+  show(current);
 }
 
 const vt = (t) => (t - S.startedMs) / 1000 - S.offset;
@@ -271,14 +393,16 @@ const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart
 function renderList() {
   const done = S.reps.filter((r) => S.labels.byT.has(r.end));
   const agree = done.filter((r) => verdictMatches(r) === true).length;
-  const flagged = done.filter((r) => S.labels.byT.get(r.end).flag).length;
+  const flagged = done.filter((r) => S.labels.byT.get(r.end).flag === 'check').length;
   $('repsTitle').textContent = `Reps · ${done.length}/${S.reps.length} labelled · app agrees on ${agree}${flagged ? ` · ⚑ ${flagged}` : ''}`;
   $('reps').innerHTML = S.reps.map((r, i) => {
     const l = S.labels.byT.get(r.end);
     const ok = verdictMatches(r);
     const cls = ok === undefined ? '' : ok ? 'match' : 'miss';
-    const marks = `${l?.flag ? '<span class="flag" title="ticked for review and fixing">⚑</span>' : ''}${l?.by === 'claude' ? '<span class="by-claude" title="set by Claude; press its key to confirm">C</span>' : ''}`;
-    return `<li class="${i === current ? 'on' : ''}" data-i="${i}"><span class="n">${i + 1}</span><span class="tm">${mmss(vt(r.end))}</span><span class="verdict">${said(r.verdict)}</span><span class="tag ${cls}">${l ? l.label : '·'}</span><span>${marks}</span></li>`;
+    const marks = `${l?.flag === 'check' ? '<span class="flag" title="ticked for review and fixing">⚑</span>' : ''}${l?.flag === 'answered' ? '<span class="flag" title="Claude answered">✉</span>' : ''}${l?.by === 'claude' ? '<span class="by-claude" title="set by Claude; press its key to confirm">C</span>' : ''}`;
+    const now = todayAt(r.end), changed = now !== undefined && now !== r.verdict;
+    const v = `${said(verdictOf(r))}${changed ? ` <span class="was" title="when recorded">was ${said(r.verdict)}</span>` : ''}`;
+    return `<li class="${i === current ? 'on' : ''}" data-i="${i}"><span class="n">${i + 1}</span><span class="tm">${mmss(vt(r.end))}</span><span class="verdict">${v}</span><span class="tag ${cls}">${l ? l.label : '·'}</span><span>${marks}</span></li>`;
   }).join('');
   for (const li of $('reps').children) li.onclick = () => show(Number(li.dataset.i));
 }
@@ -287,24 +411,32 @@ function renderList() {
 function verdictMatches(r) {
   const l = S.labels.byT.get(r.end);
   if (!l || l.label === 'unsure') return undefined;
-  return (l.label === 'honest') === (r.verdict === 'counted');
+  return (l.label === 'honest') === (verdictOf(r) === 'counted');
 }
 
-function show(i) {
+function show(i, replay = true) {
   if (!S || !S.reps.length) return;
   current = Math.max(0, Math.min(S.reps.length - 1, i));
   const r = S.reps[current];
   const l = S.labels.byT.get(r.end);
   $('note').value = l?.note ?? '';
   $('claudeNote').textContent = l?.claude ? `Claude: ${l.claude}` : '';
-  $('flag').checked = Boolean(l?.flag);
+  $('flag').checked = l?.flag === 'check';
+  $('reply').textContent = l?.reply ? `Claude's answer: ${l.reply}` : '';
+  $('doneBtn').hidden = l?.flag !== 'answered';
   $('hint').value = l?.hint ?? '';
   for (const b of $('labelButtons').children) b.classList.toggle('on', b.dataset.label === l?.label);
   const byText = l ? (l.by === 'claude' ? ' · label set by Claude — press its key to confirm' : ' · label yours') : '';
-  const verdictText = r.verdict === 'counted' ? 'counted' : `refused — "${said(r.verdict)}"`;
-  $('repInfo').innerHTML = `Rep <strong>${current + 1}</strong> of ${S.reps.length} · ${mmss(vt(r.start))}–${mmss(vt(r.end))} · the app: <strong>${verdictText}</strong>${byText}`;
+  const words = (v) => (v === 'counted' ? 'counted' : `refused — "${said(v)}"`);
+  const now = todayAt(r.end);
+  const verdictText = now === undefined ? `the app: <strong>${words(r.verdict)}</strong>`
+    : now === r.verdict ? `the app, recorded and today: <strong>${words(now)}</strong>`
+      : `today: <strong>${words(now)}</strong> <span class="muted">(when recorded: ${words(r.verdict)})</span>`;
+  const sitting = mode === 'queue' ? `${short(S.base)} · ` : '';
+  $('repInfo').innerHTML = `${sitting}Rep <strong>${current + 1}</strong> of ${S.reps.length} · ${mmss(vt(r.start))}–${mmss(vt(r.end))} · ${verdictText}${byText}`;
   renderList();
   $('reps').children[current]?.scrollIntoView({ block: 'nearest' });
+  if (!replay) return;
   video.playbackRate = slow ? 0.5 : 1;
   video.currentTime = Math.max(0, vt(r.start) - 0.3);
   video.play().catch(() => {});
@@ -355,7 +487,7 @@ function drawSkeleton() {
 /** The current rep's entry, made (as `unsure`) when there is none yet. */
 function entry() {
   const r = S.reps[current];
-  if (!S.labels.byT.has(r.end)) S.labels.byT.set(r.end, { label: 'unsure', by: 'reviewer', flag: '', hint: '', note: '', claude: '' });
+  if (!S.labels.byT.has(r.end)) S.labels.byT.set(r.end, { label: 'unsure', by: 'reviewer', flag: '', hint: '', note: '', claude: '', reply: '' });
   return S.labels.byT.get(r.end);
 }
 
@@ -365,14 +497,34 @@ function setLabel(name) {
   // Pressed by the reviewer, the label is theirs — a label of Claude's pressed again is confirmed.
   Object.assign(e, { label: name, by: 'reviewer', note: oneLine($('note').value) });
   save();
+  if (nextInQueue()) return;
   const next = S.reps.findIndex((x, i) => i > current && !S.labels.byT.has(x.end));
   show(next >= 0 ? next : current);
+}
+
+/** Enter: the label on screen is right — Claude's becomes the reviewer's — and on to the next. */
+function confirmLabel() {
+  if (!S) return;
+  const l = S.labels.byT.get(S.reps[current].end);
+  if (!l) return;
+  if (l.by !== 'reviewer') { l.by = 'reviewer'; save(); }
+  if (!nextInQueue()) show(current + 1);
+}
+
+/** d: Claude's answer read — the rep leaves the queue; tick it again to reopen. */
+function doneWithAnswer() {
+  if (!S) return;
+  const l = S.labels.byT.get(S.reps[current].end);
+  if (l?.flag !== 'answered') return;
+  l.flag = '';
+  save();
+  if (!nextInQueue()) show(current);
 }
 
 function toggleFlag() {
   if (!S) return;
   const e = entry();
-  e.flag = e.flag ? '' : 'check';
+  e.flag = e.flag === 'check' ? '' : 'check';
   e.note = oneLine($('note').value);
   save();
   show(current);
@@ -382,7 +534,32 @@ function toggleFlag() {
 function save() {
   if (!S) return;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
+  // Every rep labelled, none waiting for the reviewer's confirmation: the sitting
+  // is finished — ticked once, as it becomes so; the reviewer can untick it.
+  const complete = S.reps.every((r) => { const l = S.labels.byT.get(r.end); return l && l.by === 'reviewer'; });
+  if (complete && !S.wasComplete && !$('reviewed').checked) $('reviewed').checked = true;
+  S.wasComplete = complete;
+  saveTimer = setTimeout(writeNow, 250);
+}
+
+/** Saves run one after another, so a refresh can wait for the last. */
+function writeNow() {
+  saveTimer = null;
+  saving = saving.then(write, write);
+  return saving;
+}
+
+async function write() {
+  {
+    // Claude may have answered since the page read the file: an answer on disk
+    // the page has not seen is kept, and with it the rep's "answered".
+    const disk = parseLabels(await fetch(`/files/${S.base}.labels.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')));
+    for (const [t, d] of disk.byT) {
+      const l = S.labels.byT.get(t);
+      if (!l || !d.reply || d.reply === l.reply) continue;
+      l.reply = d.reply;
+      if (l.flag === 'check' || l.flag === '') l.flag = d.flag;
+    }
     // Every header line the file had is kept; these are the page's own.
     const meta = {
       ...S.labels.meta,
@@ -394,14 +571,14 @@ function save() {
     };
     delete meta.holdout;
     S.labels.meta = meta;
-    const lines = ['# holdout-rep-labels v2', ...Object.entries(meta).filter(([, v]) => v !== '' && v !== undefined).map(([k, v]) => `# ${k}=${v}`), 't,label,by,flag,hint,note,claude'];
+    const lines = ['# holdout-rep-labels v2', ...Object.entries(meta).filter(([, v]) => v !== '' && v !== undefined).map(([k, v]) => `# ${k}=${v}`), 't,label,by,flag,hint,note,claude,reply'];
     for (const r of S.reps) {
       const l = S.labels.byT.get(r.end);
-      if (l) lines.push([r.end, l.label, l.by, l.flag, l.hint ?? '', oneLine(l.note), oneLine(l.claude)].map((v) => csvField(String(v ?? ''))).join(','));
+      if (l) lines.push([r.end, l.label, l.by, l.flag, l.hint ?? '', oneLine(l.note), oneLine(l.claude), oneLine(l.reply)].map((v) => csvField(String(v ?? ''))).join(','));
     }
     const res = await fetch(`/files/${S.base}.labels.csv`, { method: 'PUT', body: lines.join('\n') + '\n' });
     $('status').textContent = res.ok ? `saved ${new Date().toLocaleTimeString()}` : `NOT saved (${res.status})`;
-  }, 250);
+  }
 }
 
 $('note').addEventListener('input', () => {
@@ -412,13 +589,16 @@ $('note').addEventListener('input', () => {
 for (const id of ['person', 'clothing']) $(id).addEventListener('input', save);
 $('reviewed').addEventListener('change', save);
 $('hint').addEventListener('change', () => { if (!S) return; entry().hint = $('hint').value; save(); renderList(); $('hint').blur(); });
-$('flag').addEventListener('change', () => { if (S && Boolean(entry().flag) !== $('flag').checked) toggleFlag(); $('flag').blur(); });
+$('flag').addEventListener('change', () => { if (S && (entry().flag === 'check') !== $('flag').checked) toggleFlag(); $('flag').blur(); });
+$('doneBtn').addEventListener('click', doneWithAnswer);
 $('offset').addEventListener('change', () => { const v = Number($('offset').value); if (S && Number.isFinite(v)) { S.offset = v; save(); show(current); } });
 
 document.addEventListener('keydown', (e) => {
   if ((e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') || e.target.tagName === 'SELECT') { if (e.key === 'Escape' || e.key === 'Enter') e.target.blur(); return; }
   const label = LABELS.find(([k]) => k === e.key);
   if (label) return setLabel(label[1]);
+  if (e.key === 'Enter') { e.preventDefault(); return confirmLabel(); }
+  if (e.key === 'd') return doneWithAnswer();
   if (e.key === 'ArrowRight') return show(current + 1);
   if (e.key === 'ArrowLeft') return show(current - 1);
   if (e.key === ' ') { e.preventDefault(); return video.paused ? video.play() : video.pause(); }

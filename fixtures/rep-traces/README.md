@@ -129,8 +129,8 @@ one cheat still passes. A labels file says it rep by rep, from the video:
 # clothing=loose white T-shirt, loose shorts
 # offset=0.5                      seconds the trace runs behind the video
 # reviewed=2026-10-04             "Sitting finished": every rep labelled, the labels final
-t,label,by,flag,hint,note,claude
-2840597786,honest,reviewer,,,too close to honest - let's count this.,"3:07, before the full reps; not checked"
+t,label,by,flag,hint,note,claude,reply
+2840597786,honest,reviewer,,,too close to honest - let's count this.,"3:07, before the full reps; not checked",
 ```
 
 - `t` — the trace time of the row the rep's verdict was written on.
@@ -139,24 +139,36 @@ t,label,by,flag,hint,note,claude
   should count.
 - `by` — who set the label: `reviewer`, or `claude` until a reviewer confirms it.
 - `flag` — `check` when the reviewer ticked "Review & fix": the rep is taken
-  up for analysis and fixing. Only ticked reps are.
+  up for analysis and fixing. Only ticked reps are. `answered` once Claude has
+  replied; the reviewer closes it with Done, or ticks it again to reopen.
 - `hint` — the `RepHint` the reviewer would want the rep refused with
   (`GO_LOWER`, `UP_ON_YOUR_TOES`, `HIPS_OFF_FLOOR`, …); empty for no preference.
-- `note` — the reviewer's; `claude` — Claude's, shown read-only. Quoted when
-  they hold a comma.
+- `note` — the reviewer's; `claude` — Claude's, shown read-only; `reply` —
+  Claude's answer to a ticked rep. Quoted when they hold a comma.
 
 A v1 file (`t,label,note`) still reads, as the reviewer's labels and notes.
 
 - **Labelling**: `node scripts/label-reps.mjs` serves `phone_traces/` on this
-  machine only (http://localhost:8766): each rep plays as a loop with the
-  skeleton the counter reads drawn bold, keys `1`–`7` and `0` label it, `f`
-  ticks "Review & fix", `h` picks the words it should be refused with, and the
-  file is saved beside the trace. The list beside it shows the verdict the app
-  gave **when the sitting was recorded**; the test bench judges today's counter.
-- **Handing over**: `node scripts/label-reps.mjs --flags` lists every sitting
-  with labels (reviewed or not), and every rep ticked "Review & fix" — only
-  those are taken up. A changed label or chosen words without the tick is the
-  reviewer's record, not a request.
+  machine only (http://localhost:8766). It opens on **Needs you**, one queue
+  across every sitting: Claude's answers to read, Claude's labels to confirm
+  (those the app gets wrong first), then reps nobody has labelled. Each rep
+  plays as a loop with the skeleton the counter reads drawn bold; `Enter`
+  confirms the label on screen, `1`–`7` and `0` set one, `f` ticks "Review &
+  fix", `h` picks the words it should be refused with, `d` closes Claude's
+  answer — and the queue moves on. Labels save beside the trace; "Sitting
+  finished" ticks itself when every rep has a label the reviewer set or
+  confirmed. The page reads the file again when it comes back to the front, and
+  keeps an answer Claude wrote meanwhile.
+- **Today's verdicts**: `./gradlew :repcounter:todayVerdicts` (from `kotlin/`)
+  replays every sitting with a video through today's counter and writes
+  `<sitting>.today.csv`; the page then shows "today" beside the verdict the app
+  gave when the sitting was recorded, so a fix shows on the reps it put right.
+- **Handing over**: say "check the labels". `node scripts/label-reps.mjs
+  --flags` lists every sitting with labels and every rep ticked "Review & fix"
+  and not yet answered — only those are taken up. A changed label or chosen
+  words without the tick is the reviewer's record, not a request. Claude
+  answers each in the file with `node scripts/label-reps.mjs --reply <sitting>
+  <t> <answer>`, and the answer is first in the reviewer's queue.
 - **Scoring**: `./gradlew :repcounter:testBench [-Ptraces=<dir>] [-Pgate]`
   replays every labelled sitting and reports, per label, per person and per
   sitting, how many reps counted, every miss with both notes, and the reps
