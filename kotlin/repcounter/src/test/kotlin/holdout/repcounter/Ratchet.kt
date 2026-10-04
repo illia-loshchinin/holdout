@@ -16,6 +16,7 @@ val LABEL_WORDS = mapOf(
     "floor" to RepHint.HIPS_OFF_FLOOR.name,
     "cobra" to RepHint.KEEP_BODY_STRAIGHT.name,
     "sag" to RepHint.KEEP_BODY_STRAIGHT.name,
+    RepLabels.UNSEEN to RepHint.LEGS_IN_VIEW.name,
 )
 
 fun BenchRep.state(): RepState = when {
@@ -43,13 +44,18 @@ data class RatchetRep(val fixture: String, val t: Long, val label: String, val s
 object Ratchet {
     const val BASELINE = "baseline.csv"
 
-    /** Today's counter on every labelled rep under [dir], a label no judged rep lands near included (verdict [NOT_JUDGED]). */
+    /**
+     * Today's counter on every labelled rep under [dir], a label no judged rep
+     * lands near included (verdict [NOT_JUDGED]). A sitting today's app would
+     * not start is left out ([startsToday]).
+     */
     fun today(dir: File): List<RatchetRep> {
         val reps = mutableListOf<RatchetRep>()
         for (trace in TraceFiles.under(dir)) {
             val labelsFile = TraceFiles.labels(trace).takeIf { it.exists() } ?: continue
             val name = TraceFiles.name(trace)
             val recording = Trace.parse(TraceFiles.lines(trace))
+            if (!recording.startsToday()) continue
             val (judged, missing) = benchSitting(name, recording, RepLabels.parse(labelsFile.readLines()))
             judged.forEach { reps += RatchetRep(name, it.labelT, it.label, it.state(), it.verdict) }
             // A label no judged rep lands near is a rep the counter does not see: it counts

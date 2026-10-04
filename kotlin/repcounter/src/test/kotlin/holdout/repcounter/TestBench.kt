@@ -40,6 +40,13 @@ data class RepLabels(val meta: Map<String, String>, val reps: List<Rep>) {
         val SHOULD_COUNT = setOf("honest", KNEES_DAILY)
         val CHEATS = listOf("half", "knees", "floor", "cobra", "sag", "other")
 
+        /**
+         * An honest movement the counter cannot see — the legs outside its
+         * picture, which is narrower than the video on some builds. It should not
+         * count, and should be refused with [RepHint.LEGS_IN_VIEW].
+         */
+        const val UNSEEN = "unseen"
+
         fun parse(lines: List<String>): RepLabels {
             val meta = lines.mapNotNull { Regex("""^#\s*(\w+)=(.*)$""").find(it)?.destructured?.let { (k, v) -> k to v.trim() } }.toMap()
             val columns = lines.firstOrNull { it.startsWith("t,") }?.let(::csvFields)
@@ -107,6 +114,28 @@ data class BenchRep(
 }
 
 /**
+ * The placement ratio held through the countdown (median), as [Preflight]
+ * reads it; null with no countdown.
+ */
+fun Trace.Recording.heldPlacementRatio(): Float? {
+    val frames = countdownFrames.ifEmpty { return null }
+    val preflight = Preflight(stakes = stakes)
+    val xScale = frames.first().image.let { Aspect.xScale(it.width, it.height) }
+    val ratios = frames.mapNotNull { preflight.placementRatio(it.image.frame, xScale) }.sorted()
+    return ratios.getOrNull(ratios.size / 2)
+}
+
+/**
+ * Whether today's app would start this sitting. Since 2 Oct a staked one does
+ * not start from in front of about 35° — the placement ratio at or over
+ * [RepRules.maxHipRisePlacementRatio] ([Preflight]). Its reps cannot happen on
+ * the phone any more, so they are neither scored nor held by the ratchet: from
+ * there the body line reads 127–143° on straight bodies (29 Sep), and no rule
+ * should be bent to fit a placement the app refuses.
+ */
+fun Trace.Recording.startsToday(): Boolean = stakes != Stakes.STAKED || (heldPlacementRatio()?.let { it < RepRules().maxHipRisePlacementRatio } ?: true)
+
+/**
  * Replays [recording] through today's counter and pairs each judged rep with
  * the label of the rep that ended on (or within [toleranceMillis] of) the same
  * frame. A label no judged rep lands near is returned in the second list:
@@ -161,6 +190,7 @@ fun main(args: Array<String>) {
     val reps = mutableListOf<BenchRep>()
     val lost = mutableListOf<String>()
     val unlabelled = mutableListOf<String>()
+    val notStarted = mutableListOf<String>()
     for (trace in traces) {
         val name = File(TraceFiles.base(trace)).relativeTo(dir).path.replace(File.separatorChar, '/')
         val labelsFile = TraceFiles.labels(trace)
@@ -168,7 +198,12 @@ fun main(args: Array<String>) {
             unlabelled += name
             continue
         }
-        val (judged, missing) = benchSitting(name, Trace.parse(TraceFiles.lines(trace)), RepLabels.parse(labelsFile.readLines()))
+        val recording = Trace.parse(TraceFiles.lines(trace))
+        if (!recording.startsToday()) {
+            notStarted += "$name (held ratio %.2f)".format(recording.heldPlacementRatio())
+            continue
+        }
+        val (judged, missing) = benchSitting(name, recording, RepLabels.parse(labelsFile.readLines()))
         reps += judged
         missing.forEach { lost += "$name: a ${it.label} rep ending at t=${it.endMillis} has no judged rep near it today" }
     }
@@ -180,7 +215,7 @@ fun main(args: Array<String>) {
     println("| label | reps | counted | refused | rate | gate |")
     println("|---|---|---|---|---|---|")
     fun shown(label: String) = if (label == RepLabels.KNEES_DAILY) "knees (Daily 25, counts)" else label
-    for (label in RepLabels.SHOULD_COUNT.toList() + RepLabels.CHEATS) {
+    for (label in RepLabels.SHOULD_COUNT.toList() + RepLabels.CHEATS + RepLabels.UNSEEN) {
         val group = reps.filter { it.label == label }
         if (group.isEmpty()) continue
         val counted = group.count { it.counted }
@@ -234,6 +269,9 @@ fun main(args: Array<String>) {
     val unconfirmed = reps.count { it.by == "claude" }
     if (unconfirmed > 0) println("\n$unconfirmed labels set by Claude are not yet confirmed by a reviewer.")
     if (lost.isNotEmpty()) println("\n## Labels with no judged rep near them\n\n" + lost.joinToString("\n") { "- $it" })
+    if (notStarted.isNotEmpty()) {
+        println("\n## Not scored: staked from in front of about 35°, which today's app does not start (${notStarted.size})\n\n" + notStarted.joinToString("\n") { "- $it" })
+    }
     // Only what can be labelled — a sitting with its video — and each recording once:
     // pull-traces.sh copies every trace still on the phone into each new folder.
     val labelled = reps.map { it.sitting.substringAfterLast('/') }.toSet()

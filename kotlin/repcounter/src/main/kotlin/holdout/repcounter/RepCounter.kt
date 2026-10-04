@@ -527,7 +527,7 @@ class RepCounter(
         top = top,
         minElbow = minElbowInCycle,
         shoulderOverHand = minShoulderOverHandInCycle.takeIf { it != Float.MAX_VALUE },
-        shoulderHeightShare = topShoulderHeight?.takeIf { it > 0f && minShoulderHeightInCycle != Float.MAX_VALUE }?.let { minShoulderHeightInCycle / it },
+        shoulderHeightShare = headOnTopHeight()?.takeIf { minShoulderHeightInCycle != Float.MAX_VALUE }?.let { minShoulderHeightInCycle / it },
         pushKnee = pushKnees.medianOrNull(),
         pushLegsAboveHands = pushLegs.medianOrNull(),
         hipRise = hipRise(),
@@ -595,6 +595,7 @@ class RepCounter(
         if (elbow >= top && shoulderHeight != null) {
             topShoulderHeight = topShoulderHeight?.let { it * 0.9f + shoulderHeight * 0.1f } ?: shoulderHeight
         }
+        shoulderHeightNow = shoulderHeight
 
         return when (phase) {
             Phase.AWAITING_TOP -> {
@@ -771,11 +772,26 @@ class RepCounter(
         if (shoulderHeight != null && shoulderHeight < minShoulderHeightInCycle) minShoulderHeightInCycle = shoulderHeight
     }
 
+    /**
+     * Head-on: the shoulders' height at the top the rep's depth is a share of —
+     * the running top, or the top this rep came back up to if that stands
+     * higher. The countdown plank is often held on soft arms: on 2 Oct the
+     * elbow read 170° through it and the shoulders 386–402 px, against 175°
+     * and 416–421 px at the top of every rep after. Taken from the countdown
+     * alone, the first rep's reference was 7 % short, and an honest first rep
+     * read 0.30 against the 0.285 line (`front-honest-05`,
+     * `front-honest-knees-04`).
+     */
+    private fun headOnTopHeight(): Float? = listOfNotNull(topShoulderHeight, shoulderHeightNow).maxOrNull()?.takeIf { it > 0f }
+
+    /** The shoulders' height over the hands in the frame being scored, head-on. */
+    private var shoulderHeightNow: Float? = null
+
     /** Head-on only: the shoulders never came down far enough towards the hands. */
     private fun tooShallowHeadOn(): Boolean {
         if (view != CameraView.FRONT) return false
-        val top = topShoulderHeight ?: return false
-        if (minShoulderHeightInCycle == Float.MAX_VALUE || top <= 0f) return false
+        val top = headOnTopHeight() ?: return false
+        if (minShoulderHeightInCycle == Float.MAX_VALUE) return false
         return minShoulderHeightInCycle / top > rules.maxShoulderHeightAtBottom
     }
 

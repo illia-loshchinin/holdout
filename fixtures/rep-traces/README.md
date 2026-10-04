@@ -102,10 +102,10 @@ trace may be gzipped (`*.trace.csv.gz`); the tests read either.
 | `angled60-right-knees-down-up-09` | 60°, phone on the right | staked: 5 honest, 5 from the knees, then knee push-ups rocking back to child's pose — one of them let down from the knees and pushed up on the toes | 5 — had counted 6: knees were judged on the push only, and that one's push was honest (knee 154°, legs 0.45). Now the knee angle is judged on the way down too: 77° there, against 108° at the least on honest descents. Ratio 0.27 / 0.46 / 0.83 — 60° is the edge of the band, side-on in 2 % of counting frames |
 | `angled-right-honest-10` | an unmeasured spot near 40° (ratio 0.60 / 0.79 / 0.96), phone on the right | staked: 12 honest | 12 — had counted 9: three stopped with the shoulder 0.33–0.34 over the hand (limit 0.32) and the elbow at 62–64°. Counted since the 0.32–0.36 band passes with the elbow at 66° or less |
 | `angled45-left-mixed-11` | 45°, phone on the **left**, 720×960 | staked: full, from the knees, half, cobra, then two let down on the toes and pushed from the knees | 11, live and on replay (labelled 10 on the phone; 11 confirmed on video). All 17 cheats refused. Held ratio 0.44 (45° on the right holds 0.76): on the left the same floor mark reads much nearer side-on, and 18 % of counting frames fall under `sideRatio`; the near knee sat within the edge margin in 13–25 % of honest pushes, against the 25 % limit |
-| `front-honest-knees-04` | head-on, Daily 25, 720×960 | 10 full and 5 from the knees (the Daily 25 counts both) | 14 — had counted 8: the shoulders came down to 0.22–0.30 of their top height and the 0.25 line cut the set in half. Line now 0.285 |
+| `front-honest-knees-04` | head-on, Daily 25, 720×960 | 10 full and 5 from the knees (the Daily 25 counts both) | 15 — had counted 8: the shoulders came down to 0.22–0.30 of their top height and the 0.25 line cut the set in half. Line now 0.285. The first rep (0.30) counts since 4 Oct, as in `front-honest-05` |
 | `angled30-right-honest-12` | about 30–35°, close to the body, phone on the right (held ratio 1.26) | staked: 5 honest | 5, live and on replay |
 | `angled30-right-knees-feetup-13` | about 30°, held ratio 1.08 | staked: 2 full and 4 half (confirmed on video), then 5 from the knees with the feet raised, then cobras | 2 on replay — live it counted 7: five of the knee and cobra reps read a knee of 90–112° with the legs at 0.43–0.45, over both lines. Refused since a knee under 135° needs the legs at 0.48 |
-| `front-honest-05` | head-on, Daily 25, 720×960 | 10 honest, recorded on the 0.285 depth line | 9, live and on replay — the first rep read 0.30 and was refused, the other nine 0.24–0.28 |
+| `front-honest-05` | head-on, Daily 25, 720×960 | 10 honest, recorded on the 0.285 depth line | 9, live and on replay — the first rep read 0.30 and was refused, the other nine 0.24–0.28. Counts 10 since 4 Oct: the countdown plank was held on soft arms (elbow 170°, shoulders 386–402 px against 416–421 px at every later top), and the first rep was measured against it. Depth is now a share of the higher of the running top and the top the rep comes back to; the first rep reads 0.28. The nearest half push-up (`front-half-01`) still reads 0.30 |
 | `angled30-right-knees-14` | about 30°, phone on the right (held ratio 1.05) | staked: 5 from the knees with the feet raised, 5 with the feet down — recorded on the bent-knee rule | 0, live and on replay: all ten refused as "Knees off the floor" |
 | `angled45-left-floor-start-15` | 45°, phone on the left, a little further back than `-11` (held ratio 0.57) | staked: 11 full, 5 from the knees, 2 cobras, 3 let down onto the floor and pushed up from there | 9 — live it counted 10: nine full reps and one of the floor-start reps (legs 0.42, knee 141°, push body line 152°). That one is now refused by the hip rise (0.87 against 0.90). Two full reps were refused "legs in the picture" with the knee 13–17 % inside the frame: the left foot sat 2–5 % from the edge and dropped out of the model's confidence mid-rep. The set-up now asks for the foot 6 % inside |
 | `angled45-right-loose-trousers-cobra-16` | 45°, phone on the right; a second person, loose white trousers | staked: six cobras done with the body nearly straight | 0 — live it counted 3 (push body line 145–150°). Hip rise 0.63–0.72 on all six. The knee unreadable in a third of frames |
@@ -113,9 +113,9 @@ trace may be gzipped (`*.trace.csv.gz`); the tests read either.
 | `angled45-right-mixed-18` | 45°, phone on the right (held ratio 0.93) | staked: 10 full, 5 from the knees, 4 pushed up from the floor, 1 with the body bent, then half push-ups on the toes with two full ones among them | 12 (labelled 10 on the phone; 1:59 is as deep as the first ten on video, and the member counts 2:07, at the depth line, as full). Live it counted 10: five in the half block were told "Knees off the floor". Four were halves — the leg a little bent (knee 127–132°), the legs at 0.41–0.48, one 0.408: half reps read the legs lower than full ones. Depth is now judged before knees, and all eight halves say "Go lower". The fifth, 2:07, read knee 130° and legs 0.47 on the push but came down at 135°: the bent-knee line now needs a bent knee on the way down too (under 112°) when the push reads 120–135° |
 | `angled40-right-mixed-19` | about 40°, phone on the right (held ratio 1.01); a second person, white T-shirt, loose shorts | staked: 10 full, 5 from the knees, 3 cobras with the thighs on the floor, 2 half | 10 — live it counted 15. Two knee reps (4:04, 4:11) read the legs at 0.42–0.44, over the 0.41 line set on one body (his honest reps 0.51–0.79); refused since the legs are judged against his own plank too (0.60–0.63 of it; honest 0.70 or more everywhere), with one cobra. Two cobras (4:48, 4:59) still count: at the bottom his head covers the near hand and the model misplaces the wrist (it jumps 0.49–0.62 of the picture height while the hand is planted), so the elbow reads 20–41° and the hip rise is not to be trusted. Pinned at 12 in `RecordedTracesTest` |
 | `angled40-right-floor-20` | about 40°, phone on the right (held ratio 0.91) | staked: 10 full, 5 from the knees, 5 let down until the hips rest on the carpet and pushed up straight in one piece, 1 from the knees | 10 (owner, 4 Oct: a push-up that touched the floor does not count) — counts 14: four of the floor reps (1:05–1:22) pass every check, the body coming up as one piece (hip rise 1.05–1.07). Within this set their hips stand lower at the bottom (0.28–0.34 of the held plank, honest 0.43–0.59) and the push body line reads 145–159° (honest 175–178°), but other people's honest reps read the same, so neither can be a line. Pinned at 14 in `RecordedTracesTest` |
-| `20260927-171132-staked`, `20260927-181344-staked`, `20260929-153345-staked`, `-154046`, `-155215`, `-155837`, `-161244`, `-163059` (`.trace.csv.gz`) | 4:3 staked sittings, 27 and 29 Sep, promoted with their labels | 5–6 honest each, labelled from video | 49 honest labelled; 36 counted, 13 refused (6 "Keep your body straight", 5 "legs in the picture", 1 knees, 1 not seen as a rep). Held by the ratchet, not by `expectedReps` |
+| `20260927-171132-staked`, `20260927-181344-staked`, `20260929-153345-staked`, `-154046`, `-155215`, `-155837`, `-161244`, `-163059` (`.trace.csv.gz`) | 4:3 staked sittings, 27 and 29 Sep, promoted with their labels | 5–6 honest each, labelled from video | Five of them (`171132`, `181344`, `153345`, `155837`, `161244`) held 1.20–1.44 through the countdown: in front of 35°, where today's app does not start a staked sitting. There the body line reads 127–143° on straight bodies, and six honest reps were refused "Keep your body straight". Kept as evidence, but not scored and not held by the ratchet. The other three are held rep by rep |
 | *(note, 2 Oct)* | — | A staked sitting no longer starts from in front of about 35° (placement ratio 1.1 or more). The staked sets above that were recorded there — the September "45° by eye" sets, which held 1.1–1.4, and `angled30-right-honest-12` — stay as tests of the counter; on the phone today they would be asked to turn first | — |
-| `angled-knees-out-of-frame-01` | 45° | staked: 5 full push-ups with the knees out of the **counter's** picture (Seeker, 29 Sep, a 10-minute test day). The debug video of the same set shows the whole body: it records the sensor's full 4:3 width, while analysis and the preview use a 16:9 crop, about 12 % narrower each side — the knees were inside the one and outside the other | 0 — all 5 had counted: the model placed the knees just inside the frame at full confidence. Refused as `LEGS_IN_VIEW` once the knee spends over 25 % of the push within 13 % of an edge; it was there 28–50 % of every rep, honest sets 0–3 % |
+| `angled-knees-out-of-frame-01` | 45° | staked: 5 full push-ups with the knees out of the **counter's** picture (Seeker, 29 Sep, a 10-minute test day). The debug video of the same set shows the whole body: it records the sensor's full 4:3 width, while analysis and the preview use a 16:9 crop, about 12 % narrower each side — the knees were inside the one and outside the other | 0 — all 5 had counted: the model placed the knees just inside the frame at full confidence. Refused as `LEGS_IN_VIEW` once the knee spends over 25 % of the push within 13 % of an edge; it was there 28–50 % of every rep, honest sets 0–3 %. Labelled `unseen`: the labelling page now shades the video outside the counter's picture |
 
 ## Rep labels (`*.labels.csv`) and the test bench
 
@@ -141,7 +141,11 @@ t,label,by,flag,hint,note,claude,reply
   overlap (the knees touch in all three), so the top of the rep decides first:
   kneeling at the top is `knees`, whatever happens at the bottom; on the toes at
   the top but resting on the floor at the bottom (hips or thighs carrying
-  weight) is `floor`; hips that never leave the floor is `cobra`.
+  weight) is `floor`; hips that never leave the floor is `cobra`. `unseen` is
+  an honest rep the counter cannot see, the legs outside its picture (shaded
+  in the page): it should be refused with "Keep your legs in the picture".
+  Depth is held to the counter's line (owner, 4 Oct): a rep that stops short
+  of it is `half`, however close.
 - `by` — who set the label: `reviewer`, or `claude` until a reviewer confirms it.
 - `flag` — `check` when the reviewer ticked "Review & fix": the rep is taken
   up for analysis and fixing. Only ticked reps are. `answered` once Claude has
@@ -157,8 +161,10 @@ A v1 file (`t,label,note`) still reads, as the reviewer's labels and notes.
   machine only (http://localhost:8766). It opens on **Needs you**, one queue
   across every sitting: Claude's answers to read, Claude's labels to confirm
   (those the app gets wrong first), then reps nobody has labelled. Each rep
-  plays as a loop with the skeleton the counter reads drawn bold; `Enter`
-  confirms the label on screen, `1`–`7` and `0` set one, `f` ticks "Review &
+  plays as a loop with the skeleton the counter reads drawn bold, and the
+  video outside the counter's picture shaded (on the 29 Sep build the video
+  kept the sensor's 3:4 and the counter read a 9:16 crop of it); `Enter`
+  confirms the label on screen, `1`–`8` and `0` set one, `f` ticks "Review &
   fix", `h` picks the words it should be refused with, `d` closes Claude's
   answer — and the queue moves on. Labels save beside the trace; "Sitting
   finished" ticks itself when every rep has a label the reviewer set or
@@ -193,7 +199,9 @@ A v1 file (`t,label,note`) still reads, as the reviewer's labels and notes.
   :repcounter:updateBaseline` (from `kotlin/`) writes it again — so a rep put
   right stays right, and a fix for one person cannot quietly undo another's.
   Commit the baseline with the change that moved it; its diff shows which reps
-  did. 4 Oct: 344 labelled reps, 274 right, 31 words, 39 wrong.
+  did. A staked sitting held in front of 35° (ratio 1.1 or more) is left out of
+  the ratchet and the bench score, since today's app does not start it. 4 Oct:
+  308 labelled reps, 262 right, 31 words, 15 wrong.
 - **Videos**: they stay in `phone_traces/` on this machine only, and go 30
   days after their sitting is marked finished, once it is promoted. Nothing is
   scheduled: `node scripts/label-reps.mjs --prune` lists the videos due and
