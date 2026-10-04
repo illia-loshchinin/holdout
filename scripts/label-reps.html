@@ -269,17 +269,37 @@ const verdictOf = (r) => todayAt(r.end) ?? r.verdict;
 /** Each judged rep: from the end of the one before (or the start of counting) to its own event. */
 function repsOf(trace) {
   const reps = [];
-  let from = null;
+  const elbowAt = trace.col('elbow');
+  let from = null, stretch = [];
   for (const r of trace.rows) {
     if (r[1] !== 'COUNTING') continue;
     const t = Number(r[0]);
     if (from === null) from = t;
+    stretch.push([t, Number(r[elbowAt])]);
     const ev = r[r.length - 1];
     if (!ev) continue;
-    reps.push({ start: from, end: t, verdict: ev.replace('discarded:', '') });
+    reps.push({ start: from, clipStart: movementStart(stretch, from), end: t, verdict: ev.replace('discarded:', '') });
     from = t;
+    stretch = [];
   }
   return reps;
+}
+
+/**
+ * Where the clip of a rep starts: 1.5 s before the last moment, ahead of its
+ * deepest point, that the arms were (nearly) as straight as they got since the
+ * rep before — but never more than 1 s back into that rep. The stretch since
+ * the rep before can hold seconds of rest, or of getting up, and a clip that
+ * started there showed "no rep" (4 Oct).
+ */
+function movementStart(window, from) {
+  const seen = window.filter(([, e]) => Number.isFinite(e));
+  if (seen.length < 3) return from - 1000;
+  let bottom = 0;
+  seen.forEach(([, e], i) => { if (e < seen[bottom][1]) bottom = i; });
+  const straight = Math.max(...seen.slice(0, bottom + 1).map(([, e]) => e)) - 8;
+  for (let i = bottom; i >= 0; i--) if (seen[i][1] >= straight) return Math.max(from - 1000, seen[i][0] - 1500);
+  return from - 1000;
 }
 
 async function loadSittings() {
@@ -475,12 +495,12 @@ function show(i, replay = true) {
     words: ` <span class="agree words" title="${l?.hint ? 'your Should say' : `what a ${l?.label} rep should hear`}">~ refused, but should say "${said(want)}"</span>`,
     bad: ' <span class="agree bad">✗ the app is wrong here</span>',
   }[q] ?? '';
-  $('repInfo').innerHTML = `${sitting}Rep <strong>${current + 1}</strong> of ${S.reps.length} · ${mmss(vt(r.start))}–${mmss(vt(r.end))} · ${verdictText}${agree}${byText}`;
+  $('repInfo').innerHTML = `${sitting}Rep <strong>${current + 1}</strong> of ${S.reps.length} · ${mmss(vt(r.clipStart))}–${mmss(vt(r.end))} · ${verdictText}${agree}${byText}`;
   renderList();
   $('reps').children[current]?.scrollIntoView({ block: 'nearest' });
   if (!replay) return;
   video.playbackRate = slow ? 0.5 : 1;
-  video.currentTime = Math.max(0, vt(r.start) - 0.3);
+  video.currentTime = Math.max(0, vt(r.clipStart) - 0.3);
   video.play().catch(() => {});
 }
 
@@ -488,7 +508,7 @@ function show(i, replay = true) {
 function loop() {
   if (S && S.reps.length && !video.paused) {
     const r = S.reps[current];
-    if (video.currentTime > vt(r.end) + 0.4 || video.currentTime < vt(r.start) - 0.6) video.currentTime = Math.max(0, vt(r.start) - 0.3);
+    if (video.currentTime > vt(r.end) + 0.4 || video.currentTime < vt(r.clipStart) - 0.6) video.currentTime = Math.max(0, vt(r.clipStart) - 0.3);
   }
   watchdog();
   drawSkeleton();
