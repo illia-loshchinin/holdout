@@ -113,12 +113,14 @@
 </main>
 <script>
 // What a rep was, as a person saw it on the video. Only `honest` should count.
+// Knees, floor and cobra overlap — the knees touch in all three — so: look at
+// the TOP of the rep first, then the bottom.
 const LABELS = [
-  ['1', 'honest', 'Full push-up on the toes'],
-  ['2', 'half', 'Too shallow'],
-  ['3', 'knees', 'From the knees'],
-  ['4', 'floor', 'Let down onto the floor (hips or chest resting) and pushed up'],
-  ['5', 'cobra', 'Chest up first, hips left behind'],
+  ['1', 'honest', 'On the toes at the top; at the bottom off the floor and deep enough'],
+  ['2', 'half', 'On the toes at the top; at the bottom off the floor but not deep enough'],
+  ['3', 'knees', 'At the top the knees are on the floor (a kneeling plank) — whatever happens at the bottom'],
+  ['4', 'floor', 'On the toes at the top, but at the bottom the body rested on the floor (hips or thighs carrying weight)'],
+  ['5', 'cobra', 'The hips never left the floor: only the chest and arms came up'],
   ['6', 'sag', 'Hips sagging or piked'],
   ['7', 'other', 'Anything else that is not a push-up'],
   ['0', 'unsure', 'Cannot tell from the video: left out of the test bench'],

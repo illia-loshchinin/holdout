@@ -134,9 +134,12 @@ t,label,by,flag,hint,note,claude,reply
 ```
 
 - `t` — the trace time of the row the rep's verdict was written on.
-- `label` — `honest`, `half`, `knees`, `floor` (hips resting on the floor at
-  the bottom), `cobra`, `sag`, `other`, or `unsure` (left out). Only `honest`
-  should count.
+- `label` — `honest`, `half`, `knees`, `floor`, `cobra`, `sag`, `other`, or
+  `unsure` (left out). Only `honest` should count. Knees, floor and cobra
+  overlap (the knees touch in all three), so the top of the rep decides first:
+  kneeling at the top is `knees`, whatever happens at the bottom; on the toes at
+  the top but resting on the floor at the bottom (hips or thighs carrying
+  weight) is `floor`; hips that never leave the floor is `cobra`.
 - `by` — who set the label: `reviewer`, or `claude` until a reviewer confirms it.
 - `flag` — `check` when the reviewer ticked "Review & fix": the rep is taken
   up for analysis and fixing. Only ticked reps are. `answered` once Claude has
