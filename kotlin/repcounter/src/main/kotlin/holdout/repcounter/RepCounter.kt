@@ -446,6 +446,17 @@ class RepCounter(
         return hipRise()?.let { it < rules.minHipRise } ?: judgeKnees
     }
 
+    /**
+     * A countdown frame fit to calibrate from: the ready gate's own checks
+     * (`ReadyGate.blockerOf`) — where money is staked, knees readable and seen
+     * off the floor; the body in one line.
+     */
+    private fun readyPlank(reading: ViewReading, posture: Float): Boolean {
+        val angled = reading as? ViewReading.Angled
+        if (judgeKnees && (angled?.kneeUnreadable == true || !kneesSeenOffFloor(reading.knee, angled?.legsAboveHands, rules))) return false
+        return postureHeld(view, reading, posture, rules)
+    }
+
     /** The legs on the push fell well under this person's own plank ([RepRules.minLegsShareOfHeld]). Unknown passes. */
     private fun legsDroppedFromPlank(): Boolean {
         if (heldLegs.size < MIN_HELD_FRAMES) return false
@@ -563,7 +574,11 @@ class RepCounter(
         val elbow = elbowFilter.filter(reading.elbow, frame.timestampMillis)
         val posture = postureFilter.filter(reading.posture, frame.timestampMillis)
         val knee = reading.knee?.let { kneeFilter.filter(it, frame.timestampMillis) }
-        if (priming && image != null && elbow >= rules.obliqueTopDegrees) {
+        // The plank this sitting is measured against is only one the ready gate
+        // would accept: on the toes, the body in one line. A member who kneels
+        // through the countdown must not set a kneeling reference that their
+        // knee reps then match (review, 4 Oct).
+        if (priming && image != null && elbow >= rules.obliqueTopDegrees && readyPlank(reading, posture)) {
             placement.placementRatio(image.frame, Aspect.xScale(image.width, image.height))?.let { heldRatios += it }
             (reading as? ViewReading.Angled)?.legsAboveHands?.let { heldLegs += it }
         }

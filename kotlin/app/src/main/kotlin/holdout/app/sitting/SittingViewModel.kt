@@ -7,6 +7,7 @@ import holdout.app.vision.VisionAnalyzer
 import holdout.repcounter.CameraView
 import holdout.repcounter.Coach
 import holdout.repcounter.Guidance
+import holdout.repcounter.HoldBlocker
 import holdout.repcounter.ImagePose
 import holdout.repcounter.Lens
 import holdout.repcounter.Placement
@@ -312,7 +313,15 @@ class SittingViewModel(
                 )
                 _uiState.update { it.withFrame(observation).copy(preflight = report) }
                 record(observation, countingView)
-                val holds = report.canStart && report.view == countingView
+                // Staked, knees coming down stops the countdown as a moved phone does:
+                // the counter calibrates on this plank. Arms bending is not checked —
+                // people start down on "1".
+                val kneesDown = stakes == Stakes.STAKED &&
+                    readyGate.run {
+                        onFrame(observation.world, observation.world.timestampMillis, pillsGreen = true, view = countingView, image = observation.imagePose())
+                        blocker == HoldBlocker.KNEES
+                    }
+                val holds = report.canStart && report.view == countingView && !kneesDown
                 synchronized(countdownLock) {
                     // The timer may have ended the countdown on the main
                     // thread while this frame was being read.

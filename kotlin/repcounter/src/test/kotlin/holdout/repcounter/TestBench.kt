@@ -236,9 +236,19 @@ fun main(args: Array<String>) {
             notStarted += "$name: $it"
             continue
         }
-        val (judged, missing) = benchSitting(name, recording, RepLabels.parse(labelsFile.readLines()))
+        val labels = RepLabels.parse(labelsFile.readLines())
+        val (judged, missing) = benchSitting(name, recording, labels)
         reps += judged
-        missing.forEach { lost += "$name: a ${it.label} rep ending at t=${it.endMillis} has no judged rep near it today" }
+        // A labelled rep today's counter does not judge at all counts nothing: scored
+        // as not judged — a miss for one that should count, right for a cheat — as the
+        // ratchet scores it, so the gate cannot pass on reps the counter stopped seeing.
+        val t0 = recording.countingFrames.firstOrNull()?.timestampMillis ?: 0L
+        val placement = listOfNotNull(recording.placement, recording.phoneSide).joinToString(" ").ifEmpty { "?" }
+        for (m in missing) {
+            val kind = if (recording.stakes == Stakes.DAILY && m.label == "knees") RepLabels.KNEES_DAILY else m.label
+            reps += BenchRep(name, labels.person, placement, (m.endMillis - t0) / 1000f, kind, m.note, Ratchet.NOT_JUDGED, m.by, m.flagged, m.claudeNote, m.hint, m.endMillis)
+            lost += "$name: a ${m.label} rep ending at t=${m.endMillis} has no judged rep near it today"
+        }
     }
 
     fun pct(n: Int, of: Int) = if (of == 0) "-" else "%.0f %%".format(100.0 * n / of)
