@@ -32,11 +32,13 @@ A moving background is not a correction: its pill turns amber with "Find a spot 
 
 ## Refused reps — `RepHint`, shown and spoken
 
+Every refused rep's reason is said aloud at once *(2026-10-04; it was said only when the same reason came twice in a row)*. A rep refused with no reason (too slow) says nothing.
+
 - "Go lower" — too shallow
 - "Keep your body straight" — folded, a cobra, or *(2026-10-02)* pushed up from lying on the floor: the chest came up first and the hips after
 - "Slow down" — too fast
 - "Knees off the floor" — staked only
-- "Keep your legs in the picture" *(was "…your knees…" until 2026-10-02)* — staked only: the near knee unseen, unreadable or at the picture's edge, or the foot slipping out of it, on the push or on the way down; said aloud the first time
+- "Keep your legs in the picture" *(was "…your knees…" until 2026-10-02)* — staked only: the near knee unseen, unreadable or at the picture's edge, or the foot slipping out of it, on the push or on the way down
 - "Hips off the floor" *(added 2026-10-04)* — staked only: the hips or thighs rested on the floor at the bottom, carrying weight, and the body was pushed back up. Resting, not a chest brushing the floor. **Not said yet**: no check can see it until the knee-on-the-floor image classifier judges the hips too; until then such reps count (`angled40-right-floor-20`), and the rule sentence says they do not
 
 ## Framing (FR-024, FR-010) — the whole-body check, before the hold

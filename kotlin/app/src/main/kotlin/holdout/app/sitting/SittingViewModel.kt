@@ -330,19 +330,15 @@ class SittingViewModel(
                 record(observation, countingView, repCounter.readout, event)
                 when (event) {
                     is RepEvent.Counted -> {
-                        lastRefusal = null
                         _uiState.update { it.copy(repsCounted = repCounter.total) }
                         onVerifiedRep()
                     }
                     is RepEvent.Discarded -> {
                         _uiState.update { it.copy(hint = event.hint?.message) }
-                        // Face-down, the member cannot read the screen: the same
-                        // failure twice in a row is said out loud.
-                        val hint = event.hint
-                        // Knees out of the picture is said at once: every rep fails the
-                        // same way until the phone or the member moves.
-                        if (hint != null && (hint == lastRefusal || hint == holdout.repcounter.RepHint.LEGS_IN_VIEW)) _cues.tryEmit(Cue.Say(hint.message))
-                        lastRefusal = hint
+                        // Face-down, the member cannot read the screen: every refused
+                        // rep's reason is said out loud, at once (owner, 2026-10-04 —
+                        // it was the second time in a row). A new one cuts the last off.
+                        event.hint?.let { _cues.tryEmit(Cue.Say(it.message)) }
                     }
                     null -> Unit
                 }
@@ -551,9 +547,6 @@ class SittingViewModel(
 
     /** Whether the camera is recording this sitting as video (debug builds). */
     fun onRecordingVideo(on: Boolean) = _uiState.update { it.copy(recordingVideo = on) }
-
-    /** The last refused rep's reason, to say it aloud if the next rep fails the same way. */
-    private var lastRefusal: holdout.repcounter.RepHint? = null
 
     private var coachSince: Pair<Coach, Long>? = null
     private var spoken: Pair<Coach, Long>? = null
