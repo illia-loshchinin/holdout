@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "label-reps",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/label-reps.mjs"
+      ],
+      "port": 8766
+    }
+  ]
+}
