@@ -93,6 +93,8 @@ data class PreflightInput(
     val world: PoseFrame?,
     /** Image landmarks: normalised 0..1. Null when the model found nobody. */
     val image: PoseFrame? = world,
+    /** [image] with the picture's size, which the near side is read from. Without it the staked knee check is skipped. */
+    val imagePose: ImagePose? = null,
 )
 
 class Preflight(
@@ -102,8 +104,17 @@ class Preflight(
     /**
      * Shoulder span against torso length, at or below which the camera is
      * beside the member rather than in front of them.
+     *
+     * **0.25 (settled 2026-10-02, 002 T034c).** At 0.5 a phone measured at 45°
+     * on the floor read side-on in 12 % of counting frames and at 50° in 35 %
+     * (ratio 5th percentile 0.46 and 0.36), which kept resetting the ready
+     * hold. At 0.25, sets at 40°, 55° and 60° read side-on in 0 %, 0 % and 2 %
+     * of counting frames (5th percentile 0.53, 0.33, 0.27), and a plank held
+     * square side-on read side-on in every frame of the hold (median 0.13)
+     * and never started (fixture `side-right-hold-01`). 60° is the edge:
+     * past it the ready hold starts to reset.
      */
-    private val sideRatio: Float = 0.5f,
+    private val sideRatio: Float = 0.25f,
     /**
      * At or above which it is in front of them. Between the two is oblique —
      * the 45° placement staked sittings use. Set from two recordings: at 45°
@@ -113,28 +124,46 @@ class Preflight(
      */
     private val frontRatio: Float = 1.55f,
     /**
+     * **Staked: at or above which the phone is too far in front** — about 35°
+     * (decided 2026-10-02, product owner: no placement may be left where a
+     * cheat counts). From further in front the hips sit behind the shoulders in
+     * the picture, and the check that the body comes up as one piece
+     * ([RepRules.minHipRise]) reads honest reps as low as a rep pushed up off
+     * the floor; knee push-ups with the feet raised were also only caught there
+     * by a rule of their own. It is the counter's own line, so the counter never
+     * runs unjudged: 30° held 1.05–1.26 on the phone, 40° 0.78–0.95.
+     */
+    private val stakedFrontRatio: Float = RepRules().maxHipRisePlacementRatio,
+    /**
      * A staked sitting accepts the side view only, and its camera pill says so
      * in those words — a member told only "move the phone" would move it and
      * still be refused ([Stakes]).
      */
     private val stakes: Stakes = Stakes.DAILY,
+    /** Staked: how far inside the picture the near knee must be to start — the counter's own margin. */
+    private val legEdgeMargin: Float = RepRules().legEdgeMargin,
 ) {
 
     fun evaluate(input: PreflightInput): PreflightReport {
-        val view = classifyView(input.image)
+        val xScale = input.imagePose?.let { Aspect.xScale(it.width, it.height) } ?: 1f
+        val view = classifyView(input.image, xScale)
         return PreflightReport(
             statuses = listOf(
                 PreflightStatus(
                     PreflightCheck.LIGHTING,
                     input.brightness in minBrightness..maxBrightness,
                 ),
-                PreflightStatus(PreflightCheck.WHOLE_BODY, wholeBodyVisible(input.world, input.image)),
+                wholeBody(input),
                 // One placement per stakes ([Stakes]): head-on for the Daily 25,
                 // 45° when money is on it. Anywhere else, the pill says which.
                 PreflightStatus(
                     PreflightCheck.CAMERA_ANGLE,
                     passing = stakes.accepts(view),
-                    specificFix = if (view != null) stakes.cameraFix else null,
+                    specificFix = when {
+                        view == null -> null
+                        stakes == Stakes.STAKED -> stakedCameraFix(view, placementRatio(input.image, xScale), input.imagePose)
+                        else -> stakes.cameraFix
+                    },
                 ),
                 PreflightStatus(
                     PreflightCheck.BACKGROUND_STILL,
@@ -143,6 +172,66 @@ class Preflight(
             ),
             view = view,
         )
+    }
+
+    /**
+     * Staked, the phone in the wrong place: which way to turn, when that can be
+     * said. A phone a little too far in front, or beside the member, shows one
+     * side of the body nearer — the side it stands on — and the body turning a
+     * little is the quickest fix: **away** from the phone when it is too far in
+     * front, **towards** it when it is beside them. Square head-on neither side
+     * is nearer, and only the phone moving will do.
+     */
+    private fun stakedCameraFix(view: CameraView, ratio: Float?, pose: ImagePose?): String {
+        val phoneOn = pose?.let(Angles::nearSide)
+        return when {
+            view == CameraView.FRONT && ratio != null && ratio < frontRatio -> when (phoneOn) {
+                Side.RIGHT -> TOO_FRONT_TURN_LEFT_FIX
+                Side.LEFT -> TOO_FRONT_TURN_RIGHT_FIX
+                null -> stakes.cameraFix
+            }
+            view == CameraView.SIDE -> when (phoneOn) {
+                Side.RIGHT -> TOO_SIDE_TURN_RIGHT_FIX
+                Side.LEFT -> TOO_SIDE_TURN_LEFT_FIX
+                null -> stakes.cameraFix
+            }
+            else -> stakes.cameraFix
+        }
+    }
+
+    /**
+     * The whole-body pill, which the ready hold and the countdown both need
+     * green. On top of every joint being present:
+     *
+     * - **the head clearly inside the picture** — the entry is held with the
+     *   head in frame. Once counting starts the head is not read at all: a head
+     *   that dips out at the bottom of a rep costs nothing;
+     * - **staked: the near knee clear of the edges** by the counter's own
+     *   margin. A knee out of frame is placed just inside the edge at full
+     *   confidence, and a rep read from it is refused ([RepHint.LEGS_IN_VIEW]),
+     *   so the sitting does not start that way;
+     * - **staked: the near foot clear of the edges** by [FEET_EDGE_MARGIN], for
+     *   the same reason: a foot at the edge drops out of frames mid-rep.
+     */
+    private fun wholeBody(input: PreflightInput): PreflightStatus {
+        fun failing(fix: String? = null) = PreflightStatus(PreflightCheck.WHOLE_BODY, passing = false, specificFix = fix)
+        if (!wholeBodyVisible(input.world, input.image)) return failing()
+        if (input.image != null && !Angles.headInFrame(input.image)) return failing(HEAD_FIX)
+        val pose = input.imagePose
+        if (stakes == Stakes.STAKED && pose != null) {
+            // Two different problems, two different fixes: a knee the model
+            // cannot find is hidden behind the body — turning a little away from
+            // the phone shows it; one at the picture's edge needs more room.
+            val side = Angles.nearSide(pose) ?: return failing(KNEES_TURN_FIX)
+            // The side facing the phone is the side the phone is on; turning the
+            // other way opens the angle and brings the near knee out.
+            if (!Angles.kneeSeen(pose, side)) return failing(if (side == Side.RIGHT) KNEES_TURN_LEFT_FIX else KNEES_TURN_RIGHT_FIX)
+            if (!Angles.kneeClearOfEdge(pose, side, legEdgeMargin)) return failing(KNEES_FIX)
+            // The foot too, with room to spare: at the very edge the model loses it
+            // every few frames, and each of those frames is a leg not seen.
+            if (!Angles.ankleClearOfEdge(pose, side, FEET_EDGE_MARGIN)) return failing(FEET_FIX)
+        }
+        return PreflightStatus(PreflightCheck.WHOLE_BODY, passing = true)
     }
 
     /**
@@ -199,40 +288,80 @@ class Preflight(
      * Returns null when there is not enough of a body to judge — which is the
      * only thing the camera-view check now fails on.
      */
-    fun classifyView(frame: PoseFrame?): CameraView? {
+    fun classifyView(frame: PoseFrame?, xScale: Float = 1f): CameraView? {
+        val ratio = placementRatio(frame, xScale) ?: return null
+        return when {
+            ratio <= sideRatio -> CameraView.SIDE
+            // Where money is staked, "in front" starts sooner: see [stakedFrontRatio].
+            ratio >= (if (stakes == Stakes.STAKED) minOf(frontRatio, stakedFrontRatio) else frontRatio) -> CameraView.FRONT
+            else -> CameraView.OBLIQUE
+        }
+    }
+
+    /**
+     * What [classifyView] decides on: shoulder span over torso length, in the
+     * 9:16 units the thresholds were set in. `0` when one shoulder hides the
+     * other — the model cannot see through a torso, so that is side-on — and
+     * null when there is not enough of a body to judge. Public for calibration
+     * (`replayTraces`), which groups it by the placement a person labelled.
+     */
+    fun placementRatio(frame: PoseFrame?, xScale: Float = 1f): Float? {
         if (frame == null) return null
         val leftShoulder = frame[PoseIndex.LEFT_SHOULDER]
         val rightShoulder = frame[PoseIndex.RIGHT_SHOULDER]
         val shoulder = midpoint(leftShoulder, rightShoulder) ?: return null
         val hip = midpoint(frame[PoseIndex.LEFT_HIP], frame[PoseIndex.RIGHT_HIP]) ?: return null
 
-        val torsoLength = hypot(shoulder.first - hip.first, shoulder.second - hip.second)
+        // x read as it was in the 9:16 picture the thresholds were set in ([Aspect]).
+        val torsoLength = hypot(Aspect.calibratedX(shoulder.first - hip.first, xScale), shoulder.second - hip.second)
         if (torsoLength < MIN_TORSO_LENGTH) return null
 
-        // One shoulder occluded by the other is the strongest side-on signal
-        // there is: the model cannot see through a torso.
-        if (leftShoulder == null || rightShoulder == null) return CameraView.SIDE
-        if (leftShoulder.presence < Angles.PRESENCE_THRESHOLD ||
-            rightShoulder.presence < Angles.PRESENCE_THRESHOLD
-        ) {
-            return CameraView.SIDE
-        }
+        if (leftShoulder == null || rightShoulder == null) return 0f
+        if (leftShoulder.presence < Angles.PRESENCE_THRESHOLD || rightShoulder.presence < Angles.PRESENCE_THRESHOLD) return 0f
 
         val shoulderSpan = hypot(
-            leftShoulder.x - rightShoulder.x,
+            Aspect.calibratedX(leftShoulder.x - rightShoulder.x, xScale),
             leftShoulder.y - rightShoulder.y,
         )
-        val ratio = shoulderSpan / torsoLength
-        return when {
-            ratio <= sideRatio -> CameraView.SIDE
-            ratio >= frontRatio -> CameraView.FRONT
-            else -> CameraView.OBLIQUE
-        }
+        return shoulderSpan / torsoLength
     }
 
     companion object {
         /** Share of the background ([BackgroundMotion]) allowed to change between frames. */
         const val DEFAULT_MAX_BACKGROUND_MOTION = 0.12f
+
+        /** The whole-body pill's fix when the head is at or past the picture's edge. */
+        const val HEAD_FIX = "Keep your head in the picture"
+
+        /** Staked: the phone too far in front, standing on the member's right — they turn left, away from it. */
+        const val TOO_FRONT_TURN_LEFT_FIX = "The phone is too far in front of you: turn your body slightly to your left, away from it"
+
+        /** Staked: as [TOO_FRONT_TURN_LEFT_FIX], the phone on the member's left. */
+        const val TOO_FRONT_TURN_RIGHT_FIX = "The phone is too far in front of you: turn your body slightly to your right, away from it"
+
+        /** Staked: the phone beside the member, on their right — they turn right, towards it. */
+        const val TOO_SIDE_TURN_RIGHT_FIX = "The phone is too far round to your side: turn your body slightly to your right, towards it"
+
+        /** Staked: as [TOO_SIDE_TURN_RIGHT_FIX], the phone on the member's left. */
+        const val TOO_SIDE_TURN_LEFT_FIX = "The phone is too far round to your side: turn your body slightly to your left, towards it"
+
+        /** Staked: the fix when the near foot is at the edge. */
+        const val FEET_FIX = "Keep your feet in the picture — move the phone further away"
+
+        /** Staked: how far inside the picture the near ankle must be to start. */
+        const val FEET_EDGE_MARGIN = 0.06f
+
+        /** Staked: the fix when the near knee is at or past the edge. */
+        const val KNEES_FIX = "Keep your knees in the picture — move the phone further away"
+
+        /** Staked: the near knee cannot be found — hidden behind the body — and which side faces the phone is unclear. */
+        const val KNEES_TURN_FIX = "Turn your body a little away from the phone, so it sees your knees"
+
+        /** Staked: as [KNEES_TURN_FIX], with the phone on the member's right — they turn left. */
+        const val KNEES_TURN_LEFT_FIX = "Turn your body slightly to your left, away from the phone, so it sees your knees"
+
+        /** Staked: as [KNEES_TURN_FIX], with the phone on the member's left — they turn right. */
+        const val KNEES_TURN_RIGHT_FIX = "Turn your body slightly to your right, away from the phone, so it sees your knees"
 
         /** Below this the torso is too short in frame for the ratio to mean anything. */
         private const val MIN_TORSO_LENGTH = 0.02f

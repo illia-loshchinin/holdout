@@ -13,6 +13,10 @@
          only; the lost audio anti-spoofing filter is named in the README as a
          known weakness with its real fix beside it. -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- On-device reminders (FR-068, research R21): asked once, at the first
+         join, with the reason. No exact-alarm and no boot permission - the
+         reminders are inexact and return when the app next reads the chain. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Every sitting binds the front camera and nothing else, so that is the
          hardware required. The rear camera and autofocus are declared optional
          explicitly: the CAMERA permission alone would imply both. -->
@@ -57,6 +61,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Posts a reminder when its alarm fires; nothing outside the app can send it. -->
+        <receiver
+            android:name=".reminders.ReminderReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

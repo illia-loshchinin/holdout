@@ -24,7 +24,8 @@ class CoachTest {
     @Test
     fun `every correction fits on the screen from the floor - three short words at most`() {
         for (coach in Coach.entries) {
-            assertTrue(coach.words.split(' ').size <= 3 && coach.words.length <= 18, "\"${coach.words}\" is too long")
+            // 19 characters: "Turn slightly right", still three words.
+            assertTrue(coach.words.split(' ').size <= 3 && coach.words.length <= 19, "\"${coach.words}\" is too long")
         }
     }
 
@@ -51,7 +52,44 @@ class CoachTest {
     }
 
     @Test
+    fun `a hidden knee asks the member to turn away, a knee at the edge asks for the phone further off`() {
+        fun kneesReport(fix: String) = PreflightReport(
+            statuses = PreflightCheck.entries.map { if (it == PreflightCheck.WHOLE_BODY) PreflightStatus(it, passing = false, specificFix = fix) else PreflightStatus(it, passing = true) },
+            view = CameraView.OBLIQUE,
+        )
+        assertEquals(Coach.TURN_LEFT, Coach.next(kneesReport(Preflight.KNEES_TURN_LEFT_FIX), guidance(null)), "phone on the right: turn left, away from it")
+        assertEquals(Coach.TURN_RIGHT, Coach.next(kneesReport(Preflight.KNEES_TURN_RIGHT_FIX), guidance(null)))
+        assertEquals(Coach.TURN_AWAY, Coach.next(kneesReport(Preflight.KNEES_TURN_FIX), guidance(null)), "which side faces the phone is unclear")
+        assertEquals(Coach.FURTHER, Coach.next(kneesReport(Preflight.KNEES_FIX), guidance(null)))
+    }
+
+    @Test
+    fun `a staked phone a little too far in front, or beside the member, says which way to turn`() {
+        fun cameraReport(fix: String) = PreflightReport(
+            statuses = PreflightCheck.entries.map { if (it == PreflightCheck.CAMERA_ANGLE) PreflightStatus(it, passing = false, specificFix = fix) else PreflightStatus(it, passing = true) },
+            view = CameraView.FRONT,
+        )
+        assertEquals(Coach.TURN_LEFT, Coach.next(cameraReport(Preflight.TOO_FRONT_TURN_LEFT_FIX), guidance(PositionHint.PHONE_AT_45)))
+        assertEquals(Coach.TURN_RIGHT, Coach.next(cameraReport(Preflight.TOO_FRONT_TURN_RIGHT_FIX), guidance(PositionHint.PHONE_AT_45)))
+        assertEquals(Coach.TURN_RIGHT, Coach.next(cameraReport(Preflight.TOO_SIDE_TURN_RIGHT_FIX), guidance(PositionHint.PHONE_AT_45)))
+        assertEquals(Coach.TURN_LEFT, Coach.next(cameraReport(Preflight.TOO_SIDE_TURN_LEFT_FIX), guidance(PositionHint.PHONE_AT_45)))
+        // Square head-on there is no side to turn from: the phone has to move.
+        assertEquals(Coach.TURN_45, Coach.next(cameraReport(Stakes.STAKED.cameraFix), guidance(PositionHint.PHONE_AT_45)))
+    }
+
+    @Test
     fun `all green says hold`() {
         assertEquals(Coach.HOLD, Coach.next(report(), guidance(null)))
+    }
+
+    @Test
+    fun `all green and not yet in position says what the position lacks`() {
+        assertEquals(Coach.ARMS_STRAIGHT, Coach.next(report(), guidance(null), HoldBlocker.ARMS))
+        assertEquals(Coach.KNEES_UP, Coach.next(report(), guidance(null), HoldBlocker.KNEES))
+        assertEquals(Coach.KNEES_UNCLEAR, Coach.next(report(), guidance(null), HoldBlocker.KNEES_UNREADABLE))
+        assertEquals(Coach.BODY_STRAIGHT, Coach.next(report(), guidance(null), HoldBlocker.BODY))
+        // A pill's own fix comes first: the position is not judged until the picture is right.
+        assertEquals(Coach.FURTHER, Coach.next(report(PreflightCheck.WHOLE_BODY), guidance(null), HoldBlocker.ARMS))
+        assertEquals(Coach.CLOSER, Coach.next(report(), guidance(PositionHint.MOVE_CLOSER), HoldBlocker.KNEES))
     }
 }

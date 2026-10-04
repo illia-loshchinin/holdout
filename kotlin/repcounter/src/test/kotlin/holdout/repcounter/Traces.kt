@@ -319,7 +319,11 @@ object Traces {
      */
     fun angledImage(timestampMillis: Long, elbowDegrees: Float, kneeDegrees: Float = 178f, presence: Float = 1f): ImagePose {
         val landmarks = MutableList(PoseIndex.COUNT) { Landmark(0f, 0f, 0f, 0f) }
-        fun at(x: Double, y: Double) = Landmark((x / IMAGE_WIDTH).toFloat(), (y / IMAGE_HEIGHT).toFloat(), 0f, presence)
+
+        // Drawn at half size, lower in the frame, so the whole body — knees and
+        // ankles too — lies well inside the picture, as it must on the phone.
+        // Every reading here is an angle or a ratio of lengths: scaling changes none.
+        fun at(x: Double, y: Double) = Landmark((x * 0.5 / IMAGE_WIDTH).toFloat(), ((y * 0.5 + 200) / IMAGE_HEIGHT).toFloat(), 0f, presence)
         // Arm: the hand stays on the floor and the shoulder comes down towards
         // it as the elbow bends, as on the phone — at the bottom of an honest
         // rep the shoulder stood 0.20–0.28 arm-lengths over the hand at an

@@ -67,6 +67,27 @@ class SittingViewModel(
      */
     private val stakes: Stakes = Stakes.DAILY,
     /**
+     * Which day a chain instant falls on, in this sitting's own days: the
+     * global 05:00 UTC day for the Daily 25, the cohort's day for a Holdout.
+     * A sitting that runs across a boundary banks the rest into the new day —
+     * measured in the wrong days, a cohort sitting once filed its reps under
+     * global day 20,723 instead of cohort day 0, and the day never submitted.
+     */
+    private val dayOf: (Long) -> Long = holdout.core.HoldoutDay::indexOf,
+    /**
+     * Whether reps keep counting into the next day when the sitting runs across
+     * a boundary. The Daily 25 does; a Holdout day does not — a day not finished
+     * by its deadline is already a breach, so a set done after it could never
+     * be submitted, and the sitting ends there instead.
+     */
+    private val rollsOver: Boolean = true,
+    /**
+     * A Holdout day's time left at a chain instant — shown through the whole
+     * sitting, since the deadline is what it is held to. Null for the Daily 25,
+     * whose day has no stake on it.
+     */
+    private val timeLeftAt: ((Long) -> Long?)? = null,
+    /**
      * Debug builds: where to write this sitting's trace (`TraceRecorder`).
      * Null in release builds, where nothing is recorded.
      */
@@ -127,12 +148,16 @@ class SittingViewModel(
         val showSetup: Boolean = false,
         /** The one short correction to show big while getting into position. */
         val coach: Coach? = null,
+        /** With the pills green and the hold not filling: the sentence that says why (`HoldBlocker.fix`). */
+        val holdFix: String? = null,
         /** Debug builds: the trace file this sitting is being recorded to. */
         val traceName: String? = null,
+        /** Debug builds: pose frames analysed per second, over the last few seconds. */
+        val analysisFps: Float? = null,
+        /** Debug builds: true while the camera records video, false if asked for and it could not start, null if not asked. */
+        val recordingVideo: Boolean? = null,
         /** Reps the counter credited in this sitting — shown next to the member's own count. */
         val repsCounted: Int = 0,
-        /** The head has been out of the picture for a moment while counting. */
-        val headOutOfView: Boolean = false,
     ) {
         val doneToday: Int get() = banked + looseReps
         val remaining: Int get() = (target - doneToday).coerceAtLeast(0)
@@ -183,6 +208,9 @@ class SittingViewModel(
     private val _cues = MutableSharedFlow<Cue>(extraBufferCapacity = 8)
     val cues: SharedFlow<Cue> = _cues.asSharedFlow()
 
+    /** Seconds to this Holdout day's deadline; null for the Daily 25, or while the chain is unread. */
+    fun deadlineSecondsLeft(): Long? = timeLeftAt?.let { at -> chainSecondsNow()?.let(at) }
+
     /** Seconds left in today, for the header. Null while the chain is unread. */
     fun secondsLeftToday(): Long? = chainSecondsNow()?.let { now ->
         holdout.core.HoldoutDay.secondsLeftIn(now)
@@ -196,18 +224,34 @@ class SittingViewModel(
      */
     private fun rollOverAtBoundary() {
         if (banking.dayIndex == Store.UNKNOWN_DAY || _uiState.value.step == Step.COMPLETE) return
-        val today = chainSecondsNow()?.let { holdout.core.HoldoutDay.indexOf(it) } ?: return
+        val today = chainSecondsNow()?.let(dayOf) ?: return
+        if (!rollsOver) {
+            if (today != banking.dayIndex) deadlinePassed()
+            return
+        }
         if (banking.rollOverTo(today)) {
             _uiState.update { it.copy(banked = banking.banked, looseReps = banking.loose) }
         }
     }
 
+    /** A Holdout day's deadline passed mid-sitting: nothing more is counted, and the member is told why, aloud. */
+    private fun deadlinePassed() {
+        if (stopped) return
+        stopped = true
+        val message = "The deadline for day ${banking.dayIndex + 1} has passed. Reps from here would not count."
+        _uiState.update { it.copy(error = message, hint = null) }
+        _cues.tryEmit(Cue.Say(message))
+    }
+
     /** Every pose frame while the pills are up, and while counting. */
     fun onPoseFrame(observation: VisionAnalyzer.Observation, backgroundMotion: Float) {
+        measureFps(observation.world.timestampMillis)
         // After Stop nothing is counted or banked, even while the screen is
         // still up for the member to log what they did.
         if (stopped) return
         rollOverAtBoundary()
+        // A Holdout day that just ended stops the sitting: not even this frame counts.
+        if (stopped) return
         when (_uiState.value.step) {
             Step.PREFLIGHT -> {
                 val report = preflight.evaluate(
@@ -216,6 +260,7 @@ class SittingViewModel(
                         backgroundMotion,
                         observation.world,
                         observation.image,
+                        observation.imagePose(),
                     ),
                 )
                 val guidance = positionGuide.guide(
@@ -223,6 +268,7 @@ class SittingViewModel(
                     view = report.view,
                     floor = Placement.floorView(tilt, lens),
                     allowedViews = stakes.allowedViews,
+                    xScale = holdout.repcounter.Aspect.xScale(observation.frameWidth, observation.frameHeight),
                 )
                 // Nobody can be in position while reading the guide, and a
                 // countdown must never start behind it.
@@ -235,13 +281,17 @@ class SittingViewModel(
                         view = report.view,
                         image = observation.imagePose(),
                     )
-                val coach = Coach.next(report, guidance)
+                // What the position still lacks, once nothing about the phone or the
+                // picture does — and only then, so it never talks over a pill's own fix.
+                val blocker = readyGate.blocker.takeIf { !_uiState.value.showSetup }
+                val coach = Coach.next(report, guidance, blocker)
                 _uiState.update {
                     it.withFrame(observation).copy(
                         preflight = report,
                         readyProgress = readyGate.progress,
                         guidance = guidance,
                         coach = coach,
+                        holdFix = blocker?.fix?.takeIf { coach != Coach.HOLD && report.canStart },
                     )
                 }
                 speak(coach, observation.world.timestampMillis)
@@ -258,7 +308,7 @@ class SittingViewModel(
             // these stakes do not accept, sends the sitting back to them.
             Step.COUNTDOWN -> {
                 val report = preflight.evaluate(
-                    PreflightInput(observation.brightness, backgroundMotion, observation.world, observation.image),
+                    PreflightInput(observation.brightness, backgroundMotion, observation.world, observation.image, observation.imagePose()),
                 )
                 _uiState.update { it.withFrame(observation).copy(preflight = report) }
                 record(observation, countingView)
@@ -278,13 +328,22 @@ class SittingViewModel(
                 val event = repCounter.onFrame(observation.world, observation.imagePose())
                 _uiState.update { it.withFrame(observation).copy(readout = repCounter.readout) }
                 record(observation, countingView, repCounter.readout, event)
-                watchHead(observation)
                 when (event) {
                     is RepEvent.Counted -> {
+                        lastRefusal = null
                         _uiState.update { it.copy(repsCounted = repCounter.total) }
                         onVerifiedRep()
                     }
-                    is RepEvent.Discarded -> _uiState.update { it.copy(hint = event.hint?.message) }
+                    is RepEvent.Discarded -> {
+                        _uiState.update { it.copy(hint = event.hint?.message) }
+                        // Face-down, the member cannot read the screen: the same
+                        // failure twice in a row is said out loud.
+                        val hint = event.hint
+                        // Knees out of the picture is said at once: every rep fails the
+                        // same way until the phone or the member moves.
+                        if (hint != null && (hint == lastRefusal || hint == holdout.repcounter.RepHint.LEGS_IN_VIEW)) _cues.tryEmit(Cue.Say(hint.message))
+                        lastRefusal = hint
+                    }
                     null -> Unit
                 }
             }
@@ -400,32 +459,19 @@ class SittingViewModel(
     @Volatile
     private var stopped = false
 
-    private var headGoneSince: Long? = null
-
-    /** When "Move back" was last said; null until it first is. */
-    private var headWarnedAt: Long? = null
-
     /**
-     * Warns, big and aloud, when the head leaves the picture while counting —
-     * a frame set up too tight. Reps are not thrown away for it: the arms may
-     * still be measured perfectly well. After [HEAD_GONE_MILLIS] out of view;
-     * spoken at most every [HEAD_WARN_EVERY_MILLIS].
+     * The app left the foreground mid-sitting: the camera stopped watching, so
+     * what follows is a new sitting. Loose reps go, banked blocks stay, and the
+     * checks and the ready hold are passed again before anything counts — nine
+     * loose reps before a break must not be finished by one rep after it.
      */
-    private fun watchHead(observation: VisionAnalyzer.Observation) {
-        val now = observation.world.timestampMillis
-        if (holdout.repcounter.Angles.headInFrame(observation.image)) {
-            headGoneSince = null
-            if (_uiState.value.headOutOfView) _uiState.update { it.copy(headOutOfView = false) }
-            return
-        }
-        val since = headGoneSince ?: now.also { headGoneSince = it }
-        if (now - since < HEAD_GONE_MILLIS) return
-        if (!_uiState.value.headOutOfView) _uiState.update { it.copy(headOutOfView = true) }
-        // Null, not Long.MIN_VALUE: `now - MIN_VALUE` overflows negative and the
-        // warning would never be said at all.
-        if (headWarnedAt.let { it == null || now - it >= HEAD_WARN_EVERY_MILLIS }) {
-            headWarnedAt = now
-            _cues.tryEmit(Cue.Say("Move back"))
+    fun onLeftForeground() {
+        synchronized(countdownLock) {
+            val step = _uiState.value.step
+            if (stopped || (step != Step.COUNTDOWN && step != Step.COUNTING)) return
+            banking.endSitting()
+            backToChecks()
+            _uiState.update { it.copy(looseReps = 0, hint = null) }
         }
     }
 
@@ -444,10 +490,10 @@ class SittingViewModel(
      * expected count is what the rule should credit: full push-ups, and in the
      * Daily 25 push-ups from the knees as well (FR-021a).
      */
-    fun labelTrace(done: Map<String, Int>, note: String) {
+    fun labelTrace(done: Map<String, Int>, note: String, placement: String? = null, phoneSide: String? = null) {
         val recorder = trace ?: return
         val expected = (done["honest"] ?: 0) + if (stakes == Stakes.DAILY) done["knees"] ?: 0 else 0
-        Thread { recorder.label(expected, done, note) }.start()
+        Thread { recorder.label(expected, done, note, placement, phoneSide) }.start()
     }
 
     override fun onCleared() {
@@ -486,6 +532,29 @@ class SittingViewModel(
         }
     }
 
+    private val frameTimes = ArrayDeque<Long>()
+
+    /** Frames per second over the last three seconds of camera time. */
+    private fun measureFps(timestampMillis: Long) {
+        frameTimes.addLast(timestampMillis)
+        while (frameTimes.size > 1 && timestampMillis - frameTimes.first() > 3_000) frameTimes.removeFirst()
+        if (frameTimes.size < 2) return
+        val span = (frameTimes.last() - frameTimes.first()).coerceAtLeast(1)
+        val fps = (frameTimes.size - 1) * 1_000f / span
+        // Once a second of camera time: a frame count would stall once the window fills.
+        if (timestampMillis - fpsShownAt < 1_000) return
+        fpsShownAt = timestampMillis
+        _uiState.update { it.copy(analysisFps = fps) }
+    }
+
+    private var fpsShownAt = Long.MIN_VALUE / 2
+
+    /** Whether the camera is recording this sitting as video (debug builds). */
+    fun onRecordingVideo(on: Boolean) = _uiState.update { it.copy(recordingVideo = on) }
+
+    /** The last refused rep's reason, to say it aloud if the next rep fails the same way. */
+    private var lastRefusal: holdout.repcounter.RepHint? = null
+
     private var coachSince: Pair<Coach, Long>? = null
     private var spoken: Pair<Coach, Long>? = null
 
@@ -511,8 +580,6 @@ class SittingViewModel(
     }
 
     private companion object {
-        const val HEAD_GONE_MILLIS = 500L
-        const val HEAD_WARN_EVERY_MILLIS = 5_000L
         const val COACH_SETTLE_MILLIS = 700L
         const val COACH_REPEAT_MILLIS = 5_000L
     }

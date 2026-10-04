@@ -560,6 +560,30 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 
 ---
 
+### H32. The short test cohort is a 7-day Holdout in 70 minutes
+
+**Decided (2026-09-29, product owner; amends 2026-09-27):** the disclosed short test cohort (FR-044a, constitution v1.4.0) runs **seven 10-minute days at 5 reps a day** — a 7-day Holdout in 70 minutes. `crank init --test-league` makes that the default; `--day-seconds`, `--days` and `--reps` still override it (`--day-seconds 3600` gives the one-hour days of the 27 September version).
+
+**Why:** one-hour days (27 Sep) proved hard to test: a tester who missed one sitting waited hours for the next cohort, and a full cycle took most of a day. At 5 reps, a real sitting — the set-up checks, the ready hold and the counting — fits in a 10-minute day, which the 27 September version doubted when the target was 25. Every step stays real — the checks, the counting, a missed real deadline, settlement and the claim — within about an hour. The real 7-day and 21-day leagues stay at 24-hour days and 25 reps.
+
+**Consequences:** the beta cycle takes about 70 minutes per tester. A day leaves about 10 minutes for the sitting and the submit, so a tester starts each day's sitting as it opens. A reminder for a 10-minute day comes as the day opens, at any point within it (FR-068): Android may take up to 10 minutes to deliver one. Back-to-back cohorts (the default cadence) open a new lobby every 70 minutes; `--cadence 600` opens one every 10.
+
+**Source:** quickstart §5 and §5a; `Init.testLeagueParams`; `TestLeagueTest`.
+
+---
+
+### H33. On-device reminders, no push
+
+**Decided (2026-09-27, product owner):** a member who joins a Holdout is reminded **by the phone itself** — when the Holdout starts, and before each day's deadline while that day is not yet done (FR-068). Replaces "notification infrastructure: manual for the demo".
+
+**Why:** the first local run on a Seeker: a cohort started and nothing said so. Reminders computed on the device from chain state need no server and send nothing anywhere, so the build stays server-free and constitution X holds; a push service would need a server that knows every member's deadlines.
+
+**Consequences:** one runtime permission (`POST_NOTIFICATIONS`, asked at the first join). Reminders are inexact, resume after a reboot only once the app is opened, and never excuse a missed deadline — named in the README (FR-068a, R21).
+
+**Source:** spec FR-068, FR-068a, clarification 2026-09-27; research R21; tasks T067a, T067b.
+
+---
+
 ## 2. Still valid from the product-vision record
 
 Carried forward unchanged; full reasoning in the archive.
@@ -626,7 +650,7 @@ By decision, not by omission.
 | Calibration flow, Swelfie | Not in the video, not load-bearing |
 | Cold-start bonus matching, insurance fund | No treasury on devnet |
 | Demotion | Archived D10 |
-| Notification infrastructure | Manual for the demo |
+| Push notifications from a server | On-device reminders instead (H33) |
 | Audio in verification | H13 |
 | Backend deadline evaluation | H5 |
 | USDC, Jupiter swap, any on-chain price oracle | H7, H8 |
@@ -706,3 +730,4 @@ By decision, not by omission.
 | 2026-09-19 | Carry-over made independent of transaction order (H12, OD-5), from a Codex review of `settle_finalize`: a no-finisher cohort now settles **only** when its league has a cohort open for joining, delivering the carry-over into it, and is refused with `CarryOverTargetNotOpen` (6047) until then. Holding it instead had let whoever settled first decide by timing whether the amount ever reached a prize pool, and a cut Phase 2 would have stranded it with no instruction able to move it. Phase 1 now never sets `carry_over_held`; the field, `CarryOverHeld` and `deliver_carry_over` remain **[Phase 2]** for a league in which nobody ever opens another cohort. Spec FR-037a, ES-7a, acceptance criterion 11 and §3a, data-model §1.3 and §2, the crank's ordering and the README weakness row all follow. |
 | 2026-09-19 | Two setup-window holes closed, from a Codex review of the pushed branch (R14, FR-055b): **`initialize` now accepts only the program's upgrade authority**, checked against `ProgramData` before anything is created (`NotUpgradeAuthority`, 6003) — until `Config` exists there is no stored key to authenticate a signer, so a stranger could have claimed a freshly deployed program along with `operator`, `sponsor` and the fee destination, and the program ID the app and README name could not have been reclaimed; `initialize` must therefore run before the upgrade authority is revoked. And **no cohort opens before the first chip set is published** (`chip_set.version > 0`, `ChipSetNotPublished`, 6012): `open_cohort` is permissionless, a cohort keeps the amounts it copied for life (FR-007), so one opened in the gap after deployment would have taken zero-stake joins until it settled. `crank init` now publishes the first set between `initialize` and the leagues. Golden vector V7 rewritten to the refusal behaviour the 2026-09-19 carry-over change introduced. |
 | 2026-09-26 | Constitution v1.4.0 (minor): **one disclosed short test cohort, devnet only** — a test league with a compressed day on the devnet program built with `test-leagues`, admin-created, labelled everywhere in the app and disclosed in the README, video and deck; the demo and walkthrough may be recorded from it. The first judged start and the feature freeze move from 28 September to **Monday 5 October 2026**. Mainnet builds never carry `test-leagues`. Spec: Session 2026-09-26, FR-044 amended, FR-044a added. |
+| 2026-09-27 | Constitution v1.5.0 (minor): Principle X gains **one narrow exception for rep recognition** — a **debug build** may save a sitting's camera stream as video (no audio), on the device only, pulled by the team over USB and deleted after, from people who agreed in writing to be filmed; a release build must not contain the recorder, enforced by a build check. Members sharing their own recordings stays a later decision. Pulls forward spec 002 T035. |

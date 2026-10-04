@@ -14,8 +14,12 @@ import java.security.MessageDigest
  * Account order is the one `tests/helpers/instructions.ts` fixes and the
  * program's `Accounts` structs follow: signers first, then the state the
  * instruction reads or writes, then programs. Started for T062 with
- * `publish_chip_set`; T091 added what `crank init` sends; T030 adds the rest and pins every one of them to
- * `fixtures/instructions.json`.
+ * `publish_chip_set`; T091 added what `crank init` sends; T030 added the rest,
+ * and `FixtureReplayTest` pins every one of them to `fixtures/instructions.json`.
+ *
+ * An optional account the program takes as `Option<Account>` is sent as the
+ * program's own id when absent: Anchor's convention for "none", and what the
+ * TypeScript builders send.
  */
 object Instructions {
     val SYSTEM_PROGRAM = SolanaPublicKey.from("11111111111111111111111111111111")
@@ -120,4 +124,272 @@ object Instructions {
             data.array(),
         )
     }
+
+    /** `set_flags(ladder_gate_enabled, genesis_gate_enabled)` — admin only; the only difference between this build and an enforced ladder (AC-1). */
+    suspend fun setFlags(programId: SolanaPublicKey, admin: SolanaPublicKey, ladderGateEnabled: Boolean, genesisGateEnabled: Boolean): TransactionInstruction = TransactionInstruction(
+        programId,
+        listOf(AccountMeta(admin, true, false), AccountMeta(Pdas.config(programId), false, true)),
+        discriminator("set_flags") + byteArrayOf(ladderGateEnabled.byte(), genesisGateEnabled.byte()),
+    )
+
+    /**
+     * `open_cohort(league_id, index)` — permissionless; [payer] only pays the
+     * rent. [previousCohort] is required for `index > 0` and absent for index 0.
+     */
+    suspend fun openCohort(
+        programId: SolanaPublicKey,
+        payer: SolanaPublicKey,
+        skrMint: SolanaPublicKey,
+        leagueId: Int,
+        index: Long,
+        previousCohort: SolanaPublicKey? = null,
+    ): TransactionInstruction {
+        val cohort = Pdas.cohort(programId, leagueId, index)
+        val data = ByteBuffer.allocate(8 + 1 + 4).order(ByteOrder.LITTLE_ENDIAN)
+        data.put(discriminator("open_cohort")).put(leagueId.toByte()).putInt(index.toInt())
+        return TransactionInstruction(
+            programId,
+            listOf(
+                AccountMeta(payer, true, true),
+                AccountMeta(Pdas.config(programId), false, false),
+                AccountMeta(Pdas.league(programId, leagueId), false, true),
+                AccountMeta(cohort, false, true),
+                AccountMeta(Pdas.vault(programId, cohort), false, true),
+                AccountMeta(previousCohort ?: programId, false, false),
+                AccountMeta(skrMint, false, false),
+                AccountMeta(SYSTEM_PROGRAM, false, false),
+                AccountMeta(TOKEN_PROGRAM, false, false),
+            ),
+            data.array(),
+        )
+    }
+
+    /**
+     * `join_cohort(tier)` — the member signs, pays the rent for their
+     * `Membership` (and a first `Profile`), and the stake moves from their
+     * associated SKR account into the cohort's vault. [runningCohort] is the
+     * cohort in `profile.running`, which the program requires whenever that
+     * slot is set: the overlap rule is checked against its account.
+     */
+    suspend fun joinCohort(
+        programId: SolanaPublicKey,
+        member: SolanaPublicKey,
+        skrMint: SolanaPublicKey,
+        cohort: SolanaPublicKey,
+        tier: Int,
+        runningCohort: SolanaPublicKey? = null,
+    ): TransactionInstruction {
+        require(tier in 0..3) { "a tier is 0..3, got $tier" }
+        return TransactionInstruction(
+            programId,
+            listOf(
+                AccountMeta(member, true, true),
+                AccountMeta(Pdas.config(programId), false, false),
+                AccountMeta(cohort, false, true),
+                AccountMeta(Pdas.vault(programId, cohort), false, true),
+                AccountMeta(Pdas.membership(programId, cohort, member), false, true),
+                AccountMeta(Pdas.profile(programId, member), false, true),
+                AccountMeta(Pdas.associatedToken(member, skrMint), false, true),
+                AccountMeta(runningCohort ?: programId, false, false),
+                AccountMeta(skrMint, false, false),
+                AccountMeta(SYSTEM_PROGRAM, false, false),
+                AccountMeta(TOKEN_PROGRAM, false, false),
+            ),
+            discriminator("join_cohort") + byteArrayOf(tier.toByte()),
+        )
+    }
+
+    /** `leave_cohort()` — `Open` only; a full refund, the membership closed and its rent returned (FR-009). */
+    suspend fun leaveCohort(programId: SolanaPublicKey, member: SolanaPublicKey, skrMint: SolanaPublicKey, cohort: SolanaPublicKey): TransactionInstruction = TransactionInstruction(
+        programId,
+        listOf(
+            AccountMeta(member, true, true),
+            AccountMeta(Pdas.config(programId), false, false),
+            AccountMeta(cohort, false, true),
+            AccountMeta(Pdas.vault(programId, cohort), false, true),
+            AccountMeta(Pdas.membership(programId, cohort, member), false, true),
+            AccountMeta(Pdas.profile(programId, member), false, true),
+            AccountMeta(Pdas.associatedToken(member, skrMint), false, true),
+            AccountMeta(TOKEN_PROGRAM, false, false),
+        ),
+        discriminator("leave_cohort"),
+    )
+
+    /**
+     * `submit_day(day_index, proof_hash)` — member-signed; no money moves. The
+     * 32-byte proof is emitted in `DayCompleted` and not stored (research R16).
+     */
+    suspend fun submitDay(programId: SolanaPublicKey, member: SolanaPublicKey, cohort: SolanaPublicKey, dayIndex: Int, proofHash: ByteArray): TransactionInstruction {
+        require(proofHash.size == 32) { "a proof hash is 32 bytes, got ${proofHash.size}" }
+        require(dayIndex in 0..255) { "a day index is a u8, got $dayIndex" }
+        return TransactionInstruction(
+            programId,
+            listOf(
+                AccountMeta(member, true, true),
+                AccountMeta(cohort, false, false),
+                AccountMeta(Pdas.membership(programId, cohort, member), false, true),
+                AccountMeta(Pdas.profile(programId, member), false, true),
+            ),
+            discriminator("submit_day") + byteArrayOf(dayIndex.toByte()) + proofHash,
+        )
+    }
+
+    /** A page pair for `record_forfeits` and `settle_count`: a membership and its wallet's profile. */
+    data class MemberPair(val membership: SolanaPublicKey, val profile: SolanaPublicKey) {
+        companion object {
+            suspend fun of(programId: SolanaPublicKey, cohort: SolanaPublicKey, wallet: SolanaPublicKey) = MemberPair(Pdas.membership(programId, cohort, wallet), Pdas.profile(programId, wallet))
+        }
+    }
+
+    /** The most pairs one page may carry (contracts/program-instructions §2). */
+    const val MAX_PAGE_PAIRS = 10
+
+    /**
+     * `record_forfeits()` — permissionless, up to ten pairs in the remaining
+     * accounts; pairs not in breach or already forfeited are skipped, so a page
+     * may be repeated and re-ordered freely (research R9).
+     */
+    suspend fun recordForfeits(
+        programId: SolanaPublicKey,
+        caller: SolanaPublicKey,
+        feeDestination: SolanaPublicKey,
+        cohort: SolanaPublicKey,
+        pairs: List<MemberPair>,
+    ): TransactionInstruction {
+        require(pairs.size in 1..MAX_PAGE_PAIRS) { "a page is 1..$MAX_PAGE_PAIRS pairs, got ${pairs.size}" }
+        return TransactionInstruction(
+            programId,
+            listOf(
+                AccountMeta(caller, true, true),
+                AccountMeta(Pdas.config(programId), false, false),
+                AccountMeta(cohort, false, true),
+                AccountMeta(Pdas.vault(programId, cohort), false, true),
+                AccountMeta(feeDestination, false, true),
+                AccountMeta(TOKEN_PROGRAM, false, false),
+            ) + pairs.pageAccounts(),
+            discriminator("record_forfeits"),
+        )
+    }
+
+    /**
+     * `settle_count()` — permissionless and paged like [recordForfeits]. The
+     * league's cohort `index − 1` is required for every index but 0: counting
+     * runs in cohort order so every streak does too (FR-061a).
+     */
+    suspend fun settleCount(
+        programId: SolanaPublicKey,
+        caller: SolanaPublicKey,
+        feeDestination: SolanaPublicKey,
+        leagueId: Int,
+        cohort: SolanaPublicKey,
+        pairs: List<MemberPair>,
+        previousCohort: SolanaPublicKey? = null,
+    ): TransactionInstruction {
+        require(pairs.size in 1..MAX_PAGE_PAIRS) { "a page is 1..$MAX_PAGE_PAIRS pairs, got ${pairs.size}" }
+        return TransactionInstruction(
+            programId,
+            listOf(
+                AccountMeta(caller, true, true),
+                AccountMeta(Pdas.config(programId), false, false),
+                AccountMeta(Pdas.league(programId, leagueId), false, false),
+                AccountMeta(cohort, false, true),
+                AccountMeta(Pdas.vault(programId, cohort), false, true),
+                AccountMeta(feeDestination, false, true),
+                AccountMeta(previousCohort ?: programId, false, false),
+                AccountMeta(TOKEN_PROGRAM, false, false),
+            ) + pairs.pageAccounts(),
+            discriminator("settle_count"),
+        )
+    }
+
+    /**
+     * `settle_finalize()`. With finishers it needs no target; with none,
+     * [carryOverTarget] — the league's cohort `next_index − 1`, whose vault is
+     * derived here — is required, so no caller can strand it by omission (FR-037a).
+     */
+    suspend fun settleFinalize(
+        programId: SolanaPublicKey,
+        caller: SolanaPublicKey,
+        feeDestination: SolanaPublicKey,
+        leagueId: Int,
+        cohort: SolanaPublicKey,
+        carryOverTarget: SolanaPublicKey? = null,
+    ): TransactionInstruction {
+        val target = carryOverTarget?.let { listOf(AccountMeta(it, false, true), AccountMeta(Pdas.vault(programId, it), false, true)) }
+            ?: listOf(AccountMeta(programId, false, false), AccountMeta(programId, false, false))
+        return TransactionInstruction(
+            programId,
+            listOf(
+                AccountMeta(caller, true, true),
+                AccountMeta(Pdas.config(programId), false, false),
+                AccountMeta(Pdas.league(programId, leagueId), false, false),
+                AccountMeta(cohort, false, true),
+                AccountMeta(Pdas.vault(programId, cohort), false, true),
+                AccountMeta(feeDestination, false, true),
+            ) + target + AccountMeta(TOKEN_PROGRAM, false, false),
+            discriminator("settle_finalize"),
+        )
+    }
+
+    /** `claim_payout()` — `stake + share_per_tier[tier]`, read from the finalised cohort (FR-034). */
+    suspend fun claimPayout(programId: SolanaPublicKey, member: SolanaPublicKey, skrMint: SolanaPublicKey, cohort: SolanaPublicKey): TransactionInstruction = TransactionInstruction(
+        programId,
+        listOf(
+            AccountMeta(member, true, true),
+            AccountMeta(Pdas.config(programId), false, false),
+            AccountMeta(cohort, false, true),
+            AccountMeta(Pdas.vault(programId, cohort), false, true),
+            AccountMeta(Pdas.membership(programId, cohort, member), false, true),
+            AccountMeta(Pdas.associatedToken(member, skrMint), false, true),
+            AccountMeta(TOKEN_PROGRAM, false, false),
+        ),
+        discriminator("claim_payout"),
+    )
+
+    /**
+     * `claim_faucet(recipient)` — **the recipient does not sign** (research
+     * R13). [payer] is the bundled sponsor for a zero-SOL wallet, or the
+     * recipient itself when it can pay (FR-042b).
+     */
+    suspend fun claimFaucet(
+        programId: SolanaPublicKey,
+        payer: SolanaPublicKey,
+        recipient: SolanaPublicKey,
+        skrMint: SolanaPublicKey,
+        sponsor: SolanaPublicKey,
+    ): TransactionInstruction = TransactionInstruction(
+        programId,
+        listOf(
+            AccountMeta(payer, true, true),
+            AccountMeta(Pdas.config(programId), false, true),
+            AccountMeta(recipient, false, true),
+            AccountMeta(Pdas.profile(programId, recipient), false, true),
+            AccountMeta(skrMint, false, true),
+            AccountMeta(Pdas.mintAuthority(programId), false, false),
+            AccountMeta(Pdas.associatedToken(recipient, skrMint), false, true),
+            AccountMeta(Pdas.faucetVault(programId), false, true),
+            AccountMeta(sponsor, false, true),
+            AccountMeta(SYSTEM_PROGRAM, false, false),
+            AccountMeta(TOKEN_PROGRAM, false, false),
+            AccountMeta(ASSOCIATED_TOKEN_PROGRAM, false, false),
+        ),
+        discriminator("claim_faucet") + recipient.bytes,
+    )
+
+    /** `top_up_sponsor()` — permissionless, and the sponsor does not sign (FR-042b). */
+    suspend fun topUpSponsor(programId: SolanaPublicKey, caller: SolanaPublicKey, sponsor: SolanaPublicKey): TransactionInstruction = TransactionInstruction(
+        programId,
+        listOf(
+            AccountMeta(caller, true, true),
+            AccountMeta(Pdas.config(programId), false, true),
+            AccountMeta(Pdas.faucetVault(programId), false, true),
+            AccountMeta(sponsor, false, true),
+            AccountMeta(SYSTEM_PROGRAM, false, false),
+        ),
+        discriminator("top_up_sponsor"),
+    )
+
+    private fun List<MemberPair>.pageAccounts() = flatMap { listOf(AccountMeta(it.membership, false, true), AccountMeta(it.profile, false, true)) }
+
+    private fun Boolean.byte(): Byte = if (this) 1 else 0
 }

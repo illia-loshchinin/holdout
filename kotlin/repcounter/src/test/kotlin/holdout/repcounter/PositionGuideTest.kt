@@ -31,6 +31,17 @@ class PositionGuideTest {
     }
 
     @Test
+    fun `in the wider 3 by 4 picture the outline asks for the same body, so it is narrower in it`() {
+        val narrow = guide.guide(null, CameraView.OBLIQUE, floor).target
+        val wide = guide.guide(null, CameraView.OBLIQUE, floor, xScale = 0.75f).target
+        assertEquals(narrow.halfWidth * 0.75f, wide.halfWidth, 1e-6f)
+        assertEquals(narrow.halfHeight, wide.halfHeight, "the height is the same picture")
+        // A body sized for the outline is still aligned, and a small sideways offset still is too.
+        val body = bodyAt(wide.centreX + 0.05f, wide.centreY, wide.halfWidth, wide.halfHeight)
+        assertTrue(guide.guide(body, CameraView.OBLIQUE, floor, xScale = 0.75f).aligned)
+    }
+
+    @Test
     fun `the outline is long and flat from the side, foreshortened from the front`() {
         val side = guide.guide(null, CameraView.SIDE, floor).target
         val front = guide.guide(null, CameraView.FRONT, floor).target

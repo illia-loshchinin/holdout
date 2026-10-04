@@ -1,10 +1,10 @@
 package holdout.crank
 
 import com.funkatronics.encoders.Base58
-import com.solana.transaction.Message
 import com.solana.transaction.Transaction
 import com.solana.transaction.TransactionInstruction
 import holdout.core.Rpc
+import holdout.core.Transactions
 
 /**
  * Signs [instructions] with [signers] — the first pays the fee — and either
@@ -28,12 +28,8 @@ internal suspend fun signAndSend(
     beforeRetrying: String = "check that signature, then run again",
 ): String? {
     val blockhash = rpc.latestBlockhash() ?: failed("could not read a recent blockhash for $what")
-    val message =
-        Message
-            .Builder()
-            .apply { instructions.forEach { addInstruction(it) } }
-            .setRecentBlockhash(blockhash)
-            .build()
+    // Never Message.Builder directly: it miscounts an account with mixed flags (see Transactions).
+    val message = Transactions.message(instructions, blockhash)
     val required = message.accounts.take(message.signatureCount.toInt())
     check(required.firstOrNull() == signers.first().publicKey) { "$what: the fee payer must be ${signers.first().publicKey}, the message put ${required.firstOrNull()} first" }
     val bytes = message.serialize()
@@ -51,7 +47,7 @@ internal suspend fun signAndSend(
                 is Rpc.Answer.Unanswered -> failed("could not simulate $what: ${answer.message}")
                 is Rpc.Answer.Ok -> answer.value
             }
-        simulation.error?.let { failed("$what would fail: $it; ${simulation.logs.lastOrNull().orEmpty()}") }
+        simulation.error?.let { failed("$what would fail: $it; ${simulation.logs.takeLast(LOG_LINES).joinToString(" | ")}") }
         return null
     }
 
@@ -70,3 +66,6 @@ internal suspend fun signAndSend(
     }
     failed("sent $what $signature but it was not confirmed within ${Chips.CONFIRM_ATTEMPTS * Chips.CONFIRM_PAUSE_MILLIS / 1000} s; $beforeRetrying")
 }
+
+/** Program log lines a failed simulation reports: enough to name the failing check. */
+private const val LOG_LINES = 8

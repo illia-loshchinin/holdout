@@ -170,6 +170,40 @@ class StakesTest {
         assertFalse(gate.onFrame(top(2_000), 2_000, pillsGreen = true, view = CameraView.OBLIQUE, image = knees(2_000)))
     }
 
+    /** [image] with the near leg read below the hand — a knee and ankle under a hand that is on the floor. */
+    private fun legsBelowHand(image: ImagePose): ImagePose {
+        val landmarks = image.frame.landmarks.toMutableList()
+        val wrist = landmarks[PoseIndex.LEFT_WRIST]
+        for (i in listOf(PoseIndex.LEFT_KNEE, PoseIndex.LEFT_ANKLE)) landmarks[i] = landmarks[i].copy(y = wrist.y + 0.3f)
+        return image.copy(frame = image.frame.copy(landmarks = landmarks))
+    }
+
+    @Test
+    fun `legs read below the hands are a misread, not knees down - straight legs still count`() {
+        // On the Seeker, 27 Sep: honest reps with the knee at 174-178° were refused
+        // "Knees off the floor" because the legs read 2.6-6.8 arm-lengths *below* the
+        // hands — which are on the floor. Impossible, so it is unreadable, and the
+        // knee angle, which saw straight legs, decides.
+        val image = legsBelowHand(Traces.angledImage(1_000, elbowDegrees = 170f, kneeDegrees = 178f))
+        assertEquals(null, Angles.legsAboveHandsInImage(image, Side.LEFT))
+        assertTrue(kneesOffFloor(knee = 176f, legsAboveHands = null, rules = RepRules()))
+        // Knees really down still read above zero (0.32-0.39) and are still refused.
+        assertEquals(0, angledSet(kneeDegrees = 70f).first)
+    }
+
+    @Test
+    fun `a leg a little bent on the toes passes the bent-knee line when it came down near straight, a knee push-up never does`() {
+        val rules = RepRules()
+        // 3 Oct, a full rep on the toes late in a set: push knee 130°, legs 0.47, down at 135°.
+        assertTrue(kneesOffFloor(knee = 130f, legsAboveHands = 0.47f, rules = rules, descentKnee = 135f))
+        // The one knee push-up recorded over 120° on the push was lowered onto the knee at 104°.
+        assertFalse(kneesOffFloor(knee = 126f, legsAboveHands = 0.41f, rules = rules, descentKnee = 104f))
+        // Lowered on the toes, pushed from the knees with the feet raised (90–112° on the push).
+        assertFalse(kneesOffFloor(knee = 110f, legsAboveHands = 0.44f, rules = rules, descentKnee = 150f))
+        // The hold has no way down to read: the push line alone.
+        assertFalse(kneesOffFloor(knee = 130f, legsAboveHands = 0.47f, rules = rules))
+    }
+
     /** [image] with the near knee gone from the picture, as when MediaPipe loses it. */
     private fun withoutKnee(image: ImagePose): ImagePose {
         val landmarks = image.frame.landmarks.toMutableList()
@@ -189,6 +223,72 @@ class StakesTest {
             assertEquals(expected, counter.total, "$stakes")
             if (stakes == Stakes.STAKED) assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.LEGS_IN_VIEW }, "got $hints")
         }
+    }
+
+    @Test
+    fun `a leg hidden through the push back up is not credited, even though those frames cannot be read at all`() {
+        // Knee and ankle gone: no body line, so the whole frame is unreadable and dropped.
+        fun withoutLeg(image: ImagePose): ImagePose {
+            val landmarks = image.frame.landmarks.toMutableList()
+            for (i in listOf(PoseIndex.LEFT_KNEE, PoseIndex.LEFT_ANKLE)) landmarks[i] = landmarks[i].copy(presence = 0f)
+            return image.copy(frame = image.frame.copy(landmarks = landmarks))
+        }
+        for ((stakes, expected) in listOf(Stakes.STAKED to 0, Stakes.DAILY to 10)) {
+            val counter = RepCounter(view = CameraView.OBLIQUE, stakes = stakes)
+            val hints = mutableListOf<RepHint?>()
+            var previous = 180f
+            for (frame in Traces.set(count = 10)) {
+                val elbow = Angles.elbow(frame)!!
+                // Visible down to the bottom, hidden on the way up, back in view at the top.
+                val rising = elbow > previous && elbow in 80f..165f
+                previous = elbow
+                val image = Traces.angledImage(frame.timestampMillis, elbow)
+                (counter.onFrame(frame, if (rising) withoutLeg(image) else image) as? RepEvent.Discarded)?.let { hints += it.hint }
+            }
+            assertEquals(expected, counter.total, "$stakes")
+            if (stakes == Stakes.STAKED) assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.LEGS_IN_VIEW }, "got $hints")
+        }
+    }
+
+    @Test
+    fun `a knee hidden on the way down is not credited, though the push shows it`() {
+        for ((stakes, expected) in listOf(Stakes.STAKED to 0, Stakes.DAILY to 10)) {
+            val counter = RepCounter(view = CameraView.OBLIQUE, stakes = stakes)
+            val hints = mutableListOf<RepHint?>()
+            var previous = 180f
+            for (frame in Traces.set(count = 10)) {
+                val elbow = Angles.elbow(frame)!!
+                // Hidden while lowering — onto the knees, for all the camera knows — and back for the push.
+                val lowering = elbow < previous && elbow in 80f..165f
+                previous = elbow
+                val image = Traces.angledImage(frame.timestampMillis, elbow)
+                (counter.onFrame(frame, if (lowering) withoutKnee(image) else image) as? RepEvent.Discarded)?.let { hints += it.hint }
+            }
+            assertEquals(expected, counter.total, "$stakes")
+            if (stakes == Stakes.STAKED) assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.LEGS_IN_VIEW }, "got $hints")
+        }
+    }
+
+    @Test
+    fun `with the pills green the ready hold says what the position lacks`() {
+        val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.STAKED)
+        fun blockerAt(elbow: Float, knee: Float = 178f, bodyLine: Float = 180f, image: (ImagePose) -> ImagePose = { it }): HoldBlocker? {
+            gate.onFrame(Traces.frame(0, elbowDegrees = elbow, bodyLineDegrees = bodyLine), 0, pillsGreen = true, view = CameraView.OBLIQUE, image = image(Traces.angledImage(0, elbow, kneeDegrees = knee)))
+            return gate.blocker
+        }
+        assertEquals(null, blockerAt(elbow = 175f), "the top of a push-up, on the toes: nothing is missing")
+        assertEquals(HoldBlocker.ARMS, blockerAt(elbow = 120f))
+        assertEquals(HoldBlocker.KNEES, blockerAt(elbow = 175f, knee = 70f))
+        // The knee put on the ankle, as the model does in loose trousers: not a knee at all.
+        val collapsed = { image: ImagePose ->
+            val l = image.frame.landmarks.toMutableList()
+            l[PoseIndex.LEFT_KNEE] = l[PoseIndex.LEFT_ANKLE]
+            image.copy(frame = image.frame.copy(landmarks = l))
+        }
+        assertEquals(HoldBlocker.KNEES_UNREADABLE, blockerAt(elbow = 175f, image = collapsed))
+        // Not a word about the position until the pills are green.
+        gate.onFrame(Traces.frame(0, 120f, 180f), 0, pillsGreen = false, view = CameraView.OBLIQUE, image = Traces.angledImage(0, 120f))
+        assertEquals(null, gate.blocker)
     }
 
     @Test
@@ -225,6 +325,34 @@ class StakesTest {
             counter.onFrame(frame, if (i > 10 && i % 4 == 0) nearArmLost(image) else image)
         }
         assertEquals(10, counter.total)
+    }
+
+    /** Five reps topping out at [repTop], after a countdown held at [held] (or none). */
+    private fun countAt45(held: Float?, repTop: Float): Int {
+        val counter = RepCounter(view = CameraView.OBLIQUE, stakes = Stakes.DAILY)
+        var start = 0L
+        if (held != null) {
+            Traces.settleAtTop(0, millis = 1_000, elbow = held).forEach { counter.prime(it, Traces.angledImage(it.timestampMillis, held)) }
+            start = 1_100
+        }
+        Traces.set(count = 5, top = repTop).forEach { frame ->
+            val at = frame.copy(timestampMillis = frame.timestampMillis + start)
+            counter.onFrame(at, Traces.angledImage(at.timestampMillis, Angles.elbow(frame)!!))
+        }
+        return counter.total
+    }
+
+    @Test
+    fun `at 45 degrees the top of a rep is the member's own held arm, never under 148 nor over the rule`() {
+        // From 45–50° on the floor a locked-out arm reads 150–158°: held at 158, reps back to 154 count.
+        assertEquals(5, countAt45(held = 158f, repTop = 154f))
+        // From a more frontal spot the same arm reads 175°: there the rule's own 160° stands, and 154° is not a lockout.
+        assertEquals(0, countAt45(held = 175f, repTop = 154f))
+        assertEquals(5, countAt45(held = 175f, repTop = 170f))
+        // The floor: an arm held bent does not buy a lower line than 148°.
+        assertEquals(0, countAt45(held = 150f, repTop = 144f))
+        // No countdown to read (never so on the phone): the rule's own top.
+        assertEquals(0, countAt45(held = null, repTop = 154f))
     }
 
     @Test

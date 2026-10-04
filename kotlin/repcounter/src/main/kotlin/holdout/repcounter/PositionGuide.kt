@@ -87,12 +87,18 @@ class PositionGuide(
          * before anything else.
          */
         allowedViews: Set<CameraView>? = null,
+        /**
+         * [Aspect.xScale] of the picture: the outline was sized in 9:16, and in
+         * a wider picture the same body takes a narrower share of it, so the
+         * outline narrows with it and still asks for the same distance.
+         */
+        xScale: Float = 1f,
     ): Guidance {
         val horizonY = (floor as? FloorView.Horizon)?.y
         val wrongPlacement = allowedViews != null && view != null && view !in allowedViews
         // The outline for where the phone is if that is allowed, else for 45° —
         // the one placement every stakes accepts.
-        val target = targetFor(if (wrongPlacement) CameraView.OBLIQUE else view, horizonY)
+        val target = targetFor(if (wrongPlacement) CameraView.OBLIQUE else view, horizonY).let { it.copy(halfWidth = it.halfWidth * xScale) }
         val body = boundingBox(pose)
         val fit = body?.let { target.overlap(it) } ?: 0f
 
@@ -104,7 +110,7 @@ class PositionGuide(
             wrongPlacement -> PositionHint.PHONE_AT_45
             body.area > target.area * TOO_BIG -> PositionHint.MOVE_BACK
             body.area < target.area * TOO_SMALL -> PositionHint.MOVE_CLOSER
-            else -> sideways(body, target, mirrored)
+            else -> sideways(body, target, mirrored, xScale)
         }
 
         return Guidance(
@@ -140,9 +146,9 @@ class PositionGuide(
         return GuideBox(0.5f, centreY, halfWidth, halfHeight)
     }
 
-    private fun sideways(body: GuideBox, target: GuideBox, mirrored: Boolean): PositionHint? {
+    private fun sideways(body: GuideBox, target: GuideBox, mirrored: Boolean, xScale: Float): PositionHint? {
         val offset = body.centreX - target.centreX
-        if (abs(offset) <= offCentreTolerance) return null
+        if (abs(offset) <= offCentreTolerance * xScale) return null
         // In the sensor's frame the member is at `offset`; in a mirrored
         // preview they see themselves on the other side, and the instruction
         // has to match what they see.

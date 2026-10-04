@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -40,11 +41,14 @@ import holdout.repcounter.Trace
 @Composable
 fun TraceLabelDialog(
     counted: Int,
-    onSave: (done: Map<String, Int>, note: String) -> Unit,
+    onSave: (done: Map<String, Int>, note: String, placement: String?, phoneSide: String?) -> Unit,
     onSkip: () -> Unit,
 ) {
     val done = remember { mutableStateMapOf<String, Int>() }
     var note by remember { mutableStateOf("") }
+    // Kept from the last sitting: a calibration session records many sets from one spot.
+    var placement by remember { mutableStateOf(lastPlacement) }
+    var phoneSide by remember { mutableStateOf(lastPhoneSide) }
 
     Dialog(onDismissRequest = onSkip, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
@@ -52,6 +56,7 @@ fun TraceLabelDialog(
                 .fillMaxWidth()
                 .padding(Spacing.screenGutter)
                 .background(HoldoutColors.Surface1, RoundedCornerShape(24.dp))
+                .verticalScroll(androidx.compose.foundation.rememberScrollState())
                 .padding(Spacing.cardPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Spacing.tight),
@@ -72,6 +77,10 @@ fun TraceLabelDialog(
                 )
             }
 
+            Text("Where was the phone?", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextPrimary)
+            Choices(Trace.PLACEMENTS, placement, { if (it == "front" || it == "side") it else "$it°" }) { placement = it }
+            Choices(Trace.SIDES, phoneSide, { "on my $it" }) { phoneSide = it }
+
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
@@ -87,7 +96,11 @@ fun TraceLabelDialog(
             ) {
                 TextButton(onClick = onSkip) { Text("Skip", color = HoldoutColors.TextSecondary) }
                 Button(
-                    onClick = { onSave(done.toMap(), note) },
+                    onClick = {
+                        lastPlacement = placement
+                        lastPhoneSide = phoneSide
+                        onSave(done.toMap(), note, placement, phoneSide)
+                    },
                     shape = MaterialTheme.shapes.extraLarge,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = HoldoutColors.TextPrimary,
@@ -120,6 +133,28 @@ private fun Counter(label: String, value: Int, onChange: (Int) -> Unit) {
         }
     }
 }
+
+/** One choice of several, tapped again to clear. Wraps onto as many rows as it needs. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun Choices(options: List<String>, selected: String?, label: (String) -> String, onChange: (String?) -> Unit) {
+    androidx.compose.foundation.layout.FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.tight),
+    ) {
+        options.forEach { option ->
+            androidx.compose.material3.FilterChip(
+                selected = option == selected,
+                onClick = { onChange(if (option == selected) null else option) },
+                label = { Text(label(option)) },
+            )
+        }
+    }
+}
+
+/** The last placement saved, for the next sitting's dialog — this process only. */
+private var lastPlacement: String? = null
+private var lastPhoneSide: String? = null
 
 private val LABELS = mapOf(
     "honest" to "Full push-ups",

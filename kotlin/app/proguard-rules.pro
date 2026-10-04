@@ -19,3 +19,8 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Ktor (under rpc-ktordriver) logs through SLF4J, which looks for a binding it
+# can live without: with none it falls back to a no-op logger. R8 flags the
+# optional binding class as missing and fails the release build without this.
+-dontwarn org.slf4j.impl.StaticLoggerBinder

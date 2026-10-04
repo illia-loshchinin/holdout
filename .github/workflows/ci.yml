@@ -271,11 +271,20 @@ jobs:
       # opt-in and stays off here — CI does not depend on a public RPC.
       - name: JVM unit tests
         working-directory: kotlin
-        run: ./gradlew --no-daemon :core:test :repcounter:test :crank:test
+        run: ./gradlew --no-daemon :core:test :repcounter:test :crank:test :app:testDebugUnitTest
 
+      # Assembling also runs `checkNoAudioPermission` on the merged manifest (FR-022a).
       - name: Debug APK
         working-directory: kotlin
         run: ./gradlew --no-daemon :app:assembleDebug
+
+      # Constitution XI and XIII: the README's weaknesses table is the app's
+      # `weaknesses.json`, and the app's copy carries no gambling words.
+      - name: Weaknesses table matches the app
+        run: node scripts/render-weaknesses.mjs --check
+
+      - name: The app's wording
+        run: bash scripts/check-wording.sh
 
   # ------------------------------------------------------------------- gate
   # One required check for branch protection: green only when every job above is.

@@ -157,6 +157,111 @@ class PreflightTest {
     }
 
     @Test
+    fun `the same body is the same placement in the sensor's full 3 by 4 picture`() {
+        // The 9:16 picture the thresholds were set in is the middle three
+        // quarters of the 3:4 one, at the same height.
+        fun widened(frame: PoseFrame) = PoseFrame(frame.timestampMillis, frame.landmarks.map { it.copy(x = 0.125f + 0.75f * it.x) })
+        val xScale = Aspect.xScale(width = 960, height = 1280)
+        assertEquals(0.75f, xScale)
+        for (span in listOf(0.05f, 0.4f, 0.4f * 1.35f, 0.7f)) {
+            val narrow = Traces.imageFrame(shoulderSpan = span)
+            assertEquals(preflight.classifyView(narrow), preflight.classifyView(widened(narrow), xScale), "shoulder span $span")
+        }
+    }
+
+    private fun wholeBody(report: PreflightReport) = report.statuses.single { it.check == PreflightCheck.WHOLE_BODY }
+
+    @Test
+    fun `the hold starts only with the head clearly in the picture`() {
+        val image = Traces.imageFrame(shoulderSpan = 0.7f)
+        fun withNose(y: Float) = PoseFrame(image.timestampMillis, image.landmarks.mapIndexed { i, l -> if (i == PoseIndex.NOSE) l.copy(y = y) else l })
+        assertTrue(wholeBody(preflight.evaluate(good(image = withNose(0.3f)))).passing)
+        val atTheEdge = wholeBody(preflight.evaluate(good(image = withNose(0.01f))))
+        assertFalse(atTheEdge.passing, "a head at the picture's edge is on its way out of it")
+        assertEquals(Preflight.HEAD_FIX, atTheEdge.fix)
+    }
+
+    @Test
+    fun `a staked sitting starts only with the near knee clear of the picture's edges`() {
+        val staked = Preflight(stakes = Stakes.STAKED)
+        fun pose(kneeX: Float): ImagePose {
+            val base = Traces.angledImage(0, elbowDegrees = 175f)
+            val landmarks = base.frame.landmarks.mapIndexed { i, l ->
+                when (i) {
+                    PoseIndex.LEFT_KNEE -> Landmark(kneeX, 0.5f, 0f, 1f)
+                    PoseIndex.NOSE -> Landmark(0.5f, 0.3f, 0f, 1f)
+                    else -> l
+                }
+            }
+            return ImagePose(PoseFrame(0, landmarks), base.width, base.height)
+        }
+        fun report(kneeX: Float) = pose(kneeX).let { p -> staked.evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), p.frame, p)) }
+        assertTrue(wholeBody(report(0.5f)).passing)
+        // Where the model puts a knee that has left the frame: just inside the edge.
+        val guessed = wholeBody(report(0.05f))
+        assertFalse(guessed.passing)
+        assertEquals(Preflight.KNEES_FIX, guessed.fix)
+        // A knee the model cannot find at all is hidden behind the body: turning shows it.
+        val hidden = pose(0.5f).let { p ->
+            ImagePose(PoseFrame(0, p.frame.landmarks.mapIndexed { i, l -> if (i == PoseIndex.LEFT_KNEE) l.copy(presence = 0.2f) else l }), p.width, p.height)
+        }
+        // This synthetic body shows its left side to the lens: the phone is on its left, so it turns right.
+        assertEquals(Preflight.KNEES_TURN_RIGHT_FIX, wholeBody(staked.evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), hidden.frame, hidden))).fix)
+        // The Daily 25 does not judge knees, so it does not ask for them.
+        assertTrue(wholeBody(Preflight().evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), pose(0.05f).frame, pose(0.05f)))).passing)
+    }
+
+    @Test
+    fun `a staked sitting starts only with the near foot clear of the picture's edges`() {
+        val staked = Preflight(stakes = Stakes.STAKED)
+        fun pose(ankleX: Float): ImagePose {
+            val base = Traces.angledImage(0, elbowDegrees = 175f)
+            val landmarks = base.frame.landmarks.mapIndexed { i, l ->
+                when (i) {
+                    PoseIndex.LEFT_ANKLE -> l.copy(x = ankleX)
+                    PoseIndex.NOSE -> Landmark(0.5f, 0.3f, 0f, 1f)
+                    else -> l
+                }
+            }
+            return ImagePose(PoseFrame(0, landmarks), base.width, base.height)
+        }
+        fun report(stakes: Preflight, ankleX: Float) = pose(ankleX).let { p -> stakes.evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), p.frame, p)) }
+        assertTrue(wholeBody(report(staked, 0.8f)).passing)
+        // In the picture, but at its edge: the model drops it every few frames once the reps start.
+        val atTheEdge = wholeBody(report(staked, 0.97f))
+        assertFalse(atTheEdge.passing)
+        assertEquals(Preflight.FEET_FIX, atTheEdge.fix)
+        assertTrue(wholeBody(report(Preflight(), 0.97f)).passing, "the Daily 25 does not judge the legs")
+    }
+
+    @Test
+    fun `a staked sitting refuses a phone too far in front, and says which way to turn`() {
+        val staked = Preflight(stakes = Stakes.STAKED)
+        fun report(image: PoseFrame) = staked.evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), image, ImagePose(image, 720, 1280)))
+        fun cameraFix(report: PreflightReport) = report.statuses.single { it.check == PreflightCheck.CAMERA_ANGLE }.fix
+
+        // Ratio 1.25 — about 30° on the floor: the Daily 25 counts from there, a staked sitting does not start.
+        val tooFarInFront = Traces.imageFrame(shoulderSpan = 0.5f)
+        assertEquals(CameraView.OBLIQUE, preflight.evaluate(good(image = tooFarInFront)).view)
+        val refused = report(tooFarInFront)
+        assertEquals(CameraView.FRONT, refused.view)
+        assertFalse(refused.canStart)
+        // Away from the phone, whichever side it stands on.
+        val phoneOn = Angles.nearSide(ImagePose(tooFarInFront, 720, 1280))
+        assertEquals(if (phoneOn == Side.RIGHT) Preflight.TOO_FRONT_TURN_LEFT_FIX else Preflight.TOO_FRONT_TURN_RIGHT_FIX, cameraFix(refused))
+
+        // Beside the member: towards it.
+        val beside = Traces.imageFrame(shoulderSpan = 0.05f)
+        val besideSide = Angles.nearSide(ImagePose(beside, 720, 1280))
+        assertEquals(if (besideSide == Side.RIGHT) Preflight.TOO_SIDE_TURN_RIGHT_FIX else Preflight.TOO_SIDE_TURN_LEFT_FIX, cameraFix(report(beside)))
+
+        // Square head-on neither side is nearer: only the phone moving will do.
+        assertEquals(Stakes.STAKED.cameraFix, cameraFix(report(Traces.imageFrame(shoulderSpan = 0.7f))))
+        // And at 45° it starts.
+        assertEquals(CameraView.OBLIQUE, report(Traces.imageFrame(shoulderSpan = 0.3f)).view)
+    }
+
+    @Test
     fun `a green pill carries no fix`() {
         assertTrue(preflight.evaluate(good()).statuses.all { it.fix == null })
     }

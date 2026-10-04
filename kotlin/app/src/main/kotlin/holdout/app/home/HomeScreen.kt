@@ -3,11 +3,14 @@ package holdout.app.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -75,6 +78,9 @@ fun HomeScreen(
     /** Test builds only: nothing drawn over the camera, for training recordings. */
     cleanScreen: Boolean = false,
     onCleanScreenChange: ((Boolean) -> Unit)? = null,
+    /** Test builds only: record sittings as video (constitution X, v1.5.0). Null hides the switch. */
+    recordVideo: Boolean = false,
+    onRecordVideoChange: ((Boolean) -> Unit)? = null,
     /**
      * Test builds only: spike S1's on-device path — a devnet transaction
      * signed by the connected wallet — kept reachable until T040 turns it into
@@ -84,11 +90,17 @@ fun HomeScreen(
     onSpikeTransaction: (() -> Unit)? = null,
     /** What the last spike transaction said: its signature, or why it failed. */
     spikeMessage: String? = null,
+    /**
+     * Under the hero: the Holdouts open to join, with what is at stake in each
+     * (FR-053, T053), drawn by the shell from chain state.
+     */
+    below: @Composable ColumnScope.() -> Unit = {},
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(HoldoutColors.Canvas)
+            .verticalScroll(rememberScrollState())
             .padding(Spacing.screenGutter),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems, Alignment.CenterVertically),
@@ -159,6 +171,8 @@ fun HomeScreen(
             }
         }
 
+        onRecordVideoChange?.let { holdout.app.ui.RecordVideoSwitch(recordVideo, it) }
+
         if (onResetToday != null) {
             TextButton(onClick = onResetToday) {
                 Text("TEST · reset today to 0", style = LabelStyle, color = HoldoutColors.Warning)
@@ -204,6 +218,8 @@ fun HomeScreen(
             color = HoldoutColors.Accent,
             modifier = Modifier.padding(top = 8.dp),
         )
+
+        below()
     }
 }
 

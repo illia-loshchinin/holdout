@@ -147,7 +147,10 @@ class VisionAnalyzer(
         val world = result.worldLandmarks().firstOrNull()
         if (image == null || world == null) {
             lastBody = null
-            onPose(Observation(EMPTY, EMPTY, lastBrightness, lastMotion, width, height))
+            // Nobody in the frame, but the frame still has its time: a zero here
+            // broke the trace's alignment with the video, and the FPS readout.
+            val empty = PoseFrame(result.timestampMs(), NO_LANDMARKS)
+            onPose(Observation(empty, empty, lastBrightness, lastMotion, width, height))
             return
         }
         val timestamp = result.timestampMs()
@@ -183,7 +186,7 @@ class VisionAnalyzer(
          */
         const val POSE_MODEL = "pose_landmarker_full.task"
 
-        private val EMPTY = PoseFrame(0, List(PoseIndex.COUNT) { Landmark(0f, 0f, 0f, 0f) })
+        private val NO_LANDMARKS = List(PoseIndex.COUNT) { Landmark(0f, 0f, 0f, 0f) }
     }
 }
 

@@ -3,9 +3,12 @@ package holdout.crank
 import com.solana.publickey.SolanaPublicKey
 import holdout.core.ConfigSnapshot
 import holdout.core.FaucetParams
+import holdout.core.HoldoutDay
 import holdout.core.Instructions
 import holdout.core.LeagueParams
+import holdout.core.LeagueSnapshot
 import holdout.core.Pdas
+import holdout.core.ProgramErrorCode
 import holdout.core.Rpc
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonObject
@@ -155,7 +158,10 @@ object Init {
             steps +=
                 when {
                     id !in missingLeagues -> Step(name, "skipped")
-                    !live -> Step(name, "planned") { put("firstStart", firstStart) }
+                    // A league needs a published chip set (6012). In a dry run that
+                    // publication was only simulated, so the league cannot be
+                    // simulated against it: it is planned, as after a simulated initialize.
+                    !live || (dryRun && needChips) -> Step(name, "planned") { put("firstStart", firstStart) }
                     else -> {
                         val ix = Instructions.createLeague(programId, admin!!.publicKey, LeagueParams.judged(id, firstStart))
                         val signature = signAndSend(rpc, "create_league $id", listOf(ix), listOf(admin), dryRun, pause)
@@ -202,6 +208,134 @@ object Init {
                     )
                 }
             }
+        }
+    }
+
+    // ---- init --test-league (T091a, FR-044a) --------------------------------
+
+    fun checkTestLeagueArgs(args: Args) = args.allow("test-league", "admin", "league-id", "day-seconds", "reps", "days", "first-start", "cadence", "join-lock")
+
+    /** The shortest day a test league may have: long enough for a sitting and a submission to land. */
+    const val MIN_TEST_DAY_SECONDS = 60L
+
+    /** Joining closes this long before a test cohort starts unless `--join-lock` says otherwise. */
+    const val DEFAULT_TEST_JOIN_LOCK = 300L
+
+    private const val INVALID_LEAGUE_TIMING = 6010
+
+    /**
+     * The short test cohort, by default (decision H32, amended 2026-09-29): **a 7-day
+     * Holdout in 70 minutes** — seven 10-minute days at 5 reps a day, so a tester
+     * lives through a whole cycle in about an hour, without 175 push-ups.
+     */
+    const val DEFAULT_TEST_DAY_SECONDS = 600L
+    const val DEFAULT_TEST_DAYS = 7L
+    const val DEFAULT_TEST_REPS = 5L
+
+    /**
+     * The short test league's parameters from the command line (quickstart §5):
+     * `--first-start` is required — any instant the admin chooses; `--day-seconds`,
+     * `--days` and `--reps` default to seven 10-minute days at 5 reps;
+     * `--cadence` defaults to back-to-back cohorts (`days × day-seconds`) and
+     * `--join-lock` to [DEFAULT_TEST_JOIN_LOCK].
+     */
+    fun testLeagueParams(args: Args): LeagueParams {
+        fun number(name: String, range: LongRange, default: Long? = null): Long {
+            val text = args.option(name) ?: return default ?: configError("init --test-league needs --$name")
+            return text.toLongOrNull()?.takeIf { it in range } ?: configError("--$name must be a whole number in $range, got $text")
+        }
+        val leagueId = number("league-id", LeagueParams.TEST_LEAGUE_MIN.toLong()..255L, LeagueParams.TEST_LEAGUE_MIN.toLong())
+        val daySeconds = number("day-seconds", MIN_TEST_DAY_SECONDS..HoldoutDay.SECONDS_PER_DAY, DEFAULT_TEST_DAY_SECONDS)
+        val reps = number("reps", 1L..65_535L, DEFAULT_TEST_REPS)
+        val days = number("days", 1L..255L, DEFAULT_TEST_DAYS)
+        val firstStart =
+            args.option("first-start")?.let {
+                try {
+                    Instant.parse(it).epochSecond
+                } catch (e: DateTimeParseException) {
+                    configError("--first-start must be an instant such as 2026-09-27T15:00:00Z, got $it")
+                }
+            } ?: configError("init --test-league needs --first-start: a test league starts when the admin chooses")
+        // Cohorts may overlap: a new one every few minutes lets a tester join at any time.
+        val cadence = args.option("cadence")?.let { number("cadence", MIN_TEST_DAY_SECONDS..Long.MAX_VALUE / 1024) } ?: (days * daySeconds)
+        val joinLock = args.option("join-lock")?.let { number("join-lock", 0L..cadence) } ?: minOf(DEFAULT_TEST_JOIN_LOCK, cadence)
+        return LeagueParams(leagueId.toInt(), days.toInt(), reps.toInt(), LeagueParams.EXERCISE_PUSHUP, firstStart, daySeconds, cadence, joinLock)
+    }
+
+    /**
+     * `crank init --test-league`: the one disclosed short test cohort's league
+     * (FR-044a), created by the admin alongside the judged ones on a program
+     * built with `test-leagues`. Idempotent: a league that exists is reported
+     * with what it stores and nothing is sent. A program built without the
+     * feature refuses it (6010), which is reported as exactly that.
+     */
+    suspend fun runTestLeague(
+        args: Args,
+        config: CrankConfig,
+        rpc: Rpc,
+        loadKeypair: (path: String, role: String) -> Keypair = Keypair::load,
+        pause: suspend (Long) -> Unit = { delay(it) },
+    ): JsonObject {
+        checkTestLeagueArgs(args)
+        val params = testLeagueParams(args)
+        val programId = config.programId
+        val configAddress = Pdas.config(programId)
+        val onChain = readConfig(rpc, configAddress) ?: configError("the program is not initialized; run crank init before --test-league")
+        val leagueAddress = Pdas.league(programId, params.leagueId)
+        val existing =
+            when (val read = rpc.account(leagueAddress)) {
+                is Rpc.Answer.Ok -> read.value?.let { runCatching { LeagueSnapshot.decode(it) }.getOrNull() ?: failed("the account at $leagueAddress is not a LeagueConfig") }
+                is Rpc.Answer.Refused -> failed("could not read league ${params.leagueId} at $leagueAddress: ${read.message}")
+                is Rpc.Answer.Unanswered -> failed("could not read league ${params.leagueId} at $leagueAddress: ${read.message}")
+            }
+
+        fun JsonObjectBuilder.league(p: LeagueParams) {
+            put("league", p.leagueId)
+            put("address", leagueAddress.base58())
+            put("durationDays", p.durationDays)
+            put("repsPerDay", p.repsPerDay)
+            put("daySeconds", p.dayLength)
+            put("firstStart", p.firstStart)
+            put("cadence", p.cadence)
+            put("joinLock", p.joinLock)
+        }
+
+        if (existing != null) {
+            return buildJsonObject {
+                put("command", "init --test-league")
+                put("status", "skipped")
+                put("reason", "league ${params.leagueId} already exists; a league's timing is fixed for life")
+                league(existing.params)
+                put("nextIndex", existing.nextIndex)
+            }
+        }
+
+        val now = rpc.chainTime()?.unixSeconds ?: failed("could not read chain time to check --first-start")
+        if (now >= params.firstStart - params.joinLock) {
+            configError(
+                "joining for a first start at ${Instant.ofEpochSecond(params.firstStart)} would close at ${Instant.ofEpochSecond(params.firstStart - params.joinLock)}, " +
+                    "which has passed; pass a later --first-start",
+            )
+        }
+        val path = args.option("admin") ?: config.adminKeypair ?: configError("--test-league needs the admin's keypair: --admin <path> or HOLDOUT_ADMIN_KEYPAIR")
+        val admin = loadKeypair(path, "admin")
+        if (admin.publicKey != onChain.admin) configError("the admin key is ${admin.publicKey}, but Config.admin is ${onChain.admin}; only the admin may create a league (6000)")
+
+        val signature =
+            try {
+                signAndSend(rpc, "create_league ${params.leagueId}", listOf(Instructions.createLeague(programId, admin.publicKey, params)), listOf(admin), args.dryRun, pause)
+            } catch (e: CrankException) {
+                if (ProgramErrorCode.of(e.message) == INVALID_LEAGUE_TIMING) {
+                    configError("the program at $programId refuses a test league: it was built without the test-leagues feature (6010, FR-044a)")
+                }
+                throw e
+            }
+        return buildJsonObject {
+            put("command", "init --test-league")
+            put("status", if (args.dryRun) "simulated" else "sent")
+            signature?.let { put("signature", it) }
+            league(params)
+            if (onChain.chipVersion == 0L) put("note", "no chip set is published yet; its cohorts cannot open until one is (6012)")
         }
     }
 

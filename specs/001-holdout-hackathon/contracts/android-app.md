@@ -11,7 +11,8 @@
 | `RECORD_AUDIO` | **Never declared** in the manifest (FR-022a) — a build check fails if it appears |
 | `INTERNET` | Declared; used only as in §2 |
 | Merged from the MWA client library | `ACCESS_NETWORK_STATE`, `REORDER_TASKS` and the generated `holdout.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` — all normal, none requested at runtime; read off the built APK with `aapt2 dump badging` |
-| Other dangerous permissions | None |
+| `POST_NOTIFICATIONS` | Runtime on Android 13+: asked **once** — at the first join, or the first time the app finds the member already in a Holdout — with the reason on the stake sheet (FR-068). Declining disables reminders and nothing else |
+| Other dangerous permissions | None. No `SCHEDULE_EXACT_ALARM` and no `RECEIVE_BOOT_COMPLETED` — reminders are inexact and come back when the app next reads the chain (R21) |
 
 ## 2. Network egress
 
@@ -20,7 +21,7 @@
 | The configured devnet RPC endpoint | Account reads, Clock sysvar, sending signed transactions |
 | Local MWA wallet app (Android intents / local websocket) | Authorisation and signing |
 
-Nothing else. **Camera frames, landmarks and rep traces are never sent anywhere** (FR-022, constitution X); the only rep-derived data leaving the device is the 32-byte `proof_hash` inside `submit_day`. Acceptance criterion 10 is checked by capturing all outbound traffic during a sitting and finding only RPC calls.
+Nothing else — reminders (FR-068) are scheduled and shown on the device and use no network. Debug builds may save a sitting's camera as video in private storage for rep-recognition testing (constitution X v1.5.0, spec 002 FR-026); the app never sends it anywhere, and release builds contain no recorder. **Camera frames, landmarks and rep traces are never sent anywhere** (FR-022, constitution X); the only rep-derived data leaving the device is the 32-byte `proof_hash` inside `submit_day`. Acceptance criterion 10 is checked by capturing all outbound traffic during a sitting and finding only RPC calls.
 
 ## 3. Wallet use (Mobile Wallet Adapter)
 
@@ -33,6 +34,7 @@ Client: `com.solanamobile:mobile-wallet-adapter-clientlib-ktx` 2.2.0, used as in
 | Join, leave, submit completed day, claim | `walletAdapter.transact(sender) { signAndSendTransactions(...) }` | The member's wallet is the fee payer; `Failure` results show a retryable error |
 | Faucet | **none** | Built with `web3-solana`, signed with the bundled sponsor key as fee payer and sent with `rpc-core`; recipient = connected address; no member signature (R13). If the sponsor's float has been emptied and the connected wallet already holds SOL, the same claim is re-sent through `transact` with the member as fee payer — `claim_faucet` accepts either (FR-042b) |
 | Reconnect | Stored auth token reused on resume; `connect` again if it was revoked | — |
+| Network | Authorized on `solana:devnet` only: the chains the wallet reports for its accounts are checked at `connect` and inside every `transact` before a signature is requested; any other network is refused and the saved token dropped (FR-001b) | A wallet reporting no chains (MWA 1.x) is allowed |
 | Disconnect | `walletAdapter.disconnect(sender)` | Returns to the connect screen |
 
 ## 3a. Appearance

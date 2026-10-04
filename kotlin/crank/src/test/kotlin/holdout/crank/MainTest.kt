@@ -84,12 +84,13 @@ class MainTest {
     }
 
     @Test
-    fun `commands owned by later tasks say which, and send nothing`() {
-        for (words in listOf(listOf("run"), listOf("scripted", "run"))) {
-            val (code, json) = run(*words.toTypedArray())
-            assertEquals(EXIT_CONFIG, code, "$words")
-            assertTrue(json.getValue("error").jsonPrimitive.content.contains("T0"), "$words: ${json["error"]}")
-        }
+    fun `scripted commands refuse what they do not take, and an unknown one is named`() {
+        val (planCode, plan) = run("scripted", "plan", "--rate", "1")
+        assertEquals(EXIT_CONFIG, planCode)
+        assertTrue(plan.getValue("error").jsonPrimitive.content.contains("--rate"))
+        val (code, json) = run("scripted", "launch")
+        assertEquals(EXIT_CONFIG, code)
+        assertTrue(json.getValue("error").jsonPrimitive.content.contains("scripted launch"))
     }
 
     @Test

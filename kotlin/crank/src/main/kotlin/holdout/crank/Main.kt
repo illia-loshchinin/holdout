@@ -33,7 +33,13 @@ const val EXIT_CONFIG = 1
 const val EXIT_FAILED = 2
 
 /** Stops a command with an exit code and a line for the JSON summary. */
-class CrankException(val exitCode: Int, message: String) : Exception(message)
+open class CrankException(val exitCode: Int, message: String) : Exception(message)
+
+/**
+ * A command that ran to the end but not cleanly — `crank run` with a failed
+ * step: its whole summary is still printed, under [exitCode].
+ */
+class CrankSummaryException(exitCode: Int, val summary: JsonObject) : CrankException(exitCode, "${summary["failed"]} step(s) failed")
 
 internal fun configError(message: String): Nothing = throw CrankException(EXIT_CONFIG, message)
 
@@ -65,18 +71,41 @@ fun runCrank(
                     parsed.allow()
                     fun(config: CrankConfig) = runBlocking { Status.run(config, rpcFor(config.rpcUrl)) }
                 }
-                listOf("init") -> {
-                    Init.checkArgs(parsed)
-                    fun(config: CrankConfig) = runBlocking { Init.run(parsed, config, rpcFor(config.rpcUrl)) }
-                }
+                listOf("init") ->
+                    if ("test-league" in parsed.flags) {
+                        Init.checkTestLeagueArgs(parsed)
+                        fun(config: CrankConfig) = runBlocking { Init.runTestLeague(parsed, config, rpcFor(config.rpcUrl)) }
+                    } else {
+                        Init.checkArgs(parsed)
+                        fun(config: CrankConfig) = runBlocking { Init.run(parsed, config, rpcFor(config.rpcUrl)) }
+                    }
                 listOf("chips", "publish") -> {
                     Chips.checkArgs(parsed)
                     fun(config: CrankConfig) = runBlocking { Chips.publish(parsed, config, rpcFor(config.rpcUrl)) }
                 }
-                else -> notYet(parsed.words)
+                listOf("run") -> {
+                    Run.checkArgs(parsed)
+                    fun(config: CrankConfig) = runBlocking { Run.run(parsed, config, rpcFor(config.rpcUrl)) }
+                }
+                listOf("scripted", "plan") -> {
+                    Scripted.checkArgs(parsed)
+                    fun(config: CrankConfig) = runBlocking { Scripted.plan(parsed, config, rpcFor(config.rpcUrl)) }
+                }
+                listOf("scripted", "run") -> {
+                    Scripted.checkArgs(parsed)
+                    fun(config: CrankConfig) = runBlocking { Scripted.run(parsed, config, rpcFor(config.rpcUrl)) }
+                }
+                listOf("scripted", "fund") -> {
+                    Scripted.checkArgs(parsed)
+                    fun(config: CrankConfig) = runBlocking { Scripted.fund(parsed, config, rpcFor(config.rpcUrl)) }
+                }
+                else -> configError("unknown command '${parsed.words.joinToString(" ")}'; try --help")
             }
         out(command(CrankConfig.from(env)).toString())
         EXIT_OK
+    } catch (e: CrankSummaryException) {
+        out(e.summary.toString())
+        e.exitCode
     } catch (e: CrankException) {
         out(
             buildJsonObject {
@@ -99,29 +128,13 @@ fun runCrank(
     }
 }
 
-/**
- * The commands contracts/crank-cli.md lists that later tasks implement. Named
- * with their task so a run of this build says why it did nothing.
- */
-private val LATER =
-    mapOf(
-        listOf("run") to "T071",
-        listOf("scripted", "plan") to "T088",
-        listOf("scripted", "fund") to "T088",
-        listOf("scripted", "run") to "T087",
-    )
-
-private fun notYet(words: List<String>): Nothing {
-    val task = LATER[words] ?: configError("unknown command '${words.joinToString(" ")}'; try --help")
-    configError("'${words.joinToString(" ")}' lands with $task; this build does not run it yet")
-}
-
 private fun usage(): JsonObject = buildJsonObject {
     put(
         "usage",
         "crank <command> [--dry-run]; commands: status, chips publish --rate <usd-per-skr> [--decimals <n>], " +
             "init [--admin <keypair>] --operator <pubkey> --sponsor <pubkey> --treasury <pubkey> --rate <usd-per-skr> [--first-start <iso>] [--fund-faucet <sol>], " +
-            "run, scripted plan|run|fund (contracts/crank-cli.md)",
+            "init --test-league --first-start <iso> [--day-seconds <n, default 3600>] [--days <n, default 7>] [--reps <n, default 5>] [--league-id <100..255>] [--cadence <s>] [--join-lock <s>], " +
+            "run, scripted plan --cohort <address> | scripted run [--floor-7d <n>] [--floor-21d <n>] [--last-start <iso>] | scripted fund [--lamports <n>] (contracts/crank-cli.md)",
     )
 }
 
@@ -144,7 +157,7 @@ data class Args(
 }
 
 /** Flags that never take a value. Every other `--name` does. */
-private val FLAGS = setOf("dry-run", "auto", "help")
+private val FLAGS = setOf("dry-run", "auto", "help", "test-league")
 
 fun parseArgs(args: List<String>): Args {
     val words = mutableListOf<String>()

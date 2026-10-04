@@ -80,6 +80,18 @@ four public keys. `admin` must also be the program's upgrade authority —
 `initialize` checks that against the ProgramData account and refuses anyone else
 (R14). So deploy with `admin`, or hand it the authority before `crank init`.
 
+The app bundles `sponsor`'s secret so a wallet with no SOL can claim the
+faucet (research R13, a README known weakness). The build reads it from a
+Gradle property and never from the repository — put this in
+`%USERPROFILE%\.gradle\gradle.properties` on Windows (not the project's file):
+
+```properties
+holdout.sponsorKeypair=\\\\wsl$\\Ubuntu\\home\\<you>\\.config\\solana\\holdout\\sponsor.json
+```
+
+Without it the app still builds: a wallet that holds SOL pays for its own
+claim, and one with none is told the faucet cannot pay out (ES-0b).
+
 ```bash
 bash scripts/gen-scripted-wallets.sh
 ```
@@ -296,7 +308,7 @@ doing today.
 - Collect filming consent in writing, in the chat, from anyone who might appear
   on camera. Keep the messages.
 - Book the rehearsal run, **24–26 September**: a test league of seven 10-minute
-  days at 5 reps, about 70 minutes per tester, on the rehearsal deployment. Its
+  days at 5 reps (H32), about 70 minutes per tester, on the rehearsal deployment. Its
   footage is never used.
 
 Real members are the point. Scripted wallets top a cohort up to its floor and no

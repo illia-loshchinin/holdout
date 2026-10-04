@@ -29,8 +29,10 @@ Lengths are in arm-lengths so the distance from the phone does not matter.
 | Top / bottom elbow | 160° / 90° (triggers 165° / 85°; 160° top at 45°) | all |
 | Descent starts the rep clock | elbow < 140° | all |
 | Torso down, head-on | elevation ≤ 55° | head-on |
-| Head-on depth | shoulder height at bottom ≤ 0.25 × top | head-on |
-| 45° depth | shoulder over hand ≤ 0.32 | 45° |
+| Head-on depth | shoulder height at bottom ≤ 0.285 × top | head-on |
+| 45° body as one piece | hip rise over shoulder rise, half-way up the push, ≥ 0.90 (placement ratio < 1.1) | 45° |
+| Staked placement band | placement ratio over 0.25 and under 1.1 — about 60° to 35° | staked |
+| 45° depth | shoulder over hand ≤ 0.32 — or ≤ 0.36 with the elbow closed to 66° or less | 45° |
 | Body line, rep median | ≥ 140° | 45° |
 | Body line, push median | ≥ 145° | 45° |
 | Knees down | push median legs-above-hands < 0.41, or push median knee < 90° | staked |
@@ -38,7 +40,7 @@ Lengths are in arm-lengths so the distance from the phone does not matter.
 
 ## Rep verdict order
 
-knees (staked) → too shallow → go lower → body held → timing → **counted**. Each refusal carries a `RepHint` shown and spoken ("Knees off the floor", "Go lower", "Keep your body straight", …).
+legs in the picture (staked) → too shallow → knees (staked) → body held → timing → **counted**. Each refusal carries a `RepHint` shown and spoken ("Keep your legs in the picture", "Go lower", "Knees off the floor", "Keep your body straight", …). Depth comes before knees (3 Oct): a half push-up on the toes reads the legs lower and the knee more bent than a full one, and was told "Knees off the floor". The order picks the words only; a rep counts when it passes every check.
 
 ## Set-up guide preference (`app`, MMKV)
 

@@ -81,6 +81,15 @@ object Trace {
     val MOVEMENTS = listOf("honest", "half", "knees", "cobra", "other")
 
     /**
+     * Where the phone stood, as the person labelling says: the angle between
+     * the member's line from head to feet and the line to the phone, 90 being
+     * square side-on — or `front` for head-on. The placement thresholds are
+     * calibrated by grouping traces on this.
+     */
+    val PLACEMENTS = listOf("front", "30", "35", "40", "45", "50", "55", "60", "side")
+    val SIDES = listOf("left", "right")
+
+    /**
      * [lines] with a person's account written into the header: the expected
      * count, what was done by movement, and a note. Written on the phone right
      * after the sitting, so a pulled trace is already a test.
@@ -88,12 +97,23 @@ object Trace {
      * The note is kept to one header line and cannot forge a header fact:
      * `=` becomes `:`.
      */
-    fun label(lines: List<String>, expectedReps: Int, done: Map<String, Int>, note: String): List<String> {
+    fun label(
+        lines: List<String>,
+        expectedReps: Int,
+        done: Map<String, Int>,
+        note: String,
+        /** Where the phone stood, as the person says: one of [PLACEMENTS]. What calibration groups by. */
+        placement: String? = null,
+        /** Which side of the member the phone was on: `left` or `right`. */
+        phoneSide: String? = null,
+    ): List<String> {
         require(lines.firstOrNull() == MAGIC) { "not a holdout trace v2" }
         val out = lines.toMutableList()
         out[1] = out[1].replace(Regex("""expectedReps=\S+"""), "expectedReps=$expectedReps")
         val account = MOVEMENTS.joinToString(",") { "$it:${done[it] ?: 0}" }
         val extra = mutableListOf("# done=$account")
+        val where = listOfNotNull(placement?.takeIf { it in PLACEMENTS }?.let { "placement=$it" }, phoneSide?.takeIf { it in SIDES }?.let { "phoneSide=$it" })
+        if (where.isNotEmpty()) extra += "# " + where.joinToString(" ")
         val clean = note.replace(Regex("""\s+"""), " ").replace('=', ':').trim()
         if (clean.isNotEmpty()) extra += "# note=$clean"
         out.addAll(2, extra)
@@ -118,6 +138,9 @@ object Trace {
         /** What a person counted watching the set, or null when nobody has yet. */
         val expectedReps: Int?,
         val frames: List<Frame>,
+        /** Where the phone stood, as labelled ([PLACEMENTS]); null on older traces. */
+        val placement: String? = null,
+        val phoneSide: String? = null,
     ) {
         /** The view counting was locked to — the first counting frame's. */
         val countingView: CameraView? get() = frames.firstOrNull { it.step == "COUNTING" }?.view
@@ -174,6 +197,8 @@ object Trace {
             stakes = Stakes.valueOf(facts.getValue("stakes")),
             expectedReps = facts["expectedReps"]?.toIntOrNull(),
             frames = frames,
+            placement = facts["placement"],
+            phoneSide = facts["phoneSide"],
         )
     }
 }

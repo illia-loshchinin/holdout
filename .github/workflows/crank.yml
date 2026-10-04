@@ -1,0 +1,50 @@
+# The crank's fallback schedule (T094, research R12): the same pass as the Fly
+# machine, from GitHub Actions. **Disabled by default** — it runs on its
+# schedule only when the repository variable HOLDOUT_CRANK_ENABLED is "true",
+# so it never races the Fly machine by accident. Two `crank run`s are harmless —
+# every step is idempotent — but two `crank scripted run`s at once each read the
+# member count before the other's joins land and over-fill a lobby past its
+# floor (seen on a local validator, 2026-09-27). Run one scheduler.
+#
+# Secrets: HOLDOUT_PAYER_KEY_JSON and HOLDOUT_SCRIPTED_KEYS_TGZ_B64, as in fly.toml.
+name: Crank (fallback)
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: crank
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  pass:
+    if: vars.HOLDOUT_CRANK_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build the crank
+        working-directory: kotlin
+        run: ./gradlew --no-daemon :crank:jar
+
+      - name: One pass
+        env:
+          HOLDOUT_RPC_URL: https://api.devnet.solana.com
+          HOLDOUT_PROGRAM_ID: Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4
+          HOLDOUT_PAYER_KEY_JSON: ${{ secrets.HOLDOUT_PAYER_KEY_JSON }}
+          HOLDOUT_SCRIPTED_KEYS_TGZ_B64: ${{ secrets.HOLDOUT_SCRIPTED_KEYS_TGZ_B64 }}
+          CRANK_JAR: kotlin/crank/build/libs/crank.jar
+        run: bash scripts/crank-loop.sh --once

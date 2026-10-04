@@ -142,13 +142,47 @@ npm --prefix tests test -- --grep "full cycle"
 
 ### Beta test on the rehearsal deployment (24–26 Sep)
 
-The same compressed idea, but on devnet with real testers and real phones: a test league of **seven 10-minute days at 5 reps a day**, so each tester runs faucet → join → sittings → a deliberate forfeit → settlement → claim in about 70 minutes.
+The same compressed idea, but on devnet with real testers and real phones: a test league of **seven 10-minute days at 5 reps a day** — a 7-day Holdout in 70 minutes (H32) — so each tester runs faucet → join → sittings → a deliberate forfeit → settlement → claim in about an hour.
 
 ```bash
-java -jar kotlin/crank/build/libs/crank.jar init --test-league --day-seconds 600 --reps 5 --days 7
+java -jar kotlin/crank/build/libs/crank.jar init --test-league --first-start <iso>
 ```
 
+Seven 10-minute days at 5 reps is the default; `--day-seconds`, `--days` and `--reps` override it.
+
 **Expected:** 5–7 testers each complete a full cycle on the short test cohort (FR-044a); bugs are fixed before the 5 October freeze. This run is the one the walkthrough and demo video are recorded from, labelled on screen as a short test cohort (constitution v1.4.0).
+
+## 5a. The whole build on a local validator
+
+Everything this build does, with free SOL and a real program binary: a local validator in WSL2, the crank on Windows, the app on a phone over USB. No devnet, no time travel — the short test league's compressed day is what makes a cycle take minutes.
+
+```bash
+# WSL2: build with test-leagues, start a fresh validator with the program loaded
+# (upgrade authority = the admin key, so init passes the devnet check), fund keys.
+NO_DNA=1 anchor build -- --features test-leagues
+bash scripts/localnet.sh start && bash scripts/localnet.sh fund
+```
+
+```bash
+# Git Bash on Windows: set up the program, then the test league (seven 10-minute days, 5 reps) starting in ~20 minutes.
+cd kotlin && ./gradlew :crank:jar && cd ..
+bash scripts/localnet-crank.sh init --operator <operator> --sponsor <sponsor> --treasury <treasury> --rate 0.0213 --fund-faucet 20
+bash scripts/localnet-crank.sh init --test-league --first-start <iso, ~20 min ahead>
+# or: a new 70-minute cohort every 10 minutes, so a tester can always join one soon (local only)
+bash scripts/localnet-crank.sh init --test-league --league-id 102 --cadence 600 --join-lock 60 --first-start <iso>
+bash scripts/localnet-crank.sh scripted fund
+bash scripts/localnet-crank.sh --loop      # leave running: opens, fills, forfeits, settles
+```
+
+```bash
+# The app on a phone over USB, reading and sending to the local validator.
+adb reverse tcp:8899 tcp:8899
+cd kotlin && ./gradlew :app:installDebug -Pholdout.rpcUrl=http://127.0.0.1:8899 -Pholdout.sponsorKeypair=//wsl.localhost/Ubuntu/home/<you>/.config/solana/holdout/sponsor.json
+```
+
+A debug build pointed away from devnet asks the wallet to **sign only** and sends the transaction itself — the wallet would otherwise send it to devnet. Cleartext HTTP is allowed to `127.0.0.1`, `localhost` and `10.0.2.2`, in debug builds only.
+
+**Expected:** connect → faucet → ladder → the short test cohort, labelled → stake → lobby; from the start, 5 push-ups at 45° in each 10-minute day, submitted; scripted members forfeit on their seeded days; after the seventh day (70 minutes in) the cohort settles and the claim pays stake plus share. `bash scripts/localnet-crank.sh status` shows it all.
 
 ## 6. Devnet deployment
 

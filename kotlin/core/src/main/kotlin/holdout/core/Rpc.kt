@@ -145,6 +145,43 @@ class Rpc(
         return runCatching { accounts.map { it.address to CohortSnapshot.decode(it.data) } }.getOrNull()
     }
 
+    /**
+     * Every member of [cohort], whole — with the settlement flag the crank
+     * pages `settle_count` by, which the roster slice leaves out.
+     */
+    suspend fun membershipAccounts(programId: SolanaPublicKey, cohort: SolanaPublicKey): List<Pair<SolanaPublicKey, MembershipAccount>>? {
+        val accounts = programAccounts(programId, AccountQueries.membershipAccountsOf(cohort)) ?: return null
+        return runCatching { accounts.map { it.address to MembershipAccount.decode(it.data) } }.getOrNull()
+    }
+
+    /** Every membership [wallet] holds, in any cohort — one call, however many cohorts exist. */
+    suspend fun walletMemberships(programId: SolanaPublicKey, wallet: SolanaPublicKey): List<MembershipAccount>? {
+        val accounts = programAccounts(programId, AccountQueries.membershipsOfWallet(wallet)) ?: return null
+        return runCatching { accounts.map { MembershipAccount.decode(it.data) } }.getOrNull()
+    }
+
+    /**
+     * An SPL token account's balance in base units: `0` when the account does
+     * not exist yet (a wallet that has never claimed), null when the read failed.
+     */
+    suspend fun tokenAmount(tokenAccount: SolanaPublicKey): ULong? = when (val read = account(tokenAccount)) {
+        is Answer.Ok -> read.value?.let { if (it.size < 72) null else java.nio.ByteBuffer.wrap(it, 64, 8).order(java.nio.ByteOrder.LITTLE_ENDIAN).long.toULong() } ?: 0uL
+        else -> null
+    }
+
+    /** Every league of the program, judged and test alike, keyed by id. */
+    suspend fun leagues(programId: SolanaPublicKey): List<LeagueSnapshot>? {
+        val accounts = programAccounts(programId, AccountQueries.leagues()) ?: return null
+        return runCatching { accounts.map { LeagueSnapshot.decode(it.data) } }.getOrNull()
+    }
+
+    /** One wallet's `Profile`, or `Ok(null)` for a wallet that has never claimed or joined. */
+    suspend fun profile(programId: SolanaPublicKey, wallet: SolanaPublicKey): Answer<ProfileSnapshot?> = when (val read = account(Pdas.profile(programId, wallet))) {
+        is Answer.Ok -> runCatching { Answer.Ok(read.value?.let(ProfileSnapshot::decode)) }.getOrElse { Answer.Unanswered("unreadable profile for $wallet") }
+        is Answer.Refused -> read
+        is Answer.Unanswered -> read
+    }
+
     /** One cohort and its roster, the two reads a cohort screen refreshes together. */
     data class CohortRead(
         val address: SolanaPublicKey,
@@ -455,6 +492,27 @@ object AccountQueries {
             dataSlice = DataSlice(l.ROSTER_SLICE_OFFSET, l.ROSTER_SLICE_LENGTH),
         )
     }
+
+    /** Every member of [cohort], whole: the crank's settlement read. */
+    fun membershipAccountsOf(cohort: SolanaPublicKey): ProgramAccountsQuery {
+        val l = AccountLayout.Membership
+        return ProgramAccountsQuery(
+            filters = listOf(AccountFilter.DataSize(l.SIZE), AccountFilter.Memcmp(0, l.DISCRIMINATOR), AccountFilter.Memcmp(l.COHORT, cohort.bytes)),
+        )
+    }
+
+    /** Every membership of [wallet], whole. */
+    fun membershipsOfWallet(wallet: SolanaPublicKey): ProgramAccountsQuery {
+        val l = AccountLayout.Membership
+        return ProgramAccountsQuery(
+            filters = listOf(AccountFilter.DataSize(l.SIZE), AccountFilter.Memcmp(0, l.DISCRIMINATOR), AccountFilter.Memcmp(l.WALLET, wallet.bytes)),
+        )
+    }
+
+    /** Every `LeagueConfig`. */
+    fun leagues(): ProgramAccountsQuery = ProgramAccountsQuery(
+        filters = listOf(AccountFilter.DataSize(LeagueSnapshot.SIZE), AccountFilter.Memcmp(0, LeagueSnapshot.DISCRIMINATOR)),
+    )
 
     /** Every cohort, whole. */
     fun cohorts(): ProgramAccountsQuery {

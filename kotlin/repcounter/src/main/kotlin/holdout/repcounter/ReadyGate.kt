@@ -43,6 +43,15 @@ class ReadyGate(
 
     private var heldSinceMillis: Long? = null
 
+    /**
+     * With the pills green: what in the position itself keeps the hold from
+     * filling, or null when nothing does. The pills say nothing about the
+     * position, so without this a member in a plank the gate does not accept
+     * sees "Hold" and waits for a countdown that never comes.
+     */
+    var blocker: HoldBlocker? = null
+        private set
+
     /** How far through the hold, 0..1 — for a progress ring on the screen. */
     var progress: Float = 0f
         private set
@@ -67,13 +76,15 @@ class ReadyGate(
     ): Boolean {
         if (!pillsGreen) {
             reset()
+            blocker = null
             return false
         }
 
         val measuredFrom = view ?: CameraView.SIDE
         val reading = ViewReading.of(measuredFrom, frame, image) ?: return false
 
-        if (!isAtTop(measuredFrom, reading, rulesFor(view))) {
+        blocker = blockerOf(measuredFrom, reading, rulesFor(view))
+        if (blocker != null) {
             reset()
             return false
         }
@@ -89,7 +100,30 @@ class ReadyGate(
         progress = 0f
     }
 
-    private fun isAtTop(view: CameraView, reading: ViewReading, rules: RepRules): Boolean = reading.elbow >= rules.topTriggerDegrees &&
-        postureHeld(view, reading, reading.posture, rules) &&
-        (stakes != Stakes.STAKED || kneesSeenOffFloor(reading.knee, (reading as? ViewReading.Angled)?.legsAboveHands, rules))
+    // At 45° the hold accepts the floor of the top: how a locked-out arm reads
+    // there depends on where the phone stands, and the counter sets the sitting's
+    // line from what is held through the countdown that follows.
+    //
+    // One thing at a time, in the order a body gets into position: arms, then
+    // knees, then the line of the body.
+    private fun blockerOf(view: CameraView, reading: ViewReading, rules: RepRules): HoldBlocker? {
+        val angled = reading as? ViewReading.Angled
+        return when {
+            reading.elbow < (if (view == CameraView.OBLIQUE) rules.obliqueTopDegrees else rules.topTriggerDegrees) -> HoldBlocker.ARMS
+            stakes == Stakes.STAKED && angled?.kneeUnreadable == true -> HoldBlocker.KNEES_UNREADABLE
+            stakes == Stakes.STAKED && !kneesSeenOffFloor(reading.knee, angled?.legsAboveHands, rules) -> HoldBlocker.KNEES
+            !postureHeld(view, reading, reading.posture, rules) -> HoldBlocker.BODY
+            else -> null
+        }
+    }
+}
+
+/** What keeps the ready hold from filling once the pills are green ([ReadyGate.blocker]). */
+enum class HoldBlocker(val fix: String) {
+    ARMS("Straighten your arms: the hold starts from the top of a push-up"),
+    KNEES("Lift your knees off the floor: a staked push-up starts from your toes"),
+
+    /** The model cannot place the knee — loose trousers — so nothing about it can be judged ([Angles.kneeReadable]). */
+    KNEES_UNREADABLE("The phone cannot make out your knees. Loose trousers hide them: wear something fitted, or roll them up"),
+    BODY("Bring your body into one line from shoulders to feet"),
 }

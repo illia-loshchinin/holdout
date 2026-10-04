@@ -106,6 +106,10 @@ fun SittingScreen(
      * instead of the legs. Sounds still play.
      */
     cleanScreen: Boolean = false,
+    /** The finished screen's button: "Back" for the Daily 25, the submit for a Holdout day. */
+    finishLabel: String = "Back",
+    /** Debug builds: record this sitting's camera as video (constitution X, v1.5.0). */
+    recordVideo: Boolean = false,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -124,6 +128,8 @@ fun SittingScreen(
         hasCamera = granted
         askedCamera = true
     }
+    // Left the foreground: the camera stops, and counting does not resume where it was.
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_STOP) { viewModel.onLeftForeground() }
     // Back from the system settings with the camera allowed: pick it up.
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
         hasCamera = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
@@ -168,7 +174,7 @@ fun SittingScreen(
     ) {
         if (state.step != SittingViewModel.Step.COMPLETE) {
             if (hasCamera) {
-                CameraFeed(viewModel)
+                CameraFeed(viewModel, recordVideo)
                 if (!cleanScreen) {
                     PositionOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
                     SkeletonOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
@@ -204,7 +210,7 @@ fun SittingScreen(
                 } else {
                     CountingOverlay(state)
                 }
-                SittingViewModel.Step.COMPLETE -> DayComplete(state) {
+                SittingViewModel.Step.COMPLETE -> DayComplete(state, finishLabel) {
                     if (BuildConfig.DEBUG && viewModel.canLabelTrace) labelThen = onFinished else onFinished()
                 }
             }
@@ -212,6 +218,12 @@ fun SittingScreen(
             state.error?.let {
                 Text(it, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Warning)
             }
+        }
+
+        // A Holdout day's deadline stays in view the whole sitting: the home
+        // screen's countdown and last-minutes warning are gone while the camera is up.
+        if (state.step != SittingViewModel.Step.COMPLETE && !cleanScreen) {
+            DeadlineBanner(viewModel, Modifier.align(Alignment.TopCenter).padding(top = Spacing.screenGutter))
         }
 
         // Read while the phone is still in hand: it opens with the sitting, and
@@ -235,29 +247,13 @@ fun SittingScreen(
             )
         }
 
-        // The head left the picture: said aloud too, but shown as big as the
-        // coach's words, because the frame needs fixing now.
-        if (state.headOutOfView && state.step == SittingViewModel.Step.COUNTING && !cleanScreen) {
-            Text(
-                "Head out of view · move back",
-                style = MaterialTheme.typography.headlineMedium,
-                color = HoldoutColors.Warning,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 56.dp)
-                    .background(HoldoutColors.Scrim, MaterialTheme.shapes.large)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-        }
-
         // Debug builds: log what was really done before leaving, so the
         // trace this sitting wrote arrives already labelled.
         labelThen?.let { leave ->
             TraceLabelDialog(
                 counted = state.repsCounted,
-                onSave = { done, note ->
-                    viewModel.labelTrace(done, note)
+                onSave = { done, note, placement, phoneSide ->
+                    viewModel.labelTrace(done, note, placement, phoneSide)
                     labelThen = null
                     leave()
                 },
@@ -361,6 +357,18 @@ private fun PreflightPills(
             modifier = Modifier
                 .background(HoldoutColors.Scrim, MaterialTheme.shapes.large)
                 .padding(horizontal = 20.dp, vertical = 8.dp),
+        )
+    }
+    // Every pill is green and the hold is not filling: the reason, in a sentence.
+    state.holdFix?.let { fix ->
+        Text(
+            text = fix,
+            style = LabelStyle,
+            color = HoldoutColors.Warning,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .background(HoldoutColors.Scrim, MaterialTheme.shapes.medium)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
         )
     }
 
@@ -469,8 +477,15 @@ private fun CountingOverlay(state: SittingViewModel.UiState) {
         style = AmountStyle,
         color = HoldoutColors.TextSecondary,
     )
+    // Twice the title size: read from the floor, at arm's length.
     state.hint?.let {
-        Text(it, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Accent)
+        val title = MaterialTheme.typography.titleMedium
+        Text(
+            it,
+            style = title.copy(fontSize = title.fontSize * 2, lineHeight = title.lineHeight * 2),
+            color = HoldoutColors.Accent,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
     }
 
     // Test builds only: what the counter is reading, to tune it on a real body.
@@ -478,6 +493,17 @@ private fun CountingOverlay(state: SittingViewModel.UiState) {
         state.traceName?.let {
             Text("rec · $it", style = LabelStyle, color = HoldoutColors.TextTertiary)
         }
+        // Pose analysis must hold ≥ 15 FPS (research R4) — watched most while video records.
+        Text(
+            "analysis ${state.analysisFps?.let { "%.0f".format(it) } ?: "—"} fps" +
+                when (state.recordingVideo) {
+                    true -> " · video on"
+                    false -> " · video could not start"
+                    null -> ""
+                },
+            style = LabelStyle,
+            color = if ((state.analysisFps ?: 99f) < 15f) HoldoutColors.Warning else HoldoutColors.TextTertiary,
+        )
         state.readout?.let { r ->
             val posture = if (r.view == CameraView.FRONT) "torso" else "line"
             Text(
@@ -490,11 +516,30 @@ private fun CountingOverlay(state: SittingViewModel.UiState) {
     }
 }
 
+/** Time to a Holdout day's deadline, in the warning colour for its last minutes (FR-047); nothing for the Daily 25. */
 @Composable
-private fun DayComplete(state: SittingViewModel.UiState, onFinished: () -> Unit) {
+private fun DeadlineBanner(viewModel: SittingViewModel, modifier: Modifier) {
+    var left by remember { mutableStateOf(viewModel.deadlineSecondsLeft()) }
+    LaunchedEffect(viewModel) {
+        while (true) {
+            left = viewModel.deadlineSecondsLeft()
+            kotlinx.coroutines.delay(1_000)
+        }
+    }
+    val seconds = left ?: return
+    Text(
+        "${holdout.app.ui.Format.countdown(seconds)} to today's deadline",
+        style = MaterialTheme.typography.titleMedium,
+        color = if (holdout.core.Derive.inWarningWindow(seconds)) HoldoutColors.Warning else HoldoutColors.TextSecondary,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun DayComplete(state: SittingViewModel.UiState, label: String, onFinished: () -> Unit) {
     Text("${state.target}", style = CounterStyle, color = HoldoutColors.Success)
     Text("done", style = LabelStyle, color = HoldoutColors.TextSecondary)
-    PrimaryButton("Back", onFinished)
+    PrimaryButton(label, onFinished)
 }
 
 @Composable
@@ -789,28 +834,61 @@ private val SITTING_CAMERA = CameraSelector.DEFAULT_FRONT_CAMERA
 private const val CAMERA_IS_FRONT_FACING = true
 
 /**
- * 16:9, on **both** the preview and the analysis.
+ * 4:3 — the sensor's own shape — on the preview, the analysis **and** the
+ * debug recording, bound as one group sharing one crop ([sittingViewPort]).
  *
- * Two problems, one setting. Left to their defaults both use cases pick 4:3,
- * which `FIT_CENTER` letterboxes into a square in the middle of the Seeker's
- * tall screen — too little picture to judge how far away to stand. And left to
- * their defaults they can resolve to *different* ratios, while the skeleton
- * overlay letterboxes using the **analysis** frame size against a preview
- * showing the **preview** stream; pinning both closes a misalignment that has
- * simply not been noticed yet.
- *
- * 16:9 is usually a vertical crop of the sensor, so there is slightly less room
- * to step back than 4:3 gave. Whether the whole body still fits at a propped
- * phone's distance is **spike S2's** to measure, on this camera.
+ * Until 29 Sep preview and analysis were 16:9, a crop of the sensor about 12 %
+ * narrower each side, while the recorder took the full 4:3: the video showed a
+ * whole body while the counter had already lost the head or the knees at its
+ * edge ("Move back" on a set the video shows in frame). Now all three see the
+ * same, and the counter gets the widest picture the camera has. The cost: on
+ * the Seeker's tall screen `FIT_CENTER` leaves the preview shorter. The
+ * placement thresholds were measured in 9:16 and read x through
+ * `holdout.repcounter.Aspect`, so they still mean what they did.
  */
 private val SITTING_RESOLUTION = ResolutionSelector.Builder()
-    .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+    .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
     .build()
 
-/** CameraX preview plus the analyser, bound to this screen's lifecycle. */
+/**
+ * The analysis frame: 4:3 at 960×720 (720×960 upright). Left to its default
+ * CameraX gives analysis 640×480, which put a member's arm at about 107 pixels
+ * where the 16:9 frame had 270 — the first 4:3 build did exactly that (1 Oct).
+ * This is the same width the counter had before; more would cost analysis
+ * frames, which must stay at 15 a second or better (research R4).
+ */
+private val ANALYSIS_RESOLUTION = ResolutionSelector.Builder()
+    .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+    .setResolutionStrategy(
+        androidx.camera.core.resolutionselector.ResolutionStrategy(
+            android.util.Size(960, 720),
+            androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+        ),
+    )
+    .build()
+
+/** One crop for every use case: portrait 3:4, the whole sensor. The app is portrait-locked. */
+private val sittingViewPort = androidx.camera.core.ViewPort
+    .Builder(android.util.Rational(3, 4), android.view.Surface.ROTATION_0)
+    .setScaleType(androidx.camera.core.ViewPort.FIT)
+    .build()
+
+private fun sittingGroup(vararg useCases: androidx.camera.core.UseCase) = androidx.camera.core.UseCaseGroup.Builder()
+    .setViewPort(sittingViewPort)
+    .apply { useCases.forEach { addUseCase(it) } }
+    .build()
+
+/**
+ * CameraX preview plus the analyser, bound to this screen's lifecycle — and in
+ * a debug build with [recordVideo] on, the camera saved as video beside the
+ * sitting's trace (constitution X, v1.5.0).
+ */
 @Composable
-private fun CameraFeed(viewModel: SittingViewModel) {
+private fun CameraFeed(viewModel: SittingViewModel, recordVideo: Boolean) {
     val context = LocalContext.current
+    val video = remember(recordVideo) {
+        if (recordVideo) sittingVideo(context, java.io.File(context.filesDir, "traces"), viewModel.uiState.value.stakes.name.lowercase()) else null
+    }
     val lifecycleOwner = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }
 
@@ -838,6 +916,8 @@ private fun CameraFeed(viewModel: SittingViewModel) {
     val bound = remember { BoundCamera() }
     DisposableEffect(Unit) {
         onDispose {
+            // Named after the trace, so the video and its landmarks pair up.
+            video?.stop(viewModel.uiState.value.traceName)
             bound.release()
             executor.execute { analyzer.close() }
             executor.shutdown()
@@ -861,7 +941,7 @@ private fun CameraFeed(viewModel: SittingViewModel) {
                     .build()
                     .also { it.surfaceProvider = previewView.surfaceProvider }
                 val analysis = ImageAnalysis.Builder()
-                    .setResolutionSelector(SITTING_RESOLUTION)
+                    .setResolutionSelector(ANALYSIS_RESOLUTION)
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                     .build()
@@ -869,13 +949,22 @@ private fun CameraFeed(viewModel: SittingViewModel) {
 
                 runCatching {
                     provider.unbindAll()
-                    val camera = provider.bindToLifecycle(
-                        lifecycleOwner,
-                        SITTING_CAMERA,
-                        preview,
-                        analysis,
-                    )
-                    bound.hold(provider, preview, analysis)
+                    // With video when asked, and the camera can carry all three; a
+                    // sitting never fails for want of a recording.
+                    val withVideo = video?.let { v ->
+                        runCatching { provider.bindToLifecycle(lifecycleOwner, SITTING_CAMERA, sittingGroup(preview, analysis, v.useCase)) }
+                            .onFailure { provider.unbindAll() }
+                            .getOrNull()
+                    }
+                    val camera = withVideo ?: provider.bindToLifecycle(lifecycleOwner, SITTING_CAMERA, sittingGroup(preview, analysis))
+                    if (withVideo != null) {
+                        bound.hold(provider, preview, analysis, video.useCase)
+                        video.start()
+                        viewModel.onRecordingVideo(true)
+                    } else {
+                        bound.hold(provider, preview, analysis)
+                        if (video != null) viewModel.onRecordingVideo(false)
+                    }
                     viewModel.onLens(verticalFovOf(camera.cameraInfo))
                 }.onFailure { viewModel.onError("The camera could not start: ${it.message}") }
             }, ContextCompat.getMainExecutor(ctx))
