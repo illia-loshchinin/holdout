@@ -148,6 +148,14 @@ function near(byT, t) {
   return best?.[1];
 }
 
+/** The one value inside the stretch of the rep ending at [t] (after the rep before it, on no other rep); undefined for none or several. */
+function within(byT, ends, t) {
+  const i = ends.indexOf(t);
+  const from = i > 0 ? ends[i - 1] : -Infinity;
+  const inside = [...byT].filter(([k]) => k > from && k <= t + 400 && !ends.some((e) => e !== t && Math.abs(e - k) <= 400));
+  return inside.length === 1 ? inside[0][1] : undefined;
+}
+
 /**
  * What needs the reviewer, across every sitting with a video, in order:
  * Claude's answers to read; Claude's labels to confirm, those the app gets
@@ -162,10 +170,13 @@ function queue() {
     const stakes = stakesOf(`${abs}.trace.csv`);
     const labels = existsSync(`${abs}.labels.csv`) ? readLabels(`${abs}.labels.csv`).reps : [];
     const byT = new Map(labels.map((r) => [r.t, r]));
+    const ends = [...recorded.keys()];
     for (const [t, was] of recorded) {
       const l = byT.get(t);
-      // Once the replay has run, a rep it judged nothing near is one today's counter does not see.
-      const verdict = near(now, t) ?? (now.size ? 'not-judged' : was);
+      // Once the replay has run, a rep it judged nothing near — nor one rep alone
+      // inside its stretch (as the page and the bench pair them) — is one today's
+      // counter does not see.
+      const verdict = near(now, t) ?? (now.size ? within(now, ends, t) ?? 'not-judged' : was);
       const wrong = l && l.label !== 'unsure' && shouldCount(l.label, stakes) !== (verdict === 'counted');
       const rank = !l ? 3 : l.flag === 'answered' ? 0 : l.by === 'claude' ? (wrong ? 1 : 2) : null;
       if (rank === null) continue;

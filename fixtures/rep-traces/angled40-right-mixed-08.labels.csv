@@ -10,10 +10,10 @@ t,label,by,flag,hint,note,claude,reply
 2690197497,honest,reviewer,,,,,
 2690199465,honest,reviewer,,,,,
 2690201766,half,reviewer,,,,,
-2690203933,half,claude,,,,"Half by the strict depth line (owner, 4 Oct): the shoulder stopped 0.34 arm-lengths over the hand, elbow 69°; the line is 0.32 (0.36 with the elbow at 66° or less), and half push-ups elsewhere read 0.38-0.49. Press 2 to confirm.",
-2690205701,half,claude,,,,"Half by the strict depth line (owner, 4 Oct): the shoulder stopped 0.35 arm-lengths over the hand, elbow 71°; the line is 0.32 (0.36 with the elbow at 66° or less), and half push-ups elsewhere read 0.38-0.49. Press 2 to confirm.",
-2690207668,half,claude,,,,"Half by the strict depth line (owner, 4 Oct): the shoulder stopped 0.34 arm-lengths over the hand, elbow 70°; the line is 0.32 (0.36 with the elbow at 66° or less), and half push-ups elsewhere read 0.38-0.49. Press 2 to confirm.",
-2690209769,half,claude,,,,"Half by the strict depth line (owner, 4 Oct): the shoulder stopped 0.38 arm-lengths over the hand, elbow 71°; the line is 0.32 (0.36 with the elbow at 66° or less), and half push-ups elsewhere read 0.38-0.49. Press 2 to confirm.",
+2690203933,half,reviewer,,,,"Half by the strict depth line (owner, 4 Oct): the shoulder stopped 0.34 arm-lengths over the hand, elbow 69°; the line is 0.32 (0.36 with the elbow at 66° or less), and half push-ups elsewhere read 0.38-0.49. Press 2 to confirm.",
+2690205701,half,reviewer,,,,"Half by the strict depth line (owner, 4 Oct): the shoulder stopped 0.35 arm-lengths over the hand, elbow 71°; the line is 0.32 (0.36 with the elbow at 66° or less), and half push-ups elsewhere read 0.38-0.49. Press 2 to confirm.",
+2690207668,half,reviewer,,,,"Half by the strict depth line (owner, 4 Oct): the shoulder stopped 0.34 arm-lengths over the hand, elbow 70°; the line is 0.32 (0.36 with the elbow at 66° or less), and half push-ups elsewhere read 0.38-0.49. Press 2 to confirm.",
+2690209769,half,reviewer,,,,"Half by the strict depth line (owner, 4 Oct): the shoulder stopped 0.38 arm-lengths over the hand, elbow 71°; the line is 0.32 (0.36 with the elbow at 66° or less), and half push-ups elsewhere read 0.38-0.49. Press 2 to confirm.",
 2690213104,unsure,reviewer,,,"video is cropped, can't see waht is here",,"Not a push-up, and not counted. On the video you go down onto your hands and knees between reps; the app was still counting and today refused it with ""Go lower"". Nothing in the counter changed: no reading I tried (torso angle, view) separates such moments from a real rep reliably yet, so they stay refused with words meant for a rep. The clip now runs 0:31.8–0:35.6 (it used to start at 0:32.3). ""other"" is the label for a moment that is not a push-up."
 2690215938,knees,reviewer,,,,,
 2690218006,knees,reviewer,,,,,
@@ -26,4 +26,4 @@ t,label,by,flag,hint,note,claude,reply
 2690237014,knees,reviewer,,,,,
 2690239515,knees,reviewer,,,,,
 2690242583,knees,reviewer,,,,,
-2690242783,unsure,reviewer,answered,,"nothing here on the video, check how you cropp the reps for future review",,"Not a push-up, and not counted. On the video you stand up at the end of the set; the app was still counting and today refused it with ""Go lower"". Nothing in the counter changed: no reading I tried (torso angle, view) separates such moments from a real rep reliably yet, so they stay refused with words meant for a rep. The clip now runs 1:04.1–1:05.3 (it used to start at 1:05.1). ""other"" is the label for a moment that is not a push-up."
+2690242783,unsure,reviewer,answered,,"nothing here on the video, no reps",,"Not a push-up, and not counted. On the video you stand up at the end of the set; the app was still counting and today refused it with ""Go lower"". Nothing in the counter changed: no reading I tried (torso angle, view) separates such moments from a real rep reliably yet, so they stay refused with words meant for a rep. The clip now runs 1:04.1–1:05.3 (it used to start at 1:05.1). ""other"" is the label for a moment that is not a push-up."

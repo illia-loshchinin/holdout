@@ -6,7 +6,7 @@ fixture,t,label,state,verdict
 20260929-154046-staked,2438783634,honest,right,counted
 20260929-154046-staked,2438785902,honest,right,counted
 20260929-154046-staked,2438787936,honest,right,counted
-20260929-154046-staked,2438792371,honest,wrong,not-judged
+20260929-154046-staked,2438792371,honest,right,counted
 20260929-155215-staked,2439476321,honest,right,counted
 20260929-155215-staked,2439478655,honest,right,counted
 20260929-155215-staked,2439481056,honest,right,counted
@@ -49,7 +49,7 @@ angled30-right-knees-14,2697901713,knees,right,UP_ON_YOUR_TOES
 angled30-right-knees-14,2697904448,knees,right,UP_ON_YOUR_TOES
 angled30-right-knees-feetup-13,2692817924,honest,right,counted
 angled30-right-knees-feetup-13,2692821325,half,right,GO_LOWER
-angled30-right-knees-feetup-13,2692823826,half,right,GO_LOWER
+angled30-right-knees-feetup-13,2692823826,honest,wrong,GO_LOWER
 angled30-right-knees-feetup-13,2692825994,half,right,GO_LOWER
 angled30-right-knees-feetup-13,2692827995,half,right,GO_LOWER
 angled30-right-knees-feetup-13,2692830329,honest,right,counted
@@ -107,8 +107,8 @@ angled40-right-mixed-08,2690234579,knees,right,UP_ON_YOUR_TOES
 angled40-right-mixed-08,2690237014,knees,right,UP_ON_YOUR_TOES
 angled40-right-mixed-08,2690239515,knees,right,UP_ON_YOUR_TOES
 angled40-right-mixed-08,2690242583,knees,words,GO_LOWER
-angled40-right-mixed-19,2840597786,half,right,GO_LOWER
-angled40-right-mixed-19,2840601089,half,right,GO_LOWER
+angled40-right-mixed-19,2840597786,honest,wrong,GO_LOWER
+angled40-right-mixed-19,2840601089,honest,wrong,GO_LOWER
 angled40-right-mixed-19,2840607329,honest,right,counted
 angled40-right-mixed-19,2840611234,honest,right,counted
 angled40-right-mixed-19,2840615171,honest,right,counted
@@ -185,8 +185,8 @@ angled45-right-loose-trousers-cobra-16,2698139158,cobra,right,KEEP_BODY_STRAIGHT
 angled45-right-loose-trousers-cobra-16,2698143226,cobra,words,UP_ON_YOUR_TOES
 angled45-right-loose-trousers-cobra-16,2698149829,cobra,words,UP_ON_YOUR_TOES
 angled45-right-loose-trousers-cobra-16,2698158800,cobra,words,UP_ON_YOUR_TOES
-angled45-right-loose-trousers-cobra-16,2698176541,floor,words,UP_ON_YOUR_TOES
-angled45-right-mixed-04,2618602903,honest,wrong,not-judged
+angled45-right-loose-trousers-cobra-16,2698176541,knees,right,UP_ON_YOUR_TOES
+angled45-right-mixed-04,2618602903,knees,right,not-judged
 angled45-right-mixed-18,2760061263,honest,right,counted
 angled45-right-mixed-18,2760063230,honest,right,counted
 angled45-right-mixed-18,2760065198,honest,right,counted
@@ -215,7 +215,7 @@ angled45-right-mixed-18,2760140230,half,right,GO_LOWER
 angled45-right-mixed-18,2760142864,half,right,GO_LOWER
 angled45-right-mixed-18,2760145899,half,right,GO_LOWER
 angled45-right-mixed-18,2760148900,half,right,GO_LOWER
-angled50-right-mixed-05,2618836663,honest,wrong,not-judged
+angled50-right-mixed-05,2618836663,knees,right,not-judged
 angled50-right-mixed-06,2621710205,honest,right,counted
 angled50-right-mixed-06,2621712039,honest,right,counted
 angled50-right-mixed-06,2621713840,honest,right,counted

@@ -138,8 +138,13 @@ fun Trace.Recording.startsToday(): Boolean = stakes != Stakes.STAKED || (heldPla
 /**
  * Replays [recording] through today's counter and pairs each judged rep with
  * the label of the rep that ended on (or within [toleranceMillis] of) the same
- * frame. A label no judged rep lands near is returned in the second list:
- * the counter now cuts that stretch of the sitting into reps differently.
+ * frame. A label still unpaired takes the one judged rep that ends inside its
+ * own stretch — after the rep recorded before it, up to its end — when there is
+ * exactly one: the same movement, ended a little sooner or later by a counter
+ * whose top has moved (on 1 Oct a rep held at the top before locking out ended
+ * a second earlier than when recorded). A stretch the counter now cuts into
+ * several reps pairs with none. A label still unpaired is returned in the
+ * second list: the counter cuts that stretch of the sitting differently.
  */
 fun benchSitting(name: String, recording: Trace.Recording, labels: RepLabels, toleranceMillis: Long = 400): Pair<List<BenchRep>, List<RepLabels.Rep>> {
     val view = recording.countingView ?: return emptyList<BenchRep>() to labels.reps
@@ -151,10 +156,22 @@ fun benchSitting(name: String, recording: Trace.Recording, labels: RepLabels, to
         counter.onFrame(frame.world, frame.image)?.let { frame.world.timestampMillis to it }
     }
     val placement = listOfNotNull(recording.placement, recording.phoneSide).joinToString(" ").ifEmpty { "?" }
-    val used = mutableSetOf<RepLabels.Rep>()
+    val pairs = mutableMapOf<Long, RepLabels.Rep>()
+    for ((t, _) in events) {
+        val label = labels.reps.filter { it !in pairs.values && abs(it.endMillis - t) <= toleranceMillis }.minByOrNull { abs(it.endMillis - t) } ?: continue
+        pairs[t] = label
+    }
+    val recorded = counting.filter { it.event.isNotBlank() }.map { it.timestampMillis }
+    for (label in labels.reps.filter { it !in pairs.values }) {
+        val from = recorded.lastOrNull { it < label.endMillis - toleranceMillis } ?: t0
+        events.map { it.first }
+            .filter { t -> t !in pairs && t > from && t <= label.endMillis + toleranceMillis }
+            // One that lands on another recorded rep is that rep's.
+            .filter { t -> recorded.none { it != label.endMillis && abs(it - t) <= toleranceMillis } }
+            .singleOrNull()?.let { pairs[it] = label }
+    }
     val judged = events.mapNotNull { (t, event) ->
-        val label = labels.reps.filter { it !in used && abs(it.endMillis - t) <= toleranceMillis }.minByOrNull { abs(it.endMillis - t) } ?: return@mapNotNull null
-        used += label
+        val label = pairs[t] ?: return@mapNotNull null
         if (label.label == "unsure") return@mapNotNull null
         val verdict = when (event) {
             is RepEvent.Counted -> "counted"
@@ -164,7 +181,7 @@ fun benchSitting(name: String, recording: Trace.Recording, labels: RepLabels, to
         val kind = if (recording.stakes == Stakes.DAILY && label.label == "knees") RepLabels.KNEES_DAILY else label.label
         BenchRep(name, labels.person, placement, (t - t0) / 1000f, kind, label.note, verdict, label.by, label.flagged, label.claudeNote, label.hint, label.endMillis)
     }
-    return judged to labels.reps.filter { it !in used && it.label != "unsure" }
+    return judged to labels.reps.filter { it !in pairs.values && it.label != "unsure" }
 }
 
 /**

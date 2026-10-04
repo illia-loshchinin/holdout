@@ -200,8 +200,12 @@ A v1 file (`t,label,note`) still reads, as the reviewer's labels and notes.
   right stays right, and a fix for one person cannot quietly undo another's.
   Commit the baseline with the change that moved it; its diff shows which reps
   did. A staked sitting held in front of 35° (ratio 1.1 or more) is left out of
-  the ratchet and the bench score, since today's app does not start it. 4 Oct:
-  308 labelled reps, 262 right, 31 words, 15 wrong.
+  the ratchet and the bench score, since today's app does not start it. A
+  label is paired with today's rep ending within 400 ms of it, or else with
+  the one rep today's counter ends inside its stretch (after the rep recorded
+  before it): a counter whose top has moved ends the same rep a little sooner.
+  The page and the queue pair the same way, and show "no rep seen" for none.
+  4 Oct: 308 labelled reps, 263 right, 30 words, 15 wrong.
 - **Videos**: they stay in `phone_traces/` on this machine only, and go 30
   days after their sitting is marked finished, once it is promoted. Nothing is
   scheduled: `node scripts/label-reps.mjs --prune` lists the videos due and

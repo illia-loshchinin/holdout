@@ -284,15 +284,22 @@ function parseToday(text) {
 }
 /**
  * The verdict today on the rep that ended at [t]: the replay's nearest, within
- * 400 ms — or NOT_JUDGED when the replay has run and judged no rep there: today's
- * counter does not see this rep at all. Undefined when the replay has not run.
+ * 400 ms; else the one replayed rep that ends inside this rep's stretch (after
+ * the rep before it) and on no other recorded rep — the same movement, ended a
+ * little sooner by a counter whose top has moved. NOT_JUDGED when the replay
+ * has run and there is none, or several: today's counter does not see this rep
+ * as one. Undefined when the replay has not run. The test bench pairs the same.
  */
 const NOT_JUDGED = 'not-judged';
 function todayAt(t) {
   if (!S?.today?.size) return undefined;
   let best;
   for (const [k, v] of S.today) if (Math.abs(k - t) <= 400 && (!best || Math.abs(k - t) < Math.abs(best[0] - t))) best = [k, v];
-  return best?.[1] ?? NOT_JUDGED;
+  if (best) return best[1];
+  const i = S.reps.findIndex((r) => r.end === t);
+  const from = i > 0 ? S.reps[i - 1].end : -Infinity;
+  const inside = [...S.today].filter(([k]) => k > from && k <= t + 400 && !S.reps.some((r) => r.end !== t && Math.abs(r.end - k) <= 400));
+  return inside.length === 1 ? inside[0][1] : NOT_JUDGED;
 }
 /** What judges a rep now: today's verdict when the replay has been run, else the recorded one. */
 const verdictOf = (r) => todayAt(r.end) ?? r.verdict;
