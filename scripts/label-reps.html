@@ -40,7 +40,8 @@
   .flag { color:var(--warn); }
   .by-claude { color:var(--dim); font-size:11px; margin-left:3px; }
   #claudeNote { color:var(--dim); font-style:italic; }
-  #flagBtn.on { background:var(--warn); color:#2a1d00; border-color:var(--warn); }
+  #flagLabel { display:flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid var(--line); border-radius:6px; cursor:pointer; white-space:nowrap; }
+  #flagLabel:has(input:checked) { background:var(--warn); color:#2a1d00; border-color:var(--warn); }
   #reviewed:checked + span { color:var(--ok); }
 </style>
 </head>
@@ -67,8 +68,8 @@
     </div>
     <div class="row labels" id="labelButtons"></div>
     <div class="row">
-      <button id="flagBtn" title="Ask Claude to look at this rep: say why in your note (f)">⚑ check this <kbd>f</kbd></button>
-      <input id="note" type="text" placeholder="Your note on this rep (n) — what Claude should know or check">
+      <label id="flagLabel" title="Only reps ticked here are taken for analysis and fixing (f)"><input id="flag" type="checkbox"> ⚑ Review &amp; fix <kbd>f</kbd></label>
+      <input id="note" type="text" placeholder="Your note on this rep (n) — for a ticked rep: what is wrong, what you expect">
     </div>
     <div class="row">
       <label>Should say <select id="hint" title="The words you would want the app to refuse this rep with (h)"></select></label>
@@ -78,8 +79,8 @@
       <label>Person <input id="person" type="text" placeholder="a pseudonym, e.g. p1"></label>
       <label>Clothing <input id="clothing" type="text" placeholder="fitted / loose trousers / T-shirt…"></label>
       <label>Trace lag, s <input id="offset" type="text" size="4"></label>
-      <label><input id="reviewed" type="checkbox"> <span>Sitting reviewed</span></label>
-      <span class="muted">← → rep · space pause · s slow · o skeleton · f flag · h should say</span>
+      <label title="Every rep labelled: the labels are final, and the sitting can become a test fixture"><input id="reviewed" type="checkbox"> <span>Sitting finished — all reps labelled</span></label>
+      <span class="muted">← → rep · space pause · s slow · o skeleton · f review &amp; fix · h should say</span>
     </div>
   </footer>
 </main>
@@ -275,7 +276,7 @@ function renderList() {
     const l = S.labels.byT.get(r.end);
     const ok = verdictMatches(r);
     const cls = ok === undefined ? '' : ok ? 'match' : 'miss';
-    const marks = `${l?.flag ? '<span class="flag" title="flagged for Claude">⚑</span>' : ''}${l?.by === 'claude' ? '<span class="by-claude" title="set by Claude; press its key to confirm">C</span>' : ''}`;
+    const marks = `${l?.flag ? '<span class="flag" title="ticked for review and fixing">⚑</span>' : ''}${l?.by === 'claude' ? '<span class="by-claude" title="set by Claude; press its key to confirm">C</span>' : ''}`;
     return `<li class="${i === current ? 'on' : ''}" data-i="${i}"><span class="n">${i + 1}</span><span class="tm">${mmss(vt(r.end))}</span><span class="verdict">${said(r.verdict)}</span><span class="tag ${cls}">${l ? l.label : '·'}</span><span>${marks}</span></li>`;
   }).join('');
   for (const li of $('reps').children) li.onclick = () => show(Number(li.dataset.i));
@@ -295,7 +296,7 @@ function show(i) {
   const l = S.labels.byT.get(r.end);
   $('note').value = l?.note ?? '';
   $('claudeNote').textContent = l?.claude ? `Claude: ${l.claude}` : '';
-  $('flagBtn').classList.toggle('on', Boolean(l?.flag));
+  $('flag').checked = Boolean(l?.flag);
   $('hint').value = l?.hint ?? '';
   for (const b of $('labelButtons').children) b.classList.toggle('on', b.dataset.label === l?.label);
   const byText = l ? (l.by === 'claude' ? ' · label set by Claude — press its key to confirm' : ' · label yours') : '';
@@ -410,11 +411,11 @@ $('note').addEventListener('input', () => {
 for (const id of ['person', 'clothing']) $(id).addEventListener('input', save);
 $('reviewed').addEventListener('change', save);
 $('hint').addEventListener('change', () => { if (!S) return; entry().hint = $('hint').value; save(); renderList(); $('hint').blur(); });
-$('flagBtn').addEventListener('click', toggleFlag);
+$('flag').addEventListener('change', () => { if (S && Boolean(entry().flag) !== $('flag').checked) toggleFlag(); $('flag').blur(); });
 $('offset').addEventListener('change', () => { const v = Number($('offset').value); if (S && Number.isFinite(v)) { S.offset = v; save(); show(current); } });
 
 document.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') { if (e.key === 'Escape' || e.key === 'Enter') e.target.blur(); return; }
+  if ((e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') || e.target.tagName === 'SELECT') { if (e.key === 'Escape' || e.key === 'Enter') e.target.blur(); return; }
   const label = LABELS.find(([k]) => k === e.key);
   if (label) return setLabel(label[1]);
   if (e.key === 'ArrowRight') return show(current + 1);

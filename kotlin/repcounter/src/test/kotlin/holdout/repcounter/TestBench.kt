@@ -210,23 +210,16 @@ fun main(args: Array<String>) {
         misses.forEach { println("| ${it.sitting} | %.1f | ${it.label} (${it.by}) | ${it.verdict} | ${it.note} | ${it.claudeNote} |".format(it.secondsIn)) }
     }
 
-    // What the reviewer asked Claude to look at: flagged reps, and reps whose
-    // label the reviewer changed from Claude's.
+    // What the reviewer ticked "Review & fix": only these are taken up.
+    fun say(name: String) = RepHint.entries.firstOrNull { it.name == name }?.message ?: name
     val flagged = reps.filter { it.flagged }
-    println("\n## Flagged by the reviewer (${flagged.size})\n")
+    println("\n## Ticked \"Review & fix\" by the reviewer (${flagged.size})\n")
     if (flagged.isNotEmpty()) {
-        println("| sitting | s into counting | label | the counter | reviewer's note | Claude's note |")
-        println("|---|---|---|---|---|---|")
-        flagged.forEach { println("| ${it.sitting} | %.1f | ${it.label} | ${it.verdict} | ${it.note} | ${it.claudeNote} |".format(it.secondsIn)) }
-    }
-    // Refused, but not in the words the reviewer chose: not a gate, the reviewer's call on wording.
-    val words = reps.filter { !it.counted && it.wantedHint.isNotEmpty() && it.verdict != it.wantedHint }
-    println("\n## Refused with other words than the reviewer chose (${words.size})\n")
-    if (words.isNotEmpty()) {
-        println("| sitting | s into counting | label | the counter said | the reviewer wants | reviewer's note |")
-        println("|---|---|---|---|---|---|")
-        fun say(name: String) = RepHint.entries.firstOrNull { it.name == name }?.message ?: name
-        words.forEach { println("| ${it.sitting} | %.1f | ${it.label} | ${say(it.verdict)} | ${say(it.wantedHint)} | ${it.note} |".format(it.secondsIn)) }
+        println("| sitting | s into counting | label | the counter | should say | reviewer's note | Claude's note |")
+        println("|---|---|---|---|---|---|---|")
+        flagged.forEach {
+            println("| ${it.sitting} | %.1f | ${it.label} | ${say(it.verdict)} | ${it.wantedHint.takeIf(String::isNotEmpty)?.let(::say).orEmpty()} | ${it.note} | ${it.claudeNote} |".format(it.secondsIn))
+        }
     }
     val unconfirmed = reps.count { it.by == "claude" }
     if (unconfirmed > 0) println("\n$unconfirmed labels set by Claude are not yet confirmed by a reviewer.")

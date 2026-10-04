@@ -4,17 +4,22 @@
 //
 //   node scripts/label-reps.mjs [dir]           default: phone_traces/
 //   then open http://localhost:8766
-//   node scripts/label-reps.mjs --flags [dir]   what the reviewer left for Claude
+//   node scripts/label-reps.mjs --flags [dir]   the reps the reviewer ticked for Claude
 //
 // Serves, on this machine only, the sittings `scripts/pull-traces.sh` pulled
 // into [dir] (a trace, its video and the video's .video.json) and a page that
 // plays each rep as a loop and records what it was. Labels go to
 // `<sitting>.labels.csv` beside the trace: the trace time each rep ended, the
-// label, who set it, a flag asking Claude to check it, the words the reviewer
-// would want the app to refuse it with, the reviewer's note and Claude's —
-// never a picture. `--flags` prints every flagged rep, every label
-// the reviewer set over Claude's, and which sittings are ticked reviewed. A useful sitting becomes a fixture with
-// its labels: copy both, under the same new name, into fixtures/rep-traces/.
+// label, who set it, whether the reviewer ticked "Review & fix", the words the
+// reviewer would want the app to refuse it with, the reviewer's note and
+// Claude's — never a picture. "Sitting finished" marks every rep labelled: the
+// labels are final, and the sitting can become a fixture.
+//
+// `--flags` prints the labelled sittings, finished or not, and the reps ticked
+// "Review & fix" — only those are Claude's to take up. A changed label or chosen
+// words without the tick is the reviewer's record, not a request. A finished
+// sitting becomes a fixture with its labels: copy both, under the same new
+// name, into fixtures/rep-traces/.
 //
 // Videos are of people who agreed in writing to be filmed (constitution X);
 // phone_traces/ is git-ignored, and so is everything this serves.
@@ -112,21 +117,18 @@ function flagsReport() {
     const when = (t) => (started === null ? `t=${t}` : mmss((t - started) / 1000 - offset));
     const disagree = reps.filter((r) => r.label !== 'unsure' && said.has(r.t) && (r.label === 'honest') !== (said.get(r.t) === 'counted')).length;
     sittingsRows.push(`| ${name} | ${meta.person ?? ''} | ${meta.reviewed || 'no'} | ${reps.length} | ${reps.filter((r) => r.by !== 'claude').length} | ${reps.filter((r) => r.flag).length} | ${disagree} |`);
-    for (const r of reps) {
-      const changed = r.by !== 'claude' && r.claude;
-      // Refused, but not with the words the reviewer chose.
-      const words = r.hint && said.has(r.t) && said.get(r.t) !== r.hint;
-      const why = [r.flag && '⚑', changed && 'changed', words && `should say ${r.hint}`].filter(Boolean).join(', ');
-      if (why) asked.push(`| ${name} | ${when(r.t)} | ${r.label} | ${said.get(r.t) ?? '?'} | ${why} | ${r.note} | ${r.claude} |`);
+    // Only what the reviewer ticked "Review & fix".
+    for (const r of reps.filter((x) => x.flag)) {
+      asked.push(`| ${name} | ${when(r.t)} | ${r.label} | ${said.get(r.t) ?? '?'} | ${r.hint || ''} | ${r.note} | ${r.claude} |`);
     }
   }
   console.log(`# Labels under ${root}\n`);
-  console.log('| sitting | person | reviewed | labelled | by the reviewer | flagged | app disagrees |');
+  console.log('| sitting | person | finished | labelled | by the reviewer | ticked Review & fix | app disagrees |');
   console.log('|---|---|---|---|---|---|---|');
   sittingsRows.forEach((r) => console.log(r));
-  console.log(`\n## For Claude to check (${asked.length}): flagged, a label of Claude's changed, or other words wanted\n`);
+  console.log(`\n## Ticked "Review & fix" (${asked.length})\n`);
   if (asked.length) {
-    console.log('| sitting | video | label | the app | why | reviewer\'s note | Claude\'s note |');
+    console.log('| sitting | video | label | the app said | should say | reviewer\'s note | Claude\'s note |');
     console.log('|---|---|---|---|---|---|---|');
     asked.forEach((r) => console.log(r));
   }

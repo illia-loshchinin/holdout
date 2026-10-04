@@ -128,7 +128,7 @@ one cheat still passes. A labels file says it rep by rep, from the video:
 # person=p2                       a pseudonym, never a name
 # clothing=loose white T-shirt, loose shorts
 # offset=0.5                      seconds the trace runs behind the video
-# reviewed=2026-10-04             ticked when the reviewer finished the sitting
+# reviewed=2026-10-04             "Sitting finished": every rep labelled, the labels final
 t,label,by,flag,hint,note,claude
 2840597786,honest,reviewer,,,too close to honest - let's count this.,"3:07, before the full reps; not checked"
 ```
@@ -138,7 +138,8 @@ t,label,by,flag,hint,note,claude
   the bottom), `cobra`, `sag`, `other`, or `unsure` (left out). Only `honest`
   should count.
 - `by` — who set the label: `reviewer`, or `claude` until a reviewer confirms it.
-- `flag` — `check` when the reviewer asks Claude to look at the rep.
+- `flag` — `check` when the reviewer ticked "Review & fix": the rep is taken
+  up for analysis and fixing. Only ticked reps are.
 - `hint` — the `RepHint` the reviewer would want the rep refused with
   (`GO_LOWER`, `UP_ON_YOUR_TOES`, `HIPS_OFF_FLOOR`, …); empty for no preference.
 - `note` — the reviewer's; `claude` — Claude's, shown read-only. Quoted when
@@ -149,17 +150,17 @@ A v1 file (`t,label,note`) still reads, as the reviewer's labels and notes.
 - **Labelling**: `node scripts/label-reps.mjs` serves `phone_traces/` on this
   machine only (http://localhost:8766): each rep plays as a loop with the
   skeleton the counter reads drawn bold, keys `1`–`7` and `0` label it, `f`
-  flags it for Claude, `h` picks the words it should be refused with, and the
+  ticks "Review & fix", `h` picks the words it should be refused with, and the
   file is saved beside the trace. The list beside it shows the verdict the app
   gave **when the sitting was recorded**; the test bench judges today's counter.
 - **Handing over**: `node scripts/label-reps.mjs --flags` lists every sitting
-  with labels (reviewed or not), and every rep left for Claude — flagged, a
-  label of Claude's the reviewer changed, or refused with other words than the
-  reviewer chose.
+  with labels (reviewed or not), and every rep ticked "Review & fix" — only
+  those are taken up. A changed label or chosen words without the tick is the
+  reviewer's record, not a request.
 - **Scoring**: `./gradlew :repcounter:testBench [-Ptraces=<dir>] [-Pgate]`
   replays every labelled sitting and reports, per label, per person and per
-  sitting, how many reps counted, every miss with both notes, the reviewer's
-  flags, and the reps refused with other words than the reviewer chose. The
+  sitting, how many reps counted, every miss with both notes, and the reps
+  ticked "Review & fix" with the words the reviewer wants. The
   gate: honest reps counted 98 % or more, each cheat 2 % or less.
 - A sitting becomes a fixture with its labels: copy both under the same new
   name, and set `trace=` to it.
