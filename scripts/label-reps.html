@@ -59,6 +59,9 @@
   #reply { border-left:3px solid var(--accent); padding:4px 10px; background:var(--panel); border-radius:4px; flex:1; }
   #reply:empty { display:none; }
   #doneBtn { padding:5px 10px; cursor:pointer; }
+  .agree { font-weight:600; padding:1px 8px; border-radius:10px; }
+  .agree.ok { background:var(--ok); color:#002010; }
+  .agree.bad { background:var(--bad); color:#1a0000; }
 </style>
 </head>
 <body>
@@ -404,17 +407,22 @@ function renderList() {
     const cls = ok === undefined ? '' : ok ? 'match' : 'miss';
     const marks = `${l?.flag === 'check' ? '<span class="flag" title="ticked for review and fixing">⚑</span>' : ''}${l?.flag === 'answered' ? '<span class="flag" title="Claude answered">✉</span>' : ''}${l?.by === 'claude' ? '<span class="by-claude" title="set by Claude; press its key to confirm">C</span>' : ''}`;
     const now = todayAt(r.end), changed = now !== undefined && now !== r.verdict;
-    const v = `${said(verdictOf(r))}${changed ? ` <span class="was" title="when recorded">was ${said(r.verdict)}</span>` : ''}`;
+    const allowed = l?.label === 'knees' && daily() && verdictOf(r) === 'counted' ? ' <span class="was">knees allowed</span>' : '';
+    const v = `${said(verdictOf(r))}${allowed}${changed ? ` <span class="was" title="when recorded">was ${said(r.verdict)}</span>` : ''}`;
     return `<li class="${i === current ? 'on' : ''}" data-i="${i}"><span class="n">${i + 1}</span><span class="tm">${mmss(vt(r.end))}</span><span class="verdict">${v}</span><span class="tag ${cls}">${l ? l.label : '·'}</span><span>${marks}</span></li>`;
   }).join('');
   for (const li of $('reps').children) li.onclick = () => show(Number(li.dataset.i));
 }
 
+/** What should count: an honest rep — and in the Daily 25, which counts them by design, one from the knees. */
+const daily = () => S?.trace.facts.stakes === 'DAILY';
+const shouldCount = (label) => label === 'honest' || (label === 'knees' && daily());
+
 /** Whether the app's verdict agrees with the label: undefined when unlabelled or unsure. */
 function verdictMatches(r) {
   const l = S.labels.byT.get(r.end);
   if (!l || l.label === 'unsure') return undefined;
-  return (l.label === 'honest') === (verdictOf(r) === 'counted');
+  return shouldCount(l.label) === (verdictOf(r) === 'counted');
 }
 
 function show(i, replay = true) {
@@ -430,13 +438,17 @@ function show(i, replay = true) {
   $('hint').value = l?.hint ?? '';
   for (const b of $('labelButtons').children) b.classList.toggle('on', b.dataset.label === l?.label);
   const byText = l ? (l.by === 'claude' ? ' · label set by Claude — press its key to confirm' : ' · label yours') : '';
-  const words = (v) => (v === 'counted' ? 'counted' : `refused — "${said(v)}"`);
+  const kneesAllowed = l?.label === 'knees' && daily();
+  const words = (v) => (v === 'counted' ? (kneesAllowed ? 'counted (knees allowed in the Daily 25)' : 'counted') : `refused — "${said(v)}"`);
   const now = todayAt(r.end);
   const verdictText = now === undefined ? `the app: <strong>${words(r.verdict)}</strong>`
     : now === r.verdict ? `the app, recorded and today: <strong>${words(now)}</strong>`
       : `today: <strong>${words(now)}</strong> <span class="muted">(when recorded: ${words(r.verdict)})</span>`;
   const sitting = mode === 'queue' ? `${short(S.base)} · ` : '';
-  $('repInfo').innerHTML = `${sitting}Rep <strong>${current + 1}</strong> of ${S.reps.length} · ${mmss(vt(r.start))}–${mmss(vt(r.end))} · ${verdictText}${byText}`;
+  // Against the label on screen: did the app get this rep right?
+  const ok = verdictMatches(r);
+  const agree = ok === undefined ? '' : ok ? ' <span class="agree ok">✓ the app agrees</span>' : ' <span class="agree bad">✗ the app is wrong here</span>';
+  $('repInfo').innerHTML = `${sitting}Rep <strong>${current + 1}</strong> of ${S.reps.length} · ${mmss(vt(r.start))}–${mmss(vt(r.end))} · ${verdictText}${agree}${byText}`;
   renderList();
   $('reps').children[current]?.scrollIntoView({ block: 'nearest' });
   if (!replay) return;

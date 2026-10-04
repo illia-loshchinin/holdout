@@ -32,8 +32,12 @@ data class RepLabels(val meta: Map<String, String>, val reps: List<Rep>) {
     val reviewed: Boolean get() = !meta["reviewed"].isNullOrBlank()
 
     companion object {
-        /** Only `honest` should count; `unsure` is left out. */
-        val SHOULD_COUNT = setOf("honest")
+        /**
+         * What should count: `honest`, and in the Daily 25 a push-up from the knees,
+         * which it counts by design — benched as `knees-daily`. `unsure` is left out.
+         */
+        const val KNEES_DAILY = "knees-daily"
+        val SHOULD_COUNT = setOf("honest", KNEES_DAILY)
         val CHEATS = listOf("half", "knees", "floor", "cobra", "sag", "other")
 
         fun parse(lines: List<String>): RepLabels {
@@ -125,7 +129,9 @@ fun benchSitting(name: String, recording: Trace.Recording, labels: RepLabels, to
             is RepEvent.Counted -> "counted"
             is RepEvent.Discarded -> event.hint?.name ?: "refused"
         }
-        BenchRep(name, labels.person, placement, (t - t0) / 1000f, label.label, label.note, verdict, label.by, label.flagged, label.claudeNote, label.hint)
+        // The Daily 25 counts push-ups from the knees: there a knees label should count.
+        val kind = if (recording.stakes == Stakes.DAILY && label.label == "knees") RepLabels.KNEES_DAILY else label.label
+        BenchRep(name, labels.person, placement, (t - t0) / 1000f, kind, label.note, verdict, label.by, label.flagged, label.claudeNote, label.hint)
     }
     return judged to labels.reps.filter { it !in used && it.label != "unsure" }
 }
@@ -168,37 +174,38 @@ fun main(args: Array<String>) {
     fun pct(n: Int, of: Int) = if (of == 0) "-" else "%.0f %%".format(100.0 * n / of)
     val failures = mutableListOf<String>()
 
-    println("## Gate — honest counted ≥ 98 %, each cheat counted ≤ 2 %\n")
+    println("## Gate — honest (and Daily 25 knees) counted ≥ 98 %, each cheat counted ≤ 2 %\n")
     println("| label | reps | counted | refused | rate | gate |")
     println("|---|---|---|---|---|---|")
-    for (label in listOf("honest") + RepLabels.CHEATS) {
+    fun shown(label: String) = if (label == RepLabels.KNEES_DAILY) "knees (Daily 25, counts)" else label
+    for (label in RepLabels.SHOULD_COUNT.toList() + RepLabels.CHEATS) {
         val group = reps.filter { it.label == label }
         if (group.isEmpty()) continue
         val counted = group.count { it.counted }
-        val (rate, ok) = if (label == "honest") {
+        val (rate, ok) = if (label in RepLabels.SHOULD_COUNT) {
             pct(counted, group.size) + " counted" to (counted * 100 >= group.size * 98)
         } else {
             pct(counted, group.size) + " counted" to (counted * 100 <= group.size * 2)
         }
-        if (!ok) failures += label
-        println("| $label | ${group.size} | $counted | ${group.size - counted} | $rate | ${if (ok) "pass" else "**FAIL**"} |")
+        if (!ok) failures += shown(label)
+        println("| ${shown(label)} | ${group.size} | $counted | ${group.size - counted} | $rate | ${if (ok) "pass" else "**FAIL**"} |")
     }
 
     println("\n## By person\n")
-    println("| person | sittings | honest counted | cheats counted |")
+    println("| person | sittings | should count: counted | cheats counted |")
     println("|---|---|---|---|")
     for ((person, group) in reps.groupBy { it.person }.toSortedMap()) {
-        val honest = group.filter { it.label == "honest" }
-        val cheats = group.filter { it.label != "honest" }
+        val honest = group.filter { it.label in RepLabels.SHOULD_COUNT }
+        val cheats = group.filter { it.label !in RepLabels.SHOULD_COUNT }
         println("| $person | ${group.map { it.sitting }.distinct().size} | ${honest.count { it.counted }} / ${honest.size} | ${cheats.count { it.counted }} / ${cheats.size} |")
     }
 
     println("\n## By sitting\n")
-    println("| sitting | person | placement | honest counted | cheats counted |")
+    println("| sitting | person | placement | should count: counted | cheats counted |")
     println("|---|---|---|---|---|")
     for ((sitting, group) in reps.groupBy { it.sitting }) {
-        val honest = group.filter { it.label == "honest" }
-        val cheats = group.filter { it.label != "honest" }
+        val honest = group.filter { it.label in RepLabels.SHOULD_COUNT }
+        val cheats = group.filter { it.label !in RepLabels.SHOULD_COUNT }
         val byKind = cheats.filter { it.counted }.groupingBy { it.label }.eachCount().entries.joinToString(" ") { "${it.key}×${it.value}" }
         println("| $sitting | ${group.first().person} | ${group.first().placement} | ${honest.count { it.counted }} / ${honest.size} | ${cheats.count { it.counted }} / ${cheats.size}${if (byKind.isNotEmpty()) " ($byKind)" else ""} |")
     }

@@ -144,12 +144,13 @@ function queue() {
     const abs = join(root, base);
     const recorded = verdicts(`${abs}.trace.csv`);
     const now = today(abs);
+    const stakes = stakesOf(`${abs}.trace.csv`);
     const labels = existsSync(`${abs}.labels.csv`) ? readLabels(`${abs}.labels.csv`).reps : [];
     const byT = new Map(labels.map((r) => [r.t, r]));
     for (const [t, was] of recorded) {
       const l = byT.get(t);
       const verdict = near(now, t) ?? was;
-      const wrong = l && l.label !== 'unsure' && (l.label === 'honest') !== (verdict === 'counted');
+      const wrong = l && l.label !== 'unsure' && shouldCount(l.label, stakes) !== (verdict === 'counted');
       const rank = !l ? 3 : l.flag === 'answered' ? 0 : l.by === 'claude' ? (wrong ? 1 : 2) : null;
       if (rank === null) continue;
       const why = ['Claude answered', "Claude's label: the app disagrees", "Claude's label", 'not labelled'][rank];
@@ -180,6 +181,14 @@ function reply() {
   console.log(`answered ${base} t=${t}`);
 }
 
+/** STAKED or DAILY, from the trace's header. */
+function stakesOf(tracePath) {
+  return /stakes=(\w+)/.exec(readFileSync(tracePath, 'utf8').slice(0, 400))?.[1] ?? 'STAKED';
+}
+
+/** What should count: honest — and in the Daily 25, which counts them by design, a push-up from the knees. */
+const shouldCount = (label, stakes) => label === 'honest' || (label === 'knees' && stakes === 'DAILY');
+
 /** The verdict the app wrote at each trace time, and when counting began. */
 function verdicts(tracePath) {
   const rows = readFileSync(tracePath, 'utf8').split(/\r?\n/).filter((l) => /^\d/.test(l)).map((l) => l.split(','));
@@ -207,7 +216,8 @@ function flagsReport() {
     const started = existsSync(`${base}.video.json`) ? JSON.parse(readFileSync(`${base}.video.json`, 'utf8')).startedElapsedRealtimeNanos / 1e6 : null;
     const offset = Number(meta.offset ?? 0.5);
     const when = (t) => (started === null ? `t=${t}` : mmss((t - started) / 1000 - offset));
-    const disagree = reps.filter((r) => r.label !== 'unsure' && said.has(r.t) && (r.label === 'honest') !== (said.get(r.t) === 'counted')).length;
+    const stakes = stakesOf(`${base}.trace.csv`);
+    const disagree = reps.filter((r) => r.label !== 'unsure' && said.has(r.t) && shouldCount(r.label, stakes) !== (said.get(r.t) === 'counted')).length;
     sittingsRows.push(`| ${name} | ${meta.person ?? ''} | ${meta.reviewed || 'no'} | ${reps.length} | ${reps.filter((r) => r.by !== 'claude').length} | ${reps.filter((r) => r.flag).length} | ${disagree} |`);
     // Only what the reviewer ticked "Review & fix" and Claude has not answered yet.
     for (const r of reps.filter((x) => x.flag === 'check')) {
