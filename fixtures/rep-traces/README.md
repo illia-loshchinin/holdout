@@ -115,6 +115,39 @@ within one of it. A trace with `expectedReps=?` is evidence, not a test.
 | *(note, 2 Oct)* | — | A staked sitting no longer starts from in front of about 35° (placement ratio 1.1 or more). The staked sets above that were recorded there — the September "45° by eye" sets, which held 1.1–1.4, and `angled30-right-honest-12` — stay as tests of the counter; on the phone today they would be asked to turn first | — |
 | `angled-knees-out-of-frame-01` | 45° | staked: 5 full push-ups with the knees out of the **counter's** picture (Seeker, 29 Sep, a 10-minute test day). The debug video of the same set shows the whole body: it records the sensor's full 4:3 width, while analysis and the preview use a 16:9 crop, about 12 % narrower each side — the knees were inside the one and outside the other | 0 — all 5 had counted: the model placed the knees just inside the frame at full confidence. Refused as `LEGS_IN_VIEW` once the knee spends over 25 % of the push within 13 % of an edge; it was there 28–50 % of every rep, honest sets 0–3 % |
 
+## Rep labels (`*.labels.csv`) and the test bench
+
+A trace's `expectedReps` says how many reps a person counted; it cannot say
+**which** reps were honest, so a counter that refuses one honest rep and counts
+one cheat still passes. A labels file says it rep by rep, from the video:
+
+```
+# holdout-rep-labels v1
+# trace=angled40-right-floor-20.trace.csv
+# person=p1                  a pseudonym, never a name
+# clothing=shirtless, dark shorts
+# offset=0.5                 seconds the trace runs behind the video
+t,label,note
+2840945651,honest,0:31 checked on video
+```
+
+`t` is the trace time of the row the rep's verdict was written on; the label is
+one of `honest`, `half`, `knees`, `floor` (let down onto the floor and pushed
+up), `cobra`, `sag`, `other` or `unsure` (left out). Only `honest` should count.
+
+- **Labelling**: `node scripts/label-reps.mjs` serves `phone_traces/` on this
+  machine only (http://localhost:8766): each rep plays as a loop with the trace's
+  skeleton over it, keys `1`–`7` and `0` label it, and the file is saved beside
+  the trace. A sitting becomes a fixture with its labels: copy both under the
+  same new name, and set `trace=` to it.
+- **Scoring**: `./gradlew :repcounter:testBench [-Ptraces=<dir>] [-Pgate]`
+  replays every labelled sitting and reports, per label, per person and per
+  sitting, how many reps counted, and every miss. The gate: honest reps counted
+  98 % or more, each cheat 2 % or less. On 4 Oct it fails on `floor` (4 of 9
+  counted) and `cobra` (2 of 4) — the known overcounts below.
+- `RecordedTracesTest` checks that every label still lands on a rep the counter
+  judges, so a change to how reps are cut cannot drop labels silently.
+
 ## What the suite must hold — 10 honest, 3 cheats, **in each placement**
 
 The spike's pass bar is the test's pass bar: every `honest` trace counted within

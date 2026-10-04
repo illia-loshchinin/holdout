@@ -37,3 +37,18 @@ tasks.register<JavaExec>("replayTraces") {
         if (providers.gradleProperty("detail").isPresent) "detail" else "summary",
     )
 }
+
+// The test bench: every sitting with a labels file (scripts/label-reps.mjs),
+// replayed and scored rep by rep against what a person saw on the video.
+// `-Ptraces=<dir>` to point it elsewhere than fixtures/rep-traces/; `-Pgate`
+// to fail when honest reps count under 98 % or any cheat over 2 %.
+tasks.register<JavaExec>("testBench") {
+    description = "Scores the counter rep by rep against video-labelled sittings, by label, person and sitting."
+    group = "verification"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("holdout.repcounter.TestBenchKt")
+    args(
+        providers.gradleProperty("traces").getOrElse(rootProject.file("../fixtures/rep-traces").absolutePath),
+        if (providers.gradleProperty("gate").isPresent) "gate" else "report",
+    )
+}

@@ -12,6 +12,7 @@
 #
 # A useful trace becomes a test: write the true count into its header
 # (expectedReps=N), and move it to fixtures/rep-traces/.
+# Label its reps from the video first: node scripts/label-reps.mjs.
 #
 # With more than one device attached, set ANDROID_SERIAL first.
 set -euo pipefail

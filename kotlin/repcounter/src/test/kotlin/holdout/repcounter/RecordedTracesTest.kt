@@ -147,6 +147,17 @@ class RecordedTracesTest {
     }
 
     @Test
+    fun `every rep label still lands on a rep the counter judges`() {
+        // A labels file names reps by the trace time they ended; a counter that cut the
+        // sitting into reps differently would leave labels the test bench silently drops.
+        val lost = traces().flatMap { trace ->
+            val labels = File(trace.path.removeSuffix(".trace.csv") + ".labels.csv").takeIf { it.exists() } ?: return@flatMap emptyList()
+            benchSitting(trace.name, Trace.parse(trace.readLines()), RepLabels.parse(labels.readLines())).second.map { "${trace.name}: ${it.label} at t=${it.endMillis}" }
+        }
+        assertTrue(lost.isEmpty(), lost.joinToString("\n"))
+    }
+
+    @Test
     fun `a second person's knee push-ups are refused against his own plank`() {
         // 4 Oct, a second person at about 40°: his knee reps read the legs at 0.42–0.44 over
         // the hands — over the 0.41 line, set on one body — and two had counted. His own

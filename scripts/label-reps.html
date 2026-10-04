@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rep labels</title>
+<style>
+  :root { --bg:#14161a; --panel:#1d2026; --line:#2c3038; --text:#e8eaee; --dim:#9aa1ad; --accent:#6cb6ff; --ok:#5ccf8a; --bad:#ff6b6b; --warn:#f2c14e; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui, sans-serif; display:grid; grid-template-columns: 300px 1fr; height:100vh; }
+  aside { border-right:1px solid var(--line); overflow:auto; display:flex; flex-direction:column; }
+  aside h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:12px 12px 6px; }
+  select, input, textarea, button { font:inherit; color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:6px; }
+  select { margin:0 12px; padding:6px; }
+  #reps { list-style:none; margin:0; padding:0 0 12px; }
+  #reps li { display:grid; grid-template-columns: 28px 48px 1fr auto; gap:6px; padding:5px 12px; cursor:pointer; border-left:3px solid transparent; }
+  #reps li:hover { background:var(--panel); }
+  #reps li.on { background:var(--panel); border-left-color:var(--accent); }
+  #reps .n, #reps .tm { color:var(--dim); font-variant-numeric:tabular-nums; }
+  .verdict { color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tag { font-size:12px; padding:0 6px; border-radius:10px; background:var(--line); }
+  .tag.miss { background:var(--bad); color:#1a0000; }
+  .tag.match { background:var(--ok); color:#002010; }
+  main { display:grid; grid-template-rows: auto 1fr auto; min-width:0; }
+  header { padding:10px 16px; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  header .facts { color:var(--dim); }
+  #stage { position:relative; background:#000; min-height:0; }
+  video, #overlay { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+  #overlay { pointer-events:none; }
+  footer { padding:10px 16px; border-top:1px solid var(--line); display:grid; gap:8px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .labels button { padding:6px 10px; cursor:pointer; }
+  .labels button.on { background:var(--accent); color:#001428; border-color:var(--accent); }
+  .labels kbd { color:var(--dim); margin-right:4px; }
+  .labels button.on kbd { color:#001428; }
+  input[type=text] { padding:5px 8px; min-width:160px; }
+  #note { flex:1; min-width:240px; }
+  .muted { color:var(--dim); }
+  #status { margin-left:auto; color:var(--dim); }
+</style>
+</head>
+<body>
+<aside>
+  <h2>Sitting</h2>
+  <select id="sitting"></select>
+  <h2 id="repsTitle">Reps</h2>
+  <ul id="reps"></ul>
+</aside>
+<main>
+  <header>
+    <strong id="title">—</strong>
+    <span class="facts" id="facts"></span>
+    <span id="status"></span>
+  </header>
+  <div id="stage">
+    <video id="video" muted playsinline preload="auto"></video>
+    <canvas id="overlay"></canvas>
+  </div>
+  <footer>
+    <div class="row">
+      <span id="repInfo" class="muted">Pick a sitting.</span>
+    </div>
+    <div class="row labels" id="labelButtons"></div>
+    <div class="row">
+      <input id="note" type="text" placeholder="Note on this rep (n)">
+    </div>
+    <div class="row">
+      <label>Person <input id="person" type="text" placeholder="a pseudonym, e.g. p1"></label>
+      <label>Clothing <input id="clothing" type="text" placeholder="fitted / loose trousers / T-shirt…"></label>
+      <label>Trace lag, s <input id="offset" type="text" size="4"></label>
+      <span class="muted">← → rep · space pause · s slow · o skeleton</span>
+    </div>
+  </footer>
+</main>
+<script>
+// What a rep was, as a person saw it on the video. Only `honest` should count.
+const LABELS = [
+  ['1', 'honest', 'Full push-up on the toes'],
+  ['2', 'half', 'Too shallow'],
+  ['3', 'knees', 'From the knees'],
+  ['4', 'floor', 'Let down onto the floor (hips or chest resting) and pushed up'],
+  ['5', 'cobra', 'Chest up first, hips left behind'],
+  ['6', 'sag', 'Hips sagging or piked'],
+  ['7', 'other', 'Anything else that is not a push-up'],
+  ['0', 'unsure', 'Cannot tell from the video: left out of the test bench'],
+];
+const $ = (id) => document.getElementById(id);
+const video = $('video'), overlay = $('overlay');
+let S = null;          // the sitting on screen
+let current = 0;       // rep index
+let slow = false, skeleton = true, saveTimer = null;
+
+for (const [key, name, hint] of LABELS) {
+  const b = document.createElement('button');
+  b.innerHTML = `<kbd>${key}</kbd>${name}`;
+  b.title = hint;
+  b.dataset.label = name;
+  b.onclick = () => setLabel(name);
+  $('labelButtons').append(b);
+}
+
+function parseTrace(text) {
+  const lines = text.split(/\r?\n/);
+  const facts = {}, comments = [];
+  for (const l of lines.filter((l) => l.startsWith('#'))) {
+    comments.push(l.slice(1).trim());
+    for (const m of l.matchAll(/(\w+)=(\S+)/g)) facts[m[1]] = m[2];
+  }
+  const note = (lines.find((l) => l.startsWith('# note=')) ?? '').slice('# note='.length);
+  const head = lines.find((l) => l.startsWith('t,')).split(',');
+  const col = (n) => head.indexOf(n);
+  const rows = lines.filter((l) => /^\d/.test(l)).map((l) => l.split(','));
+  return { facts, note, head, col, rows };
+}
+
+function parseLabels(text) {
+  const meta = {}, byT = new Map();
+  for (const l of text.split(/\r?\n/)) {
+    const m = /^#\s*(\w+)=(.*)$/.exec(l);
+    if (m) { meta[m[1]] = m[2].trim(); continue; }
+    if (!/^\d/.test(l)) continue;
+    const [t, label, ...note] = l.split(',');
+    byT.set(Number(t), { label, note: note.join(',') });
+  }
+  return { meta, byT };
+}
+
+/** Each judged rep: from the end of the one before (or the start of counting) to its own event. */
+function repsOf(trace) {
+  const reps = [];
+  let from = null;
+  for (const r of trace.rows) {
+    if (r[1] !== 'COUNTING') continue;
+    const t = Number(r[0]);
+    if (from === null) from = t;
+    const ev = r[r.length - 1];
+    if (!ev) continue;
+    reps.push({ start: from, end: t, verdict: ev.replace('discarded:', '') });
+    from = t;
+  }
+  return reps;
+}
+
+async function loadSittings() {
+  const list = await (await fetch('/api/sittings')).json();
+  const sel = $('sitting');
+  sel.innerHTML = list.map((s) => `<option value="${s.base}">${s.base}${s.labels ? ` · ${s.labels} labelled` : ''}</option>`).join('');
+  if (!list.length) { $('repInfo').textContent = 'No sitting with a video here: pull one with scripts/pull-traces.sh.'; return; }
+  const wanted = new URLSearchParams(location.search).get('s');
+  sel.value = list.some((s) => s.base === wanted) ? wanted : list[0].base;
+  sel.onchange = () => open(sel.value);
+  open(sel.value);
+}
+
+async function open(base) {
+  history.replaceState(null, '', `?s=${encodeURIComponent(base)}`);
+  const [traceText, meta, labelsText] = await Promise.all([
+    fetch(`/files/${base}.trace.csv`).then((r) => r.text()),
+    fetch(`/files/${base}.video.json`).then((r) => r.json()),
+    fetch(`/files/${base}.labels.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')),
+  ]);
+  const trace = parseTrace(traceText);
+  const labels = parseLabels(labelsText);
+  S = {
+    base, trace, labels,
+    reps: repsOf(trace),
+    startedMs: meta.startedElapsedRealtimeNanos / 1e6,
+    // The trace runs about half a second behind the video on the Seeker.
+    offset: Number(labels.meta.offset ?? 0.5),
+  };
+  $('title').textContent = base.split('/').pop();
+  $('facts').textContent = [trace.facts.stakes, trace.facts.placement && `${trace.facts.placement}° ${trace.facts.phoneSide ?? ''}`, trace.facts.expectedReps && `person counted ${trace.facts.expectedReps}`, trace.note].filter(Boolean).join(' · ');
+  $('person').value = labels.meta.person ?? '';
+  $('clothing').value = labels.meta.clothing ?? '';
+  $('offset').value = S.offset;
+  video.src = `/files/${base}.mp4`;
+  current = S.reps.findIndex((r) => !S.labels.byT.has(r.end));
+  if (current < 0) current = 0;
+  renderList();
+  video.addEventListener('loadedmetadata', () => show(current), { once: true });
+}
+
+const vt = (t) => (t - S.startedMs) / 1000 - S.offset;
+const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+function renderList() {
+  const done = S.reps.filter((r) => S.labels.byT.has(r.end));
+  const agree = done.filter((r) => verdictMatches(r) === true).length;
+  $('repsTitle').textContent = `Reps · ${done.length}/${S.reps.length} labelled · app agrees on ${agree}`;
+  $('reps').innerHTML = S.reps.map((r, i) => {
+    const l = S.labels.byT.get(r.end);
+    const ok = verdictMatches(r);
+    const cls = ok === undefined ? '' : ok ? 'match' : 'miss';
+    return `<li class="${i === current ? 'on' : ''}" data-i="${i}"><span class="n">${i + 1}</span><span class="tm">${mmss(vt(r.end))}</span><span class="verdict">${r.verdict}</span><span class="tag ${cls}">${l ? l.label : '·'}</span></li>`;
+  }).join('');
+  for (const li of $('reps').children) li.onclick = () => show(Number(li.dataset.i));
+}
+
+/** Whether the app's verdict agrees with the label: undefined when unlabelled or unsure. */
+function verdictMatches(r) {
+  const l = S.labels.byT.get(r.end);
+  if (!l || l.label === 'unsure') return undefined;
+  return (l.label === 'honest') === (r.verdict === 'counted');
+}
+
+function show(i) {
+  if (!S || !S.reps.length) return;
+  current = Math.max(0, Math.min(S.reps.length - 1, i));
+  const r = S.reps[current];
+  const l = S.labels.byT.get(r.end);
+  $('note').value = l?.note ?? '';
+  for (const b of $('labelButtons').children) b.classList.toggle('on', b.dataset.label === l?.label);
+  const verdictText = r.verdict === 'counted' ? 'counted' : `refused (${r.verdict})`;
+  $('repInfo').innerHTML = `Rep <strong>${current + 1}</strong> of ${S.reps.length} · ${mmss(vt(r.start))}–${mmss(vt(r.end))} · the app: <strong>${verdictText}</strong>`;
+  renderList();
+  $('reps').children[current]?.scrollIntoView({ block: 'nearest' });
+  video.playbackRate = slow ? 0.5 : 1;
+  video.currentTime = Math.max(0, vt(r.start) - 0.3);
+  video.play().catch(() => {});
+}
+
+// The rep plays as a loop: its own stretch of video, a little either side.
+function loop() {
+  if (S && S.reps.length && !video.paused) {
+    const r = S.reps[current];
+    if (video.currentTime > vt(r.end) + 0.4 || video.currentTime < vt(r.start) - 0.6) video.currentTime = Math.max(0, vt(r.start) - 0.3);
+  }
+  drawSkeleton();
+  requestAnimationFrame(loop);
+}
+
+/** The trace's picture landmarks at this moment of the video, drawn where the video is drawn. */
+function drawSkeleton() {
+  const ctx = overlay.getContext('2d');
+  const w = overlay.clientWidth, h = overlay.clientHeight;
+  if (overlay.width !== w || overlay.height !== h) { overlay.width = w; overlay.height = h; }
+  ctx.clearRect(0, 0, w, h);
+  if (!S || !skeleton || !video.videoWidth) return;
+  const { rows, col } = S.trace;
+  const want = S.startedMs + (video.currentTime + S.offset) * 1000;
+  let lo = 0, hi = rows.length - 1;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (Number(rows[m][0]) < want) lo = m + 1; else hi = m; }
+  const row = rows[lo];
+  if (!row || Math.abs(Number(row[0]) - want) > 150) return;
+  const scale = Math.min(w / video.videoWidth, h / video.videoHeight);
+  const dw = video.videoWidth * scale, dh = video.videoHeight * scale, ox = (w - dw) / 2, oy = (h - dh) / 2;
+  const P = (i) => [ox + Number(row[col(`i${i}x`)]) * dw, oy + Number(row[col(`i${i}y`)]) * dh, Number(row[col(`i${i}p`)])];
+  const sideScore = (ids) => ids.reduce((s, i) => s + P(i)[2], 0);
+  const right = [12, 14, 16, 24, 26, 28], left = [11, 13, 15, 23, 25, 27];
+  const near = sideScore(right) >= sideScore(left) ? right : left, far = near === right ? left : right;
+  const chain = (ids, color, width) => {
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath();
+    ids.forEach((i, k) => { const [x, y] = P(i); if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+    ctx.stroke();
+    ctx.fillStyle = color;
+    for (const i of ids) { const [x, y] = P(i); ctx.beginPath(); ctx.arc(x, y, width + 1.5, 0, 7); ctx.fill(); }
+  };
+  chain([far[0], far[1], far[2]], 'rgba(108,182,255,.35)', 2);
+  chain([far[0], far[3], far[4], far[5]], 'rgba(255,120,200,.35)', 2);
+  chain([near[0], near[1], near[2]], '#6cb6ff', 3);
+  chain([near[0], near[3], near[4], near[5]], '#ff78c8', 3);
+}
+
+function setLabel(name) {
+  if (!S) return;
+  const r = S.reps[current];
+  S.labels.byT.set(r.end, { label: name, note: $('note').value.replace(/[\r\n]/g, ' ') });
+  save();
+  const next = S.reps.findIndex((x, i) => i > current && !S.labels.byT.has(x.end));
+  show(next >= 0 ? next : current);
+}
+
+function save() {
+  if (!S) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    const meta = { trace: `${S.base.split('/').pop()}.trace.csv`, person: $('person').value.trim(), clothing: $('clothing').value.trim(), offset: S.offset };
+    const lines = ['# holdout-rep-labels v1', ...Object.entries(meta).filter(([, v]) => v !== '').map(([k, v]) => `# ${k}=${v}`), 't,label,note'];
+    for (const r of S.reps) {
+      const l = S.labels.byT.get(r.end);
+      if (l) lines.push(`${r.end},${l.label},${l.note ?? ''}`);
+    }
+    const res = await fetch(`/files/${S.base}.labels.csv`, { method: 'PUT', body: lines.join('\n') + '\n' });
+    $('status').textContent = res.ok ? `saved ${new Date().toLocaleTimeString()}` : `NOT saved (${res.status})`;
+  }, 250);
+}
+
+$('note').addEventListener('input', () => {
+  const r = S?.reps[current];
+  const l = r && S.labels.byT.get(r.end);
+  if (l) { l.note = $('note').value.replace(/[\r\n]/g, ' '); save(); }
+});
+for (const id of ['person', 'clothing']) $(id).addEventListener('input', save);
+$('offset').addEventListener('change', () => { const v = Number($('offset').value); if (S && Number.isFinite(v)) { S.offset = v; save(); show(current); } });
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') { if (e.key === 'Escape' || e.key === 'Enter') e.target.blur(); return; }
+  const label = LABELS.find(([k]) => k === e.key);
+  if (label) return setLabel(label[1]);
+  if (e.key === 'ArrowRight') return show(current + 1);
+  if (e.key === 'ArrowLeft') return show(current - 1);
+  if (e.key === ' ') { e.preventDefault(); return video.paused ? video.play() : video.pause(); }
+  if (e.key === 's') { slow = !slow; video.playbackRate = slow ? 0.5 : 1; return; }
+  if (e.key === 'o') { skeleton = !skeleton; return; }
+  if (e.key === 'n') { e.preventDefault(); $('note').focus(); }
+});
+
+loadSittings();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
