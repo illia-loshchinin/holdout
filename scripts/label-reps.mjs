@@ -286,14 +286,22 @@ createServer((req, res) => {
   }
   const size = statSync(p).size;
   const type = types[extname(p)] ?? 'application/octet-stream';
-  // Ranges, or the browser cannot seek a video of a few hundred megabytes.
+  // A stream the browser hangs up on is closed with it: every rep's loop is a
+  // seek, and each seek abandons the request before it.
+  const send = (stream) => {
+    res.on('close', () => stream.destroy());
+    stream.on('error', () => res.destroy());
+    stream.pipe(res);
+  };
+  // Ranges, or the browser cannot seek a video of a few hundred megabytes. An
+  // open-ended one ("from here on") is answered 4 MB at a time, not to the end.
   const range = /bytes=(\d*)-(\d*)/.exec(req.headers.range ?? '');
   if (range) {
     const start = range[1] ? Number(range[1]) : size - Number(range[2]);
-    const end = range[1] && range[2] ? Number(range[2]) : size - 1;
+    const end = range[1] && range[2] ? Number(range[2]) : Math.min(size - 1, start + 4 * 1024 * 1024 - 1);
     res.writeHead(206, { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1 });
-    return createReadStream(p, { start, end }).pipe(res);
+    return send(createReadStream(p, { start, end }));
   }
   res.writeHead(200, { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Content-Length': size, 'Cache-Control': 'no-store' });
-  createReadStream(p).pipe(res);
+  send(createReadStream(p));
 }).listen(port, '127.0.0.1', () => console.log(`label-reps: ${root}\n  open http://localhost:${port}`));

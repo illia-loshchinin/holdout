@@ -449,9 +449,32 @@ function loop() {
     const r = S.reps[current];
     if (video.currentTime > vt(r.end) + 0.4 || video.currentTime < vt(r.start) - 0.6) video.currentTime = Math.max(0, vt(r.start) - 0.3);
   }
+  watchdog();
   drawSkeleton();
   requestAnimationFrame(loop);
 }
+
+/**
+ * The video stopped while the skeleton went on: playing but not advancing for
+ * two seconds, or an error. It is loaded again at the same moment.
+ */
+let lastTime = -1, stuckSince = 0;
+function watchdog() {
+  if (!S || video.paused || video.seeking) { stuckSince = 0; lastTime = video.currentTime; return; }
+  const now = performance.now();
+  if (video.currentTime !== lastTime) { lastTime = video.currentTime; stuckSince = now; return; }
+  if (!stuckSince) stuckSince = now;
+  if (now - stuckSince > 2000) { stuckSince = now; reloadVideo(); }
+}
+function reloadVideo() {
+  if (!S) return;
+  const at = video.currentTime;
+  video.src = `/files/${S.base}.mp4?r=${Math.floor(performance.now())}`;
+  video.addEventListener('loadedmetadata', () => { video.currentTime = at; video.play().catch(() => {}); }, { once: true });
+}
+video.addEventListener('error', () => setTimeout(reloadVideo, 500));
+// Back to the front: the picture may have been dropped while hidden — make it draw again.
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S) video.currentTime = video.currentTime; });
 
 /** The trace's picture landmarks at this moment of the video, drawn where the video is drawn. */
 function drawSkeleton() {
