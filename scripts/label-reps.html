@@ -125,6 +125,35 @@ function parseLabels(text) {
   return { meta, byT };
 }
 
+/**
+ * The side the counter reads, per row, as RepCounter.nearSideFor picks it: in
+ * each frame the side whose arm and leg (joints with presence 0.6 or more) are
+ * longer in the picture gets a vote, and from the countdown that led into
+ * counting on, the side with the most votes so far is the one read.
+ */
+function sidesOf(trace) {
+  const { rows, col, facts } = trace;
+  const W = Number(facts.width ?? 720), H = Number(facts.height ?? 960);
+  const chains = { L: [[11, 13, 15], [23, 25, 27]], R: [[12, 14, 16], [24, 26, 28]] };
+  const P = (r, i) => [Number(r[col(`i${i}x`)]) * W, Number(r[col(`i${i}y`)]) * H, Number(r[col(`i${i}p`)])];
+  const length = (r, side) => chains[side].reduce((total, [a, b, c]) => {
+    const A = P(r, a), B = P(r, b), C = P(r, c);
+    if (A[2] < 0.6 || B[2] < 0.6 || C[2] < 0.6) return total;
+    return total + Math.hypot(A[0] - B[0], A[1] - B[1]) + Math.hypot(B[0] - C[0], B[1] - C[1]);
+  }, 0);
+  const firstCounting = rows.findIndex((r) => r[1] === 'COUNTING');
+  let from = firstCounting;
+  while (from > 0 && rows[from - 1][1] === 'COUNTDOWN') from--;
+  const votes = { L: 0, R: 0 };
+  return rows.map((r, i) => {
+    const l = length(r, 'L'), rr = length(r, 'R');
+    const seen = l === 0 && rr === 0 ? null : l >= rr ? 'L' : 'R';
+    if (firstCounting < 0 || i < from) return seen;
+    if (seen) votes[seen]++;
+    return votes.L >= votes.R ? 'L' : 'R';
+  });
+}
+
 /** Each judged rep: from the end of the one before (or the start of counting) to its own event. */
 function repsOf(trace) {
   const reps = [];
@@ -164,6 +193,7 @@ async function open(base) {
   S = {
     base, trace, labels,
     reps: repsOf(trace),
+    sides: sidesOf(trace),
     startedMs: meta.startedElapsedRealtimeNanos / 1e6,
     // The trace runs about half a second behind the video on the Seeker.
     offset: Number(labels.meta.offset ?? 0.5),
@@ -245,9 +275,9 @@ function drawSkeleton() {
   const scale = Math.min(w / video.videoWidth, h / video.videoHeight);
   const dw = video.videoWidth * scale, dh = video.videoHeight * scale, ox = (w - dw) / 2, oy = (h - dh) / 2;
   const P = (i) => [ox + Number(row[col(`i${i}x`)]) * dw, oy + Number(row[col(`i${i}y`)]) * dh, Number(row[col(`i${i}p`)])];
-  const sideScore = (ids) => ids.reduce((s, i) => s + P(i)[2], 0);
+  // Bold: the side the counter reads (sidesOf). Faint: the other, which it ignores.
   const right = [12, 14, 16, 24, 26, 28], left = [11, 13, 15, 23, 25, 27];
-  const near = sideScore(right) >= sideScore(left) ? right : left, far = near === right ? left : right;
+  const near = S.sides[lo] === 'L' ? left : right, far = near === right ? left : right;
   const chain = (ids, color, width) => {
     ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath();
     ids.forEach((i, k) => { const [x, y] = P(i); if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
