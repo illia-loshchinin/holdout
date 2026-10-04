@@ -146,7 +146,7 @@ const HINTS = {
   SLOW_DOWN: 'Slow down',
   LEGS_IN_VIEW: 'Keep your legs in the picture',
 };
-const said = (verdict) => (verdict === 'counted' ? 'counted' : HINTS[verdict] ?? verdict);
+const said = (verdict) => (verdict === 'counted' ? 'counted' : verdict === 'not-judged' ? 'no rep seen' : HINTS[verdict] ?? verdict);
 const $ = (id) => document.getElementById(id);
 const video = $('video'), overlay = $('overlay');
 
@@ -282,12 +282,17 @@ function parseToday(text) {
   for (const l of text.split(/\r?\n/)) if (/^\d/.test(l)) { const [t, v] = l.split(','); byT.set(Number(t), v); }
   return byT;
 }
-/** The verdict today on the rep that ended at [t]: the replay's nearest, within 400 ms. */
+/**
+ * The verdict today on the rep that ended at [t]: the replay's nearest, within
+ * 400 ms — or NOT_JUDGED when the replay has run and judged no rep there: today's
+ * counter does not see this rep at all. Undefined when the replay has not run.
+ */
+const NOT_JUDGED = 'not-judged';
 function todayAt(t) {
   if (!S?.today?.size) return undefined;
   let best;
   for (const [k, v] of S.today) if (Math.abs(k - t) <= 400 && (!best || Math.abs(k - t) < Math.abs(best[0] - t))) best = [k, v];
-  return best?.[1];
+  return best?.[1] ?? NOT_JUDGED;
 }
 /** What judges a rep now: today's verdict when the replay has been run, else the recorded one. */
 const verdictOf = (r) => todayAt(r.end) ?? r.verdict;
@@ -499,7 +504,8 @@ function verdictQuality(r) {
   if (ok === undefined) return undefined;
   if (!ok) return 'bad';
   const l = S.labels.byT.get(r.end), v = verdictOf(r), want = expectedWords(l);
-  return v !== 'counted' && want && v !== want ? 'words' : 'ok';
+  // A rep not seen at all says nothing, and counts nothing — right for a cheat.
+  return v !== 'counted' && v !== NOT_JUDGED && want && v !== want ? 'words' : 'ok';
 }
 
 function show(i, replay = true) {

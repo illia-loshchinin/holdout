@@ -164,7 +164,8 @@ function queue() {
     const byT = new Map(labels.map((r) => [r.t, r]));
     for (const [t, was] of recorded) {
       const l = byT.get(t);
-      const verdict = near(now, t) ?? was;
+      // Once the replay has run, a rep it judged nothing near is one today's counter does not see.
+      const verdict = near(now, t) ?? (now.size ? 'not-judged' : was);
       const wrong = l && l.label !== 'unsure' && shouldCount(l.label, stakes) !== (verdict === 'counted');
       const rank = !l ? 3 : l.flag === 'answered' ? 0 : l.by === 'claude' ? (wrong ? 1 : 2) : null;
       if (rank === null) continue;
