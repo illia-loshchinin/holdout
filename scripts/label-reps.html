@@ -21,6 +21,7 @@
   .tag { font-size:12px; padding:0 6px; border-radius:10px; background:var(--line); }
   .tag.miss { background:var(--bad); color:#1a0000; }
   .tag.match { background:var(--ok); color:#002010; }
+  .tag.words { background:var(--warn); color:#2a1d00; }
   main { display:grid; grid-template-rows: auto 1fr auto; min-width:0; }
   header { padding:10px 16px; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
   header .facts { color:var(--dim); flex:1 1 200px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -63,6 +64,7 @@
   .agree { font-weight:600; padding:1px 8px; border-radius:10px; }
   .agree.ok { background:var(--ok); color:#002010; }
   .agree.bad { background:var(--bad); color:#1a0000; }
+  .agree.words { background:var(--warn); color:#2a1d00; }
 </style>
 </head>
 <body>
@@ -405,8 +407,8 @@ function renderList() {
   $('repsTitle').textContent = `Reps · ${done.length}/${S.reps.length} labelled · app agrees on ${agree}${flagged ? ` · ⚑ ${flagged}` : ''}`;
   $('reps').innerHTML = S.reps.map((r, i) => {
     const l = S.labels.byT.get(r.end);
-    const ok = verdictMatches(r);
-    const cls = ok === undefined ? '' : ok ? 'match' : 'miss';
+    const q = verdictQuality(r);
+    const cls = { ok: 'match', words: 'words', bad: 'miss' }[q] ?? '';
     const marks = `${l?.flag === 'check' ? '<span class="flag" title="ticked for review and fixing">⚑</span>' : ''}${l?.flag === 'answered' ? '<span class="flag" title="Claude answered">✉</span>' : ''}${l?.by === 'claude' ? '<span class="by-claude" title="set by Claude; press its key to confirm">C</span>' : ''}`;
     const now = todayAt(r.end), changed = now !== undefined && now !== r.verdict;
     const allowed = l?.label === 'knees' && daily() && verdictOf(r) === 'counted' ? ' <span class="was">knees allowed</span>' : '';
@@ -425,6 +427,23 @@ function verdictMatches(r) {
   const l = S.labels.byT.get(r.end);
   if (!l || l.label === 'unsure') return undefined;
   return shouldCount(l.label) === (verdictOf(r) === 'counted');
+}
+
+/** The words a refusal of this label should use: the reviewer's "Should say", else the label's own. `other` takes any. */
+const LABEL_WORDS = { half: 'GO_LOWER', knees: 'UP_ON_YOUR_TOES', floor: 'HIPS_OFF_FLOOR', cobra: 'KEEP_BODY_STRAIGHT', sag: 'KEEP_BODY_STRAIGHT' };
+const expectedWords = (l) => l.hint || LABEL_WORDS[l.label] || '';
+
+/**
+ * 'ok' — the right outcome, and a refusal in the expected words; 'words' — refused
+ * as it should be, but with other words; 'bad' — the wrong outcome; undefined —
+ * no label, or unsure.
+ */
+function verdictQuality(r) {
+  const ok = verdictMatches(r);
+  if (ok === undefined) return undefined;
+  if (!ok) return 'bad';
+  const l = S.labels.byT.get(r.end), v = verdictOf(r), want = expectedWords(l);
+  return v !== 'counted' && want && v !== want ? 'words' : 'ok';
 }
 
 function show(i, replay = true) {
@@ -448,8 +467,13 @@ function show(i, replay = true) {
       : `today: <strong>${words(now)}</strong> <span class="muted">(when recorded: ${words(r.verdict)})</span>`;
   const sitting = mode === 'queue' ? `${short(S.base)} · ` : '';
   // Against the label on screen: did the app get this rep right?
-  const ok = verdictMatches(r);
-  const agree = ok === undefined ? '' : ok ? ' <span class="agree ok">✓ the app agrees</span>' : ' <span class="agree bad">✗ the app is wrong here</span>';
+  const q = verdictQuality(r);
+  const want = l ? expectedWords(l) : '';
+  const agree = {
+    ok: ' <span class="agree ok">✓ the app agrees</span>',
+    words: ` <span class="agree words" title="${l?.hint ? 'your Should say' : `what a ${l?.label} rep should hear`}">~ refused, but should say "${said(want)}"</span>`,
+    bad: ' <span class="agree bad">✗ the app is wrong here</span>',
+  }[q] ?? '';
   $('repInfo').innerHTML = `${sitting}Rep <strong>${current + 1}</strong> of ${S.reps.length} · ${mmss(vt(r.start))}–${mmss(vt(r.end))} · ${verdictText}${agree}${byText}`;
   renderList();
   $('reps').children[current]?.scrollIntoView({ block: 'nearest' });
