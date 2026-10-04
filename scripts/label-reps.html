@@ -107,7 +107,7 @@
       <label>Person <input id="person" type="text" placeholder="a pseudonym, e.g. p1"></label>
       <label>Clothing <input id="clothing" type="text" placeholder="fitted / loose trousers / T-shirt…"></label>
       <label>Trace lag, s <input id="offset" type="text" size="4"></label>
-      <span class="muted">Enter confirm · ← → rep · space pause · s slow · o skeleton · f review &amp; fix · h should say · d done</span>
+      <span class="muted">1–7, 0 label · Enter done, next · ← → rep · space pause · s slow · o skeleton · f review &amp; fix · h should say · d done</span>
     </div>
   </footer>
 </main>
@@ -297,7 +297,7 @@ const short = (base) => base.split('/').pop().replace(/-staked|-daily/, '');
 function renderQueue() {
   const left = Q.length;
   $('tabQueue').textContent = `Needs you (${left})`;
-  $('queueTitle').textContent = left ? `${left} to look at · Enter confirms · a digit changes` : 'Nothing needs you';
+  $('queueTitle').textContent = left ? `${left} to look at · a digit labels · Enter: done, next` : 'Nothing needs you';
   $('queue').innerHTML = Q.slice(0, 300).map((q, i) => `<li class="${i === qAt ? 'on' : ''}" data-i="${i}"><span>${short(q.base)}</span><span class="where">${q.label || '·'} · app: ${said(q.verdict)}</span><span class="why r${q.rank}">${q.why}</span></li>`).join('');
   for (const li of $('queue').children) li.onclick = () => goQueue(Number(li.dataset.i));
   $('queue').children[qAt]?.scrollIntoView({ block: 'nearest' });
@@ -521,18 +521,23 @@ function setLabel(name) {
   // Pressed by the reviewer, the label is theirs — a label of Claude's pressed again is confirmed.
   Object.assign(e, { label: name, by: 'reviewer', note: oneLine($('note').value) });
   save();
-  if (nextInQueue()) return;
-  const next = S.reps.findIndex((x, i) => i > current && !S.labels.byT.has(x.end));
-  show(next >= 0 ? next : current);
+  // Stays on the rep: "Review & fix", "Should say" and a note may follow. Enter moves on.
+  show(current, false);
 }
 
-/** Enter: the label on screen is right — Claude's becomes the reviewer's — and on to the next. */
+/**
+ * Enter: done with this rep — the label on screen is right (Claude's becomes the
+ * reviewer's) — and on to the next: the next in the queue, or in a sitting the
+ * next rep without a label. A rep with no label yet stays.
+ */
 function confirmLabel() {
   if (!S) return;
   const l = S.labels.byT.get(S.reps[current].end);
   if (!l) return;
   if (l.by !== 'reviewer') { l.by = 'reviewer'; save(); }
-  if (!nextInQueue()) show(current + 1);
+  if (nextInQueue()) return;
+  const next = S.reps.findIndex((x, i) => i > current && !S.labels.byT.has(x.end));
+  show(next >= 0 ? next : current + 1);
 }
 
 /** d: Claude's answer read — the rep leaves the queue; tick it again to reopen. */
