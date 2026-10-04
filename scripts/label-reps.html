@@ -7,8 +7,9 @@
 <style>
   :root { --bg:#14161a; --panel:#1d2026; --line:#2c3038; --text:#e8eaee; --dim:#9aa1ad; --accent:#6cb6ff; --ok:#5ccf8a; --bad:#ff6b6b; --warn:#f2c14e; }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui, sans-serif; display:grid; grid-template-columns: 300px 1fr; height:100vh; }
-  aside { border-right:1px solid var(--line); overflow:auto; display:flex; flex-direction:column; }
+  html { height:100%; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui, sans-serif; display:grid; grid-template-columns: 300px 1fr; grid-template-rows: 100vh; height:100vh; overflow:hidden; }
+  aside { border-right:1px solid var(--line); overflow:auto; display:flex; flex-direction:column; height:100vh; min-height:0; }
   aside h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:12px 12px 6px; }
   select, input, textarea, button { font:inherit; color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:6px; }
   select { margin:0 12px; padding:6px; }
@@ -22,7 +23,7 @@
   .tag.miss { background:var(--bad); color:#1a0000; }
   .tag.match { background:var(--ok); color:#002010; }
   .tag.words { background:var(--warn); color:#2a1d00; }
-  main { display:grid; grid-template-rows: auto 1fr auto; min-width:0; }
+  main { display:grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width:0; height:100vh; min-height:0; }
   header { padding:10px 16px; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
   header .facts { color:var(--dim); flex:1 1 200px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   header { flex-wrap:nowrap; }
