@@ -113,6 +113,17 @@ data class RepRules(
     val bentKneeDegrees: Float = 135f,
     val minLegsAboveHandsBentKnee: Float = 0.48f,
     /**
+     * Staked: the legs on the push, against the same person's legs held in the
+     * plank through the countdown — at least this share. The lines above are
+     * one body's: on 4 Oct a second person's knee push-ups read the legs at
+     * 0.42–0.44, over [minLegsAboveHands], because his honest reps stand at
+     * 0.51–0.79. Against his own plank (0.70) those knee reps read 0.60–0.63;
+     * honest reps on every recording read 0.70–1.13 of their plank. An extra
+     * check, not a replacement: kneeling with the feet raised keeps the
+     * share high (0.74–1.19), and the lines above catch it.
+     */
+    val minLegsShareOfHeld: Float = 0.66f,
+    /**
      * The bent-knee line judges the push alone, where a leg a little bent on
      * the toes reads like kneeling with the feet raised: on 3 Oct a full rep
      * on the toes read knee 130°, legs 0.47, and was refused. The way down
@@ -410,13 +421,26 @@ class RepCounter(
     /** The placement ratio held through the countdown; null with no countdown, and then [RepRules.minHipRise] is not judged. */
     private val placement = Preflight()
     private val heldRatios = mutableListOf<Float>()
+
+    /** Legs above hands through the countdown with the arms straight: this person's plank ([RepRules.minLegsShareOfHeld]). */
+    private val heldLegs = mutableListOf<Float>()
     private var heldRatio: Float? = null
 
     private fun hipRiseTooLow(): Boolean {
         if (view != CameraView.OBLIQUE) return false
         val ratio = heldRatio ?: return false
         if (ratio >= rules.maxHipRisePlacementRatio) return false
-        return hipRise()?.let { it < rules.minHipRise } == true
+        // Where money is staked, a rise that could not be read is not a body that
+        // came up as one piece — as a knee never seen is not off the floor. On
+        // every recording only one counted rep had none: a cobra (4 Oct).
+        return hipRise()?.let { it < rules.minHipRise } ?: judgeKnees
+    }
+
+    /** The legs on the push fell well under this person's own plank ([RepRules.minLegsShareOfHeld]). Unknown passes. */
+    private fun legsDroppedFromPlank(): Boolean {
+        if (heldLegs.size < MIN_HELD_FRAMES) return false
+        val held = heldLegs.medianOrNull()?.takeIf { it > 0f } ?: return false
+        return pushLegs.medianOrNull()?.let { it / held < rules.minLegsShareOfHeld } == true
     }
 
     private fun hipRise(): Float? {
@@ -531,6 +555,7 @@ class RepCounter(
         val knee = reading.knee?.let { kneeFilter.filter(it, frame.timestampMillis) }
         if (priming && image != null && elbow >= rules.obliqueTopDegrees) {
             placement.placementRatio(image.frame, Aspect.xScale(image.width, image.height))?.let { heldRatios += it }
+            (reading as? ViewReading.Angled)?.legsAboveHands?.let { heldLegs += it }
         }
         calibrateTop(elbow)
         val straight = postureHeld(view, reading, posture, rules)
@@ -659,6 +684,8 @@ class RepCounter(
                     // Down from the knees, up on the toes: half of it was on the floor.
                     judgeKnees && !kneesOffFloor(descentKnees.medianOrNull(), null, rules) ->
                         RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
+                    // Legs well under this person's own plank: knees down, whatever the body.
+                    judgeKnees && legsDroppedFromPlank() -> RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
                     !bodyHeld() -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)
                     // The chest first and the hips after: off the floor, or a cobra.
                     hipRiseTooLow() -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)
