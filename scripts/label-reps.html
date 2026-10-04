@@ -411,6 +411,12 @@ function nextInQueue() {
 }
 
 async function open(base, atT) {
+  // A save still waiting belongs to the sitting on screen: written before it
+  // goes. The queue moves on as soon as a rep is done — a Done or a confirmed
+  // label saved 250 ms later, after the next sitting had opened, was written
+  // into that one instead and lost.
+  if (saveTimer) { clearTimeout(saveTimer); writeNow(); }
+  await saving;
   history.replaceState(null, '', mode === 'sitting' ? `?s=${encodeURIComponent(base)}` : location.pathname);
   const [traceText, meta, labelsText, todayText] = await Promise.all([
     fetch(`/files/${base}.trace.csv`).then((r) => r.text()),
@@ -686,6 +692,7 @@ function writeNow() {
 }
 
 async function write() {
+  if (!S) return;
   {
     // Claude may have answered since the page read the file: an answer on disk
     // the page has not seen is kept, and with it the rep's "answered".
