@@ -47,7 +47,8 @@ object Ratchet {
     /**
      * Today's counter on every labelled rep under [dir], a label no judged rep
      * lands near included (verdict [NOT_JUDGED]). A sitting today's app would
-     * not start is left out ([startsToday]).
+     * not start, or that it read in another picture than today's, is left out
+     * ([notScoredBecause]).
      */
     fun today(dir: File): List<RatchetRep> {
         val reps = mutableListOf<RatchetRep>()
@@ -55,7 +56,7 @@ object Ratchet {
             val labelsFile = TraceFiles.labels(trace).takeIf { it.exists() } ?: continue
             val name = TraceFiles.name(trace)
             val recording = Trace.parse(TraceFiles.lines(trace))
-            if (!recording.startsToday()) continue
+            if (recording.notScoredBecause() != null) continue
             val (judged, missing) = benchSitting(name, recording, RepLabels.parse(labelsFile.readLines()))
             judged.forEach { reps += RatchetRep(name, it.labelT, it.label, it.state(), it.verdict) }
             // A label no judged rep lands near is a rep the counter does not see: it counts

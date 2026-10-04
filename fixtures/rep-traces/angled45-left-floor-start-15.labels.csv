@@ -5,18 +5,18 @@
 # source=20261002-153437-staked
 t,label,by,flag,hint,note,claude,reply
 2697617345,honest,reviewer,,,,,
-2697619012,honest,reviewer,,,,,
+2697619012,unseen,claude,,,,"Unseen: the near foot is at the right edge of the picture, the toes cut off by the frame (the trace puts the ankle at 0.90-1.01 of the width), so the counter cannot read the leg on most of the push - refusing ""Keep your legs in the picture"" is right. The honest reps around it passed only because the foot showed in enough frames; today the set-up asks for the foot 6 % inside before a sitting starts. Press 8 to confirm.",
 2697624148,honest,reviewer,,,,,
 2697626449,honest,reviewer,,,,,
 2697628483,honest,reviewer,,,,,
-2697630450,honest,reviewer,,,,,
+2697630450,unseen,claude,,,,"Unseen: the near foot is at the right edge of the picture, the toes cut off by the frame (the trace puts the ankle at 0.90-1.01 of the width), so the counter cannot read the leg on most of the push - refusing ""Keep your legs in the picture"" is right. The honest reps around it passed only because the foot showed in enough frames; today the set-up asks for the foot 6 % inside before a sitting starts. Press 8 to confirm.",
 2697635319,honest,reviewer,,,,,
 2697637553,honest,reviewer,,,,,
 2697639654,honest,reviewer,,,,,
 2697641555,honest,reviewer,,,,,
 2697643556,honest,reviewer,,,,,
 2697646491,unsure,reviewer,,,video cropped at the start so hard to say what is here.,,"Not a push-up, and not counted. On the video you are on your hands and knees, getting into position; the app was still counting and today refused it with ""Go lower"". Nothing in the counter changed: no reading I tried (torso angle, view) separates such moments from a real rep reliably yet, so they stay refused with words meant for a rep. The clip now runs 0:50.6–0:53.3 (it used to start at 0:50.4). ""other"" is the label for a moment that is not a push-up."
-2697649959,unsure,reviewer,answered,,no reps here at the video,,"Not a push-up, and not counted. On the video you are on your hands and knees, getting into position; the app was still counting and today refused it with ""Go lower"". Nothing in the counter changed: no reading I tried (torso angle, view) separates such moments from a real rep reliably yet, so they stay refused with words meant for a rep. The clip now runs 0:53.8–0:56.8 (it used to start at 0:53.3). ""other"" is the label for a moment that is not a push-up."
+2697649959,unsure,reviewer,check,,"no reps here at the video, so I want to label such video ""rep"" as ""no rep seen""",,"Not a push-up, and not counted. On the video you are on your hands and knees, getting into position; the app was still counting and today refused it with ""Go lower"". Nothing in the counter changed: no reading I tried (torso angle, view) separates such moments from a real rep reliably yet, so they stay refused with words meant for a rep. The clip now runs 0:53.8–0:56.8 (it used to start at 0:53.3). ""other"" is the label for a moment that is not a push-up."
 2697654761,knees,reviewer,,,,,
 2697656895,knees,reviewer,,,,,
 2697658862,knees,reviewer,,,,,

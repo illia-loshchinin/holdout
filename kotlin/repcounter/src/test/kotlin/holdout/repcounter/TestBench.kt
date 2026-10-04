@@ -136,6 +136,22 @@ fun Trace.Recording.heldPlacementRatio(): Float? {
 fun Trace.Recording.startsToday(): Boolean = stakes != Stakes.STAKED || (heldPlacementRatio()?.let { it < RepRules().maxHipRisePlacementRatio } ?: true)
 
 /**
+ * Whether the counter read this sitting in today's picture: 4:3, as the video
+ * is. Up to 29 Sep the app analysed a 9:16 crop (720×1280) of a 4:3 video, so
+ * the knees and feet could be in the video and outside what the counter saw —
+ * reps refused "legs in the picture" that a reviewer saw whole. Since 1 Oct the
+ * two are the same picture (owner, 4 Oct: those sittings are not scored).
+ */
+fun Trace.Recording.inTodaysPicture(): Boolean = frames.firstOrNull()?.image?.let { it.width * 4 == it.height * 3 } != false
+
+/** Why this sitting is left out of the bench score and the ratchet, or null when it is scored. */
+fun Trace.Recording.notScoredBecause(): String? = when {
+    !inTodaysPicture() -> frames.first().image.let { "read in a ${it.width}×${it.height} crop, not today's 4:3 picture" }
+    !startsToday() -> "staked from in front of about 35° (held ratio %.2f), which today's app does not start".format(heldPlacementRatio())
+    else -> null
+}
+
+/**
  * Replays [recording] through today's counter and pairs each judged rep with
  * the label of the rep that ended on (or within [toleranceMillis] of) the same
  * frame. A label still unpaired takes the one judged rep that ends inside its
@@ -216,8 +232,8 @@ fun main(args: Array<String>) {
             continue
         }
         val recording = Trace.parse(TraceFiles.lines(trace))
-        if (!recording.startsToday()) {
-            notStarted += "$name (held ratio %.2f)".format(recording.heldPlacementRatio())
+        recording.notScoredBecause()?.let {
+            notStarted += "$name: $it"
             continue
         }
         val (judged, missing) = benchSitting(name, recording, RepLabels.parse(labelsFile.readLines()))
@@ -287,7 +303,7 @@ fun main(args: Array<String>) {
     if (unconfirmed > 0) println("\n$unconfirmed labels set by Claude are not yet confirmed by a reviewer.")
     if (lost.isNotEmpty()) println("\n## Labels with no judged rep near them\n\n" + lost.joinToString("\n") { "- $it" })
     if (notStarted.isNotEmpty()) {
-        println("\n## Not scored: staked from in front of about 35°, which today's app does not start (${notStarted.size})\n\n" + notStarted.joinToString("\n") { "- $it" })
+        println("\n## Not scored: sittings today's app would not record as they were (${notStarted.size})\n\n" + notStarted.joinToString("\n") { "- $it" })
     }
     // Only what can be labelled — a sitting with its video — and each recording once:
     // pull-traces.sh copies every trace still on the phone into each new folder.

@@ -2,29 +2,6 @@
 # right: the right outcome and words; words: refused, in other words than the label calls for; wrong: counted a cheat, or did not count a rep that should (verdict not-judged: no rep seen there)
 # Written by ./gradlew :repcounter:updateBaseline. RepRatchetTest fails when a rep does worse than here — or better, until this is updated.
 fixture,t,label,state,verdict
-20260929-154046-staked,2438781433,honest,right,counted
-20260929-154046-staked,2438783634,honest,right,counted
-20260929-154046-staked,2438785902,honest,right,counted
-20260929-154046-staked,2438787936,honest,right,counted
-20260929-154046-staked,2438792371,honest,right,counted
-20260929-155215-staked,2439476321,honest,right,counted
-20260929-155215-staked,2439478655,honest,right,counted
-20260929-155215-staked,2439481056,honest,right,counted
-20260929-155215-staked,2439484357,honest,right,counted
-20260929-155215-staked,2439486758,honest,right,counted
-20260929-163059-staked,2441786288,honest,right,counted
-20260929-163059-staked,2441788456,honest,wrong,LEGS_IN_VIEW
-20260929-163059-staked,2441805229,honest,right,counted
-20260929-163059-staked,2441809698,honest,right,counted
-20260929-163059-staked,2441825905,honest,right,counted
-20260929-163059-staked,2441841345,honest,wrong,UP_ON_YOUR_TOES
-20260929-163059-staked,2441855551,honest,wrong,LEGS_IN_VIEW
-20260929-163059-staked,2441858185,honest,wrong,LEGS_IN_VIEW
-angled-knees-out-of-frame-01,2441229439,unseen,right,LEGS_IN_VIEW
-angled-knees-out-of-frame-01,2441232006,unseen,right,LEGS_IN_VIEW
-angled-knees-out-of-frame-01,2441234307,unseen,right,LEGS_IN_VIEW
-angled-knees-out-of-frame-01,2441236942,unseen,right,LEGS_IN_VIEW
-angled-knees-out-of-frame-01,2441239210,unseen,right,LEGS_IN_VIEW
 angled-right-honest-10,2690325727,honest,right,counted
 angled-right-honest-10,2690327194,honest,right,counted
 angled-right-honest-10,2690329395,honest,right,counted
@@ -131,11 +108,11 @@ angled40-right-mixed-19,2840710343,floor,wrong,counted
 angled40-right-mixed-19,2840724225,knees,words,GO_LOWER
 angled40-right-mixed-19,2840729998,half,right,GO_LOWER
 angled45-left-floor-start-15,2697617345,honest,right,counted
-angled45-left-floor-start-15,2697619012,honest,wrong,LEGS_IN_VIEW
+angled45-left-floor-start-15,2697619012,unseen,right,LEGS_IN_VIEW
 angled45-left-floor-start-15,2697624148,honest,right,counted
 angled45-left-floor-start-15,2697626449,honest,right,counted
 angled45-left-floor-start-15,2697628483,honest,right,counted
-angled45-left-floor-start-15,2697630450,honest,wrong,LEGS_IN_VIEW
+angled45-left-floor-start-15,2697630450,unseen,right,LEGS_IN_VIEW
 angled45-left-floor-start-15,2697635319,honest,right,counted
 angled45-left-floor-start-15,2697637553,honest,right,counted
 angled45-left-floor-start-15,2697639654,honest,right,counted
