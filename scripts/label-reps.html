@@ -42,7 +42,8 @@
   #claudeNote { color:var(--dim); font-style:italic; }
   #flagLabel { display:flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid var(--line); border-radius:6px; cursor:pointer; white-space:nowrap; }
   #flagLabel:has(input:checked) { background:var(--warn); color:#2a1d00; border-color:var(--warn); }
-  #reviewed:checked + span { color:var(--ok); }
+  #finished { display:flex; align-items:center; gap:6px; padding:4px 10px; border:1px solid var(--line); border-radius:6px; cursor:pointer; white-space:nowrap; }
+  #finished:has(input:checked) { border-color:var(--ok); color:var(--ok); }
 </style>
 </head>
 <body>
@@ -56,6 +57,7 @@
   <header>
     <strong id="title">—</strong>
     <span class="facts" id="facts"></span>
+    <label id="finished" title="Every rep labelled: the labels are final, and the sitting can become a test fixture"><input id="reviewed" type="checkbox"> <span>Sitting finished — all reps labelled</span></label>
     <span id="status"></span>
   </header>
   <div id="stage">
@@ -79,7 +81,6 @@
       <label>Person <input id="person" type="text" placeholder="a pseudonym, e.g. p1"></label>
       <label>Clothing <input id="clothing" type="text" placeholder="fitted / loose trousers / T-shirt…"></label>
       <label>Trace lag, s <input id="offset" type="text" size="4"></label>
-      <label title="Every rep labelled: the labels are final, and the sitting can become a test fixture"><input id="reviewed" type="checkbox"> <span>Sitting finished — all reps labelled</span></label>
       <span class="muted">← → rep · space pause · s slow · o skeleton · f review &amp; fix · h should say</span>
     </div>
   </footer>
