@@ -19,7 +19,7 @@ class RecordedTracesTest {
 
     private fun traces(): List<File> {
         val dir = File(System.getProperty("holdout.repTraces") ?: "../../fixtures/rep-traces")
-        return dir.listFiles { f -> f.name.endsWith(".trace.csv") }?.sortedBy { it.name }.orEmpty()
+        return dir.listFiles { f -> TraceFiles.isTrace(f) }?.sortedBy { it.name }.orEmpty()
     }
 
     private fun replay(recording: Trace.Recording): Int {
@@ -34,31 +34,15 @@ class RecordedTracesTest {
     @Test
     fun `every counted recording replays within one rep of the human count`() {
         val misses = traces().mapNotNull { file ->
-            val recording = Trace.parse(file.readLines())
+            // A labelled recording is held rep by rep by the ratchet (RepRatchetTest), not by its total.
+            if (TraceFiles.labels(file).exists()) return@mapNotNull null
+            val recording = Trace.parse(TraceFiles.lines(file))
             val expected = recording.expectedReps ?: return@mapNotNull null
             val counted = replay(recording)
-            val known = knownOvercounts[file.name]
-            when {
-                known != null -> if (counted == known) null else "${file.name}: counted $counted, pinned at $known (a person counted $expected) — update knownOvercounts"
-                kotlin.math.abs(counted - expected) <= 1 -> null
-                else -> "${file.name}: counted $counted, a person counted $expected"
-            }
+            if (kotlin.math.abs(counted - expected) <= 1) null else "${file.name}: counted $counted, a person counted $expected"
         }
         assertTrue(misses.isEmpty(), misses.joinToString("\n"))
     }
-
-    /**
-     * Recordings the counter is known to overcount, and by how much today — a
-     * named weakness (README), pinned exactly so that a change either way shows.
-     */
-    private val knownOvercounts = mapOf(
-        // Two cobras: on this person the near wrist is misplaced at the bottom
-        // (his head covers it), and the arm readings go with it.
-        "angled40-right-mixed-19.trace.csv" to 12,
-        // Four reps let down until the hips rest on the floor and pushed up straight:
-        // no landmark reading tells a hip on the floor from a deep honest bottom.
-        "angled40-right-floor-20.trace.csv" to 14,
-    )
 
     @Test
     fun `a plank held square side-on is read as side-on and a staked sitting never starts`() {
@@ -144,17 +128,6 @@ class RecordedTracesTest {
         assertEquals(8, halves.count { it == RepEvent.Discarded(RepHint.GO_LOWER) })
         assertEquals(0, halves.count { it == RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES) })
         assertEquals(12, counter.total)
-    }
-
-    @Test
-    fun `every rep label still lands on a rep the counter judges`() {
-        // A labels file names reps by the trace time they ended; a counter that cut the
-        // sitting into reps differently would leave labels the test bench silently drops.
-        val lost = traces().flatMap { trace ->
-            val labels = File(trace.path.removeSuffix(".trace.csv") + ".labels.csv").takeIf { it.exists() } ?: return@flatMap emptyList()
-            benchSitting(trace.name, Trace.parse(trace.readLines()), RepLabels.parse(labels.readLines())).second.map { "${trace.name}: ${it.label} at t=${it.endMillis}" }
-        }
-        assertTrue(lost.isEmpty(), lost.joinToString("\n"))
     }
 
     @Test

@@ -7,6 +7,8 @@
 //   node scripts/label-reps.mjs --flags [dir]   the reps the reviewer ticked for Claude
 //   node scripts/label-reps.mjs --reply <sitting> <t> <answer…> [--dir dir]
 //                                                Claude's answer to a ticked rep
+//   node scripts/label-reps.mjs --promote [dir]  finished sittings into fixtures/rep-traces/
+//   node scripts/label-reps.mjs --prune [dir]    delete videos 30 days after finishing (asks first)
 //
 // Serves, on this machine only, the sittings `scripts/pull-traces.sh` pulled
 // into [dir] (a trace, its video and the video's .video.json) and a page that
@@ -29,16 +31,27 @@
 // sitting becomes a fixture with its labels: copy both, under the same new
 // name, into fixtures/rep-traces/.
 //
+// Promote and prune: a finished sitting's trace (gzip) and labels are copied
+// into fixtures/rep-traces/, where the regression ratchet (RepRatchetTest)
+// holds every labelled rep; the repository gets numbers and text, never
+// video. A video is deleted 30 days after its sitting was finished, and only
+// once the sitting has been promoted — listed first, deleted on "yes". Without
+// its video a sitting still opens: the skeleton plays alone.
+//
 // Videos are of people who agreed in writing to be filmed (constitution X);
 // phone_traces/ is git-ignored, and so is everything this serves.
 import { createServer } from 'node:http';
-import { createReadStream, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { createInterface } from 'node:readline/promises';
+import { gunzipSync, gzipSync } from 'node:zlib';
 import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
 const flagsOnly = argv.includes('--flags');
+const promoteOnly = argv.includes('--promote');
+const pruneOnly = argv.includes('--prune');
 const replyAt = argv.indexOf('--reply');
 const dirAt = argv.indexOf('--dir');
 const root = resolve(
@@ -62,9 +75,11 @@ function sittings(dir = root) {
     if (e.isDirectory()) return sittings(p);
     if (!e.name.endsWith('.trace.csv')) return [];
     const base = p.slice(0, -'.trace.csv'.length);
-    if (!existsSync(`${base}.mp4`) || !existsSync(`${base}.video.json`)) return [];
+    // A sitting opens with its video — or, once the video is deleted, with its labels: the skeleton plays alone.
+    const video = existsSync(`${base}.mp4`);
+    if (!existsSync(`${base}.video.json`) || (!video && !existsSync(`${base}.labels.csv`))) return [];
     const labels = existsSync(`${base}.labels.csv`) ? readFileSync(`${base}.labels.csv`, 'utf8').split('\n').filter((l) => /^\d/.test(l)).length : 0;
-    return [{ base: relative(root, base).split(sep).join('/'), labels }];
+    return [{ base: relative(root, base).split(sep).join('/'), labels, video }];
   }).sort((a, b) => b.base.split('/').pop().localeCompare(a.base.split('/').pop())); // newest recording first
 }
 
@@ -236,8 +251,112 @@ function flagsReport() {
   }
 }
 
+const fixtures = join(here, '..', 'fixtures', 'rep-traces');
+const DAY = 24 * 3600 * 1000;
+const RETAIN_DAYS = 30;
+
+/** Every labels file under the root that is ticked "Sitting finished", with its sitting's base path. */
+function finished() {
+  const out = [];
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).forEach((e) => {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) return walk(p);
+    if (!e.name.endsWith('.labels.csv')) return;
+    const base = p.slice(0, -'.labels.csv'.length);
+    if (!existsSync(`${base}.trace.csv`)) return;
+    const { meta } = readLabels(p);
+    if (meta.reviewed) out.push({ base, name: base.split(sep).pop(), meta });
+  });
+  walk(root);
+  return out;
+}
+
+/** The fixture a sitting was promoted to: the fixtures labels file whose `source=` names it. */
+function promotedAs(name) {
+  for (const f of readdirSync(fixtures)) {
+    if (!f.endsWith('.labels.csv')) continue;
+    if (readLabels(join(fixtures, f)).meta.source === name) return f.slice(0, -'.labels.csv'.length);
+  }
+  return null;
+}
+
+/**
+ * A recording's fingerprint: its frame count and its first and last frame
+ * times — the same recording under any name has the same (the first time alone
+ * does not do: early traces start at 0).
+ */
+function fingerprint(path) {
+  const text = path.endsWith('.gz') ? gunzipSync(readFileSync(path)).toString('utf8') : readFileSync(path, 'utf8');
+  const times = text.split(/\r?\n/).filter((l) => /^\d/.test(l)).map((l) => l.slice(0, l.indexOf(',')));
+  return `${times.length}:${times[0]}:${times[times.length - 1]}`;
+}
+
+/** An existing fixture holding the same recording: the labels go to it rather than to a second copy. */
+function sameRecording(base) {
+  const want = fingerprint(`${base}.trace.csv`);
+  for (const f of readdirSync(fixtures)) {
+    const m = /^(.*)\.trace\.csv(\.gz)?$/.exec(f);
+    if (m && fingerprint(join(fixtures, f)) === want) return m[1];
+  }
+  return null;
+}
+
+/**
+ * `--promote`: every finished sitting into fixtures/rep-traces/ — the trace
+ * gzipped, the labels with `trace=` set to the fixture and `source=` to the
+ * sitting. One already promoted gets its labels again (the reviewer's copy in
+ * phone_traces/ is the working one). Then `./gradlew :repcounter:updateBaseline`.
+ */
+function promote() {
+  let added = 0, refreshed = 0;
+  for (const s of finished()) {
+    const fixture = promotedAs(s.name) ?? sameRecording(s.base) ?? s.name;
+    const traceGz = join(fixtures, `${fixture}.trace.csv.gz`), traceCsv = join(fixtures, `${fixture}.trace.csv`);
+    const isNew = !existsSync(traceGz) && !existsSync(traceCsv);
+    if (isNew) writeFileSync(traceGz, gzipSync(readFileSync(`${s.base}.trace.csv`), { level: 9 }));
+    const { meta, reps } = readLabels(`${s.base}.labels.csv`);
+    const target = join(fixtures, `${fixture}.labels.csv`);
+    const before = existsSync(target) ? readFileSync(target, 'utf8') : '';
+    writeLabels(target, { ...meta, trace: `${fixture}.trace.csv${existsSync(traceCsv) ? '' : '.gz'}`, source: s.name }, reps);
+    if (isNew) added++;
+    else if (readFileSync(target, 'utf8') !== before) refreshed++;
+    console.log(`${isNew ? 'promoted ' : 'labels   '} ${relative(root, s.base).split(sep).join('/')} -> fixtures/rep-traces/${fixture}`);
+  }
+  console.log(`\n${added} promoted, ${refreshed} with new labels. Next: cd kotlin && ./gradlew :repcounter:updateBaseline, then commit fixtures/rep-traces/.`);
+}
+
+/** Videos to delete: the sitting finished more than RETAIN_DAYS ago and already promoted. */
+function dueVideos() {
+  const now = Date.now();
+  return finished()
+    .filter((s) => existsSync(`${s.base}.mp4`) && promotedAs(s.name) && now - Date.parse(s.meta.reviewed) >= RETAIN_DAYS * DAY)
+    .map((s) => ({ base: relative(root, s.base).split(sep).join('/'), finished: s.meta.reviewed, mb: Math.round(statSync(`${s.base}.mp4`).size / 1e6) }));
+}
+
+function deleteVideos(list) {
+  for (const v of list) unlinkSync(join(root, `${v.base}.mp4`));
+}
+
 if (flagsOnly) {
   flagsReport();
+  process.exit(0);
+}
+if (promoteOnly) {
+  promote();
+  process.exit(0);
+}
+if (pruneOnly) {
+  const due = dueVideos();
+  if (!due.length) {
+    console.log(`No video to delete: none of a sitting finished ${RETAIN_DAYS} days ago and promoted.`);
+    process.exit(0);
+  }
+  due.forEach((v) => console.log(`  ${v.base}  finished ${v.finished}  ${v.mb} MB`));
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const yes = /^y(es)?$/i.test((await rl.question(`Delete these ${due.length} videos? Their traces and labels stay in fixtures/rep-traces/. [y/N] `)).trim());
+  rl.close();
+  if (yes) deleteVideos(due);
+  console.log(yes ? `Deleted ${due.length}.` : 'Nothing deleted.');
   process.exit(0);
 }
 if (replyAt >= 0) {
@@ -256,6 +375,13 @@ createServer((req, res) => {
   if (url.pathname === '/') {
     res.writeHead(200, { 'Content-Type': types['.html'] });
     return createReadStream(page).pipe(res);
+  }
+  if (url.pathname === '/api/prune') {
+    // GET lists the videos due for deletion; POST deletes exactly those, after the page asked.
+    const due = dueVideos();
+    if (req.method === 'POST') deleteVideos(due);
+    res.writeHead(200, { 'Content-Type': types['.json'] });
+    return res.end(JSON.stringify(req.method === 'POST' ? [] : due));
   }
   if (url.pathname === '/api/queue') {
     res.writeHead(200, { 'Content-Type': types['.json'] });
@@ -314,4 +440,8 @@ createServer((req, res) => {
   }
   res.writeHead(200, { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Content-Length': size, 'Cache-Control': 'no-store' });
   send(createReadStream(p));
-}).listen(port, '127.0.0.1', () => console.log(`label-reps: ${root}\n  open http://localhost:${port}`));
+}).listen(port, '127.0.0.1', () => {
+  console.log(`label-reps: ${root}\n  open http://localhost:${port}`);
+  const due = dueVideos();
+  if (due.length) console.log(`\n${due.length} videos are due for deletion (finished ${RETAIN_DAYS}+ days ago, promoted): the page asks, or run --prune.`);
+});

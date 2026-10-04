@@ -99,6 +99,8 @@ data class BenchRep(
     val flagged: Boolean = false,
     val claudeNote: String = "",
     val wantedHint: String = "",
+    /** The trace time the labelled rep ended: the labels file's `t`, which keys it in the ratchet's baseline. */
+    val labelT: Long = 0,
 ) {
     val counted: Boolean get() = verdict == "counted"
     val right: Boolean get() = counted == (label in RepLabels.SHOULD_COUNT)
@@ -131,7 +133,7 @@ fun benchSitting(name: String, recording: Trace.Recording, labels: RepLabels, to
         }
         // The Daily 25 counts push-ups from the knees: there a knees label should count.
         val kind = if (recording.stakes == Stakes.DAILY && label.label == "knees") RepLabels.KNEES_DAILY else label.label
-        BenchRep(name, labels.person, placement, (t - t0) / 1000f, kind, label.note, verdict, label.by, label.flagged, label.claudeNote, label.hint)
+        BenchRep(name, labels.person, placement, (t - t0) / 1000f, kind, label.note, verdict, label.by, label.flagged, label.claudeNote, label.hint, label.endMillis)
     }
     return judged to labels.reps.filter { it !in used && it.label != "unsure" }
 }
@@ -153,20 +155,20 @@ fun benchSitting(name: String, recording: Trace.Recording, labels: RepLabels, to
 fun main(args: Array<String>) {
     val dir = File(args.firstOrNull() ?: "../fixtures/rep-traces")
     val gate = args.getOrNull(1) == "gate"
-    val traces = dir.walkTopDown().filter { it.isFile && it.name.endsWith(".trace.csv") }.sortedBy { it.path }.toList()
-    require(traces.isNotEmpty()) { "no .trace.csv files under ${dir.absolutePath}" }
+    val traces = TraceFiles.under(dir)
+    require(traces.isNotEmpty()) { "no .trace.csv(.gz) files under ${dir.absolutePath}" }
 
     val reps = mutableListOf<BenchRep>()
     val lost = mutableListOf<String>()
     val unlabelled = mutableListOf<String>()
     for (trace in traces) {
-        val name = trace.relativeTo(dir).path.removeSuffix(".trace.csv").replace(File.separatorChar, '/')
-        val labelsFile = File(trace.path.removeSuffix(".trace.csv") + ".labels.csv")
+        val name = File(TraceFiles.base(trace)).relativeTo(dir).path.replace(File.separatorChar, '/')
+        val labelsFile = TraceFiles.labels(trace)
         if (!labelsFile.exists()) {
             unlabelled += name
             continue
         }
-        val (judged, missing) = benchSitting(name, Trace.parse(trace.readLines()), RepLabels.parse(labelsFile.readLines()))
+        val (judged, missing) = benchSitting(name, Trace.parse(TraceFiles.lines(trace)), RepLabels.parse(labelsFile.readLines()))
         reps += judged
         missing.forEach { lost += "$name: a ${it.label} rep ending at t=${it.endMillis} has no judged rep near it today" }
     }

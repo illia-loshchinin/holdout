@@ -22,7 +22,7 @@ import kotlin.math.abs
  */
 fun main(args: Array<String>) {
     val dir = File(args.firstOrNull() ?: "../phone_traces")
-    val files = dir.listFiles { f -> f.name.endsWith(".trace.csv") }?.sortedBy { it.name }.orEmpty()
+    val files = dir.listFiles { f -> TraceFiles.isTrace(f) }?.sortedBy { it.name }.orEmpty()
     require(files.isNotEmpty()) { "no .trace.csv files in ${dir.absolutePath}" }
 
     val detail = args.getOrNull(1) == "detail"
@@ -33,7 +33,7 @@ fun main(args: Array<String>) {
     data class Row(val name: String, val placement: String?, val side: String?, val stakes: Stakes, val ratios: List<Float>, val views: Map<CameraView?, Int>, val counted: Int, val expected: Int?, val hints: Map<String, Int>)
 
     val rows = files.mapNotNull { file ->
-        val recording = runCatching { Trace.parse(file.readLines()) }.getOrNull() ?: return@mapNotNull null
+        val recording = runCatching { Trace.parse(TraceFiles.lines(file)) }.getOrNull() ?: return@mapNotNull null
         val counting = recording.countingFrames
         // A placement neither stakes accepts (square side-on) never starts
         // counting: its set-up frames are all there is to measure it by.
@@ -88,7 +88,7 @@ fun main(args: Array<String>) {
                 )
             }
         }
-        Row(file.name.removeSuffix(".trace.csv"), recording.placement, recording.phoneSide, recording.stakes, ratios, views, total, recording.expectedReps, hints)
+        Row(TraceFiles.name(file), recording.placement, recording.phoneSide, recording.stakes, ratios, views, total, recording.expectedReps, hints)
     }
 
     fun pct(values: List<Float>, p: Double): String = values.sorted().let { s -> if (s.isEmpty()) "-" else "%.2f".format(s[((s.size - 1) * p).toInt()]) }

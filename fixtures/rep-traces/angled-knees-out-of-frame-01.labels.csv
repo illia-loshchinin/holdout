@@ -1,0 +1,11 @@
+# holdout-rep-labels v2
+# trace=angled-knees-out-of-frame-01.trace.csv
+# offset=0.5
+# reviewed=2026-10-04
+# source=20260929-162137-staked
+t,label,by,flag,hint,note,claude,reply
+2441229439,honest,reviewer,,,,,
+2441232006,honest,reviewer,,,,,
+2441234307,honest,reviewer,,,,,
+2441236942,honest,reviewer,,,,,
+2441239210,honest,reviewer,,,,,

@@ -48,6 +48,16 @@ tasks.register<JavaExec>("todayVerdicts") {
     args(rootProject.file(providers.gradleProperty("traces").getOrElse("../phone_traces")).absolutePath)
 }
 
+// The ratchet's baseline (RepRatchetTest): how the counter does on every
+// labelled fixture rep, written again once a change has made reps better.
+tasks.register<JavaExec>("updateBaseline") {
+    description = "Writes fixtures/rep-traces/baseline.csv: today's counter on every labelled fixture rep."
+    group = "verification"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("holdout.repcounter.RatchetKt")
+    args(rootProject.file("../fixtures/rep-traces").absolutePath)
+}
+
 // The test bench: every sitting with a labels file (scripts/label-reps.mjs),
 // replayed and scored rep by rep against what a person saw on the video.
 // `-Ptraces=<dir>` (relative to kotlin/) to point it elsewhere than

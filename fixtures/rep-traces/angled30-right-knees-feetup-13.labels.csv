@@ -1,0 +1,22 @@
+# holdout-rep-labels v2
+# trace=angled30-right-knees-feetup-13.trace.csv
+# offset=0.5
+# reviewed=2026-10-04
+# source=20261002-141446-staked
+t,label,by,flag,hint,note,claude,reply
+2692817924,honest,reviewer,,,,,
+2692821325,half,reviewer,,,,,
+2692823826,honest,reviewer,,,,,
+2692825994,honest,reviewer,,,,,
+2692827995,honest,reviewer,,,,,
+2692830329,honest,reviewer,,,,,
+2692838599,knees,reviewer,,,,,
+2692840700,knees,reviewer,,,,,
+2692842634,knees,reviewer,,,,,
+2692844735,knees,reviewer,,,,,
+2692846970,knees,reviewer,,,,,
+2692854073,knees,reviewer,,,,,
+2692857074,knees,reviewer,,,,,
+2692859942,knees,reviewer,,,,,
+2692862810,knees,reviewer,,,,,
+2692866611,knees,reviewer,,,,,

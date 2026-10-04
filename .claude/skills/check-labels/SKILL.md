@@ -50,8 +50,15 @@ needs only an answer saying so (and which commit did it).
   not only the one the rep came from, and state the margin.
 - If the landmarks cannot tell the case apart (as with hips resting on the floor), do not force a
   line: answer with why, and record it as a known weakness.
-- Finished sittings with useful reps become fixtures: trace and labels copied under the same new
-  name into `fixtures/rep-traces/`, `trace=` set to it, a README row added.
+- `RepRatchetTest` holds every labelled fixture rep to `fixtures/rep-traces/baseline.csv`: no rep
+  may do worse. A fix that puts reps right fails it too until the baseline is written again — run
+  `node scripts/label-reps.mjs --promote` (finished sittings become fixtures: traces gzipped,
+  labels attached; never a video), then `cd kotlin && ./gradlew -q :repcounter:updateBaseline`,
+  and commit the baseline with the fix. Its diff is the record of which reps moved; a rep that
+  gets worse is a regression to fix, never a baseline to rewrite, unless the user agrees to the
+  trade.
+- Videos due for deletion (finished 30+ days, promoted) are listed by `node scripts/label-reps.mjs
+  --prune`; delete only on the user's say-so.
 
 ## 5. Verify every answer — mandatory
 

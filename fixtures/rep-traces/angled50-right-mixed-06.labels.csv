@@ -1,0 +1,32 @@
+# holdout-rep-labels v2
+# trace=angled50-right-mixed-06.trace.csv
+# offset=0.5
+# reviewed=2026-10-04
+# source=20261001-182922-staked
+t,label,by,flag,hint,note,claude,reply
+2621710205,honest,reviewer,,,,,
+2621712039,honest,reviewer,,,,,
+2621713840,honest,reviewer,,,,,
+2621715707,honest,reviewer,,,,,
+2621717508,honest,reviewer,,,,,
+2621719309,honest,reviewer,,,,,
+2621721076,honest,reviewer,,,,,
+2621722910,honest,reviewer,,,,,
+2621724944,honest,reviewer,,,,,
+2621726945,honest,reviewer,,,,,
+2621731547,knees,reviewer,,,,,
+2621733981,knees,reviewer,,,,,
+2621736249,knees,reviewer,,,,,
+2621738583,knees,reviewer,,,,,
+2621740918,knees,reviewer,,,,,
+2621744586,knees,reviewer,,,,,
+2621748121,knees,reviewer,,,,,
+2621751155,knees,reviewer,,,,,
+2621753890,knees,reviewer,,,,,
+2621756858,knees,reviewer,,,,,
+2621765528,half,reviewer,,,,,
+2621767896,half,reviewer,,,,,
+2621770697,half,reviewer,,,,,
+2621773198,half,reviewer,,,,,
+2621775566,half,reviewer,,,,,
+2621778067,half,reviewer,,,,,

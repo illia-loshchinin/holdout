@@ -77,7 +77,8 @@ Debug builds write one trace per sitting (landmarks and the counter's
 decisions, never a picture — `kotlin/repcounter` `Trace.kt`);
 `scripts/pull-traces.sh` fetches them over USB. `RecordedTracesTest` replays
 every trace whose header carries `expectedReps=N` and requires the count to be
-within one of it. A trace with `expectedReps=?` is evidence, not a test.
+within one of it. A trace with `expectedReps=?` is evidence, not a test. A
+trace may be gzipped (`*.trace.csv.gz`); the tests read either.
 
 | File | Placement | What was done | Counts |
 |---|---|---|---|
@@ -112,6 +113,7 @@ within one of it. A trace with `expectedReps=?` is evidence, not a test.
 | `angled45-right-mixed-18` | 45°, phone on the right (held ratio 0.93) | staked: 10 full, 5 from the knees, 4 pushed up from the floor, 1 with the body bent, then half push-ups on the toes with two full ones among them | 12 (labelled 10 on the phone; 1:59 is as deep as the first ten on video, and the member counts 2:07, at the depth line, as full). Live it counted 10: five in the half block were told "Knees off the floor". Four were halves — the leg a little bent (knee 127–132°), the legs at 0.41–0.48, one 0.408: half reps read the legs lower than full ones. Depth is now judged before knees, and all eight halves say "Go lower". The fifth, 2:07, read knee 130° and legs 0.47 on the push but came down at 135°: the bent-knee line now needs a bent knee on the way down too (under 112°) when the push reads 120–135° |
 | `angled40-right-mixed-19` | about 40°, phone on the right (held ratio 1.01); a second person, white T-shirt, loose shorts | staked: 10 full, 5 from the knees, 3 cobras with the thighs on the floor, 2 half | 10 — live it counted 15. Two knee reps (4:04, 4:11) read the legs at 0.42–0.44, over the 0.41 line set on one body (his honest reps 0.51–0.79); refused since the legs are judged against his own plank too (0.60–0.63 of it; honest 0.70 or more everywhere), with one cobra. Two cobras (4:48, 4:59) still count: at the bottom his head covers the near hand and the model misplaces the wrist (it jumps 0.49–0.62 of the picture height while the hand is planted), so the elbow reads 20–41° and the hip rise is not to be trusted. Pinned at 12 in `RecordedTracesTest` |
 | `angled40-right-floor-20` | about 40°, phone on the right (held ratio 0.91) | staked: 10 full, 5 from the knees, 5 let down until the hips rest on the carpet and pushed up straight in one piece, 1 from the knees | 10 (owner, 4 Oct: a push-up that touched the floor does not count) — counts 14: four of the floor reps (1:05–1:22) pass every check, the body coming up as one piece (hip rise 1.05–1.07). Within this set their hips stand lower at the bottom (0.28–0.34 of the held plank, honest 0.43–0.59) and the push body line reads 145–159° (honest 175–178°), but other people's honest reps read the same, so neither can be a line. Pinned at 14 in `RecordedTracesTest` |
+| `20260927-171132-staked`, `20260927-181344-staked`, `20260929-153345-staked`, `-154046`, `-155215`, `-155837`, `-161244`, `-163059` (`.trace.csv.gz`) | 4:3 staked sittings, 27 and 29 Sep, promoted with their labels | 5–6 honest each, labelled from video | 49 honest labelled; 36 counted, 13 refused (6 "Keep your body straight", 5 "legs in the picture", 1 knees, 1 not seen as a rep). Held by the ratchet, not by `expectedReps` |
 | *(note, 2 Oct)* | — | A staked sitting no longer starts from in front of about 35° (placement ratio 1.1 or more). The staked sets above that were recorded there — the September "45° by eye" sets, which held 1.1–1.4, and `angled30-right-honest-12` — stay as tests of the counter; on the phone today they would be asked to turn first | — |
 | `angled-knees-out-of-frame-01` | 45° | staked: 5 full push-ups with the knees out of the **counter's** picture (Seeker, 29 Sep, a 10-minute test day). The debug video of the same set shows the whole body: it records the sensor's full 4:3 width, while analysis and the preview use a 16:9 crop, about 12 % narrower each side — the knees were inside the one and outside the other | 0 — all 5 had counted: the model placed the knees just inside the frame at full confidence. Refused as `LEGS_IN_VIEW` once the knee spends over 25 % of the push within 13 % of an edge; it was there 28–50 % of every rep, honest sets 0–3 % |
 
@@ -177,10 +179,28 @@ A v1 file (`t,label,note`) still reads, as the reviewer's labels and notes.
   sitting, how many reps counted, every miss with both notes, and the reps
   ticked "Review & fix" with the words the reviewer wants. The
   gate: honest reps counted 98 % or more, each cheat 2 % or less.
-- A sitting becomes a fixture with its labels: copy both under the same new
-  name, and set `trace=` to it.
-- `RecordedTracesTest` checks that every label still lands on a rep the counter
-  judges, so a change to how reps are cut cannot drop labels silently.
+- **Promoting**: `node scripts/label-reps.mjs --promote` makes every finished
+  sitting a fixture. A sitting already here (same frame count, first and last
+  frame time) gets its labels beside that fixture; a new one comes in as
+  `<sitting>.trace.csv.gz` with its labels. `source=` names the phone
+  recording. Only traces and labels ever come in — never a video.
+- **The ratchet**: `baseline.csv` holds how the counter does on every labelled
+  rep here — `right`, `words` (refused, in other words than the label or the
+  reviewer's "Should say" calls for) or `wrong` (a cheat counted, or a rep that
+  should count refused; `not-judged` when no rep is seen where the label is).
+  `RepRatchetTest` fails when any rep does worse than the baseline, and when one
+  does better or is new or relabelled, until `./gradlew
+  :repcounter:updateBaseline` (from `kotlin/`) writes it again — so a rep put
+  right stays right, and a fix for one person cannot quietly undo another's.
+  Commit the baseline with the change that moved it; its diff shows which reps
+  did. 4 Oct: 344 labelled reps, 274 right, 31 words, 39 wrong.
+- **Videos**: they stay in `phone_traces/` on this machine only, and go 30
+  days after their sitting is marked finished, once it is promoted. Nothing is
+  scheduled: `node scripts/label-reps.mjs --prune` lists the videos due and
+  deletes them only on `y`, and the labelling page shows the same list with a
+  button. A sitting whose video is gone still plays, as the skeleton alone.
+- `RecordedTracesTest` replays every trace with `expectedReps` to within one;
+  a labelled trace is held rep by rep by the ratchet instead.
 
 ## What the suite must hold — 10 honest, 3 cheats, **in each placement**
 

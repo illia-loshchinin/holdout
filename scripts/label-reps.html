@@ -47,6 +47,8 @@
   #flagLabel:has(input:checked) { background:var(--warn); color:#2a1d00; border-color:var(--warn); }
   #finished { display:flex; align-items:center; gap:6px; padding:4px 10px; border:1px solid var(--line); border-radius:6px; cursor:pointer; white-space:nowrap; }
   #finished:has(input:checked) { border-color:var(--ok); color:var(--ok); }
+  #pruneBanner { margin:12px 12px 0; padding:8px 10px; border:1px solid var(--warn); border-radius:6px; color:var(--warn); font-size:13px; }
+  #pruneBanner button { margin-top:6px; padding:4px 8px; cursor:pointer; }
   .tabs { display:flex; gap:6px; margin:12px 12px 0; }
   .tabs button { flex:1; padding:6px; cursor:pointer; }
   .tabs button.on { background:var(--accent); color:#001428; border-color:var(--accent); }
@@ -70,6 +72,7 @@
 </head>
 <body>
 <aside>
+  <div id="pruneBanner" hidden></div>
   <div class="tabs"><button id="tabQueue" class="on">Needs you</button><button id="tabSitting">Sitting</button></div>
   <div id="queuePane">
     <h2 id="queueTitle">Needs you</h2>
@@ -145,6 +148,28 @@ const HINTS = {
 const said = (verdict) => (verdict === 'counted' ? 'counted' : HINTS[verdict] ?? verdict);
 const $ = (id) => document.getElementById(id);
 const video = $('video'), overlay = $('overlay');
+
+/**
+ * The video, or — once it is deleted, 30 days after the sitting was finished —
+ * a clock of its own, so the skeleton still plays where the video was.
+ */
+const clock = { t: 0, paused: true, rate: 1, at: 0 };
+const player = {
+  get hasVideo() { return S?.hasVideo !== false; },
+  get time() {
+    if (this.hasVideo) return video.currentTime;
+    if (!clock.paused) { const n = performance.now(); clock.t += ((n - clock.at) / 1000) * clock.rate; clock.at = n; }
+    return clock.t;
+  },
+  set time(t) { if (this.hasVideo) video.currentTime = t; else { clock.t = t; clock.at = performance.now(); } },
+  get paused() { return this.hasVideo ? video.paused : clock.paused; },
+  play() { if (this.hasVideo) return video.play().catch(() => {}); clock.paused = false; clock.at = performance.now(); },
+  pause() { if (this.hasVideo) return video.pause(); this.time; clock.paused = true; },
+  set rate(r) { video.playbackRate = r; clock.rate = r; },
+  get width() { return this.hasVideo ? video.videoWidth : Number(S?.trace.facts.width ?? 720); },
+  get height() { return this.hasVideo ? video.videoHeight : Number(S?.trace.facts.height ?? 960); },
+};
+let SITTINGS = [];
 let S = null;          // the sitting on screen
 let current = 0;       // rep index
 let slow = false, skeleton = true, saveTimer = null;
@@ -303,9 +328,10 @@ function movementStart(window, from) {
 }
 
 async function loadSittings() {
-  const list = await (await fetch('/api/sittings')).json();
+  const list = SITTINGS = await (await fetch('/api/sittings')).json();
+  loadPrune();
   const sel = $('sitting');
-  sel.innerHTML = list.map((s) => `<option value="${s.base}">${s.base}${s.labels ? ` · ${s.labels} labelled` : ''}</option>`).join('');
+  sel.innerHTML = list.map((s) => `<option value="${s.base}">${s.base}${s.labels ? ` · ${s.labels} labelled` : ''}${s.video ? '' : ' · skeleton only'}</option>`).join('');
   if (!list.length) { $('repInfo').textContent = 'No sitting with a video here: pull one with scripts/pull-traces.sh.'; return; }
   sel.onchange = () => open(sel.value);
   const wanted = new URLSearchParams(location.search).get('s');
@@ -395,6 +421,7 @@ async function open(base, atT) {
   const labels = parseLabels(labelsText);
   S = {
     base, trace, labels,
+    hasVideo: SITTINGS.find((s) => s.base === base)?.video !== false,
     wasComplete: false,
     today: parseToday(todayText),
     reps: repsOf(trace),
@@ -409,12 +436,13 @@ async function open(base, atT) {
   $('clothing').value = labels.meta.clothing ?? '';
   $('offset').value = S.offset;
   $('reviewed').checked = Boolean(labels.meta.reviewed);
-  video.src = `/files/${base}.mp4`;
+  if (S.hasVideo) video.src = `/files/${base}.mp4`;
+  else { video.removeAttribute('src'); video.load(); $('facts').textContent += ' · video deleted: the skeleton plays alone'; }
   current = atT !== undefined ? S.reps.findIndex((r) => r.end === atT) : S.reps.findIndex((r) => !S.labels.byT.has(r.end));
   if (current < 0) current = 0;
   S.wasComplete = S.reps.every((r) => S.labels.byT.get(r.end)?.by === 'reviewer');
   renderList();
-  await new Promise((done) => video.addEventListener('loadedmetadata', done, { once: true }));
+  if (S.hasVideo) await new Promise((done) => video.addEventListener('loadedmetadata', done, { once: true }));
   show(current);
 }
 
@@ -499,16 +527,17 @@ function show(i, replay = true) {
   renderList();
   $('reps').children[current]?.scrollIntoView({ block: 'nearest' });
   if (!replay) return;
-  video.playbackRate = slow ? 0.5 : 1;
-  video.currentTime = Math.max(0, vt(r.clipStart) - 0.3);
-  video.play().catch(() => {});
+  player.rate = slow ? 0.5 : 1;
+  player.time = Math.max(0, vt(r.clipStart) - 0.3);
+  player.play();
 }
 
 // The rep plays as a loop: its own stretch of video, a little either side.
 function loop() {
-  if (S && S.reps.length && !video.paused) {
+  if (S && S.reps.length && !player.paused) {
     const r = S.reps[current];
-    if (video.currentTime > vt(r.end) + 0.4 || video.currentTime < vt(r.clipStart) - 0.6) video.currentTime = Math.max(0, vt(r.clipStart) - 0.3);
+    const now = player.time;
+    if (now > vt(r.end) + 0.4 || now < vt(r.clipStart) - 0.6) player.time = Math.max(0, vt(r.clipStart) - 0.3);
   }
   watchdog();
   drawSkeleton();
@@ -521,21 +550,21 @@ function loop() {
  */
 let lastTime = -1, stuckSince = 0;
 function watchdog() {
-  if (!S || video.paused || video.seeking) { stuckSince = 0; lastTime = video.currentTime; return; }
+  if (!S || !player.hasVideo || video.paused || video.seeking) { stuckSince = 0; lastTime = video.currentTime; return; }
   const now = performance.now();
   if (video.currentTime !== lastTime) { lastTime = video.currentTime; stuckSince = now; return; }
   if (!stuckSince) stuckSince = now;
   if (now - stuckSince > 2000) { stuckSince = now; reloadVideo(); }
 }
 function reloadVideo() {
-  if (!S) return;
+  if (!S || !player.hasVideo) return;
   const at = video.currentTime;
   video.src = `/files/${S.base}.mp4?r=${Math.floor(performance.now())}`;
   video.addEventListener('loadedmetadata', () => { video.currentTime = at; video.play().catch(() => {}); }, { once: true });
 }
-video.addEventListener('error', () => setTimeout(reloadVideo, 500));
+video.addEventListener('error', () => { if (player.hasVideo) setTimeout(reloadVideo, 500); });
 // Back to the front: the picture may have been dropped while hidden — make it draw again.
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S) video.currentTime = video.currentTime; });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S && player.hasVideo) video.currentTime = video.currentTime; });
 
 /** The trace's picture landmarks at this moment of the video, drawn where the video is drawn. */
 function drawSkeleton() {
@@ -543,15 +572,15 @@ function drawSkeleton() {
   const w = overlay.clientWidth, h = overlay.clientHeight;
   if (overlay.width !== w || overlay.height !== h) { overlay.width = w; overlay.height = h; }
   ctx.clearRect(0, 0, w, h);
-  if (!S || !skeleton || !video.videoWidth) return;
+  if (!S || !skeleton || !player.width) return;
   const { rows, col } = S.trace;
-  const want = S.startedMs + (video.currentTime + S.offset) * 1000;
+  const want = S.startedMs + (player.time + S.offset) * 1000;
   let lo = 0, hi = rows.length - 1;
   while (lo < hi) { const m = (lo + hi) >> 1; if (Number(rows[m][0]) < want) lo = m + 1; else hi = m; }
   const row = rows[lo];
   if (!row || Math.abs(Number(row[0]) - want) > 150) return;
-  const scale = Math.min(w / video.videoWidth, h / video.videoHeight);
-  const dw = video.videoWidth * scale, dh = video.videoHeight * scale, ox = (w - dw) / 2, oy = (h - dh) / 2;
+  const scale = Math.min(w / player.width, h / player.height);
+  const dw = player.width * scale, dh = player.height * scale, ox = (w - dw) / 2, oy = (h - dh) / 2;
   const P = (i) => [ox + Number(row[col(`i${i}x`)]) * dw, oy + Number(row[col(`i${i}y`)]) * dh, Number(row[col(`i${i}p`)])];
   // Bold: the side the counter reads (sidesOf). Faint: the other, which it ignores.
   const right = [12, 14, 16, 24, 26, 28], left = [11, 13, 15, 23, 25, 27];
@@ -691,13 +720,29 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'd') return doneWithAnswer();
   if (e.key === 'ArrowRight') return show(current + 1);
   if (e.key === 'ArrowLeft') return show(current - 1);
-  if (e.key === ' ') { e.preventDefault(); return video.paused ? video.play() : video.pause(); }
-  if (e.key === 's') { slow = !slow; video.playbackRate = slow ? 0.5 : 1; return; }
+  if (e.key === ' ') { e.preventDefault(); return player.paused ? player.play() : player.pause(); }
+  if (e.key === 's') { slow = !slow; player.rate = slow ? 0.5 : 1; return; }
   if (e.key === 'o') { skeleton = !skeleton; return; }
   if (e.key === 'f') return toggleFlag();
   if (e.key === 'h') { e.preventDefault(); $('hint').focus(); return; }
   if (e.key === 'n') { e.preventDefault(); $('note').focus(); }
 });
+
+/** Videos due for deletion: finished 30+ days ago and promoted. Deleted only on the reviewer's "yes". */
+async function loadPrune() {
+  const due = await (await fetch('/api/prune', { cache: 'no-store' })).json();
+  const b = $('pruneBanner');
+  b.hidden = !due.length;
+  if (!due.length) return;
+  const mb = due.reduce((n, v) => n + v.mb, 0);
+  b.innerHTML = `${due.length} video${due.length > 1 ? 's' : ''} (${mb} MB) from sittings finished 30+ days ago, already saved as numbers in the repository.<br><button id="pruneBtn">Review and delete…</button>`;
+  $('pruneBtn').onclick = async () => {
+    const list = due.map((v) => `${v.base} — finished ${v.finished}, ${v.mb} MB`).join('\n');
+    if (!confirm(`Delete these videos? Their traces and labels stay; the skeleton still plays.\n\n${list}`)) return;
+    await fetch('/api/prune', { method: 'POST' });
+    location.reload();
+  };
+}
 
 loadSittings();
 requestAnimationFrame(loop);

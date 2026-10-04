@@ -4,34 +4,35 @@
 # person=p1
 # clothing=shirtless, dark shorts
 # offset=0.5
-t,label,by,flag,note,claude
-2760061263,honest,claude,,,checked on video
-2760063230,honest,claude,,,checked on video
-2760065198,honest,claude,,,checked on video
-2760067165,honest,claude,,,checked on video
-2760069400,honest,claude,,,checked on video
-2760071500,honest,claude,,,checked on video
-2760073568,honest,claude,,,checked on video
-2760075635,honest,claude,,,checked on video
-2760077570,honest,claude,,,checked on video
-2760081004,honest,claude,,,checked on video
-2760085973,knees,claude,,,checked on video
-2760088474,knees,claude,,,checked on video
-2760090642,knees,claude,,,checked on video
-2760093243,knees,claude,,,checked on video
-2760096111,knees,claude,,,checked on video
-2760103147,floor,claude,,,"lying on the floor, chest first — checked on video"
-2760105748,floor,claude,,,"lying on the floor, chest first — checked on video"
-2760108083,floor,claude,,,"lying on the floor, chest first — checked on video"
-2760110417,floor,claude,,,"lying on the floor, chest first — checked on video"
-2760115452,unsure,claude,,,refused for the body line; not checked on video
-2760122822,half,claude,,,checked on video (1:55)
-2760127124,honest,claude,,,"1:59, as deep as the first ten — checked on video"
-2760130292,half,claude,,,"depth from the trace (shoulder over hand), not each checked on video"
-2760133127,half,claude,,,checked on video (2:06)
-2760135794,honest,claude,,,2:07 at the depth line — owner counts it full
-2760140230,half,claude,,,"depth from the trace (shoulder over hand), not each checked on video"
-2760142864,half,claude,,,"depth from the trace (shoulder over hand), not each checked on video"
-2760145899,half,claude,,,checked on video (2:19)
-2760148900,half,claude,,,checked on video (2:22)
-2760152158,unsure,claude,,,end of the set
+# reviewed=2026-10-04
+t,label,by,flag,hint,note,claude,reply
+2760061263,honest,reviewer,,,,checked on video,
+2760063230,honest,reviewer,,,,checked on video,
+2760065198,honest,reviewer,,,,checked on video,
+2760067165,honest,reviewer,,,,checked on video,
+2760069400,honest,reviewer,,,,checked on video,
+2760071500,honest,reviewer,,,,checked on video,
+2760073568,honest,reviewer,,,,checked on video,
+2760075635,honest,reviewer,,,,checked on video,
+2760077570,honest,reviewer,,,,checked on video,
+2760081004,honest,reviewer,,,,checked on video,
+2760085973,knees,reviewer,,,,checked on video,
+2760088474,knees,reviewer,,,,checked on video,
+2760090642,knees,reviewer,,,,checked on video,
+2760093243,knees,reviewer,,,,checked on video,
+2760096111,knees,reviewer,,,,checked on video,
+2760103147,floor,reviewer,,,,"lying on the floor, chest first — checked on video",
+2760105748,floor,reviewer,,,,"lying on the floor, chest first — checked on video",
+2760108083,floor,reviewer,,,,"lying on the floor, chest first — checked on video",
+2760110417,floor,reviewer,,,,"lying on the floor, chest first — checked on video",
+2760115452,unsure,reviewer,,KEEP_BODY_STRAIGHT,,refused for the body line; not checked on video,
+2760122822,half,reviewer,,,,checked on video (1:55),
+2760127124,honest,reviewer,,,,"1:59, as deep as the first ten — checked on video",
+2760130292,half,reviewer,,,,"depth from the trace (shoulder over hand), not each checked on video",
+2760133127,half,reviewer,,,,checked on video (2:06),
+2760135794,honest,reviewer,,,,2:07 at the depth line — owner counts it full,
+2760140230,half,reviewer,,,,"depth from the trace (shoulder over hand), not each checked on video",
+2760142864,half,reviewer,,,,"depth from the trace (shoulder over hand), not each checked on video",
+2760145899,half,reviewer,,,,checked on video (2:19),
+2760148900,half,reviewer,,,,checked on video (2:22),
+2760152158,unsure,reviewer,,,,end of the set,
