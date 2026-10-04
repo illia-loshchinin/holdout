@@ -59,6 +59,7 @@
   #reply { border-left:3px solid var(--accent); padding:4px 10px; background:var(--panel); border-radius:4px; flex:1; }
   #reply:empty { display:none; }
   #doneBtn { padding:5px 10px; cursor:pointer; }
+  #factsPanel { color:var(--dim); font-size:13px; border-left:3px solid var(--line); padding-left:8px; }
   .agree { font-weight:600; padding:1px 8px; border-radius:10px; }
   .agree.ok { background:var(--ok); color:#002010; }
   .agree.bad { background:var(--bad); color:#1a0000; }
@@ -90,6 +91,7 @@
     <canvas id="overlay"></canvas>
   </div>
   <footer>
+    <div class="row"><span id="factsPanel"></span></div>
     <div class="row">
       <span id="repInfo" class="muted">Pick a sitting.</span>
     </div>
@@ -379,7 +381,7 @@ async function open(base, atT) {
     offset: Number(labels.meta.offset ?? 0.5),
   };
   $('title').textContent = base.split('/').pop();
-  $('facts').title = $('facts').textContent = [trace.facts.stakes, trace.facts.placement && `${trace.facts.placement}° ${trace.facts.phoneSide ?? ''}`, trace.facts.expectedReps && `person counted ${trace.facts.expectedReps}`, trace.note].filter(Boolean).join(' · ');
+  $('factsPanel').textContent = $('facts').title = $('facts').textContent = [trace.facts.stakes, trace.facts.placement && `${trace.facts.placement}° ${trace.facts.phoneSide ?? ''}`, trace.facts.expectedReps && `person counted ${trace.facts.expectedReps}`, trace.note].filter(Boolean).join(' · ');
   $('person').value = labels.meta.person ?? '';
   $('clothing').value = labels.meta.clothing ?? '';
   $('offset').value = S.offset;
