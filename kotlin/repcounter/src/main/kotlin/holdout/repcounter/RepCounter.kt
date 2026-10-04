@@ -275,6 +275,16 @@ enum class RepHint(val message: String) {
      * the floor.
      */
     LEGS_IN_VIEW("Keep your legs in the picture"),
+
+    /**
+     * Staked only: the body rested on the floor at the bottom — hips or thighs
+     * carrying weight on it, then pushed back up (owner, 2026-10-04: resting,
+     * not a chest brushing the floor). **Not said yet**: no landmark reading
+     * tells a hip resting on the floor from a deep honest bottom
+     * (`angled40-right-floor-20`), so nothing refuses with it until the
+     * knee-on-the-floor image classifier also judges the hips.
+     */
+    HIPS_OFF_FLOOR("Hips off the floor"),
 }
 
 /**

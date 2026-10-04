@@ -6,7 +6,7 @@ Source of truth is the code named beside each group; this list is for review and
 
 `Stakes.STAKED_RULE`:
 
-> Staked Holdouts are counted at 45°: stand the phone on the floor ahead of your shoulder, turned to look at you at about 45° — not in front, not straight beside you — and do full push-ups from your toes. Push-ups from the knees do not count.
+> Staked Holdouts are counted at 45°: stand the phone on the floor ahead of your shoulder, turned to look at you at about 45° — not in front, not straight beside you — and do full push-ups from your toes. Push-ups from the knees, or with the hips resting on the floor at the bottom, do not count.
 
 Shown today in the set-up guide for staked sittings. Must appear on the stake sheet (001 T059) and the tour's counting card (001 T042).
 
@@ -37,6 +37,7 @@ A moving background is not a correction: its pill turns amber with "Find a spot 
 - "Slow down" — too fast
 - "Knees off the floor" — staked only
 - "Keep your legs in the picture" *(was "…your knees…" until 2026-10-02)* — staked only: the near knee unseen, unreadable or at the picture's edge, or the foot slipping out of it, on the push or on the way down; said aloud the first time
+- "Hips off the floor" *(added 2026-10-04)* — staked only: the hips or thighs rested on the floor at the bottom, carrying weight, and the body was pushed back up. Resting, not a chest brushing the floor. **Not said yet**: no check can see it until the knee-on-the-floor image classifier judges the hips too; until then such reps count (`angled40-right-floor-20`), and the rule sentence says they do not
 
 ## Framing (FR-024, FR-010) — the whole-body check, before the hold
 

@@ -392,5 +392,6 @@ class StakesTest {
         val rule = Stakes.STAKED_RULE.lowercase()
         assertTrue("45" in rule && "not in front" in rule, "the placement")
         assertTrue("toes" in rule && "knees" in rule, "the knees")
+        assertTrue("resting on the floor" in rule, "the floor: a rep resting on it does not count")
     }
 }

@@ -43,6 +43,10 @@ Decided from eleven more labelled phone traces (seventeen in all), with the phon
 - Q: A staked push shows no knee at all — pass or refuse? → A: Refuse, with "Keep your legs in view": a knee the camera never saw is not a knee off the floor. The staked ready position needs the knee in view too.
 - Q: Should a small image classifier decide "knee on the floor" instead of the landmark rules? → A: Yes, eventually, and not now. It needs recordings from several people; until then the landmark rules stand, stated as measured on one person. A debug "clean screen" switch — nothing drawn over the camera — exists so screen recordings can be used as training data later.
 
+### Session 2026-10-04
+
+- Q: A push-up "that touched the floor does not count" (2026-10-02) — does a chest brushing the carpet at the bottom count as touching? → A: No. What does not count is **resting**: the hips or thighs carrying weight on the floor at the bottom, then pushed back up (`angled40-right-floor-20`, four reps that counted). A brushed chest is hard to see from 45° and many honest deep reps graze the floor. The rep is refused with "Hips off the floor", and the staked rule sentence says so. No check can see it yet: until the knee-on-the-floor image classifier judges the hips, such reps still count.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Daily 25 counts from where people actually put the phone (Priority: P1)
@@ -149,7 +153,7 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 
 **Stating the rule**
 
-- **FR-012**: Before staking, the stake sheet MUST state in one sentence that a Holdout is counted at 45° only — not in front, not straight beside — with full push-ups from the toes, and that push-ups from the knees do not count.
+- **FR-012**: Before staking, the stake sheet MUST state in one sentence that a Holdout is counted at 45° only — not in front, not straight beside — with full push-ups from the toes, and that push-ups from the knees do not count — nor, *(amended 2026-10-04)*, push-ups with the hips resting on the floor at the bottom.
 - **FR-013**: The first-run tour's card on how reps are counted MUST state both placements and the knee rule: the Daily 25 in front or at 45°, knee push-ups welcome; a Holdout at 45° only and from the toes.
 - **FR-014**: The sentence stating the staked rule MUST read the same everywhere it appears.
 

@@ -207,7 +207,7 @@ private fun BodyPage(stakes: Stakes) {
             add("Your whole body in the picture — head to feet. Move back if it is not.")
             add("Line your body up with the outline on the screen.")
             if (stakes == Stakes.STAKED) {
-                add("On your toes. Push-ups from the knees do not count.")
+                add("On your toes, and stop just above the floor. Push-ups from the knees, or resting on the floor at the bottom, do not count.")
                 add("The phone must see your knees: turn your body a little away from it, so the leg nearer the phone shows clearly.")
             } else {
                 add("Body straight from shoulders to heels — or from the knees if you are building up. Both count for the Daily 25.")

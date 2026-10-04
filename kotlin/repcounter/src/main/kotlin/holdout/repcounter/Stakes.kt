@@ -53,6 +53,7 @@ enum class Stakes {
         const val STAKED_RULE =
             "Staked Holdouts are counted at 45°: stand the phone on the floor ahead of your shoulder, " +
                 "turned to look at you at about 45° — not in front, not straight beside you — " +
-                "and do full push-ups from your toes. Push-ups from the knees do not count."
+                "and do full push-ups from your toes. Push-ups from the knees, or with the hips resting on the floor " +
+                "at the bottom, do not count."
     }
 }
