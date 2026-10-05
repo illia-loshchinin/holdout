@@ -17,6 +17,16 @@ pub const LEAGUE_21D: u8 = 1;
 /// carrying the `test-leagues` feature (research R11, scope doc D-A).
 pub const TEST_LEAGUE_MIN: u8 = 100;
 
+/// Form 0: reps from the toes — the **Hard** league (H35).
+pub const FORM_TOES: u8 = 0;
+/// Form 1: push-ups from the knees count, every other check as Hard, and the
+/// phone at 40–60° only — the **Easy** league (H35).
+pub const FORM_KNEES_ALLOWED: u8 = 1;
+
+/// PDA seed prefix of a league's SKR reserve vault, followed by `league_id`.
+/// Its authority is the league PDA, so only the program moves what it holds.
+pub const RESERVE_SEED: &[u8] = b"reserve";
+
 /// Push-ups. `1` (negatives) and `2` (decline) are reserved layout for later
 /// exercises and rejected by `create_league` in this build (H30, error 6053).
 pub const EXERCISE_PUSHUP: u8 = 0;
@@ -63,6 +73,14 @@ pub struct LeagueConfig {
     pub join_lock: i64,
     /// The index the next `open_cohort` must use (R11, FR-007a).
     pub next_index: u32,
+    /// How reps are judged, copied to every cohort: [`FORM_TOES`] or [`FORM_KNEES_ALLOWED`].
+    pub form: u8,
+    /// SKR in the reserve vault set aside for boosts (FR-037d). Credited only
+    /// when a cohort of this league finalizes (FR-037c, INV-10).
+    pub boost_reserve: u64,
+    /// SKR in the reserve vault set aside for comeback refunds (FR-037e).
+    pub comeback_reserve: u64,
+    pub reserve_vault_bump: u8,
     pub bump: u8,
 }
 

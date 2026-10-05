@@ -15,8 +15,8 @@ export const RECORD_FORFEITS_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array(
 
 export function getRecordForfeitsDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(RECORD_FORFEITS_DISCRIMINATOR); }
 
-export type RecordForfeitsInstruction<TProgram extends string = typeof HOLDOUT_PROGRAM_ADDRESS, TAccountCaller extends string | AccountMeta<string> = string, TAccountConfig extends string | AccountMeta<string> = string, TAccountCohort extends string | AccountMeta<string> = string, TAccountVault extends string | AccountMeta<string> = string, TAccountFeeDestination extends string | AccountMeta<string> = string, TAccountTokenProgram extends string | AccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
-Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountCaller extends string ? WritableSignerAccount<TAccountCaller> & AccountSignerMeta<TAccountCaller> : TAccountCaller, TAccountConfig extends string ? ReadonlyAccount<TAccountConfig> : TAccountConfig, TAccountCohort extends string ? WritableAccount<TAccountCohort> : TAccountCohort, TAccountVault extends string ? WritableAccount<TAccountVault> : TAccountVault, TAccountFeeDestination extends string ? WritableAccount<TAccountFeeDestination> : TAccountFeeDestination, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, ...TRemainingAccounts]>;
+export type RecordForfeitsInstruction<TProgram extends string = typeof HOLDOUT_PROGRAM_ADDRESS, TAccountCaller extends string | AccountMeta<string> = string, TAccountConfig extends string | AccountMeta<string> = string, TAccountCohort extends string | AccountMeta<string> = string, TAccountVault extends string | AccountMeta<string> = string, TAccountFeeDestination extends string | AccountMeta<string> = string, TAccountDeveloperDestination extends string | AccountMeta<string> = string, TAccountTokenProgram extends string | AccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
+Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountCaller extends string ? WritableSignerAccount<TAccountCaller> & AccountSignerMeta<TAccountCaller> : TAccountCaller, TAccountConfig extends string ? ReadonlyAccount<TAccountConfig> : TAccountConfig, TAccountCohort extends string ? WritableAccount<TAccountCohort> : TAccountCohort, TAccountVault extends string ? WritableAccount<TAccountVault> : TAccountVault, TAccountFeeDestination extends string ? WritableAccount<TAccountFeeDestination> : TAccountFeeDestination, TAccountDeveloperDestination extends string ? WritableAccount<TAccountDeveloperDestination> : TAccountDeveloperDestination, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, ...TRemainingAccounts]>;
 
 export type RecordForfeitsInstructionData = { discriminator: ReadonlyUint8Array;  };
 
@@ -34,17 +34,18 @@ export function getRecordForfeitsInstructionDataCodec(): FixedSizeCodec<RecordFo
     return combineCodec(getRecordForfeitsInstructionDataEncoder(), getRecordForfeitsInstructionDataDecoder());
 }
 
-export type RecordForfeitsAsyncInput<TAccountCaller extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountCohort extends InstructionAccountInput = InstructionAccountInput, TAccountVault extends InstructionAccountInput = InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput = InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput = InstructionAccountInput> =  {
+export type RecordForfeitsAsyncInput<TAccountCaller extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountCohort extends InstructionAccountInput = InstructionAccountInput, TAccountVault extends InstructionAccountInput = InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput = InstructionAccountInput, TAccountDeveloperDestination extends InstructionAccountInput = InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput = InstructionAccountInput> =  {
   /** Anyone. Pays the fee, and the result does not depend on who they are. */
 caller: TAccountCaller;
 config?: TAccountConfig;
 cohort: TAccountCohort;
 vault?: TAccountVault;
 feeDestination: TAccountFeeDestination;
+developerDestination: TAccountDeveloperDestination;
 tokenProgram?: TAccountTokenProgram;
 }
 
-export async function getRecordForfeitsInstructionAsync<TAccountCaller extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TAccountCohort extends InstructionAccountInput, TAccountVault extends InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof HOLDOUT_PROGRAM_ADDRESS>(input: RecordForfeitsAsyncInput<TAccountCaller, TAccountConfig, TAccountCohort, TAccountVault, TAccountFeeDestination, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): Promise<RecordForfeitsInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>> {
+export async function getRecordForfeitsInstructionAsync<TAccountCaller extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TAccountCohort extends InstructionAccountInput, TAccountVault extends InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput, TAccountDeveloperDestination extends InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof HOLDOUT_PROGRAM_ADDRESS>(input: RecordForfeitsAsyncInput<TAccountCaller, TAccountConfig, TAccountCohort, TAccountVault, TAccountFeeDestination, TAccountDeveloperDestination, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): Promise<RecordForfeitsInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountDeveloperDestination, InstructionAccountInputAddress<TAccountDeveloperDestination>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>> {
   // Program address.
 const programAddress = config?.programAddress ?? HOLDOUT_PROGRAM_ADDRESS;
 
@@ -52,7 +53,7 @@ const programAddress = config?.programAddress ?? HOLDOUT_PROGRAM_ADDRESS;
 const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
 
  // Original accounts.
-const originalAccounts = { caller: { value: input.caller ?? null, isSigner: true, isWritable: true }, config: { value: input.config ?? null, isSigner: false, isWritable: false }, cohort: { value: input.cohort ?? null, isSigner: false, isWritable: true }, vault: { value: input.vault ?? null, isSigner: false, isWritable: true }, feeDestination: { value: input.feeDestination ?? null, isSigner: false, isWritable: true }, tokenProgram: { value: input.tokenProgram ?? null, isSigner: false, isWritable: false } }
+const originalAccounts = { caller: { value: input.caller ?? null, isSigner: true, isWritable: true }, config: { value: input.config ?? null, isSigner: false, isWritable: false }, cohort: { value: input.cohort ?? null, isSigner: false, isWritable: true }, vault: { value: input.vault ?? null, isSigner: false, isWritable: true }, feeDestination: { value: input.feeDestination ?? null, isSigner: false, isWritable: true }, developerDestination: { value: input.developerDestination ?? null, isSigner: false, isWritable: true }, tokenProgram: { value: input.tokenProgram ?? null, isSigner: false, isWritable: false } }
 const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
 
@@ -67,20 +68,21 @@ if (!accounts.tokenProgram.value) {
 accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
 }
 
-return Object.freeze({ accounts: [getAccountMeta("caller", accounts.caller), getAccountMeta("config", accounts.config), getAccountMeta("cohort", accounts.cohort), getAccountMeta("vault", accounts.vault), getAccountMeta("feeDestination", accounts.feeDestination), getAccountMeta("tokenProgram", accounts.tokenProgram)], data: getRecordForfeitsInstructionDataEncoder().encode({}), programAddress } as RecordForfeitsInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>);
+return Object.freeze({ accounts: [getAccountMeta("caller", accounts.caller), getAccountMeta("config", accounts.config), getAccountMeta("cohort", accounts.cohort), getAccountMeta("vault", accounts.vault), getAccountMeta("feeDestination", accounts.feeDestination), getAccountMeta("developerDestination", accounts.developerDestination), getAccountMeta("tokenProgram", accounts.tokenProgram)], data: getRecordForfeitsInstructionDataEncoder().encode({}), programAddress } as RecordForfeitsInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountDeveloperDestination, InstructionAccountInputAddress<TAccountDeveloperDestination>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>);
 }
 
-export type RecordForfeitsInput<TAccountCaller extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountCohort extends InstructionAccountInput = InstructionAccountInput, TAccountVault extends InstructionAccountInput = InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput = InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput = InstructionAccountInput> =  {
+export type RecordForfeitsInput<TAccountCaller extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountCohort extends InstructionAccountInput = InstructionAccountInput, TAccountVault extends InstructionAccountInput = InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput = InstructionAccountInput, TAccountDeveloperDestination extends InstructionAccountInput = InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput = InstructionAccountInput> =  {
   /** Anyone. Pays the fee, and the result does not depend on who they are. */
 caller: TAccountCaller;
 config: TAccountConfig;
 cohort: TAccountCohort;
 vault: TAccountVault;
 feeDestination: TAccountFeeDestination;
+developerDestination: TAccountDeveloperDestination;
 tokenProgram?: TAccountTokenProgram;
 }
 
-export function getRecordForfeitsInstruction<TAccountCaller extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TAccountCohort extends InstructionAccountInput, TAccountVault extends InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof HOLDOUT_PROGRAM_ADDRESS>(input: RecordForfeitsInput<TAccountCaller, TAccountConfig, TAccountCohort, TAccountVault, TAccountFeeDestination, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): RecordForfeitsInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>> {
+export function getRecordForfeitsInstruction<TAccountCaller extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TAccountCohort extends InstructionAccountInput, TAccountVault extends InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput, TAccountDeveloperDestination extends InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof HOLDOUT_PROGRAM_ADDRESS>(input: RecordForfeitsInput<TAccountCaller, TAccountConfig, TAccountCohort, TAccountVault, TAccountFeeDestination, TAccountDeveloperDestination, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): RecordForfeitsInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountDeveloperDestination, InstructionAccountInputAddress<TAccountDeveloperDestination>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>> {
   // Program address.
 const programAddress = config?.programAddress ?? HOLDOUT_PROGRAM_ADDRESS;
 
@@ -88,7 +90,7 @@ const programAddress = config?.programAddress ?? HOLDOUT_PROGRAM_ADDRESS;
 const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
 
  // Original accounts.
-const originalAccounts = { caller: { value: input.caller ?? null, isSigner: true, isWritable: true }, config: { value: input.config ?? null, isSigner: false, isWritable: false }, cohort: { value: input.cohort ?? null, isSigner: false, isWritable: true }, vault: { value: input.vault ?? null, isSigner: false, isWritable: true }, feeDestination: { value: input.feeDestination ?? null, isSigner: false, isWritable: true }, tokenProgram: { value: input.tokenProgram ?? null, isSigner: false, isWritable: false } }
+const originalAccounts = { caller: { value: input.caller ?? null, isSigner: true, isWritable: true }, config: { value: input.config ?? null, isSigner: false, isWritable: false }, cohort: { value: input.cohort ?? null, isSigner: false, isWritable: true }, vault: { value: input.vault ?? null, isSigner: false, isWritable: true }, feeDestination: { value: input.feeDestination ?? null, isSigner: false, isWritable: true }, developerDestination: { value: input.developerDestination ?? null, isSigner: false, isWritable: true }, tokenProgram: { value: input.tokenProgram ?? null, isSigner: false, isWritable: false } }
 const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
 
@@ -97,7 +99,7 @@ if (!accounts.tokenProgram.value) {
 accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
 }
 
-return Object.freeze({ accounts: [getAccountMeta("caller", accounts.caller), getAccountMeta("config", accounts.config), getAccountMeta("cohort", accounts.cohort), getAccountMeta("vault", accounts.vault), getAccountMeta("feeDestination", accounts.feeDestination), getAccountMeta("tokenProgram", accounts.tokenProgram)], data: getRecordForfeitsInstructionDataEncoder().encode({}), programAddress } as RecordForfeitsInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>);
+return Object.freeze({ accounts: [getAccountMeta("caller", accounts.caller), getAccountMeta("config", accounts.config), getAccountMeta("cohort", accounts.cohort), getAccountMeta("vault", accounts.vault), getAccountMeta("feeDestination", accounts.feeDestination), getAccountMeta("developerDestination", accounts.developerDestination), getAccountMeta("tokenProgram", accounts.tokenProgram)], data: getRecordForfeitsInstructionDataEncoder().encode({}), programAddress } as RecordForfeitsInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountDeveloperDestination, InstructionAccountInputAddress<TAccountDeveloperDestination>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>);
 }
 
 export type ParsedRecordForfeitsInstruction<TProgram extends string = typeof HOLDOUT_PROGRAM_ADDRESS, TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]> = { programAddress: Address<TProgram>;
@@ -108,13 +110,14 @@ config: TAccountMetas[1];
 cohort: TAccountMetas[2];
 vault: TAccountMetas[3];
 feeDestination: TAccountMetas[4];
-tokenProgram: TAccountMetas[5];
+developerDestination: TAccountMetas[5];
+tokenProgram: TAccountMetas[6];
 };
 data: RecordForfeitsInstructionData; };
 
 export function parseRecordForfeitsInstruction<TProgram extends string, TAccountMetas extends readonly AccountMeta[]>(instruction: Instruction<TProgram> & InstructionWithAccounts<TAccountMetas> & InstructionWithData<ReadonlyUint8Array>): ParsedRecordForfeitsInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 6) {
-  throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, { actualAccountMetas: instruction.accounts.length, expectedAccountMetas: 6 });
+  if (instruction.accounts.length < 7) {
+  throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, { actualAccountMetas: instruction.accounts.length, expectedAccountMetas: 7 });
 }
 let accountIndex = 0;
 const getNextAccount = () => {
@@ -122,5 +125,5 @@ const getNextAccount = () => {
   accountIndex += 1;
   return accountMeta;
 }
-  return { programAddress: instruction.programAddress, accounts: { caller: getNextAccount(), config: getNextAccount(), cohort: getNextAccount(), vault: getNextAccount(), feeDestination: getNextAccount(), tokenProgram: getNextAccount() }, data: getRecordForfeitsInstructionDataDecoder().decode(instruction.data) };
+  return { programAddress: instruction.programAddress, accounts: { caller: getNextAccount(), config: getNextAccount(), cohort: getNextAccount(), vault: getNextAccount(), feeDestination: getNextAccount(), developerDestination: getNextAccount(), tokenProgram: getNextAccount() }, data: getRecordForfeitsInstructionDataDecoder().decode(instruction.data) };
 }

@@ -15,41 +15,50 @@ export const CREATE_LEAGUE_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([1
 
 export function getCreateLeagueDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(CREATE_LEAGUE_DISCRIMINATOR); }
 
-export type CreateLeagueInstruction<TProgram extends string = typeof HOLDOUT_PROGRAM_ADDRESS, TAccountAdmin extends string | AccountMeta<string> = string, TAccountConfig extends string | AccountMeta<string> = string, TAccountLeague extends string | AccountMeta<string> = string, TAccountSystemProgram extends string | AccountMeta<string> = "11111111111111111111111111111111", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
-Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountAdmin extends string ? WritableSignerAccount<TAccountAdmin> & AccountSignerMeta<TAccountAdmin> : TAccountAdmin, TAccountConfig extends string ? ReadonlyAccount<TAccountConfig> : TAccountConfig, TAccountLeague extends string ? WritableAccount<TAccountLeague> : TAccountLeague, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, ...TRemainingAccounts]>;
+export type CreateLeagueInstruction<TProgram extends string = typeof HOLDOUT_PROGRAM_ADDRESS, TAccountAdmin extends string | AccountMeta<string> = string, TAccountConfig extends string | AccountMeta<string> = string, TAccountLeague extends string | AccountMeta<string> = string, TAccountSkrMint extends string | AccountMeta<string> = string, TAccountReserveVault extends string | AccountMeta<string> = string, TAccountSystemProgram extends string | AccountMeta<string> = "11111111111111111111111111111111", TAccountTokenProgram extends string | AccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
+Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountAdmin extends string ? WritableSignerAccount<TAccountAdmin> & AccountSignerMeta<TAccountAdmin> : TAccountAdmin, TAccountConfig extends string ? ReadonlyAccount<TAccountConfig> : TAccountConfig, TAccountLeague extends string ? WritableAccount<TAccountLeague> : TAccountLeague, TAccountSkrMint extends string ? ReadonlyAccount<TAccountSkrMint> : TAccountSkrMint, TAccountReserveVault extends string ? WritableAccount<TAccountReserveVault> : TAccountReserveVault, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, ...TRemainingAccounts]>;
 
-export type CreateLeagueInstructionData = { discriminator: ReadonlyUint8Array; leagueId: number; durationDays: number; repsPerDay: number; exercise: number; firstStart: bigint; dayLength: bigint; cadence: bigint; joinLock: bigint;  };
+export type CreateLeagueInstructionData = { discriminator: ReadonlyUint8Array; leagueId: number; durationDays: number; repsPerDay: number; exercise: number; form: number; firstStart: bigint; dayLength: bigint; cadence: bigint; joinLock: bigint;  };
 
-export type CreateLeagueInstructionDataArgs = { leagueId: number; durationDays: number; repsPerDay: number; exercise: number; firstStart: number | bigint; dayLength: number | bigint; cadence: number | bigint; joinLock: number | bigint;  };
+export type CreateLeagueInstructionDataArgs = { leagueId: number; durationDays: number; repsPerDay: number; exercise: number; form: number; firstStart: number | bigint; dayLength: number | bigint; cadence: number | bigint; joinLock: number | bigint;  };
 
 export function getCreateLeagueInstructionDataEncoder(): FixedSizeEncoder<CreateLeagueInstructionDataArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['leagueId', getU8Encoder()], ['durationDays', getU8Encoder()], ['repsPerDay', getU16Encoder()], ['exercise', getU8Encoder()], ['firstStart', getI64Encoder()], ['dayLength', getI64Encoder()], ['cadence', getI64Encoder()], ['joinLock', getI64Encoder()]]), (value) => ({ ...value, discriminator: CREATE_LEAGUE_DISCRIMINATOR }));
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['leagueId', getU8Encoder()], ['durationDays', getU8Encoder()], ['repsPerDay', getU16Encoder()], ['exercise', getU8Encoder()], ['form', getU8Encoder()], ['firstStart', getI64Encoder()], ['dayLength', getI64Encoder()], ['cadence', getI64Encoder()], ['joinLock', getI64Encoder()]]), (value) => ({ ...value, discriminator: CREATE_LEAGUE_DISCRIMINATOR }));
 }
 
 export function getCreateLeagueInstructionDataDecoder(): FixedSizeDecoder<CreateLeagueInstructionData> {
-    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['leagueId', getU8Decoder()], ['durationDays', getU8Decoder()], ['repsPerDay', getU16Decoder()], ['exercise', getU8Decoder()], ['firstStart', getI64Decoder()], ['dayLength', getI64Decoder()], ['cadence', getI64Decoder()], ['joinLock', getI64Decoder()]]);
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['leagueId', getU8Decoder()], ['durationDays', getU8Decoder()], ['repsPerDay', getU16Decoder()], ['exercise', getU8Decoder()], ['form', getU8Decoder()], ['firstStart', getI64Decoder()], ['dayLength', getI64Decoder()], ['cadence', getI64Decoder()], ['joinLock', getI64Decoder()]]);
 }
 
 export function getCreateLeagueInstructionDataCodec(): FixedSizeCodec<CreateLeagueInstructionDataArgs, CreateLeagueInstructionData> {
     return combineCodec(getCreateLeagueInstructionDataEncoder(), getCreateLeagueInstructionDataDecoder());
 }
 
-export type CreateLeagueAsyncInput<TAccountAdmin extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountLeague extends InstructionAccountInput = InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput = InstructionAccountInput> =  {
+export type CreateLeagueAsyncInput<TAccountAdmin extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountLeague extends InstructionAccountInput = InstructionAccountInput, TAccountSkrMint extends InstructionAccountInput = InstructionAccountInput, TAccountReserveVault extends InstructionAccountInput = InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput = InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput = InstructionAccountInput> =  {
   admin: TAccountAdmin;
 config?: TAccountConfig;
 league: TAccountLeague;
+skrMint: TAccountSkrMint;
+/**
+ * The league's SKR reserve: boosts and comeback refunds, credited only when
+ * one of its cohorts finalizes (FR-037c). Its authority is the league PDA,
+ * so no key outside the program can move what it holds (constitution I).
+ */
+reserveVault: TAccountReserveVault;
 systemProgram?: TAccountSystemProgram;
+tokenProgram?: TAccountTokenProgram;
 leagueId: CreateLeagueInstructionDataArgs["leagueId"];
 durationDays: CreateLeagueInstructionDataArgs["durationDays"];
 repsPerDay: CreateLeagueInstructionDataArgs["repsPerDay"];
 exercise: CreateLeagueInstructionDataArgs["exercise"];
+form: CreateLeagueInstructionDataArgs["form"];
 firstStart: CreateLeagueInstructionDataArgs["firstStart"];
 dayLength: CreateLeagueInstructionDataArgs["dayLength"];
 cadence: CreateLeagueInstructionDataArgs["cadence"];
 joinLock: CreateLeagueInstructionDataArgs["joinLock"];
 }
 
-export async function getCreateLeagueInstructionAsync<TAccountAdmin extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TAccountLeague extends InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof HOLDOUT_PROGRAM_ADDRESS>(input: CreateLeagueAsyncInput<TAccountAdmin, TAccountConfig, TAccountLeague, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress } ): Promise<CreateLeagueInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAdmin, InstructionAccountInputAddress<TAccountAdmin>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>>> {
+export async function getCreateLeagueInstructionAsync<TAccountAdmin extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TAccountLeague extends InstructionAccountInput, TAccountSkrMint extends InstructionAccountInput, TAccountReserveVault extends InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof HOLDOUT_PROGRAM_ADDRESS>(input: CreateLeagueAsyncInput<TAccountAdmin, TAccountConfig, TAccountLeague, TAccountSkrMint, TAccountReserveVault, TAccountSystemProgram, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): Promise<CreateLeagueInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAdmin, InstructionAccountInputAddress<TAccountAdmin>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountSkrMint, InstructionAccountInputAddress<TAccountSkrMint>>, ResolvedInstructionAccountMeta<TAccountReserveVault, InstructionAccountInputAddress<TAccountReserveVault>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>> {
   // Program address.
 const programAddress = config?.programAddress ?? HOLDOUT_PROGRAM_ADDRESS;
 
@@ -57,7 +66,7 @@ const programAddress = config?.programAddress ?? HOLDOUT_PROGRAM_ADDRESS;
 const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
 
  // Original accounts.
-const originalAccounts = { admin: { value: input.admin ?? null, isSigner: true, isWritable: true }, config: { value: input.config ?? null, isSigner: false, isWritable: false }, league: { value: input.league ?? null, isSigner: false, isWritable: true }, systemProgram: { value: input.systemProgram ?? null, isSigner: false, isWritable: false } }
+const originalAccounts = { admin: { value: input.admin ?? null, isSigner: true, isWritable: true }, config: { value: input.config ?? null, isSigner: false, isWritable: false }, league: { value: input.league ?? null, isSigner: false, isWritable: true }, skrMint: { value: input.skrMint ?? null, isSigner: false, isWritable: false }, reserveVault: { value: input.reserveVault ?? null, isSigner: false, isWritable: true }, systemProgram: { value: input.systemProgram ?? null, isSigner: false, isWritable: false }, tokenProgram: { value: input.tokenProgram ?? null, isSigner: false, isWritable: false } }
 const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
 
@@ -72,26 +81,38 @@ accounts.config.value = await findConfigPda({ programAddress });
 if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
 }
-
-return Object.freeze({ accounts: [getAccountMeta("admin", accounts.admin), getAccountMeta("config", accounts.config), getAccountMeta("league", accounts.league), getAccountMeta("systemProgram", accounts.systemProgram)], data: getCreateLeagueInstructionDataEncoder().encode(args as CreateLeagueInstructionDataArgs), programAddress } as CreateLeagueInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAdmin, InstructionAccountInputAddress<TAccountAdmin>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>>);
+if (!accounts.tokenProgram.value) {
+accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
 }
 
-export type CreateLeagueInput<TAccountAdmin extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountLeague extends InstructionAccountInput = InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput = InstructionAccountInput> =  {
+return Object.freeze({ accounts: [getAccountMeta("admin", accounts.admin), getAccountMeta("config", accounts.config), getAccountMeta("league", accounts.league), getAccountMeta("skrMint", accounts.skrMint), getAccountMeta("reserveVault", accounts.reserveVault), getAccountMeta("systemProgram", accounts.systemProgram), getAccountMeta("tokenProgram", accounts.tokenProgram)], data: getCreateLeagueInstructionDataEncoder().encode(args as CreateLeagueInstructionDataArgs), programAddress } as CreateLeagueInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAdmin, InstructionAccountInputAddress<TAccountAdmin>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountSkrMint, InstructionAccountInputAddress<TAccountSkrMint>>, ResolvedInstructionAccountMeta<TAccountReserveVault, InstructionAccountInputAddress<TAccountReserveVault>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>);
+}
+
+export type CreateLeagueInput<TAccountAdmin extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountLeague extends InstructionAccountInput = InstructionAccountInput, TAccountSkrMint extends InstructionAccountInput = InstructionAccountInput, TAccountReserveVault extends InstructionAccountInput = InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput = InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput = InstructionAccountInput> =  {
   admin: TAccountAdmin;
 config: TAccountConfig;
 league: TAccountLeague;
+skrMint: TAccountSkrMint;
+/**
+ * The league's SKR reserve: boosts and comeback refunds, credited only when
+ * one of its cohorts finalizes (FR-037c). Its authority is the league PDA,
+ * so no key outside the program can move what it holds (constitution I).
+ */
+reserveVault: TAccountReserveVault;
 systemProgram?: TAccountSystemProgram;
+tokenProgram?: TAccountTokenProgram;
 leagueId: CreateLeagueInstructionDataArgs["leagueId"];
 durationDays: CreateLeagueInstructionDataArgs["durationDays"];
 repsPerDay: CreateLeagueInstructionDataArgs["repsPerDay"];
 exercise: CreateLeagueInstructionDataArgs["exercise"];
+form: CreateLeagueInstructionDataArgs["form"];
 firstStart: CreateLeagueInstructionDataArgs["firstStart"];
 dayLength: CreateLeagueInstructionDataArgs["dayLength"];
 cadence: CreateLeagueInstructionDataArgs["cadence"];
 joinLock: CreateLeagueInstructionDataArgs["joinLock"];
 }
 
-export function getCreateLeagueInstruction<TAccountAdmin extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TAccountLeague extends InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof HOLDOUT_PROGRAM_ADDRESS>(input: CreateLeagueInput<TAccountAdmin, TAccountConfig, TAccountLeague, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress } ): CreateLeagueInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAdmin, InstructionAccountInputAddress<TAccountAdmin>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>> {
+export function getCreateLeagueInstruction<TAccountAdmin extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TAccountLeague extends InstructionAccountInput, TAccountSkrMint extends InstructionAccountInput, TAccountReserveVault extends InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof HOLDOUT_PROGRAM_ADDRESS>(input: CreateLeagueInput<TAccountAdmin, TAccountConfig, TAccountLeague, TAccountSkrMint, TAccountReserveVault, TAccountSystemProgram, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): CreateLeagueInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAdmin, InstructionAccountInputAddress<TAccountAdmin>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountSkrMint, InstructionAccountInputAddress<TAccountSkrMint>>, ResolvedInstructionAccountMeta<TAccountReserveVault, InstructionAccountInputAddress<TAccountReserveVault>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>> {
   // Program address.
 const programAddress = config?.programAddress ?? HOLDOUT_PROGRAM_ADDRESS;
 
@@ -99,7 +120,7 @@ const programAddress = config?.programAddress ?? HOLDOUT_PROGRAM_ADDRESS;
 const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
 
  // Original accounts.
-const originalAccounts = { admin: { value: input.admin ?? null, isSigner: true, isWritable: true }, config: { value: input.config ?? null, isSigner: false, isWritable: false }, league: { value: input.league ?? null, isSigner: false, isWritable: true }, systemProgram: { value: input.systemProgram ?? null, isSigner: false, isWritable: false } }
+const originalAccounts = { admin: { value: input.admin ?? null, isSigner: true, isWritable: true }, config: { value: input.config ?? null, isSigner: false, isWritable: false }, league: { value: input.league ?? null, isSigner: false, isWritable: true }, skrMint: { value: input.skrMint ?? null, isSigner: false, isWritable: false }, reserveVault: { value: input.reserveVault ?? null, isSigner: false, isWritable: true }, systemProgram: { value: input.systemProgram ?? null, isSigner: false, isWritable: false }, tokenProgram: { value: input.tokenProgram ?? null, isSigner: false, isWritable: false } }
 const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
 
@@ -111,8 +132,11 @@ const args = { ...input,  };
 if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
 }
+if (!accounts.tokenProgram.value) {
+accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
+}
 
-return Object.freeze({ accounts: [getAccountMeta("admin", accounts.admin), getAccountMeta("config", accounts.config), getAccountMeta("league", accounts.league), getAccountMeta("systemProgram", accounts.systemProgram)], data: getCreateLeagueInstructionDataEncoder().encode(args as CreateLeagueInstructionDataArgs), programAddress } as CreateLeagueInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAdmin, InstructionAccountInputAddress<TAccountAdmin>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>>);
+return Object.freeze({ accounts: [getAccountMeta("admin", accounts.admin), getAccountMeta("config", accounts.config), getAccountMeta("league", accounts.league), getAccountMeta("skrMint", accounts.skrMint), getAccountMeta("reserveVault", accounts.reserveVault), getAccountMeta("systemProgram", accounts.systemProgram), getAccountMeta("tokenProgram", accounts.tokenProgram)], data: getCreateLeagueInstructionDataEncoder().encode(args as CreateLeagueInstructionDataArgs), programAddress } as CreateLeagueInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAdmin, InstructionAccountInputAddress<TAccountAdmin>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountSkrMint, InstructionAccountInputAddress<TAccountSkrMint>>, ResolvedInstructionAccountMeta<TAccountReserveVault, InstructionAccountInputAddress<TAccountReserveVault>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>);
 }
 
 export type ParsedCreateLeagueInstruction<TProgram extends string = typeof HOLDOUT_PROGRAM_ADDRESS, TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]> = { programAddress: Address<TProgram>;
@@ -120,13 +144,21 @@ accounts: {
 admin: TAccountMetas[0];
 config: TAccountMetas[1];
 league: TAccountMetas[2];
-systemProgram: TAccountMetas[3];
+skrMint: TAccountMetas[3];
+/**
+ * The league's SKR reserve: boosts and comeback refunds, credited only when
+ * one of its cohorts finalizes (FR-037c). Its authority is the league PDA,
+ * so no key outside the program can move what it holds (constitution I).
+ */
+reserveVault: TAccountMetas[4];
+systemProgram: TAccountMetas[5];
+tokenProgram: TAccountMetas[6];
 };
 data: CreateLeagueInstructionData; };
 
 export function parseCreateLeagueInstruction<TProgram extends string, TAccountMetas extends readonly AccountMeta[]>(instruction: Instruction<TProgram> & InstructionWithAccounts<TAccountMetas> & InstructionWithData<ReadonlyUint8Array>): ParsedCreateLeagueInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 4) {
-  throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, { actualAccountMetas: instruction.accounts.length, expectedAccountMetas: 4 });
+  if (instruction.accounts.length < 7) {
+  throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, { actualAccountMetas: instruction.accounts.length, expectedAccountMetas: 7 });
 }
 let accountIndex = 0;
 const getNextAccount = () => {
@@ -134,5 +166,5 @@ const getNextAccount = () => {
   accountIndex += 1;
   return accountMeta;
 }
-  return { programAddress: instruction.programAddress, accounts: { admin: getNextAccount(), config: getNextAccount(), league: getNextAccount(), systemProgram: getNextAccount() }, data: getCreateLeagueInstructionDataDecoder().decode(instruction.data) };
+  return { programAddress: instruction.programAddress, accounts: { admin: getNextAccount(), config: getNextAccount(), league: getNextAccount(), skrMint: getNextAccount(), reserveVault: getNextAccount(), systemProgram: getNextAccount(), tokenProgram: getNextAccount() }, data: getCreateLeagueInstructionDataDecoder().decode(instruction.data) };
 }

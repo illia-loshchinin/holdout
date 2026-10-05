@@ -87,11 +87,18 @@ pub struct CohortSettled {
     pub total_finisher_stake: u64,
     pub share_per_tier: [u64; 4],
     pub rounding_remainder: u64,
+    /// Drawn from the league's boost reserve into this pool (FR-037d).
+    pub boost: u64,
+    /// Drawn from the league's comeback reserve for this cohort's finishers (FR-037e).
+    pub comeback_funded: u64,
 }
 
 #[event]
 pub struct PayoutClaimed {
     pub cohort: Pubkey,
     pub wallet: Pubkey,
+    /// Everything paid: stake, share and any comeback refund.
     pub amount: u64,
+    /// The comeback refund within `amount` (FR-037e).
+    pub comeback: u64,
 }

@@ -43,6 +43,9 @@ pub struct Membership {
     pub state: MembershipState,
     /// Set once by `settle_count`, which makes paging order-independent (R9).
     pub counted: bool,
+    /// The comeback refund this finisher is owed, written when they are counted
+    /// (FR-037e); paid, scaled to what the reserve funded, with the claim.
+    pub comeback_entitled: u64,
     pub bump: u8,
 }
 
@@ -96,11 +99,13 @@ mod tests {
             reps_per_day: 25,
             day_length: DEVNET_DAY_LENGTH,
             exercise: 0,
+            form: 0,
             chips: [10, 25, 50, 100],
             member_count: 0,
             held_stake: 0,
             pool: 0,
-            carry_over_received: 0,
+            boost_due: 0,
+            comeback_due: 0,
             forfeits_recorded: 0,
             counted: 0,
             finisher_count: 0,
@@ -110,9 +115,10 @@ mod tests {
             share_per_tier: [0; 4],
             rounding_remainder: 0,
             no_finisher_fee: 0,
-            carry_over_sent: 0,
-            carry_over_held: 0,
-            carry_over_target: Pubkey::default(),
+            boost_received: 0,
+            comeback_owed: 0,
+            comeback_funded: 0,
+            comeback_claimed: 0,
             vault_bump: 0,
             bump: 0,
         };
@@ -130,6 +136,7 @@ mod tests {
             days_completed,
             state,
             counted: false,
+            comeback_entitled: 0,
             bump: 0,
         }
     }

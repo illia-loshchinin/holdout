@@ -24,7 +24,12 @@ stake: bigint; joinedAt: bigint;
  */
 daysCompleted: number; state: MembershipState; 
 /** Set once by `settle_count`, which makes paging order-independent (R9). */
-counted: boolean; bump: number;  };
+counted: boolean; 
+/**
+ * The comeback refund this finisher is owed, written when they are counted
+ * (FR-037e); paid, scaled to what the reserve funded, with the claim.
+ */
+comebackEntitled: bigint; bump: number;  };
 
 export type MembershipArgs = { cohort: Address; wallet: Address; 
 /** 0..=3. */
@@ -37,16 +42,21 @@ stake: number | bigint; joinedAt: number | bigint;
  */
 daysCompleted: number; state: MembershipStateArgs; 
 /** Set once by `settle_count`, which makes paging order-independent (R9). */
-counted: boolean; bump: number;  };
+counted: boolean; 
+/**
+ * The comeback refund this finisher is owed, written when they are counted
+ * (FR-037e); paid, scaled to what the reserve funded, with the claim.
+ */
+comebackEntitled: number | bigint; bump: number;  };
 
 /** Gets the encoder for {@link MembershipArgs} account data. */
 export function getMembershipEncoder(): FixedSizeEncoder<MembershipArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['cohort', getAddressEncoder()], ['wallet', getAddressEncoder()], ['tier', getU8Encoder()], ['stake', getU64Encoder()], ['joinedAt', getI64Encoder()], ['daysCompleted', getU8Encoder()], ['state', getMembershipStateEncoder()], ['counted', getBooleanEncoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: MEMBERSHIP_DISCRIMINATOR }));
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['cohort', getAddressEncoder()], ['wallet', getAddressEncoder()], ['tier', getU8Encoder()], ['stake', getU64Encoder()], ['joinedAt', getI64Encoder()], ['daysCompleted', getU8Encoder()], ['state', getMembershipStateEncoder()], ['counted', getBooleanEncoder()], ['comebackEntitled', getU64Encoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: MEMBERSHIP_DISCRIMINATOR }));
 }
 
 /** Gets the decoder for {@link Membership} account data. */
 export function getMembershipDecoder(): FixedSizeDecoder<Membership> {
-    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['cohort', getAddressDecoder()], ['wallet', getAddressDecoder()], ['tier', getU8Decoder()], ['stake', getU64Decoder()], ['joinedAt', getI64Decoder()], ['daysCompleted', getU8Decoder()], ['state', getMembershipStateDecoder()], ['counted', getBooleanDecoder()], ['bump', getU8Decoder()]]);
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['cohort', getAddressDecoder()], ['wallet', getAddressDecoder()], ['tier', getU8Decoder()], ['stake', getU64Decoder()], ['joinedAt', getI64Decoder()], ['daysCompleted', getU8Decoder()], ['state', getMembershipStateDecoder()], ['counted', getBooleanDecoder()], ['comebackEntitled', getU64Decoder()], ['bump', getU8Decoder()]]);
 }
 
 /** Gets the codec for {@link Membership} account data. */
@@ -99,5 +109,5 @@ export async function fetchAllMaybeMembership(
 }
 
 export function getMembershipSize(): number {
-  return 93;
+  return 101;
 }

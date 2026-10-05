@@ -6,7 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { assertAccountExists, assertAccountsExist, combineCodec, decodeAccount, fetchEncodedAccount, fetchEncodedAccounts, fixDecoderSize, fixEncoderSize, getBytesDecoder, getBytesEncoder, getI64Decoder, getI64Encoder, getStructDecoder, getStructEncoder, getU16Decoder, getU16Encoder, getU32Decoder, getU32Encoder, getU8Decoder, getU8Encoder, transformEncoder, type Account, type Address, type EncodedAccount, type FetchAccountConfig, type FetchAccountsConfig, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type MaybeAccount, type MaybeEncodedAccount, type ReadonlyUint8Array } from '@solana/kit';
+import { assertAccountExists, assertAccountsExist, combineCodec, decodeAccount, fetchEncodedAccount, fetchEncodedAccounts, fixDecoderSize, fixEncoderSize, getBytesDecoder, getBytesEncoder, getI64Decoder, getI64Encoder, getStructDecoder, getStructEncoder, getU16Decoder, getU16Encoder, getU32Decoder, getU32Encoder, getU64Decoder, getU64Encoder, getU8Decoder, getU8Encoder, transformEncoder, type Account, type Address, type EncodedAccount, type FetchAccountConfig, type FetchAccountsConfig, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type MaybeAccount, type MaybeEncodedAccount, type ReadonlyUint8Array } from '@solana/kit';
 
 export const LEAGUE_CONFIG_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([224, 206, 38, 102, 98, 106, 33, 40]);
 
@@ -26,7 +26,16 @@ dayLength: bigint;
 /** A Monday 05:00:00 UTC. Cohort `i` starts `first_start + i * cadence`. */
 firstStart: bigint; cadence: bigint; joinLock: bigint; 
 /** The index the next `open_cohort` must use (R11, FR-007a). */
-nextIndex: number; bump: number;  };
+nextIndex: number; 
+/** How reps are judged, copied to every cohort: [`FORM_TOES`] or [`FORM_KNEES_ALLOWED`]. */
+form: number; 
+/**
+ * SKR in the reserve vault set aside for boosts (FR-037d). Credited only
+ * when a cohort of this league finalizes (FR-037c, INV-10).
+ */
+boostReserve: bigint; 
+/** SKR in the reserve vault set aside for comeback refunds (FR-037e). */
+comebackReserve: bigint; reserveVaultBump: number; bump: number;  };
 
 export type LeagueConfigArgs = { 
 /** `0` = 7-day, `1` = 21-day, `>= 100` = test league. */
@@ -42,16 +51,25 @@ dayLength: number | bigint;
 /** A Monday 05:00:00 UTC. Cohort `i` starts `first_start + i * cadence`. */
 firstStart: number | bigint; cadence: number | bigint; joinLock: number | bigint; 
 /** The index the next `open_cohort` must use (R11, FR-007a). */
-nextIndex: number; bump: number;  };
+nextIndex: number; 
+/** How reps are judged, copied to every cohort: [`FORM_TOES`] or [`FORM_KNEES_ALLOWED`]. */
+form: number; 
+/**
+ * SKR in the reserve vault set aside for boosts (FR-037d). Credited only
+ * when a cohort of this league finalizes (FR-037c, INV-10).
+ */
+boostReserve: number | bigint; 
+/** SKR in the reserve vault set aside for comeback refunds (FR-037e). */
+comebackReserve: number | bigint; reserveVaultBump: number; bump: number;  };
 
 /** Gets the encoder for {@link LeagueConfigArgs} account data. */
 export function getLeagueConfigEncoder(): FixedSizeEncoder<LeagueConfigArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['leagueId', getU8Encoder()], ['durationDays', getU8Encoder()], ['repsPerDay', getU16Encoder()], ['exercise', getU8Encoder()], ['dayLength', getI64Encoder()], ['firstStart', getI64Encoder()], ['cadence', getI64Encoder()], ['joinLock', getI64Encoder()], ['nextIndex', getU32Encoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: LEAGUE_CONFIG_DISCRIMINATOR }));
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['leagueId', getU8Encoder()], ['durationDays', getU8Encoder()], ['repsPerDay', getU16Encoder()], ['exercise', getU8Encoder()], ['dayLength', getI64Encoder()], ['firstStart', getI64Encoder()], ['cadence', getI64Encoder()], ['joinLock', getI64Encoder()], ['nextIndex', getU32Encoder()], ['form', getU8Encoder()], ['boostReserve', getU64Encoder()], ['comebackReserve', getU64Encoder()], ['reserveVaultBump', getU8Encoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: LEAGUE_CONFIG_DISCRIMINATOR }));
 }
 
 /** Gets the decoder for {@link LeagueConfig} account data. */
 export function getLeagueConfigDecoder(): FixedSizeDecoder<LeagueConfig> {
-    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['leagueId', getU8Decoder()], ['durationDays', getU8Decoder()], ['repsPerDay', getU16Decoder()], ['exercise', getU8Decoder()], ['dayLength', getI64Decoder()], ['firstStart', getI64Decoder()], ['cadence', getI64Decoder()], ['joinLock', getI64Decoder()], ['nextIndex', getU32Decoder()], ['bump', getU8Decoder()]]);
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['leagueId', getU8Decoder()], ['durationDays', getU8Decoder()], ['repsPerDay', getU16Decoder()], ['exercise', getU8Decoder()], ['dayLength', getI64Decoder()], ['firstStart', getI64Decoder()], ['cadence', getI64Decoder()], ['joinLock', getI64Decoder()], ['nextIndex', getU32Decoder()], ['form', getU8Decoder()], ['boostReserve', getU64Decoder()], ['comebackReserve', getU64Decoder()], ['reserveVaultBump', getU8Decoder()], ['bump', getU8Decoder()]]);
 }
 
 /** Gets the codec for {@link LeagueConfig} account data. */
@@ -104,5 +122,5 @@ export async function fetchAllMaybeLeagueConfig(
 }
 
 export function getLeagueConfigSize(): number {
-  return 50;
+  return 68;
 }

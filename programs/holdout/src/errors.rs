@@ -24,13 +24,15 @@ pub enum HoldoutError {
     #[msg("Only the program's upgrade authority may initialize it")]
     NotUpgradeAuthority = 3,
 
-    // ---- 6010–6012 · league and chip-set setup --------------------------
+    // ---- 6010–6013 · league and chip-set setup --------------------------
     #[msg("A devnet league must use the default timing; test leagues need a test-leagues build")]
     InvalidLeagueTiming = 10,
     #[msg("Chip amounts must be strictly increasing and all above zero")]
     InvalidChipSet = 11,
     #[msg("No cohort can open before the first chip set is published")]
     ChipSetNotPublished = 12,
+    #[msg("A league's form is 0 (from the toes) or 1 (knees allowed)")]
+    InvalidForm = 13,
 
     // ---- 6020–6026 · opening, joining and the lobby ---------------------
     #[msg("This cohort is not due yet, or its index is wrong")]
@@ -118,6 +120,7 @@ mod tests {
         assert_eq!(code(HoldoutError::InvalidLeagueTiming), 6010);
         assert_eq!(code(HoldoutError::InvalidChipSet), 6011);
         assert_eq!(code(HoldoutError::ChipSetNotPublished), 6012);
+        assert_eq!(code(HoldoutError::InvalidForm), 6013);
 
         assert_eq!(code(HoldoutError::CohortNotDue), 6020);
         assert_eq!(code(HoldoutError::JoiningClosed), 6021);

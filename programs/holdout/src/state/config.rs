@@ -118,9 +118,13 @@ pub struct Config {
     pub sponsor: Pubkey,
     /// Mock SKR mint; its authority is the `["mint_authority"]` PDA.
     pub skr_mint: Pubkey,
-    /// The treasury's SKR token account: forfeit fees, the no-finisher half and
-    /// rounding remainders land here (research R14).
+    /// The **operations** destination: the treasury's SKR token account. The
+    /// operations part of every forfeit, two thirds of a no-finisher pool and
+    /// rounding remainders land here (research R14, H35).
     pub fee_destination: Pubkey,
+    /// The **developer** destination: the developer's SKR token account. The
+    /// developer part of every forfeit and a third of a no-finisher pool (H35).
+    pub developer_destination: Pubkey,
     /// `false` on devnet: both leagues are open from launch (FR-003).
     pub ladder_gate_enabled: bool,
     /// `false` on devnet: testers have no Seeker (research R17).

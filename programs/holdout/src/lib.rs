@@ -22,6 +22,7 @@ pub mod guards;
 pub mod instructions;
 pub mod math;
 pub mod state;
+pub mod vault;
 
 use instructions::*;
 
@@ -38,6 +39,7 @@ pub mod holdout {
         operator: Pubkey,
         sponsor: Pubkey,
         treasury_wallet: Pubkey,
+        developer_wallet: Pubkey,
         faucet_sol_top_up: u64,
         faucet_daily_lamport_cap: u64,
         faucet_sponsor_float: u64,
@@ -47,6 +49,7 @@ pub mod holdout {
             operator,
             sponsor,
             treasury_wallet,
+            developer_wallet,
             faucet_sol_top_up,
             faucet_daily_lamport_cap,
             faucet_sponsor_float,
@@ -62,6 +65,7 @@ pub mod holdout {
         duration_days: u8,
         reps_per_day: u16,
         exercise: u8,
+        form: u8,
         first_start: i64,
         day_length: i64,
         cadence: i64,
@@ -73,6 +77,7 @@ pub mod holdout {
             duration_days,
             reps_per_day,
             exercise,
+            form,
             first_start,
             day_length,
             cadence,
