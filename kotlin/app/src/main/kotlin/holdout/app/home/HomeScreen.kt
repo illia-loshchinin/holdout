@@ -66,6 +66,8 @@ data class HomeState(
     val freezes: Int = 0,
     /** Today's toes meter (H35), or null before any Daily 25 rep is counted. */
     val toes: ToesMeter.Meter? = null,
+    /** The way into a Holdout once today is done ([DailyHoldoutLine]), or null. */
+    val holdoutLine: String? = null,
 )
 
 @Composable
@@ -226,6 +228,9 @@ fun HomeScreen(
             modifier = Modifier.padding(top = 8.dp),
         )
         state.toes?.takeIf { state.completedToday }?.let { ToesMeterCard(it, state.target) }
+        state.holdoutLine?.takeIf { state.completedToday }?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.TextPrimary, textAlign = TextAlign.Center)
+        }
 
         if (state.streak > 0) {
             Text(
