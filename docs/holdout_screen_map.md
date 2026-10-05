@@ -160,8 +160,8 @@ flowchart TB
         H0["H0 My Holdouts"]
         H1["H1 The ladder"]
         H2["H2 Stake confirm · sheet 🎨"]
-        H3["H3 Lobby"]
-        H6["H6 Forfeit"]
+        H3["H3 Lobby 🎨"]
+        H6["H6 Forfeit 🎨"]
         H7["H7 Claim 🎨"]
     end
 
@@ -494,7 +494,10 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 *NICE, not built:* **H2a "You're in"** between signing and the lobby: *"You're in. 7 days from Monday 05:00 UTC."* + **Do today's Daily 25** / **See the lobby**.
 
 #### H3 · Lobby
-**MUST · ✅ Built · · Not drawn** — the first missing MUST board · `lobby/LobbyScreen.kt` · PRD #7, US-2, ES-12a
+**MUST · ✅ Built · 🎨 Drawn** (board *8 · Lobby*; the *locked* tweak shows the locked variant) · `lobby/LobbyScreen.kt` · PRD #7, US-2, ES-12a
+
+**As drawn:** a back button and `LOBBY` label · **7-day Holdout** · *starts in* `2d 04h 12m` (40 px mono, accent) · *Monday 05:00 UTC · everyone starts together* · a row of 14 dots, yours ringed in accent and marked `you`, with *14 members so far* and **See who's in →** · card: **At stake** `12,500 SKR` · **Your stake** `1,250 SKR` / *held by the contract, not by us* · hairline · **Joining closes in** `2d 03h 12m` (one hour before the start) · a surface/3 row *From the start: 25 push-ups before each day's deadline, for 7 days. At 45°, from your toes.* · **Leave — full refund** (coral outline) + *Until joining closes, leaving gives you all 1,250 SKR back.* · **Locked:** the label reads `LOBBY · LOCKED`, a lock line says *Joining has closed. This is the final roster.*, and Leave becomes *Nothing to do until Monday. This phone reminds you when it starts.* There's no bottom bar, because this screen is pushed from ☰.
+
 
 **On screen:** back · `LOBBY` (or `LOBBY · LOCKED`) · **7-day Holdout** · *starts in* **2d 04h 12m** (large mono, accent) · card: **14 members · 12,500 SKR at stake** · *Your stake: 1,250 SKR — held by the contract, not by us* · *Joining closes in 6h 12m. Until then you can leave with your full stake back.* (locked: *Joining has closed. This is the final roster.*) · *From the start: 25 push-ups before each day's deadline, at 45°, from your toes* · **See who's in** (secondary) · **Leave — full refund** (secondary, warning text)
 
@@ -523,11 +526,11 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 **Exits:** back → T2 / H3 / H4
 
 #### H6 · Forfeit
-**MUST · ✅ Built · · Not drawn** · `cohort/ForfeitScreen.kt` · PRD #9, US-4
+**MUST · ✅ Built · 🎨 Drawn** (board *9 · Forfeit*; the *recorded* tweak shows the not-yet-recorded line) · `cohort/ForfeitScreen.kt` · PRD #9, US-4
 
 **On screen:** back · `21-DAY HOLDOUT` · **You missed day 7.** (warning) · card: *You lasted 6 of 21 days. The deadline passed before day 7 reached the chain, so your stake of 1,250 SKR went into this Holdout's prize pool — 80 % to the pool, 20 % fee.* (+ *"final from the deadline; the record catches up on the next automation pass"* if not yet recorded) · card with green flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (primary) · **The next 7-day Holdout** (secondary)
 
-**Illustration idea:** the tour's DAY 7 dot row with *your* dot faded. Same language, no blame.
+**As drawn:** a back button and `21-DAY HOLDOUT` label · the tour's dot row at `DAY 7` (8 green, 5 faded, yours a hollow coral ring marked `you`) · **You missed day 7.** (30 px light, coral) · *The deadline passed before day 7 reached the chain, so your run in this Holdout has ended.* · card: **You lasted** `6 of 21 days` · **Your stake** `1,250 SKR` · hairline · *to this Holdout's prize pool* `1,000 SKR` · *fee, 20 %* `250 SKR` · (not recorded: *Final from the deadline. The on-chain record catches up on the next automation pass.*) · green-outlined card with the flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (white pill) · **The next 7-day Holdout** *· starts Monday* (outline). The same visual language as the tour, and no blame.
 
 **Variants:** recorded / not yet recorded · tried to submit after the deadline (ES-4)
 
@@ -606,16 +609,16 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 | H1 | The ladder | MUST | ✅ | ✏️ | ☰ | H0, H6 | H2, T1 |
 | H2 | Stake confirm (sheet) | MUST | ✅ | ✏️ | ☰ | T1, H1, H0 | N3→N1→H3, W1 |
 | H2a | You're in | NICE | ⬜ | · | ☰ | N1 after join | S1, H3 |
-| H3 | Lobby (+ locked) | MUST | ✅ | · | ☰ | N1, H0 | H5, N1, T2 |
+| H3 | Lobby (+ locked) | MUST | ✅ | 🎨 | ☰ | N1, H0 | H5, N1, T2 |
 | H4 | Holdout detail | MUST | ✅ | · | ∿ | tab, T2, H0 | H5, H7 |
 | H5 | Roster | MUST | ✅ | · | ∿ | H4, H3 | back |
-| H6 | Forfeit | MUST | ✅ | · | ☰ | T2 (deadline), H0 | S1, H1 |
+| H6 | Forfeit | MUST | ✅ | 🎨 | ☰ | T2 (deadline), H0 | S1, H1 |
 | H7 | Claim | MUST | ✅ | 🎨 | ☰ | H4, H0, T1 nudge | N1, H0 |
 | W1 | Me · wallet + tokens | MUST | 🟡 | · | ◯ | tab, H2/T2/H7 sheet | N1, X1, A1 |
 | X1 | About · for judges | MUST | ✅ | · | ◯ | W1 | A2, B1 |
 | N1–N5 | System moments | MUST / SHOULD | see §5 N | | — | — | — |
 
-**Count:** 19 MUST screens (17 ✅ in code; 6 drawn, 3 of them needing changes) · 4 SHOULD screens + 2 SHOULD moments · 1 NICE screen + several NICE additions inside cards.
+**Count:** 19 MUST screens (17 ✅ in code; 8 drawn, 3 of them needing changes) · 4 SHOULD screens + 2 SHOULD moments · 1 NICE screen + several NICE additions inside cards.
 
 ---
 
@@ -643,8 +646,8 @@ Where the draft says something the spec, the PRD or its own tokens note say diff
 ### Boards to draw, in order
 MUST screens first, then the variants judges are most likely to hit.
 
-1. **H3 Lobby** (and its locked variant): where every staker waits
-2. **H6 Forfeit**: the moment the product most needs to get right
+1. ~~**H3 Lobby** (and its locked variant)~~ 🎨 drawn 5 Oct
+2. ~~**H6 Forfeit**~~ 🎨 drawn 5 Oct
 3. **S3 Pre-flight + hold** and **S6 Day complete**: the sitting's start and finish
 4. **H4 Holdout detail** (∿ Crowd root) and **H5 Roster**
 5. **H1 The ladder** (full screen, all rungs) and **W1 Me**
