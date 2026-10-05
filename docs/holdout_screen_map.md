@@ -328,7 +328,15 @@ Each card gives **tier · code status · design status**, why the screen exists,
 3. Section label `HOLDOUTS OPEN TO JOIN` · hint `$10 – $100 in SKR`
 4. Offer cards, each with an outlined **Join** button:
    - **7-day** · starts Monday · `12,500 SKR` at stake · 14 joined · `closes in 6h 12m`
-   - **21-day** · starts Monday · `9,000 SKR` at stake · 9 joined · `+2,400 SKR carried over` from a Holdout nobody finished
+   - **21-day** · starts Monday · `9,000 SKR` at stake · 9 joined · **extra line** (green, ＋ icon): `2,400 SKR added to the prize`, with its source on the next line in 48 %
+     - **The extra line is general on purpose.** It shows any money added to a Holdout's prize from outside its members' stakes. The source line names where it came from; the board's *extraSource* tweak switches between them:
+       | Source | Source line | In this build? |
+       |---|---|---|
+       | Carry-over | *carried over from a Holdout nobody finished* | ✅ the only one the contract has (`carry_over_received`) |
+       | Treasury | *from the Holdout treasury* | ⬜ parked (§9). The spec puts bonus matching out of scope, and the fee wallet pays nothing back into pools |
+       | Sponsor | *from [SPONSOR] · a Solana ecosystem sponsor* | ⬜ parked (§9). There's no instruction for an outside wallet to fund a pool |
+       | None | line hidden | ✅ |
+     - Honesty rule (PRD §13): during judging the app may show only a source that really paid in. Several sources at once → *"from 2 sources"* here, broken down on H2 and H4.
 5. Row link: ⓘ **How Holdout works** · *3 cards*
 6. Bottom bar, ⌂ active
 
@@ -472,7 +480,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 **On screen (as drawn, plus what the spec requires — ➕)**
 1. Grab handle · **Join the 7-day Holdout** · *25 push-ups a day · starts Monday 05:00 UTC*
 2. Four chips: **$10 / $25 / $50 / $100**, each with its SKR amount (mono); the picked one has an accent outline
-3. Card: **Your stake** `1,250 SKR` / *≈ $25* · hairline · **At stake now** `4,800 SKR` ➕ *· 14 joined* ➕ *+ carry-over* · **Joining closes in** `6h 12m`
+3. Card: **Your stake** `1,250 SKR` / *≈ $25* · hairline · **At stake now** `4,800 SKR` ➕ *· 14 joined* ➕ *+ extras, with their source* · **Joining closes in** `6h 12m`
 4. *If nobody drops out, you get exactly your stake back. The prize is what the members who quit leave behind.*
 5. **How reps are counted here** (drawn: a surface/3 row with a 45° phone icon, under the reassurance line): *At 45° only: phone on the floor ahead of your shoulder. Full push-ups from your toes — push-ups from the knees don't count.* (FR-021a: required before staking)
 6. ➕ *Miss a day: your stake goes into the prize pool — 80 % to the pool, 20 % fee.* · *Leave for a full refund until joining closes.*
@@ -504,7 +512,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 #### H4 · Holdout detail (∿ Crowd root)
 **MUST · ✅ Built · · Not drawn** · `cohort/CohortDetailScreen.kt` · PRD #11, US-7
 
-**On screen:** `21-DAY · DAY 12 OF 21` · *(end-state card, see variants)* · **Where it stands:** *189 still standing of 312* · prize pool · carry-over · *9 days to go* · **Your record:** *11 of 21 days · stake 1,250 SKR* · *projected share if the crowd held here* · **How the crowd thinned:** today a list (*After day 1: 301 standing …*); draw it as a step chart or the tour's dot rows (*NICE*) · **The roster →**
+**On screen:** `21-DAY · DAY 12 OF 21` · *(end-state card, see variants)* · **Where it stands:** *189 still standing of 312* · prize pool · extras and their source · *9 days to go* · **Your record:** *11 of 21 days · stake 1,250 SKR* · *projected share if the crowd held here* · **How the crowd thinned:** today a list (*After day 1: 301 standing …*); draw it as a step chart or the tour's dot rows (*NICE*) · **The roster →**
 
 **Variants:** running · **settling** (*"You finished · settlement in progress. Your claim opens the moment it's done."*) · **claimed** (*"Claimed · 1,412 SKR"* + explorer link) · as a non-member (no *Your record*) · ∿ empty (no Holdout yet)
 
@@ -682,6 +690,7 @@ Out of scope for this build. Listed so the design system leaves room for them. S
 - **Seeker Genesis gate, geo check, terms acceptance**: mainnet onboarding.
 - **Automatic offline submission** (Phase 2): T2 *"Done — waiting for network"* replaces *"tap to submit"*.
 - **Human Flag** rung and other exercises: H1 already shows it locked.
+- **Prize extras beyond carry-over:** a treasury top-up (cold-start bonus matching in the full-vision PRD §6.5) and sponsorships from Solana ecosystem projects. The design already has the slot (T1's extra line, §5). The contract needs an instruction that lets an outside wallet add to a cohort's pool before it starts, with the source recorded so the app can name it.
 
 ---
 
