@@ -387,6 +387,28 @@ class StakesTest {
         assertEquals(1, counter.total)
     }
 
+    /** What a staked sitting calibrated on, after a countdown held with the knee at [countdownKnee] and one rep. */
+    private fun calibratedAfterCountdown(countdownKnee: Float): CycleReadout? {
+        val counter = RepCounter(view = CameraView.OBLIQUE, stakes = Stakes.STAKED)
+        Traces.settleAtTop(0, millis = 1_000, elbow = 170f).forEach { counter.prime(it, Traces.angledImage(it.timestampMillis, 170f, kneeDegrees = countdownKnee)) }
+        Traces.set(count = 1, top = 170f).forEach { frame ->
+            val at = frame.copy(timestampMillis = frame.timestampMillis + 1_100)
+            counter.onFrame(at, Traces.angledImage(at.timestampMillis, Angles.elbow(frame)!!))
+        }
+        return counter.lastCycle
+    }
+
+    @Test
+    fun `given a staked countdown held on the knees, when counting starts, then it has set no plank to measure reps against`() {
+        // On the toes the countdown is this person's plank.
+        val toes = calibratedAfterCountdown(countdownKnee = 178f)
+        assertTrue(toes?.heldLegsAboveHands != null, "on the toes")
+        // Kneeling through it must not set a kneeling reference that knee reps then match (review on #14).
+        val kneeling = calibratedAfterCountdown(countdownKnee = 80f)
+        assertNull(kneeling?.heldLegsAboveHands)
+        assertNull(kneeling?.heldPlacementRatio)
+    }
+
     @Test
     fun `the rule a member reads before staking names the placement and the knees`() {
         val rule = Stakes.STAKED_RULE.lowercase()

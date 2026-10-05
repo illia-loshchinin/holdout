@@ -322,6 +322,10 @@ data class CycleReadout(
     val posture: Float?,
     val pushPosture: Float?,
     val cycleMillis: Long,
+    /** The plank held through the countdown that the push is measured against ([RepRules.minLegsShareOfHeld]); null with none. */
+    val heldLegsAboveHands: Float? = null,
+    /** The placement ratio held through the countdown ([RepRules.maxHipRisePlacementRatio]); null with none. */
+    val heldPlacementRatio: Float? = null,
 )
 
 sealed interface RepEvent {
@@ -548,6 +552,8 @@ class RepCounter(
         posture = cyclePostures.medianOrNull(),
         pushPosture = pushPostures.medianOrNull(),
         cycleMillis = cycleMillis,
+        heldLegsAboveHands = heldLegs.takeIf { it.size >= MIN_HELD_FRAMES }?.medianOrNull(),
+        heldPlacementRatio = heldRatio,
     )
 
     fun onFrame(frame: PoseFrame, image: ImagePose? = null): RepEvent? {
