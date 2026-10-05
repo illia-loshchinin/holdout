@@ -609,6 +609,52 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 
 **Source:** spec clarification 2026-10-05, FR-027, FR-037 (FR-037a/b superseded), ES-5…ES-7b, FR-041, acceptance criteria 2 and 11; tasks T099 (cut), T111.
 
+### H35. League reserves, two fee destinations, Easy and Hard
+
+**Decided (2026-10-05, product owner, after a proposer/critic brainstorm, before the program's first deploy; admitted past the freeze by constitution v1.6.0):**
+
+- **Every forfeited stake splits 70 / 10 / 5 / 5 / 10:**
+  - 70% to the Holdout's prize pool.
+  - 10% to the league's **boost reserve** and 5% to its **comeback reserve**.
+  - 5% to the **developer** destination and 10% to the **operations** destination (marketing, operations).
+  - Each part is floored; operations takes whatever rounding leaves. The fee is still 30% (H34), now split on chain instead of sent to one account.
+- **Reserves are credited only at settlement:**
+  - A Holdout's reserve share stays in its own vault, recorded as `boost_due` / `comeback_due`.
+  - It moves into the league's program-owned reserve vault when that Holdout finalizes.
+  - Finalization runs in Holdout order per league (FR-061a), so the reserve a Holdout draws on never depends on when the crank recorded anyone's forfeit (Principle II).
+- **Prize boost:**
+  - When a Holdout with finishers finalizes, its pool gets `min(20% × its own pool, boost reserve)` before the shares are computed.
+  - A Holdout with no forfeits gets nothing, so "everyone finishes, exactly your stake back" (FR-041) still holds.
+  - The boost draws first; the Holdout's own `boost_due` is credited after it.
+- **Comeback refund:**
+  - When a forfeit is **counted** (`settle_count`, in Holdout order, as the league streak is), the member's league progress keeps that stake and its missed deadline. Only the latest counted forfeit is kept.
+  - When the same member is counted as a **finisher** of a later Holdout in the same league whose start lies within 14 Holdout days of that deadline, they are owed `min(10% × the forfeited stake, their new stake)`, and the record is used up.
+  - At finalization the Holdout takes `min(total owed, comeback reserve)` from the reserve. Each refund is paid with the claim, scaled down pro rata if the reserve was short.
+- **No finishers:** the whole pool still goes out (H34), a third to developer and the rest to operations. Its reserve shares are still credited to the league.
+- **The Daily 25 is never paid, on any network.** Its pull is the toes meter, the streak with earned freezes, and the money lines about Holdouts on its done screen.
+- **Form:**
+  - `LeagueConfig.form`, copied to each cohort at `open_cohort` (constitution V): 0 = from the toes (**Hard**, 21-day), 1 = knees allowed (**Easy**, 7-day).
+  - Easy keeps every other check Hard makes: depth, body line, hip rise, legs and knees in view.
+  - Easy refuses to start unless the phone reads 40–60° — the band in which no cobra counted on the recorded traces.
+  - Easy and Hard clears never share a leaderboard.
+- **Daily 25 streak freezes:** one earned per 7 consecutive active days, at most 2 held, used automatically. A frozen day keeps the streak without adding to it. Device only, never on a Holdout day (FR-016).
+
+**Why:** the product owner wants part of the fee to bring members back daily and into the next Holdout, a declared developer fee, and an easier entry level.
+
+**Rejected:**
+- A random airdrop: a luck mechanic, legally close to a lottery, and it did not help daily exercise in trials.
+- Paying the Daily 25: it would be farmed through the free faucet.
+- Crediting reserves when a forfeit is recorded: the crank's timing would set the boost.
+- Easy filmed head-on: no body-line check at that placement where money is at stake.
+
+**Farm bound:** with m = 0.20 and r = 0.10, a group that forfeits on purpose into its own finishers recovers at most 0.7(1+m) + r = 0.94 per SKR lost. The critic re-derived this, including the boost and the comeback hitting the same wallet, and reserves building up over many Holdouts.
+
+**Known limits:**
+- When the comeback reserve is short, pro-rata flooring can leave a few base units in the Holdout's vault, fewer than its finishers.
+- Easy's evidence is mostly one person's recordings: 87% of knee reps counted, 3 of 56 cobras slipped through, 2 of them at about 30°. More recordings are being collected this week (README weakness).
+
+**Source:** brainstorm files A-r2, B-r2 and C-r2 (session scratchpad, summarised here); constitution v1.6.0.
+
 ---
 
 ## 2. Still valid from the product-vision record
@@ -760,3 +806,4 @@ By decision, not by omission.
 | 2026-09-26 | Constitution v1.4.0 (minor): **one disclosed short test cohort, devnet only** — a test league with a compressed day on the devnet program built with `test-leagues`, admin-created, labelled everywhere in the app and disclosed in the README, video and deck; the demo and walkthrough may be recorded from it. The first judged start and the feature freeze move from 28 September to **Monday 5 October 2026**. Mainnet builds never carry `test-leagues`. Spec: Session 2026-09-26, FR-044 amended, FR-044a added. |
 | 2026-09-27 | Constitution v1.5.0 (minor): Principle X gains **one narrow exception for rep recognition** — a **debug build** may save a sitting's camera stream as video (no audio), on the device only, pulled by the team over USB and deleted after, from people who agreed in writing to be filmed; a release build must not contain the recorder, enforced by a build check. Members sharing their own recordings stays a later decision. Pulls forward spec 002 T035. |
 | 2026-10-05 | **Fee 70/30, no carry-over (H34).** A forfeited stake now goes 70% to the prize pool and 30% to the fee destination. A no-finisher Holdout's whole pool goes to the fee destination, so `settle_finalize` needs no other cohort, 6046/6047 and the carry-over events are removed, and T099 is cut. How the 30% is divided afterwards is open, pending research. Program, IDL, Codama client, LiteSVM scenarios, golden vectors, Kotlin, crank and app copy changed together (T111). |
+| 2026-10-05 | **Constitution v1.6.0 and H35.** The freeze is overridden for one package. League boost and comeback reserves are credited at settlement. Developer and operations fee destinations are on chain. The league `form` sets Easy (knees allowed, 40–60° only) for 7-day and Hard (from the toes) for 21-day. The Daily 25 gets a toes meter and earned streak freezes, and is never paid on any network. Principle I now admits a capped share of a league's earlier forfeits into a pool; Principle V names the form. Out of scope gains "any payment for the Daily 25" and loses "bonus matching" and "insurance fund". |
