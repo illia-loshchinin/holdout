@@ -92,9 +92,14 @@
       "fix": "Used only for defect fixes that change no existing cohort, account layout or fund movement. Real fix: revoke the authority once the contract is final"
     },
     {
-      "what": "A Holdout nobody finished sends its whole pool to the treasury",
-      "why": "30 % of every forfeited stake, and all of a no-finisher pool, reaches the fee destination (H34). How that share is spent to bring members back is not decided yet, and until it is, it simply accumulates in the treasury",
-      "fix": "Decide the split after research (H34's open item), and publish what the treasury pays out"
+      "what": "The fee funds reserves, a developer share and operations by rule, but the developer and operations shares are ordinary wallets",
+      "why": "Of every forfeited stake, 10% and 5% go to the league's boost and comeback reserves, which only the program can move, and 5% and 10% to the developer and operations wallets named in this README (H35). What those two wallets then do with it is not enforced by the contract",
+      "fix": "Publish both wallets' addresses and their spending; later, move operations spending on chain or under a multisig"
+    },
+    {
+      "what": "Easy Holdouts count push-ups from the knees on thin evidence",
+      "why": "Knees-allowed counting at 45 degrees was measured on about 26 recordings from mostly one person: 87% of honest knee reps counted, 3 of 56 cobras slipped through - 2 of them filmed at about 30 degrees, which the Easy camera check now refuses (H35)",
+      "fix": "Record at least 3 people, 100 knee reps and cobras at 30-60 degrees, and replay them before any real money rides on Easy"
     },
     {
       "what": "A Daily 25 done before the phone has ever read chain time is dated afterwards, from the phone's own uptime clock",
