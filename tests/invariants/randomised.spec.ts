@@ -37,6 +37,7 @@ import {
   settleCountIx,
   settleFinalizeIx,
   submitDayIx,
+  type FeeDestinations,
 } from '../helpers/instructions.js';
 import { associatedTokenPda, cohortPda } from '../helpers/pdas.js';
 
@@ -58,24 +59,24 @@ const rng = (seed: number) => () => {
 interface Fixture {
   h: Harness;
   mint: Address;
-  feeDestination: Address;
+  fees: FeeDestinations;
   crank: KeyPairSigner;
   cohort: Address;
   league: number;
 }
 
 /** A fresh test league with one cohort in its lobby. */
-const setUp = async (options: { duration?: number; dayLength?: number } = {}): Promise<Fixture> => {
+const setUp = async (
+  options: { duration?: number; dayLength?: number; boostReserve?: bigint; comebackReserve?: bigint } = {},
+): Promise<Fixture> => {
   const duration = options.duration ?? DURATION;
   const dayLength = options.dayLength ?? DAY_LENGTH;
   const h = await createHarness({ startTime: START - dayLength });
   const mint = (await generateKeyPairSigner()).address;
   h.injectMint(mint, null, 10_000_000_000n * SKR);
 
-  const treasury = (await generateKeyPairSigner()).address;
-  const feeDestination = await associatedTokenPda(treasury, mint);
-  h.injectTokenAccount(feeDestination, mint, treasury, 0n);
-  await h.injectConfig({ skrMint: mint, feeDestination });
+  const fees = await h.injectFeeDestinations(mint);
+  await h.injectConfig({ skrMint: mint, feeDestination: fees.operations, developerDestination: fees.developer });
 
   const league = h.freshTestLeague().leagueId;
   await h.injectLeague(league, {
@@ -83,6 +84,8 @@ const setUp = async (options: { duration?: number; dayLength?: number } = {}): P
     dayLength: BigInt(dayLength),
     firstStart: BigInt(START),
     nextIndex: 1,
+    boostReserve: options.boostReserve ?? 0n,
+    comebackReserve: options.comebackReserve ?? 0n,
   });
   const cohort = await h.injectCohort(league, 0, {
     start: BigInt(START),
@@ -90,7 +93,7 @@ const setUp = async (options: { duration?: number; dayLength?: number } = {}): P
     durationDays: duration,
     dayLength: BigInt(dayLength),
   });
-  return { h, mint, feeDestination, crank: await h.newWallet(), cohort, league };
+  return { h, mint, fees, crank: await h.newWallet(), cohort, league };
 };
 
 /** A funded wallet that can join and sit. */
@@ -111,8 +114,11 @@ const shuffled = <T>(items: readonly T[], next: () => number): T[] => {
 };
 
 describe('the randomised invariant suite (T076, spike S3)', () => {
-  it('holds INV-1…INV-9 after every step of a seeded random walk', async () => {
-    const f = await setUp();
+  it('holds INV-1…INV-10 after every step of a seeded random walk', async () => {
+    // A league with something in reserve, so the finalize the walk ends on draws
+    // a boost (FR-037d) — capped at 20 % of whatever pool the walk produced, or
+    // at this odd figure, whichever is smaller — and credits its dues (FR-037c).
+    const f = await setUp({ boostReserve: 7n * SKR + 3n, comebackReserve: 2n * SKR });
     const next = rng(20260920);
     const members: KeyPairSigner[] = [];
     for (let i = 0; i < 24; i += 1) members.push(await wallet(f));
@@ -146,7 +152,7 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
     expect(joined.size).toBeGreaterThan(8);
 
     // Someone has to clear it, so the finalize below takes the finisher path;
-    // the carry-over path is settlement.spec.ts's subject.
+    // the no-finisher split is settlement.spec.ts's subject.
     const stayer = members.find((m) => joined.has(m.address))!;
 
     // ---- the run: some sit, some miss -------------------------------------
@@ -177,7 +183,7 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
               [
                 await recordForfeitsIx(
                   f.crank.address,
-                  f.feeDestination,
+                  f.fees,
                   f.league,
                   0,
                   await forfeitPairs(f.cohort, page),
@@ -201,7 +207,7 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
             [
               await settleCountIx(
                 f.crank.address,
-                f.feeDestination,
+                f.fees,
                 f.league,
                 0,
                 await forfeitPairs(f.cohort, page),
@@ -220,7 +226,7 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
           [
             await settleCountIx(
               f.crank.address,
-              f.feeDestination,
+              f.fees,
               f.league,
               0,
               await forfeitPairs(f.cohort, page),
@@ -236,10 +242,10 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
 
     // ---- finalise, twice, then claims in a random order -------------------
     await step(async () =>
-      f.h.send([await settleFinalizeIx(f.crank.address, f.feeDestination, f.league, 0)], f.crank),
+      f.h.send([await settleFinalizeIx(f.crank.address, f.fees, f.league, 0)], f.crank),
     );
     await step(async () =>
-      f.h.send([await settleFinalizeIx(f.crank.address, f.feeDestination, f.league, 0)], f.crank),
+      f.h.send([await settleFinalizeIx(f.crank.address, f.fees, f.league, 0)], f.crank),
     );
     expect((await f.h.readCohort(f.league, 0)).settled).toBe(true);
 
@@ -307,7 +313,7 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
         [
           await recordForfeitsIx(
             f.crank.address,
-            f.feeDestination,
+            f.fees,
             f.league,
             0,
             await forfeitPairs(f.cohort, quitters.slice(at, at + PAGE)),
@@ -324,7 +330,7 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
         [
           await settleCountIx(
             f.crank.address,
-            f.feeDestination,
+            f.fees,
             f.league,
             0,
             await forfeitPairs(f.cohort, everyone.slice(at, at + PAGE)),
@@ -341,7 +347,7 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
 
     // Finalisation is constant-time: four shares describe a thousand members.
     await f.h.sendOrThrow(
-      [await settleFinalizeIx(f.crank.address, f.feeDestination, f.league, 0)],
+      [await settleFinalizeIx(f.crank.address, f.fees, f.league, 0)],
       f.crank,
     );
     await stage('finalise');
@@ -429,7 +435,7 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
           [
             await recordForfeitsIx(
               f.crank.address,
-              f.feeDestination,
+              f.fees,
               f.league,
               index,
               await forfeitPairs(cohorts[index]!, [people[index]![1]!.address]),
@@ -443,7 +449,7 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
           [
             await settleCountIx(
               f.crank.address,
-              f.feeDestination,
+              f.fees,
               f.league,
               index,
               await forfeitPairs(cohorts[index]!, people[index]!.map((p) => p.address)),
@@ -453,7 +459,7 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
           f.crank,
         );
         await f.h.sendOrThrow(
-          [await settleFinalizeIx(f.crank.address, f.feeDestination, f.league, index)],
+          [await settleFinalizeIx(f.crank.address, f.fees, f.league, index)],
           f.crank,
         );
       };

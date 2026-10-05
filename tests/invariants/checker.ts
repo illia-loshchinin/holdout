@@ -1,5 +1,5 @@
 /**
- * The invariant checker — INV-1…INV-9 of spec §8.4. Task T017.
+ * The invariant checker — INV-1…INV-10 of spec §8.4. Task T017, amended for H35.
  *
  * Pure functions over a decoded snapshot: no LiteSVM, no RPC, no Kit. Scenario
  * tests call `assertInvariants` after every step and pass the previous snapshot
@@ -8,6 +8,15 @@
  *
  * Amounts are bigint base units. Times are numbers — chain seconds fit a double
  * with room to spare, and arithmetic on them stays readable.
+ *
+ * ## The money since H35
+ *
+ * A forfeited stake splits 70 / 10 / 5 / 5 / 10 (FR-027): the pool part and the
+ * two reserve parts (`boost_due`, `comeback_due`) stay in the cohort's vault, the
+ * developer and operations parts leave at once. The reserve parts move into the
+ * league's reserve vault only when the cohort finalizes (FR-037c, INV-10), after
+ * the cohort has drawn its boost and its comeback funding from that same reserve
+ * (FR-037d, FR-037e). Nothing carries over between cohorts any more.
  */
 
 export type Address = string;
@@ -26,7 +35,9 @@ export interface CohortSnapshot {
   memberCount: number;
   heldStake: bigint;
   pool: bigint;
-  carryOverReceived: bigint;
+  /** Reserve shares of this cohort's forfeits, held in its vault until it finalizes. */
+  boostDue: bigint;
+  comebackDue: bigint;
   forfeitsRecorded: number;
   counted: number;
   finisherCount: number;
@@ -35,14 +46,27 @@ export interface CohortSnapshot {
   settled: boolean;
   sharePerTier: [bigint, bigint, bigint, bigint];
   roundingRemainder: bigint;
-  /** The fee half of a no-finisher split — the other half is the carry-over. */
+  /** A cohort nobody finished: its whole pool, split developer / operations. */
   noFinisherFee: bigint;
-  /** The send side of a carry-over: how much left, and for where. */
-  carryOverSent: bigint;
-  carryOverTarget: Address | null;
-  carryOverHeld: bigint;
+  /** What finalization drew from the league's boost reserve into the pool. */
+  boostReceived: bigint;
+  /** Σ comeback entitlements of its counted finishers. */
+  comebackOwed: bigint;
+  /** What finalization drew from the comeback reserve: `min(owed, reserve)`. */
+  comebackFunded: bigint;
+  /** Refunds paid out with claims so far. */
+  comebackClaimed: bigint;
   /** SKR the cohort's vault token account actually holds. */
   vaultAmount: bigint;
+}
+
+export interface LeagueSnapshot {
+  address: Address;
+  leagueId: number;
+  boostReserve: bigint;
+  comebackReserve: bigint;
+  /** SKR the league's reserve vault token account actually holds. */
+  reserveVaultAmount: bigint;
 }
 
 export interface MembershipSnapshot {
@@ -54,6 +78,8 @@ export interface MembershipSnapshot {
   daysCompleted: number;
   state: MembershipState;
   counted: boolean;
+  /** The comeback refund this finisher is owed, before any pro-rata scaling. */
+  comebackEntitled: bigint;
 }
 
 export interface LeagueProgressSnapshot {
@@ -62,6 +88,10 @@ export interface LeagueProgressSnapshot {
   currentStreak: number;
   longestStreak: number;
   lastChanged: number;
+  /** The latest counted forfeit's stake while it can still earn a comeback; 0 once used. */
+  comebackStake: bigint;
+  comebackFrom: number;
+  comebackUntil: number;
 }
 
 export interface ProfileSnapshot {
@@ -82,10 +112,14 @@ export interface ProfileSnapshot {
 export interface Snapshot {
   now: number;
   cohorts: CohortSnapshot[];
+  /** Every league account, with what its reserve vault holds. */
+  leagues: LeagueSnapshot[];
   memberships: MembershipSnapshot[];
   profiles: ProfileSnapshot[];
-  /** SKR held by the fee destination, for the delta checks. */
-  feeDestination?: bigint;
+  /** SKR held by the operations destination (`Config.fee_destination`), for the delta checks. */
+  operationsDestination?: bigint;
+  /** SKR held by the developer destination (H35), for the delta checks. */
+  developerDestination?: bigint;
   /**
    * SKR each member wallet holds, by wallet. Every transfer has two sides, and
    * this is the one outside the program: without it a `claim_payout` that moved
@@ -114,6 +148,53 @@ export class InvariantError extends Error {
 const fail = (invariant: string, detail: string): never => {
   throw new InvariantError(invariant, detail);
 };
+
+// ------------------------------------------------------------ the money rules
+// The same arithmetic as `programs/holdout/src/math/settlement.rs`, written
+// again from the spec so the two can disagree; `checker.spec.ts` replays
+// `fixtures/settlement-vectors.json` through these.
+
+/** The fee on one forfeited stake: 30 %, rounded down (FR-027). */
+export const feeOf = (stake: bigint): bigint => (stake * 30n) / 100n;
+
+export interface ForfeitSplit {
+  pool: bigint;
+  boost: bigint;
+  comeback: bigint;
+  developer: bigint;
+  operations: bigint;
+}
+
+/** Where one forfeited stake goes: 70 / 10 / 5 / 5 / 10, operations taking the rounding (FR-027, H35). */
+export const forfeitSplit = (stake: bigint): ForfeitSplit => {
+  const fee = feeOf(stake);
+  const boost = (stake * 10n) / 100n;
+  const comeback = (stake * 5n) / 100n;
+  const developer = (stake * 5n) / 100n;
+  return { pool: stake - fee, boost, comeback, developer, operations: fee - boost - comeback - developer };
+};
+
+const min = (a: bigint, b: bigint): bigint => (a < b ? a : b);
+
+/** `min(20 % of the cohort's own pool, the league's boost reserve)` (FR-037d). */
+export const boostFor = (ownPool: bigint, boostReserve: bigint): bigint => min((ownPool * 20n) / 100n, boostReserve);
+
+/** `min(10 % of the forfeited stake, the stake finished on)` (FR-037e). */
+export const comebackOwedFor = (forfeitedStake: bigint, newStake: bigint): bigint =>
+  min((forfeitedStake * 10n) / 100n, newStake);
+
+/** One finisher's refund, scaled pro rata when the reserve funded less than was owed (FR-037e). */
+export const comebackRefund = (entitled: bigint, funded: bigint, owed: bigint): bigint =>
+  owed === 0n ? 0n : (entitled * funded) / owed;
+
+/** A no-finisher pool: a third (floored) to the developer, the rest to operations (FR-037). */
+export const noFinisherSplit = (pool: bigint): { developer: bigint; operations: bigint } => ({
+  developer: pool / 3n,
+  operations: pool - pool / 3n,
+});
+
+/** How many of the forfeited cohort's days after the missed deadline a comeback cohort may start. */
+export const COMEBACK_WINDOW_DAYS = 14;
 
 // ---------------------------------------------------------------- derivations
 
@@ -202,19 +283,81 @@ export const deriveStreak = (
   return { cleared, currentStreak, longestStreak, lastChanged };
 };
 
+/**
+ * The comeback record a profile must hold for one league, and what each counted
+ * finisher is entitled to, derived rather than trusted (FR-037e).
+ *
+ * Written only by `settle_count`, in cohort order like the streak, so the same
+ * ordering argument applies: walk the member's counted cohorts of the league by
+ * start. A counted forfeit opens (or replaces) the record with its stake and
+ * missed deadline; a counted finish of a cohort starting after that deadline and
+ * no more than 14 of the forfeited cohort's days after it uses the record up and
+ * is owed `min(10 % of the forfeited stake, its own stake)`.
+ */
+export const deriveComeback = (
+  memberships: MembershipSnapshot[],
+  cohorts: Map<Address, CohortSnapshot>,
+  wallet: Address,
+  leagueId: number,
+): { comebackStake: bigint; comebackFrom: number; comebackUntil: number; entitled: Map<Address, bigint> } => {
+  const history = memberships
+    .filter((m) => m.wallet === wallet && m.counted)
+    .map((m) => ({ m, c: cohorts.get(m.cohort) }))
+    .filter((x): x is { m: MembershipSnapshot; c: CohortSnapshot } => x.c !== undefined)
+    .filter((x) => x.c.leagueId === leagueId)
+    .sort((a, b) => a.c.start - b.c.start || a.c.index - b.c.index);
+
+  let comebackStake = 0n;
+  let comebackFrom = 0;
+  let comebackUntil = 0;
+  const entitled = new Map<Address, bigint>();
+  for (const { m, c } of history) {
+    if (m.state === 'Forfeited') {
+      comebackStake = m.stake;
+      comebackFrom = deadlineOf(c, m.daysCompleted);
+      comebackUntil = comebackFrom + COMEBACK_WINDOW_DAYS * c.dayLength;
+    } else if (m.state === 'Finished' || m.state === 'Claimed') {
+      if (comebackStake > 0n && c.start > comebackFrom && c.start <= comebackUntil) {
+        entitled.set(m.address, comebackOwedFor(comebackStake, m.stake));
+        comebackStake = 0n;
+      }
+    }
+  }
+  return { comebackStake, comebackFrom, comebackUntil, entitled };
+};
+
 // ---------------------------------------------------------------- the checks
 
 const byAddress = <T extends { address: Address }>(xs: T[]): Map<Address, T> =>
   new Map(xs.map((x) => [x.address, x]));
 
-/** INV-1 · held stakes + pool + any held carry-over == what the vault holds. */
+/** What INV-1 says a cohort's vault holds. */
+export const custodyOf = (c: CohortSnapshot): bigint =>
+  c.heldStake + c.pool + c.boostDue + c.comebackDue + (c.comebackFunded - c.comebackClaimed);
+
+/**
+ * INV-1 · a cohort's vault holds its held stakes, its pool, its reserve shares
+ * not yet credited and the comeback refunds funded and not yet claimed; a
+ * league's reserve vault holds its boost reserve plus its comeback reserve.
+ */
 const checkCustody = (s: Snapshot): void => {
   for (const c of s.cohorts) {
-    const expected = c.heldStake + c.pool + c.carryOverHeld;
+    if (c.comebackClaimed > c.comebackFunded) {
+      fail('INV-1', `cohort ${c.address}: claimed ${c.comebackClaimed} of comeback refunds, only ${c.comebackFunded} funded`);
+    }
+    const expected = custodyOf(c);
     if (c.vaultAmount !== expected) {
       fail(
         'INV-1',
-        `cohort ${c.address}: vault ${c.vaultAmount} != held ${c.heldStake} + pool ${c.pool} + held carry-over ${c.carryOverHeld}`,
+        `cohort ${c.address}: vault ${c.vaultAmount} != held ${c.heldStake} + pool ${c.pool} + boost due ${c.boostDue} + comeback due ${c.comebackDue} + unclaimed refunds ${c.comebackFunded - c.comebackClaimed}`,
+      );
+    }
+  }
+  for (const l of s.leagues) {
+    if (l.reserveVaultAmount !== l.boostReserve + l.comebackReserve) {
+      fail(
+        'INV-1',
+        `league ${l.leagueId}: reserve vault ${l.reserveVaultAmount} != boost reserve ${l.boostReserve} + comeback reserve ${l.comebackReserve}`,
       );
     }
   }
@@ -332,16 +475,16 @@ const checkSlots = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void =>
  * INV-5 · the denominator, and the tally it is built from, are the counted
  * memberships and nothing else.
  *
- * `settle_count` writes `finisher_count`, `finishers_per_tier` and
- * `total_finisher_stake` page by page, and `settle_finalize` divides by the
- * last of them. Taking those three at face value leaves the allocation
- * self-consistent no matter what they say: an overstated denominator produces
- * smaller shares and a larger remainder that still add back to the pool, so the
- * money checks pass while the difference has been handed to the fee
- * destination — and the first member to claim at their real tier finds the
- * cohort short. Derived here instead, from the memberships that carry
- * `counted`, so the figures are checked at every stage of the count rather than
- * only at the end.
+ * `settle_count` writes `finisher_count`, `finishers_per_tier`,
+ * `total_finisher_stake` and `comeback_owed` page by page, and `settle_finalize`
+ * divides by the denominator and funds the comeback total. Taking those figures
+ * at face value leaves the allocation self-consistent no matter what they say:
+ * an overstated denominator produces smaller shares and a larger remainder that
+ * still add back to the pool, so the money checks pass while the difference has
+ * been handed to the operations destination — and the first member to claim at
+ * their real tier finds the cohort short. Derived here instead, from the
+ * memberships that carry `counted`, so the figures are checked at every stage of
+ * the count rather than only at the end.
  */
 const checkTallies = (s: Snapshot): void => {
   for (const c of s.cohorts) {
@@ -373,10 +516,19 @@ const checkTallies = (s: Snapshot): void => {
         `cohort ${c.address}: denominator ${c.totalFinisherStake}, counted finishers staked ${stake}`,
       );
     }
+    const owed = s.memberships
+      .filter((m) => m.cohort === c.address)
+      .reduce((sum, m) => sum + m.comebackEntitled, 0n);
+    if (c.comebackOwed !== owed) {
+      fail('INV-5', `cohort ${c.address}: comeback owed ${c.comebackOwed}, its memberships are entitled to ${owed}`);
+    }
   }
 };
 
-/** INV-9 · the streak follows the member's own cohorts, not the crank's order. */
+/**
+ * INV-9 · the streak follows the member's own cohorts, not the crank's order —
+ * and so does the comeback record, which `settle_count` writes beside it.
+ */
 const checkStreaks = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void => {
   for (const p of s.profiles) {
     for (const [idText, progress] of Object.entries(p.leagues)) {
@@ -421,59 +573,70 @@ const checkStreaks = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void 
           `${p.wallet} league ${leagueId}: forfeited ${progress.forfeited}, on-chain memberships ${forfeited}`,
         );
       }
+      const comeback = deriveComeback(s.memberships, cohorts, p.wallet, leagueId);
+      if (
+        progress.comebackStake !== comeback.comebackStake ||
+        progress.comebackFrom !== comeback.comebackFrom ||
+        progress.comebackUntil !== comeback.comebackUntil
+      ) {
+        fail(
+          'INV-9',
+          `${p.wallet} league ${leagueId}: comeback ${progress.comebackStake} in (${progress.comebackFrom}, ${progress.comebackUntil}], counted outcomes give ${comeback.comebackStake} in (${comeback.comebackFrom}, ${comeback.comebackUntil}]`,
+        );
+      }
     }
   }
 };
-
-/** One carry-over that moved in a step: how much, and out of which cohort. */
-interface CarryMove {
-  from: CohortSnapshot;
-  amount: bigint;
-}
 
 /**
- * Every carry-over that moved in this step, keyed by the cohort it arrived at.
- *
- * A target's own `carry_over_received` is the cohort's word for where its new
- * pool came from, and taking that word is how a settlement that drains an
- * unrelated cohort — even one in another league — slips past INV-1 and INV-2
- * with the bookkeeping field incremented to cover it. So the send side is
- * reconstructed here and the two are made to agree. A no-finisher finalize
- * raises the source's `carry_over_sent`; the Phase 2 delivery instead empties
- * its `carry_over_held`. Both name the destination in `carry_over_target`,
- * written by the same instruction, so `next` is where that is read.
+ * INV-2 · a comeback entitlement is earned, not written: every membership's
+ * `comeback_entitled` is what the member's counted history in that league
+ * derives (FR-037e), and zero for anyone who has not finished a comeback cohort.
+ * Checked per wallet and league from the memberships alone, so it holds for a
+ * test league whose profile slot is shared and left out of the snapshot.
  */
-const carryMovesByTarget = (
-  next: Snapshot,
-  before: Map<Address, CohortSnapshot>,
-): Map<Address, CarryMove[]> => {
-  const moves = new Map<Address, CarryMove[]>();
-  for (const from of next.cohorts) {
-    const b = before.get(from.address);
-    if (!b) continue;
-    const sent = from.carryOverSent - b.carryOverSent;
-    if (sent < 0n) {
-      fail('INV-2', `cohort ${from.address}: carry-over sent fell by ${-sent}`);
+const checkEntitlements = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void => {
+  const seen = new Set<string>();
+  for (const m of s.memberships) {
+    const c = cohorts.get(m.cohort);
+    if (!c) continue;
+    const key = `${m.wallet}/${c.leagueId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const { entitled } = deriveComeback(s.memberships, cohorts, m.wallet, c.leagueId);
+    for (const x of s.memberships) {
+      if (x.wallet !== m.wallet || cohorts.get(x.cohort)?.leagueId !== c.leagueId) continue;
+      const want = entitled.get(x.address) ?? 0n;
+      if (x.comebackEntitled !== want) {
+        fail(
+          'INV-2',
+          `${x.wallet} in ${x.cohort}: comeback entitled ${x.comebackEntitled}, its counted history in league ${c.leagueId} gives ${want}`,
+        );
+      }
     }
-    const released = b.carryOverHeld - from.carryOverHeld;
-    const amount = sent + (released > 0n ? released : 0n);
-    if (amount === 0n) continue;
-    const target =
-      from.carryOverTarget ??
-      fail('INV-2', `cohort ${from.address} moved ${amount} of carry-over naming no target`);
-    moves.set(target, [...(moves.get(target) ?? []), { from, amount }]);
   }
-  return moves;
 };
 
-/** INV-2, INV-5, INV-6, INV-8 — each about a change, so each needs both snapshots. */
+/** A league's reserve parts arriving with its cohorts' finalizations this step. */
+interface ReserveMove {
+  /** Reserve shares credited: the cohort's dues, including this step's forfeits. */
+  boostIn: bigint;
+  comebackIn: bigint;
+  /** Drawn out for the cohort's boost and comeback funding. */
+  boostOut: bigint;
+  comebackOut: bigint;
+}
+
+/** INV-2, INV-5, INV-6, INV-8, INV-10 — each about a change, so each needs both snapshots. */
 const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
   const before = byAddress(prev.cohorts);
   const prevMemberships = byAddress(prev.memberships);
   const prevCohorts = new Map(prev.cohorts.map((c) => [c.address, c]));
   const nextCohorts = new Map(next.cohorts.map((c) => [c.address, c]));
-  const moves = carryMovesByTarget(next, before);
-  const inSnapshot = new Set(next.cohorts.map((c) => c.address));
+  const prevLeagues = new Map(prev.leagues.map((l) => [l.leagueId, l]));
+  const reserveMoves = new Map<number, ReserveMove[]>();
+  let operationsOwed = 0n;
+  let developerOwed = 0n;
 
   // A membership's terms are written once, by `join_cohort`, and every figure
   // INV-1 and INV-2 balance is derived from them: the stake is what custody
@@ -496,61 +659,40 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
         `membership ${m.address}: tier ${was.tier} staking ${was.stake} → tier ${m.tier} staking ${m.stake}`,
       );
     }
-  }
-
-  for (const [target, sent] of moves) {
-    if (!inSnapshot.has(target)) {
-      const total = sent.reduce((sum, m) => sum + m.amount, 0n);
-      fail('INV-2', `${total} of carry-over went to ${target}, which is not in the snapshot`);
+    // The entitlement is written by the count, once; the claim reads it, and a
+    // claim that could rewrite it would set its own refund.
+    if (m.comebackEntitled !== was.comebackEntitled && (was.counted || !m.counted)) {
+      fail(
+        'INV-2',
+        `membership ${m.address}: comeback entitlement ${was.comebackEntitled} → ${m.comebackEntitled} outside its count`,
+      );
     }
   }
 
   for (const c of next.cohorts) {
-    // Both sides of every carry-over, correlated. A cohort opened in this same
-    // step has no `before`, so its received figure is measured from zero.
     const b = before.get(c.address);
-    const carryArrived = c.carryOverReceived - (b?.carryOverReceived ?? 0n);
-    if (carryArrived < 0n) {
-      fail('INV-2', `cohort ${c.address}: carry-over received fell by ${-carryArrived}`);
-    }
-    const arrivals = moves.get(c.address) ?? [];
-    const carrySent = arrivals.reduce((sum, m) => sum + m.amount, 0n);
-    if (carryArrived !== carrySent) {
-      fail(
-        'INV-2',
-        `cohort ${c.address}: carry-over received +${carryArrived}, but ${carrySent} was sent to it`,
-      );
-    }
-    for (const move of arrivals) {
-      if (move.from.address === c.address) {
-        fail('INV-2', `cohort ${c.address} carried ${move.amount} over into itself`);
-      }
-      if (move.from.leagueId !== c.leagueId) {
-        fail(
-          'INV-2',
-          `cohort ${c.address} (league ${c.leagueId}) took ${move.amount} from ${move.from.address} (league ${move.from.leagueId})`,
-        );
-      }
-      if (move.from.totalFinisherStake !== 0n) {
-        fail(
-          'INV-2',
-          `cohort ${move.from.address} carried ${move.amount} over although its finishers are owed it`,
-        );
-      }
-      // FR-037a puts the carry where members can still reach it. A locked or
-      // running cohort takes the money and nobody can join to win it back, and
-      // the amount and the league both look right, so nothing else objects.
-      // Read at the post-step clock, on the same footing as INV-8 below.
-      const status = statusOf(c, next.now);
-      if (status !== 'Open') {
-        fail(
-          'INV-2',
-          `cohort ${c.address} took ${move.amount} of carry-over while ${status}, not Open (FR-037a)`,
-        );
-      }
-    }
-
     if (!b) continue;
+
+    // The forfeits this step recorded, split as FR-027 splits them.
+    const forfeitsAdded = next.memberships.flatMap((m) => {
+      const was = prevMemberships.get(m.address);
+      return m.cohort === c.address && m.state === 'Forfeited' && was?.state === 'Joined' ? [was] : [];
+    });
+    const split = forfeitsAdded.reduce(
+      (sum, was) => {
+        const part = forfeitSplit(was.stake);
+        return {
+          pool: sum.pool + part.pool,
+          boost: sum.boost + part.boost,
+          comeback: sum.comeback + part.comeback,
+          developer: sum.developer + part.developer,
+          operations: sum.operations + part.operations,
+        };
+      },
+      { pool: 0n, boost: 0n, comeback: 0n, developer: 0n, operations: 0n },
+    );
+    operationsOwed += split.operations;
+    developerOwed += split.developer;
 
     // The claims this step settled — the only thing that may move a settled
     // cohort's balances, and the yardstick both INV-6 and INV-2 measure against.
@@ -574,9 +716,13 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
     }
     const claimsPaid = claims.reduce((sum, was) => sum + (c.sharePerTier[was.tier] ?? 0n), 0n);
     const stakesReturned = claims.reduce((sum, was) => sum + was.stake, 0n);
+    const refundsPaid = claims.reduce(
+      (sum, was) => sum + comebackRefund(was.comebackEntitled, c.comebackFunded, c.comebackOwed),
+      0n,
+    );
 
-    // INV-5 · the denominator and the shares are written exactly once.
     if (b.settled) {
+      // INV-5 · the denominator and the shares are written exactly once.
       if (!c.settled) fail('INV-5', `cohort ${c.address} un-settled itself`);
       if (b.totalFinisherStake !== c.totalFinisherStake) {
         fail('INV-5', `cohort ${c.address}: denominator changed after settling`);
@@ -589,11 +735,11 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
       }
 
       // INV-6 · after settling, a claim is the only thing that moves anything,
-      // and it moves both sides by a known amount: the member's stake out of
-      // held, their share out of the pool. Pinning the deltas rather than only
-      // refusing increases is the point — a balance walked *down*, with the
-      // vault lowered to match, satisfies INV-1 and leaves no membership to
-      // account for where the units went.
+      // and it moves every side by a known amount: the member's stake out of
+      // held, their share out of the pool, their refund out of what was funded.
+      // Pinning the deltas rather than only refusing increases is the point — a
+      // balance walked *down*, with the vault lowered to match, satisfies INV-1
+      // and leaves no membership to account for where the units went.
       if (b.pool - c.pool !== claimsPaid) {
         fail(
           'INV-6',
@@ -606,14 +752,23 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
           `cohort ${c.address}: held stake ${b.heldStake} → ${c.heldStake} after settling, but this step's claims return ${stakesReturned}`,
         );
       }
+      if (c.comebackClaimed - b.comebackClaimed !== refundsPaid) {
+        fail(
+          'INV-6',
+          `cohort ${c.address}: comeback claimed ${b.comebackClaimed} → ${c.comebackClaimed}, but this step's claims refund ${refundsPaid}`,
+        );
+      }
       if (c.memberCount !== b.memberCount) {
         fail('INV-6', `cohort ${c.address}: member count changed after settling`);
       }
-      if (c.carryOverReceived !== b.carryOverReceived) {
-        fail('INV-6', `cohort ${c.address}: took carry-over after settling`);
-      }
-      if (c.carryOverHeld > b.carryOverHeld) {
-        fail('INV-6', `cohort ${c.address}: held carry-over grew after settling`);
+      if (
+        c.boostDue !== b.boostDue ||
+        c.comebackDue !== b.comebackDue ||
+        c.boostReceived !== b.boostReceived ||
+        c.comebackOwed !== b.comebackOwed ||
+        c.comebackFunded !== b.comebackFunded
+      ) {
+        fail('INV-6', `cohort ${c.address}: its reserve figures changed after settling`);
       }
       if (c.noFinisherFee !== b.noFinisherFee) {
         fail('INV-6', `cohort ${c.address}: the no-finisher fee changed after settling`);
@@ -627,103 +782,170 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
       if (c.counted !== b.counted || c.forfeitsRecorded !== b.forfeitsRecorded) {
         fail('INV-6', `cohort ${c.address}: the count changed after settling`);
       }
+      continue;
     }
 
-    // INV-2 · only recorded forfeits, carry-over arrival and claims touch a pool.
-    const forfeitsAdded = next.memberships.flatMap((m) => {
-      const was = prevMemberships.get(m.address);
-      return m.cohort === c.address && m.state === 'Forfeited' && was?.state === 'Joined' ? [was] : [];
-    });
-    const fromForfeits = forfeitsAdded.reduce((sum, was) => {
-      const fee = (was.stake * 30n) / 100n;
-      return sum + (was.stake - fee);
-    }, 0n);
+    // The pool this cohort raised on its own: what it had, plus this step's
+    // forfeits' pool parts (INV-2). Its reserve dues likewise.
+    const ownPool = b.pool + split.pool;
+    const boostDue = b.boostDue + split.boost;
+    const comebackDue = b.comebackDue + split.comeback;
 
-    const available = b.pool + fromForfeits + carryArrived;
-    if (c.settled && !b.settled) {
-      // INV-5 · the denominator is written once, and only once it is complete.
-      // A finalize that ran early strands every uncounted member in a settled
-      // cohort for good, and the allocation it wrote can still balance on its
-      // own — an empty pool does, and so do shares for the subset counted so
-      // far — so the money checks below would pass it through.
-      if (b.counted !== b.memberCount) {
+    if (!c.settled) {
+      // INV-2 · only recorded forfeits' pool parts raise a pool before it settles.
+      if (c.pool !== ownPool) {
         fail(
-          'INV-5',
-          `cohort ${c.address}: settled with ${b.counted} of ${b.memberCount} members counted`,
+          'INV-2',
+          `cohort ${c.address}: pool ${b.pool} → ${c.pool}, but this step's forfeits pool +${split.pool}`,
         );
       }
-      // Finalization is the one place a pool moves without a claim, and it moves
-      // to a figure the cohort has just written down for itself: the shares it
-      // owes its finishers, or nothing at all when nobody finished. "It only
-      // fell" is not enough — a finalize that drained the claimable shares and
-      // lowered the vault with them would satisfy INV-1, leave every membership
-      // `Finished`, and be discovered only when the first claim failed.
-      if (c.totalFinisherStake > 0n) {
-        const owed = c.finishersPerTier.reduce(
-          (sum, count, tier) => sum + BigInt(count) * (c.sharePerTier[tier] ?? 0n),
-          0n,
+      // INV-10 · the reserve parts wait in the vault: a due that rises by less
+      // than its forfeits' share has been sent somewhere before finalization.
+      if (c.boostDue !== boostDue || c.comebackDue !== comebackDue) {
+        fail(
+          'INV-10',
+          `cohort ${c.address}: dues ${b.boostDue}/${b.comebackDue} → ${c.boostDue}/${c.comebackDue}, but this step's forfeits owe +${split.boost}/+${split.comeback}`,
         );
-        if (c.pool !== owed) {
-          fail(
-            'INV-2',
-            `cohort ${c.address}: finalized to a pool of ${c.pool}, but its own shares owe ${owed}`,
-          );
-        }
-        if (available !== c.pool + c.roundingRemainder) {
-          fail(
-            'INV-2',
-            `cohort ${c.address}: finalized ${available} into ${c.pool} owed + ${c.roundingRemainder} remainder`,
-          );
-        }
-      } else {
-        if (c.pool !== 0n) {
-          fail('INV-2', `cohort ${c.address}: nobody finished, yet ${c.pool} stayed in the pool`);
-        }
-        const split =
-          c.noFinisherFee +
-          (c.carryOverSent - b.carryOverSent) +
-          (c.carryOverHeld - b.carryOverHeld);
-        if (split !== available) {
-          fail(
-            'INV-2',
-            `cohort ${c.address}: ${available} to split, but fee ${c.noFinisherFee} and the carry-over account for ${split}`,
-          );
-        }
       }
-    } else if (c.pool !== available - claimsPaid) {
+      if (
+        c.boostReceived !== b.boostReceived ||
+        c.comebackFunded !== b.comebackFunded ||
+        c.comebackClaimed !== b.comebackClaimed ||
+        c.noFinisherFee !== b.noFinisherFee
+      ) {
+        fail('INV-2', `cohort ${c.address}: settlement figures moved before it settled`);
+      }
+      continue;
+    }
+
+    // ---- finalized in this step --------------------------------------------
+    // INV-5 · the denominator is written once, and only once it is complete.
+    // A finalize that ran early strands every uncounted member in a settled
+    // cohort for good, and the allocation it wrote can still balance on its
+    // own — an empty pool does, and so do shares for the subset counted so
+    // far — so the money checks below would pass it through.
+    if (b.counted !== b.memberCount) {
+      fail('INV-5', `cohort ${c.address}: settled with ${b.counted} of ${b.memberCount} members counted`);
+    }
+    const league = prevLeagues.get(c.leagueId);
+    if (c.totalFinisherStake > 0n) {
+      // FR-037d · the boost is `min(20 % of the cohort's own pool, the reserve
+      // before this step)`. A cohort with no forfeits has no pool and gets none.
+      const cap = (ownPool * 20n) / 100n;
+      if (league) {
+        const want = boostFor(ownPool, league.boostReserve);
+        if (c.boostReceived !== want) {
+          fail(
+            'INV-2',
+            `cohort ${c.address}: boost ${c.boostReceived}, but min(20% of ${ownPool}, reserve ${league.boostReserve}) is ${want}`,
+          );
+        }
+      } else if (c.boostReceived > cap) {
+        fail('INV-2', `cohort ${c.address}: boost ${c.boostReceived} exceeds 20% of its own pool ${ownPool}`);
+      }
+      // Finalization is the one place a pool moves without a claim, and it
+      // moves to a figure the cohort has just written down for itself: the
+      // shares it owes its finishers. "It only fell" is not enough — a finalize
+      // that drained the claimable shares and lowered the vault with them would
+      // satisfy INV-1, leave every membership `Finished`, and be discovered only
+      // when the first claim failed.
+      const available = ownPool + c.boostReceived;
+      const owed = c.finishersPerTier.reduce(
+        (sum, count, tier) => sum + BigInt(count) * (c.sharePerTier[tier] ?? 0n),
+        0n,
+      );
+      if (c.pool !== owed) {
+        fail('INV-2', `cohort ${c.address}: finalized to a pool of ${c.pool}, but its own shares owe ${owed}`);
+      }
+      if (available !== c.pool + c.roundingRemainder) {
+        fail(
+          'INV-2',
+          `cohort ${c.address}: finalized ${ownPool} + boost ${c.boostReceived} into ${c.pool} owed + ${c.roundingRemainder} remainder`,
+        );
+      }
+      // FR-037e · the comeback funding is `min(owed, the reserve before this step)`.
+      const fundedCap = league ? min(c.comebackOwed, league.comebackReserve) : c.comebackOwed;
+      if (league ? c.comebackFunded !== fundedCap : c.comebackFunded > fundedCap) {
+        fail(
+          'INV-2',
+          `cohort ${c.address}: comeback funded ${c.comebackFunded}, owed ${c.comebackOwed}${league ? `, reserve ${league.comebackReserve}` : ''}`,
+        );
+      }
+      operationsOwed += c.roundingRemainder;
+    } else {
+      if (c.pool !== 0n) {
+        fail('INV-2', `cohort ${c.address}: nobody finished, yet ${c.pool} stayed in the pool`);
+      }
+      if (c.noFinisherFee !== ownPool) {
+        fail('INV-2', `cohort ${c.address}: ${ownPool} to send out, but the no-finisher fee records ${c.noFinisherFee}`);
+      }
+      if (c.boostReceived !== 0n || c.comebackFunded !== 0n) {
+        fail('INV-2', `cohort ${c.address}: nobody finished, yet it drew ${c.boostReceived} boost and ${c.comebackFunded} comeback`);
+      }
+      const out = noFinisherSplit(c.noFinisherFee);
+      developerOwed += out.developer;
+      operationsOwed += out.operations;
+    }
+    if (c.comebackClaimed !== b.comebackClaimed) {
+      fail('INV-6', `cohort ${c.address}: comeback refunds paid while it finalized`);
+    }
+    // FR-037c · the reserve shares are credited at finalization, all of them.
+    if (c.boostDue !== 0n || c.comebackDue !== 0n) {
       fail(
-        'INV-2',
-        `cohort ${c.address}: pool ${b.pool} → ${c.pool}, but forfeits +${fromForfeits}, carry-over +${carryArrived}, claims -${claimsPaid}`,
+        'INV-10',
+        `cohort ${c.address}: finalized with ${c.boostDue} boost and ${c.comebackDue} comeback still due to its league`,
+      );
+    }
+    reserveMoves.set(c.leagueId, [
+      ...(reserveMoves.get(c.leagueId) ?? []),
+      { boostIn: boostDue, comebackIn: comebackDue, boostOut: c.boostReceived, comebackOut: c.comebackFunded },
+    ]);
+  }
+
+  // INV-10 · a league's reserves change only in a step where one of its cohorts
+  // finalizes, and then by exactly that cohort's dues less what it drew. A
+  // reserve credited when a forfeit was recorded would let the crank's timing
+  // set some other cohort's boost (FR-037c) — and INV-1 alone cannot see it,
+  // because the reserve vault rises with the counter.
+  for (const l of next.leagues) {
+    const lb = prevLeagues.get(l.leagueId);
+    if (!lb) {
+      if (l.boostReserve !== 0n || l.comebackReserve !== 0n) {
+        fail('INV-10', `league ${l.leagueId} appeared holding ${l.boostReserve} boost and ${l.comebackReserve} comeback reserve`);
+      }
+      continue;
+    }
+    const moves = reserveMoves.get(l.leagueId) ?? [];
+    const boost = moves.reduce((sum, m) => sum + m.boostIn - m.boostOut, lb.boostReserve);
+    const comeback = moves.reduce((sum, m) => sum + m.comebackIn - m.comebackOut, lb.comebackReserve);
+    if (l.boostReserve !== boost || l.comebackReserve !== comeback) {
+      fail(
+        'INV-10',
+        moves.length === 0
+          ? `league ${l.leagueId}: reserves ${lb.boostReserve}/${lb.comebackReserve} → ${l.boostReserve}/${l.comebackReserve} with no cohort of it finalizing`
+          : `league ${l.leagueId}: reserves ${lb.boostReserve}/${lb.comebackReserve} → ${l.boostReserve}/${l.comebackReserve}, finalization gives ${boost}/${comeback}`,
       );
     }
   }
 
-  // INV-2 · the fee is the part of a stake that does *not* reach the pool, and
-  // the remainder is the part that leaves it at finalization. Both land in one
-  // account, and until that account is read the snapshot cannot tell a fee that
-  // reached the treasury from one that reached somebody else's token account:
-  // the vault falls by the same amount either way, so custody and the pool both
-  // still balance. Skipped when either snapshot has no destination configured.
-  if (prev.feeDestination !== undefined && next.feeDestination !== undefined) {
-    let owed = 0n;
-    for (const c of next.cohorts) {
-      const b = before.get(c.address);
-      if (!b) continue;
-      for (const m of next.memberships) {
-        const was = prevMemberships.get(m.address);
-        if (m.cohort !== c.address || m.state !== 'Forfeited' || was?.state !== 'Joined') continue;
-        owed += (was.stake * 30n) / 100n;
-      }
-      if (c.settled && !b.settled) {
-        owed += c.totalFinisherStake > 0n ? c.roundingRemainder : c.noFinisherFee;
-      }
+  // INV-2 · the fee is the part of a stake that reaches neither the pool nor a
+  // reserve, and it lands in two accounts: the developer's 5 % and the
+  // operations 10 % plus rounding at once, a no-finisher pool split a third /
+  // the rest, and the rounding remainder to operations. Until those accounts
+  // are read the snapshot cannot tell a fee that reached its destination from
+  // one that reached somebody else's token account: the vault falls by the same
+  // amount either way, so custody and the pool both still balance. Each side is
+  // skipped when either snapshot has no such destination configured.
+  if (prev.operationsDestination !== undefined && next.operationsDestination !== undefined) {
+    const paid = next.operationsDestination - prev.operationsDestination;
+    if (paid !== operationsOwed) {
+      fail('INV-2', `the operations destination took ${paid}, but this step's forfeits and settlements owe it ${operationsOwed}`);
     }
-    const paid = next.feeDestination - prev.feeDestination;
-    if (paid !== owed) {
-      fail(
-        'INV-2',
-        `the fee destination took ${paid}, but this step's forfeits and settlements owe it ${owed}`,
-      );
+  }
+  if (prev.developerDestination !== undefined && next.developerDestination !== undefined) {
+    const paid = next.developerDestination - prev.developerDestination;
+    if (paid !== developerOwed) {
+      fail('INV-2', `the developer destination took ${paid}, but this step's forfeits and settlements owe it ${developerOwed}`);
     }
   }
 
@@ -751,7 +973,8 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
         continue;
       }
       if (m.state === 'Claimed' && was.state === 'Finished') {
-        owe(m.wallet, was.stake + (c?.sharePerTier[was.tier] ?? 0n));
+        const refund = c ? comebackRefund(was.comebackEntitled, c.comebackFunded, c.comebackOwed) : 0n;
+        owe(m.wallet, was.stake + (c?.sharePerTier[was.tier] ?? 0n) + refund);
       }
     }
     // A membership that has gone is a `leave_cohort`, the one path that closes
@@ -828,6 +1051,7 @@ export const assertInvariants = (current: Snapshot, previous?: Snapshot): void =
   checkSlots(current, cohorts);
   checkTallies(current);
   checkStreaks(current, cohorts);
+  checkEntitlements(current, cohorts);
   if (previous) checkDeltas(previous, current);
 };
 
@@ -844,7 +1068,7 @@ export const assertUnchanged = (before: Snapshot, after: Snapshot): void => {
 
 /**
  * INV-9's other half, used by T076: the same work in a different processing
- * order must leave identical profiles.
+ * order must leave identical profiles — streaks and comeback records alike.
  */
 export const assertSameProgress = (a: Snapshot, b: Snapshot): void => {
   const key = (s: Snapshot) =>
@@ -852,6 +1076,7 @@ export const assertSameProgress = (a: Snapshot, b: Snapshot): void => {
       [...s.profiles]
         .sort((x, y) => x.wallet.localeCompare(y.wallet))
         .map((p) => [p.wallet, p.qualified, p.leagues]),
+      (_k, v) => (typeof v === 'bigint' ? v.toString() : v),
     );
   if (key(a) !== key(b)) fail('INV-9', 'two processing orders produced different progress');
 };

@@ -56,6 +56,8 @@ import {
   faucetVaultPda,
   leaguePda,
   mintAuthorityPda,
+  reserveBump,
+  reservePda,
   vaultPda,
 } from '../helpers/pdas.js';
 
@@ -114,6 +116,7 @@ describe('initialize (research R14)', () => {
       operator: await addressOf(),
       sponsor: await addressOf(),
       treasuryWallet: await addressOf(),
+      developerWallet: await addressOf(),
       faucetSolTopUp: 20_000_000n,
       faucetDailyLamportCap: 720_000_000n,
       faucetSponsorFloat: 50_000_000n,
@@ -130,6 +133,7 @@ describe('initialize (research R14)', () => {
     expect(config.sponsor).toBe(args.sponsor);
     expect(config.skrMint).toBe(mint.address);
     expect(config.feeDestination).toBe(await associatedTokenPda(args.treasuryWallet, mint.address));
+    expect(config.developerDestination).toBe(await associatedTokenPda(args.developerWallet, mint.address));
     expect(config.ladderGateEnabled).toBe(false);
     expect(config.genesisGateEnabled).toBe(false);
     // No chip set yet, which no cohort may precede (FR-055b).
@@ -150,12 +154,19 @@ describe('initialize (research R14)', () => {
     // is not 6, change `SKR` in helpers/harness.ts together with this line.
     expect(skr?.decimals).toBe(6);
 
-    // The fee destination is the treasury's own token account, so fees reach the treasury.
+    // The operations destination is the treasury's own token account, so fees reach the treasury.
     const fees = readTokenAccount(h, config.feeDestination);
     expect(fees?.owner).toBe(TOKEN_PROGRAM);
     expect(fees?.mint).toBe(mint.address);
     expect(fees?.authority).toBe(args.treasuryWallet);
     expect(fees?.amount).toBe(0n);
+
+    // The developer destination likewise belongs to the developer's wallet (FR-037f).
+    const developer = readTokenAccount(h, config.developerDestination);
+    expect(developer?.owner).toBe(TOKEN_PROGRAM);
+    expect(developer?.mint).toBe(mint.address);
+    expect(developer?.authority).toBe(args.developerWallet);
+    expect(developer?.amount).toBe(0n);
 
     // The faucet vault holds lamports at a system-owned PDA, funded to rent exemption.
     const vault = account(h, await faucetVaultPda());
@@ -171,6 +182,7 @@ describe('initialize (research R14)', () => {
     expect(exists(h, await configPda())).toBe(false);
     expect(exists(h, mint.address)).toBe(false);
     expect(exists(h, await associatedTokenPda(args.treasuryWallet, mint.address))).toBe(false);
+    expect(exists(h, await associatedTokenPda(args.developerWallet, mint.address))).toBe(false);
     expect(exists(h, await faucetVaultPda())).toBe(false);
   });
 
@@ -219,6 +231,8 @@ const REAL_LEAGUE: CreateLeagueArgs = {
   durationDays: 7,
   repsPerDay: 25,
   exercise: 0,
+  // The 7-day league is the Easy one: knees allowed (H35).
+  form: 1,
   firstStart: FIRST_START,
   dayLength: DAY,
   cadence: WEEK,
@@ -228,18 +242,22 @@ const REAL_LEAGUE: CreateLeagueArgs = {
 /** A test league's timing: a minute-long day, so a whole cycle runs in minutes (scope doc D-A). */
 const COMPRESSED = { dayLength: 60, cadence: 120, joinLock: 10 };
 
-describe('create_league (data-model §1.2, H30)', () => {
+describe('create_league (data-model §1.2, H30, H35)', () => {
   let h: Harness;
   let admin: KeyPairSigner;
+  let mint: Address;
 
   beforeEach(async () => {
     h = await createHarness();
     admin = h.upgradeAuthority;
-    await h.injectConfig(); // admin = the harness's upgrade authority
+    // The league's reserve vault is a token account of the configured mint.
+    mint = await addressOf();
+    h.injectMint(mint, await mintAuthorityPda());
+    await h.injectConfig({ skrMint: mint }); // admin = the harness's upgrade authority
   });
 
   const create = async (over: Partial<CreateLeagueArgs> = {}, signer: KeyPairSigner = admin) =>
-    h.send([await createLeagueIx(signer.address, { ...REAL_LEAGUE, ...over })], signer);
+    h.send([await createLeagueIx(signer.address, mint, { ...REAL_LEAGUE, ...over })], signer);
 
   const readLeague = async (leagueId: number) => {
     const found = account(h, await leaguePda(leagueId));
@@ -260,11 +278,35 @@ describe('create_league (data-model §1.2, H30)', () => {
       cadence: BigInt(WEEK),
       joinLock: BigInt(HOUR),
       nextIndex: 0,
+      form: 1,
+      boostReserve: 0n,
+      comebackReserve: 0n,
+      reserveVaultBump: await reserveBump(0),
     });
   });
 
+  describe('form (H35)', () => {
+    it.each([
+      ['0, from the toes (Hard)', 1, 21, 0],
+      ['1, knees allowed (Easy)', 0, 7, 1],
+    ])('stores %s', async (_name, leagueId, durationDays, form) => {
+      await h.sendOrThrow([await createLeagueIx(admin.address, mint, { ...REAL_LEAGUE, leagueId, durationDays, form })], admin);
+      expect((await readLeague(leagueId))?.form).toBe(form);
+    });
+    // Any other form is refused with InvalidForm: reserves.spec.ts.
+  });
+
+  it('refuses a mint that is not the configured one, and creates nothing', async () => {
+    const other = await addressOf();
+    h.injectMint(other, await mintAuthorityPda());
+    const result = await h.send([await createLeagueIx(admin.address, other, REAL_LEAGUE)], admin);
+    expect(result.ok).toBe(false);
+    expect(await readLeague(0)).toBeNull();
+    expect(exists(h, await reservePda(0))).toBe(false);
+  });
+
   it('creates the 21-day league beside it', async () => {
-    await h.sendOrThrow([await createLeagueIx(admin.address, { ...REAL_LEAGUE, leagueId: 1, durationDays: 21 })], admin);
+    await h.sendOrThrow([await createLeagueIx(admin.address, mint, { ...REAL_LEAGUE, leagueId: 1, durationDays: 21 })], admin);
     expect(await readLeague(1)).toMatchObject({ leagueId: 1, durationDays: 21, nextIndex: 0 });
   });
 
@@ -276,7 +318,7 @@ describe('create_league (data-model §1.2, H30)', () => {
 
   describe('exercise', () => {
     it('accepts 0, which is push-ups', async () => {
-      await h.sendOrThrow([await createLeagueIx(admin.address, { ...REAL_LEAGUE, exercise: 0 })], admin);
+      await h.sendOrThrow([await createLeagueIx(admin.address, mint, { ...REAL_LEAGUE, exercise: 0 })], admin);
       expect((await readLeague(0))?.exercise).toBe(0);
     });
 
@@ -305,7 +347,7 @@ describe('create_league (data-model §1.2, H30)', () => {
     });
 
     it('accepts any Monday at 05:00 UTC as the first start', async () => {
-      await h.sendOrThrow([await createLeagueIx(admin.address, { ...REAL_LEAGUE, firstStart: FIRST_START + 2 * WEEK })], admin);
+      await h.sendOrThrow([await createLeagueIx(admin.address, mint, { ...REAL_LEAGUE, firstStart: FIRST_START + 2 * WEEK })], admin);
       expect((await readLeague(0))?.firstStart).toBe(BigInt(FIRST_START + 2 * WEEK));
     });
   });
@@ -367,16 +409,19 @@ describe('create_league (data-model §1.2, H30)', () => {
 describe.skipIf(!existsSync(TEST_LEAGUES_PROGRAM))('create_league in a test-leagues build', () => {
   let h: Harness;
   let admin: KeyPairSigner;
+  let mint: Address;
 
   beforeEach(async () => {
     h = await createHarness({ programPath: TEST_LEAGUES_PROGRAM });
     admin = h.upgradeAuthority;
-    await h.injectConfig();
+    mint = await addressOf();
+    h.injectMint(mint, await mintAuthorityPda());
+    await h.injectConfig({ skrMint: mint });
   });
 
   it('accepts a test league with any timing', async () => {
     const args = { ...REAL_LEAGUE, leagueId: 100, durationDays: 3, ...COMPRESSED, firstStart: h.now() + 60 };
-    await h.sendOrThrow([await createLeagueIx(admin.address, args)], admin);
+    await h.sendOrThrow([await createLeagueIx(admin.address, mint, args)], admin);
     const found = h.svm.getAccount(await leaguePda(100));
     expect(found.exists).toBe(true);
     if (found.exists) {
@@ -386,7 +431,7 @@ describe.skipIf(!existsSync(TEST_LEAGUES_PROGRAM))('create_league in a test-leag
 
   it('still holds a real league to the devnet timing — the feature widens test leagues only', async () => {
     const result = await h.send(
-      [await createLeagueIx(admin.address, { ...REAL_LEAGUE, leagueId: 0, ...COMPRESSED })],
+      [await createLeagueIx(admin.address, mint, { ...REAL_LEAGUE, leagueId: 0, ...COMPRESSED })],
       admin,
     );
     expectProgramError(result, 'InvalidLeagueTiming');
@@ -395,7 +440,7 @@ describe.skipIf(!existsSync(TEST_LEAGUES_PROGRAM))('create_league in a test-leag
 
   it('still rejects a reserved exercise', async () => {
     const result = await h.send(
-      [await createLeagueIx(admin.address, { ...REAL_LEAGUE, leagueId: 100, exercise: 1, ...COMPRESSED })],
+      [await createLeagueIx(admin.address, mint, { ...REAL_LEAGUE, leagueId: 100, exercise: 1, ...COMPRESSED })],
       admin,
     );
     expectProgramError(result, 'ExerciseNotSupported');
@@ -450,6 +495,7 @@ describe('a cohort cannot open before a chip set is published (FR-055b)', () => 
     expect(cohort.repsPerDay).toBe(25);
     expect(cohort.dayLength).toBe(BigInt(DAY));
     expect(cohort.exercise).toBe(0);
+    expect(cohort.form, 'copied from the league (constitution V, H35)').toBe(0);
     expect(cohort.memberCount).toBe(0);
     expect(cohort.pool).toBe(0n);
 
