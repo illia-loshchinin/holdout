@@ -474,7 +474,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 2. Four chips: **$10 / $25 / $50 / $100**, each with its SKR amount (mono); the picked one has an accent outline
 3. Card: **Your stake** `1,250 SKR` / *≈ $25* · hairline · **At stake now** `4,800 SKR` ➕ *· 14 joined* ➕ *+ carry-over* · **Joining closes in** `6h 12m`
 4. *If nobody drops out, you get exactly your stake back. The prize is what the members who quit leave behind.*
-5. ➕ **How reps are counted here:** *45° only, full push-ups from the toes* (FR-021a: required before staking)
+5. **How reps are counted here** (drawn: a surface/3 row with a 45° phone icon, under the reassurance line): *At 45° only: phone on the floor ahead of your shoulder. Full push-ups from your toes — push-ups from the knees don't count.* (FR-021a: required before staking)
 6. ➕ *Miss a day: your stake goes into the prize pool — 80 % to the pool, 20 % fee.* · *Leave for a full refund until joining closes.*
 7. **Stake 1,250 SKR** (primary)
 8. `TEST NETWORK · TEST TOKEN`
@@ -624,8 +624,8 @@ Where the draft says something the spec, the PRD or its own tokens note say diff
 
 | # | Board | In the draft | Should be | Source |
 |---|---|---|---|---|
-| 1 | 4 · Stake | **Prize pool now** `4,800 SKR` on a Holdout that hasn't started | **At stake now**: a lobby has no prize pool, only forfeits create one | the draft's own names note, FR-053 |
-| 2 | 4 · Stake | No counting rule | *How reps are counted here: 45° only, full push-ups from the toes* | FR-021a, `StakeSheet.kt` |
+| 1 | 4 · Stake | ~~**Prize pool now** `4,800 SKR` on a Holdout that hasn't started~~ | ✅ **Fixed on the canvas (5 Oct):** **At stake now**; a lobby has no prize pool, only forfeits create one | the draft's own names note, FR-053 |
+| 2 | 4 · Stake | ~~No counting rule~~ | ✅ **Fixed on the canvas (5 Oct):** *How reps are counted here: at 45° only … full push-ups from your toes* | FR-021a, `StakeSheet.kt` |
 | 3 | 4 · Stake | No fee line, refund line, joined count or carry-over | Add *80 % to the pool, 20 % fee* · *leave for a full refund until joining closes* · *14 joined* · carry-over | US-6, FR-041 |
 | 4 | 4 · Stake, 5 · Home, 7 · Claim | ~~*"Join the 7-day **cohort**"*, `COHORT 14`, *"clear a 7-day **cohort** first"*~~ | ✅ **Fixed on the canvas (5 Oct):** "Holdout" in everything a member reads; *cohort* is the contract's word | H28, the draft's names note |
 | 5 | 4 · Stake (background) | 21-day: *"clear a 7-day cohort first"* | Also say it's **off in this build** (`ladder_gate_enabled = false`); add the locked **Human Flag** rung and the **Daily 25** rung | US-1, `LadderScreen.kt` |
