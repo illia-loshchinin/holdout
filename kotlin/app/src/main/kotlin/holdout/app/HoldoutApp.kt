@@ -161,9 +161,17 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     LaunchedEffect(address, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
             holdouts.watch(address)
+            // A connection coming back is read at once, not at the next 30-second pass,
+            // so a completed day waiting for the network goes as soon as it can (FR-024b, T098).
+            val connectivity = context.getSystemService(android.net.ConnectivityManager::class.java)
+            val onNetwork = object : android.net.ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: android.net.Network) = holdouts.refresh()
+            }
+            connectivity?.registerDefaultNetworkCallback(onNetwork)
             try {
                 kotlinx.coroutines.awaitCancellation()
             } finally {
+                connectivity?.unregisterNetworkCallback(onNetwork)
                 holdouts.pause()
             }
         }
@@ -562,14 +570,27 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         val banked = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.bankedReps(wallet, cohortScope, stage.dayIndex.toLong()) }
         val pending = remember(wallet, h.address, refreshToken, chain.busy) { holdouts.pendingDay(h) }
         val locallyDone = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.isDayComplete(wallet, cohortScope, stage.dayIndex.toLong()) }
+        // Only today's pending day counts: an older one left behind must not hide today's.
+        val pendingToday = pending?.takeIf { it == stage.dayIndex } ?: stage.dayIndex.takeIf { locallyDone && !stage.todayDone }
+        val submit = { day: Int ->
+            // A day recovered from the phone's own record — the app closed after the
+            // last rep, before the sitting's own exit ran — is that day's training for
+            // the streak as well. Recording the same date twice changes nothing.
+            if (!h.isTest) streaks.recordCompletedDay(wallet, HoldoutDay.indexOf(h.cohort.start + day * h.cohort.dayLength))
+            holdouts.submitDay(sender, h, day, h.cohort.repsPerDay)
+        }
+        // A day waiting for the network sends itself once the chain answers again (FR-024b Phase 2, T098).
+        LaunchedEffect(h.address, pendingToday, stage.todayDone, chain.offline, chain.busy) {
+            if (pendingToday != null && holdouts.autoSubmitDue(h, pendingToday, stage.todayDone)) submit(pendingToday)
+        }
         CohortHome(
             h = h,
             members = rosters[h.address],
             stage = stage,
             now = chainNow,
             banked = banked,
-            // Only today's pending day counts: an older one left behind must not hide today's.
-            pendingDay = pending?.takeIf { it == stage.dayIndex } ?: stage.dayIndex.takeIf { locallyDone && !stage.todayDone },
+            pendingDay = pendingToday,
+            autoSendTried = pendingToday != null && chain.autoSubmit.tried(h.address.base58(), pendingToday),
             offline = chain.offline,
             busy = chain.busy,
             message = chain.message,
@@ -579,13 +600,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 if (h.cohort.exercise != LeagueParams.EXERCISE_PUSHUP) return@CohortHome
                 sitting = Sitting.CohortDay(h, stage.dayIndex)
             },
-            onSubmit = { day ->
-                // A day recovered from the phone's own record — the app closed after the
-                // last rep, before the sitting's own exit ran — is that day's training for
-                // the streak as well. Recording the same date twice changes nothing.
-                if (!h.isTest) streaks.recordCompletedDay(wallet, HoldoutDay.indexOf(h.cohort.start + day * h.cohort.dayLength))
-                holdouts.submitDay(sender, h, day, h.cohort.repsPerDay)
-            },
+            onSubmit = submit,
             onDetail = { route = Route.Detail(h.address) },
             onAbout = { route = Route.About },
             onRoster = { route = Route.Roster(h.address) },

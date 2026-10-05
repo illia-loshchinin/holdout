@@ -43,8 +43,9 @@ import holdout.core.Stage
  *
  * Under them: the member's own record, today's reps still owed and the time
  * left — with the clear warning inside the last 10 minutes, and no refusal to
- * start (FR-047) — then Start, or "Done — tap to submit" when a completed day
- * is waiting to reach the chain (FR-024b).
+ * start (FR-047) — then Start, or a completed day waiting to reach the chain:
+ * "Done — waiting for network" while it cannot, sent by itself once it can, and
+ * "Done — tap to submit" only if that send did not land (FR-024b, T098).
  */
 @Composable
 fun CohortHome(
@@ -58,6 +59,8 @@ fun CohortHome(
     offline: Boolean,
     /** A completed day waiting to be submitted, or null. */
     pendingDay: Int?,
+    /** The pending day was already sent by itself since the chain last answered: the tap is the way left. */
+    autoSendTried: Boolean,
     busy: Boolean,
     message: String?,
     messageIsWarning: Boolean,
@@ -117,10 +120,32 @@ fun CohortHome(
                 timeLeft?.let { Body("Next day opens in ${Format.countdown(it)}.") }
             }
             pendingDay != null && pendingDay == stage.dayIndex -> {
-                Text("Done — tap to submit", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
-                Body("Your ${c.repsPerDay} are counted on this phone. It only counts once it reaches the chain before the deadline.")
+                val tap = !offline && !busy && autoSendTried
+                Text(
+                    when {
+                        offline -> "Done — waiting for network"
+                        tap -> "Done — tap to submit"
+                        else -> "Done — sending to the chain"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = HoldoutColors.Success,
+                )
+                Body(
+                    "Your ${c.repsPerDay} are counted on this phone. It only counts once it reaches the chain before the deadline" +
+                        if (offline) {
+                            ", and it is sent by itself as soon as the connection is back."
+                        } else if (tap) {
+                            "."
+                        } else {
+                            ": approve it in your wallet."
+                        },
+                )
                 timeLeft?.let { Body("${Format.countdown(it)} left.") }
-                PrimaryButton(if (busy) "Waiting for the wallet…" else "Submit day ${stage.dayIndex + 1}", { onSubmit(stage.dayIndex) }, enabled = !busy)
+                if (tap) {
+                    PrimaryButton("Submit day ${stage.dayIndex + 1}", { onSubmit(stage.dayIndex) })
+                } else if (!offline) {
+                    PrimaryButton("Waiting for the wallet…", {}, enabled = false)
+                }
             }
             else -> {
                 val owed = (c.repsPerDay - banked).coerceAtLeast(0)

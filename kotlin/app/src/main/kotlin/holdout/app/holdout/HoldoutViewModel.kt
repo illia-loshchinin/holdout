@@ -54,6 +54,8 @@ class HoldoutViewModel(
         val lastFaucet: FaucetOutcome? = null,
         /** The last claim that landed — its cohort and signature — for that cohort's link only. */
         val lastClaim: Pair<SolanaPublicKey, String>? = null,
+        /** The completed day last sent while the chain could be reached, by any path (FR-024b, T098). */
+        val autoSubmit: AutoSubmit = AutoSubmit(),
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -193,14 +195,17 @@ class HoldoutViewModel(
 
     /**
      * Sends the completed [day] of [h], recorded first as pending so a failed
-     * or offline send leaves "Done — tap to submit" rather than nothing (FR-024b).
+     * or offline send leaves the day waiting to be sent again rather than nothing (FR-024b).
      */
     fun submitDay(sender: ActivityResultSender, h: Holdout, day: Int, reps: Int) {
         val me = address ?: return
         // Recorded before anything else, so a send that never starts — another
-        // action still busy — leaves "Done — tap to submit", not nothing.
+        // action still busy — leaves the day pending, not nothing.
         store.setPendingCohortDay(me.base58(), h.address.base58(), day)
         act {
+            // Sent — from the sitting's exit, a tap or by itself: not sent by itself again
+            // until the connection drops and returns, even before the chain shows it landed.
+            _state.update { it.copy(autoSubmit = it.autoSubmit.sent(h.address.base58(), day)) }
             val ix = Instructions.submitDay(Deployment.programId, me, h.address, day, proofOf(h.address, day, reps))
             val result = wallet.send(sender, listOf(ix))
             describe(result, "Day ${day + 1} is on chain.")
@@ -212,6 +217,18 @@ class HoldoutViewModel(
     }
 
     fun pendingDay(h: Holdout): Int? = address?.let { store.pendingCohortDay(it.base58(), h.address.base58()) }
+
+    /**
+     * Whether [pendingDay] of [h] should be sent by itself now: the chain answers
+     * again and nothing has sent it since (FR-024b Phase 2, T098). The send itself
+     * is [submitDay], which records it.
+     */
+    fun autoSubmitDue(h: Holdout, pendingDay: Int?, todayDone: Boolean): Boolean {
+        val s = _state.value
+        val step = s.autoSubmit.step(h.address.base58(), pendingDay, todayDone, s.offline, s.busy)
+        if (step.next != s.autoSubmit) _state.update { it.copy(autoSubmit = step.next) }
+        return step.send
+    }
 
     // ---- the claim (T081) ----------------------------------------------------
 

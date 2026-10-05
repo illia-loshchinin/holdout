@@ -74,7 +74,8 @@ interface Store {
 
     /**
      * A cohort day completed on this phone and not yet on chain — offline, or
-     * the send failed — waiting for "Done — tap to submit" (FR-024b, T066).
+     * the send failed — waiting to be sent: by itself once the chain answers,
+     * or by "Done — tap to submit" if that send did not land (FR-024b, T066, T098).
      * The cohort day index, or null when nothing is waiting.
      */
     fun pendingCohortDay(wallet: String, cohort: String): Int?
