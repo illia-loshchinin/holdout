@@ -635,7 +635,7 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
       return m.cohort === c.address && m.state === 'Forfeited' && was?.state === 'Joined' ? [was] : [];
     });
     const fromForfeits = forfeitsAdded.reduce((sum, was) => {
-      const fee = (was.stake * 20n) / 100n;
+      const fee = (was.stake * 30n) / 100n;
       return sum + (was.stake - fee);
     }, 0n);
 
@@ -712,7 +712,7 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
       for (const m of next.memberships) {
         const was = prevMemberships.get(m.address);
         if (m.cohort !== c.address || m.state !== 'Forfeited' || was?.state !== 'Joined') continue;
-        owed += (was.stake * 20n) / 100n;
+        owed += (was.stake * 30n) / 100n;
       }
       if (c.settled && !b.settled) {
         owed += c.totalFinisherStake > 0n ? c.roundingRemainder : c.noFinisherFee;

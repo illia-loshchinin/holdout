@@ -92,9 +92,9 @@
       "fix": "Used only for defect fixes that change no existing cohort, account layout or fund movement. Real fix: revoke the authority once the contract is final"
     },
     {
-      "what": "A cohort nobody finished cannot settle until its league has a lobby open for joining",
-      "why": "The carry-over has to go into a cohort members can still join, and the contract will not let a caller's timing decide otherwise: settlement is refused while no such cohort exists (error 6047). Opening the league's next cohort is permissionless and already due, and the crank does it before settling anything, so the refusal costs one automation pass",
-      "fix": "Ship `deliver_carry_over` (Phase 2, already specified) so a league that stops opening cohorts entirely can still move the amount it would then hold"
+      "what": "A Holdout nobody finished sends its whole pool to the treasury",
+      "why": "30 % of every forfeited stake, and all of a no-finisher pool, reaches the fee destination (H34). How that share is spent to bring members back is not decided yet, and until it is, it simply accumulates in the treasury",
+      "fix": "Decide the split after research (H34's open item), and publish what the treasury pays out"
     },
     {
       "what": "A Daily 25 done before the phone has ever read chain time is dated afterwards, from the phone's own uptime clock",

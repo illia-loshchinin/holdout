@@ -90,32 +90,6 @@ pub struct CohortSettled {
 }
 
 #[event]
-pub struct CarryOverSent {
-    pub from: Pubkey,
-    pub to: Pubkey,
-    pub amount: u64,
-    pub fee: u64,
-}
-
-/// Phase 1 never emits this: a no-finisher cohort is refused rather than settled
-/// while its carry-over has nowhere to go (FR-037a). It stays for the league in
-/// which nobody ever opens another cohort.
-#[event]
-pub struct CarryOverHeld {
-    pub cohort: Pubkey,
-    pub amount: u64,
-    pub fee: u64,
-}
-
-/// **[Phase 2]** — the single delivery of an amount a stopped league held.
-#[event]
-pub struct CarryOverDelivered {
-    pub from: Pubkey,
-    pub to: Pubkey,
-    pub amount: u64,
-}
-
-#[event]
 pub struct PayoutClaimed {
     pub cohort: Pubkey,
     pub wallet: Pubkey,

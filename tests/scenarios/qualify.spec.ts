@@ -93,10 +93,9 @@ describe('the 21-day unlock (AC-1, FR-003a, FR-004)', () => {
   };
 
   /**
-   * Another wallet that joins cohort `index` and clears it. A cohort nobody
-   * finished has to be handed a carry-over target (6046), and these cases are
-   * about one member's profile rather than about the carry-over, so they give
-   * the cohort a finisher instead.
+   * Another wallet that joins cohort `index` and clears it, so the cohort has a
+   * finisher: these cases are about one member's profile, not about how a
+   * no-finisher pool settles.
    */
   const finisherIn = async (index: number): Promise<KeyPairSigner> => {
     const who = await h.newWallet();
@@ -122,7 +121,7 @@ describe('the 21-day unlock (AC-1, FR-003a, FR-004)', () => {
       crank,
     );
     await h.sendOrThrow(
-      [await settleFinalizeIx(crank.address, feeDestination, LEAGUE_7D, index, undefined)],
+      [await settleFinalizeIx(crank.address, feeDestination, LEAGUE_7D, index)],
       crank,
     );
   };

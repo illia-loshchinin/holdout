@@ -85,7 +85,6 @@ fun CohortDetailScreen(
             SectionLabel("Where it stands")
             figures?.let { Text("${it.survivors.standing} still standing of ${c.memberCount}", style = AmountStyle, color = HoldoutColors.TextPrimary) }
             Text("Prize pool: ${figures?.let { Format.skr(it.projectedPool) } ?: Format.skr(c.pool)}", style = AmountStyle, color = HoldoutColors.Accent)
-            Derive.carryOverReceived(c)?.let { Body("Includes ${Format.skr(it)} carried over.") }
             if (now < Derive.end(c)) Body("$daysLeft day${if (daysLeft == 1) "" else "s"} to go.")
         }
 

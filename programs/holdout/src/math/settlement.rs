@@ -8,11 +8,14 @@
 //! constant time: a cohort has exactly four chip amounts (FR-055), so four
 //! shares describe every finisher (research R10).
 
-/// Fee taken from one forfeited stake: 20 %, rounded down (FR-027).
+/// Percent of a forfeited stake taken as the fee; the rest reaches the pool (FR-027).
+pub const FEE_PERCENT: u128 = 30;
+
+/// Fee taken from one forfeited stake: 30 %, rounded down (FR-027).
 pub fn fee_of(forfeited_stake: u64) -> u64 {
-    // u128 throughout: `stake * 20` overflows u64 above ~9.2e17 base units, and
+    // u128 throughout: `stake * 30` overflows u64 above ~6.1e17 base units, and
     // a chip amount is an ordinary cohort parameter, not a bounded constant.
-    ((forfeited_stake as u128) * 20 / 100) as u64
+    ((forfeited_stake as u128) * FEE_PERCENT / 100) as u64
 }
 
 /// What one forfeited stake adds to the pool: the stake minus its fee.
@@ -25,7 +28,7 @@ pub fn pool_contribution(forfeited_stake: u64) -> u64 {
 /// A tier's share of the pool, rounded down (FR-032, FR-032a).
 ///
 /// `total_finisher_stake == 0` has no finishers to pay, so the caller must use
-/// [`no_finisher_split`] instead; this returns 0 rather than dividing by zero.
+/// [`no_finisher_fee`] instead; this returns 0 rather than dividing by zero.
 pub fn share_for_tier(pool: u64, chip: u64, total_finisher_stake: u64) -> u64 {
     if total_finisher_stake == 0 {
         return 0;
@@ -46,13 +49,10 @@ pub fn rounding_remainder(pool: u64, finishers_per_tier: [u32; 4], shares: [u64;
     (u128::from(pool).saturating_sub(paid)) as u64
 }
 
-/// A cohort nobody finished: half to the fee destination, half carried over,
-/// with the indivisible unit going to the carry-over (FR-037).
-pub fn no_finisher_split(pool: u64) -> (u64, u64) {
-    let fee_half = pool / 2;
-    // The odd unit goes to the carry-over, so nothing is lost to rounding and
-    // the members' side of the split is never the one shortchanged (FR-037).
-    (fee_half, pool - fee_half)
+/// A cohort nobody finished: its whole pool goes to the fee destination, and
+/// nothing carries over (FR-037). Nothing is split, so nothing is lost to rounding.
+pub fn no_finisher_fee(pool: u64) -> u64 {
+    pool
 }
 
 #[cfg(test)]
@@ -70,8 +70,6 @@ mod tests {
     struct Vector {
         id: String,
         name: String,
-        #[serde(default)]
-        carry_over_in: u64,
         #[serde(default)]
         pool_override: Option<u64>,
         #[serde(default)]
@@ -95,9 +93,7 @@ mod tests {
         #[serde(default)]
         remainder: u64,
         #[serde(default)]
-        fee_half: Option<u64>,
-        #[serde(default)]
-        carry_over_out: Option<u64>,
+        to_fee_destination: Option<u64>,
     }
 
     fn load() -> Fixture {
@@ -115,7 +111,7 @@ mod tests {
                 None => {
                     let mut forfeited = 0u64;
                     let mut fee = 0u64;
-                    let mut pool = v.carry_over_in;
+                    let mut pool = 0u64;
                     for (chip, count) in &v.forfeited_stakes {
                         let chip: u64 = chip.parse().unwrap();
                         for _ in 0..*count {
@@ -129,7 +125,7 @@ mod tests {
                     // silently agreeing with whatever the stakes add up to.
                     assert_eq!(forfeited, v.expected.forfeited, "forfeited — {ctx}");
                     assert_eq!(
-                        fee + pool - v.carry_over_in,
+                        fee + pool,
                         forfeited,
                         "fee and pool split the forfeits — {ctx}"
                     );
@@ -150,10 +146,12 @@ mod tests {
             );
 
             if total == 0 {
-                let (fee_half, carry) = no_finisher_split(pool);
-                assert_eq!(Some(fee_half), v.expected.fee_half, "fee half — {ctx}");
-                assert_eq!(Some(carry), v.expected.carry_over_out, "carry-over — {ctx}");
-                assert_eq!(fee_half + carry, pool, "nothing lost — {ctx}");
+                assert_eq!(
+                    Some(no_finisher_fee(pool)),
+                    v.expected.to_fee_destination,
+                    "to the fee destination — {ctx}"
+                );
+                assert_eq!(no_finisher_fee(pool), pool, "nothing left behind — {ctx}");
                 continue;
             }
 
@@ -188,11 +186,12 @@ mod tests {
     }
 
     #[test]
-    fn fee_is_twenty_percent_rounded_down() {
-        assert_eq!(fee_of(100), 20);
+    fn fee_is_thirty_percent_rounded_down() {
+        assert_eq!(fee_of(100), 30);
         assert_eq!(fee_of(1), 0);
-        assert_eq!(fee_of(9), 1);
-        assert_eq!(fee_of(1_250), 250);
+        assert_eq!(fee_of(9), 2);
+        assert_eq!(fee_of(1_250), 375);
+        assert_eq!(pool_contribution(9), 7);
     }
 
     #[test]

@@ -118,7 +118,7 @@ class FixtureReplayTest {
                 pairsOf(f, from = 8, count = a.getValue("pairs").jsonPrimitive.int),
                 a.optionalKey("previousCohort"),
             )
-            "settle_finalize" -> Instructions.settleFinalize(programId, f.accountAt(0), f.accountAt(5), leagueOf(f), f.accountAt(3), a.optionalKey("target"))
+            "settle_finalize" -> Instructions.settleFinalize(programId, f.accountAt(0), f.accountAt(5), leagueOf(f), f.accountAt(3))
             "claim_payout" -> Instructions.claimPayout(programId, f.accountAt(0), mintOf(f), f.accountAt(2))
             "claim_faucet" -> Instructions.claimFaucet(programId, f.accountAt(0), a.key("recipient"), f.accountAt(4), f.accountAt(8))
             "top_up_sponsor" -> Instructions.topUpSponsor(programId, f.accountAt(0), f.accountAt(3))

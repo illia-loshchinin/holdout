@@ -2,6 +2,8 @@
 
 **Version:** 2.7 · **Date:** 2026-09-18 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
 
+> **Revision note, 2026-10-05 (decision H34):** the forfeit split is now **70/30** (70 % to the prize pool, 30 % fee) and a Holdout nobody finished sends its **whole pool to the fee destination**: nothing carries over. Wherever this document still says 20 %/80 %, a 50/50 split or carry-over, including the §19 vectors, the spec (FR-027, FR-037) and `fixtures/settlement-vectors.json` govern.
+
 > **Changed in 2.7:** §8 records **how the rep rules are actually measured** — 3D world landmarks, smoothing, and trigger thresholds wider than the stated rule, because the pose model's own error is about 2° (H30, research R4) · other push-up variants, negative (eccentric) and decline, are named as post-hackathon with the cohort already carrying which exercise it is.
 
 > **Changed in 2.6:** members' names for the two things — **the Daily 25** (free, solo) and **a Holdout** (a staked 7-day or 21-day run), mapped to the on-chain vocabulary in spec §1a · a **three-card first-run tour** (FR-067) as screen 0 · the recorded full-cycle walkthrough is **for judges**, moved to About plus a quiet connect-screen link · Holdouts open to join show **what is at stake** in them.

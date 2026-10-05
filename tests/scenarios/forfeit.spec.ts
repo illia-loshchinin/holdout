@@ -14,7 +14,7 @@
  * state is identical, because a pair that is not in breach or already forfeited
  * is skipped rather than refused (research R9).
  *
- * The fee is exactly `floor(stake × 20 ÷ 100)` and the rest is pool (FR-027,
+ * The fee is exactly `floor(stake × 30 ÷ 100)` and the rest is pool (FR-027,
  * FR-028). The league streak is **not** touched here: only `settle_count`
  * writes it, in cohort order, because a mid-cohort forfeit can be recorded
  * before an earlier cohort of the same league has been counted (FR-061a).
@@ -44,8 +44,8 @@ const START = FIRST_START;
 const deadlineOf = (k: number) => START + (k + 1) * DAY_LENGTH - 1;
 const NO_KEY = '11111111111111111111111111111111' as Address;
 
-/** The fee on one forfeited stake: 20 %, rounded down (FR-027). */
-const feeOf = (stake: bigint) => (stake * 20n) / 100n;
+/** The fee on one forfeited stake: 30 %, rounded down (FR-027). */
+const feeOf = (stake: bigint) => (stake * 30n) / 100n;
 
 /** `ForfeitRecorded { cohort, wallet, days_completed, fee }`. */
 const decodeForfeit = (bytes: Uint8Array) => ({
@@ -125,7 +125,7 @@ describe('record_forfeits (contracts §2)', () => {
 
   // -------------------------------------------------------------- the numbers
 
-  it('takes exactly 20 % as fee and pools the rest (FR-027, FR-028)', async () => {
+  it('takes exactly 30 % as fee and pools the rest (FR-027, FR-028)', async () => {
     const member = await joinedMember(3);
     const stake = DEFAULT_CHIPS[3]!;
 

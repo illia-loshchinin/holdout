@@ -1,7 +1,7 @@
 //! Holdout — push-up commitment cohorts on Solana devnet.
 //!
 //! The contract is the only authority on funds (constitution I): no off-chain
-//! key can move a stake, a pool or a carry-over. Breach is derived from chain
+//! key can move a stake or a pool. Breach is derived from chain
 //! time (II), never declared by automation.
 //!
 //! Members read "the Daily 25" and "a Holdout"; this code stores a `Cohort` in
@@ -115,8 +115,8 @@ pub mod holdout {
         instructions::settle_count::handler(ctx)
     }
 
-    /// Once. Constant-time per-tier shares; the carry-over's destination is
-    /// fixed by chain state, never by the caller (FR-030a, FR-037a).
+    /// Once. Constant-time per-tier shares; with no finishers the whole pool
+    /// goes to the fee destination (FR-030a, FR-037).
     pub fn settle_finalize<'info>(ctx: Context<'info, SettleFinalize<'info>>) -> Result<()> {
         instructions::settle_finalize::handler(ctx)
     }

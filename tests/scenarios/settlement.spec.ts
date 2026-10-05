@@ -11,14 +11,9 @@
  * `record_forfeits` is. `settle_finalize` runs **once** (INV-5, INV-6), and
  * what it writes is written once.
  *
- * The part worth the most care is the **carry-over destination**. A no-finisher
- * cohort must be handed the league's cohort `next_index − 1` and its vault, and
- * that cohort must be `Open`. Withholding them is `CarryOverTargetRequired`
- * (6046); a league with no open lobby is `CarryOverTargetNotOpen` (6047), and
- * the refusal costs one automation pass rather than stranding money the
- * caller's timing chose to strand. So the destination is fixed by chain state,
- * and running "open the lobby, then finalize" in either order lands the
- * carry-over in the same cohort with the same figure (FR-030a, FR-037a).
+ * A cohort nobody finished sends its whole pool to the fee destination and
+ * nothing carries over (FR-037, decided 2026-10-05), so settling it needs no
+ * other cohort and no caller can change where the money goes (FR-030a).
  *
  * Each cohort here is index 0 of **its own** test league unless the case is
  * about ordering, so `PreviousCohortUnsettled` (6045) never fires by accident
@@ -40,12 +35,9 @@ import {
   type Harness,
 } from '../helpers/harness.js';
 import {
-  carryOverTarget,
   claimPayoutIx,
   forfeitPairs,
   joinCohortIx,
-  openCohortIx,
-  publishChipSetIx,
   settleCountIx,
   settleFinalizeIx,
   submitDayIx,
@@ -59,7 +51,7 @@ const END = START + DURATION * DAY_LENGTH;
 const CADENCE = 2 * DURATION * DAY_LENGTH;
 const JOIN_LOCK = 10;
 
-const feeOf = (stake: bigint) => (stake * 20n) / 100n;
+const feeOf = (stake: bigint) => (stake * 30n) / 100n;
 const shareFor = (pool: bigint, chip: bigint, total: bigint) => (total === 0n ? 0n : (pool * chip) / total);
 
 /** `CohortSettled { cohort, finishers, total_finisher_stake, share_per_tier, rounding_remainder }`. */
@@ -71,17 +63,6 @@ const decodeSettled = (bytes: Uint8Array) => {
     totalFinisherStake: view.getBigUint64(36, true),
     sharePerTier: [0, 1, 2, 3].map((t) => view.getBigUint64(44 + t * 8, true)),
     roundingRemainder: view.getBigUint64(76, true),
-  };
-};
-
-/** `CarryOverSent { from, to, amount, fee }`. */
-const decodeCarryOverSent = (bytes: Uint8Array) => {
-  const view = new DataView(bytes.buffer, bytes.byteOffset);
-  return {
-    from: getAddressDecoder().decode(bytes.slice(0, 32)),
-    to: getAddressDecoder().decode(bytes.slice(32, 64)),
-    amount: view.getBigUint64(64, true),
-    fee: view.getBigUint64(72, true),
   };
 };
 
@@ -157,8 +138,8 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
       crank,
     );
 
-  const finalize = async (index: number, target?: { cohort: Address; vault: Address }) =>
-    h.send([await settleFinalizeIx(crank.address, feeDestination, league, index, target)], crank);
+  const finalize = async (index: number) =>
+    h.send([await settleFinalizeIx(crank.address, feeDestination, league, index)], crank);
 
   // ------------------------------------------------------ counting and paying
 
@@ -454,160 +435,49 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
 
   // --------------------------------------------------- nobody finished at all
 
-  it('splits a no-finisher pool 50/50 with the odd unit to the carry-over (FR-037)', async () => {
+  it('sends a no-finisher pool whole to the fee destination, and nothing carries over (FR-037)', async () => {
     const cohort = await cohortAt(0);
-    // One stake, so the pool is odd if the stake minus its fee is.
-    const quitter = await member(0, 0);
+    const quitter = await member(0, 3);
+    // A later lobby is open: it must receive nothing.
+    const next = await cohortAt(1);
+    await h.injectLeague(league, {
+      durationDays: DURATION, dayLength: BigInt(DAY_LENGTH), firstStart: BigInt(START),
+      cadence: BigInt(CADENCE), joinLock: BigInt(JOIN_LOCK), nextIndex: 2,
+    });
 
     h.setTime(END);
     await h.sendOrThrow(
       [await settleCountIx(crank.address, feeDestination, league, 0, await forfeitPairs(cohort, [quitter.address]))],
       crank,
     );
-
     const counted = await h.readCohort(league, 0);
     const pool = counted.pool;
     expect(counted.finisherCount).toBe(0);
-    expect(counted.totalFinisherStake).toBe(0n);
-
-    // The league's next cohort is the destination, and it must be open.
-    const next = await cohortAt(1);
-    await h.injectLeague(league, {
-      durationDays: DURATION,
-      dayLength: BigInt(DAY_LENGTH),
-      firstStart: BigInt(START),
-      cadence: BigInt(CADENCE),
-      joinLock: BigInt(JOIN_LOCK),
-      nextIndex: 2,
-    });
+    expect(pool).toBe(DEFAULT_CHIPS[3]! - feeOf(DEFAULT_CHIPS[3]!));
 
     const feesBefore = h.tokenBalance(feeDestination);
-    const result = await h.sendOrThrow(
-      [await settleFinalizeIx(crank.address, feeDestination, league, 0, await carryOverTarget(league, 1))],
-      crank,
-    );
-
-    const half = pool / 2n;
-    const carry = pool - half;
-    expect(carry, 'the odd unit goes to the members\' side').toBeGreaterThanOrEqual(half);
+    const nextBefore = await h.readCohort(league, 1);
+    const result = await h.sendOrThrow([await settleFinalizeIx(crank.address, feeDestination, league, 0)], crank);
 
     const settled = await h.readCohort(league, 0);
-    expect(settled.noFinisherFee).toBe(half);
-    expect(settled.carryOverSent).toBe(carry);
-    expect(settled.carryOverHeld, 'Phase 1 refuses rather than holding (FR-037a)').toBe(0n);
-    expect(settled.carryOverTarget).toBe(next);
+    expect(settled.settled).toBe(true);
+    expect(settled.noFinisherFee).toBe(pool);
     expect(settled.pool).toBe(0n);
-    expect(h.tokenBalance(feeDestination)).toBe(feesBefore + half);
+    expect(settled.carryOverSent).toBe(0n);
+    expect(settled.carryOverHeld).toBe(0n);
+    expect(h.tokenBalance(feeDestination)).toBe(feesBefore + pool);
+    expect(h.tokenBalance(await vaultPda(cohort))).toBe(0n);
 
-    const target = await h.readCohort(league, 1);
-    expect(target.pool).toBe(carry);
-    expect(target.carryOverReceived).toBe(carry);
-    expect(h.tokenBalance(await vaultPda(next))).toBe(target.heldStake + target.pool);
+    expect(await h.readCohort(league, 1)).toEqual(nextBefore);
+    expect(h.tokenBalance(await vaultPda(next))).toBe(nextBefore.heldStake + nextBefore.pool);
 
-    const event = decodeCarryOverSent(oneEvent(result, 'CarryOverSent'));
-    expect(event.from).toBe(cohort);
-    expect(event.to).toBe(next);
-    expect(event.amount).toBe(carry);
-    expect(event.fee).toBe(half);
+    const event = decodeSettled(oneEvent(result, 'CohortSettled'));
+    expect(event.finishers).toBe(0);
+    expect(eventPayloads(result, 'CarryOverSent')).toEqual([]);
   });
 
-  it('carries over into a cohort that itself has no finishers, and on again (ES-7a)', async () => {
-    // Cohort 0 carries into cohort 1; cohort 1 also has nobody finish, so its
-    // pool — its own forfeits *plus* what it received — carries into cohort 2.
-    const first = await cohortAt(0);
-    const quitter0 = await member(0, 0);
-    await cohortAt(1);
-    await h.injectLeague(league, {
-      durationDays: DURATION, dayLength: BigInt(DAY_LENGTH), firstStart: BigInt(START),
-      cadence: BigInt(CADENCE), joinLock: BigInt(JOIN_LOCK), nextIndex: 2,
-    });
-
-    h.setTime(END);
-    await h.sendOrThrow(
-      [await settleCountIx(crank.address, feeDestination, league, 0, await forfeitPairs(first, [quitter0.address]))],
-      crank,
-    );
-    await h.sendOrThrow(
-      [await settleFinalizeIx(crank.address, feeDestination, league, 0, await carryOverTarget(league, 1))],
-      crank,
-    );
-    const received = (await h.readCohort(league, 1)).carryOverReceived;
-    expect(received).toBeGreaterThan(0n);
-
-    // Someone joins cohort 1's lobby and quits.
-    h.setTime(START + CADENCE - 2 * JOIN_LOCK);
-    const quitter1 = await member(1, 3);
-    const second = await cohortPda(league, 1);
-    await cohortAt(2);
-    await h.injectLeague(league, {
-      durationDays: DURATION, dayLength: BigInt(DAY_LENGTH), firstStart: BigInt(START),
-      cadence: BigInt(CADENCE), joinLock: BigInt(JOIN_LOCK), nextIndex: 3,
-    });
-
-    h.setTime(START + CADENCE + DURATION * DAY_LENGTH);
-    await h.sendOrThrow(
-      [
-        await settleCountIx(crank.address, feeDestination, league, 1, await forfeitPairs(second, [quitter1.address]), first),
-      ],
-      crank,
-    );
-    const poolOfSecond = (await h.readCohort(league, 1)).pool;
-    // Its own forfeit plus the carry it received.
-    expect(poolOfSecond).toBe(received + (DEFAULT_CHIPS[3]! - feeOf(DEFAULT_CHIPS[3]!)));
-
-    await h.sendOrThrow(
-      [await settleFinalizeIx(crank.address, feeDestination, league, 1, await carryOverTarget(league, 2))],
-      crank,
-    );
-    const third = await h.readCohort(league, 2);
-    expect(third.carryOverReceived).toBe(poolOfSecond - poolOfSecond / 2n);
-  });
-
-  // ------------------------------------- the destination cannot be chosen
-
-  it('refuses a no-finisher finalize with the target withheld (6046), writing nothing', async () => {
-    const cohort = await cohortAt(0);
-    const quitter = await member(0, 1);
-    await cohortAt(1);
-    await h.injectLeague(league, {
-      durationDays: DURATION, dayLength: BigInt(DAY_LENGTH), firstStart: BigInt(START),
-      cadence: BigInt(CADENCE), joinLock: BigInt(JOIN_LOCK), nextIndex: 2,
-    });
-
-    h.setTime(END);
-    await h.sendOrThrow(
-      [await settleCountIx(crank.address, feeDestination, league, 0, await forfeitPairs(cohort, [quitter.address]))],
-      crank,
-    );
-
-    const before = await h.snapshot();
-    expectProgramError(await finalize(0), 'CarryOverTargetRequired');
-    assertUnchanged(before, await h.snapshot());
-  });
-
-  it('refuses a target that is not the league\'s latest cohort', async () => {
-    const cohort = await cohortAt(0);
-    const quitter = await member(0, 1);
-    await cohortAt(1);
-    await cohortAt(2);
-    await h.injectLeague(league, {
-      durationDays: DURATION, dayLength: BigInt(DAY_LENGTH), firstStart: BigInt(START),
-      cadence: BigInt(CADENCE), joinLock: BigInt(JOIN_LOCK), nextIndex: 3,
-    });
-
-    h.setTime(END);
-    await h.sendOrThrow(
-      [await settleCountIx(crank.address, feeDestination, league, 0, await forfeitPairs(cohort, [quitter.address]))],
-      crank,
-    );
-
-    // Cohort 1 is open too, but the destination is fixed at `next_index - 1`.
-    const before = await h.snapshot();
-    expectProgramError(await finalize(0, await carryOverTarget(league, 1)), 'AccountMismatch');
-    assertUnchanged(before, await h.snapshot());
-  });
-
-  it('refuses when the league has no cohort open for joining (6047), and takes it once one is', async () => {
+  it('settles a no-finisher cohort with no other cohort in its league (FR-037, FR-030a)', async () => {
+    // The league's latest cohort is this one: there is nothing to open first.
     const cohort = await cohortAt(0);
     const quitter = await member(0, 1);
 
@@ -616,87 +486,51 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
       [await settleCountIx(crank.address, feeDestination, league, 0, await forfeitPairs(cohort, [quitter.address]))],
       crank,
     );
+    const pool = (await h.readCohort(league, 0)).pool;
 
-    // The league's latest cohort is this one, so there is no later cohort to
-    // carry into and no account the caller could pass to say otherwise — the
-    // program answers with the reason, not a bare "target required".
-    const before = await h.snapshot();
-    expectProgramError(await finalize(0), 'CarryOverTargetNotOpen');
-    assertUnchanged(before, await h.snapshot());
-
-    // Opening the next one is permissionless and always due, so the refusal
-    // costs one pass (FR-037a).
-    await h.sendOrThrow([await publishChipSetIx(operator.address, DEFAULT_CHIPS)], operator);
-    await h.sendOrThrow([await openCohortIx(crank.address, mint, league, 1, cohort)], crank);
-    const next = await cohortPda(league, 1);
-
-    const result = await finalize(0, await carryOverTarget(league, 1));
+    const result = await finalize(0);
     expect(result.ok, result.logs.join('\n')).toBe(true);
-    expect((await h.readCohort(league, 0)).carryOverTarget).toBe(next);
+    expect((await h.readCohort(league, 0)).noFinisherFee).toBe(pool);
+    expect(h.tokenBalance(await vaultPda(cohort))).toBe(0n);
   });
 
-  it('lands the carry-over in the same place whichever order the pass runs in (FR-030a)', async () => {
-    /** Settle cohort 0 of a fresh league, either finalizing first or opening first. */
-    const run = async (finalizeFirst: boolean) => {
+  it('gives the same no-finisher settlement whoever calls it (FR-030a)', async () => {
+    /** Settle cohort 0 of a fresh league with nobody finishing, called by a new wallet. */
+    const run = async () => {
       const harness = await createHarness({ startTime: START - DAY_LENGTH });
       const skr = (await generateKeyPairSigner()).address;
       harness.injectMint(skr, null, 100_000_000n * SKR);
       const treasury = (await generateKeyPairSigner()).address;
       const fees = await associatedTokenPda(treasury, skr);
       harness.injectTokenAccount(fees, skr, treasury, 0n);
-      const op = await harness.newWallet();
-      await harness.injectConfig({ skrMint: skr, feeDestination: fees, operator: op.address });
+      await harness.injectConfig({ skrMint: skr, feeDestination: fees });
       const runner = await harness.newWallet();
       const id = harness.freshTestLeague().leagueId;
-      const timing = {
+      await harness.injectLeague(id, {
         durationDays: DURATION, dayLength: BigInt(DAY_LENGTH), firstStart: BigInt(START),
-        cadence: BigInt(CADENCE), joinLock: BigInt(JOIN_LOCK),
-      };
-      await harness.injectLeague(id, { ...timing, nextIndex: 1 });
+        cadence: BigInt(CADENCE), joinLock: BigInt(JOIN_LOCK), nextIndex: 1,
+      });
       const zero = await harness.injectCohort(id, 0, {
         start: BigInt(START),
         joinCutoff: BigInt(START - JOIN_LOCK),
         durationDays: DURATION,
         dayLength: BigInt(DAY_LENGTH),
       });
-
       const who = await harness.newWallet();
       harness.injectTokenAccount(await associatedTokenPda(who.address, skr), skr, who.address, DEFAULT_CHIPS[3]);
-      await harness.sendOrThrow([await joinCohortIx(who.address, skr, id, 0, 1)], who);
+      await harness.sendOrThrow([await joinCohortIx(who.address, skr, id, 0, 2)], who);
 
       harness.setTime(END);
       await harness.sendOrThrow(
         [await settleCountIx(runner.address, fees, id, 0, await forfeitPairs(zero, [who.address]))],
         runner,
       );
-      await harness.sendOrThrow([await publishChipSetIx(op.address, DEFAULT_CHIPS)], op);
-
-      if (finalizeFirst) {
-        // The refusal, then the lobby, then the same call again.
-        expectProgramError(
-          await harness.send([await settleFinalizeIx(runner.address, fees, id, 0)], runner),
-          'CarryOverTargetNotOpen',
-        );
-      }
-      await harness.sendOrThrow([await openCohortIx(runner.address, skr, id, 1, zero)], runner);
-      await harness.sendOrThrow(
-        [await settleFinalizeIx(runner.address, fees, id, 0, await carryOverTarget(id, 1))],
-        runner,
-      );
-
-      const source = await harness.readCohort(id, 0);
-      const target = await harness.readCohort(id, 1);
-      return {
-        target: target.index,
-        received: target.carryOverReceived,
-        sent: source.carryOverSent,
-        fee: source.noFinisherFee,
-      };
+      await harness.sendOrThrow([await settleFinalizeIx(runner.address, fees, id, 0)], runner);
+      const settled = await harness.readCohort(id, 0);
+      return { fee: settled.noFinisherFee, pool: settled.pool, toTreasury: harness.tokenBalance(fees) };
     };
 
-    const refusedFirst = await run(true);
-    const openedFirst = await run(false);
-    expect(refusedFirst).toEqual(openedFirst);
+    expect(await run()).toEqual(await run());
   });
 
   // --------------------------------------------------- pairs must still match

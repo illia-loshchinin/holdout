@@ -59,7 +59,7 @@ pub struct OpenCohort<'info> {
     )]
     pub cohort: Account<'info, Cohort>,
 
-    /// The cohort's own SKR vault: stakes, the pool and any carry-over, held
+    /// The cohort's own SKR vault: stakes and the pool, held
     /// under the cohort's authority so no key outside the program can move them
     /// (constitution I).
     #[account(

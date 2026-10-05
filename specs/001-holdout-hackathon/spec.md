@@ -87,6 +87,13 @@ Product owner decisions, from the first local run on a Seeker.
 - Q: How long is the short test cohort's day, and how many reps? (FR-044a) → A: **Seven 10-minute days at 5 reps a day** — a 7-day Holdout in 70 minutes (H32, amended 2026-09-29 from seven one-hour days). The judged leagues keep 24-hour days and 25 reps.
 - Q: Does a member get a notification when their Holdout starts, or before a deadline? → A: **Yes — on-device reminders** (FR-068, H33). The app schedules them on the phone itself when the member joins: one when the Holdout starts, and one before each day's deadline while that day is not yet recorded. No server and no push service; nothing leaves the device. Timed from chain time, delivered by the phone's alarm service, so a reminder may arrive a few minutes late — the deadline is the chain's, never the reminder's. A member who declines notifications loses nothing else. *(Supersedes "notification infrastructure (manual for the demo)" in §3.)*
 
+### Session 2026-10-05
+
+Product owner decisions, before the program is first deployed.
+
+- Q: How is a forfeited stake split? (FR-027) → A: **70/30** — 70% to that cohort's prize pool, 30% to the fee destination (was 80/20). How the 30% is then divided — the next Holdout's prize, a Daily 25 promotion, the treasury — is **still open**, to be researched before anything is built; until then all of it reaches the fee destination on chain.
+- Q: Where does a no-finisher cohort's pool go? (FR-037) → A: **All of it to the fee destination.** Nothing carries over any more, so settling such a cohort needs no other cohort, error 6047's refusal is gone, and the Phase 2 delivery of a held carry-over (`deliver_carry_over`, T099) is cut rather than built.
+
 ---
 
 ### Session 2026-09-23
@@ -105,7 +112,7 @@ Product owner decisions, from the first local run on a Seeker.
 | Asset | SKR, and only SKR — stakes, pool, payouts, fee |
 | Stakes | Four SKR chips tracking **$10 / $25 / $50 / $100**, locked per cohort at creation; the same tiers in both leagues. One chip set at launch in Phase 1; weekly re-pricing on drastic drift in Phase 2 *(§3a, §9 OD-2)* |
 | Phasing | **Phase 1** is everything not listed as Phase 2 in §3a and must work end to end before any Phase 2 work starts. Nothing lands after the 5 October freeze. |
-| Fee | 20% of each forfeited stake |
+| Fee | 30% of each forfeited stake (70% reaches the prize pool) |
 | Network | Devnet, test token |
 | Distribution | A signed Android APK delivered with the hackathon submission — no store listing (FR-066) |
 | Deliverables | APK, GitHub repository, demo video of about three minutes, pitch deck — all before 9 October 2026 08:59 CEST (FR-066) |
@@ -125,7 +132,7 @@ Human Flag league (locked rung in the UI only) · **free cohorts of any league**
 |---|---|---|
 | **League leaderboards** | US-10 (league boards), FR-060…FR-060c, FR-061 display, FR-063, AC-14 | No league leaderboard screen. On-chain progress — cohorts cleared and forfeited, current and longest league streak — **is still recorded** from the first cohort, so boards need no migration. The cohort roster (FR-062, FR-064) **is Phase 1**. |
 | **Weekly chip re-pricing** | FR-056, FR-057, ES-10, ES-11, AC-12 | The Operator publishes **one chip set at launch** from that day's rate; every cohort locks it as usual (FR-055). Publishing a new set must already be possible, so re-pricing is tooling, not a contract change. |
-| **Delivery of a held carry-over** | FR-037a's held case, its delivery, ES-7a | Phase 1 never produces a held carry-over: a no-finisher cohort only settles once its league has a cohort open for joining, so the carry-over is delivered as part of settlement (FR-037a). The field, the event and `deliver_carry_over` stay for the single case outside that rule — a league nobody opens another cohort in — so Phase 2 adds delivery without a migration. |
+| **Delivery of a held carry-over** — *cut 2026-10-05* | FR-037a's held case, its delivery, ES-7a | Nothing carries over any more: a no-finisher cohort's whole pool goes to the fee destination (FR-037), so there is nothing to hold or deliver. The cohort's carry-over fields stay in its layout, always zero. |
 | **Automatic offline submission** | The automatic-retry part of FR-024b and ES-3b, and of AC-18 | A completed day waiting for network stays on the device and the home screen shows **"Done — tap to submit"** once online; the member taps once. All offline warnings are Phase 1. |
 
 Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are marked **[Phase 2]** where they appear.
@@ -178,7 +185,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 **Given** a member has not completed today's reps
 **When** the day's deadline passes
-**Then** their stake is forfeited, 20% is taken as fee and the remainder is added to that cohort's prize pool, their league progress resets, and they are told what happened and offered today's Daily 25 and the next 7-day cohort as the way back. Their daily streak is untouched (FR-052).
+**Then** their stake is forfeited, 30% is taken as fee and the remainder is added to that cohort's prize pool, their league progress resets, and they are told what happened and offered today's Daily 25 and the next 7-day cohort as the way back. Their daily streak is untouched (FR-052).
 
 **And** they cannot submit any further completed day for that cohort, whether or not the Scheduler has run yet.
 
@@ -204,7 +211,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 **Given** a member is joining a cohort of either league (both are open in this build — FR-003)
 **When** they choose their stake
-**Then** they choose one of the four chips — labelled by its USD tier ($10 / $25 / $50 / $100) and showing the exact SKR amount locked for this cohort, with the USD value marked approximate — and see the rule that a Holdout is counted **at 45° only — not in front, not straight beside — with full push-ups from the toes; knee push-ups do not count** (FR-021a), the daily obligation, the time until joining closes and until the start, the duration, and the cohort's current prize pool including any carry-over already in it, and the plain statement that **if nobody drops out they get exactly their stake back** — plus their share of any carry-over, which is shown as a separate figure.
+**Then** they choose one of the four chips — labelled by its USD tier ($10 / $25 / $50 / $100) and showing the exact SKR amount locked for this cohort, with the USD value marked approximate — and see the rule that a Holdout is counted **at 45° only — not in front, not straight beside — with full push-ups from the toes; knee push-ups do not count** (FR-021a), the daily obligation, the time until joining closes and until the start, the duration, and the cohort's current prize pool, and the plain statement that **if nobody drops out they get exactly their stake back**.
 
 ### US-7 · Watching the crowd thin
 
@@ -255,11 +262,11 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 | ES-3b | Member completes a cohort day with no connection | The app warns that the day counts only once it reaches the network before the deadline and shows the time left; it submits once a connection returns — by a single tap in Phase 1, automatically **[Phase 2]**. If it lands before the deadline the day counts; if not, the member is in breach exactly as if they had not finished (FR-024b) |
 | ES-3a | Member's phone is lost, wiped or replaced mid-day | That day's banked progress is lost with the device; they can still complete the day from zero on another device before the deadline |
 | ES-4 | A member in breach tries to submit | Rejected, regardless of whether the Scheduler has run |
-| ES-5 | Nobody forfeits | Finishers get exactly their stake back plus their share of any carry-over the cohort received, and nothing more; the app must have said this was possible up front |
-| ES-6 | One finisher | Receives stake plus the entire pool, carry-over included |
-| ES-7 | Nobody finishes | At settlement, 50% of the pool goes to the fee destination and 50% carries over to the next cohort of the same league (FR-037) |
-| ES-7a | Nobody finishes and the league has no cohort open for joining | Settlement of that cohort is refused, plainly and without touching anything; opening the league's next cohort is permissionless and already due, so the automation opens it and settles in the same pass (FR-037a). Members are unaffected — the roster closed long before |
-| ES-7b | A cohort that received a carry-over also has no finishers | The same 50/50 rule applies to its whole pool, carry-over included |
+| ES-5 | Nobody forfeits | Finishers get exactly their stake back, and nothing more; the app must have said this was possible up front |
+| ES-6 | One finisher | Receives stake plus the entire pool |
+| ES-7 | Nobody finishes | At settlement, the whole pool goes to the fee destination; nothing carries over (FR-037) |
+| ES-7a | Nobody finishes and the league has no other cohort | Settles exactly as ES-7: it needs no other cohort, so nothing waits on one (FR-037; superseded 2026-10-05 — it was refused until a lobby opened) |
+| ES-7b | *(Superseded 2026-10-05: no cohort receives a carry-over any more.)* | — |
 | ES-8 | Scheduler misses a run | Transfers and leaderboards lag; the survivor counter, projected pool and roster do not (FR-038a); no outcome changes |
 | ES-9 | Member completes a day and immediately opens the app the next day | Sees the new day, not a stale completed state |
 | ES-10 **[Phase 2]** | The rate moves sharply while a cohort is open for joining | That cohort's chip amounts do not change; every later joiner pays the same SKR per tier as earlier joiners. A new chip set, if triggered, applies only to cohorts created after it (FR-056) |
@@ -293,7 +300,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 - **FR-007** A cohort has a fixed start, a fixed join cutoff, a fixed duration, a fixed daily rep requirement, a fixed day length, a fixed **exercise** and a fixed chip set, all set at creation and immutable thereafter. Only push-ups are accepted in this build; the parameter exists so a later exercise never has to change a running cohort or an existing account layout.
 - **FR-007a** Cohorts start weekly, on Monday at the 05:00 UTC boundary. Every league opens its next cohort for joining at the instant its current cohort starts, so each league has exactly one cohort open for joining at all times except the locked hour before each start. For the 21-day league this means up to three cohorts running at once. Opening is automated and needs no manual action (FR-043), and may be triggered by anyone once it is due (FR-030a).
-- **FR-007b** The deployed contract remains upgradeable through the judging period, and an upgrade may only fix a defect. An upgrade never changes the rules, parameters or stored layout of any existing cohort, membership or progress record, and never moves a held stake, prize pool or carry-over except through the rule-driven steps every member already relies on. The upgrade authority is named in the README as a known weakness, with its real fix — revoking it once the contract is final — beside it (constitution XI).
+- **FR-007b** The deployed contract remains upgradeable through the judging period, and an upgrade may only fix a defect. An upgrade never changes the rules, parameters or stored layout of any existing cohort, membership or progress record, and never moves a held stake or prize pool except through the rule-driven steps every member already relies on. The upgrade authority is named in the README as a known weakness, with its real fix — revoking it once the contract is final — beside it (constitution XI).
 - **FR-008** A cohort accepts joins until its join cutoff, **1 hour before its start**, and starts for everyone at the same instant.
 - **FR-009** Until the join cutoff, a member may leave and receive a full refund, unconditionally.
 - **FR-010** From the join cutoff there is no way out and no refund; the roster is final and the daily obligation begins at the start. Whether a join or a leave landed before the cutoff is decided by chain time alone, never by when the member signed or by whether any automated process has run.
@@ -342,10 +349,10 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 ### Forfeiture
 
 - **FR-026** On breach, the member's entire stake is forfeited. No partial credit.
-- **FR-027** 20% of a forfeited stake is taken as fee; the remainder is added to that cohort's prize pool.
+- **FR-027** 30% of a forfeited stake is taken as fee and sent to the fee destination; the remaining 70% is added to that cohort's prize pool. *(Amended 2026-10-05 from 20%. How the fee is divided after it reaches the fee destination is open.)*
 - **FR-028** Forfeiture resets the member's league streak in that league and ends their participation in that cohort. The reset is written when that cohort settles, in cohort order, so it can never be undone by an earlier cohort settling later (FR-061a).
 - **FR-030** The automated process that records forfeitures is safe to run twice, and safe to run late.
-- **FR-030a** Recording forfeitures, settling a finished cohort, and opening a league's next cohort (with delivery of any held carry-over) are **permissionless**: any wallet may trigger them once they are due. The caller cannot choose or influence any parameter, outcome, recipient or amount — each step only does what on-chain state and the schedule already require, and does nothing if it is not yet due or already done. A step that is not yet due may refuse plainly instead of silently doing nothing — settling a cohort before the previous cohort of its league has settled is refused (FR-061a) — and the caller simply runs it again once it is due. Publishing a chip set is the only Operator-restricted instruction; the contract's upgrade authority is governed by FR-007b.
+- **FR-030a** Recording forfeitures, settling a finished cohort, and opening a league's next cohort are **permissionless**: any wallet may trigger them once they are due. The caller cannot choose or influence any parameter, outcome, recipient or amount — each step only does what on-chain state and the schedule already require, and does nothing if it is not yet due or already done. A step that is not yet due may refuse plainly instead of silently doing nothing — settling a cohort before the previous cohort of its league has settled is refused (FR-061a) — and the caller simply runs it again once it is due. Publishing a chip set is the only Operator-restricted instruction; the contract's upgrade authority is governed by FR-007b.
 
 ### Settlement and claim
 
@@ -355,17 +362,17 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 - **FR-033** The payout denominator is computed once and never recomputed.
 - **FR-034** Payout is claimed by a deliberate member action, never deposited automatically.
 - **FR-035** An unclaimed payout remains claimable indefinitely.
-- **FR-037** If a cohort settles with no finishers, 50% of its prize pool goes to the fee destination and 50% is the **carry-over**, which is added to the prize pool of the next cohort of the same league that is still open for joining. Both amounts are recorded on the settled cohort. Any indivisible remainder goes to the carry-over, so nothing is lost to rounding.
-- **FR-037a** A carry-over always goes into a cohort members can still join, and which one is never decided by the order callers act in: **settling a cohort with no finishers requires that league to have a cohort open for joining**, and is refused until it does. Opening a league's next cohort is permissionless and due as soon as the previous one has started, so any caller can create that lobby and settle straight after — a refusal delays the money by one automation pass and changes no outcome. A carry-over never goes into a cohort that has already started. The held state kept on a settled cohort therefore has no Phase 1 path into it; it remains for a league in which nobody ever opens another cohort, and its delivery is **[Phase 2]**.
-- **FR-037b** Carry-over received by a cohort is part of its prize pool and is shared among its finishers by the same formula as forfeited stakes (FR-032).
+- **FR-037** If a cohort settles with no finishers, its whole prize pool goes to the fee destination, recorded on the settled cohort. Nothing carries over into another cohort, so settling it needs no other cohort and nothing is lost to rounding. *(Amended 2026-10-05; it was split 50/50 with a carry-over.)*
+- **FR-037a** *(Superseded 2026-10-05 by FR-037: there is no carry-over, so no destination to choose, nothing held and nothing to deliver.)*
+- **FR-037b** *(Superseded 2026-10-05: no cohort receives a carry-over.)*
 
 ### Display and honesty
 
 - **FR-038** The home screen of a running cohort leads with the survivor count and the live prize.
-- **FR-038a** The survivor count, projected prize pool, each member's projected share and the cohort roster treat a member as out **from the instant they are in breach** (FR-017), computed from on-chain state, whether or not the forfeit has been recorded. The projected pool includes the 80% of every breached stake not yet recorded. Recording the forfeit later changes none of these figures. Claimable amounts come only from settlement (FR-034), and league leaderboards count a forfeit once it is recorded (FR-065).
+- **FR-038a** The survivor count, projected prize pool, each member's projected share and the cohort roster treat a member as out **from the instant they are in breach** (FR-017), computed from on-chain state, whether or not the forfeit has been recorded. The projected pool includes the 70% of every breached stake not yet recorded. Recording the forfeit later changes none of these figures. Claimable amounts come only from settlement (FR-034), and league leaderboards count a forfeit once it is recorded (FR-065).
 - **FR-039** Fiat amounts are always marked approximate and are never presented as what the member will receive.
 - **FR-040** The app uses "prize" and never "winnings", "returns", "yield" or "earnings".
-- **FR-041** Before joining a staked cohort, the member is told that a cohort with no forfeitures pays no prize beyond any carry-over it has already received.
+- **FR-041** Before joining a staked cohort, the member is told that a cohort with no forfeitures pays no prize: everyone who finishes gets exactly their stake back.
 - **FR-042** The app states that it runs on a test network with a test token.
 - **FR-042a** The app has an in-app **faucet**: one tap gives the connected wallet enough test SKR to stake the top chip ($100 tier) of **any** open cohort — including one that copied a larger chip set before a later re-price lowered the tiers, so the promise never depends on the order publishing and opening happened in, plus enough devnet SOL to pay the transaction fees of a full 21-day cohort cycle — join, every completed day, and claim. Each wallet may use it **once per day** (day boundary 05:00 UTC). No server is involved: the faucet is funded in advance for the whole live period — through the winners' announcement on 11 November 2026 — and needs no manual top-up. It is offered wherever a member lacks test SKR or fee SOL, and the test tokens it gives have no value.
 - **FR-042b** The key that pays a zero-SOL wallet's first transaction ships inside the app, so anyone may extract it and empty the small fee float it holds. Onboarding therefore does not depend on that float surviving: **any wallet, including the automation, can restore it** from the faucet's own funds once it falls below half, without the Operator and without a server. Everything the faucet can spend in one day — top-ups, fee and rent reimbursements, and those refills together — is bounded by a **single daily allowance held on-chain**; while it lasts a drained sponsor is back within one automation pass, and once it is spent the faucet says plainly that it cannot pay today (ES-0b) and works again the next day. A restore that is refused — the float is already half full, or the day's allowance is gone — changes nothing and is simply tried again on the next pass. Neither the key nor the allowance can reach a stake, a prize pool or a carry-over.
@@ -377,7 +384,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 - **FR-050** A completed cohort day counts as that day's challenge. A member never trains twice in one day to hold both a cohort and a streak.
 - **FR-051** The streak is cosmetic and personal. It unlocks nothing, gates nothing, appears on no leaderboard, and nothing is ever paid against it — which is why it needs no on-chain record and no economic anti-cheat.
 - **FR-052** A forfeit does not break the streak. Losing a stake and losing a habit are different failures and the app must not conflate them.
-- **FR-053** With no Holdout running, the Daily 25 is the home screen's primary action, and the Holdouts open to join are listed under it — each showing how many have joined, **what is at stake in it**, any carry-over it has already received, and how long joining stays open. The app is never empty and never says "come back Monday".
+- **FR-053** With no Holdout running, the Daily 25 is the home screen's primary action, and the Holdouts open to join are listed under it — each showing how many have joined, **what is at stake in it**, and how long joining stays open. The app is never empty and never says "come back Monday".
 - **FR-067** A member who has just connected a wallet for the first time is shown a **three-card tour**: the Daily 25, what a Holdout is (stake, miss a day and it goes to the people still standing, finish and share), and how reps are counted (camera on the device, blocks of 10; the Daily 25 with the phone in front of you or at 45°, a Holdout at 45° only and from the toes — FR-021a). It can be skipped at any card and re-opened later from the app. A short explainer video joins the tour once it exists; until then the cards carry it alone, and no mock-up footage is ever used (FR-044).
 
 ### Leaderboards
@@ -416,7 +423,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 | Entity | Holds | Notes |
 |---|---|---|
 | **League** | Duration, daily reps, its unlock requirement | Two exist, both staked. The Daily 25 is not a league. |
-| **Cohort** | Its league, start, join cutoff (1 hour before start — joining and leaving both close), duration, daily reps, day length, its locked chip set (four SKR amounts), status, member count, prize pool, carry-over received, and — written once at settlement — finisher count, total finisher stake, the rounding remainder sent to the fee destination, and for a no-finisher cohort the fee taken, the carry-over sent and where it went (or that it is still held) | Parameters immutable after creation (FR-007) |
+| **Cohort** | Its league, start, join cutoff (1 hour before start — joining and leaving both close), duration, daily reps, day length, its locked chip set (four SKR amounts), status, member count, prize pool, and — written once at settlement — finisher count, total finisher stake, the rounding remainder sent to the fee destination, and for a no-finisher cohort the pool sent to the fee destination. Its carry-over fields remain in the layout, always zero (2026-10-05) | Parameters immutable after creation (FR-007) |
 | **Chip set** | The four USD tiers, the SKR amount for each, the rate it was priced at, and the boundary from which it applies | One current set shared by both leagues; replaced by the Operator only when the weekly check finds drift over 20% (FR-056). Each cohort keeps a copy of the set current at its creation. |
 | **Membership** | The member, the cohort, the SKR stake held, the chip tier chosen, days completed, status | The stake here is never pool money, and its SKR amount never changes after join (FR-058) |
 | **Progress** | Whether the member has qualified, and per league: cohorts cleared, cohorts forfeited, current league streak, longest league streak, and when these figures last changed | Qualification is permanent. Recorded from Phase 1 even though league leaderboards (FR-060) are Phase 2 — so they need no migration. The daily streak is separate, off-chain, and not part of this entity. |
@@ -478,12 +485,12 @@ Sittings may repeat without limit until the day's deadline, at which point that 
 
 ### 8.4 Invariants
 
-- **INV-1** Held stakes plus the prize pool plus any held carry-over always equal the balance under custody.
-- **INV-2** Only forfeited stakes, and carry-over from a no-finisher cohort of the same league, ever enter a prize pool.
+- **INV-1** Held stakes plus the prize pool always equal the balance under custody.
+- **INV-2** Only forfeited stakes ever enter a prize pool.
 - **INV-3** A member's completed days never exceed the days their cohort has reached, counting the day in progress: at the cohort's first second at most one day can be complete, and never more than the cohort's duration.
 - **INV-4** Per member: at most one membership in a `Running` cohort, at most one `Pending` membership, and no `Pending` membership whose cohort starts before the final deadline of the member's running one — so no two daily obligations ever overlap.
 - **INV-5** The payout denominator is written exactly once.
-- **INV-6** After a cohort settles, the only changes possible anywhere in it are a claim, or the single delivery of a held carry-over (FR-037a).
+- **INV-6** After a cohort settles, the only change possible anywhere in it is a claim.
 - **INV-7** Recording forfeitures and settling are both safe to repeat.
 - **INV-8** A member in breach cannot submit, regardless of automation state.
 - **INV-9** A member's league streak depends only on the order of their own cohorts, never on the order in which forfeits and settlements are processed.
@@ -530,9 +537,11 @@ The streak day resets on the same instant as the cohort day. There is exactly on
 
 Local-midnight streaks would have been safe — the streak is cosmetic and off-chain, so none of the reasons timezones were removed from the contract apply to it — but two notions of "today" in one app is a support burden that outweighs the gain. Revisit at launch, when the habit tier becomes the growth surface.
 
-### OD-5 · What happens to an unclaimed pool when nobody finishes (FR-037) — **RESOLVED 2026-09-15: split 50/50**
+### OD-5 · What happens to an unclaimed pool when nobody finishes (FR-037) — **RESOLVED 2026-09-15: split 50/50; REVISED 2026-10-05: all to the fee destination**
 
 At settlement, half goes to the fee destination and half carries over into the prize pool of the next cohort of the same league that is still open for joining. If none is open, settlement waits: it is refused until someone opens that cohort, which anyone may do (revised 2026-09-19 — holding the carry-over on the settled cohort let a caller's timing decide whether it ever reached a prize pool). See FR-037…FR-037b, ES-7…ES-7b.
+
+**Revised 2026-10-05:** the whole pool goes to the fee destination and nothing carries over, so settlement never waits on another cohort (FR-037).
 
 ---
 
@@ -541,7 +550,7 @@ At settlement, half goes to the fee destination and half carries over into the p
 The build is done when all of the following are demonstrable on devnet:
 
 1. A member joins a 7-day cohort, completes 7 days of verified sessions, claims a payout, and the 21-day unlock is recorded. With the gate flag flipped on, an account without that unlock is refused a 21-day join.
-2. A member joins a staked cohort, misses a day, and their stake appears in the pool minus exactly 20%.
+2. A member joins a staked cohort, misses a day, and their stake appears in the pool minus exactly 30%.
 3. A cohort settles once, and two finishers with equal stakes receive byte-identical payouts. In a cohort whose shares do not divide exactly, every share is rounded down, the remainder reaches the fee destination at settlement, and the sum of all claims equals total finisher stake plus pool minus that remainder, to the unit.
 4. A finisher claims and the funds arrive.
 5. Killing the automated process for a full day changes no outcome: on restart the same members are forfeited, the same payouts result, and no member in breach was able to submit in the interim. With the Scheduler still stopped, an unrelated wallet can record the forfeits, settle the cohort and open the next one, producing exactly the same state; the same wallet calling any of them early, twice, or with different arguments changes nothing.
@@ -550,7 +559,7 @@ The build is done when all of the following are demonstrable on devnet:
 8. An app installed fresh, with no state, asks for a wallet before showing anything else; the only thing it offers without one is the recorded walkthrough, which plays in full (FR-001a). Once a wallet is connected it shows a live populated cohort holding at least its league's minimum of members. Every member counted in that cohort — scripted or not — has a real on-chain membership and stake, every scripted member is labelled and appears in the published list of scripted wallets, and a real finisher's payout includes forfeits by scripted members exactly as by anyone else. With the Scheduler stopped, one second after a day's deadline every device shows the survivor count, projected pool and roster already excluding the members who missed that day; recording their forfeits afterwards leaves every displayed figure unchanged.
 9. No instruction reads a price. The only place a rate is used is the Operator's off-chain weekly chip check; no fiat figure is an input to any on-chain branch, amount or validation.
 10. No camera frame leaves the device, verified by inspecting outbound traffic during a sitting.
-11. A staked cohort settles with no finishers: exactly 50% of its pool reaches the fee destination and the carry-over appears in the prize pool of the league's cohort that is open for joining, with nothing lost to rounding. With no such cohort open, settlement is refused rather than leaving the carry-over undelivered; opening the league's next cohort — which anyone may do — lets the same settlement land the carry-over, and the destination is the same whichever order the two transactions arrive in.
+11. A staked cohort settles with no finishers: its whole pool reaches the fee destination, nothing reaches any other cohort, and it settles the same whether or not its league has another cohort and whoever calls it.
 12. **[Phase 2]** With the rate moved less than 20%, the weekly check publishes nothing. With it moved more than 20%, a new chip set is published: cohorts created before it still accept only their original SKR amounts, a cohort created after it accepts only the new ones, and two members of one cohort on the same tier hold identical stakes. With the rate source switched off, the current set keeps working.
 13. A member in a running 7-day cohort takes a lobby place in the next 7-day cohort, finishes the first, and is active in the second from the instant the first ends. A join and a leave landing one second before a join cutoff both succeed, with a full refund on the leave; both are rejected one second after it, and the cohort shows as `Locked` until it starts. A member in a running 21-day cohort is refused a lobby place in a cohort that starts before theirs ends.
 14. **[Phase 2]** On the 7-day leaderboard, derived from on-chain state with no server contacted: a member with 4 cleared of 4 played (streak 4) ranks above one with 9 cleared of 10 played; a member with 3 of 3 ranks below 4 of 4 on the cohorts-played tie-break; a member with 2 of 2 is listed under "not ranked yet" needing 1 more cohort; a forfeit drops a member's current streak to 0 and their survival rate accordingly while their best streak is kept. A member whose cohort is still running or locked has it counted in neither figure. No leaderboard shows an SKR or fiat amount or anyone's daily streak, and scripted members are labelled.

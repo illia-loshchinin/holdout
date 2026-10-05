@@ -133,7 +133,7 @@ const settle = async (w: World, index: number, alsoCount: readonly Address[] = [
     w.crank,
   );
   await w.h.sendOrThrow(
-    [await settleFinalizeIx(w.crank.address, w.feeDestination, LEAGUE, index, undefined)],
+    [await settleFinalizeIx(w.crank.address, w.feeDestination, LEAGUE, index)],
     w.crank,
   );
 };

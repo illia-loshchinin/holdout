@@ -303,9 +303,9 @@ object Instructions {
     }
 
     /**
-     * `settle_finalize()`. With finishers it needs no target; with none,
-     * [carryOverTarget] — the league's cohort `next_index − 1`, whose vault is
-     * derived here — is required, so no caller can strand it by omission (FR-037a).
+     * `settle_finalize()`. With finishers it writes the shares; with none it
+     * sends the whole pool to [feeDestination] (FR-037). It needs no other
+     * cohort, so no caller can change where the money goes (FR-030a).
      */
     suspend fun settleFinalize(
         programId: SolanaPublicKey,
@@ -313,23 +313,19 @@ object Instructions {
         feeDestination: SolanaPublicKey,
         leagueId: Int,
         cohort: SolanaPublicKey,
-        carryOverTarget: SolanaPublicKey? = null,
-    ): TransactionInstruction {
-        val target = carryOverTarget?.let { listOf(AccountMeta(it, false, true), AccountMeta(Pdas.vault(programId, it), false, true)) }
-            ?: listOf(AccountMeta(programId, false, false), AccountMeta(programId, false, false))
-        return TransactionInstruction(
-            programId,
-            listOf(
-                AccountMeta(caller, true, true),
-                AccountMeta(Pdas.config(programId), false, false),
-                AccountMeta(Pdas.league(programId, leagueId), false, false),
-                AccountMeta(cohort, false, true),
-                AccountMeta(Pdas.vault(programId, cohort), false, true),
-                AccountMeta(feeDestination, false, true),
-            ) + target + AccountMeta(TOKEN_PROGRAM, false, false),
-            discriminator("settle_finalize"),
-        )
-    }
+    ): TransactionInstruction = TransactionInstruction(
+        programId,
+        listOf(
+            AccountMeta(caller, true, true),
+            AccountMeta(Pdas.config(programId), false, false),
+            AccountMeta(Pdas.league(programId, leagueId), false, false),
+            AccountMeta(cohort, false, true),
+            AccountMeta(Pdas.vault(programId, cohort), false, true),
+            AccountMeta(feeDestination, false, true),
+            AccountMeta(TOKEN_PROGRAM, false, false),
+        ),
+        discriminator("settle_finalize"),
+    )
 
     /** `claim_payout()` — `stake + share_per_tier[tier]`, read from the finalised cohort (FR-034). */
     suspend fun claimPayout(programId: SolanaPublicKey, member: SolanaPublicKey, skrMint: SolanaPublicKey, cohort: SolanaPublicKey): TransactionInstruction = TransactionInstruction(

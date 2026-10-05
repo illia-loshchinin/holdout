@@ -31,15 +31,13 @@ export const ERROR_CODES = {
   WrongDay: 6031,
   DeadlinePassed: 6032,
   DayAlreadyCompleted: 6033,
-  // 6040–6047 · settlement and the claim
+  // 6040–6045 · settlement and the claim
   NotSettling: 6040,
   AlreadySettled: 6041,
   CountIncomplete: 6042,
   NotClaimable: 6043,
   AlreadyClaimed: 6044,
   PreviousCohortUnsettled: 6045,
-  CarryOverTargetRequired: 6046,
-  CarryOverTargetNotOpen: 6047,
   // 6050–6054 · the faucet, and the exercise guard that shares it
   FaucetAlreadyClaimedToday: 6050,
   FaucetCapReached: 6051,

@@ -33,7 +33,7 @@ const MEMBERS = 1_000;
 /** One page of forfeits (research R9). */
 const PAGE = 10;
 
-const feeOf = (stake: bigint) => (stake * 20n) / 100n;
+const feeOf = (stake: bigint) => (stake * 30n) / 100n;
 
 // ------------------------------------------------------------ the derived figures
 // One definition each, from data-model §5, over a decoded snapshot — the same

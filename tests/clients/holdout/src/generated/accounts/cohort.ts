@@ -20,20 +20,27 @@ export type Cohort = { discriminator: ReadonlyUint8Array; leagueId: number; inde
 chips: Array<bigint>; memberCount: number; 
 /** Members' stakes, held separately from the pool at every instant (INV-1). */
 heldStake: bigint; 
-/** Only forfeited stakes and carry-over ever enter this (INV-2). */
-pool: bigint; carryOverReceived: bigint; forfeitsRecorded: number; 
+/** Only forfeited stakes ever enter this (INV-2). */
+pool: bigint; 
+/**
+ * Always 0 since the carry-over was cut (FR-037, 2026-10-05); kept so the
+ * account layout every client decodes is unchanged.
+ */
+carryOverReceived: bigint; forfeitsRecorded: number; 
 /**
  * Memberships `settle_count` has processed; settlement finalizes when this
  * reaches `member_count` (INV-5).
  */
 counted: number; finisherCount: number; finishersPerTier: Array<number>; 
 /** The payout denominator, written as finishers are counted (FR-033). */
-totalFinisherStake: bigint; settled: boolean; sharePerTier: Array<bigint>; roundingRemainder: bigint; noFinisherFee: bigint; carryOverSent: bigint; 
+totalFinisherStake: bigint; settled: boolean; sharePerTier: Array<bigint>; roundingRemainder: bigint; 
+/** A cohort nobody finished: its whole pool, sent to the fee destination (FR-037). */
+noFinisherFee: bigint; 
 /**
- * Always 0 in Phase 1: a no-finisher cohort is refused rather than settled
- * while its carry-over has nowhere to go (FR-037a, error 6047).
+ * These three are always 0 since the carry-over was cut (FR-037,
+ * 2026-10-05); kept so the account layout every client decodes is unchanged.
  */
-carryOverHeld: bigint; carryOverTarget: Address; vaultBump: number; bump: number;  };
+carryOverSent: bigint; carryOverHeld: bigint; carryOverTarget: Address; vaultBump: number; bump: number;  };
 
 export type CohortArgs = { leagueId: number; index: number; start: number | bigint; joinCutoff: number | bigint; durationDays: number; repsPerDay: number; dayLength: number | bigint; exercise: number; 
 /**
@@ -43,20 +50,27 @@ export type CohortArgs = { leagueId: number; index: number; start: number | bigi
 chips: Array<number | bigint>; memberCount: number; 
 /** Members' stakes, held separately from the pool at every instant (INV-1). */
 heldStake: number | bigint; 
-/** Only forfeited stakes and carry-over ever enter this (INV-2). */
-pool: number | bigint; carryOverReceived: number | bigint; forfeitsRecorded: number; 
+/** Only forfeited stakes ever enter this (INV-2). */
+pool: number | bigint; 
+/**
+ * Always 0 since the carry-over was cut (FR-037, 2026-10-05); kept so the
+ * account layout every client decodes is unchanged.
+ */
+carryOverReceived: number | bigint; forfeitsRecorded: number; 
 /**
  * Memberships `settle_count` has processed; settlement finalizes when this
  * reaches `member_count` (INV-5).
  */
 counted: number; finisherCount: number; finishersPerTier: Array<number>; 
 /** The payout denominator, written as finishers are counted (FR-033). */
-totalFinisherStake: number | bigint; settled: boolean; sharePerTier: Array<number | bigint>; roundingRemainder: number | bigint; noFinisherFee: number | bigint; carryOverSent: number | bigint; 
+totalFinisherStake: number | bigint; settled: boolean; sharePerTier: Array<number | bigint>; roundingRemainder: number | bigint; 
+/** A cohort nobody finished: its whole pool, sent to the fee destination (FR-037). */
+noFinisherFee: number | bigint; 
 /**
- * Always 0 in Phase 1: a no-finisher cohort is refused rather than settled
- * while its carry-over has nowhere to go (FR-037a, error 6047).
+ * These three are always 0 since the carry-over was cut (FR-037,
+ * 2026-10-05); kept so the account layout every client decodes is unchanged.
  */
-carryOverHeld: number | bigint; carryOverTarget: Address; vaultBump: number; bump: number;  };
+carryOverSent: number | bigint; carryOverHeld: number | bigint; carryOverTarget: Address; vaultBump: number; bump: number;  };
 
 /** Gets the encoder for {@link CohortArgs} account data. */
 export function getCohortEncoder(): FixedSizeEncoder<CohortArgs> {
