@@ -328,7 +328,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 3. Section label `HOLDOUTS OPEN TO JOIN` · hint `$10 – $100 in SKR`
 4. Offer cards, each with an outlined **Join** button:
    - **7-day** · starts Monday · `12,500 SKR` at stake · 14 joined · `closes in 6h 12m`
-   - **21-day** · starts Monday · `9,000 SKR` at stake · 9 joined · `+2,400 SKR carried over` from an earlier cohort
+   - **21-day** · starts Monday · `9,000 SKR` at stake · 9 joined · `+2,400 SKR carried over` from a Holdout nobody finished
 5. Row link: ⓘ **How Holdout works** · *3 cards*
 6. Bottom bar, ⌂ active
 
@@ -351,7 +351,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 **Entered from:** app open while standing in a running Holdout · N2 reminder · H3 at start time · ☰ H0 running card
 
 **On screen (as drawn, top → bottom)**
-1. `21-DAY · COHORT 14 · DAY 12 OF 21`
+1. `21-DAY HOLDOUT · DAY 12 OF 21`
 2. **189** / 312 (68 px; total in 48 %) · `STILL STANDING` · ▲ *3 dropped since yesterday* (green)
 3. Card: **Prize pool** `48,200 SKR` · hairline · **Your share now** `255 SKR` / *≈ $6* · *+17 SKR since yesterday* (green)
 4. Bank ring (1 of 3 segments) with `10` · **10 banked today** · *one block of 10 · 15 reps to go*
@@ -535,7 +535,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 #### H7 · Claim
 **MUST · ✅ Built · 🎨 Drawn** (board *7 · Claim*) · `claim/ClaimScreen.kt` · PRD #10, US-8, FR-035
 
-**On screen (as drawn):** `COHORT 14 · 7-DAY` · `settled` chip (green) · amount card: *You finished all 7 days* · **1,412** SKR (56 px) · *≈ $28 · yours to claim* · gradient bar under it · breakdown card: **Stake returned** `1,250 SKR` · **Share of the prize** `162 SKR` (green) · hairline · *9 of 20 members dropped out. Their stakes, minus the 20 % fee, were split between the 11 who finished.* · settled card: **Settled** `5 Oct 05:00 UTC` · `4Bx9…7Qk2 · view on explorer →` · **Claim 1,412 SKR** · *Your wallet signs one transaction. Unclaimed prizes stay here.*
+**On screen (as drawn):** `7-DAY HOLDOUT` · `settled` chip (green) · amount card: *You finished all 7 days* · **1,412** SKR (56 px) · *≈ $28 · yours to claim* · gradient bar under it · breakdown card: **Stake returned** `1,250 SKR` · **Share of the prize** `162 SKR` (green) · hairline · *9 of 20 members dropped out. Their stakes, minus the 20 % fee, were split between the 11 who finished.* · settled card: **Settled** `5 Oct 05:00 UTC` · `4Bx9…7Qk2 · view on explorer →` · **Claim 1,412 SKR** · *Your wallet signs one transaction. Unclaimed prizes stay here.*
 
 **Variants to draw:** signing · **claimed** (amount in green, gradient sweeps once, button becomes **Next Holdout →** *NICE*) · short of SOL → W1 sheet · nobody dropped out (*"Nobody dropped out — your stake comes back in full"*)
 
@@ -627,12 +627,12 @@ Where the draft says something the spec, the PRD or its own tokens note say diff
 | 1 | 4 · Stake | **Prize pool now** `4,800 SKR` on a Holdout that hasn't started | **At stake now**: a lobby has no prize pool, only forfeits create one | the draft's own names note, FR-053 |
 | 2 | 4 · Stake | No counting rule | *How reps are counted here: 45° only, full push-ups from the toes* | FR-021a, `StakeSheet.kt` |
 | 3 | 4 · Stake | No fee line, refund line, joined count or carry-over | Add *80 % to the pool, 20 % fee* · *leave for a full refund until joining closes* · *14 joined* · carry-over | US-6, FR-041 |
-| 4 | 4 · Stake, 5 · Home, 7 · Claim | *"Join the 7-day **cohort**"*, `COHORT 14`, *"clear a 7-day **cohort** first"* | **Holdout** in everything a member reads; *cohort* is the contract's word | H28, the draft's names note |
+| 4 | 4 · Stake, 5 · Home, 7 · Claim | ~~*"Join the 7-day **cohort**"*, `COHORT 14`, *"clear a 7-day **cohort** first"*~~ | ✅ **Fixed on the canvas (5 Oct):** "Holdout" in everything a member reads; *cohort* is the contract's word | H28, the draft's names note |
 | 5 | 4 · Stake (background) | 21-day: *"clear a 7-day cohort first"* | Also say it's **off in this build** (`ladder_gate_enabled = false`); add the locked **Human Flag** rung and the **Daily 25** rung | US-1, `LadderScreen.kt` |
 | 6 | 1 · First open, 2 · Tour | *"your stake goes to the people still standing"* | *"…goes into the prize pool"*: 20 % is a fee, so not all of it reaches the people standing | PRD §13 honest language |
 | 7 | 5 · Home | *Your share now* `255 SKR` | Keep the PRD's words, but it is a projection: *"your share if today's standing held"* in the small print | `CohortHome.kt`, PRD §10.1a |
 | 8 | 3 · Today, 5 · Home | Bottom bar icons have no labels | Text labels (Today · Crowd · Holdouts · Me) or at least `aria-label`s | accessibility, §3 |
-| 9 | 3 · Today | `+2,400 SKR carried over` *from cohort 13* | *"from a Holdout nobody finished"*: the member never sees cohort numbers | H28, `LadderScreen.kt` |
+| 9 | 3 · Today | ~~`+2,400 SKR carried over` *from cohort 13*~~ | ✅ **Fixed on the canvas (5 Oct):** *"from a Holdout nobody finished"*; members never see cohort numbers | H28, `LadderScreen.kt` |
 | 10 | all | No `TEST COHORT` badge anywhere | Show it wherever the short devnet test cohort appears (10-minute days) | README known weaknesses |
 
 ---
