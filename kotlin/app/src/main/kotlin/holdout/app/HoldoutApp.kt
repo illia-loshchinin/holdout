@@ -610,6 +610,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             target = DAILY_25,
             completedToday = complete,
             streak = streak.current,
+            freezes = streak.freezes,
             secondsLeftToday = chainNow?.let { HoldoutDay.secondsLeftIn(it) },
         ),
         onStart = {

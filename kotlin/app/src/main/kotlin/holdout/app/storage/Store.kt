@@ -45,6 +45,10 @@ interface Store {
     fun longestStreak(wallet: String): Int
     fun setLongestStreak(wallet: String, streak: Int)
 
+    /** Streak freezes held, 0–2: earned one per seven consecutive active days (H35). */
+    fun streakFreezes(wallet: String): Int
+    fun setStreakFreezes(wallet: String, freezes: Int)
+
     fun hasSeenTour(wallet: String): Boolean
     fun setSeenTour(wallet: String)
 
@@ -178,6 +182,12 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         kv.encode("streak_best:$wallet", streak)
     }
 
+    override fun streakFreezes(wallet: String): Int = kv.decodeInt("streak_freezes:$wallet", 0)
+
+    override fun setStreakFreezes(wallet: String, freezes: Int) {
+        kv.encode("streak_freezes:$wallet", freezes)
+    }
+
     override fun hasSeenTour(wallet: String): Boolean = kv.decodeBool("tour:$wallet", false)
 
     override fun isSetupGuideHidden(wallet: String, stakes: String): Boolean = kv.decodeBool("setup_hidden:$wallet:$stakes", false)
@@ -286,6 +296,12 @@ class InMemoryStore : Store {
 
     override fun setLongestStreak(wallet: String, streak: Int) {
         values["streak_best:$wallet"] = streak
+    }
+
+    override fun streakFreezes(wallet: String): Int = values["streak_freezes:$wallet"] as? Int ?: 0
+
+    override fun setStreakFreezes(wallet: String, freezes: Int) {
+        values["streak_freezes:$wallet"] = freezes
     }
 
     override fun hasSeenTour(wallet: String): Boolean = values["tour:$wallet"] as? Boolean ?: false

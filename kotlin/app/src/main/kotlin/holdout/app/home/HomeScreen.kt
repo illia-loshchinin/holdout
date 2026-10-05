@@ -59,6 +59,8 @@ data class HomeState(
     val streak: Int,
     /** Null while chain time is unknown — the screen says so rather than guessing. */
     val secondsLeftToday: Long?,
+    /** Streak freezes held, 0–2 (H35): each keeps the streak through one missed day. */
+    val freezes: Int = 0,
 )
 
 @Composable
@@ -218,6 +220,17 @@ fun HomeScreen(
             color = HoldoutColors.Accent,
             modifier = Modifier.padding(top = 8.dp),
         )
+        if (state.streak > 0) {
+            Text(
+                text = when (state.freezes) {
+                    0 -> "Seven days in a row earn a freeze for a missed day"
+                    1 -> "1 freeze held — a missed day won't break the streak"
+                    else -> "${state.freezes} freezes held — two missed days won't break the streak"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = HoldoutColors.TextSecondary,
+            )
+        }
 
         below()
     }
