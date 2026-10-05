@@ -388,6 +388,63 @@ class StakesTest {
     }
 
     @Test
+    fun `given an Easy Holdout, when push-ups come from the knees at 45 degrees, then they count where Hard refuses them`() {
+        fun count(stakes: Stakes): Int {
+            val counter = RepCounter(view = CameraView.OBLIQUE, stakes = stakes)
+            for (frame in Traces.set(count = 10)) {
+                counter.onFrame(frame, Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = 70f))
+            }
+            return counter.total
+        }
+        assertEquals(10, count(Stakes.EASY), "Easy counts push-ups from the knees (H35)")
+        assertEquals(0, count(Stakes.STAKED), "Hard does not")
+    }
+
+    @Test
+    fun `given an Easy Holdout, when the knees leave the picture, then the rep is not credited - the legs stay in view`() {
+        val counter = RepCounter(view = CameraView.OBLIQUE, stakes = Stakes.EASY)
+        val hints = mutableListOf<RepHint?>()
+        for (frame in Traces.set(count = 10)) {
+            val image = withoutKnee(Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = 70f))
+            (counter.onFrame(frame, image) as? RepEvent.Discarded)?.let { hints += it.hint }
+        }
+        assertEquals(0, counter.total)
+        assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.LEGS_IN_VIEW }, "got $hints")
+    }
+
+    @Test
+    fun `given an Easy Holdout, when the phone stands more frontal than about 40 degrees, then the sitting does not start`() {
+        // A placement ratio of 1.0 — the median of every 30° recording — passes
+        // Hard's camera check and is refused for Easy, where it let cobras count.
+        val frontish = input(shoulderSpan = 0.4f)
+        assertTrue(Preflight(stakes = Stakes.STAKED).evaluate(frontish).canStart)
+        val easy = Preflight(stakes = Stakes.EASY).evaluate(frontish)
+        assertFalse(easy.canStart)
+        assertEquals(CameraView.FRONT, easy.view)
+        // 0.75, inside the 40–60° recordings' range, starts.
+        assertTrue(Preflight(stakes = Stakes.EASY).evaluate(input(shoulderSpan = 0.3f)).canStart)
+    }
+
+    @Test
+    fun `given an Easy Holdout, when the member holds the start from the knees, then the hold is accepted`() {
+        val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.EASY)
+        val top = { t: Long -> Traces.frame(t, elbowDegrees = 175f, bodyLineDegrees = 180f) }
+        val knees = { t: Long -> Traces.angledImage(t, elbowDegrees = 175f, kneeDegrees = 70f) }
+        gate.onFrame(top(0), 0, pillsGreen = true, view = CameraView.OBLIQUE, image = knees(0))
+        assertTrue(gate.onFrame(top(2_000), 2_000, pillsGreen = true, view = CameraView.OBLIQUE, image = knees(2_000)))
+    }
+
+    @Test
+    fun `a cohort's form picks its stakes, and an unknown form picks none`() {
+        assertEquals(Stakes.STAKED, Stakes.ofForm(0))
+        assertEquals(Stakes.EASY, Stakes.ofForm(1))
+        assertNull(Stakes.ofForm(2))
+        assertTrue(Stakes.EASY.staked && !Stakes.EASY.judgesKnees)
+        assertTrue(Stakes.STAKED.staked && Stakes.STAKED.judgesKnees)
+        assertFalse(Stakes.DAILY.staked || Stakes.DAILY.judgesKnees)
+    }
+
+    @Test
     fun `the rule a member reads before staking names the placement and the knees`() {
         val rule = Stakes.STAKED_RULE.lowercase()
         assertTrue("45" in rule && "not in front" in rule, "the placement")

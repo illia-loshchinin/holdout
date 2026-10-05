@@ -339,7 +339,7 @@ class RepCounter(
         // Pre-flight already refuses to start a staked sitting anywhere but at
         // 45°. This is the second lock on the same door: a staked counter
         // measured from a view that cannot see the knees must not exist.
-        require(stakes != Stakes.STAKED || stakes.accepts(view)) { "$stakes sittings cannot be counted from the $view view" }
+        require(!stakes.staked || stakes.accepts(view)) { "$stakes sittings cannot be counted from the $view view" }
     }
 
     private val rules = rules.forView(view)
@@ -349,7 +349,14 @@ class RepCounter(
      * from the knees on purpose: it is a free habit, and a member building up
      * to full push-ups should be able to keep it (FR-021a).
      */
-    private val judgeKnees = stakes == Stakes.STAKED
+    private val judgeKnees = stakes.judgesKnees
+
+    /**
+     * Where money is staked — Hard or Easy — the legs must stay in view: a rep
+     * whose knees spent the push out of the picture cannot be judged for the
+     * body line or the hip rise either (H35).
+     */
+    private val watchLegs = stakes.staked
 
     private enum class Phase {
         /** Nothing yet: waiting for the body to be at the top, straight. */
@@ -514,12 +521,12 @@ class RepCounter(
             // the frames it showed in to be judged.
             // During the countdown too: a rep begun on "1" is judged once counting
             // starts, on everything since its bottom.
-            if (judgeKnees && phase == Phase.AT_BOTTOM) {
+            if (watchLegs && phase == Phase.AT_BOTTOM) {
                 pushFrames++
                 pushLegsUnseen++
             }
             // The same on the way down, once the arms have really started.
-            if (judgeKnees && phase == Phase.AT_TOP && minElbowInCycle <= rules.descentAttemptDegrees) {
+            if (watchLegs && phase == Phase.AT_TOP && minElbowInCycle <= rules.descentAttemptDegrees) {
                 descentFrames++
                 descentKneeUnseen++
             }
@@ -577,7 +584,7 @@ class RepCounter(
                 }
                 if (cycleStartMillis != 0L) {
                     observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight)
-                    if (judgeKnees && elbow >= PUSH_FROM_ELBOW) {
+                    if (watchLegs && elbow >= PUSH_FROM_ELBOW) {
                         descentFrames++
                         if (knee != null && image != null && side != null && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin)) {
                             descentKnees += knee
@@ -607,7 +614,7 @@ class RepCounter(
                     // a knee seen: it neither passes nor fails the knee check.
                     // Nor is one the model could not place (loose trousers).
                     val angled = reading as? ViewReading.Angled
-                    val kneeSeen = !judgeKnees || (image != null && side != null && angled?.kneeUnreadable != true && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin))
+                    val kneeSeen = !watchLegs || (image != null && side != null && angled?.kneeUnreadable != true && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin))
                     pushFrames++
                     if (kneeSeen) {
                         knee?.let { pushKnees += it }
@@ -638,11 +645,11 @@ class RepCounter(
                     // not knees off the floor: the rep cannot be judged. Nor
                     // can one whose knee spent much of the push out of the
                     // picture or at its edge — the knees may have been down.
-                    judgeKnees && (pushKnees.isEmpty() && pushLegs.isEmpty() || legsUnseenShare() > rules.maxLegsUnseenShare) ->
+                    watchLegs && (pushKnees.isEmpty() && pushLegs.isEmpty() || legsUnseenShare() > rules.maxLegsUnseenShare) ->
                         RepEvent.Discarded(RepHint.LEGS_IN_VIEW)
                     // The way down is held to the same: a knee hidden while
                     // lowering onto it, then shown for the push, proves nothing.
-                    judgeKnees && (descentKnees.isEmpty() || descentKneeUnseen > rules.maxLegsUnseenShare * descentFrames) ->
+                    watchLegs && (descentKnees.isEmpty() || descentKneeUnseen > rules.maxLegsUnseenShare * descentFrames) ->
                         RepEvent.Discarded(RepHint.LEGS_IN_VIEW)
                     // Depth before knees: it is read off the arms, which the
                     // camera sees best, while a half push-up on the toes reads
