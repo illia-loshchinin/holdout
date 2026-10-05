@@ -434,6 +434,35 @@ class StakesTest {
         assertTrue(gate.onFrame(top(2_000), 2_000, pillsGreen = true, view = CameraView.OBLIQUE, image = knees(2_000)))
     }
 
+    /** The stances of every rep a Daily 25 counter at [view] counts, the knee at [kneeDegrees]. */
+    private fun stances(view: CameraView, kneeDegrees: Float = 178f, hideKnee: Boolean = false): List<RepStance?> {
+        val counter = RepCounter(view = view, stakes = Stakes.DAILY)
+        val out = mutableListOf<RepStance?>()
+        for (frame in Traces.set(count = 5)) {
+            val image = if (view == CameraView.OBLIQUE) {
+                Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = kneeDegrees).let { if (hideKnee) withoutKnee(it) else it }
+            } else {
+                null
+            }
+            (counter.onFrame(frame, image) as? RepEvent.Counted)?.let { out += it.stance }
+        }
+        return out
+    }
+
+    @Test
+    fun `given a Daily 25 at 45 degrees, when reps are counted, then each says whether Hard would have counted it`() {
+        assertEquals(List(5) { RepStance.TOES }, stances(CameraView.OBLIQUE))
+        assertEquals(List(5) { RepStance.KNEES }, stances(CameraView.OBLIQUE, kneeDegrees = 70f), "counted all the same - the Daily 25 allows knees")
+        assertEquals(List(5) { RepStance.NOT_VISIBLE }, stances(CameraView.OBLIQUE, kneeDegrees = 70f, hideKnee = true))
+    }
+
+    @Test
+    fun `given a Daily 25 head-on, when reps are counted, then no stance is claimed - the legs point into the lens`() {
+        val counted = stances(CameraView.SIDE)
+        assertTrue(counted.isNotEmpty())
+        assertTrue(counted.all { it == null })
+    }
+
     @Test
     fun `a cohort's form picks its stakes, and an unknown form picks none`() {
         assertEquals(Stakes.STAKED, Stakes.ofForm(0))

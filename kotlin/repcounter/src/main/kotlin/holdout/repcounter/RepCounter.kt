@@ -303,9 +303,28 @@ data class CycleReadout(
     val cycleMillis: Long,
 )
 
+/**
+ * How a counted rep would fare under Hard's knee rule, for the Daily 25's toes
+ * meter (H35). It never changes what counts: the Daily 25 counts push-ups from
+ * the knees either way.
+ */
+enum class RepStance {
+    /** Hard's rule would have counted it: knees off the floor, legs in view. */
+    TOES,
+
+    /** Down on the knees for some of it. */
+    KNEES,
+
+    /** The legs were not in the picture enough to say. */
+    NOT_VISIBLE,
+}
+
 sealed interface RepEvent {
-    /** A rep met every rule. [total] counts reps in this sitting. */
-    data class Counted(val total: Int, val cycleMillis: Long) : RepEvent
+    /**
+     * A rep met every rule. [total] counts reps in this sitting. [stance] is
+     * read at 45° only — head-on the legs point into the lens — and null there.
+     */
+    data class Counted(val total: Int, val cycleMillis: Long, val stance: RepStance? = null) : RepEvent
 
     /**
      * A cycle was attempted and thrown away. Never surfaced as an error.
@@ -357,6 +376,13 @@ class RepCounter(
      * body line or the hip rise either (H35).
      */
     private val watchLegs = stakes.staked
+
+    /**
+     * At 45° the legs are followed whatever the stakes, so every counted rep
+     * can be tagged for the toes meter ([RepStance]); only [watchLegs] lets
+     * them decide anything.
+     */
+    private val followLegs = watchLegs || view == CameraView.OBLIQUE
 
     private enum class Phase {
         /** Nothing yet: waiting for the body to be at the top, straight. */
@@ -521,12 +547,12 @@ class RepCounter(
             // the frames it showed in to be judged.
             // During the countdown too: a rep begun on "1" is judged once counting
             // starts, on everything since its bottom.
-            if (watchLegs && phase == Phase.AT_BOTTOM) {
+            if (followLegs && phase == Phase.AT_BOTTOM) {
                 pushFrames++
                 pushLegsUnseen++
             }
             // The same on the way down, once the arms have really started.
-            if (watchLegs && phase == Phase.AT_TOP && minElbowInCycle <= rules.descentAttemptDegrees) {
+            if (followLegs && phase == Phase.AT_TOP && minElbowInCycle <= rules.descentAttemptDegrees) {
                 descentFrames++
                 descentKneeUnseen++
             }
@@ -584,7 +610,7 @@ class RepCounter(
                 }
                 if (cycleStartMillis != 0L) {
                     observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight)
-                    if (watchLegs && elbow >= PUSH_FROM_ELBOW) {
+                    if (followLegs && elbow >= PUSH_FROM_ELBOW) {
                         descentFrames++
                         if (knee != null && image != null && side != null && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin)) {
                             descentKnees += knee
@@ -614,7 +640,7 @@ class RepCounter(
                     // a knee seen: it neither passes nor fails the knee check.
                     // Nor is one the model could not place (loose trousers).
                     val angled = reading as? ViewReading.Angled
-                    val kneeSeen = !watchLegs || (image != null && side != null && angled?.kneeUnreadable != true && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin))
+                    val kneeSeen = !followLegs || (image != null && side != null && angled?.kneeUnreadable != true && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin))
                     pushFrames++
                     if (kneeSeen) {
                         knee?.let { pushKnees += it }
@@ -673,13 +699,28 @@ class RepCounter(
                     cycleMillis > rules.maxCycleMillis -> RepEvent.Discarded(null)
                     else -> {
                         count += 1
-                        RepEvent.Counted(count, cycleMillis)
+                        RepEvent.Counted(count, cycleMillis, stance())
                     }
                 }
                 phase = Phase.AT_TOP
                 resetCycle()
                 verdict
             }
+        }
+    }
+
+    /** Hard's knee rule applied to the rep just counted, at 45° only ([RepStance]). */
+    private fun stance(): RepStance? {
+        if (view != CameraView.OBLIQUE) return null
+        val unseen = (pushKnees.isEmpty() && pushLegs.isEmpty()) ||
+            legsUnseenShare() > rules.maxLegsUnseenShare ||
+            descentKnees.isEmpty() ||
+            descentKneeUnseen > rules.maxLegsUnseenShare * descentFrames
+        return when {
+            unseen -> RepStance.NOT_VISIBLE
+            !kneesOffFloor(pushKnees.medianOrNull(), pushLegs.medianOrNull(), rules, descentKnees.medianOrNull()) -> RepStance.KNEES
+            !kneesOffFloor(descentKnees.medianOrNull(), null, rules) -> RepStance.KNEES
+            else -> RepStance.TOES
         }
     }
 
