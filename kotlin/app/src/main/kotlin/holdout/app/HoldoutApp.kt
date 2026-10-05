@@ -611,6 +611,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             completedToday = complete,
             streak = streak.current,
             freezes = streak.freezes,
+            toes = holdout.app.streak.ToesMeter(store, DAILY_25).read(wallet, dayIndex),
             secondsLeftToday = chainNow?.let { HoldoutDay.secondsLeftIn(it) },
         ),
         onStart = {

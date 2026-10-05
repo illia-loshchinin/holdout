@@ -49,6 +49,12 @@ interface Store {
     fun streakFreezes(wallet: String): Int
     fun setStreakFreezes(wallet: String, freezes: Int)
 
+    /** The toes meter (H35): a day's reps from the toes, and the reps measured at 45°. */
+    fun toesDay(wallet: String, dayIndex: Long): Pair<Int, Int>
+    fun setToesDay(wallet: String, dayIndex: Long, toes: Int, measured: Int)
+    fun bestToes(wallet: String): Int
+    fun setBestToes(wallet: String, toes: Int)
+
     fun hasSeenTour(wallet: String): Boolean
     fun setSeenTour(wallet: String)
 
@@ -188,6 +194,19 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         kv.encode("streak_freezes:$wallet", freezes)
     }
 
+    override fun toesDay(wallet: String, dayIndex: Long): Pair<Int, Int> = kv.decodeString("toes:$wallet:$dayIndex")?.split(',')?.let { it[0].toInt() to it[1].toInt() } ?: (0 to 0)
+
+    override fun setToesDay(wallet: String, dayIndex: Long, toes: Int, measured: Int) {
+        // One record, so the two can never disagree after a kill.
+        kv.encode("toes:$wallet:$dayIndex", "$toes,$measured")
+    }
+
+    override fun bestToes(wallet: String): Int = kv.decodeInt("toes_best:$wallet", 0)
+
+    override fun setBestToes(wallet: String, toes: Int) {
+        kv.encode("toes_best:$wallet", toes)
+    }
+
     override fun hasSeenTour(wallet: String): Boolean = kv.decodeBool("tour:$wallet", false)
 
     override fun isSetupGuideHidden(wallet: String, stakes: String): Boolean = kv.decodeBool("setup_hidden:$wallet:$stakes", false)
@@ -302,6 +321,19 @@ class InMemoryStore : Store {
 
     override fun setStreakFreezes(wallet: String, freezes: Int) {
         values["streak_freezes:$wallet"] = freezes
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    override fun toesDay(wallet: String, dayIndex: Long): Pair<Int, Int> = values["toes:$wallet:$dayIndex"] as? Pair<Int, Int> ?: (0 to 0)
+
+    override fun setToesDay(wallet: String, dayIndex: Long, toes: Int, measured: Int) {
+        values["toes:$wallet:$dayIndex"] = toes to measured
+    }
+
+    override fun bestToes(wallet: String): Int = values["toes_best:$wallet"] as? Int ?: 0
+
+    override fun setBestToes(wallet: String, toes: Int) {
+        values["toes_best:$wallet"] = toes
     }
 
     override fun hasSeenTour(wallet: String): Boolean = values["tour:$wallet"] as? Boolean ?: false

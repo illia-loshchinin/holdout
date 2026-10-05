@@ -183,6 +183,9 @@ class SittingViewModel(
         this.lens = lens
     }
     private val banking = BankingController(store, wallet, scope, dayIndex, target)
+
+    /** The Daily 25's toes meter (H35): read at 45°, never in a Holdout. */
+    private val toesMeter = holdout.app.streak.ToesMeter(store, target)
     private var repCounter = RepCounter()
 
     /**
@@ -331,6 +334,7 @@ class SittingViewModel(
                 when (event) {
                     is RepEvent.Counted -> {
                         lastRefusal = null
+                        if (stakes == Stakes.DAILY && scope == Store.CHALLENGE) toesMeter.record(wallet, banking.dayIndex, event.stance)
                         _uiState.update { it.copy(repsCounted = repCounter.total) }
                         onVerifiedRep()
                     }
