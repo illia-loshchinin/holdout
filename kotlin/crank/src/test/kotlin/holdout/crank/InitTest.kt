@@ -37,6 +37,7 @@ class InitTest {
     private val mint = Keypair.fromSeed(ByteArray(32) { 9 })
     private val sponsor = SolanaPublicKey(ByteArray(32) { 5 })
     private val treasury = SolanaPublicKey(ByteArray(32) { 6 })
+    private val developer = SolanaPublicKey(ByteArray(32) { 7 })
 
     private val configAddress = runBlocking { Pdas.config(programId) }
     private val vault = runBlocking { Pdas.faucetVault(programId) }
@@ -59,6 +60,8 @@ class InitTest {
             sponsor.base58(),
             "--treasury",
             treasury.base58(),
+            "--developer",
+            developer.base58(),
             "--rate",
             "0.0213",
         )
@@ -210,13 +213,41 @@ class InitTest {
         val chain = Chain()
         init(chain, *fullArgs)
         val data = chain.sent[2].message.instructions.single().data
-        val firstStart = ByteBuffer.wrap(data, 13, 8).order(ByteOrder.LITTLE_ENDIAN).long
+        // league_id, duration_days, reps_per_day (u16), exercise, form, then first_start.
+        val firstStart = ByteBuffer.wrap(data, 14, 8).order(ByteOrder.LITTLE_ENDIAN).long
         assertEquals(LeagueParams.FIRST_JUDGED_START, firstStart)
 
         val later = Chain()
         init(later, *fullArgs, "--first-start", "2026-10-12T05:00:00Z")
-        val laterStart = ByteBuffer.wrap(later.sent[2].message.instructions.single().data, 13, 8).order(ByteOrder.LITTLE_ENDIAN).long
+        val laterStart = ByteBuffer.wrap(later.sent[2].message.instructions.single().data, 14, 8).order(ByteOrder.LITTLE_ENDIAN).long
         assertEquals(LeagueParams.FIRST_JUDGED_START + 604_800, laterStart)
+    }
+
+    @Test
+    fun `given a fresh program, when init runs, then the 7-day league is Easy and the 21-day Hard, each with its reserve vault`() {
+        val chain = Chain()
+        val json = init(chain, *fullArgs)
+        val leagues = chain.sent.drop(2).map { it.message.instructions.single() to it }
+        assertEquals(listOf(0, 1), leagues.map { (ix, _) -> ix.data[8].toInt() })
+        assertEquals(listOf(LeagueParams.FORM_KNEES_ALLOWED, LeagueParams.FORM_TOES), leagues.map { (ix, _) -> ix.data[13].toInt() })
+        leagues.forEach { (ix, tx) ->
+            val accounts = ix.accountIndices.map { tx.message.accounts[it.toInt()] }
+            val id = ix.data[8].toInt()
+            assertEquals(listOf(mint.publicKey, runBlocking { Pdas.reserveVault(programId, id) }), accounts.subList(3, 5), "the new mint, then league $id's reserve vault")
+        }
+        val steps = json.getValue("steps").jsonArray.map { it.jsonObject }
+        assertEquals(listOf("Easy", "Hard"), steps.filter { it.getValue("step").jsonPrimitive.content.startsWith("league") }.map { it.getValue("formName").jsonPrimitive.content })
+    }
+
+    @Test
+    fun `given a fresh program, when init runs, then initialize names the developer wallet and its SKR account`() {
+        val chain = Chain()
+        init(chain, *fullArgs)
+        val tx = chain.sent[0]
+        val ix = tx.message.instructions.single()
+        val accounts = ix.accountIndices.map { tx.message.accounts[it.toInt()] }
+        assertEquals(listOf(developer, runBlocking { Pdas.associatedToken(developer, mint.publicKey) }), accounts.subList(8, 10))
+        assertContentEquals(developer.bytes, ix.data.copyOfRange(8 + 3 * 32, 8 + 4 * 32), "the fourth key argument")
     }
 
     @Test
@@ -277,8 +308,8 @@ class InitTest {
     }
 
     @Test
-    fun `a fresh program needs the operator, sponsor, treasury and rate before anything is sent`() {
-        listOf("--operator", "--sponsor", "--treasury", "--rate").forEach { missing ->
+    fun `a fresh program needs the operator, sponsor, treasury, developer and rate before anything is sent`() {
+        listOf("--operator", "--sponsor", "--treasury", "--developer", "--rate").forEach { missing ->
             val chain = Chain()
             val i = fullArgs.indexOf(missing)
             val args = fullArgs.toMutableList().apply {

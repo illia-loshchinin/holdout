@@ -31,10 +31,14 @@ object Instructions {
     fun discriminator(name: String): ByteArray = MessageDigest.getInstance("SHA-256").digest("global:$name".encodeToByteArray()).copyOf(8)
 
     /**
-     * `initialize(operator, sponsor, treasury_wallet, faucet_sol_top_up,
-     * faucet_daily_lamport_cap, faucet_sponsor_float)` — once, signed by the
-     * program's upgrade authority as [admin], who pays. [skrMint] is a fresh
-     * keypair that signs too: the mock SKR mint is created at its address.
+     * `initialize(operator, sponsor, treasury_wallet, developer_wallet,
+     * faucet_sol_top_up, faucet_daily_lamport_cap, faucet_sponsor_float)` —
+     * once, signed by the program's upgrade authority as [admin], who pays.
+     * [skrMint] is a fresh keypair that signs too: the mock SKR mint is created
+     * at its address. The program creates both fee destinations as associated
+     * token accounts: the operations one ([treasuryWallet]'s, `fee_destination`)
+     * and the developer one ([developerWallet]'s, `developer_destination`) —
+     * H35, FR-037f.
      */
     suspend fun initialize(
         programId: SolanaPublicKey,
@@ -43,11 +47,12 @@ object Instructions {
         operator: SolanaPublicKey,
         sponsor: SolanaPublicKey,
         treasuryWallet: SolanaPublicKey,
+        developerWallet: SolanaPublicKey,
         faucet: FaucetParams,
     ): TransactionInstruction {
-        val data = ByteBuffer.allocate(8 + 3 * 32 + 3 * 8).order(ByteOrder.LITTLE_ENDIAN)
+        val data = ByteBuffer.allocate(8 + 4 * 32 + 3 * 8).order(ByteOrder.LITTLE_ENDIAN)
         data.put(discriminator("initialize"))
-        data.put(operator.bytes).put(sponsor.bytes).put(treasuryWallet.bytes)
+        data.put(operator.bytes).put(sponsor.bytes).put(treasuryWallet.bytes).put(developerWallet.bytes)
         data.putLong(faucet.solTopUp.toLong()).putLong(faucet.dailyLamportCap.toLong()).putLong(faucet.sponsorFloat.toLong())
         return TransactionInstruction(
             programId,
@@ -60,6 +65,8 @@ object Instructions {
                 AccountMeta(Pdas.mintAuthority(programId), false, false),
                 AccountMeta(treasuryWallet, false, false),
                 AccountMeta(Pdas.associatedToken(treasuryWallet, skrMint), false, true),
+                AccountMeta(developerWallet, false, false),
+                AccountMeta(Pdas.associatedToken(developerWallet, skrMint), false, true),
                 AccountMeta(Pdas.faucetVault(programId), false, true),
                 AccountMeta(SYSTEM_PROGRAM, false, false),
                 AccountMeta(TOKEN_PROGRAM, false, false),
@@ -69,15 +76,22 @@ object Instructions {
         )
     }
 
-    /** `create_league(league_id, duration_days, reps_per_day, exercise, first_start, day_length, cadence, join_lock)` — admin only. */
+    /**
+     * `create_league(league_id, duration_days, reps_per_day, exercise, form,
+     * first_start, day_length, cadence, join_lock)` — admin only. Also creates
+     * the league's reserve vault, an SKR token account of [skrMint]
+     * (`Config.skr_mint`) owned by the league PDA (H35). A form other than 0 or
+     * 1 is refused by the program ([LeagueParams.INVALID_FORM]).
+     */
     suspend fun createLeague(
         programId: SolanaPublicKey,
         admin: SolanaPublicKey,
+        skrMint: SolanaPublicKey,
         league: LeagueParams,
     ): TransactionInstruction {
-        val data = ByteBuffer.allocate(8 + 1 + 1 + 2 + 1 + 4 * 8).order(ByteOrder.LITTLE_ENDIAN)
+        val data = ByteBuffer.allocate(8 + 1 + 1 + 2 + 1 + 1 + 4 * 8).order(ByteOrder.LITTLE_ENDIAN)
         data.put(discriminator("create_league"))
-        data.put(league.leagueId.toByte()).put(league.durationDays.toByte()).putShort(league.repsPerDay.toShort()).put(league.exercise.toByte())
+        data.put(league.leagueId.toByte()).put(league.durationDays.toByte()).putShort(league.repsPerDay.toShort()).put(league.exercise.toByte()).put(league.form.toByte())
         data.putLong(league.firstStart).putLong(league.dayLength).putLong(league.cadence).putLong(league.joinLock)
         return TransactionInstruction(
             programId,
@@ -85,7 +99,10 @@ object Instructions {
                 AccountMeta(admin, true, true),
                 AccountMeta(Pdas.config(programId), false, false),
                 AccountMeta(Pdas.league(programId, league.leagueId), false, true),
+                AccountMeta(skrMint, false, false),
+                AccountMeta(Pdas.reserveVault(programId, league.leagueId), false, true),
                 AccountMeta(SYSTEM_PROGRAM, false, false),
+                AccountMeta(TOKEN_PROGRAM, false, false),
             ),
             data.array(),
         )
@@ -247,12 +264,16 @@ object Instructions {
     /**
      * `record_forfeits()` — permissionless, up to ten pairs in the remaining
      * accounts; pairs not in breach or already forfeited are skipped, so a page
-     * may be repeated and re-ordered freely (research R9).
+     * may be repeated and re-ordered freely (research R9). Each forfeit splits
+     * 70/10/5/5/10 (FR-027, H35): the pool and the two reserve dues stay in the
+     * vault, the developer part goes to [developerDestination] and the
+     * operations part to [feeDestination] at once.
      */
     suspend fun recordForfeits(
         programId: SolanaPublicKey,
         caller: SolanaPublicKey,
         feeDestination: SolanaPublicKey,
+        developerDestination: SolanaPublicKey,
         cohort: SolanaPublicKey,
         pairs: List<MemberPair>,
     ): TransactionInstruction {
@@ -265,6 +286,7 @@ object Instructions {
                 AccountMeta(cohort, false, true),
                 AccountMeta(Pdas.vault(programId, cohort), false, true),
                 AccountMeta(feeDestination, false, true),
+                AccountMeta(developerDestination, false, true),
                 AccountMeta(TOKEN_PROGRAM, false, false),
             ) + pairs.pageAccounts(),
             discriminator("record_forfeits"),
@@ -272,14 +294,17 @@ object Instructions {
     }
 
     /**
-     * `settle_count()` — permissionless and paged like [recordForfeits]. The
-     * league's cohort `index − 1` is required for every index but 0: counting
-     * runs in cohort order so every streak does too (FR-061a).
+     * `settle_count()` — permissionless and paged like [recordForfeits], with
+     * the same split for a breach nobody recorded. The league's cohort
+     * `index − 1` is required for every index but 0: counting runs in cohort
+     * order so every streak, and every comeback record, does too (FR-061a,
+     * FR-037e).
      */
     suspend fun settleCount(
         programId: SolanaPublicKey,
         caller: SolanaPublicKey,
         feeDestination: SolanaPublicKey,
+        developerDestination: SolanaPublicKey,
         leagueId: Int,
         cohort: SolanaPublicKey,
         pairs: List<MemberPair>,
@@ -295,6 +320,7 @@ object Instructions {
                 AccountMeta(cohort, false, true),
                 AccountMeta(Pdas.vault(programId, cohort), false, true),
                 AccountMeta(feeDestination, false, true),
+                AccountMeta(developerDestination, false, true),
                 AccountMeta(previousCohort ?: programId, false, false),
                 AccountMeta(TOKEN_PROGRAM, false, false),
             ) + pairs.pageAccounts(),
@@ -303,14 +329,20 @@ object Instructions {
     }
 
     /**
-     * `settle_finalize()`. With finishers it writes the shares; with none it
-     * sends the whole pool to [feeDestination] (FR-037). It needs no other
-     * cohort, so no caller can change where the money goes (FR-030a).
+     * `settle_finalize()`. With finishers it draws the boost from the league's
+     * reserve vault into the pool, writes the shares, sends the rounding
+     * remainder to [feeDestination] and funds the comeback refunds; with none
+     * it sends a third of the pool to [developerDestination] and the rest to
+     * [feeDestination] (FR-037). Either way the cohort's reserve dues then move
+     * to the league's reserve vault, which is why the league is writable
+     * (FR-037c–e, H35). It needs no other cohort, so no caller can change where
+     * the money goes (FR-030a).
      */
     suspend fun settleFinalize(
         programId: SolanaPublicKey,
         caller: SolanaPublicKey,
         feeDestination: SolanaPublicKey,
+        developerDestination: SolanaPublicKey,
         leagueId: Int,
         cohort: SolanaPublicKey,
     ): TransactionInstruction = TransactionInstruction(
@@ -318,16 +350,22 @@ object Instructions {
         listOf(
             AccountMeta(caller, true, true),
             AccountMeta(Pdas.config(programId), false, false),
-            AccountMeta(Pdas.league(programId, leagueId), false, false),
+            AccountMeta(Pdas.league(programId, leagueId), false, true),
             AccountMeta(cohort, false, true),
             AccountMeta(Pdas.vault(programId, cohort), false, true),
             AccountMeta(feeDestination, false, true),
+            AccountMeta(developerDestination, false, true),
+            AccountMeta(Pdas.reserveVault(programId, leagueId), false, true),
             AccountMeta(TOKEN_PROGRAM, false, false),
         ),
         discriminator("settle_finalize"),
     )
 
-    /** `claim_payout()` — `stake + share_per_tier[tier]`, read from the finalised cohort (FR-034). */
+    /**
+     * `claim_payout()` — `stake + share_per_tier[tier]` plus the member's
+     * comeback refund, read from the finalised cohort (FR-034, FR-037e).
+     * Accounts unchanged by H35.
+     */
     suspend fun claimPayout(programId: SolanaPublicKey, member: SolanaPublicKey, skrMint: SolanaPublicKey, cohort: SolanaPublicKey): TransactionInstruction = TransactionInstruction(
         programId,
         listOf(

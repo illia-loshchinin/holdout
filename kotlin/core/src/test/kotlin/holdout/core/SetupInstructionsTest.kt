@@ -61,6 +61,8 @@ class SetupInstructionsTest {
         assertEquals("J7HAVBVtxDEGrr6kcAfuit4WvNvEq6zwZJYiBr1DnNSG", Pdas.programData(programId).base58())
         // The fee destination in the fixture: the treasury's ATA for the stand-in mint.
         assertEquals(init.accountAt(7), Pdas.associatedToken(init.accountAt(6), init.accountAt(4)))
+        // And the developer destination: the developer wallet's ATA (H35).
+        assertEquals(init.accountAt(9), Pdas.associatedToken(init.accountAt(8), init.accountAt(4)))
     }
 
     @Test
@@ -75,6 +77,7 @@ class SetupInstructionsTest {
                 operator = SolanaPublicKey.from(f.arg("operator").content),
                 sponsor = SolanaPublicKey.from(f.arg("sponsor").content),
                 treasuryWallet = SolanaPublicKey.from(f.arg("treasuryWallet").content),
+                developerWallet = SolanaPublicKey.from(f.arg("developerWallet").content),
                 faucet =
                 FaucetParams(
                     solTopUp = f.arg("faucetSolTopUp").content.toULong(),
@@ -94,12 +97,15 @@ class SetupInstructionsTest {
                 durationDays = f.arg("durationDays").int,
                 repsPerDay = f.arg("repsPerDay").int,
                 exercise = f.arg("exercise").int,
+                form = f.arg("form").int,
                 firstStart = f.arg("firstStart").long,
                 dayLength = f.arg("dayLength").long,
                 cadence = f.arg("cadence").long,
                 joinLock = f.arg("joinLock").long,
             )
-        assertMatches(f, Instructions.createLeague(programId, f.accountAt(0), params))
+        assertMatches(f, Instructions.createLeague(programId, f.accountAt(0), f.accountAt(3), params))
+        // The reserve vault: `["reserve", [league_id]]` (H35).
+        assertEquals(Pdas.reserveVault(programId, params.leagueId), f.accountAt(4))
     }
 
     @Test
@@ -108,6 +114,8 @@ class SetupInstructionsTest {
         val seven = LeagueParams.judged(LeagueParams.LEAGUE_7D, first)
         val twentyOne = LeagueParams.judged(LeagueParams.LEAGUE_21D, first)
         assertEquals(listOf(7, 21), listOf(seven.durationDays, twentyOne.durationDays))
+        // H35: the 7-day league is Easy (knees allowed), the 21-day Hard (from the toes).
+        assertEquals(listOf(LeagueParams.FORM_KNEES_ALLOWED, LeagueParams.FORM_TOES), listOf(seven.form, twentyOne.form))
         listOf(seven, twentyOne).forEach {
             assertEquals(25, it.repsPerDay)
             assertEquals(0, it.exercise)
@@ -156,9 +164,14 @@ class SetupInstructionsTest {
         leagues.forEach { f ->
             val fields = f.getValue("fields").jsonObject
             val league = LeagueSnapshot.decode(RepoFiles.hex(f.getValue("bytes").jsonPrimitive.content))
-            assertEquals(LeagueParams.judged(fields.getValue("leagueId").jsonPrimitive.int, fields.getValue("firstStart").jsonPrimitive.content.toLong()), league.params)
+            val form = fields.getValue("form").jsonPrimitive.int
+            assertEquals(LeagueParams.judged(fields.getValue("leagueId").jsonPrimitive.int, fields.getValue("firstStart").jsonPrimitive.content.toLong()).copy(form = form), league.params)
+            assertEquals(form, league.form)
             assertEquals(fields.getValue("nextIndex").jsonPrimitive.long, league.nextIndex)
+            assertEquals(fields.getValue("boostReserve").jsonPrimitive.content.toULong(), league.boostReserve)
+            assertEquals(fields.getValue("comebackReserve").jsonPrimitive.content.toULong(), league.comebackReserve)
+            assertEquals(fields.getValue("reserveVaultBump").jsonPrimitive.int, league.reserveVaultBump)
         }
-        assertFailsWith<IllegalArgumentException> { LeagueSnapshot.decode(ByteArray(50)) }
+        assertFailsWith<IllegalArgumentException> { LeagueSnapshot.decode(ByteArray(LeagueSnapshot.SIZE)) }
     }
 }

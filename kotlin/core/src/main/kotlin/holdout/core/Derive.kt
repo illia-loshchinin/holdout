@@ -57,6 +57,82 @@ object Settlement {
         return (pool.big() * chip.big() / totalFinisherStake.big()).toULongExact()
     }
 
+    /** Percents of a forfeited stake for each destination of the fee (FR-027, H35); operations takes what the floors leave. */
+    const val BOOST_PERCENT = 10
+    const val COMEBACK_PERCENT = 5
+    const val DEVELOPER_PERCENT = 5
+
+    /** The most a boost may add to a cohort's own pool, in percent (FR-037d). */
+    const val BOOST_CAP_PERCENT = 20
+
+    /** The share of a counted forfeited stake a comeback refunds, in percent (FR-037e). */
+    const val COMEBACK_REFUND_PERCENT = 10
+
+    /** How many of a cohort's days after the missed deadline a comeback cohort may start (FR-037e). */
+    const val COMEBACK_WINDOW_DAYS = 14
+
+    /** Where one forfeited stake goes (FR-027, H35) — the program's `ForfeitSplit`. */
+    data class ForfeitSplit(
+        /** To this cohort's prize pool. */
+        val pool: ULong,
+        /** Held in the cohort's vault until it finalizes, then the league's boost reserve. */
+        val boost: ULong,
+        /** Held likewise, then the league's comeback reserve. */
+        val comeback: ULong,
+        /** To the developer destination at once. */
+        val developer: ULong,
+        /** To the operations destination at once; takes what the floors leave. */
+        val operations: ULong,
+    ) {
+        /** Everything that did not reach the pool: always [feeOf] the stake. */
+        val fee: ULong get() = boost + comeback + developer + operations
+
+        /** The parts that leave the cohort's vault when the forfeit is recorded. */
+        val paidOutNow: ULong get() = developer + operations
+    }
+
+    /** Split one forfeited stake 70 / 10 / 5 / 5 / 10, each part floored (FR-027, H35). */
+    fun forfeitSplit(forfeitedStake: ULong): ForfeitSplit {
+        val fee = feeOf(forfeitedStake)
+        val boost = percentOf(forfeitedStake, BOOST_PERCENT)
+        val comeback = percentOf(forfeitedStake, COMEBACK_PERCENT)
+        val developer = percentOf(forfeitedStake, DEVELOPER_PERCENT)
+        // 10 + 5 + 5 of the stake never exceed 30 of it, so this cannot underflow.
+        return ForfeitSplit(forfeitedStake - fee, boost, comeback, developer, fee - boost - comeback - developer)
+    }
+
+    /**
+     * The boost a finishing cohort draws: 20% of its own pool, never more than
+     * the league's boost reserve holds (FR-037d). A cohort with no forfeits
+     * gets none.
+     */
+    fun boostFor(ownPool: ULong, boostReserve: ULong): ULong = minOf(percentOf(ownPool, BOOST_CAP_PERCENT), boostReserve)
+
+    /** What a comeback owes a finisher: 10% of the forfeited stake, never more than the stake they finished on (FR-037e). */
+    fun comebackOwed(forfeitedStake: ULong, newStake: ULong): ULong = minOf(percentOf(forfeitedStake, COMEBACK_REFUND_PERCENT), newStake)
+
+    /**
+     * One finisher's refund: `floor(entitled × funded ÷ total_owed)` — their
+     * entitlement, scaled down pro rata when the comeback reserve could not
+     * fund every finisher's in full (FR-037e). `0` when nothing is owed.
+     */
+    fun comebackRefund(entitled: ULong, funded: ULong, totalOwed: ULong): ULong {
+        if (totalOwed == 0uL) return 0uL
+        return (entitled.big() * funded.big() / totalOwed.big()).toULongExact()
+    }
+
+    /**
+     * A cohort nobody finished: its whole pool goes out, a third (floored) to
+     * the developer and the rest to operations (FR-037, H34, H35). Returned as
+     * `(developer, operations)`.
+     */
+    fun noFinisherSplit(pool: ULong): Pair<ULong, ULong> {
+        val developer = pool / 3uL
+        return developer to pool - developer
+    }
+
+    private fun percentOf(amount: ULong, percent: Int): ULong = (amount.big() * BigInteger.valueOf(percent.toLong()) / HUNDRED).toULongExact()
+
     private val FEE_PERCENT = BigInteger.valueOf(30)
     private val HUNDRED = BigInteger.valueOf(100)
 }
@@ -110,7 +186,12 @@ class CohortFigures internal constructor(
     val timeLeftToday: Long?,
     val inWarningWindow: Boolean,
     val atStake: ULong,
-    val carryOverReceived: ULong?,
+    /**
+     * [Derive.projectedBoost] against the league's boost reserve, when the
+     * caller passed one to [Derive.figures]; `null` otherwise. Before
+     * settlement it is an "up to" figure, never a promise.
+     */
+    val projectedBoost: ULong?,
     val timeUntilJoiningCloses: Long,
 ) {
     /** [Derive.projectedShare], with the pool and denominator already summed. */
@@ -175,13 +256,16 @@ object Derive {
 
     /**
      * `pool + Σ (stake − floor(stake × 30 ÷ 100))` over members in breach whose
-     * forfeit is not yet recorded — exactly what `record_forfeits` will add, so
-     * recording it changes nothing on screen (FR-038a, V16).
+     * forfeit is not yet recorded — exactly what `record_forfeits` will add (the
+     * 70% pool part of the split), so recording it changes nothing on screen
+     * (FR-038a, V16). The boost is not in it: it is drawn only at finalization,
+     * and shown on its own as [projectedBoost].
      *
      * Once settled, `pool` no longer means the prize: settlement took the
      * rounding remainder out, and every claim takes a share out after it. The
      * figure is then what settlement shared out, `Σ finishers_per_tier[t] ×
-     * share_per_tier[t]`, which no claim can move.
+     * share_per_tier[t]` — the boosted pool less its remainder — which no claim
+     * can move.
      */
     fun projectedPool(c: CohortSnapshot, members: List<MembershipSnapshot>, now: Long): ULong {
         if (c.settled) {
@@ -191,7 +275,7 @@ object Derive {
         }
         return members
             .filter { inBreach(it, c, now) }
-            .fold(c.pool) { pool, m -> pool + Settlement.poolContribution(m.stake) }
+            .fold(c.pool) { pool, m -> pool + Settlement.forfeitSplit(m.stake).pool }
     }
 
     /**
@@ -252,8 +336,35 @@ object Derive {
      */
     fun atStake(c: CohortSnapshot): ULong = c.heldStake
 
-    /** `carry_over_received`, or `null` when there is none, since it is its own line only when non-zero (FR-037b). */
-    fun carryOverReceived(c: CohortSnapshot): ULong? = c.carryOverReceived.takeIf { it > 0uL }
+    /**
+     * The prize boost this cohort can expect from its league's boost reserve
+     * (FR-037d), shown **"up to"**: `min(floor(20% × projected pool),
+     * boostReserve)`, where [boostReserve] is the league's reserve as read now.
+     * The real draw happens at finalization, against the reserve as it stands
+     * then (earlier cohorts of the league finalize first and draw on it, and
+     * credit their own dues to it), so this is an estimate, never a promise.
+     *
+     * `0` with nobody standing — a cohort with no finishers draws no boost —
+     * and `0` with no forfeits, as the program has it. Once settled, the boost
+     * the cohort actually received.
+     */
+    fun projectedBoost(c: CohortSnapshot, members: List<MembershipSnapshot>, now: Long, boostReserve: ULong): ULong {
+        if (c.settled) return c.boostReceived
+        if (members.none { standing(it, c, now) }) return 0uL
+        return Settlement.boostFor(projectedPool(c, members, now), boostReserve)
+    }
+
+    /**
+     * A finisher's comeback refund in a settled cohort (FR-037e):
+     * `floor(comeback_entitled × comeback_funded ÷ comeback_owed)`, the amount
+     * its claim pays on top of the stake and share. `null` before settlement,
+     * when what the reserve will fund is not yet known; `0` for a member owed
+     * nothing.
+     */
+    fun comebackRefund(m: MembershipSnapshot, c: CohortSnapshot): ULong? {
+        if (!c.settled) return null
+        return Settlement.comebackRefund(m.comebackEntitled, c.comebackFunded, c.comebackOwed)
+    }
 
     /** `join_cutoff − now`, never negative: `0` from the cutoff itself, which closes joining (FR-008). */
     fun timeUntilJoiningCloses(c: CohortSnapshot, now: Long): Long = (c.joinCutoff - now).coerceAtLeast(0)
@@ -264,6 +375,8 @@ object Derive {
         members: List<MembershipSnapshot>,
         now: Long,
         scriptedWallets: Set<SolanaPublicKey> = emptySet(),
+        /** The league's `boost_reserve`, to show the projected boost; `null` leaves it out. */
+        boostReserve: ULong? = null,
     ): CohortFigures {
         val timeLeft = timeLeftToday(c, now)
         return CohortFigures(
@@ -277,7 +390,7 @@ object Derive {
             timeLeftToday = timeLeft,
             inWarningWindow = inWarningWindow(timeLeft),
             atStake = atStake(c),
-            carryOverReceived = carryOverReceived(c),
+            projectedBoost = boostReserve?.let { projectedBoost(c, members, now, it) },
             timeUntilJoiningCloses = timeUntilJoiningCloses(c, now),
         )
     }

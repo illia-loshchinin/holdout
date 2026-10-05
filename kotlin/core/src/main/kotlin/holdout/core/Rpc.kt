@@ -113,7 +113,7 @@ class Rpc(
 
     /**
      * Every account of the program matching [query] — one call, however many
-     * there are. A 1,000-member roster sliced to 51 bytes a member is ~50 KB
+     * there are. A 1,000-member roster sliced to 60 bytes a member is ~60 KB
      * of account data (R8).
      */
     suspend fun programAccounts(programId: SolanaPublicKey, query: ProgramAccountsQuery): List<ProgramAccount>? {

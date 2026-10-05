@@ -10,9 +10,9 @@ import com.solana.publickey.SolanaPublicKey
  * `fixtures/accounts.json` field by field instead.
  */
 
-/** `programs/holdout/src/state/profile.rs` — 186 bytes. */
+/** `programs/holdout/src/state/profile.rs` — 258 bytes. */
 object ProfileLayout {
-    const val SIZE = 186
+    const val SIZE = 258
 
     /** `sha256("account:Profile")[..8]`. */
     val DISCRIMINATOR: ByteArray get() = byteArrayOf(0xb8.toByte(), 0x65, 0xa5.toByte(), 0xbc.toByte(), 0x5f, 0x3f, 0x7f, 0xbc.toByte())
@@ -20,15 +20,20 @@ object ProfileLayout {
     const val WALLET = 8
     const val QUALIFIED = 40
 
-    /** Three `LeagueProgress` slots of 16 bytes: 7-day, 21-day, test (`TEST_LEAGUE_SLOT`). */
+    /**
+     * Three `LeagueProgress` slots of 40 bytes: 7-day, 21-day, test
+     * (`TEST_LEAGUE_SLOT`). Within a slot: four u16 counters, `last_changed`,
+     * then the open comeback (H35) — `comeback_stake`, `comeback_from`,
+     * `comeback_until`.
+     */
     const val LEAGUES = 41
     const val LEAGUE_SLOTS = 3
-    const val LEAGUE_PROGRESS_SIZE = 16
+    const val LEAGUE_PROGRESS_SIZE = 40
     const val TEST_LEAGUE_SLOT = 2
-    const val RUNNING = 89
-    const val PENDING = 129
-    const val LAST_FAUCET_DAY = 177
-    const val BUMP = 185
+    const val RUNNING = 161
+    const val PENDING = 201
+    const val LAST_FAUCET_DAY = 249
+    const val BUMP = 257
 
     /** The wallet key, for a `memcmp` that finds one member's profile among all of them. */
     const val WALLET_OFFSET = WALLET
@@ -52,8 +57,30 @@ data class ProfileSnapshot(
     /** The global day of the last claim, or `-1` for never (data-model §1.5). */
     val lastFaucetDay: Long,
 ) {
-    data class LeagueProgress(val cleared: Int, val forfeited: Int, val currentStreak: Int, val longestStreak: Int, val lastChanged: Long) {
+    data class LeagueProgress(
+        val cleared: Int,
+        val forfeited: Int,
+        val currentStreak: Int,
+        val longestStreak: Int,
+        val lastChanged: Long,
+        /**
+         * The stake of the latest **counted** forfeit in this league while it
+         * can still earn a comeback; `0` once used or never (FR-037e, H35).
+         */
+        val comebackStake: ULong = 0uL,
+        /** That forfeit's missed deadline: a comeback cohort starts strictly after it. */
+        val comebackFrom: Long = 0,
+        /** The last instant a cohort may start and still be its comeback. */
+        val comebackUntil: Long = 0,
+    ) {
         val played: Int get() = cleared + forfeited
+
+        /**
+         * Whether finishing a cohort of this league that starts at [cohortStart]
+         * would earn a comeback refund — the program's `take_comeback` test,
+         * without using the record up.
+         */
+        fun comebackOpenFor(cohortStart: Long): Boolean = comebackStake > 0uL && cohortStart > comebackFrom && cohortStart <= comebackUntil
     }
 
     data class Running(val cohort: SolanaPublicKey, val end: Long)
@@ -94,7 +121,7 @@ data class ProfileSnapshot(
                 qualified = r.bool(l.QUALIFIED),
                 leagues = List(l.LEAGUE_SLOTS) {
                     val at = l.LEAGUES + it * l.LEAGUE_PROGRESS_SIZE
-                    LeagueProgress(r.u16(at), r.u16(at + 2), r.u16(at + 4), r.u16(at + 6), r.i64(at + 8))
+                    LeagueProgress(r.u16(at), r.u16(at + 2), r.u16(at + 4), r.u16(at + 6), r.i64(at + 8), r.u64(at + 16), r.i64(at + 24), r.i64(at + 32))
                 },
                 running = if (runningCohort == none) null else Running(runningCohort, r.i64(l.RUNNING + 32)),
                 pending = if (pendingCohort == none) null else Pending(pendingCohort, r.i64(l.PENDING + 32), r.i64(l.PENDING + 40)),
@@ -105,8 +132,9 @@ data class ProfileSnapshot(
 }
 
 /**
- * A whole `Membership` account: the roster view plus the cohort it belongs to
- * and the settlement flag the crank pages `settle_count` by.
+ * A whole `Membership` account: the roster view (which carries
+ * `comeback_entitled`) plus the cohort it belongs to and the settlement flag
+ * the crank pages `settle_count` by.
  */
 data class MembershipAccount(val cohort: SolanaPublicKey, val member: MembershipSnapshot, val counted: Boolean) {
     companion object {

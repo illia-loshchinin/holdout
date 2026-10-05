@@ -42,7 +42,6 @@ class DeriveTest {
         memberCount: Long = 0,
         heldStake: ULong = 0uL,
         pool: ULong = 0uL,
-        carryOverReceived: ULong = 0uL,
     ) = CohortSnapshot(
         leagueId = 0,
         index = 0,
@@ -56,7 +55,6 @@ class DeriveTest {
         memberCount = memberCount,
         heldStake = heldStake,
         pool = pool,
-        carryOverReceived = carryOverReceived,
     )
 
     private fun member(
@@ -197,7 +195,6 @@ class DeriveTest {
             val expected = v.getValue("expected").jsonObject
             val forfeited = counts(v, "forfeited_stakes")
             val finishers = counts(v, "finisher_stakes")
-            val carryIn = v["carry_over_in"]?.jsonPrimitive?.long?.toULong() ?: 0uL
             val poolOverride = v["pool_override"]?.jsonPrimitive?.longOrNull?.toULong()
             val expectedPool = expected.getValue("pool").jsonPrimitive.long.toULong()
 
@@ -205,7 +202,7 @@ class DeriveTest {
             val breached = forfeited.flatMap { (chip, count) -> List(count) { member(++n, 2, stake = chip) } }
             val finished = finishers.flatMap { (chip, count) -> List(count) { member(++n, 7, stake = chip) } }
             val members = breached + finished
-            val base = cohort(memberCount = members.size.toLong(), pool = poolOverride ?: carryIn)
+            val base = cohort(memberCount = members.size.toLong(), pool = poolOverride ?: 0uL)
             val now = Derive.end(base)
 
             val live = Derive.figures(base, members, now)
@@ -361,18 +358,83 @@ class DeriveTest {
         assertEquals(0, Derive.timeUntilJoiningCloses(c, c.start))
     }
 
+    // ---- league reserves (FR-037d, FR-037e, H35) ----------------------------
+
     @Test
-    fun `carry-over received is its own line only when there is some`() {
-        assertNull(Derive.carryOverReceived(cohort()))
-        assertEquals(600uL, Derive.carryOverReceived(cohort(carryOverReceived = 600uL)))
+    fun `given a running cohort with an unrecorded breach, when projecting the boost, then it is up to 20 percent of the projected pool`() {
+        // Own pool 600 + 70 of the unrecorded 100-stake breach = 670; 20% of it is 134.
+        val c = cohort(memberCount = 3, pool = 600uL)
+        val members = listOf(member(1, 1), member(2, 1), member(3, 0))
+        val at = Derive.deadlineOf(c, 0) + 1
+        assertEquals(670uL, Derive.projectedPool(c, members, at), "the projected pool stays the cohort's own: no boost in it")
+        assertEquals(134uL, Derive.projectedBoost(c, members, at, boostReserve = 1_000uL))
+    }
+
+    @Test
+    fun `given a small boost reserve, when projecting the boost, then the reserve caps it`() {
+        val c = cohort(memberCount = 2, pool = 600uL)
+        val members = listOf(member(1, 1), member(2, 1))
+        assertEquals(40uL, Derive.projectedBoost(c, members, c.start, boostReserve = 40uL))
+        assertEquals(0uL, Derive.projectedBoost(c, members, c.start, boostReserve = 0uL))
+    }
+
+    @Test
+    fun `given a cohort with no forfeits, when projecting the boost, then there is none whatever the reserve`() {
+        // FR-041: everyone finishes, exactly your stake back.
+        val c = cohort(memberCount = 2)
+        val members = listOf(member(1, 7), member(2, 7))
+        assertEquals(0uL, Derive.projectedBoost(c, members, Derive.end(c), boostReserve = 5_000uL))
+    }
+
+    @Test
+    fun `given nobody standing, when projecting the boost, then there is none, as a cohort without finishers draws none`() {
+        val c = cohort(memberCount = 2, pool = 600uL)
+        val members = listOf(member(1, 0), member(2, 0))
+        assertEquals(0uL, Derive.projectedBoost(c, members, Derive.end(c), boostReserve = 5_000uL))
+    }
+
+    @Test
+    fun `given a settled cohort, when asking for the boost, then it is what the cohort received`() {
+        val c = cohort(memberCount = 2).copy(settled = true, boostReceived = 77uL)
+        assertEquals(77uL, Derive.projectedBoost(c, listOf(member(1, 7, Finished)), Derive.end(c), boostReserve = 5_000uL))
+    }
+
+    @Test
+    fun `given figures with a league reserve, when computed together, then the projected boost is among them, and absent without one`() {
+        val c = cohort(memberCount = 3, pool = 600uL)
+        val members = listOf(member(1, 1), member(2, 1), member(3, 0))
+        val at = Derive.deadlineOf(c, 0) + 1
+        assertEquals(134uL, Derive.figures(c, members, at, boostReserve = 1_000uL).projectedBoost)
+        assertNull(Derive.figures(c, members, at).projectedBoost)
+    }
+
+    @Test
+    fun `given a settled cohort whose comeback reserve fell short, when a finisher claims, then their refund is scaled pro rata`() {
+        // Owed 30 in all, funded 20: a finisher entitled to 10 gets floor(10 × 20 ÷ 30) = 6.
+        val c = cohort(memberCount = 3).copy(settled = true, comebackOwed = 30uL, comebackFunded = 20uL)
+        val m = member(1, 7, Finished).copy(comebackEntitled = 10uL)
+        assertEquals(6uL, Derive.comebackRefund(m, c))
+        assertEquals(0uL, Derive.comebackRefund(member(2, 7, Finished), c), "a member owed nothing gets nothing")
+    }
+
+    @Test
+    fun `given a fully funded comeback, when a finisher claims, then the whole entitlement is refunded`() {
+        val c = cohort(memberCount = 3).copy(settled = true, comebackOwed = 30uL, comebackFunded = 30uL)
+        assertEquals(10uL, Derive.comebackRefund(member(1, 7, Finished).copy(comebackEntitled = 10uL), c))
+    }
+
+    @Test
+    fun `given a cohort not yet settled, when asking for a comeback refund, then it is not known yet`() {
+        val c = cohort(memberCount = 3).copy(comebackOwed = 30uL)
+        assertNull(Derive.comebackRefund(member(1, 7, Finished).copy(comebackEntitled = 10uL), c))
     }
 
     @Test
     fun `figures computed together agree with each on its own`() {
-        val c = cohort(memberCount = 3, heldStake = 300uL, carryOverReceived = 50uL, pool = 50uL)
+        val c = cohort(memberCount = 3, heldStake = 300uL, pool = 50uL)
         val members = listOf(member(1, 1), member(2, 1), member(3, 0))
         val now = Derive.deadlineOf(c, 0) + 1
-        val f = Derive.figures(c, members, now, scriptedWallets = setOf(key(2)))
+        val f = Derive.figures(c, members, now, scriptedWallets = setOf(key(2)), boostReserve = 9uL)
         assertEquals(Derive.status(c, now), f.status)
         assertEquals(Derive.survivors(c, members, now), f.survivors)
         assertEquals(Derive.projectedPool(c, members, now), f.projectedPool)
@@ -380,7 +442,7 @@ class DeriveTest {
         assertEquals(Derive.timeLeftToday(c, now), f.timeLeftToday)
         assertEquals(Derive.inWarningWindow(f.timeLeftToday), f.inWarningWindow)
         assertEquals(Derive.atStake(c), f.atStake)
-        assertEquals(Derive.carryOverReceived(c), f.carryOverReceived)
+        assertEquals(Derive.projectedBoost(c, members, now, 9uL), f.projectedBoost)
         assertEquals(Derive.timeUntilJoiningCloses(c, now), f.timeUntilJoiningCloses)
         members.forEach { assertEquals(Derive.projectedShare(it, c, members, now), f.projectedShare(it)) }
     }

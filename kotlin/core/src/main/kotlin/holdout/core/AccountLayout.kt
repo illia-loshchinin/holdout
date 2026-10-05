@@ -6,7 +6,8 @@ import java.nio.ByteOrder
 
 /**
  * Where each field sits in the program's accounts, and read-only views over the
- * three the cohort screens and `crank status` need (T032, T034, T036).
+ * three the cohort screens and `crank status` need (T032, T034, T036). Offsets
+ * follow the H35 layouts (league reserves, two fee destinations, the form).
  *
  * **Scoped on purpose.** These are decode-only views of `Cohort`, `Membership`
  * and `Config`, written ahead of the full codecs so derived figures and account
@@ -28,9 +29,9 @@ import java.nio.ByteOrder
 object AccountLayout {
     const val DISCRIMINATOR_SIZE = 8
 
-    /** `programs/holdout/src/state/cohort.rs` — 236 bytes. */
+    /** `programs/holdout/src/state/cohort.rs` — 229 bytes (H35: `form`, the reserve dues and the boost and comeback figures; no carry-over). */
     object Cohort {
-        const val SIZE = 236
+        const val SIZE = 229
 
         /** `sha256("account:Cohort")[..8]`. */
         val DISCRIMINATOR: ByteArray get() = bytes(0x89, 0x11, 0xd5, 0x3d, 0x69, 0x40, 0x90, 0xa9)
@@ -43,30 +44,33 @@ object AccountLayout {
         const val REPS_PER_DAY = 30
         const val DAY_LENGTH = 32
         const val EXERCISE = 40
-        const val CHIPS = 41
-        const val MEMBER_COUNT = 73
-        const val HELD_STAKE = 77
-        const val POOL = 85
-        const val CARRY_OVER_RECEIVED = 93
-        const val FORFEITS_RECORDED = 101
-        const val COUNTED = 105
-        const val FINISHER_COUNT = 109
-        const val FINISHERS_PER_TIER = 113
-        const val TOTAL_FINISHER_STAKE = 129
-        const val SETTLED = 137
-        const val SHARE_PER_TIER = 138
-        const val ROUNDING_REMAINDER = 170
-        const val NO_FINISHER_FEE = 178
-        const val CARRY_OVER_SENT = 186
-        const val CARRY_OVER_HELD = 194
-        const val CARRY_OVER_TARGET = 202
-        const val VAULT_BUMP = 234
-        const val BUMP = 235
+        const val FORM = 41
+        const val CHIPS = 42
+        const val MEMBER_COUNT = 74
+        const val HELD_STAKE = 78
+        const val POOL = 86
+        const val BOOST_DUE = 94
+        const val COMEBACK_DUE = 102
+        const val FORFEITS_RECORDED = 110
+        const val COUNTED = 114
+        const val FINISHER_COUNT = 118
+        const val FINISHERS_PER_TIER = 122
+        const val TOTAL_FINISHER_STAKE = 138
+        const val SETTLED = 146
+        const val SHARE_PER_TIER = 147
+        const val ROUNDING_REMAINDER = 179
+        const val NO_FINISHER_FEE = 187
+        const val BOOST_RECEIVED = 195
+        const val COMEBACK_OWED = 203
+        const val COMEBACK_FUNDED = 211
+        const val COMEBACK_CLAIMED = 219
+        const val VAULT_BUMP = 227
+        const val BUMP = 228
     }
 
-    /** `programs/holdout/src/state/membership.rs` — 93 bytes. */
+    /** `programs/holdout/src/state/membership.rs` — 101 bytes. */
     object Membership {
-        const val SIZE = 93
+        const val SIZE = 101
 
         /** `sha256("account:Membership")[..8]`. */
         val DISCRIMINATOR: ByteArray get() = bytes(0xe7, 0x8d, 0xb4, 0x62, 0x6d, 0xa8, 0xaf, 0xa6)
@@ -80,23 +84,27 @@ object AccountLayout {
         const val DAYS_COMPLETED = 89
         const val STATE = 90
         const val COUNTED = 91
-        const val BUMP = 92
+
+        /** What a counted finisher is owed from the comeback reserve (FR-037e, H35). */
+        const val COMEBACK_ENTITLED = 92
+        const val BUMP = 100
 
         /**
-         * The `dataSlice` a roster read asks for: `wallet` through `state`, the
-         * fields the survivor counter, projected share and roster order need.
-         * The cohort key is left out — the query already matched on it — and so
-         * are `counted` and the bump, which only settlement uses. 51 bytes a
-         * member instead of 93, which is most of the ~100 KB a 1,000-member
-         * cohort would otherwise cost every 30 seconds (R8).
+         * The `dataSlice` a roster read asks for: `wallet` through
+         * `comeback_entitled`, the fields the survivor counter, projected share,
+         * roster order and a settled cohort's comeback refund need (`counted`
+         * rides along, sitting between them). The cohort key is left out — the
+         * query already matched on it — and so is the bump. 60 bytes a member
+         * instead of 101, which is most of the ~100 KB a 1,000-member cohort
+         * would otherwise cost every 30 seconds (R8).
          */
         const val ROSTER_SLICE_OFFSET = WALLET
-        const val ROSTER_SLICE_LENGTH = STATE + 1 - WALLET
+        const val ROSTER_SLICE_LENGTH = COMEBACK_ENTITLED + 8 - WALLET
     }
 
-    /** `programs/holdout/src/state/config.rs` — 263 bytes. */
+    /** `programs/holdout/src/state/config.rs` — 295 bytes. */
     object Config {
-        const val SIZE = 263
+        const val SIZE = 295
 
         /** `sha256("account:Config")[..8]`. */
         val DISCRIMINATOR: ByteArray get() = bytes(0x9b, 0x0c, 0xaa, 0xe0, 0x1e, 0xfa, 0xcc, 0x82)
@@ -105,19 +113,24 @@ object AccountLayout {
         const val OPERATOR = 40
         const val SPONSOR = 72
         const val SKR_MINT = 104
+
+        /** The operations destination: the treasury wallet's SKR account (H35). */
         const val FEE_DESTINATION = 136
-        const val LADDER_GATE_ENABLED = 168
-        const val GENESIS_GATE_ENABLED = 169
-        const val CHIP_AMOUNTS = 170
-        const val CHIP_VERSION = 202
-        const val CHIP_PUBLISHED_AT = 206
-        const val MAX_TOP_TIER = 214
-        const val SOL_TOP_UP = 222
-        const val SPONSOR_FLOAT = 230
-        const val DAILY_LAMPORT_CAP = 238
-        const val LAMPORT_DAY = 246
-        const val LAMPORTS_TODAY = 254
-        const val BUMP = 262
+
+        /** The developer wallet's SKR account (FR-037f, H35). */
+        const val DEVELOPER_DESTINATION = 168
+        const val LADDER_GATE_ENABLED = 200
+        const val GENESIS_GATE_ENABLED = 201
+        const val CHIP_AMOUNTS = 202
+        const val CHIP_VERSION = 234
+        const val CHIP_PUBLISHED_AT = 238
+        const val MAX_TOP_TIER = 246
+        const val SOL_TOP_UP = 254
+        const val SPONSOR_FLOAT = 262
+        const val DAILY_LAMPORT_CAP = 270
+        const val LAMPORT_DAY = 278
+        const val LAMPORTS_TODAY = 286
+        const val BUMP = 294
     }
 
     private fun bytes(vararg b: Int) = ByteArray(b.size) { b[it].toByte() }
@@ -177,7 +190,10 @@ data class CohortSnapshot(
     val memberCount: Long = 0,
     val heldStake: ULong = 0uL,
     val pool: ULong = 0uL,
-    val carryOverReceived: ULong = 0uL,
+    /** The boost-reserve share of this cohort's recorded forfeits, held in its vault until it finalizes (FR-037c). */
+    val boostDue: ULong = 0uL,
+    /** The comeback-reserve share, held likewise (FR-037c). */
+    val comebackDue: ULong = 0uL,
     val forfeitsRecorded: Long = 0,
     val counted: Long = 0,
     val finisherCount: Long = 0,
@@ -187,9 +203,21 @@ data class CohortSnapshot(
     val sharePerTier: List<ULong> = listOf(0uL, 0uL, 0uL, 0uL),
     val roundingRemainder: ULong = 0uL,
     val noFinisherFee: ULong = 0uL,
-    val carryOverSent: ULong = 0uL,
-    val carryOverHeld: ULong = 0uL,
-    val carryOverTarget: SolanaPublicKey = SolanaPublicKey(ByteArray(32)),
+    /** What finalization drew from the league's boost reserve into the pool (FR-037d). */
+    val boostReceived: ULong = 0uL,
+    /** Comeback refunds owed to its finishers, summed as they are counted (FR-037e). */
+    val comebackOwed: ULong = 0uL,
+    /** What finalization drew from the comeback reserve: `min(comebackOwed, reserve)`. */
+    val comebackFunded: ULong = 0uL,
+    /** Refunds paid out with claims so far. */
+    val comebackClaimed: ULong = 0uL,
+    /**
+     * How reps are judged, copied from the league at `open_cohort` (H35):
+     * [LeagueParams.FORM_TOES] (Hard) or [LeagueParams.FORM_KNEES_ALLOWED]
+     * (Easy). Last here, not where the layout has it, so a cohort described by
+     * its schedule alone still reads positionally.
+     */
+    val form: Int = LeagueParams.FORM_TOES,
 ) {
     companion object {
         fun decode(data: ByteArray): CohortSnapshot {
@@ -205,11 +233,13 @@ data class CohortSnapshot(
                 repsPerDay = r.u16(l.REPS_PER_DAY),
                 dayLength = r.i64(l.DAY_LENGTH),
                 exercise = r.u8(l.EXERCISE),
+                form = r.u8(l.FORM),
                 chips = r.u64s(l.CHIPS, 4),
                 memberCount = r.u32(l.MEMBER_COUNT),
                 heldStake = r.u64(l.HELD_STAKE),
                 pool = r.u64(l.POOL),
-                carryOverReceived = r.u64(l.CARRY_OVER_RECEIVED),
+                boostDue = r.u64(l.BOOST_DUE),
+                comebackDue = r.u64(l.COMEBACK_DUE),
                 forfeitsRecorded = r.u32(l.FORFEITS_RECORDED),
                 counted = r.u32(l.COUNTED),
                 finisherCount = r.u32(l.FINISHER_COUNT),
@@ -219,9 +249,10 @@ data class CohortSnapshot(
                 sharePerTier = r.u64s(l.SHARE_PER_TIER, 4),
                 roundingRemainder = r.u64(l.ROUNDING_REMAINDER),
                 noFinisherFee = r.u64(l.NO_FINISHER_FEE),
-                carryOverSent = r.u64(l.CARRY_OVER_SENT),
-                carryOverHeld = r.u64(l.CARRY_OVER_HELD),
-                carryOverTarget = r.pubkey(l.CARRY_OVER_TARGET),
+                boostReceived = r.u64(l.BOOST_RECEIVED),
+                comebackOwed = r.u64(l.COMEBACK_OWED),
+                comebackFunded = r.u64(l.COMEBACK_FUNDED),
+                comebackClaimed = r.u64(l.COMEBACK_CLAIMED),
             )
         }
     }
@@ -242,6 +273,13 @@ data class MembershipSnapshot(
     val joinedAt: Long,
     val daysCompleted: Int,
     val state: State,
+    /**
+     * What this member was owed from the comeback reserve when counted as a
+     * finisher (FR-037e): `min(10% × the forfeited stake, stake)`, or `0`.
+     * The refund a claim pays is this, scaled by what the cohort funded
+     * ([Derive.comebackRefund]).
+     */
+    val comebackEntitled: ULong = 0uL,
 ) {
     /** The program's `MembershipState`, in its Borsh variant order. */
     enum class State { Joined, Forfeited, Finished, Claimed }
@@ -272,6 +310,7 @@ data class MembershipSnapshot(
                 joinedAt = r.i64(l.JOINED_AT - base),
                 daysCompleted = r.u8(l.DAYS_COMPLETED - base),
                 state = State.entries[state],
+                comebackEntitled = r.u64(l.COMEBACK_ENTITLED - base),
             )
         }
     }
@@ -283,7 +322,10 @@ data class ConfigSnapshot(
     val operator: SolanaPublicKey,
     val sponsor: SolanaPublicKey,
     val skrMint: SolanaPublicKey,
+    /** The operations destination (H35): the treasury wallet's SKR account. */
     val feeDestination: SolanaPublicKey,
+    /** The developer destination (FR-037f, H35): the developer wallet's SKR account. */
+    val developerDestination: SolanaPublicKey,
     val ladderGateEnabled: Boolean,
     val genesisGateEnabled: Boolean,
     val chipAmounts: List<ULong>,
@@ -315,6 +357,7 @@ data class ConfigSnapshot(
                 sponsor = r.pubkey(l.SPONSOR),
                 skrMint = r.pubkey(l.SKR_MINT),
                 feeDestination = r.pubkey(l.FEE_DESTINATION),
+                developerDestination = r.pubkey(l.DEVELOPER_DESTINATION),
                 ladderGateEnabled = r.bool(l.LADDER_GATE_ENABLED),
                 genesisGateEnabled = r.bool(l.GENESIS_GATE_ENABLED),
                 chipAmounts = r.u64s(l.CHIP_AMOUNTS, 4),
