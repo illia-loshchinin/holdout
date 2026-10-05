@@ -127,13 +127,13 @@ Solid arrows are taps; dotted arrows happen on their own (chain state, time, a n
 flowchart TB
     subgraph PRE["Before a wallet"]
         A1["A1 Connect wallet 🎨"]
-        A3["A3 No wallet on phone"]
-        A2["A2 Walkthrough · 3 min"]
+        A3["A3 No wallet on phone 🎨"]
+        A2["A2 Walkthrough · 3 min 🎨"]
     end
 
     subgraph FIRST["First run"]
-        B1["B1 Tour · 3 cards 🎨"]
-        B2["B2 Scripted-member disclosure"]
+        B1["B1 Tour · cards 1–3 🎨"]
+        B2["B2 Scripted members · card 4 🎨"]
     end
 
     subgraph TODAY["⌂ Today"]
@@ -142,23 +142,23 @@ flowchart TB
     end
 
     subgraph SIT["Sitting · full screen"]
-        S1["S1 Camera permission"]
-        S2["S2 Set-up guide"]
-        S3["S3 Pre-flight + hold"]
-        S4["S4 Countdown 3·2·1"]
+        S1["S1 Camera permission 🎨"]
+        S2["S2 Set-up guide 🎨"]
+        S3["S3 Pre-flight + hold 🎨"]
+        S4["S4 Countdown 3·2·1 🎨"]
         S5["S5 Counting 🎨"]
-        S6["S6 Day complete"]
-        S7["S7 Stopped part-way"]
+        S6["S6 Day complete 🎨"]
+        S7["S7 Stopped part-way 🎨"]
     end
 
     subgraph CROWD["∿ Crowd"]
-        H4["H4 Holdout detail"]
-        H5["H5 Roster"]
+        H4["H4 Holdout detail 🎨"]
+        H5["H5 Roster 🎨"]
     end
 
     subgraph HOLD["☰ Holdouts"]
-        H0["H0 My Holdouts"]
-        H1["H1 The ladder"]
+        H0["H0 My Holdouts 🎨"]
+        H1["H1 The ladder 🎨"]
         H2["H2 Stake confirm · sheet 🎨"]
         H3["H3 Lobby 🎨"]
         H6["H6 Forfeit 🎨"]
@@ -166,8 +166,8 @@ flowchart TB
     end
 
     subgraph ME["◯ Me"]
-        W1["W1 Wallet + test tokens"]
-        X1["X1 About · for judges"]
+        W1["W1 Me · wallet + tokens 🎨"]
+        X1["X1 About · for judges 🎨"]
     end
 
     N2(["N2 Reminder notification"])
@@ -262,7 +262,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 **Exits:** Connect → N1 → B1 (first time) or T1 · *No wallet yet?* → A3 · judges link → A2
 
 #### A2 · Walkthrough — a full cycle
-**MUST · 🟡 Partial** (shows *"Recording in progress"* until the video is bundled) **· · Not drawn** · `WalkthroughScreen` · PRD #13, FR-044
+**MUST · 🟡 Partial** (shows *"Recording in progress"* until the video is bundled) **· 🎨 Drawn** (board *22*; the *recorded* tweak shows the in-progress state) · `WalkthroughScreen` · PRD #13, FR-044
 
 **Job:** a judge can't wait seven days. A 3-minute recording of the real app on the devnet test cohort covers launch, connect, faucet, ladder, stake, lobby, sitting, a completed day, the crowd thinning, a forfeit, settlement and the claim.
 
@@ -275,7 +275,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 **Exits:** back → A1 or X1
 
 #### A3 · No wallet on this phone
-**MUST · ✅ Built** (a variant of A1) **· · Not drawn** · ES-0
+**MUST · ✅ Built** (a variant of A1) **· 🎨 Drawn** (board *21*) · ES-0
 
 **On screen:** A1's header and live cards, then a card: **You need a Solana wallet** — a wallet holds your keys and signs for you; Holdout never holds them. On a Seeker, Seed Vault Wallet is built in. On other phones, install a Solana wallet that supports Mobile Wallet Adapter, set it to devnet, then come back. · **Connect wallet** (retry) · *Watch a full cycle (3 min)*
 
@@ -286,7 +286,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 ### B — First run
 
 #### B1 · Tour — how it works
-**MUST · ✅ Built · 🎨 Drawn** (board *2 · card 2 of 3*; cards 1 and 3 still to draw) · `tour/TourScreen.kt` · PRD #2a, FR-067
+**MUST · ✅ Built · 🎨 Drawn** (boards *23*, *2*, *24*: cards 1–3 of 4) · `tour/TourScreen.kt` · PRD #2a, FR-067
 
 **Job:** three cards so a member knows the two products and how reps are counted before the first rep.
 
@@ -303,7 +303,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 **Exits:** Start / Skip → B2 → T1 · from T1 or X1 → back there
 
 #### B2 · Scripted-member disclosure
-**SHOULD · 🟡 Partial** (text exists on H5 and X1, but there's no first-run moment) **· · Not drawn** · PRD #3, FR-043a
+**SHOULD · 🟡 Partial** (text exists on H5 and X1, but there's no first-run moment) **· 🎨 Drawn** (board *25*, the tour's card 4 of 4) · PRD #3, FR-043a
 
 **Job:** before anyone joins, say plainly that Holdouts during judging include scripted members: real wallets under the same rules, whose days are not camera-verified, filling a Holdout only up to its minimum (20 in a 7-day, 12 in a 21-day).
 
@@ -330,7 +330,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
    - **7-day** · starts Monday · `12,500 SKR` at stake · 14 joined · `closes in 6h 12m`
    - **21-day** · starts Monday · `9,000 SKR` at stake · 9 joined · **extra line** (green): `+2,400 SKR` *added to the prize pool*
      - **The extra line shows only the amount, never its source.** It covers any money added to a Holdout's prize beyond its members' stakes: today that's only carry-over (`carry_over_received`). Treasury top-ups and sponsorships are parked (§9). The board's *showExtra* tweak hides the line when there's nothing extra. If the source is ever shown, it belongs on the stake sheet (H2) or the detail screen (H4), not on this card.
-5. Row link: ⓘ **How Holdout works** · *3 cards*
+5. Row link: ⓘ **How Holdout works** · *4 cards*
 6. Bottom bar, ⌂ active
 
 **Variants to draw**
@@ -382,14 +382,14 @@ Also on T2: a `TEST COHORT` badge when short; nudges for your other Holdouts (a 
 One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → COUNTDOWN → COUNTING → COMPLETE). The same screen serves the Daily 25 (front or 45°, knees allowed) and a Holdout day (45° only, from the toes). **Shared chrome, as drawn on S5:** ✕ stop button (40 px circle, top left) · centre label (`DAY 12 · 25 REPS` or `THE DAILY 25`) · dark gradients top and bottom over the camera · skeleton in accent. Audio carries it, because the member is on the floor.
 
 #### S1 · Camera permission
-**MUST · ✅ Built · · Not drawn**
+**MUST · ✅ Built · 🎨 Drawn** (board *15*; the *denied* tweak shows the Settings variant)
 
 **On screen:** camera-shaped empty state · *"Holdout counts your reps on this phone, so it needs the camera. No video ever leaves the device."* · **Allow camera** → OS dialog (N4) · *denied twice:* how to switch it on in Settings (SHOULD)
 
 **Exits:** allowed → S2 (or S3 if the guide is turned off) · ✕ → back
 
 #### S2 · Set-up guide — "Before you get down"
-**MUST · ✅ Built · · Not drawn** · `sitting/PlacementGuide.kt`
+**MUST · ✅ Built · 🎨 Drawn** (board *16*, a sheet with working Phone / Body / Start tabs; the *staked* tweak switches the rules) · `sitting/PlacementGuide.kt`
 
 **Job:** read while the phone is still in hand, since the countdown can't start behind it. Draw it as a bottom sheet over the camera.
 
@@ -398,7 +398,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 **Variants:** Daily 25 · Staked · detected view highlighted
 
 #### S3 · Pre-flight and hold the start position
-**MUST · ✅ Built · · Not drawn** — the next sitting board to draw
+**MUST · ✅ Built · 🎨 Drawn** (board *17*; the *step* tweak shows Checks / Holding / Blocked / Tip sheet)
 
 **On screen:** camera + floor/outline guide (comes off once aligned) · four pills turning green: **Lighting · Whole body in frame · Camera view · Background still** · one big coach line, also spoken (*Phone to 45°*, *Knees up*, *Move back*, *Can't see knees*) · once all green, a **hold ring** fills while the member holds the top · if it won't fill, the reason · *How to set up* link · deadline (Holdout)
 
@@ -407,7 +407,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 **Exits:** hold complete → S4 · How to set up → S2 · ✕ → S7 / back
 
 #### S4 · Countdown
-**MUST · ✅ Built · · Not drawn** — **3 · 2 · 1** at the S5 counter's size, spoken. **Exits:** → S5
+**MUST · ✅ Built · 🎨 Drawn** (board *18*; the *number* tweak picks 3, 2 or 1) — **3 · 2 · 1** at the S5 counter's size, spoken. **Exits:** → S5
 
 #### S5 · Counting
 **MUST · ✅ Built · 🎨 Drawn** (board *6 · Sitting — counting*)
@@ -419,7 +419,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 **Exits:** target reached → S6 · ✕ → S7
 
 #### S6 · Day complete
-**MUST · ✅ Built · · Not drawn** — one of the two places the gradient is allowed
+**MUST · ✅ Built · 🎨 Drawn** (board *19*; *mode* switches Daily 25 / Holdout day, *upsell* the NICE upsell) — one of the two places the gradient is allowed
 
 **On screen:** **25** in green · `DONE` · gradient sweep · one button:
 - Daily 25 → **Done** → T1 (streak +1, *NICE:* flame flourish *"13-day streak"*)
@@ -428,7 +428,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 *NICE, not built:* after a Daily 25 with no Holdout → *"Want money on it? Join a 7-day Holdout."* → H1 (PRD §10.2)
 
 #### S7 · Stopped part-way
-**SHOULD · 🟡 Partial** (✕ returns home, which shows the banked count, but there's no summary) **· · Not drawn** · ES-1, ES-2
+**SHOULD · 🟡 Partial** (✕ returns home, which shows the banked count, but there's no summary) **· 🎨 Drawn** (board *20*; the *crash* tweak shows the reopened-after-a-crash variant) · ES-1, ES-2
 
 **On screen:** *"17 done — 10 banked, 7 not kept. Come back any time before 5h 12m runs out."* · the three block bars (the third empty) · **Back to today**
 
@@ -439,7 +439,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 ### H — ☰ Holdouts and ∿ Crowd
 
 #### H0 · My Holdouts (☰ root)
-**SHOULD · ⬜ Not built as a screen** (the pieces are cards on Home today) **· · Not drawn**
+**SHOULD · ⬜ Not built as a screen** (the pieces are cards on Home today) **· 🎨 Drawn** (board *10*, with the ☰ tab active; the *empty* tweak shows no Holdouts yet)
 
 **On screen**
 1. **Yours** — a card per Holdout with its stage (`Journey.stage`), drawn like T1's offer cards with a status word on the right (as on A1's live cards):
@@ -457,7 +457,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 **Empty:** the offers + *"Leave any time before joining closes, for a full refund."*
 
 #### H1 · The ladder
-**MUST · ✅ Built · ✏️ Partly drawn** (the *leagues* list behind the stake sheet; §7) · `ladder/LadderScreen.kt` · PRD #5, US-1
+**MUST · ✅ Built · 🎨 Drawn** (board *11*, a vertical ladder from the Daily 25 up to the locked Human Flag, each Holdout rung with its open offer; the *qualified* tweak switches the 21-day rule text) · `ladder/LadderScreen.kt` · PRD #5, US-1
 
 **On screen (top rung first):** back · **The ladder** · `LOCKED` **Human Flag** — *Coming after the 21-day Holdout. Not in this build.* · `21-DAY HOLDOUT` — the rule (*clear a 7-day first*) and that it's off in this build, your unlock still recorded (or *Unlocked*) · its offers · `7-DAY HOLDOUT` — *The entry rung and the comeback lane. A new one starts every Monday 05:00 UTC.* · offers · `SHORT TEST COHORT` (if any) · `THE DAILY 25` — *25 push-ups, free, every day. Builds your streak. Stakes nothing, pays nothing.*
 
@@ -491,7 +491,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 
 **Exits:** Stake → N3 (first join only) → N1 → H3 · Get test tokens → W1 sheet → back here · drag down → where it opened from
 
-*NICE, not built:* **H2a "You're in"** between signing and the lobby: *"You're in. 7 days from Monday 05:00 UTC."* + **Do today's Daily 25** / **See the lobby**.
+*NICE, not built · 🎨 drawn as board 12:* **H2a "You're in"** between signing and the lobby: *"You're in. 7 days from Monday 05:00 UTC."* + **Do today's Daily 25** / **See the lobby**.
 
 #### H3 · Lobby
 **MUST · ✅ Built · 🎨 Drawn** (board *8 · Lobby*; the *locked* tweak shows the locked variant) · `lobby/LobbyScreen.kt` · PRD #7, US-2, ES-12a
@@ -506,7 +506,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 **Exits:** See who's in → H5 · Leave → N1 → H0 · start time → T2
 
 #### H4 · Holdout detail (∿ Crowd root)
-**MUST · ✅ Built · · Not drawn** · `cohort/CohortDetailScreen.kt` · PRD #11, US-7
+**MUST · ✅ Built · 🎨 Drawn** (board *13*, the ∿ tab root, with a single-series bar chart of how the crowd thinned; the *state* tweak shows Running / Settling / Claimed) · `cohort/CohortDetailScreen.kt` · PRD #11, US-7
 
 **On screen:** `21-DAY · DAY 12 OF 21` · *(end-state card, see variants)* · **Where it stands:** *189 still standing of 312* · prize pool · extras and their source · *9 days to go* · **Your record:** *11 of 21 days · stake 1,250 SKR* · *projected share if the crowd held here* · **How the crowd thinned:** today a list (*After day 1: 301 standing …*); draw it as a step chart or the tour's dot rows (*NICE*) · **The roster →**
 
@@ -515,7 +515,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 **Exits:** The roster → H5 · settled → H7
 
 #### H5 · Roster
-**MUST · ✅ Built · · Not drawn** · `roster/RosterScreen.kt` · PRD #12, FR-062, FR-043a
+**MUST · ✅ Built · 🎨 Drawn** (board *14*) · `roster/RosterScreen.kt` · PRD #12, FR-062, FR-043a
 
 **Job:** who is still in. **No amounts anywhere**, so nobody is ranked by money.
 
@@ -550,7 +550,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 ### W, X — ◯ Me
 
 #### W1 · Me — wallet and test tokens
-**MUST · 🟡 Partial** (the faucet is built as `faucet/FaucetSheet.kt`; address and disconnect live on Home and About today) **· · Not drawn** · PRD #3a, ES-0, ES-0a, ES-0b
+**MUST · 🟡 Partial** (the faucet is built as `faucet/FaucetSheet.kt`; address and disconnect live on Home and About today) **· 🎨 Drawn** (board *26*, the ◯ tab root; the *faucet* tweak shows Ready / Funded / Used today / Can't pay out) · PRD #3a, ES-0, ES-0a, ES-0b
 
 **On screen (proposed)**
 1. Short address (copy) · `devnet` chip
@@ -567,7 +567,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 **Exits:** Get test tokens → N1 · About → X1 · Disconnect → A1
 
 #### X1 · About · for judges
-**MUST · ✅ Built · · Not drawn** · `about/AboutScreen.kt` · FR-043a, FR-044, constitution XI
+**MUST · ✅ Built · 🎨 Drawn** (board *27*) · `about/AboutScreen.kt` · FR-043a, FR-044, constitution XI
 
 **On screen:** back · **About Holdout** · *Devnet only, with a mock SKR token* · **Watch a full cycle (3 min)** · **The three-card tour again** · `KNOWN WEAKNESSES · N` — a card each (what · why · *Real fix:* in accent), from `assets/weaknesses.json`, the same source as the README · `SCRIPTED MEMBERS · N WALLETS` + explanation + every address (mono, 48 %) · *NICE:* app version, program ID, source link
 
@@ -592,33 +592,33 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 | ID | Screen | Tier | Code | Design | Tab | Reached from | Goes to |
 |---|---|---|---|---|---|---|---|
 | A1 | Connect wallet | MUST | ✅ | 🎨 | — | launch, W1 | N1, A2, A3 |
-| A2 | Walkthrough | MUST | 🟡 | · | — | A1, A3, X1 | back |
-| A3 | No wallet | MUST | ✅ | · | — | A1 | N1, A2 |
-| B1 | Tour | MUST | ✅ | 🎨 1 of 3 | — | first connect, T1, X1 | B2 / T1 |
-| B2 | Scripted-member disclosure | SHOULD | 🟡 | · | — | B1 | T1, X1 |
+| A2 | Walkthrough | MUST | 🟡 | 🎨 | — | A1, A3, X1 | back |
+| A3 | No wallet | MUST | ✅ | 🎨 | — | A1 | N1, A2 |
+| B1 | Tour | MUST | ✅ | 🎨 4 of 4 | — | first connect, T1, X1 | B2 / T1 |
+| B2 | Scripted-member disclosure | SHOULD | 🟡 | 🎨 | — | B1 | T1, X1 |
 | T1 | Today · Daily 25 + open Holdouts | MUST | ✅ | 🎨 | ⌂ | launch, S6, S7, H1 | S1, H2, B1, ☰ nudges |
 | T2 | Today · in a Holdout | MUST | ✅ | ✏️ | ⌂ | launch, N2, H3, H0 | S1, N1, H4, H6 |
-| S1 | Camera permission | MUST | ✅ | · | — | T1, T2, H6 | S2, S3 |
-| S2 | Set-up guide | MUST | ✅ | · | — | S1, S3 | S3 |
-| S3 | Pre-flight + hold | MUST | ✅ | · | — | S2 | S4, S7 |
-| S4 | Countdown | MUST | ✅ | · | — | S3 | S5 |
+| S1 | Camera permission | MUST | ✅ | 🎨 | — | T1, T2, H6 | S2, S3 |
+| S2 | Set-up guide | MUST | ✅ | 🎨 | — | S1, S3 | S3 |
+| S3 | Pre-flight + hold | MUST | ✅ | 🎨 | — | S2 | S4, S7 |
+| S4 | Countdown | MUST | ✅ | 🎨 | — | S3 | S5 |
 | S5 | Counting | MUST | ✅ | 🎨 | — | S4 | S6, S7 |
-| S6 | Day complete | MUST | ✅ | · | — | S5 | T1, N1 |
-| S7 | Stopped part-way / crash | SHOULD | 🟡 | · | — | S3, S5, reopen | T1, T2 |
-| H0 | My Holdouts | SHOULD | ⬜ | · | ☰ | tab, T1 nudges | H1, H3, T2, H4, H6, H7 |
-| H1 | The ladder | MUST | ✅ | ✏️ | ☰ | H0, H6 | H2, T1 |
+| S6 | Day complete | MUST | ✅ | 🎨 | — | S5 | T1, N1 |
+| S7 | Stopped part-way / crash | SHOULD | 🟡 | 🎨 | — | S3, S5, reopen | T1, T2 |
+| H0 | My Holdouts | SHOULD | ⬜ | 🎨 | ☰ | tab, T1 nudges | H1, H3, T2, H4, H6, H7 |
+| H1 | The ladder | MUST | ✅ | 🎨 | ☰ | H0, H6 | H2, T1 |
 | H2 | Stake confirm (sheet) | MUST | ✅ | ✏️ | ☰ | T1, H1, H0 | N3→N1→H3, W1 |
-| H2a | You're in | NICE | ⬜ | · | ☰ | N1 after join | S1, H3 |
+| H2a | You're in | NICE | ⬜ | 🎨 | ☰ | N1 after join | S1, H3 |
 | H3 | Lobby (+ locked) | MUST | ✅ | 🎨 | ☰ | N1, H0 | H5, N1, T2 |
-| H4 | Holdout detail | MUST | ✅ | · | ∿ | tab, T2, H0 | H5, H7 |
-| H5 | Roster | MUST | ✅ | · | ∿ | H4, H3 | back |
+| H4 | Holdout detail | MUST | ✅ | 🎨 | ∿ | tab, T2, H0 | H5, H7 |
+| H5 | Roster | MUST | ✅ | 🎨 | ∿ | H4, H3 | back |
 | H6 | Forfeit | MUST | ✅ | 🎨 | ☰ | T2 (deadline), H0 | S1, H1 |
 | H7 | Claim | MUST | ✅ | 🎨 | ☰ | H4, H0, T1 nudge | N1, H0 |
-| W1 | Me · wallet + tokens | MUST | 🟡 | · | ◯ | tab, H2/T2/H7 sheet | N1, X1, A1 |
-| X1 | About · for judges | MUST | ✅ | · | ◯ | W1 | A2, B1 |
+| W1 | Me · wallet + tokens | MUST | 🟡 | 🎨 | ◯ | tab, H2/T2/H7 sheet | N1, X1, A1 |
+| X1 | About · for judges | MUST | ✅ | 🎨 | ◯ | W1 | A2, B1 |
 | N1–N5 | System moments | MUST / SHOULD | see §5 N | | — | — | — |
 
-**Count:** 19 MUST screens (17 ✅ in code; 8 drawn, 3 of them needing changes) · 4 SHOULD screens + 2 SHOULD moments · 1 NICE screen + several NICE additions inside cards.
+**Count:** 19 MUST screens (17 ✅ in code; all 19 drawn, T2 and H2 still carrying open §7 copy fixes) · 4 SHOULD screens + 2 SHOULD moments · 1 NICE screen + several NICE additions inside cards.
 
 ---
 
@@ -644,18 +644,11 @@ Where the draft says something the spec, the PRD or its own tokens note say diff
 ## 8. What to draw next, and what to build
 
 ### Boards to draw, in order
-MUST screens first, then the variants judges are most likely to hit.
+**Done 5 Oct:** every screen in this map has a board, 27 on the canvas in four rows (hero screens · Holdouts and the crowd · the sitting · before a wallet, first run and Me). Variants are Tweaks on each board, as listed in its card.
 
-1. ~~**H3 Lobby** (and its locked variant)~~ 🎨 drawn 5 Oct
-2. ~~**H6 Forfeit**~~ 🎨 drawn 5 Oct
-3. **S3 Pre-flight + hold** and **S6 Day complete**: the sitting's start and finish
-4. **H4 Holdout detail** (∿ Crowd root) and **H5 Roster**
-5. **H1 The ladder** (full screen, all rungs) and **W1 Me**
-6. **T2 variants**: done-tap-to-submit, submitted, last 10 minutes
-7. **T1 variants**: part-way, done
-8. **B1 cards 1 and 3**, **B2 disclosure card**
-9. **A3 No wallet**, **A2 Walkthrough**, **X1 About**
-10. **S1, S2, S4, S7**, **H0**, **H2a**
+Still to draw:
+1. **T2 variants** (done, tap to submit · submitted · last 10 minutes) and **T1 variants** (part-way · done), as Tweaks on boards 5 and 3
+2. The §7 copy fixes still open: rows 3, 6, 7, 8 and 10
 
 ### Code gaps — specified or needed, not built
 
