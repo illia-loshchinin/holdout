@@ -328,7 +328,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 3. Section label `HOLDOUTS OPEN TO JOIN` · hint `$10 – $100 in SKR`
 4. Offer cards, each with an outlined **Join** button:
    - **7-day** · starts Monday · `12,500 SKR` at stake · 14 joined · `closes in 6h 12m`
-   - **21-day** · starts Monday · `9,000 SKR` at stake · 9 joined · **extra line** (green, ＋ icon): `2,400 SKR added to the prize`, with its source on the next line in 48 %
+   - **21-day** · starts Monday · `9,000 SKR` at stake · 9 joined · **extra line** (green): `+2,400 SKR` *added to the prize pool*, with its source on the next line in 48 %
      - **The extra line is general on purpose.** It shows any money added to a Holdout's prize from outside its members' stakes. The source line names where it came from; the board's *extraSource* tweak switches between them:
        | Source | Source line | In this build? |
        |---|---|---|
@@ -690,7 +690,7 @@ Out of scope for this build. Listed so the design system leaves room for them. S
 - **Seeker Genesis gate, geo check, terms acceptance**: mainnet onboarding.
 - **Automatic offline submission** (Phase 2): T2 *"Done — waiting for network"* replaces *"tap to submit"*.
 - **Human Flag** rung and other exercises: H1 already shows it locked.
-- **Prize extras beyond carry-over:** a treasury top-up (cold-start bonus matching in the full-vision PRD §6.5) and sponsorships from Solana ecosystem projects. The design already has the slot (T1's extra line, §5). The contract needs an instruction that lets an outside wallet add to a cohort's pool before it starts, with the source recorded so the app can name it.
+- **Prize extras beyond carry-over:** a treasury top-up (cold-start bonus matching in the full-vision PRD §6.5) and sponsorships from Solana ecosystem projects. The design already has the slot (T1's extra line, §5). The contract needs an instruction that lets an outside wallet add to a cohort's pool, with the source recorded so the app can name it. **Decided 2026-10-05:** extras can be added only **until joining closes**, so members see the whole prize before they commit and nothing changes the pool after the cutoff. Still open: who may pay in, and how the source is recorded. Not in spec-kit yet, because the 5 October freeze and the defect-fixes-only upgrade rule keep it out of the judged build.
 
 ---
 
