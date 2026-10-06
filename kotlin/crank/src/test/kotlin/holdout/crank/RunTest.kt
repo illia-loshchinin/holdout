@@ -91,11 +91,21 @@ class RunTest {
         assertEquals(listOf(10, 3), Run.forfeitPages(c, members, now, pageSize = 50).map { it.size }, "a page is never more than the program takes")
     }
 
+    /** A test-lobby cohort: three 10-minute days from [start]. */
+    private fun testCohort(leagueId: Int, index: Long, start: Long, memberCount: Long = 0) = cohort(index, memberCount).copy(leagueId = leagueId, start = start, joinCutoff = start - 300, durationDays = 3, repsPerDay = 5, dayLength = 600)
+
     @Test
-    fun `settlement is queued per league, oldest first`() {
+    fun `settlement is queued in the order the cohorts ended, across leagues`() {
         val now = first + 3 * week + 1
         val queue = Run.settleQueue(listOf(cohort(2), cohort(0, settled = true), cohort(1), cohort(3)), now)
-        assertEquals(listOf(1L, 2L), queue.getValue(0).map { it.index }, "settled and running cohorts are not queued")
+        assertEquals(listOf(1L, 2L), queue.map { it.index }, "settled and running cohorts are not queued")
+
+        // Two test leagues share one progress slot: league 101's cohort ended first.
+        val a = testCohort(100, 0, start = first + 600)
+        val b = testCohort(101, 0, start = first)
+        val c = testCohort(100, 1, start = first + 1_200)
+        val order = Run.settleQueue(listOf(c, a, b), now = first + 3_600).map { it.leagueId to it.index }
+        assertEquals(listOf(101 to 0L, 100 to 0L, 100 to 1L), order, "by end, not by league id (FR-060, FR-061a)")
     }
 
     // ---- one whole pass ----------------------------------------------------
@@ -321,6 +331,42 @@ class RunTest {
         assertFalse("settle_count" in chain.sent, "cohort 1 is never counted ahead of cohort 0 (FR-061a)")
         val settleSteps = e.summary.getValue("steps").jsonArray.map { it.jsonObject }.filter { it.getValue("step").jsonPrimitive.content.startsWith("settle") }
         assertTrue(settleSteps.none { it["index"]?.jsonPrimitive?.int == 1 })
+    }
+
+    /** Test leagues 100 and 101, each with one ended cohort; league 101's ended first. */
+    private fun twoTestLeagues(earlierMembers: Long): Chain = runBlocking {
+        val now = first + 3_600
+        val chain = Chain(now, sponsorLamports = 30_000_000)
+        chain.accounts[Pdas.config(programId)] = configBytes(sponsorFloat = 50_000_000)
+        listOf(100 to first + 600, 101 to first).forEach { (id, start) ->
+            chain.accounts[Pdas.league(programId, id)] = leagueBytes(LeagueSnapshot(LeagueParams(id, 3, 5, 0, LeagueParams.FORM_KNEES_ALLOWED, start, 600, 100_000, 300), nextIndex = 1))
+        }
+        chain.accounts[Pdas.cohort(programId, 100, 0)] = cohortBytes(testCohort(100, 0, start = first + 600))
+        chain.accounts[Pdas.cohort(programId, 101, 0)] = cohortBytes(testCohort(101, 0, start = first, memberCount = earlierMembers))
+        chain
+    }
+
+    private fun finalized(chain: Chain): List<SolanaPublicKey> = chain.sentTx
+        .filter { chain.nameOf(it) == "settle_finalize" }
+        .map { t -> t.message.accounts[t.message.instructions.single().accountIndices[3].toInt()] }
+
+    @Test
+    fun `test leagues settle in the order their cohorts ended, not by league id`() = runBlocking {
+        val chain = twoTestLeagues(earlierMembers = 0)
+        pass(chain)
+        assertEquals(listOf(Pdas.cohort(programId, 101, 0), Pdas.cohort(programId, 100, 0)), finalized(chain), "the combined test board's streaks follow the cohorts in time (FR-060)")
+    }
+
+    @Test
+    fun `a test cohort that cannot settle holds later cohorts of every test league`() = runBlocking {
+        // League 101's cohort holds a member the chain does not: its count cannot complete.
+        val chain = twoTestLeagues(earlierMembers = 1)
+        val e = assertFailsWith<CrankSummaryException> { pass(chain) }
+        assertEquals(emptyList(), finalized(chain), "league 100's later cohort is not settled ahead of it")
+        val waiting = e.summary.getValue("steps").jsonArray.map { it.jsonObject }.single { it.getValue("step").jsonPrimitive.content == "settle" }
+        assertEquals(100, waiting.getValue("league").jsonPrimitive.int)
+        assertEquals("waiting", waiting.getValue("status").jsonPrimitive.content)
+        assertTrue(waiting.getValue("reason").jsonPrimitive.content.contains("test league 101"))
     }
 
     @Test
