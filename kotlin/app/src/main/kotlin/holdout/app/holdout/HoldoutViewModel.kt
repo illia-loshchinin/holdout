@@ -16,8 +16,8 @@ import holdout.app.wallet.SendResult
 import holdout.app.wallet.WalletRepository
 import holdout.core.Instructions
 import holdout.core.Journey
+import holdout.core.Leaderboard
 import holdout.core.MembershipSnapshot
-import holdout.core.ProfileSnapshot
 import holdout.core.Rpc
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -81,19 +81,19 @@ class HoldoutViewModel(
         }
     }
 
-    private val _profiles = MutableStateFlow<List<ProfileSnapshot>?>(null)
+    private val _leaderboard = MutableStateFlow<Leaderboard.Snapshot?>(null)
 
-    /** Every wallet's progress, last read — what the league leaderboards rank (FR-060); null until the first read lands. */
-    val profiles: StateFlow<List<ProfileSnapshot>?> = _profiles.asStateFlow()
+    /** The leaderboards' last read — cohorts, every profile, cohorts again (FR-060); null until the first read lands. */
+    val leaderboard: StateFlow<Leaderboard.Snapshot?> = _leaderboard.asStateFlow()
 
-    /** Reads every `Profile` (one `getProgramAccounts`, R8); a failed read keeps the last one, and an older answer never replaces a newer. */
-    fun loadProfiles() {
+    /** Reads a leaderboard snapshot (R8); a failed read keeps the last one, and an older answer never replaces a newer. */
+    fun loadLeaderboard() {
         val started = ++profileLoadsStarted
         viewModelScope.launch {
-            val read = chain.profiles() ?: return@launch
+            val read = chain.leaderboard() ?: return@launch
             if (started < newestProfiles) return@launch
             newestProfiles = started
-            _profiles.value = read
+            _leaderboard.value = read
         }
     }
 

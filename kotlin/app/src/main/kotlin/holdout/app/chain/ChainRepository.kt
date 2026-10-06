@@ -7,6 +7,7 @@ import holdout.core.CohortStatus
 import holdout.core.ConfigSnapshot
 import holdout.core.Derive
 import holdout.core.Journey
+import holdout.core.Leaderboard
 import holdout.core.LeagueSnapshot
 import holdout.core.MembershipSnapshot
 import holdout.core.Pdas
@@ -100,8 +101,17 @@ class ChainRepository(private val rpc: Rpc = Rpc(Deployment.rpcUrl), private val
     /** The roster of one cohort (FR-062), for the roster screen. */
     suspend fun roster(cohort: SolanaPublicKey): List<MembershipSnapshot>? = rpc.memberships(programId, cohort)
 
-    /** Every wallet's progress, for the league leaderboards (FR-060, R8); null when the read failed. */
-    suspend fun profiles(): List<ProfileSnapshot>? = rpc.profiles(programId)
+    /**
+     * What the league leaderboards read (FR-060, R8): every cohort, every
+     * profile, then every cohort again, so a count landing between the calls is
+     * seen rather than mixed into the board. Null when any read failed.
+     */
+    suspend fun leaderboard(): Leaderboard.Snapshot? {
+        val before = rpc.cohorts(programId)?.map { it.second } ?: return null
+        val profiles = rpc.profiles(programId) ?: return null
+        val after = rpc.cohorts(programId)?.map { it.second } ?: return null
+        return Leaderboard.Snapshot(before, profiles, after)
+    }
 
     suspend fun chainTime(): Rpc.ChainTime? = rpc.chainTime()
 }
