@@ -316,7 +316,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 ### T — ⌂ Today
 
 #### T1 · Today — the Daily 25 and Holdouts to join
-**MUST · ✅ Built · 🎨 Drawn** (board *3 · Today*) · `home/HomeScreen.kt` · PRD #4, §10.1a, FR-053
+**MUST · ✅ Built · 🎨 Drawn** (board *3 · Today*; the *state* tweak shows Fresh / Part-way / Done / Yesterday missed / Offline, and *nudge* adds the claim nudge row) · `home/HomeScreen.kt` · PRD #4, §10.1a, FR-053
 
 **Job:** with no Holdout running, the free challenge is the hero and the open Holdouts sit right under it. Never empty, never "come back later".
 
@@ -333,7 +333,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 5. Row link: ⓘ **How Holdout works** · *4 cards*
 6. Bottom bar, ⌂ active
 
-**Variants to draw**
+**Variants** (🎨 drawn as Tweaks on board 3; holdouts-not-live, none-open and new-phone are text-only and not drawn)
 - **Part-way:** *15* · *to go · 10 banked* · **Keep going** (the bank ring from T2 fits here too)
 - **Done:** `TODAY` · *25* in green · *done* · no button · streak chip +1. *NICE:* *"Want money on it? Join a 7-day Holdout"* above the offers (PRD §10.2)
 - **Offline / chain unknown:** *"devnet unreachable — the Daily 25 still works"*; countdown `—`; offers replaced by that line
@@ -345,7 +345,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 **Exits:** Start / Keep going → S1 · Join → H2 sheet · How Holdout works → B1 · nudge → ☰ H0 / H3 / H7
 
 #### T2 · Today — in a Holdout
-**MUST · ✅ Built · ✏️ Drawn** (board *5 · Home — in a Holdout*; see §7) · `home/CohortHome.kt` · PRD §10.1a, FR-038, FR-047, FR-024b
+**MUST · ✅ Built · ✏️ Drawn** (board *5 · Home — in a Holdout*; the *today* tweak shows every state in the table below; copy fixes in §7) · `home/CohortHome.kt` · PRD §10.1a, FR-038, FR-047, FR-024b
 
 **Job:** *the crowd is the product.* The survivor counter and the prize pool are the biggest things on screen, and they move at the deadline itself.
 
@@ -360,7 +360,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 6. Footer row: flame `12` *day streak* · `4h 06m left` (mono, accent)
 7. Bottom bar, ⌂ active
 
-**Today's-state variants to draw** (the button and ring area change; the counter and pool stay)
+**Today's-state variants** (🎨 all seven drawn as the *today* tweak on board 5; the button and ring area change, the counter and pool stay)
 | State | Shows | Action |
 |---|---|---|
 | To do | ring empty · *25 push-ups still needed today* | **Start today's 25** |
@@ -647,7 +647,7 @@ Where the draft says something the spec, the PRD or its own tokens note say diff
 **Done 5 Oct:** every screen in this map has a board, 27 on the canvas in four rows (hero screens · Holdouts and the crowd · the sitting · before a wallet, first run and Me). Variants are Tweaks on each board, as listed in its card.
 
 Still to draw:
-1. **T2 variants** (done, tap to submit · submitted · last 10 minutes) and **T1 variants** (part-way · done), as Tweaks on boards 5 and 3
+1. ~~**T2 variants** and **T1 variants**~~ 🎨 drawn 6 Oct as Tweaks on boards 5 and 3
 2. The §7 copy fixes still open: rows 3, 6, 7, 8 and 10
 
 ### Code gaps — specified or needed, not built
