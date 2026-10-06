@@ -266,6 +266,53 @@ describe('INV-4 · one obligation at a time', () => {
     );
   });
 
+  it('still wants the slot for a cohort that is locked and has not started', () => {
+    expectViolation('INV-4', () =>
+      assertInvariants(snapshot({ now: FIRST_START - 60, profiles: [profile()] })),
+    );
+  });
+
+  it('lets an ended, uncounted cohort drop out of the slots', () => {
+    // Cleared cohort A, took cohort B's lobby place, and B started before A was
+    // counted. Normalisation promoted B over A in `running`, and here B's
+    // forfeit has been recorded, which released `running` too. A's membership
+    // is still `Joined` waiting for its count, but A has ended, so nothing can
+    // overlap it.
+    const a = cohort({ address: 'cohort-A' });
+    const b = cohort({
+      address: 'cohort-B',
+      index: 1,
+      start: FIRST_START + 7 * DAY,
+      joinCutoff: FIRST_START + 7 * DAY - 3_600,
+      heldStake: 0n,
+      pool: 100n,
+      forfeitsRecorded: 1,
+    });
+    const at = b.start + DAY;
+    const afterForfeit = snapshot({
+      now: at,
+      cohorts: [a, b],
+      memberships: [
+        membership({ address: 'm-1', cohort: 'cohort-A', daysCompleted: 7 }),
+        membership({ address: 'm-2', cohort: 'cohort-B', state: 'Forfeited' }),
+      ],
+      profiles: [profile({ leagues: { 0: progress({ forfeited: 1, lastChanged: b.start + DAY - 1 }) } })],
+    });
+    expect(() => assertInvariants(afterForfeit)).not.toThrow();
+
+    // The same lag with B still live: `running` names B, not A.
+    const whileB = snapshot({
+      now: at - 60,
+      cohorts: [a, { ...b, heldStake: 100n, pool: 0n, forfeitsRecorded: 0, vaultAmount: 100n }],
+      memberships: [
+        membership({ address: 'm-1', cohort: 'cohort-A', daysCompleted: 7 }),
+        membership({ address: 'm-2', cohort: 'cohort-B', daysCompleted: 1 }),
+      ],
+      profiles: [profile({ runningCohort: 'cohort-B', runningEnd: b.start + 7 * DAY })],
+    });
+    expect(() => assertInvariants(whileB)).not.toThrow();
+  });
+
   it('catches a slot left naming a cohort the member is no longer in', () => {
     // The mirror image: the place is gone but the slot outlived it, so the
     // member is refused their next join for an obligation that does not exist.

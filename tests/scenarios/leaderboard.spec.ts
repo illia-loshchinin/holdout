@@ -699,13 +699,12 @@ describe('given two cohorts of one league in sequence (FR-061a)', () => {
 
     if (recordEarly) {
       w.h.setTime(deadlineOf(1, 0) + 1);
-      // Sent past the invariant checker on purpose. Recording normalises the
-      // member's slots — cohort 1's lobby place replaces cohort 0 in `running` —
-      // then releases cohort 1, so the profile names neither slot while cohort
-      // 0's membership is still `Joined` awaiting its count. The checker's INV-4
-      // reads that as a lost obligation (cohort 0 has ended, so nothing can
-      // overlap it); it is consistent again once cohort 0 is counted below.
-      await w.h.sendOrThrow(
+      // Recording normalises the member's slots — cohort 1's lobby place
+      // replaces cohort 0 in `running` — then releases cohort 1, so the profile
+      // names neither slot while cohort 0's membership is still `Joined`
+      // awaiting its count. INV-4 allows that: cohort 0 has ended, so nothing
+      // can overlap it.
+      await w.act(
         [
           await recordForfeitsIx(
             w.crank.address,
