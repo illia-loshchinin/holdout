@@ -73,6 +73,20 @@ Every new board reuses these. The values are the draft's tokens note (PRD §11).
 | **Shape** | cards radius 24 · sheets 28 · buttons, chips, nav pill fully round |
 | **Components seen in the draft** | **primary button** (white pill, 56 px, black label) · **secondary button** (transparent, 24 % white outline, 44 px) · **card** (surface/1 + hairline, 20 px padding) · **key–value row** (label 70 % left, mono value right, hairline between) · **section label** (uppercase, with a mono hint on the right) · **status chip** (`devnet`, `free`, `settled`, streak 🔥 12) · **bank ring** (3 segments of 10) · **block bars** (3 bars during counting) · **hint pill** (sitting) · **bottom sheet** (grab handle, scrim 65 %) · **bottom bar** (76 px, surface/2, active item = white pill) |
 
+### Naming a Holdout (decided 6 Oct)
+
+"Holdout" is the product word (H28), but it's said **once per screen**. A specific Holdout is named by its **length and its dates**, because a new 7-day and a new 21-day start every Monday and the length alone stops being unique after the first week.
+
+| Where | Write | Not |
+|---|---|---|
+| Cards in a list under a "Holdouts" heading | **21-day** · from 21 Sep | 21-day Holdout |
+| A finished one | **7-day** · 28 Sep – 5 Oct | 7-day Holdout |
+| Header labels (Lobby, Forfeit, Detail, Claim, Home, Roster, wallet and confirming boards) | `21-DAY · FROM 21 SEP · DAY 12 OF 21` | `21-DAY HOLDOUT` |
+| The only mention on a screen (stake sheet, wallet sheet, *You're in*, the Daily 25 upsell) | Join the 7-day Holdout | — |
+| Sentences | *your run in this Holdout has ended* | — |
+
+Never *cohort* in anything a member reads, and no names for the lengths: the number of days is the label.
+
 ---
 
 ## 3. Navigation — the draft's bottom bar
@@ -218,7 +232,7 @@ flowchart TB
     T2 -. "missed a deadline" .-> H6
     T2 -. "last day passed" .-> H4
     H6 -- "Today's Daily 25" --> S1
-    H6 -- "Next 7-day Holdout" --> H2
+    H6 -- "The next 7-day" --> H2
     H7 -- "Claim ✍" --> H4
 
     %% me
@@ -325,8 +339,8 @@ Each card gives **tier · code status · design status**, why the screen exists,
 2. **Daily 25 card:** `THE DAILY 25` + `FREE` chip · **25** push-ups (60 px) · *all at once, or 10 at a time* · **Start** (primary) · `4h 06m left today` (mono, accent)
 3. Section label `HOLDOUTS OPEN TO JOIN` · hint `$10 – $100 in SKR`
 4. Offer cards, each with an outlined **Join** button:
-   - **7-day** · starts Monday · `12,500 SKR` at stake · 14 joined · `closes in 6h 12m`
-   - **21-day** · starts Monday · `9,000 SKR` at stake · 9 joined · **extra line** (green): `+2,400 SKR` *added to the prize pool*
+   - **7-day** · from 12 Oct · `12,500 SKR` at stake · 14 joined · `closes in 6h 12m`
+   - **21-day** · from 12 Oct · `9,000 SKR` at stake · 9 joined · **extra line** (green): `+2,400 SKR` *added to the prize pool*
      - **The extra line shows only the amount, never its source.** It covers any money added to a Holdout's prize beyond its members' stakes: today that's only carry-over (`carry_over_received`). Treasury top-ups and sponsorships are parked (§9). The board's *showExtra* tweak hides the line when there's nothing extra. If the source is ever shown, it belongs on the stake sheet (H2) or the detail screen (H4), not on this card.
 5. Row link: ⓘ **How Holdout works** · *4 cards*
 6. Bottom bar, ⌂ active
@@ -350,7 +364,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 **Entered from:** app open while standing in a running Holdout · N2 reminder · H3 at start time · ☰ H0 running card
 
 **On screen (as drawn, top → bottom)**
-1. `21-DAY HOLDOUT · DAY 12 OF 21`
+1. `21-DAY · FROM 21 SEP · DAY 12 OF 21`
 2. **189** / 312 (68 px; total in 48 %) · `STILL STANDING` · ▲ *3 dropped since yesterday* (green)
 3. Card: **Prize pool** `48,200 SKR` · hairline · **Your share now** `255 SKR` / *≈ $6* · *+17 SKR since yesterday* (green)
 4. Bank ring (1 of 3 segments) with `10` · **10 banked today** · *one block of 10 · 15 reps to go*
@@ -448,7 +462,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
    | Forfeited | *Out after 6 days* (warning) | H6 |
    | Settling | *You finished · settlement in progress* | H4 |
    | Ready to claim | *You finished · claim 1,412 SKR* (green) | H7 |
-2. **Open to join** — T1's offer cards with **Join** → H2
+2. **Open to join** — T1's offer cards with **Join** → H2. A Holdout you've already joined is not listed again (it's under *Yours*); one you can't join says why, with Join greyed out (*"Starts before your 21-day ends."*)
 3. **Finished** — *Finished · claimed N SKR* → H4
 
 **Empty:** the offers + *"Leave any time before joining closes, for a full refund."*
@@ -462,7 +476,7 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 **Job:** everything a member must know before money moves, including the counting rule, so it isn't discovered at the first sitting.
 
 **On screen (as drawn, plus what the spec requires — ➕)**
-1. Grab handle · **Join the 7-day Holdout** · *25 push-ups a day · starts Monday 05:00 UTC*
+1. Grab handle · **Join the 7-day Holdout** · *25 push-ups a day · from 12 Oct, 05:00 UTC*
 2. Four chips: **$10 / $25 / $50 / $100**, each with its SKR amount (mono); the picked one has an accent outline
 3. Card: **Your stake** `1,250 SKR` / *≈ $25* · hairline · **At stake now** `4,800 SKR` ➕ *· 14 joined* ➕ *+ extras, with their source* · **Joining closes in** `6h 12m`
 4. *If nobody drops out, you get exactly your stake back. The prize is what the members who quit leave behind.*
@@ -487,10 +501,10 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 #### H3 · Lobby
 **MUST · ✅ Built · 🎨 Drawn** (board *8 · Lobby*; the *locked* tweak shows the locked variant) · `lobby/LobbyScreen.kt` · PRD #7, US-2, ES-12a
 
-**As drawn:** a back button and `LOBBY` label · **7-day Holdout** · *starts in* `2d 04h 12m` (40 px mono, accent) · *Monday 05:00 UTC · everyone starts together* · a row of 14 dots, yours ringed in accent and marked `you`, with *14 members so far* and **See who's in →** · card: **At stake** `12,500 SKR` · **Your stake** `1,250 SKR` / *held by the contract, not by us* · hairline · **Joining closes in** `2d 03h 12m` (one hour before the start) · a surface/3 row *From the start: 25 push-ups before each day's deadline, for 7 days. At 45°, from your toes.* · **Leave — full refund** (coral outline) + *Until joining closes, leaving gives you all 1,250 SKR back.* · **Locked:** the label reads `LOBBY · LOCKED`, a lock line says *Joining has closed. This is the final roster.*, and Leave becomes *Nothing to do until Monday. This phone reminds you when it starts.* There's no bottom bar, because this screen is pushed from ☰.
+**As drawn:** a back button and `LOBBY` label · **7-day · 12 Oct – 19 Oct** · *starts in* `2d 04h 12m` (40 px mono, accent) · *Monday 05:00 UTC · everyone starts together* · a row of 14 dots, yours ringed in accent and marked `you`, with *14 members so far* and **See who's in →** · card: **At stake** `12,500 SKR` · **Your stake** `1,250 SKR` / *held by the contract, not by us* · hairline · **Joining closes in** `2d 03h 12m` (one hour before the start) · a surface/3 row *From the start: 25 push-ups before each day's deadline, for 7 days. At 45°, from your toes.* · **Leave — full refund** (coral outline) + *Until joining closes, leaving gives you all 1,250 SKR back.* · **Locked:** the label reads `LOBBY · LOCKED`, a lock line says *Joining has closed. This is the final roster.*, and Leave becomes *Nothing to do until Monday. This phone reminds you when it starts.* There's no bottom bar, because this screen is pushed from ☰.
 
 
-**On screen:** back · `LOBBY` (or `LOBBY · LOCKED`) · **7-day Holdout** · *starts in* **2d 04h 12m** (large mono, accent) · card: **14 members · 12,500 SKR at stake** · *Your stake: 1,250 SKR — held by the contract, not by us* · *Joining closes in 6h 12m. Until then you can leave with your full stake back.* (locked: *Joining has closed. This is the final roster.*) · *From the start: 25 push-ups before each day's deadline, at 45°, from your toes* · **See who's in** (secondary) · **Leave — full refund** (secondary, warning text)
+**On screen:** back · `LOBBY` (or `LOBBY · LOCKED`) · **7-day · 12 Oct – 19 Oct** · *starts in* **2d 04h 12m** (large mono, accent) · card: **14 members · 12,500 SKR at stake** · *Your stake: 1,250 SKR — held by the contract, not by us* · *Joining closes in 6h 12m. Until then you can leave with your full stake back.* (locked: *Joining has closed. This is the final roster.*) · *From the start: 25 push-ups before each day's deadline, at 45°, from your toes* · **See who's in** (secondary) · **Leave — full refund** (secondary, warning text)
 
 **Variants:** open · leaving · locked (no Leave) · leave landed after cutoff (*"Leaving closed before your transaction landed. You're in the cohort."*)
 
@@ -510,7 +524,7 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 
 **Job:** who is still in. **No amounts anywhere**, so nobody is ranked by money.
 
-**On screen:** back · **7-day Holdout · roster** · scripted-member note (48 %) · `STILL STANDING · 189` · rows: short address (`· you` on yours) · `standing` (green) / `out after 3 days` (warning), with a `SCRIPTED` chip where it applies · fallen after, by days lasted
+**On screen:** back · `ROSTER` · **21-day · from 21 Sep** · scripted-member note (48 %) · `STILL STANDING · 189` · rows: short address (`· you` on yours) · `standing` (green) / `out after 3 days` (warning), with a `SCRIPTED` chip where it applies · fallen after, by days lasted
 
 **Variants:** reading devnet… · lobby (everyone standing; final once locked)
 
@@ -519,9 +533,9 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 #### H6 · Forfeit
 **MUST · ✅ Built · 🎨 Drawn** (board *9 · Forfeit*; the *recorded* tweak shows the not-yet-recorded line) · `cohort/ForfeitScreen.kt` · PRD #9, US-4
 
-**On screen:** back · `21-DAY HOLDOUT` · **You missed day 7.** (warning) · card: *You lasted 6 of 21 days. The deadline passed before day 7 reached the chain, so your stake of 1,250 SKR went into this Holdout's prize pool — 80 % to the pool, 20 % fee.* (+ *"final from the deadline; the record catches up on the next automation pass"* if not yet recorded) · card with green flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (primary) · **The next 7-day Holdout** (secondary)
+**On screen:** back · `21-DAY · FROM 21 SEP` · **You missed day 7.** (warning) · card: *You lasted 6 of 21 days. The deadline passed before day 7 reached the chain, so your stake of 1,250 SKR went into this Holdout's prize pool — 80 % to the pool, 20 % fee.* (+ *"final from the deadline; the record catches up on the next automation pass"* if not yet recorded) · card with green flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (primary) · **The next 7-day** (secondary)
 
-**As drawn:** a back button and `21-DAY HOLDOUT` label · the tour's dot row at `DAY 7` (8 green, 5 faded, yours a hollow coral ring marked `you`) · **You missed day 7.** (30 px light, coral) · *The deadline passed before day 7 reached the chain, so your run in this Holdout has ended.* · card: **You lasted** `6 of 21 days` · **Your stake** `1,250 SKR` · hairline · *to this Holdout's prize pool* `1,000 SKR` · *fee, 20 %* `250 SKR` · (not recorded: *Final from the deadline. The on-chain record catches up on the next automation pass.*) · green-outlined card with the flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (white pill) · **The next 7-day Holdout** *· starts Monday* (outline). The same visual language as the tour, and no blame.
+**As drawn:** a back button and `21-DAY · FROM 21 SEP` label · the tour's dot row at `DAY 7` (8 green, 5 faded, yours a hollow coral ring marked `you`) · **You missed day 7.** (30 px light, coral) · *The deadline passed before day 7 reached the chain, so your run in this Holdout has ended.* · card: **You lasted** `6 of 21 days` · **Your stake** `1,250 SKR` · hairline · *to this Holdout's prize pool* `1,000 SKR` · *fee, 20 %* `250 SKR` · (not recorded: *Final from the deadline. The on-chain record catches up on the next automation pass.*) · green-outlined card with the flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (white pill) · **The next 7-day** *· from 12 Oct* (outline). The same visual language as the tour, and no blame.
 
 **Variants:** recorded / not yet recorded · tried to submit after the deadline (ES-4)
 
@@ -530,7 +544,7 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 #### H7 · Claim
 **MUST · ✅ Built · 🎨 Drawn** (board *7 · Claim*) · `claim/ClaimScreen.kt` · PRD #10, US-8, FR-035
 
-**On screen (as drawn):** `7-DAY HOLDOUT` · `settled` chip (green) · amount card: *You finished all 7 days* · **1,412** SKR (56 px) · *≈ $28 · yours to claim* · gradient bar under it · breakdown card: **Stake returned** `1,250 SKR` · **Share of the prize** `162 SKR` (green) · hairline · *9 of 20 members dropped out. Their stakes, minus the 20 % fee, were split between the 11 who finished.* · settled card: **Settled** `5 Oct 05:00 UTC` · `4Bx9…7Qk2 · view on explorer →` · **Claim 1,412 SKR** · *Your wallet signs one transaction. Unclaimed prizes stay here.*
+**On screen (as drawn):** `7-DAY · 28 SEP – 5 OCT` · `settled` chip (green) · amount card: *You finished all 7 days* · **1,412** SKR (56 px) · *≈ $28 · yours to claim* · gradient bar under it · breakdown card: **Stake returned** `1,250 SKR` · **Share of the prize** `162 SKR` (green) · hairline · *9 of 20 members dropped out. Their stakes, minus the 20 % fee, were split between the 11 who finished.* · settled card: **Settled** `5 Oct 05:00 UTC` · `4Bx9…7Qk2 · view on explorer →` · **Claim 1,412 SKR** · *Your wallet signs one transaction. Unclaimed prizes stay here.*
 
 **Variants to draw:** signing · **claimed** (amount in green, gradient sweeps once, button becomes **Next Holdout →** *NICE*) · short of SOL → W1 sheet · nobody dropped out (*"Nobody dropped out — your stake comes back in full"*)
 
@@ -581,7 +595,7 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 | Signature | Wallet asks (board) | Holdout confirms (board) | Results (tweak *result*) | Lands on |
 |---|---|---|---|---|
 | Connect | 1a · *Connect to Holdout?* · account, devnet, "can see your address, ask to sign" | — (no transaction) | — | B1 Tour |
-| Stake | 4a · *Join 7-day Holdout* · **−1,250 SKR** held by the contract · ≈ 0.002 SOL fee + rent | 4b · checklist: approved ✓ · sent ✓ · confirming ◌ · in the lobby | In the lobby · Declined · Failed · **Joining closed** (ES-12) | H3 Lobby |
+| Stake | 4a · *Join 7-day Holdout, from 12 Oct* · **−1,250 SKR** held by the contract · ≈ 0.002 SOL fee + rent | 4b · checklist: approved ✓ · sent ✓ · confirming ◌ · in the lobby | In the lobby · Declined · Failed · **Joining closed** (ES-12) | H3 Lobby |
 | Submit day | 6a · *Submit day 12 of 21* · **no SKR moves** · ≈ 0.000005 SOL | 6b · approved · sent · confirming before the deadline | On chain · Declined · Failed · **Deadline passed** (ES-4) → H6 | T2 *submitted* |
 | Claim | 7a · *Claim from 7-day Holdout* · **+1,412 SKR** (1,250 stake + 162 share) | 7b · approved · sent · confirming | **Claimed** (green amount, gradient, explorer link) · Declined · Failed | H0 |
 
@@ -694,7 +708,7 @@ The paths design has to make smooth, with the screens they cross. Times are PRD 
 - **J2 — Stake on yourself:** `T1` or `☰ H0` **Join** → `H2` sheet → *(short → `W1` sheet → back)* → `N3` (first join) → ✍ → `H3 Lobby` → *(Monday 05:00 UTC)* → `T2`
 - **J3 — A day inside a Holdout (PRD §10.3):** `N2` or app open → `T2` (*3 dropped since yesterday*) → **Do 15 more** → `S1…S6` → **Submit** ✍ → `T2` *on chain* · optionally `∿ H4 / H5`
 - **J4 — Change your mind before the start:** `☰ H0` → `H3` → **Leave — full refund** ✍ → `H0`. After the cutoff `H3` is locked.
-- **J5 — Miss a day:** `T2` → *(deadline)* → `H6` → **Today's Daily 25** (`S1…`) or **The next 7-day Holdout** (`H2` → J2)
+- **J5 — Miss a day:** `T2` → *(deadline)* → `H6` → **Today's Daily 25** (`S1…`) or **The next 7-day** (`H2` → J2)
 - **J6 — Finish and get paid:** `T2` (last day) → `∿ H4` *settlement in progress* → *(settled)* → `H7` → **Claim** ✍ → claimed → `☰ H0` *Finished*
 - **J7 — Judge with no wallet that can sign:** `A1` → *For judges* → `A2` → `A1`. Connected: `◯ W1` → `X1` (weaknesses, scripted wallets, `A2`)
 - **J8 — Offline:** `T1` the Daily 25 works with no network. `T2` warns before starting; afterwards **Done — tap to submit** once online, and only before the deadline.
