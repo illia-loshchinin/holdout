@@ -476,16 +476,20 @@ export const settleCountIx = async (
  * reserve, writes the shares on the boosted pool and funds the comeback
  * refunds; with none it splits the whole pool a third to the developer and the
  * rest to operations (FR-037). Either way it then credits the cohort's reserve
- * shares to its league (FR-037c). It needs no other cohort, so no caller can
- * change the outcome (FR-030a).
+ * shares to its league (FR-037c). Like `settle_count` it needs the league's
+ * cohort `index - 1`, settled — an empty cohort is never counted, so this is
+ * its only ordering check (FR-061a, INV-10).
  */
 export const settleFinalizeIx = async (
   caller: Address,
   fees: FeeDestinations,
   leagueId: number,
   index: number,
+  /** The league's cohort `index - 1`: derived when omitted, withheld with `null`. */
+  previousCohort?: Address | null,
 ): Promise<Instruction> => {
   const cohort = await cohortPda(leagueId, index);
+  const previous = previousCohort === undefined ? (index > 0 ? await cohortPda(leagueId, index - 1) : null) : previousCohort;
   return {
     programAddress: PROGRAM_ID,
     accounts: [
@@ -497,6 +501,7 @@ export const settleFinalizeIx = async (
       rw(fees.operations),
       rw(fees.developer),
       rw(await reservePda(leagueId)),
+      ro(previous ?? PROGRAM_ID),
       ro(TOKEN_PROGRAM),
     ],
     data: instructionDiscriminator('settle_finalize'),

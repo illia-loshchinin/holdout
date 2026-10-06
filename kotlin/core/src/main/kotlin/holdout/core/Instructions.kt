@@ -345,6 +345,7 @@ object Instructions {
         developerDestination: SolanaPublicKey,
         leagueId: Int,
         cohort: SolanaPublicKey,
+        previousCohort: SolanaPublicKey? = null,
     ): TransactionInstruction = TransactionInstruction(
         programId,
         listOf(
@@ -356,6 +357,9 @@ object Instructions {
             AccountMeta(feeDestination, false, true),
             AccountMeta(developerDestination, false, true),
             AccountMeta(Pdas.reserveVault(programId, leagueId), false, true),
+            // The league's cohort `index - 1`, settled: required for every index
+            // but 0, as for settle_count — an empty cohort is never counted (FR-061a).
+            AccountMeta(previousCohort ?: programId, false, false),
             AccountMeta(TOKEN_PROGRAM, false, false),
         ),
         discriminator("settle_finalize"),
