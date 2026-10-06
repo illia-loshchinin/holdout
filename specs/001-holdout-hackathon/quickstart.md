@@ -142,15 +142,15 @@ npm --prefix tests test -- --grep "full cycle"
 
 ### Beta test on the rehearsal deployment (24–26 Sep)
 
-The same compressed idea, but on devnet with real testers and real phones: a test league of **seven 10-minute days at 5 reps a day** — a 7-day Holdout in 70 minutes (H32) — so each tester runs faucet → join → sittings → a deliberate forfeit → settlement → claim in about an hour.
+The same compressed idea, but on devnet with real testers and real phones: a test league of **three 10-minute days at 5 reps a day**, a new cohort every 30 minutes (FR-044a, H36) — so each tester, or a single judge, runs faucet → join → sittings → a deliberate forfeit → settlement → claim in under an hour, and the lobby keeps opening cohorts through the live period.
 
 ```bash
 java -jar kotlin/crank/build/libs/crank.jar init --test-league --first-start <iso>
 ```
 
-Seven 10-minute days at 5 reps is the default; `--day-seconds`, `--days` and `--reps` override it.
+Three 10-minute days at 5 reps, back to back every 30 minutes, joining closing 5 minutes before each start, is the default; `--day-seconds`, `--days`, `--reps`, `--cadence` and `--join-lock` override it.
 
-**Expected:** 5–7 testers each complete a full cycle on the short test cohort (FR-044a); bugs are fixed before the 5 October freeze. This run is the one the walkthrough and demo video are recorded from, labelled on screen as a short test cohort (constitution v1.4.0).
+**Expected:** 5–7 testers each complete a full cycle on the short test cohort (FR-044a); bugs are fixed the same day. This run is the one the walkthrough and demo video are recorded from, labelled on screen as a short test cohort (constitution v1.4.0).
 
 ## 5a. The whole build on a local validator
 
@@ -164,7 +164,7 @@ bash scripts/localnet.sh start && bash scripts/localnet.sh fund
 ```
 
 ```bash
-# Git Bash on Windows: set up the program, then the test league (seven 10-minute days, 5 reps) starting in ~20 minutes.
+# Git Bash on Windows: set up the program, then the test league (three 10-minute days, 5 reps) starting in ~20 minutes.
 cd kotlin && ./gradlew :crank:jar && cd ..
 bash scripts/localnet-crank.sh init --operator <operator> --sponsor <sponsor> --treasury <treasury> --rate 0.0213 --fund-faucet 20
 bash scripts/localnet-crank.sh init --test-league --first-start <iso, ~20 min ahead>
@@ -202,7 +202,7 @@ longer matches `declare_id!`:
 mkdir -p target/deploy && cp ~/.config/solana/holdout-program-keypair.json target/deploy/holdout-keypair.json && anchor keys list
 ```
 
-**Expected:** `holdout: Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4`, matching `Anchor.toml` and `declare_id!`. Back that file up — losing it means a new address and a redeploy, and after the 5 October freeze that would strand the judged cohort.
+**Expected:** `holdout: Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4`, matching `Anchor.toml` and `declare_id!`. Back that file up — losing it means a new address and a redeploy, and once judged cohorts are running that would strand them.
 
 ```bash
 NO_DNA=1 anchor deploy --provider.cluster devnet
@@ -236,7 +236,7 @@ cd kotlin && ./gradlew :app:installDevnetDebug
 
 ## 8. Acceptance scenarios
 
-Run on devnet with real cohorts unless marked *local* (compressed clock, section 5). **[Phase 2]** scenarios are validated only if Phase 2 lands before the freeze.
+Run on devnet with real cohorts unless marked *local* (compressed clock, section 5). **[Phase 2]** scenarios are validated once their Phase 2 item is built.
 
 | # | Scenario | How to run | Pass when |
 |---|---|---|---|
