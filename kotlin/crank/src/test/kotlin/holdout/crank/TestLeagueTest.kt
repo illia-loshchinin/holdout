@@ -97,9 +97,9 @@ class TestLeagueTest {
     }
 
     @Test
-    fun `by default the test league is a 7-day Holdout in 70 minutes - seven 10-minute days at 5 reps, back to back, as league 100`() {
+    fun `by default the test league is the test lobby - three 10-minute days at 5 reps, a new cohort every 30 minutes, back to back, as league 100`() {
         val p = Init.testLeagueParams(parseArgs(listOf("init", "--test-league") + quickstart))
-        assertEquals(LeagueParams(100, 7, 5, 0, LeagueParams.FORM_KNEES_ALLOWED, Instant.parse(start).epochSecond, 600, 4_200, 300), p, "Easy by default (H35)")
+        assertEquals(LeagueParams(100, 3, 5, 0, LeagueParams.FORM_KNEES_ALLOWED, Instant.parse(start).epochSecond, 600, 1_800, 300), p, "three 10-minute days, a cohort every 30 minutes, Easy by default (FR-044a, H35, H36)")
         val quick = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--day-seconds", "3600", "--reps", "10", "--days", "3") + quickstart))
         assertEquals(listOf(3_600L, 10L, 3L, 10_800L), listOf(quick.dayLength, quick.repsPerDay.toLong(), quick.durationDays.toLong(), quick.cadence), "every default can be overridden")
         val custom = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--league-id", "101", "--cadence", "600", "--join-lock", "60") + quickstart))
