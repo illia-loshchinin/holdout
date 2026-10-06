@@ -27,9 +27,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * T100 — `crank chips publish --auto --if-drift 0.20`, the Operator's weekly
- * check (FR-056, FR-057, AC-12, research R15): the rate from Jupiter only,
- * drift measured on the $100 tier, at most one publish per weekly boundary.
+ * T100 — `crank chips publish --auto`, the Operator's weekly re-pricing
+ * (FR-056, FR-057, AC-12, research R15): the rate from Jupiter only, every
+ * week with no threshold, at most one publish per weekly boundary.
  */
 class ChipsAutoTest {
     private val programId = SolanaPublicKey.from("Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4")
@@ -139,48 +139,23 @@ class ChipsAutoTest {
 
     private fun JsonObject.text(key: String) = getValue(key).jsonPrimitive.content
 
-    // ---- the decision ---------------------------------------------------------------
+    // ---- the weekly re-price ---------------------------------------------------------
 
     @Test
-    fun `given the $100 chip within 20 percent, when checked, then nothing is published`() {
+    fun `given the week is open and a rate, when run, then all four tiers are re-priced at it and published, however small the move`() {
         val c = cluster()
-        val json = auto(c, FixedRate(BigDecimal("0.024")), "--if-drift", "0.20")
-        assertEquals("false", json.text("published"))
-        assertEquals("within", json.text("reason"))
-        assertEquals("0.1256", json.text("drift")) // 4,690 × 0.024 = 112.56
-        assertTrue(c.sent("simulateTransaction").isEmpty() && c.sent("sendTransaction").isEmpty())
-    }
-
-    @Test
-    fun `given the $100 chip off by more than 20 percent, when checked, then all four tiers are re-priced and published`() {
-        val c = cluster()
-        val json = auto(c, FixedRate(BigDecimal("0.03")), "--if-drift", "0.20") // 4,690 × 0.03 = 140.70
+        val json = auto(c, FixedRate(BigDecimal("0.024"))) // the $100 chip would be worth 112.56: well under the old 20 %
         assertEquals("true", json.text("published"))
-        assertEquals("0.4070", json.text("drift"))
         assertEquals(2, json.getValue("version").jsonPrimitive.long)
-        assertEquals(Chips.price(BigDecimal("0.03"), 6).map { it.baseUnits }, amountsIn(c.sent("sendTransaction").single()))
+        assertEquals(Chips.price(BigDecimal("0.024"), 6).map { it.baseUnits }, amountsIn(c.sent("sendTransaction").single()))
     }
 
     @Test
-    fun `given a fall of more than 20 percent, when checked, then it re-prices too`() {
-        val json = auto(cluster(), FixedRate(BigDecimal("0.017")), "--if-drift", "0.20") // 79.73
+    fun `given a rate that rounds to the current amounts, when run, then a new version is published anyway`() {
+        val c = cluster()
+        val json = auto(c, FixedRate(BigDecimal("0.0213"))) // prices exactly the launch set
         assertEquals("true", json.text("published"))
-    }
-
-    @Test
-    fun `given drift of exactly 20 percent, when checked, then it is not more than 20 and nothing is published`() {
-        val fiveThousand = listOf(500_000_000uL, 1_250_000_000uL, 2_500_000_000uL, 5_000_000_000uL)
-        listOf("0.024", "0.016").forEach { r ->
-            val json = auto(cluster(configBytes(amounts = fiveThousand)), FixedRate(BigDecimal(r)), "--if-drift", "0.20")
-            assertEquals("false", json.text("published"), "at $r")
-            assertEquals("0.2000", json.text("drift"))
-        }
-    }
-
-    @Test
-    fun `given no --if-drift, when checked, then the threshold is 20 percent`() {
-        assertEquals("false", auto(cluster(), FixedRate(BigDecimal("0.024"))).text("published"))
-        assertEquals("true", auto(cluster(), FixedRate(BigDecimal("0.03"))).text("published"))
+        assertEquals(launchSet, amountsIn(c.sent("sendTransaction").single()))
     }
 
     // ---- FR-057: no rate --------------------------------------------------------------
@@ -225,7 +200,7 @@ class ChipsAutoTest {
     // ---- dry run and keys -----------------------------------------------------------
 
     @Test
-    fun `given --dry-run and drift above the threshold, when checked, then the set is simulated and not sent`() {
+    fun `given --dry-run, when run, then the re-priced set is simulated and not sent`() {
         val c = cluster()
         val json = auto(c, FixedRate(BigDecimal("0.03")), "--dry-run")
         assertEquals("false", json.text("published"))
@@ -235,11 +210,11 @@ class ChipsAutoTest {
     }
 
     @Test
-    fun `given --dry-run without the Operator key, when checked, then it reports the rate and drift from a Config read and signs nothing`() {
+    fun `given --dry-run without the Operator key, when run, then it reports the rate and the set from a Config read and signs nothing`() {
         val c = cluster()
         val json = auto(c, FixedRate(BigDecimal("0.03")), "--dry-run", env = env - "HOLDOUT_OPERATOR_KEYPAIR")
         assertEquals("0.03", json.text("rate"))
-        assertEquals("0.4070", json.text("drift"))
+        assertEquals(Chips.price(BigDecimal("0.03"), 6).map { it.baseUnits.toString() }, json.getValue("amounts").jsonArray.map { it.jsonPrimitive.content })
         assertEquals("false", json.text("published"))
         assertTrue(c.sent("simulateTransaction").isEmpty())
     }
@@ -254,15 +229,12 @@ class ChipsAutoTest {
     // ---- arguments ------------------------------------------------------------------
 
     @Test
-    fun `given the weekly flags, when parsed, then --auto excludes --rate and --if-drift needs --auto and a fraction`() {
+    fun `given the weekly flags, when parsed, then --auto excludes --rate and there is no --if-drift any more`() {
         fun check(vararg a: String) = Chips.checkArgs(parseArgs(listOf("chips", "publish") + a))
-        check("--auto", "--if-drift", "0.20")
         check("--auto")
+        check("--auto", "--dry-run")
         assertFailsWith<CrankException> { check("--auto", "--rate", "0.02") }
-        assertFailsWith<CrankException> { check("--if-drift", "0.20", "--rate", "0.02") }
-        assertFailsWith<CrankException> { check("--auto", "--if-drift", "0") }
-        assertFailsWith<CrankException> { check("--auto", "--if-drift", "1") }
-        assertFailsWith<CrankException> { check("--auto", "--if-drift", "twenty") }
+        assertFailsWith<CrankException> { check("--auto", "--if-drift", "0.20") }
     }
 
     // ---- the Jupiter answer -----------------------------------------------------------

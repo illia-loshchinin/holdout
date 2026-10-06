@@ -241,9 +241,6 @@ object Chips {
 
     // ---- the weekly check (T100, FR-056, FR-057, research R15) ---------------------------
 
-    /** Re-price when the $100 chip is off $100 by more than this, unless `--if-drift` says otherwise (FR-056). */
-    val DEFAULT_DRIFT: BigDecimal = BigDecimal("0.20")
-
     /** Where the weekly check gets the SKR rate. Null is "no rate": nothing is published (FR-057). */
     fun interface RateSource {
         suspend fun usdPerSkr(): BigDecimal?
@@ -327,21 +324,15 @@ object Chips {
         return (day - sinceMonday) * HoldoutDay.SECONDS_PER_DAY + HoldoutDay.BOUNDARY_OFFSET_SECONDS
     }
 
-    /** How far the $100 chip is off $100 at [usdPerSkr], as a fraction: `|amount × rate − 100| ÷ 100`, exact. */
-    fun drift(topTierBaseUnits: ULong, decimals: Int, usdPerSkr: BigDecimal): BigDecimal {
-        val worth = BigDecimal(topTierBaseUnits.toBig(), decimals).multiply(usdPerSkr)
-        val top = BigDecimal(USD_TIERS.last())
-        return worth.subtract(top).abs().divide(top)
-    }
-
     /**
-     * `--auto`: the Operator's weekly check, run by the Operator's own
+     * `--auto`: the Operator's weekly re-pricing, run by the Operator's own
      * scheduler after Monday 05:00 UTC — never by `crank run`, so the
      * Operator key is loaded only for this. In order: nothing to do if a set
      * was already published since the latest boundary (no rate fetched); no
-     * rate, nothing published (FR-057); the $100 chip within the threshold,
-     * nothing published; otherwise all four tiers are re-priced at the rate and
-     * published. Every way out exits 0 except a failure to read or send.
+     * rate, nothing published, and the report says why (FR-057); otherwise all
+     * four tiers are re-priced at the rate and published — every week, with no
+     * threshold, even when the amounts come out the same (FR-056). Every way
+     * out exits 0 except a failure to read or send.
      */
     private suspend fun weekly(
         args: Args,
@@ -351,7 +342,6 @@ object Chips {
         pause: suspend (Long) -> Unit,
         source: RateSource,
     ): JsonObject {
-        val threshold = args.option("if-drift")?.let(::parseDrift) ?: DEFAULT_DRIFT
         val operatorPath = config.operatorKeypair
         if (operatorPath == null && !args.dryRun) config.requireOperator()
         val operator = operatorPath?.let { loadKeypair(it, "operator") }
@@ -368,7 +358,6 @@ object Chips {
             put("published", published)
             reason?.let { put("reason", it) }
             put("week", Instant.ofEpochSecond(boundary).toString())
-            put("ifDrift", threshold.toPlainString())
             put("lastPublished", Instant.ofEpochSecond(onChain.chipPublishedAt).toString())
             more()
         }
@@ -376,21 +365,12 @@ object Chips {
         if (onChain.chipPublishedAt >= boundary) return report(false, "already published this week")
         val rate = source.usdPerSkr() ?: return report(false, "no rate") { source.problem?.let { put("detail", it) } }
         val decimals = mintDecimals(rpc, onChain)
-        val drift = drift(onChain.chipAmounts.last(), decimals, rate)
-        val shown = drift.setScale(4, RoundingMode.HALF_UP).toPlainString()
-        if (drift <= threshold) {
-            return report(false, "within") {
-                put("rate", rate.toPlainString())
-                put("drift", shown)
-            }
-        }
         val tiers = pricing { price(rate, decimals) }
         val autoFields: JsonObjectBuilder.(Boolean) -> Unit = { sent ->
             put("command", "chips publish --auto")
             put("published", sent)
             put("week", Instant.ofEpochSecond(boundary).toString())
-            put("ifDrift", threshold.toPlainString())
-            put("drift", shown)
+            putJsonArray("previous") { onChain.chipAmounts.forEach { add(JsonPrimitive(it.toBig())) } }
         }
         if (operator == null) {
             return summary(rate, decimals, tiers, dryRun = true) {
@@ -403,21 +383,13 @@ object Chips {
         return sendSet(args, config, rpc, operator, configAddress, onChain, rate, decimals, tiers, pause, autoFields)
     }
 
-    /** `--if-drift`: a fraction strictly between 0 and 1, such as 0.20. */
-    fun parseDrift(text: String): BigDecimal = runCatching { BigDecimal(text.trim()) }.getOrNull()
-        ?.takeIf { it.signum() > 0 && it < BigDecimal.ONE }
-        ?: configError("--if-drift must be a fraction between 0 and 1, such as 0.20, got '$text'")
-
     /**
      * The options this command takes, checked before the environment is read
      * so a typo is reported as a typo (`runCrank` calls this first).
      */
     fun checkArgs(args: Args) {
-        val auto = "auto" in args.flags
-        if (auto && args.option("rate") != null) configError("--auto reads the rate from Jupiter; it takes no --rate")
-        if (!auto && args.option("if-drift") != null) configError("--if-drift belongs to the weekly check: chips publish --auto --if-drift 0.20")
-        args.option("if-drift")?.let(::parseDrift)
-        args.allow("rate", "decimals", "if-drift", "auto")
+        if ("auto" in args.flags && args.option("rate") != null) configError("--auto reads the rate from Jupiter; it takes no --rate")
+        args.allow("rate", "decimals", "auto")
     }
 
     /** How long a send is watched for: 30 checks, 2 s apart. */

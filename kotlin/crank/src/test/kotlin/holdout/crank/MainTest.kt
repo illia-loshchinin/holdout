@@ -142,7 +142,7 @@ class MainTest {
 
     @Test
     fun `the weekly check without --dry-run needs the operator key`() {
-        val (code, json) = run("chips", "publish", "--auto", "--if-drift", "0.20")
+        val (code, json) = run("chips", "publish", "--auto")
         assertEquals(EXIT_CONFIG, code)
         assertTrue(json.getValue("error").jsonPrimitive.content.contains("HOLDOUT_OPERATOR_KEYPAIR"))
     }

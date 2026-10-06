@@ -102,6 +102,8 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 ### H8. Stake chips: USD tiers, priced in SKR, checked weekly, locked per cohort
 
+> **Revised 2026-10-06 (H36):** the 20% drift threshold below is gone — the Operator re-prices the chips **every week** from the Jupiter rate, even when the amounts come out unchanged, at most once per Monday 05:00 UTC boundary. Locked per cohort as before.
+
 > **Phasing (H23):** Phase 1 publishes one chip set at launch; the weekly check and re-pricing below are Phase 2.
 
 **Decided (OD-2, clarified and revised 2026-09-15):**
@@ -823,3 +825,4 @@ By decision, not by omission.
 | 2026-10-05 | **Constitution v1.6.0 and H35.** The freeze is overridden for one package. League boost and comeback reserves are credited at settlement. Developer and operations fee destinations are on chain. The league `form` sets Easy (knees allowed, 40–60° only) for 7-day and Hard (from the toes) for 21-day. The Daily 25 gets a toes meter and earned streak freezes, and is never paid on any network. Principle I now admits a capped share of a league's earlier forfeits into a pool; Principle V names the form. Out of scope gains "any payment for the Daily 25" and loses "bonus matching" and "insurance fund". |
 | 2026-10-06 | **Human Flag removed.** The locked third rung is gone from the ladder screen, US-1, the out-of-scope list, H2, the PRD, the scope doc and the demo script. The ladder is the Daily 25 under the 7-day and 21-day leagues, nothing above them. It never existed in the contract, so nothing on chain changes. The archive keeps its history. |
 | 2026-10-06 | **Constitution v2.0.0 and H36.** The feature freeze is removed (v1.7.0 had admitted leaderboards and offline auto-submit past it earlier the same day). League leaderboards are built (all-time, one per league, plus one labelled test-league board; quarterly and yearly deferred), with automatic offline submission. The short test cohort becomes a test lobby kept running on devnet for judges: three 10-minute days, a new cohort every 30 minutes. |
+| 2026-10-06 | **Weekly chip re-pricing (H8 revised, T100).** `crank chips publish --auto` reads the Jupiter Price API (mainnet SKR mint) and re-prices every week with no drift threshold, at most once per Monday 05:00 UTC boundary; a standalone Operator command, never `crank run`. The race of two overlapping runs is accepted. |
