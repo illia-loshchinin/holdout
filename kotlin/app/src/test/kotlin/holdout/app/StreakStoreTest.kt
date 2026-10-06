@@ -130,7 +130,10 @@ class StreakStoreTest {
     fun `given one freeze, when two days are missed, then the streak breaks`() {
         repeat(7) { streaks.recordCompletedDay(wallet, 100L + it) }
         assertEquals(0, streaks.read(wallet, 109).current)
-        assertEquals(1, streaks.recordCompletedDay(wallet, 109).current)
+        assertEquals(0, streaks.read(wallet, 109).freezes, "the freeze went on the first missed day")
+        val restart = streaks.recordCompletedDay(wallet, 109)
+        assertEquals(1, restart.current)
+        assertEquals(0, restart.freezes, "a broken streak does not carry its freezes into the next one")
     }
 
     @Test

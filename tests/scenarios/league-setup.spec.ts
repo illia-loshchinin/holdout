@@ -306,7 +306,7 @@ describe('create_league (data-model §1.2, H30, H35)', () => {
   });
 
   it('creates the 21-day league beside it', async () => {
-    await h.sendOrThrow([await createLeagueIx(admin.address, mint, { ...REAL_LEAGUE, leagueId: 1, durationDays: 21 })], admin);
+    await h.sendOrThrow([await createLeagueIx(admin.address, mint, { ...REAL_LEAGUE, leagueId: 1, durationDays: 21, form: 0 })], admin);
     expect(await readLeague(1)).toMatchObject({ leagueId: 1, durationDays: 21, nextIndex: 0 });
   });
 
@@ -381,7 +381,7 @@ describe('create_league (data-model §1.2, H30, H35)', () => {
     });
 
     it('rejects a 7-day league 1, which is the 21-day league', async () => {
-      expectProgramError(await create({ leagueId: 1, durationDays: 7 }), 'InvalidLeagueTiming');
+      expectProgramError(await create({ leagueId: 1, durationDays: 7, form: 0 }), 'InvalidLeagueTiming');
       expect(await readLeague(1)).toBeNull();
     });
 

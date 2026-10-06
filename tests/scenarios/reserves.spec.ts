@@ -666,6 +666,18 @@ describe('when the admin creates a league (H35, constitution V)', () => {
   });
 
   it.each([
+    ['the 7-day league as Hard', 0, 7, 0],
+    ['the 21-day league as Easy', 1, 21, 1],
+  ])('rejects %s with InvalidForm: the judged leagues\' forms are fixed (H35)', async (_name, leagueId, durationDays, form) => {
+    const { h, mint, admin } = await setUp();
+    expectProgramError(
+      await h.send([await createLeagueIx(admin.address, mint, { ...REAL_LEAGUE, leagueId, durationDays, form })], admin),
+      'InvalidForm',
+    );
+    expect(h.svm.getAccount(await leaguePda(leagueId)).exists).toBe(false);
+  });
+
+  it.each([
     ['knees allowed (Easy) into the 7-day league\'s cohort', 0, 7, 1],
     ['from the toes (Hard) into the 21-day league\'s cohort', 1, 21, 0],
   ])('has open_cohort copy the form, %s', async (_name, leagueId, durationDays, form) => {
