@@ -12,6 +12,8 @@ Packaging: `kotlin/crank/build/libs/crank.jar` (`java -jar crank.jar <command>`)
 | `HOLDOUT_PROGRAM_ID` | yes | Deployed `holdout` program |
 | `HOLDOUT_PAYER_KEYPAIR` | yes | Fee payer for automation (any funded devnet wallet) |
 | `HOLDOUT_OPERATOR_KEYPAIR` | `chips publish` only | Must equal `Config.operator` |
+| `HOLDOUT_JUPITER_API_KEY` | no | `chips publish --auto` only: a free Jupiter key sent as `x-api-key`; keyless works for a weekly call |
+| `HOLDOUT_JUPITER_PRICE_URL` | no | `chips publish --auto` only: overrides `https://api.jup.ag/price/v3` |
 | `HOLDOUT_ADMIN_KEYPAIR` | `init` only (or `--admin`) | Becomes `Config.admin` |
 | `HOLDOUT_SCRIPTED_KEYS_DIR` | `scripted` only | Secret keypairs for the wallets listed in `scripted-wallets.json` |
 | `HOLDOUT_PAGE_SIZE` | no (default 10) | `(Membership, Profile)` pairs per paged transaction |
