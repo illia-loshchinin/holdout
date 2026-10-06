@@ -56,7 +56,7 @@ On-chain and technical names — `Cohort`, `LeagueConfig`, cohort index — are 
 - Q: If a member finishes their last rep offline and the completed day can't reach the chain before the deadline, what happens? → A: Offline sittings are allowed and blocks still bank; the app warns clearly before an offline sitting and when a day completes offline, retries the submission automatically as soon as a connection returns, and the deadline stays strictly chain time — a day that lands late does not count.
 - Q: When the palm check can't detect an open palm, how long does the app keep trying and what happens then? → A: After 30 seconds without a detected palm, show a tip and return to the environment checks; retries are unlimited, the member can cancel at any time, and banked reps are unaffected.
 - Q: Given 13 days to the feature freeze, how should leaderboards, weekly chip re-pricing, delivery of a held carry-over and automatic offline retry be scheduled? → A: As **Phase 2 inside this spec**: built only after every Phase 1 item works end to end, with simple Phase 1 stand-ins. The data they need is still designed and recorded in Phase 1, so Phase 2 needs no migration.
-- Q: May Phase 2 items land after the feature freeze? → A: No. The freeze stands; any Phase 2 item not finished by it is cut from the hackathon build and recorded in the decision record for later. *(The freeze moved from 28 September to 5 October on 2026-09-26.)*
+- Q: May Phase 2 items land after the feature freeze? → A: No. The freeze stands; any Phase 2 item not finished by it is cut from the hackathon build and recorded in the decision record for later. *(The freeze moved from 28 September to 5 October on 2026-09-26. League leaderboards and automatic offline submission were admitted past it on 2026-10-06 — H36.)*
 
 ### Session 2026-09-17
 
@@ -99,6 +99,9 @@ Product owner decisions, before the program is first deployed.
 ### Session 2026-10-06
 
 - Q: Does the ladder keep a locked Human Flag rung above the two leagues? (US-1) → A: **No — removed entirely.** The ladder is the Daily 25 under the 7-day and 21-day leagues, nothing above them. It never existed in the contract, so nothing on chain changes. *(Removes it from US-1 and from the §3 out-of-scope list.)*
+- Q: Are the league leaderboards and automatic offline submission still built now that the 5 October freeze has passed? (§3a, H36) → A: **Yes — both admitted past the freeze** by constitution v1.7.0, client and crank only, with no contract change. The other Phase 2 items stay as §3a records them.
+- Q: Which time windows does a league leaderboard cover? (FR-060) → A: **All-time only, one board per league**, from on-chain progress. Quarterly and yearly boards are **deferred** — not built in this phase.
+- Q: Does the short test league get a leaderboard? (FR-060, FR-044a) → A: **Yes — one combined board, labelled as a short test cohort.** Every test league shares one progress record, so their figures are combined; it is the one board on which ranking can be seen before judging, since no member can finish three judged cohorts by 9 October.
 
 ---
 
@@ -117,7 +120,7 @@ Product owner decisions, before the program is first deployed.
 | Gating | **Off for the hackathon.** Both leagues are joinable from first launch. The unlock is still computed and recorded; only the check is disabled, by config flag. |
 | Asset | SKR, and only SKR — stakes, pool, payouts, fee |
 | Stakes | Four SKR chips tracking **$10 / $25 / $50 / $100**, locked per cohort at creation; the same tiers in both leagues. One chip set at launch in Phase 1; weekly re-pricing on drastic drift in Phase 2 *(§3a, §9 OD-2)* |
-| Phasing | **Phase 1** is everything not listed as Phase 2 in §3a and must work end to end before any Phase 2 work starts. Nothing lands after the 5 October freeze. |
+| Phasing | **Phase 1** is everything not listed as Phase 2 in §3a and must work end to end before any Phase 2 work starts. Nothing lands after the 5 October freeze except the packages the constitution admits: H35 (v1.6.0) and H36 — league leaderboards and automatic offline submission (v1.7.0). |
 | Fee | 30% of each forfeited stake (70% reaches the prize pool) |
 | Network | Devnet, test token |
 | Distribution | A signed Android APK delivered with the hackathon submission — no store listing (FR-066) |
@@ -132,14 +135,14 @@ Product owner decisions, before the program is first deployed.
 
 **Phase 1 — core.** Everything in this spec not listed below. It is the full money loop and the daily habit: wallet first, faucet, lobby with lock and lobby place, sittings with banked reps (including offline sittings with a manual submit), completed days, forfeits, settlement with rounding and carry-over into an open cohort, claim, the survivor counter and roster, the Daily 25 and streak, scripted cohorts and the recorded walkthrough. **Phase 1 must work end to end on devnet before any Phase 2 work begins.**
 
-**Phase 2 — deferred.** Built only after Phase 1 is complete, and only if it can be finished **before the 5 October feature freeze**. Any Phase 2 item not finished by then is cut from the hackathon build and recorded in `docs/holdout_decisions.md`; nothing lands after the freeze.
+**Phase 2 — deferred.** Built only after Phase 1 is complete, and only if it can be finished **before the 5 October feature freeze**. Any Phase 2 item not finished by then is cut from the hackathon build and recorded in `docs/holdout_decisions.md`; nothing lands after the freeze **except league leaderboards and automatic offline submission, admitted on 6 October** (constitution v1.7.0, H36).
 
 | Phase 2 item | Requirements | Phase 1 stand-in |
 |---|---|---|
-| **League leaderboards** | US-10 (league boards), FR-060…FR-060c, FR-061 display, FR-063, AC-14 | No league leaderboard screen. On-chain progress — cohorts cleared and forfeited, current and longest league streak — **is still recorded** from the first cohort, so boards need no migration. The cohort roster (FR-062, FR-064) **is Phase 1**. |
+| **League leaderboards** — *admitted past the freeze 2026-10-06 (H36)* | US-10 (league boards), FR-060…FR-060c, FR-061 display, FR-063, AC-14 | No league leaderboard screen. On-chain progress — cohorts cleared and forfeited, current and longest league streak — **is still recorded** from the first cohort, so boards need no migration. The cohort roster (FR-062, FR-064) **is Phase 1**. |
 | **Weekly chip re-pricing** | FR-056, FR-057, ES-10, ES-11, AC-12 | The Operator publishes **one chip set at launch** from that day's rate; every cohort locks it as usual (FR-055). Publishing a new set must already be possible, so re-pricing is tooling, not a contract change. |
 | **Delivery of a held carry-over** — *cut 2026-10-05* | FR-037a's held case, its delivery, ES-7a | Nothing carries over any more: a no-finisher cohort's whole pool goes to the fee destination (FR-037), so there is nothing to hold or deliver. The cohort's carry-over fields stay in its layout, always zero. |
-| **Automatic offline submission** | The automatic-retry part of FR-024b and ES-3b, and of AC-18 | A completed day waiting for network stays on the device and the home screen shows **"Done — tap to submit"** once online; the member taps once. All offline warnings are Phase 1. |
+| **Automatic offline submission** — *admitted past the freeze 2026-10-06 (H36)* | The automatic-retry part of FR-024b and ES-3b, and of AC-18 | A completed day waiting for network stays on the device and the home screen shows **"Done — tap to submit"** once online; the member taps once. All offline warnings are Phase 1. |
 
 Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are marked **[Phase 2]** where they appear.
 
@@ -244,7 +247,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 ### US-10 · Leaderboards *(league boards: Phase 2 · cohort roster: Phase 1)*
 
 **Given** any member with a connected wallet, in a cohort or not
-**When** they open a league's leaderboard **[Phase 2]**
+**When** they open a league's all-time leaderboard **[Phase 2]**
 **Then** they see who is disciplined: members ranked by the share of their cohorts they survived in that league, each shown with that survival percentage, how many cohorts they have played, how many they cleared, and their current and best league streak — built entirely from on-chain progress.
 
 **And** only members who have finished at least 3 cohorts in that league are ranked; everyone else is listed underneath as "not ranked yet", with their numbers visible and how many more cohorts they need. A member sees their own position or how far they are from being ranked.
@@ -402,7 +405,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 *League leaderboards are **Phase 2** (§3a): FR-060…FR-060c, FR-063 and the display side of FR-061. The progress they read, FR-061's league streak, the cohort roster (FR-062), scripted labels (FR-064) and FR-065 are **Phase 1**.*
 
-- **FR-060** **[Phase 2]** Each league has a leaderboard built only from on-chain progress, with no server and no device-reported data. For each member it shows, for that league: **survival rate**, **cohorts played**, **cohorts cleared**, and **current and longest league streak**.
+- **FR-060** **[Phase 2]** Each league has an **all-time** leaderboard built only from on-chain progress, with no server and no device-reported data; quarterly and yearly boards are deferred. The short test league (FR-044a) has **one combined board** across every test league, labelled as a short test cohort. For each member it shows, for that league: **survival rate**, **cohorts played**, **cohorts cleared**, and **current and longest league streak**.
 - **FR-060a** **[Phase 2]** **Cohorts played** counts cohorts of that league the member has finished — cleared or forfeited. A running cohort counts once it resolves — a forfeit once it is recorded, a clear once the cohort settles; a lobby place the member left, or a cohort still `Open` or `Locked`, never counts. **Survival rate** is cohorts cleared ÷ cohorts played. A league's figures are shown **as of its last settled cohort**: settlement writes each member's progress page by page, so a cohort still being counted must contribute to nobody's figures until it is settled, or two members of one cohort would appear with different numbers of cohorts played (FR-031). At most one cohort per league is ever mid-count (FR-061a).
 - **FR-060b** **[Phase 2]** A member is **ranked** once they have played at least **3** cohorts in that league. Ranked members are ordered by survival rate, highest first, compared exactly rather than as rounded percentages; ties go to more cohorts played, then to longer longest league streak, then to whoever reached those figures first — measured by the instant of the outcome itself, a cohort's end or the deadline a member missed, never by when automation recorded it, so no caller's timing can reorder two members (FR-030a). Members still tied on all of that are ordered by wallet address, ascending, so the order is the same on every device.
 - **FR-060c** **[Phase 2]** Members with fewer than 3 cohorts played are listed below the ranked members as "not ranked yet", ordered by cohorts played and then survival rate, with their figures visible and the number of cohorts they still need. Survival rates are displayed as whole percentages.
