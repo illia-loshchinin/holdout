@@ -310,7 +310,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 |---|---|---|---|
 | 1 | The Daily 25 | *to draw:* 25 dots filling in blocks of 10 | 25 push-ups, free, every day, counted by the camera. All at once or 10 at a time. Builds a streak, stakes nothing |
 | 2 🎨 | A Holdout | 12 dots on DAY 1 → 5 green, 7 faded on DAY 7: *5 still standing · 7 lost their stake* | Stake SKR and everyone starts together on Monday. Miss a day → stake to those still standing. Finish → stake back + share. *If nobody drops out, everybody gets exactly their stake back* |
-| 3 | How reps are counted | ~~*to draw:* phone at 45° and head-on~~ | ✅ **Fixed on the canvas (6 Oct):** *At stake now* `12,500 SKR` · *14 joined* (it said 4,800, out of step with Today) · the fee and refund in one line: *80 % to the pool, 20 % fee … leave for a full refund until joining closes* · an *extra* tweak shows *+2,400 SKR added to the prize pool*
+| 3 | How reps are counted | *to draw:* phone at 45° and head-on | Daily 25: in front or at 45°, knees welcome. Staked: 45° only, from the toes. The camera never leaves the phone |
 
 **Exits:** Start / Skip → B2 → T1 · from T1 or X1 → back there
 
@@ -646,7 +646,7 @@ Where the draft says something the spec, the PRD or its own tokens note say diff
 |---|---|---|---|---|
 | 1 | 4 · Stake | ~~**Prize pool now** `4,800 SKR` on a Holdout that hasn't started~~ | ✅ **Fixed on the canvas (5 Oct):** **At stake now**; a lobby has no prize pool, only forfeits create one | the draft's own names note, FR-053 |
 | 2 | 4 · Stake | ~~No counting rule~~ | ✅ **Fixed on the canvas (5 Oct):** *How reps are counted here: at 45° only … full push-ups from your toes* | FR-021a, `StakeSheet.kt` |
-| 3 | 4 · Stake | No fee line, refund line, joined count or carry-over | Add *80 % to the pool, 20 % fee* · *leave for a full refund until joining closes* · *14 joined* · carry-over | US-6, FR-041 |
+| 3 | 4 · Stake | ~~No fee line, refund line, joined count or carry-over~~ | ✅ **Fixed on the canvas (6 Oct):** *At stake now* `12,500 SKR` · *14 joined* (it said 4,800, out of step with Today) · the fee and refund in one line: *80 % to the pool, 20 % fee … leave for a full refund until joining closes* · an *extra* tweak shows *+2,400 SKR added to the prize pool* | US-6, FR-041 |
 | 4 | 4 · Stake, 5 · Home, 7 · Claim | ~~*"Join the 7-day **cohort**"*, `COHORT 14`, *"clear a 7-day **cohort** first"*~~ | ✅ **Fixed on the canvas (5 Oct):** "Holdout" in everything a member reads; *cohort* is the contract's word | H28, the draft's names note |
 | 5 | 4 · Stake (background) | ~~A *leagues* list: 21-day *"clear a 7-day Holdout first"*~~ | ✅ **Fixed on the canvas (6 Oct):** the sheet now sits over Today, the screen that opened it, with the 7-day offer highlighted; Today's 21-day offer says *Normally after a 7-day. Open to everyone in this build.* | US-1 |
 | 6 | 1 · First open, 2 · Tour | ~~*"your stake goes to the people still standing"*~~ | ✅ **Fixed on the canvas (6 Oct):** First open and Tour card 2 say *…goes into the prize pool*; the tour's *a share of theirs* became *a share of the pool* | PRD §13 honest language |
