@@ -218,23 +218,23 @@ java -jar kotlin/crank/build/libs/crank.jar init --admin <keypair> --operator <p
 java -jar kotlin/crank/build/libs/crank.jar chips publish --rate <usd-per-skr>
 ```
 
-**The weekly chip check** (FR-056, T100) is the Operator's own scheduled command — never part of `crank run`, so the Operator key is loaded only while it runs. It reads the SKR rate from the Jupiter Price API, re-prices all four chips only if the $100 chip is more than 20% off $100, publishes at most once per Monday 05:00 UTC boundary, and exits `0` without publishing when Jupiter has no answer (FR-057). Try it first without sending:
+**The weekly chip check** (FR-056, T100) is the Operator's own scheduled command — never part of `crank run`, so the Operator key is loaded only while it runs. It reads the SKR rate from the Jupiter Price API and re-prices all four chips from it every week, publishes at most once per Monday 05:00 UTC boundary, and exits `0` without publishing when Jupiter has no answer, saying why (FR-057). Try it first without sending:
 
 ```bash
-java -jar kotlin/crank/build/libs/crank.jar chips publish --auto --if-drift 0.20 --dry-run
+java -jar kotlin/crank/build/libs/crank.jar chips publish --auto --dry-run
 ```
 
 Then schedule it for Mondays a few minutes after 05:00 UTC, with `HOLDOUT_RPC_URL`, `HOLDOUT_PROGRAM_ID` and `HOLDOUT_OPERATOR_KEYPAIR` set (and `HOLDOUT_JUPITER_API_KEY` if you have one). Linux or WSL2 cron, which runs in the machine's time zone — set `CRON_TZ=UTC` or convert:
 
 ```cron
 CRON_TZ=UTC
-10 5 * * 1  cd /path/to/holdout && java -jar kotlin/crank/build/libs/crank.jar chips publish --auto --if-drift 0.20 >> crank-chips.log 2>&1
+10 5 * * 1  cd /path/to/holdout && java -jar kotlin/crank/build/libs/crank.jar chips publish --auto >> crank-chips.log 2>&1
 ```
 
 Windows Task Scheduler (the time is local — pick the local time of Monday 05:10 UTC):
 
 ```powershell
-schtasks /Create /TN "Holdout weekly chip check" /SC WEEKLY /D MON /ST 07:10 /TR "cmd /c cd /d C:\path\to\holdout && java -jar kotlin\crank\build\libs\crank.jar chips publish --auto --if-drift 0.20 >> crank-chips.log 2>&1"
+schtasks /Create /TN "Holdout weekly chip check" /SC WEEKLY /D MON /ST 07:10 /TR "cmd /c cd /d C:\path\to\holdout && java -jar kotlin\crank\build\libs\crank.jar chips publish --auto >> crank-chips.log 2>&1"
 ```
 
 A missed Monday is skipped, not caught up; running it again the same week does nothing once a set has been published.
@@ -272,7 +272,7 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 9 | No price read | Code search + test | No instruction reads a price; only `crank chips publish` uses a rate |
 | 10 | No frame leaves device | Proxy the phone, run a sitting | Only RPC traffic observed |
 | 11 | No finishers | *local*: all forfeit | The whole pool reaches the fee destination; no other cohort changes, whether or not the league has one open |
-| 12 **[Phase 2]** | Weekly re-pricing | *local*: `crank chips publish --auto` with drift below and above 20 % | Publishes only above 20 %; old cohorts keep old chips |
+| 12 **[Phase 2]** | Weekly re-pricing | *local*: `crank chips publish --auto` twice in one week, then after the next Monday 05:00 UTC | Publishes once per week, the second run that week does nothing; old cohorts keep old chips |
 | 13 | Lobby place, lock, overlap | *local* | Continuous 7-day → 7-day; cutoff ±1 s behaviour; 21-day overlap refused |
 | 14 **[Phase 2]** | Leaderboard ranking | Devnet or *local* with seeded profiles | Ranking and "not ranked yet" as specified; no amounts; scripted labels |
 | 15 | Banked reps across sittings | Device: 10 + 10 + 5; stop at 17; kill app | Day lands only after rep 25; 10 kept at 17; blocks survive kill; late sitting allowed with warning |
