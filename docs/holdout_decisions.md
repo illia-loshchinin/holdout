@@ -654,6 +654,18 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 
 **Source:** brainstorm files A-r2, B-r2 and C-r2 (session scratchpad, summarised here); constitution v1.6.0.
 
+### H36. League leaderboards and automatic offline submission, past the freeze
+
+**Decided (2026-10-06, product owner; admitted past the freeze by constitution v1.7.0):**
+- **League leaderboards** (US-10, FR-060…FR-063) are built: **all-time, one per league**, from on-chain progress. The Easy 7-day and Hard 21-day boards are separate because the leagues are. **Quarterly and yearly boards are deferred**, not built in this phase.
+- **One labelled board for the short test league.** No member can finish three judged cohorts before 9 October, so the judged boards can only show "not ranked yet" during judging; the test board is where ranking can be seen. Every test league shares one progress slot, so it is one combined board, labelled as a short test cohort.
+- **The ranking rules live once, in Kotlin core**, with given-when-then tests for AC-14. The contract suite checks the on-chain progress figures the board reads, not a second copy of the ranking.
+- **Automatic offline submission** (T098, PR #16) is admitted in the same package: the wallet opens on its own once the phone is back online.
+
+**Why:** both are client and crank only, with no contract change; the data they read has been recorded since the first cohort (H23), so admitting them adds no migration and no new on-chain risk.
+
+**Source:** spec clarifications, session 2026-10-06; constitution v1.7.0.
+
 ---
 
 ## 2. Still valid from the product-vision record
@@ -806,3 +818,4 @@ By decision, not by omission.
 | 2026-10-05 | **Fee 70/30, no carry-over (H34).** A forfeited stake now goes 70% to the prize pool and 30% to the fee destination. A no-finisher Holdout's whole pool goes to the fee destination, so `settle_finalize` needs no other cohort, 6046/6047 and the carry-over events are removed, and T099 is cut. How the 30% is divided afterwards is open, pending research. Program, IDL, Codama client, LiteSVM scenarios, golden vectors, Kotlin, crank and app copy changed together (T111). |
 | 2026-10-05 | **Constitution v1.6.0 and H35.** The freeze is overridden for one package. League boost and comeback reserves are credited at settlement. Developer and operations fee destinations are on chain. The league `form` sets Easy (knees allowed, 40–60° only) for 7-day and Hard (from the toes) for 21-day. The Daily 25 gets a toes meter and earned streak freezes, and is never paid on any network. Principle I now admits a capped share of a league's earlier forfeits into a pool; Principle V names the form. Out of scope gains "any payment for the Daily 25" and loses "bonus matching" and "insurance fund". |
 | 2026-10-06 | **Human Flag removed.** The locked third rung is gone from the ladder screen, US-1, the out-of-scope list, H2, the PRD, the scope doc and the demo script. The ladder is the Daily 25 under the 7-day and 21-day leagues, nothing above them. It never existed in the contract, so nothing on chain changes. The archive keeps its history. |
+| 2026-10-06 | **Constitution v1.7.0 and H36.** The freeze admits a second package, client and crank only: all-time league leaderboards (one per league, plus one labelled test-league board; quarterly and yearly deferred) and automatic offline submission (T098). |
