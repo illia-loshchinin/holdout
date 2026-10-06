@@ -5,6 +5,7 @@ import holdout.core.HoldoutDay
 import holdout.core.Instructions
 import holdout.core.Pdas
 import holdout.core.Rpc
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -246,7 +247,13 @@ object Chips {
     /** Where the weekly check gets the SKR rate. Null is "no rate": nothing is published (FR-057). */
     fun interface RateSource {
         suspend fun usdPerSkr(): BigDecimal?
+
+        /** Why the last ask gave no rate, for the report — so a refused key never reads as a quiet week. */
+        val problem: String? get() = null
     }
+
+    /** Jupiter answered, but not with 200. */
+    class JupiterRefused(val status: Int) : Exception("Jupiter answered HTTP $status")
 
     /**
      * The Jupiter Price API (v3), by the **mainnet** SKR mint — the one rate
@@ -261,10 +268,29 @@ object Chips {
         val apiKey: String? = null,
         private val get: suspend (url: String, headers: Map<String, String>) -> String? = ::httpGet,
     ) : RateSource {
+        override var problem: String? = null
+            private set
+
         override suspend fun usdPerSkr(): BigDecimal? {
+            problem = null
             val headers = apiKey?.let { mapOf("x-api-key" to it) }.orEmpty()
-            val body = runCatching { get("$url?ids=$mint", headers) }.getOrNull() ?: return null
-            return parse(body, mint)
+            val body =
+                try {
+                    get("$url?ids=$mint", headers)
+                } catch (e: JupiterRefused) {
+                    problem = e.message + if (e.status == 401 || e.status == 403) {
+                        if (apiKey == null) ": Jupiter now wants a key — set HOLDOUT_JUPITER_API_KEY" else ": HOLDOUT_JUPITER_API_KEY was refused"
+                    } else {
+                        ""
+                    }
+                    return null
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    problem = "Jupiter could not be reached: ${e.message ?: e::class.simpleName}"
+                    return null
+                } ?: return null.also { problem = "Jupiter gave no answer" }
+            return parse(body, mint).also { if (it == null) problem = "Jupiter's answer had no usable usdPrice for $mint" }
         }
 
         companion object {
@@ -287,7 +313,8 @@ object Chips {
                 val request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(30)).GET()
                 headers.forEach { (k, v) -> request.header(k, v) }
                 val response = client.send(request.build(), HttpResponse.BodyHandlers.ofString())
-                response.body().takeIf { response.statusCode() == 200 }
+                if (response.statusCode() != 200) throw JupiterRefused(response.statusCode())
+                response.body()
             }
         }
     }
@@ -347,7 +374,7 @@ object Chips {
         }
 
         if (onChain.chipPublishedAt >= boundary) return report(false, "already published this week")
-        val rate = source.usdPerSkr() ?: return report(false, "no rate")
+        val rate = source.usdPerSkr() ?: return report(false, "no rate") { source.problem?.let { put("detail", it) } }
         val decimals = mintDecimals(rpc, onChain)
         val drift = drift(onChain.chipAmounts.last(), decimals, rate)
         val shown = drift.setScale(4, RoundingMode.HALF_UP).toPlainString()

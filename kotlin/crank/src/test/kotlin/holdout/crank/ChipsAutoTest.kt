@@ -312,4 +312,24 @@ class ChipsAutoTest {
         assertNull(runBlocking { Chips.JupiterRate(get = { _, _ -> null }).usdPerSkr() })
         assertNull(runBlocking { Chips.JupiterRate(get = { _, _ -> throw java.io.IOException("down") }).usdPerSkr() })
     }
+
+    @Test
+    fun `given Jupiter refuses, when the check reports no rate, then it says why instead of passing for a quiet week`() {
+        val keyless = Chips.JupiterRate(get = { _, _ -> throw Chips.JupiterRefused(401) })
+        val json = auto(cluster(), keyless)
+        assertEquals("no rate", json.text("reason"))
+        assertTrue(json.text("detail").contains("HOLDOUT_JUPITER_API_KEY"), json.text("detail"))
+
+        val badKey = Chips.JupiterRate(apiKey = "stale", get = { _, _ -> throw Chips.JupiterRefused(401) })
+        runBlocking { badKey.usdPerSkr() }
+        assertEquals("Jupiter answered HTTP 401: HOLDOUT_JUPITER_API_KEY was refused", badKey.problem)
+
+        val down = Chips.JupiterRate(get = { _, _ -> throw java.io.IOException("timed out") })
+        runBlocking { down.usdPerSkr() }
+        assertEquals("Jupiter could not be reached: timed out", down.problem)
+
+        val empty = Chips.JupiterRate(get = { _, _ -> "{}" })
+        runBlocking { empty.usdPerSkr() }
+        assertTrue(empty.problem!!.contains("no usable usdPrice"))
+    }
 }
