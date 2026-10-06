@@ -100,5 +100,8 @@ class ChainRepository(private val rpc: Rpc = Rpc(Deployment.rpcUrl), private val
     /** The roster of one cohort (FR-062), for the roster screen. */
     suspend fun roster(cohort: SolanaPublicKey): List<MembershipSnapshot>? = rpc.memberships(programId, cohort)
 
+    /** Every wallet's progress, for the league leaderboards (FR-060, R8); null when the read failed. */
+    suspend fun profiles(): List<ProfileSnapshot>? = rpc.profiles(programId)
+
     suspend fun chainTime(): Rpc.ChainTime? = rpc.chainTime()
 }
