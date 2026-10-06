@@ -310,7 +310,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 |---|---|---|---|
 | 1 | The Daily 25 | *to draw:* 25 dots filling in blocks of 10 | 25 push-ups, free, every day, counted by the camera. All at once or 10 at a time. Builds a streak, stakes nothing |
 | 2 🎨 | A Holdout | 12 dots on DAY 1 → 5 green, 7 faded on DAY 7: *5 still standing · 7 lost their stake* | Stake SKR and everyone starts together on Monday. Miss a day → stake to those still standing. Finish → stake back + share. *If nobody drops out, everybody gets exactly their stake back* |
-| 3 | How reps are counted | *to draw:* phone at 45° and head-on | Daily 25: in front or at 45°, knees welcome. Staked: 45° only, from the toes. The camera never leaves the phone |
+| 3 | How reps are counted | ~~*to draw:* phone at 45° and head-on~~ | ✅ **Fixed on the canvas (6 Oct):** *At stake now* `12,500 SKR` · *14 joined* (it said 4,800, out of step with Today) · the fee and refund in one line: *80 % to the pool, 20 % fee … leave for a full refund until joining closes* · an *extra* tweak shows *+2,400 SKR added to the prize pool*
 
 **Exits:** Start / Skip → B2 → T1 · from T1 or X1 → back there
 
@@ -613,7 +613,7 @@ Declined always says *nothing was sent and nothing changed*; Failed says devnet 
 | B1 | Tour | MUST | ✅ | 🎨 4 of 4 | — | first connect, T1, X1 | B2 / T1 |
 | B2 | Scripted-member disclosure | SHOULD | 🟡 | 🎨 | — | B1 | T1, X1 |
 | T1 | Today · Daily 25 + open Holdouts | MUST | ✅ | 🎨 | ⌂ | launch, S6, S7 | S1, H2, B1, ☰ nudges |
-| T2 | Today · in a Holdout | MUST | ✅ | ✏️ | ⌂ | launch, N2, H3, H0 | S1, N1, H4, H6 |
+| T2 | Today · in a Holdout | MUST | ✅ | 🎨 | ⌂ | launch, N2, H3, H0 | S1, N1, H4, H6 |
 | S1 | Camera permission | MUST | ✅ | 🎨 | — | T1, T2, H6 | S2, S3 |
 | S2 | Set-up guide | MUST | ✅ | 🎨 | — | S1, S3 | S3 |
 | S3 | Pre-flight + hold | MUST | ✅ | 🎨 | — | S2 | S4, S7 |
@@ -623,7 +623,7 @@ Declined always says *nothing was sent and nothing changed*; Failed says devnet 
 | S7 | Stopped part-way / crash | SHOULD | 🟡 | 🎨 | — | S3, S5, reopen | T1, T2 |
 | H0 | My Holdouts | SHOULD | ⬜ | 🎨 | ☰ | tab, T1 nudges | H2, H3, T2, H4, H6, H7 |
 | ~~H1~~ | ~~The ladder~~ — removed 6 Oct | — | ✅ (to remove) | — | — | — | — |
-| H2 | Stake confirm (sheet) | MUST | ✅ | ✏️ | ☰ | T1, H0, H6 | N3→N1→H3, W1 |
+| H2 | Stake confirm (sheet) | MUST | ✅ | 🎨 | ☰ | T1, H0, H6 | N3→N1→H3, W1 |
 | H2a | You're in | NICE | ⬜ | 🎨 | ☰ | N1 after join | S1, H3 |
 | H3 | Lobby (+ locked) | MUST | ✅ | 🎨 | ☰ | N1, H0 | H5, N1, T2 |
 | H4 | Holdout detail | MUST | ✅ | 🎨 | ∿ | tab, T2, H0 | H5, H7 |
@@ -634,7 +634,7 @@ Declined always says *nothing was sent and nothing changed*; Failed says devnet 
 | X1 | About · for judges | MUST | ✅ | 🎨 | ◯ | W1 | A2, B1 |
 | N1–N5 | System moments | MUST / SHOULD | see §5 N | | — | — | — |
 
-**Count:** 18 MUST screens (16 ✅ in code; all 18 drawn, T2 and H2 still carrying open §7 copy fixes) · 4 SHOULD screens + 2 SHOULD moments · 1 NICE screen + several NICE additions inside cards.
+**Count:** 18 MUST screens (16 ✅ in code; all 18 drawn, every §7 mismatch fixed) · 4 SHOULD screens + 2 SHOULD moments · 1 NICE screen + several NICE additions inside cards.
 
 ---
 
@@ -648,12 +648,12 @@ Where the draft says something the spec, the PRD or its own tokens note say diff
 | 2 | 4 · Stake | ~~No counting rule~~ | ✅ **Fixed on the canvas (5 Oct):** *How reps are counted here: at 45° only … full push-ups from your toes* | FR-021a, `StakeSheet.kt` |
 | 3 | 4 · Stake | No fee line, refund line, joined count or carry-over | Add *80 % to the pool, 20 % fee* · *leave for a full refund until joining closes* · *14 joined* · carry-over | US-6, FR-041 |
 | 4 | 4 · Stake, 5 · Home, 7 · Claim | ~~*"Join the 7-day **cohort**"*, `COHORT 14`, *"clear a 7-day **cohort** first"*~~ | ✅ **Fixed on the canvas (5 Oct):** "Holdout" in everything a member reads; *cohort* is the contract's word | H28, the draft's names note |
-| 5 | 4 · Stake (background) | A *leagues* list: 21-day *"clear a 7-day Holdout first"* | With the ladder gone, the list behind the sheet should be whatever opened it (T1 or H0). Where the 21-day is offered, say once that the 7-day-first rule is **off in this build** (`ladder_gate_enabled = false`) | US-1 |
-| 6 | 1 · First open, 2 · Tour | *"your stake goes to the people still standing"* | *"…goes into the prize pool"*: 20 % is a fee, so not all of it reaches the people standing | PRD §13 honest language |
-| 7 | 5 · Home | *Your share now* `255 SKR` | Keep the PRD's words, but it is a projection: *"your share if today's standing held"* in the small print | `CohortHome.kt`, PRD §10.1a |
-| 8 | 3 · Today, 5 · Home | Bottom bar icons have no labels | Text labels (Today · Crowd · Holdouts · Me) or at least `aria-label`s | accessibility, §3 |
+| 5 | 4 · Stake (background) | ~~A *leagues* list: 21-day *"clear a 7-day Holdout first"*~~ | ✅ **Fixed on the canvas (6 Oct):** the sheet now sits over Today, the screen that opened it, with the 7-day offer highlighted; Today's 21-day offer says *Normally after a 7-day. Open to everyone in this build.* | US-1 |
+| 6 | 1 · First open, 2 · Tour | ~~*"your stake goes to the people still standing"*~~ | ✅ **Fixed on the canvas (6 Oct):** First open and Tour card 2 say *…goes into the prize pool*; the tour's *a share of theirs* became *a share of the pool* | PRD §13 honest language |
+| 7 | 5 · Home | ~~*Your share now* `255 SKR`~~ | ✅ **Fixed on the canvas (6 Oct):** *Your share now* `255 SKR` · *≈ $6 · if today's standing holds* | `CohortHome.kt`, PRD §10.1a |
+| 8 | 3 · Today, 5 · Home | ~~Bottom bar icons have no labels~~ | ✅ **Fixed on the canvas (6 Oct):** every tab screen (Today, Home, My Holdouts, Holdout detail, Me) has a labelled bar: Today · Crowd · Holdouts · Me, working links, the current tab marked | accessibility, §3 |
 | 9 | 3 · Today | ~~`+2,400 SKR carried over` *from cohort 13*~~ | ✅ **Fixed on the canvas (5 Oct):** *"from a Holdout nobody finished"*; members never see cohort numbers | H28, `LadderScreen.kt` |
-| 10 | all | No `TEST COHORT` badge anywhere | Show it wherever the short devnet test cohort appears (10-minute days) | README known weaknesses |
+| 10 | all | ~~No `TEST COHORT` badge anywhere~~ | ✅ **Fixed on the canvas (6 Oct):** a coral `TEST COHORT · 10-MIN DAYS` badge, shown by the *testCohort* tweak on Home and Lobby (the walkthrough already carries it) | README known weaknesses |
 
 ---
 
@@ -664,7 +664,7 @@ Where the draft says something the spec, the PRD or its own tokens note say diff
 
 Still to draw:
 1. ~~**T2 variants** and **T1 variants**~~ 🎨 drawn 6 Oct as Tweaks on boards 5 and 3
-2. The §7 copy fixes still open: rows 3, 6, 7, 8 and 10
+2. ~~The §7 copy fixes~~ ✅ all fixed 6 Oct
 
 ### Code gaps — specified or needed, not built
 
