@@ -579,11 +579,22 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 
 | ID | Moment | Tier · Status | From → to |
 |---|---|---|---|
-| **N1** | **Wallet app signs** (Mobile Wallet Adapter): connect, join, leave, submit day, claim, faucet | MUST · ✅ | A1, H2, H3, T2/S6, H7, W1 → back with the result in a notice line; the calling button reads *"Waiting for the wallet…"* |
+| **N1** | **Wallet app signs** (Mobile Wallet Adapter): connect, join, leave, submit day, claim, faucet | MUST · ✅ · 🎨 | A1, H2, H3, T2/S6, H7, W1 → back with the result in a notice line; the calling button reads *"Waiting for the wallet…"* |
 | **N2** | **Reminder notification** (on-device): the Holdout starts; before each deadline not yet met; *"submit your day"* when done but not on chain | SHOULD · ✅ | OS → T2 |
 | **N3** | **Notification permission**, asked once at the first join with the reason shown on H2; the join goes ahead either way | SHOULD · ✅ | H2 → N1 |
 | **N4** | **Camera permission**: the OS dialog behind S1 | MUST · ✅ | S1 → S2/S3 |
 | **N5** | **"Dropped since yesterday"**, once per new day | SHOULD · 🎨 drawn on T2, ⬜ not built | T2 line (and ∿ badge); tap → H4 |
+
+**N1 as drawn (boards 1a–7b, in row 1 where each signature happens).** The approval sheet belongs to the member's wallet app, so it is drawn **unbranded**: a neutral grey sheet (not a Holdout surface) with *[Your wallet app]*, the identity Holdout sends (**Holdout · holdout.app**), the action, what moves, the fee and *Solana devnet*, then **Reject / Approve**. Each wallet board's *step* tweak switches to Holdout's own **Waiting for your wallet** screen (spinner, one line saying nothing moves until you approve, **Cancel**).
+
+| Signature | Wallet asks (board) | Holdout confirms (board) | Results (tweak *result*) | Lands on |
+|---|---|---|---|---|
+| Connect | 1a · *Connect to Holdout?* · account, devnet, "can see your address, ask to sign" | — (no transaction) | — | B1 Tour |
+| Stake | 4a · *Join 7-day Holdout* · **−1,250 SKR** held by the contract · ≈ 0.002 SOL fee + rent | 4b · checklist: approved ✓ · sent ✓ · confirming ◌ · in the lobby | In the lobby · Declined · Failed · **Joining closed** (ES-12) | H3 Lobby |
+| Submit day | 6a · *Submit day 12 of 21* · **no SKR moves** · ≈ 0.000005 SOL | 6b · approved · sent · confirming before the deadline | On chain · Declined · Failed · **Deadline passed** (ES-4) → H6 | T2 *submitted* |
+| Claim | 7a · *Claim from 7-day Holdout* · **+1,412 SKR** (1,250 stake + 162 share) | 7b · approved · sent · confirming | **Claimed** (green amount, gradient, explorer link) · Declined · Failed | H0 / H1 |
+
+Declined always says *nothing was sent and nothing changed*; Failed says devnet didn't confirm it and the stake / day / claim is still there. In Play, Connect, Stake, Claim, Day complete and Home's *Submit day 12* now go through these boards. Leave (H3) and the faucet (W1) sign the same way and reuse this pattern; they have no boards of their own.
 
 ---
 
