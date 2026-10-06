@@ -36,6 +36,18 @@ class AutoSubmitTest {
     }
 
     @Test
+    fun `given a declined send, when the network drops and returns between two chain reads, then the wallet opens once more`() {
+        val tried = AutoSubmit().step(cohort, 3, todayDone = false, offline = false, busy = false)
+        assertTrue(tried.send)
+        // Declined: the chain still shows day 3 pending, and no read ever saw offline.
+        assertFalse(tried.next.step(cohort, 3, todayDone = false, offline = false, busy = false).send)
+        // The system reports the loss; the next read with the day still pending sends again.
+        val back = tried.next.lost().step(cohort, 3, todayDone = false, offline = false, busy = false)
+        assertTrue(back.send)
+        assertFalse(back.next.step(cohort, 3, todayDone = false, offline = false, busy = false).send, "and only once")
+    }
+
+    @Test
     fun `given no connection, when a day is waiting, then nothing is sent`() {
         assertEquals(emptyList(), run(State(3, offline = true), State(3, offline = true)))
     }

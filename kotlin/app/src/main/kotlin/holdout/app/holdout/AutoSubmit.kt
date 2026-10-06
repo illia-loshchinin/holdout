@@ -25,6 +25,13 @@ data class AutoSubmit(val sentFor: Pair<String, Int>? = null) {
         else -> Step(AutoSubmit(cohort to pendingDay), send = true)
     }
 
+    /**
+     * The phone lost its network. Re-arms the send exactly as an offline read
+     * would — a drop and return between two chain reads is never seen as
+     * offline there, so the system's own network callback reports it.
+     */
+    fun lost(): AutoSubmit = AutoSubmit()
+
     /** [day] of [cohort] was sent — by itself, a tap or the sitting's own exit. */
     fun sent(cohort: String, day: Int): AutoSubmit = AutoSubmit(cohort to day)
 

@@ -166,6 +166,10 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             val connectivity = context.getSystemService(android.net.ConnectivityManager::class.java)
             val onNetwork = object : android.net.ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: android.net.Network) = holdouts.refresh()
+
+                // A drop and return between two 30-second reads never shows as offline,
+                // so the loss itself re-arms the automatic send.
+                override fun onLost(network: android.net.Network) = holdouts.networkLost()
             }
             connectivity?.registerDefaultNetworkCallback(onNetwork)
             try {

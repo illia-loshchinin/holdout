@@ -223,6 +223,11 @@ class HoldoutViewModel(
      * again and nothing has sent it since (FR-024b Phase 2, T098). The send itself
      * is [submitDay], which records it.
      */
+    /** The default network went away: a waiting day may open the wallet again once it is back (T098). */
+    fun networkLost() {
+        _state.update { it.copy(autoSubmit = it.autoSubmit.lost()) }
+    }
+
     fun autoSubmitDue(h: Holdout, pendingDay: Int?, todayDone: Boolean): Boolean {
         val s = _state.value
         val step = s.autoSubmit.step(h.address.base58(), pendingDay, todayDone, s.offline, s.busy)
