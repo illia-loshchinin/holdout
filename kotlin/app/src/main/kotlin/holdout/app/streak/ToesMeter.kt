@@ -23,8 +23,12 @@ class ToesMeter(private val store: Store, private val target: Int) {
         /** The most from the toes on any one day. */
         val best: Int,
     ) {
-        /** Every one of the day's reps from the toes: a day Hard would have counted. */
-        val hardDay: Boolean get() = measured > 0 && toes == measured
+        /**
+         * The whole day's target measured at 45° and every rep from the toes: a
+         * day Hard would have counted. Reps done head-on were never measured, so
+         * a day with any of them is not claimed.
+         */
+        fun hardDay(target: Int): Boolean = measured >= target && toes == measured
     }
 
     /** One counted rep of the Daily 25 on [dayIndex]; [stance] is null head-on. */
