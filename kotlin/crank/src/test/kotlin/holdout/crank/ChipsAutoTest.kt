@@ -169,6 +169,16 @@ class ChipsAutoTest {
         assertTrue(c.sent("simulateTransaction").isEmpty() && c.sent("sendTransaction").isEmpty())
     }
 
+    @Test
+    fun `given a rate the tiers cannot be priced at, when run, then it exits cleanly without publishing and says why`() {
+        val c = cluster()
+        val json = auto(c, FixedRate(BigDecimal("2"))) // $10 and $25 both floor to the 10-SKR minimum
+        assertEquals("false", json.text("published"))
+        assertEquals("unusable rate", json.text("reason"))
+        assertTrue(json.text("detail").contains("InvalidChipSet"), json.text("detail"))
+        assertTrue(c.sent("simulateTransaction").isEmpty() && c.sent("sendTransaction").isEmpty())
+    }
+
     // ---- once per weekly boundary ------------------------------------------------------
 
     @Test

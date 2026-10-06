@@ -365,7 +365,18 @@ object Chips {
         if (onChain.chipPublishedAt >= boundary) return report(false, "already published this week")
         val rate = source.usdPerSkr() ?: return report(false, "no rate") { source.problem?.let { put("detail", it) } }
         val decimals = mintDecimals(rpc, onChain)
-        val tiers = pricing { price(rate, decimals) }
+        // A rate the four tiers cannot be priced at (two tiers collapsing onto one
+        // amount, or one too large for a u64) is external data, not a mistake in
+        // the command: the current set stays and the week is reported, like no rate.
+        val tiers =
+            try {
+                price(rate, decimals)
+            } catch (e: ChipPricingException) {
+                return report(false, "unusable rate") {
+                    put("rate", rate.toPlainString())
+                    put("detail", e.message ?: "the rate cannot price four increasing tiers")
+                }
+            }
         val autoFields: JsonObjectBuilder.(Boolean) -> Unit = { sent ->
             put("command", "chips publish --auto")
             put("published", sent)
