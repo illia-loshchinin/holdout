@@ -407,6 +407,34 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     BackHandler(enabled = route != Route.Home) { route = Route.Home }
     val goHome = { route = Route.Home }
 
+    /** Today's day of [h] done on this phone and not yet on chain, if any. Only today's counts: an older one left behind must not hide it. */
+    @Composable
+    fun pendingTodayOf(h: Holdout, stage: Stage.Active): Int? {
+        val pending = remember(wallet, h.address, refreshToken, chain.busy) { holdouts.pendingDay(h) }
+        val locallyDone = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.isDayComplete(wallet, cohortScope(h), stage.dayIndex.toLong()) }
+        return pending?.takeIf { it == stage.dayIndex } ?: stage.dayIndex.takeIf { locallyDone && !stage.todayDone }
+    }
+
+    fun submitDayOf(h: Holdout, day: Int) {
+        // A day recovered from the phone's own record — the app closed after the
+        // last rep, before the sitting's own exit ran — is that day's training for
+        // the streak as well. Recording the same date twice changes nothing.
+        if (!h.isTest) streaks.recordCompletedDay(wallet, HoldoutDay.indexOf(h.cohort.start + day * h.cohort.dayLength))
+        holdouts.submitDay(sender, h, day, h.cohort.repsPerDay)
+    }
+
+    // A day waiting for the network sends itself once the chain answers again
+    // (FR-024b Phase 2, T098) — on whichever screen the member is, short of a
+    // sitting, and again after the system reports the network lost and back.
+    val running = chainNow?.let { n -> view?.mine(n)?.firstNotNullOfOrNull { h -> (h.stage(n) as? Stage.Active)?.let { h to it } } }
+    if (running != null) {
+        val (h, stage) = running
+        val pendingToday = pendingTodayOf(h, stage)
+        LaunchedEffect(h.address, pendingToday, stage.todayDone, chain.offline, chain.busy, chain.autoSubmit) {
+            if (pendingToday != null && holdouts.autoSubmitDue(h, pendingToday, stage.todayDone)) submitDayOf(h, pendingToday)
+        }
+    }
+
     // ---- routes that need a Holdout and chain time -----------------------------
     val routed = route
     val target = when (routed) {
@@ -572,21 +600,8 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             if (BankingController.recover(store, streaks, wallet, cohortScope, stage.dayIndex.toLong(), h.cohort.repsPerDay)) refreshToken += 1
         }
         val banked = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.bankedReps(wallet, cohortScope, stage.dayIndex.toLong()) }
-        val pending = remember(wallet, h.address, refreshToken, chain.busy) { holdouts.pendingDay(h) }
-        val locallyDone = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.isDayComplete(wallet, cohortScope, stage.dayIndex.toLong()) }
-        // Only today's pending day counts: an older one left behind must not hide today's.
-        val pendingToday = pending?.takeIf { it == stage.dayIndex } ?: stage.dayIndex.takeIf { locallyDone && !stage.todayDone }
-        val submit = { day: Int ->
-            // A day recovered from the phone's own record — the app closed after the
-            // last rep, before the sitting's own exit ran — is that day's training for
-            // the streak as well. Recording the same date twice changes nothing.
-            if (!h.isTest) streaks.recordCompletedDay(wallet, HoldoutDay.indexOf(h.cohort.start + day * h.cohort.dayLength))
-            holdouts.submitDay(sender, h, day, h.cohort.repsPerDay)
-        }
-        // A day waiting for the network sends itself once the chain answers again (FR-024b Phase 2, T098).
-        LaunchedEffect(h.address, pendingToday, stage.todayDone, chain.offline, chain.busy) {
-            if (pendingToday != null && holdouts.autoSubmitDue(h, pendingToday, stage.todayDone)) submit(pendingToday)
-        }
+        val pendingToday = pendingTodayOf(h, stage)
+        val submit = { day: Int -> submitDayOf(h, day) }
         CohortHome(
             h = h,
             members = rosters[h.address],
