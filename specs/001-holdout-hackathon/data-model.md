@@ -170,7 +170,7 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | Finalize only when `counted == member_count` | R10, INV-5 | `settle_finalize` |
 | Claim only when `settled`, `state == Finished` | FR-034, INV-6 | `claim_payout` |
 | Open only `index == next_index`, previous cohort started | R11, FR-007a | `open_cohort` |
-| A no-finisher cohort's whole pool goes to the fee destination; nothing carries over, so settlement names no other cohort (revised 2026-10-05) | FR-037, FR-030a | `settle_finalize` |
+| A no-finisher cohort's whole pool goes to the fee destination; nothing carries over, so no other cohort's money is involved — finalization reads the previous cohort only for its `settled` flag, to keep cohort order (revised 2026-10-05; ordering check 2026-10-06) | FR-037, FR-030a | `settle_finalize` |
 | Chip set: 4 increasing positive amounts; operator only | FR-054, R14 | `publish_chip_set` |
 | Only the program's current upgrade authority may `initialize`, verified against `ProgramData` | R14, constitution I | `initialize` |
 | No cohort opens before the first chip set is published (`chip_set.version > 0`) | FR-055b | `open_cohort` |

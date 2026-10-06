@@ -653,6 +653,34 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
     expect(one).toBe(await cohortPda(league, 1));
   });
 
+  it('refuses to finalize an empty cohort 1 until cohort 0 of the league has settled (FR-061a, INV-10)', async () => {
+    // Nobody joined cohort 1, so it is never counted and `counted == member_count`
+    // holds from the start. Without its own predecessor check it could settle
+    // first and let cohort 2 count past an unsettled cohort 0.
+    const zero = await cohortAt(0);
+    await cohortAt(1);
+    await h.injectLeague(league, {
+      durationDays: DURATION, dayLength: BigInt(DAY_LENGTH), firstStart: BigInt(START),
+      cadence: BigInt(CADENCE), joinLock: BigInt(JOIN_LOCK), nextIndex: 2,
+    });
+    const first = await member(0, 1);
+    await clearAllDays(first, 0);
+
+    h.setTime(START + CADENCE + DURATION * DAY_LENGTH);
+    const before = await h.snapshot();
+    expectProgramError(await h.send([await settleFinalizeIx(crank.address, fees, league, 1)], crank), 'PreviousCohortUnsettled');
+    assertUnchanged(before, await h.snapshot());
+    expectProgramError(await h.send([await settleFinalizeIx(crank.address, fees, league, 1, null)], crank), 'AccountMismatch');
+
+    await h.sendOrThrow(
+      [await settleCountIx(crank.address, fees, league, 0, await forfeitPairs(zero, [first.address]))],
+      crank,
+    );
+    await h.sendOrThrow([await settleFinalizeIx(crank.address, fees, league, 0)], crank);
+    await h.sendOrThrow([await settleFinalizeIx(crank.address, fees, league, 1)], crank);
+    expect((await h.readCohort(league, 1)).settled).toBe(true);
+  });
+
   it('refuses to count cohort 1 with the predecessor withheld or substituted', async () => {
     const zero = await cohortAt(0);
     await cohortAt(1);

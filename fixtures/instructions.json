@@ -523,7 +523,9 @@
     },
     {
       "name": "settle_finalize",
-      "args": {},
+      "args": {
+        "previousCohort": "HbwWxVVRoLMYBAuaAputvbjhoX2nJSPvtkomigL6Loc5"
+      },
       "data": "b66363c83c29783d",
       "accounts": [
         {
@@ -557,6 +559,10 @@
         {
           "address": "4dzYHLXBcYUHQpdYvtrGyhMybKFqqq4eKZpBAwHyXwCc",
           "role": "1"
+        },
+        {
+          "address": "HbwWxVVRoLMYBAuaAputvbjhoX2nJSPvtkomigL6Loc5",
+          "role": "0"
         },
         {
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",

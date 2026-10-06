@@ -312,7 +312,7 @@ object Run {
                 }
                 val outcome =
                     pass.send("settle_finalize", detail) {
-                        send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, onChain.developerDestination, leagueId, address)))
+                        send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, onChain.developerDestination, leagueId, address, previousAddress)))
                     }
                 // A simulated finalize changed nothing: the next cohort still waits on this one.
                 if (outcome != Outcome.Landed || args.dryRun) break
