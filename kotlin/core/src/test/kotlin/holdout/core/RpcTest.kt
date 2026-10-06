@@ -110,6 +110,15 @@ class RpcTest {
         assertNull(config["dataSlice"], "the board reads the whole profile")
     }
 
+    @Test
+    fun `the uncounted-forfeit query matches a Forfeited membership not yet counted`() {
+        val filters = Rpc.programAccountsParams(programId, AccountQueries.uncountedForfeits()).jsonArray[1].jsonObject.getValue("filters").jsonArray
+        val memcmp = filters.mapNotNull { it.jsonObject["memcmp"]?.jsonObject }.associate { it.getValue("offset").jsonPrimitive.content.toInt() to it.getValue("bytes").jsonPrimitive.content }
+        assertEquals(Json.parseToJsonElement("""{"dataSize": 101}"""), filters[0])
+        assertEquals("2", memcmp.getValue(AccountLayout.Membership.STATE), "state 1, Forfeited: the single byte 1 in base58")
+        assertEquals("1", memcmp.getValue(AccountLayout.Membership.COUNTED), "counted false: the single byte 0 in base58")
+    }
+
     // ---- the read --------------------------------------------------------------
 
     @Test
