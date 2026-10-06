@@ -190,6 +190,26 @@ class LeaderboardTest {
     }
 
     @Test
+    fun `given a count that landed between the two cohort reads, when the snapshot is built, then the board holds`() {
+        val p = listOf(profile(1, progress(3, 0, current = 3)))
+        val before = cohort(LeagueParams.LEAGUE_7D, counted = 0)
+        val after = cohort(LeagueParams.LEAGUE_7D, counted = 10, settled = true)
+        val snapshot = Leaderboard.Snapshot(listOf(before), p, listOf(after))
+        assertEquals(View.Updating, Leaderboard.view(Leaderboard.Board.EASY_7D, snapshot, start + 8 * day) { false })
+    }
+
+    @Test
+    fun `given the same cohorts on both sides of the profile read, when the snapshot is built, then it ranks`() {
+        val p = listOf(profile(1, progress(3, 0, current = 3)))
+        val settled = cohort(LeagueParams.LEAGUE_7D, counted = 10, settled = true)
+        val elsewhere = cohort(LeagueParams.LEAGUE_21D, counted = 2)
+        val elsewhereLater = cohort(LeagueParams.LEAGUE_21D, counted = 5)
+        val snapshot = Leaderboard.Snapshot(listOf(settled, elsewhere), p, listOf(settled, elsewhereLater))
+        assertIs<View.Ready>(Leaderboard.view(Leaderboard.Board.EASY_7D, snapshot, start + 22 * day) { false })
+        assertEquals(View.Updating, Leaderboard.view(Leaderboard.Board.HARD_21D, snapshot, start + 22 * day) { false })
+    }
+
+    @Test
     fun `given a test cohort part-way through counting, when the test board is built, then it holds`() {
         val p = listOf(profile(1, test = progress(3, 0, current = 3)))
         val counting = cohort(101, counted = 1).copy(dayLength = 600, durationDays = 3)

@@ -467,7 +467,7 @@ const instructionFixtures = async () => {
     { pairs: 1, previousCohort: await cohortPda(0, 1) },
     await settleCountIx(ADMIN, FEES, 0, 2, pairs, await cohortPda(0, 1)),
   );
-  await add('settle_finalize', {}, await settleFinalizeIx(ADMIN, FEES, 0, 2));
+  await add('settle_finalize', { previousCohort: await cohortPda(0, 1) }, await settleFinalizeIx(ADMIN, FEES, 0, 2, await cohortPda(0, 1)));
   await add('claim_payout', {}, await claimPayoutIx(MEMBER, MINT, 0, 2));
   await add('claim_faucet', { recipient: MEMBER }, await claimFaucetIx(SPONSOR, MEMBER, MINT, SPONSOR));
   await add('top_up_sponsor', {}, await topUpSponsorIx(ADMIN, SPONSOR));

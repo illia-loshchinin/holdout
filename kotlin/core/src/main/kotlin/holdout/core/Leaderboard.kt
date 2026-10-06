@@ -92,6 +92,28 @@ object Leaderboard {
         return rank(rows(board, profiles, isScripted))
     }
 
+    /**
+     * One read of what a board needs: every cohort, then every profile, then
+     * every cohort again. Profiles and cohorts come from separate calls, so a
+     * count can land between them; reading cohorts on both sides is what lets
+     * the board tell (FR-060a, FR-065).
+     */
+    data class Snapshot(val cohortsBefore: List<CohortSnapshot>, val profiles: List<ProfileSnapshot>, val cohortsAfter: List<CohortSnapshot>)
+
+    /**
+     * [view] over a [Snapshot]: also [View.Updating] when any of the board's
+     * cohorts moved in its count or settlement between the two cohort reads —
+     * the profiles in between may hold some of that count and not the rest.
+     */
+    fun view(board: Board, snapshot: Snapshot, now: Long, isScripted: (SolanaPublicKey) -> Boolean): View {
+        fun progress(cohorts: List<CohortSnapshot>) = cohorts
+            .filter { board.covers(it.leagueId) }
+            .associate { (it.leagueId to it.index) to (it.counted to it.settled) }
+        if (progress(snapshot.cohortsBefore) != progress(snapshot.cohortsAfter)) return View.Updating
+        if (snapshot.cohortsBefore.any { board.covers(it.leagueId) && midCount(it, now) }) return View.Updating
+        return view(board, snapshot.profiles, snapshot.cohortsAfter, now, isScripted)
+    }
+
     /** Counted in part: settlement has begun writing its members' progress and not finished. */
     fun midCount(c: CohortSnapshot, now: Long): Boolean = Derive.status(c, now) == CohortStatus.Settling && c.counted > 0
 

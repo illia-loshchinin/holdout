@@ -1861,6 +1861,16 @@
           "writable": true
         },
         {
+          "name": "previous_cohort",
+          "docs": [
+            "The league's cohort `index - 1`, required for every index but 0. A",
+            "cohort nobody joined is never counted, so this is its only ordering",
+            "check: without it an empty cohort could settle ahead of an older one",
+            "and let the next cohort count past it (FR-061a, INV-10)."
+          ],
+          "optional": true
+        },
+        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
