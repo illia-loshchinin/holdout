@@ -400,6 +400,7 @@ object Chips {
      */
     fun checkArgs(args: Args) {
         if ("auto" in args.flags && args.option("rate") != null) configError("--auto reads the rate from Jupiter; it takes no --rate")
+        if ("auto" in args.flags && args.option("decimals") != null) configError("--auto reads the decimals from the SKR mint; it takes no --decimals")
         args.allow("rate", "decimals", "auto")
     }
 

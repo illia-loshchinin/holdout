@@ -239,11 +239,12 @@ class ChipsAutoTest {
     // ---- arguments ------------------------------------------------------------------
 
     @Test
-    fun `given the weekly flags, when parsed, then --auto excludes --rate and there is no --if-drift any more`() {
+    fun `given the weekly flags, when parsed, then --auto excludes --rate and --decimals and there is no --if-drift any more`() {
         fun check(vararg a: String) = Chips.checkArgs(parseArgs(listOf("chips", "publish") + a))
         check("--auto")
         check("--auto", "--dry-run")
         assertFailsWith<CrankException> { check("--auto", "--rate", "0.02") }
+        assertFailsWith<CrankException> { check("--auto", "--decimals", "6") }.also { assertTrue(it.message!!.contains("--decimals"), it.message) }
         assertFailsWith<CrankException> { check("--auto", "--if-drift", "0.20") }
     }
 
