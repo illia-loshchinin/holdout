@@ -211,7 +211,8 @@ flowchart TB
     S5 -- "✕ Stop" --> S7
     S6 -- "Daily 25 · Done" --> T1
     S6 -- "Holdout · Submit ✍" --> T2
-    S7 --> T1
+    S7 -- "Daily 25" --> T1
+    S7 -- "Holdout" --> T2
 
     %% crowd
     H4 -- "The roster" --> H5
@@ -261,7 +262,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 2. Headline, 38 px light: **Stake on yourself.** / *Prove it every day.* (second line 48 %)
 3. Two bullets, accent dot and green dot:
    - **The Daily 25** — free, every day, on your own. 25 push-ups, counted by the camera, and a streak.
-   - **A Holdout** — stake SKR and run 7 or 21 days with everyone else. Miss a day and your stake goes to the people still standing.
+   - **A Holdout** — stake SKR and run 7 or 21 days with everyone else. Miss a day and your stake goes into the prize pool.
 4. Section label `LIVE RIGHT NOW` · mono hint `devnet · test SKR`
 5. Two live cards, read from devnet with no wallet:
    - running: `21-DAY · DAY 12` · `running` (green) · **189 / 312** still standing · prize pool `48,200 SKR`
@@ -304,12 +305,12 @@ Each card gives **tier · code status · design status**, why the screen exists,
 
 **Entered from:** first connect for this wallet · T1 *"How Holdout works"* · ◯ Me → X1 *"Tour again"*
 
-**On screen (as drawn):** `HOW IT WORKS · 2 OF 3` · *Skip* (right) → illustration → title (30 px light) → body (70 %) → small print (48 %) → progress dots (active = long pill) → **Next** / **Start**
+**On screen (as drawn):** `HOW IT WORKS · 2 OF 4` (B2 is card 4) · *Skip* (right) → illustration → title (30 px light) → body (70 %) → small print (48 %) → progress dots (active = long pill) → **Next** / **Start**
 
 | Card | Title | Illustration | Says |
 |---|---|---|---|
 | 1 | The Daily 25 | *to draw:* 25 dots filling in blocks of 10 | 25 push-ups, free, every day, counted by the camera. All at once or 10 at a time. Builds a streak, stakes nothing |
-| 2 🎨 | A Holdout | 12 dots on DAY 1 → 5 green, 7 faded on DAY 7: *5 still standing · 7 lost their stake* | Stake SKR and everyone starts together on Monday. Miss a day → stake to those still standing. Finish → stake back + share. *If nobody drops out, everybody gets exactly their stake back* |
+| 2 🎨 | A Holdout | 12 dots on DAY 1 → 5 green, 7 faded on DAY 7: *5 still standing · 7 lost their stake* | Stake SKR and everyone starts together on Monday. Miss a day → stake into the prize pool. Finish → stake back + a share of the pool. *If nobody drops out, everybody gets their stake back, plus a share of anything already added to the prize pool* |
 | 3 | How reps are counted | *to draw:* phone at 45° and head-on | Daily 25: in front or at 45°, knees welcome. Staked: 45° only, from the toes. The camera never leaves the phone |
 
 **Exits:** Start / Skip → B2 → T1 · from T1 or X1 → back there
@@ -442,7 +443,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 #### S7 · Stopped part-way
 **SHOULD · 🟡 Partial** (✕ returns home, which shows the banked count, but there's no summary) **· 🎨 Drawn** (board *20*; the *crash* tweak shows the reopened-after-a-crash variant) · ES-1, ES-2
 
-**On screen:** *"17 done — 10 banked, 7 not kept. Come back any time before 5h 12m runs out."* · the three block bars (the third empty) · **Back to today**
+**On screen:** *"17 done — 10 banked, 7 not kept. Come back any time before 5h 12m runs out."* · the three block bars (the third empty) · **Back to today** (to T1 after a Daily 25 sitting, to T2 after a Holdout one; the *fromHoldout* tweak)
 
 **Crash variant** (ES-1, SHOULD): on reopen, *"Your 10 banked reps are safe. 15 to go."* Recovery itself is built (`BankingController.recover`); the message isn't.
 
@@ -478,8 +479,8 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 **On screen (as drawn, plus what the spec requires — ➕)**
 1. Grab handle · **Join the 7-day Holdout** · *25 push-ups a day · from 12 Oct, 05:00 UTC*
 2. Four chips: **$10 / $25 / $50 / $100**, each with its SKR amount (mono); the picked one has an accent outline
-3. Card: **Your stake** `1,250 SKR` / *≈ $25* · hairline · **At stake now** `4,800 SKR` ➕ *· 14 joined* ➕ *+ extras, with their source* · **Joining closes in** `6h 12m`
-4. *If nobody drops out, you get exactly your stake back. The prize is what the members who quit leave behind.*
+3. Card: **Your stake** `1,250 SKR` / *≈ $25* · hairline · **At stake now** `12,500 SKR` · *14 joined* · (*extra* tweak) *+2,400 SKR added to the prize pool*, amount only · **Joining closes in** `6h 12m`
+4. *If nobody drops out, you get exactly your stake back.* With an extra: *…you get your stake back plus a share of the 2,400 SKR added.* (FR-041)
 5. **How reps are counted here** (drawn: a surface/3 row with a 45° phone icon, under the reassurance line): *At 45° only: phone on the floor ahead of your shoulder. Full push-ups from your toes — push-ups from the knees don't count.* (FR-021a: required before staking)
 6. ➕ *Miss a day: your stake goes into the prize pool — 80 % to the pool, 20 % fee.* · *Leave for a full refund until joining closes.*
 7. **Stake 1,250 SKR** (primary)
@@ -504,7 +505,7 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 **As drawn:** a back button and `LOBBY` label · **7-day · 12 Oct – 19 Oct** · *starts in* `2d 04h 12m` (40 px mono, accent) · *Monday 05:00 UTC · everyone starts together* · a row of 14 dots, yours ringed in accent and marked `you`, with *14 members so far* and **See who's in →** · card: **At stake** `12,500 SKR` · **Your stake** `1,250 SKR` / *held by the contract, not by us* · hairline · **Joining closes in** `2d 03h 12m` (one hour before the start) · a surface/3 row *From the start: 25 push-ups before each day's deadline, for 7 days. At 45°, from your toes.* · **Leave — full refund** (coral outline) + *Until joining closes, leaving gives you all 1,250 SKR back.* · **Locked:** the label reads `LOBBY · LOCKED`, a lock line says *Joining has closed. This is the final roster.*, and Leave becomes *Nothing to do until Monday. This phone reminds you when it starts.* There's no bottom bar, because this screen is pushed from ☰.
 
 
-**On screen:** back · `LOBBY` (or `LOBBY · LOCKED`) · **7-day · 12 Oct – 19 Oct** · *starts in* **2d 04h 12m** (large mono, accent) · card: **14 members · 12,500 SKR at stake** · *Your stake: 1,250 SKR — held by the contract, not by us* · *Joining closes in 6h 12m. Until then you can leave with your full stake back.* (locked: *Joining has closed. This is the final roster.*) · *From the start: 25 push-ups before each day's deadline, at 45°, from your toes* · **See who's in** (secondary) · **Leave — full refund** (secondary, warning text)
+**On screen:** back · `LOBBY` (or `LOBBY · LOCKED`) · **7-day · 12 Oct – 19 Oct** · *starts in* **2d 04h 12m** (large mono, accent) · card: **14 members · 12,500 SKR at stake** · *Your stake: 1,250 SKR — held by the contract, not by us* · *Joining closes in 2d 03h 12m. Until then you can leave with your full stake back.* (locked: *Joining has closed. This is the final roster.*) · *From the start: 25 push-ups before each day's deadline, at 45°, from your toes* · **See who's in** (secondary) · **Leave — full refund** (secondary, warning text)
 
 **Variants:** open · leaving · locked (no Leave) · leave landed after cutoff (*"Leaving closed before your transaction landed. You're in the cohort."*)
 
@@ -513,7 +514,7 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 #### H4 · Holdout detail (∿ Crowd root)
 **MUST · ✅ Built · 🎨 Drawn** (board *13*, the ∿ tab root, with a single-series bar chart of how the crowd thinned; the *state* tweak shows Running / Settling / Claimed) · `cohort/CohortDetailScreen.kt` · PRD #11, US-7
 
-**On screen:** `21-DAY · DAY 12 OF 21` · *(end-state card, see variants)* · **Where it stands:** *189 still standing of 312* · prize pool · extras and their source · *9 days to go* · **Your record:** *11 of 21 days · stake 1,250 SKR* · *projected share if the crowd held here* · **How the crowd thinned:** today a list (*After day 1: 301 standing …*); draw it as a step chart or the tour's dot rows (*NICE*) · **The roster →**
+**On screen:** `21-DAY · DAY 12 OF 21` · *(end-state card, see variants)* · **Where it stands:** *189 still standing of 312* · prize pool · *+N SKR added to the prize pool* (amount only) · *9 days to go* · **Your record:** *11 of 21 days · stake 1,250 SKR* · *projected share if the crowd held here* · **How the crowd thinned:** today a list (*After day 1: 301 standing …*); draw it as a step chart or the tour's dot rows (*NICE*) · **The roster →**
 
 **Variants:** running · **settling** (*"You finished · settlement in progress. Your claim opens the moment it's done."*) · **claimed** (*"Claimed · 1,412 SKR"* + explorer link) · as a non-member (no *Your record*) · ∿ empty (no Holdout yet)
 
