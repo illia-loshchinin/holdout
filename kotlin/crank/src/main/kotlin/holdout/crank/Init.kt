@@ -234,8 +234,13 @@ object Init {
     /** The shortest day a test league may have: long enough for a sitting and a submission to land. */
     const val MIN_TEST_DAY_SECONDS = 60L
 
-    /** Joining closes this long before a test cohort starts unless `--join-lock` says otherwise. */
-    const val DEFAULT_TEST_JOIN_LOCK = 300L
+    /**
+     * Joining closes this long before a test cohort starts unless `--join-lock`
+     * says otherwise: never early. The next cohort opens only once this one has
+     * started, so any lock would leave the test lobby with nothing to join for
+     * that long in every cadence (FR-044a, 2026-10-07).
+     */
+    const val DEFAULT_TEST_JOIN_LOCK = 0L
 
     private const val INVALID_LEAGUE_TIMING = 6010
 
