@@ -14,8 +14,11 @@
  * state is identical, because a pair that is not in breach or already forfeited
  * is skipped rather than refused (research R9).
  *
- * The fee is exactly `floor(stake × 20 ÷ 100)` and the rest is pool (FR-027,
- * FR-028). The league streak is **not** touched here: only `settle_count`
+ * The fee is exactly `floor(stake × 30 ÷ 100)` and the rest is pool (FR-027,
+ * FR-028). Since H35 the fee splits again: 10 % boost and 5 % comeback stay in
+ * the vault as the cohort's `boost_due` / `comeback_due` until it finalizes, 5 %
+ * goes to the developer destination and the operations destination takes the
+ * other 10 % plus every unit the floors leave. The league streak is **not** touched here: only `settle_count`
  * writes it, in cohort order, because a mid-cohort forfeit can be recorded
  * before an earlier cohort of the same league has been counted (FR-061a).
  */
@@ -23,17 +26,18 @@
 import { generateKeyPairSigner, getAddressDecoder, type Address, type KeyPairSigner } from '@solana/kit';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { assertUnchanged } from '../invariants/checker.js';
+import { assertUnchanged, feeOf, forfeitSplit } from '../invariants/checker.js';
 import {
   DEFAULT_CHIPS,
   FIRST_START,
   SKR,
+  cohortCustody,
   createHarness,
   eventPayloads,
   expectProgramError,
   type Harness,
 } from '../helpers/harness.js';
-import { forfeitPairs, joinCohortIx, recordForfeitsIx, submitDayIx } from '../helpers/instructions.js';
+import { forfeitPairs, joinCohortIx, recordForfeitsIx, submitDayIx, type FeeDestinations } from '../helpers/instructions.js';
 import { associatedTokenPda, cohortPda, profilePda, vaultPda } from '../helpers/pdas.js';
 
 const LEAGUE = 100;
@@ -43,9 +47,6 @@ const DURATION = 7;
 const START = FIRST_START;
 const deadlineOf = (k: number) => START + (k + 1) * DAY_LENGTH - 1;
 const NO_KEY = '11111111111111111111111111111111' as Address;
-
-/** The fee on one forfeited stake: 20 %, rounded down (FR-027). */
-const feeOf = (stake: bigint) => (stake * 20n) / 100n;
 
 /** `ForfeitRecorded { cohort, wallet, days_completed, fee }`. */
 const decodeForfeit = (bytes: Uint8Array) => ({
@@ -60,7 +61,7 @@ describe('record_forfeits (contracts §2)', () => {
   let mint: Address;
   let cohort: Address;
   let vault: Address;
-  let feeDestination: Address;
+  let fees: FeeDestinations;
   let crank: KeyPairSigner;
 
   beforeEach(async () => {
@@ -68,11 +69,8 @@ describe('record_forfeits (contracts §2)', () => {
     mint = (await generateKeyPairSigner()).address;
     h.injectMint(mint, null, 10_000_000n * SKR);
 
-    const treasury = (await generateKeyPairSigner()).address;
-    feeDestination = await associatedTokenPda(treasury, mint);
-    h.injectTokenAccount(feeDestination, mint, treasury, 0n);
-
-    await h.injectConfig({ skrMint: mint, feeDestination });
+    fees = await h.injectFeeDestinations(mint);
+    await h.injectConfig({ skrMint: mint, feeDestination: fees.operations, developerDestination: fees.developer });
     await h.injectLeague(LEAGUE, { durationDays: DURATION, dayLength: BigInt(DAY_LENGTH), nextIndex: 1 });
     cohort = await h.injectCohort(LEAGUE, INDEX, {
       start: BigInt(START),
@@ -94,7 +92,7 @@ describe('record_forfeits (contracts §2)', () => {
 
   const record = async (wallets: readonly Address[], who: KeyPairSigner = crank) =>
     h.send(
-      [await recordForfeitsIx(who.address, feeDestination, LEAGUE, INDEX, await forfeitPairs(cohort, wallets))],
+      [await recordForfeitsIx(who.address, fees, LEAGUE, INDEX, await forfeitPairs(cohort, wallets))],
       who,
     );
 
@@ -114,7 +112,7 @@ describe('record_forfeits (contracts §2)', () => {
     // Recording it only materialises what was already true.
     await h.sendOrThrow(
       [
-        await recordForfeitsIx(crank.address, feeDestination, LEAGUE, INDEX, await forfeitPairs(cohort, [
+        await recordForfeitsIx(crank.address, fees, LEAGUE, INDEX, await forfeitPairs(cohort, [
           member.address,
         ])),
       ],
@@ -125,7 +123,7 @@ describe('record_forfeits (contracts §2)', () => {
 
   // -------------------------------------------------------------- the numbers
 
-  it('takes exactly 20 % as fee and pools the rest (FR-027, FR-028)', async () => {
+  it('splits the stake 70 / 10 / 5 / 5 / 10 — pool, boost due, comeback due, developer, operations (FR-027, H35)', async () => {
     const member = await joinedMember(3);
     const stake = DEFAULT_CHIPS[3]!;
 
@@ -133,14 +131,22 @@ describe('record_forfeits (contracts §2)', () => {
     const result = await record([member.address]);
     expect(result.ok, result.logs.join('\n')).toBe(true);
 
-    const fee = feeOf(stake);
     const after = await h.readCohort(LEAGUE, INDEX);
-    expect(h.tokenBalance(feeDestination)).toBe(fee);
-    expect(after.pool).toBe(stake - fee);
+    // 100 SKR: 70 to the pool, 10 + 5 held for the league, 5 and 10 paid out now.
+    expect(after.pool).toBe(70n * SKR);
+    expect(after.boostDue).toBe(10n * SKR);
+    expect(after.comebackDue).toBe(5n * SKR);
+    expect(h.tokenBalance(fees.developer)).toBe(5n * SKR);
+    expect(h.tokenBalance(fees.operations)).toBe(10n * SKR);
     expect(after.heldStake).toBe(0n);
     expect(after.forfeitsRecorded).toBe(1);
-    // The vault still holds what the cohort says it holds (INV-1).
-    expect(h.tokenBalance(vault)).toBe(after.heldStake + after.pool + after.carryOverHeld);
+    // The league is credited only when the cohort finalizes (FR-037c, INV-10).
+    const league = await h.readLeague(LEAGUE);
+    expect([league.boostReserve, league.comebackReserve]).toEqual([0n, 0n]);
+    // The vault still holds what the cohort says it holds (INV-1): the pool and
+    // both dues, everything but the 15 SKR that left.
+    expect(h.tokenBalance(vault)).toBe(cohortCustody(after));
+    expect(h.tokenBalance(vault)).toBe(stake - 15n * SKR);
   });
 
   it.each([
@@ -148,22 +154,26 @@ describe('record_forfeits (contracts §2)', () => {
     ['tier 1', 1],
     ['tier 2', 2],
     ['tier 3', 3],
-  ])('rounds the fee down at %s', async (_name, tier) => {
+  ])('rounds every part down at %s, operations taking what the floors leave', async (_name, tier) => {
     const member = await joinedMember(tier);
     const stake = DEFAULT_CHIPS[tier]!;
 
     h.setTime(deadlineOf(0) + 1);
     await h.sendOrThrow(
       [
-        await recordForfeitsIx(crank.address, feeDestination, LEAGUE, INDEX, await forfeitPairs(cohort, [
+        await recordForfeitsIx(crank.address, fees, LEAGUE, INDEX, await forfeitPairs(cohort, [
           member.address,
         ])),
       ],
       crank,
     );
 
-    expect(h.tokenBalance(feeDestination)).toBe(feeOf(stake));
-    expect((await h.readCohort(LEAGUE, INDEX)).pool).toBe(stake - feeOf(stake));
+    const split = forfeitSplit(stake);
+    const after = await h.readCohort(LEAGUE, INDEX);
+    expect(h.tokenBalance(fees.operations)).toBe(split.operations);
+    expect(h.tokenBalance(fees.developer)).toBe(split.developer);
+    expect(after.pool).toBe(stake - feeOf(stake));
+    expect([after.boostDue, after.comebackDue]).toEqual([split.boost, split.comeback]);
   });
 
   it('records the missed deadline as the outcome instant, never `now` (FR-060b)', async () => {
@@ -197,7 +207,7 @@ describe('record_forfeits (contracts §2)', () => {
     h.setTime(deadlineOf(1) + 1);
     await h.sendOrThrow(
       [
-        await recordForfeitsIx(crank.address, feeDestination, LEAGUE, INDEX, await forfeitPairs(cohort, [
+        await recordForfeitsIx(crank.address, fees, LEAGUE, INDEX, await forfeitPairs(cohort, [
           member.address,
         ])),
       ],
@@ -221,7 +231,7 @@ describe('record_forfeits (contracts §2)', () => {
 
     h.setTime(deadlineOf(0) + 1);
     await h.sendOrThrow(
-      [await recordForfeitsIx(crank.address, feeDestination, LEAGUE, INDEX, await forfeitPairs(cohort, wallets))],
+      [await recordForfeitsIx(crank.address, fees, LEAGUE, INDEX, await forfeitPairs(cohort, wallets))],
       crank,
     );
 
@@ -239,7 +249,7 @@ describe('record_forfeits (contracts §2)', () => {
     // Reversed, then overlapping, then all of them: every pair lands once.
     await h.sendOrThrow(
       [
-        await recordForfeitsIx(crank.address, feeDestination, LEAGUE, INDEX, await forfeitPairs(cohort, [
+        await recordForfeitsIx(crank.address, fees, LEAGUE, INDEX, await forfeitPairs(cohort, [
           wallets[3]!,
           wallets[1]!,
         ])),
@@ -248,7 +258,7 @@ describe('record_forfeits (contracts §2)', () => {
     );
     await h.sendOrThrow(
       [
-        await recordForfeitsIx(crank.address, feeDestination, LEAGUE, INDEX, await forfeitPairs(cohort, [
+        await recordForfeitsIx(crank.address, fees, LEAGUE, INDEX, await forfeitPairs(cohort, [
           wallets[1]!,
           wallets[0]!,
           wallets[3]!,
@@ -257,16 +267,20 @@ describe('record_forfeits (contracts §2)', () => {
       crank,
     );
     await h.sendOrThrow(
-      [await recordForfeitsIx(crank.address, feeDestination, LEAGUE, INDEX, await forfeitPairs(cohort, wallets))],
+      [await recordForfeitsIx(crank.address, fees, LEAGUE, INDEX, await forfeitPairs(cohort, wallets))],
       crank,
     );
 
     const total = wallets.reduce((sum, _w, tier) => sum + DEFAULT_CHIPS[tier]!, 0n);
-    const fees = wallets.reduce((sum, _w, tier) => sum + feeOf(DEFAULT_CHIPS[tier]!), 0n);
+    const fee = wallets.reduce((sum, _w, tier) => sum + feeOf(DEFAULT_CHIPS[tier]!), 0n);
+    const parts = wallets.map((_w, tier) => forfeitSplit(DEFAULT_CHIPS[tier]!));
     const after = await h.readCohort(LEAGUE, INDEX);
     expect(after.forfeitsRecorded).toBe(4);
-    expect(h.tokenBalance(feeDestination)).toBe(fees);
-    expect(after.pool).toBe(total - fees);
+    expect(h.tokenBalance(fees.operations)).toBe(parts.reduce((sum, p) => sum + p.operations, 0n));
+    expect(h.tokenBalance(fees.developer)).toBe(parts.reduce((sum, p) => sum + p.developer, 0n));
+    expect(after.boostDue).toBe(parts.reduce((sum, p) => sum + p.boost, 0n));
+    expect(after.comebackDue).toBe(parts.reduce((sum, p) => sum + p.comeback, 0n));
+    expect(after.pool).toBe(total - fee);
     expect(after.heldStake).toBe(0n);
     for (const wallet of wallets) {
       expect((await h.readMembership(cohort, wallet)).state).toBe('Forfeited');
@@ -291,7 +305,8 @@ describe('record_forfeits (contracts §2)', () => {
     const after = await h.readCohort(LEAGUE, INDEX);
     expect(after.forfeitsRecorded).toBe(1);
     expect(after.heldStake, 'the standing member\'s stake is still held').toBe(DEFAULT_CHIPS[0]!);
-    expect(h.tokenBalance(feeDestination)).toBe(feeOf(DEFAULT_CHIPS[3]!));
+    expect(h.tokenBalance(fees.operations)).toBe(forfeitSplit(DEFAULT_CHIPS[3]!).operations);
+    expect(h.tokenBalance(fees.developer)).toBe(forfeitSplit(DEFAULT_CHIPS[3]!).developer);
   });
 
   it('records nothing at all before the cohort starts', async () => {
@@ -323,13 +338,14 @@ describe('record_forfeits (contracts §2)', () => {
 
     expectProgramError(
       await h.send(
-        [await recordForfeitsIx(crank.address, feeDestination, LEAGUE, INDEX, forged)],
+        [await recordForfeitsIx(crank.address, fees, LEAGUE, INDEX, forged)],
         crank,
       ),
       'AccountMismatch',
     );
     expect((await h.readMembership(cohort, member.address)).state).toBe('Joined');
-    expect(h.tokenBalance(feeDestination)).toBe(0n);
+    expect(h.tokenBalance(fees.operations)).toBe(0n);
+    expect(h.tokenBalance(fees.developer)).toBe(0n);
   });
 
   it('refuses a whole page carrying a membership from another cohort', async () => {
@@ -344,7 +360,7 @@ describe('record_forfeits (contracts §2)', () => {
     h.setTime(deadlineOf(0) + 1);
     const pairs = await forfeitPairs(other, [member.address]);
     expectProgramError(
-      await h.send([await recordForfeitsIx(crank.address, feeDestination, LEAGUE, INDEX, pairs)], crank),
+      await h.send([await recordForfeitsIx(crank.address, fees, LEAGUE, INDEX, pairs)], crank),
       'AccountMismatch',
     );
     expect((await h.readCohort(LEAGUE, INDEX)).forfeitsRecorded).toBe(0);
@@ -356,7 +372,7 @@ describe('record_forfeits (contracts §2)', () => {
     h.setTime(deadlineOf(0) + 1);
 
     const pairs = await forfeitPairs(cohort, [member.address]);
-    const odd = await recordForfeitsIx(crank.address, feeDestination, LEAGUE, INDEX, pairs);
+    const odd = await recordForfeitsIx(crank.address, fees, LEAGUE, INDEX, pairs);
     // Drop the profile, leaving the membership unpaired.
     const truncated = { ...odd, accounts: (odd.accounts ?? []).slice(0, -1) };
     expect((await h.send([truncated], crank)).ok).toBe(false);
@@ -371,7 +387,8 @@ describe('record_forfeits (contracts §2)', () => {
     const result = await record([member.address], stranger);
     expect(result.ok, result.logs.join('\n')).toBe(true);
     expect((await h.readMembership(cohort, member.address)).state).toBe('Forfeited');
-    expect(h.tokenBalance(feeDestination)).toBe(feeOf(DEFAULT_CHIPS[2]!));
+    expect(h.tokenBalance(fees.operations)).toBe(forfeitSplit(DEFAULT_CHIPS[2]!).operations);
+    expect(h.tokenBalance(fees.developer)).toBe(forfeitSplit(DEFAULT_CHIPS[2]!).developer);
   });
 
   it('takes a full page of ten', async () => {
@@ -385,7 +402,7 @@ describe('record_forfeits (contracts §2)', () => {
     const after = await h.readCohort(LEAGUE, INDEX);
     expect(after.forfeitsRecorded).toBe(10);
     expect(after.heldStake).toBe(0n);
-    expect(h.tokenBalance(vault)).toBe(after.pool);
+    expect(h.tokenBalance(vault)).toBe(after.pool + after.boostDue + after.comebackDue);
   });
 
   it('refuses more than ten pairs in one page (research R9)', async () => {

@@ -35,7 +35,6 @@ Judges score completion from the demo video and technical depth from the GitHub 
 | **Daily challenge** | 25 push-ups, every day, free, for everyone. No cohort, no stake, no prize. Builds a cosmetic streak. |
 | **7-day league** | Staked, 25 reps/day. The entry rung and the comeback lane. **Never closes** — not on a clear, not on a forfeit. |
 | **21-day league** | Staked, 25 reps/day. Where the money is. |
-| Human Flag | Locked third rung in the UI only. Does not exist in the contract. |
 
 Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off for the hackathon** (`ladder_gate_enabled = false`): both leagues are joinable from first launch, the unlock is still computed and recorded, and enabling the gate later is one flag, never a migration.
 
@@ -102,6 +101,8 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 **Source:** spec §2; constitution IV; scope doc D-C.
 
 ### H8. Stake chips: USD tiers, priced in SKR, checked weekly, locked per cohort
+
+> **Revised 2026-10-06 (H36):** the 20% drift threshold below is gone — the Operator re-prices the chips **every week** from the Jupiter rate, even when the amounts come out unchanged, at most once per Monday 05:00 UTC boundary. Locked per cohort as before.
 
 > **Phasing (H23):** Phase 1 publishes one chip set at launch; the weekly check and re-pricing below are Phase 2.
 
@@ -174,11 +175,11 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 **Decided:**
 
-- 20% of each forfeited stake is fee; the rest enters that cohort's prize pool. Only forfeited stakes (and carry-over, H12) ever enter a pool; held stakes are segregated at every instant.
+- **30%** of each forfeited stake is fee; the remaining 70% enters that cohort's prize pool (**revised 2026-10-05 from 20/80, H34**). Only forfeited stakes ever enter a pool; held stakes are segregated at every instant.
 - Every finisher settles at the same moment on the same figures. Payout = `stake + pool × (stake ÷ total finisher stake)`. The denominator is written exactly once.
 - **Each share rounds down** to the smallest SKR unit. At settlement the **rounding remainder** — always fewer units than there are finishers — **goes to the fee destination** and is recorded on the cohort, so the pool then holds exactly the shares (clarified 2026-09-15).
 - **Claim is a deliberate member action**, never an automatic deposit, and stays claimable indefinitely.
-- If nobody forfeits, finishers get exactly their stake back (plus any carry-over share), and the app says so before they join.
+- If nobody forfeits, finishers get exactly their stake back, and the app says so before they join.
 
 **Why the remainder goes to the fee destination:** it can be computed exactly at settlement, since every finisher's stake is known then; it needs no change to INV-2, which only admits forfeits and no-finisher carry-overs into a pool; and it is the only option that leaves nothing stranded in a settled cohort. **Rejected:** adding it to the carry-over (would let carry-over come from cohorts with finishers, changing INV-2); leaving it in the cohort forever; giving it to one finisher (two equal stakes would then be paid differently, breaking acceptance criterion 3).
 
@@ -188,7 +189,7 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 **Source:** spec FR-026…FR-037b, FR-032a, INV-1, INV-2, INV-5, INV-6, acceptance criterion 3; constitution I.
 
-### H12. When nobody finishes: 50% fee, 50% carry-over
+### H12. When nobody finishes: 50% fee, 50% carry-over — **SUPERSEDED 2026-10-05 by H34**
 
 **Decided (OD-5, clarified 2026-09-15):** at settlement of a cohort with no finishers, **50% of the pool goes to the fee destination and 50% carries over** into the prize pool of the next cohort of the same league that is still open for joining. Any indivisible remainder goes to the carry-over. Both amounts are recorded on the settled cohort. If no cohort of that league is open, **settlement is refused until one is** (revised 2026-09-19, from a review of `settle_finalize`): holding the carry-over instead let whoever settled first decide, by timing alone, whether it ever reached a prize pool — and with delivery in Phase 2, a cut Phase 2 would have stranded it. Opening the league's next cohort is permissionless and already due, so any caller can clear the refusal; the held field survives only for a league in which nobody ever opens another cohort, and error 6047 names the refusal. A carry-over never enters a cohort that has already started. A cohort that received a carry-over and also has no finishers applies the same rule to its whole pool.
 
@@ -423,8 +424,8 @@ Copy uses "prize", never "winnings", "returns", "yield" or "earnings"; never "be
 |---|---|
 | League leaderboards (H17) | No league board screen; on-chain progress is still recorded from the first cohort, and the cohort roster ships in Phase 1 |
 | Weekly chip re-pricing (H8) | One chip set published at launch; publishing a new set is already possible, so re-pricing is tooling only |
-| Delivery of a held carry-over (H12) | Phase 1 holds none: a no-finisher cohort settles only once its league has an open lobby, and delivers the carry-over into it (error 6047 until then). The field and the instruction remain for a league nobody opens another cohort in |
-| Automatic offline submission (H18) | "Done — tap to submit" once online; every offline warning ships in Phase 1 |
+| Delivery of a held carry-over (H12) — **cut 2026-10-05 (H34)**: nothing carries over any more | Phase 1 holds none: a no-finisher cohort settles only once its league has an open lobby, and delivers the carry-over into it (error 6047 until then). The field and the instruction remain for a league nobody opens another cohort in |
+| Automatic offline submission (H18) — **built 2026-10-05** | "Done — tap to submit" once online; every offline warning ships in Phase 1 |
 
 **Why:** after three clarify sessions the spec is more than 13 days of work. These four items are the ones cohort #3 doesn't need on its first day — nobody can be ranked until three cohorts have been played, a mock SKR price doesn't move, an open cohort almost always exists at settlement, and one tap after reconnecting is an acceptable first version — and each has a stand-in that keeps Phase 2 free of data migrations.
 
@@ -562,6 +563,8 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 
 ### H32. The short test cohort is a 7-day Holdout in 70 minutes
 
+> **Superseded 2026-10-06 by H36:** a test lobby kept running for judges, three 10-minute days, a new cohort every 30 minutes.
+
 **Decided (2026-09-29, product owner; amends 2026-09-27):** the disclosed short test cohort (FR-044a, constitution v1.4.0) runs **seven 10-minute days at 5 reps a day** — a 7-day Holdout in 70 minutes. `crank init --test-league` makes that the default; `--day-seconds`, `--days` and `--reps` still override it (`--day-seconds 3600` gives the one-hour days of the 27 September version).
 
 **Why:** one-hour days (27 Sep) proved hard to test: a tester who missed one sitting waited hours for the next cohort, and a full cycle took most of a day. At 5 reps, a real sitting — the set-up checks, the ready hold and the counting — fits in a 10-minute day, which the 27 September version doubted when the target was 25. Every step stays real — the checks, the counting, a missed real deadline, settlement and the claim — within about an hour. The real 7-day and 21-day leagues stay at 24-hour days and 25 reps.
@@ -581,6 +584,93 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 **Consequences:** one runtime permission (`POST_NOTIFICATIONS`, asked at the first join). Reminders are inexact, resume after a reboot only once the app is opened, and never excuse a missed deadline — named in the README (FR-068a, R21).
 
 **Source:** spec FR-068, FR-068a, clarification 2026-09-27; research R21; tasks T067a, T067b.
+
+### H34. The fee becomes 30%, and a no-finisher pool goes to the treasury
+
+**Decided (2026-10-05, product owner, before the program's first deploy):**
+
+- A forfeited stake splits **70/30**: 70% to that Holdout's prize pool, 30% to the fee destination (was 80/20, H11).
+- A Holdout nobody finished sends its **whole pool to the fee destination**. Nothing carries over into another Holdout (was 50/50 with a carry-over, H12).
+- **Still open:** how the 30% is divided once it reaches the treasury. Candidates the product owner named are a share toward the next Holdout's prize, as a reason to join it, and a promotion pool for the Daily 25. These come from research and brainstorming first, before anything is built. Until then all of it reaches the fee destination on chain, so the division can be done off chain from the treasury, or added later, without touching a member's stake or pool. A random airdrop to Daily 25 players would be a luck mechanic, which constitution XIII's language rule and Principle I ("nothing the admin calls moves money") both bear on, so it needs its own decision and probably an amendment.
+
+**Why:** the product owner wants a larger treasury share to fund retention, such as prizes and promotions that keep members coming back. Dropping the carry-over also removes the one place where settlement depended on another cohort. Since 19 September a no-finisher cohort had been refused (6047) until its league's next lobby opened, and the Phase 2 delivery of a held carry-over (T099) had turned out to be unreachable: `open_cohort` is permissionless and nothing stops a league. Settlement is now self-contained.
+
+**Rejected:** building `deliver_carry_over` (T099), which nothing could reach; keeping the carry-over beside the larger fee, which the product owner chose not to do.
+
+**Consequences:**
+
+- **Contract:**
+  - `settle_finalize` takes no target accounts.
+  - Errors 6046 and 6047 and the `CarryOverSent`/`CarryOverHeld`/`CarryOverDelivered` events are removed.
+  - The cohort's carry-over fields stay in its layout, always zero, so no client's decoder changed.
+- **Tests and invariants:**
+  - INV-1, INV-2 and INV-6 lose their carry-over clauses.
+  - Golden vectors V5b and V8 are dropped, and V1–V19 are recomputed.
+- **Off-chain:**
+  - The crank no longer opens a lobby before settling.
+  - The app says "70 % to the pool, 30 % fee", and "if everyone finishes, you get exactly your stake back".
+
+**Source:** spec clarification 2026-10-05, FR-027, FR-037 (FR-037a/b superseded), ES-5…ES-7b, FR-041, acceptance criteria 2 and 11; tasks T099 (cut), T111.
+
+### H35. League reserves, two fee destinations, Easy and Hard
+
+**Decided (2026-10-05, product owner, after a proposer/critic brainstorm, before the program's first deploy; admitted past the freeze by constitution v1.6.0):**
+
+- **Every forfeited stake splits 70 / 10 / 5 / 5 / 10:**
+  - 70% to the Holdout's prize pool.
+  - 10% to the league's **boost reserve** and 5% to its **comeback reserve**.
+  - 5% to the **developer** destination and 10% to the **operations** destination (marketing, operations).
+  - Each part is floored; operations takes whatever rounding leaves. The fee is still 30% (H34), now split on chain instead of sent to one account.
+- **Reserves are credited only at settlement:**
+  - A Holdout's reserve share stays in its own vault, recorded as `boost_due` / `comeback_due`.
+  - It moves into the league's program-owned reserve vault when that Holdout finalizes.
+  - Finalization runs in Holdout order per league (FR-061a), so the reserve a Holdout draws on never depends on when the crank recorded anyone's forfeit (Principle II).
+- **Prize boost:**
+  - When a Holdout with finishers finalizes, its pool gets `min(20% × its own pool, boost reserve)` before the shares are computed.
+  - A Holdout with no forfeits gets nothing, so "everyone finishes, exactly your stake back" (FR-041) still holds.
+  - The boost draws first; the Holdout's own `boost_due` is credited after it.
+- **Comeback refund:**
+  - When a forfeit is **counted** (`settle_count`, in Holdout order, as the league streak is), the member's league progress keeps that stake and its missed deadline. Only the latest counted forfeit is kept.
+  - When the same member is counted as a **finisher** of a later Holdout in the same league whose start lies within 14 Holdout days of that deadline, they are owed `min(10% × the forfeited stake, their new stake)`, and the record is used up.
+  - At finalization the Holdout takes `min(total owed, comeback reserve)` from the reserve. Each refund is paid with the claim, scaled down pro rata if the reserve was short.
+- **No finishers:** the whole pool still goes out (H34), a third to developer and the rest to operations. Its reserve shares are still credited to the league.
+- **The Daily 25 is never paid, on any network.** Its pull is the toes meter, the streak with earned freezes, and the money lines about Holdouts on its done screen.
+- **Form:**
+  - `LeagueConfig.form`, copied to each cohort at `open_cohort` (constitution V): 0 = from the toes (**Hard**, 21-day), 1 = knees allowed (**Easy**, 7-day).
+  - Easy keeps every other check Hard makes: depth, body line, hip rise, legs and knees in view.
+  - Easy refuses to start unless the phone reads 40–60° — the band in which no cobra counted on the recorded traces.
+  - Easy and Hard clears never share a leaderboard.
+- **Daily 25 streak freezes:** one earned per 7 consecutive active days, at most 2 held, used automatically. A frozen day keeps the streak without adding to it. Device only, never on a Holdout day (FR-016).
+
+**Why:** the product owner wants part of the fee to bring members back daily and into the next Holdout, a declared developer fee, and an easier entry level.
+
+**Rejected:**
+- A random airdrop: a luck mechanic, legally close to a lottery, and it did not help daily exercise in trials.
+- Paying the Daily 25: it would be farmed through the free faucet.
+- Crediting reserves when a forfeit is recorded: the crank's timing would set the boost.
+- Easy filmed head-on: no body-line check at that placement where money is at stake.
+
+**Farm bound:** with m = 0.20 and r = 0.10, a group that forfeits on purpose into its own finishers recovers at most 0.7(1+m) + r = 0.94 per SKR lost. The critic re-derived this, including the boost and the comeback hitting the same wallet, and reserves building up over many Holdouts.
+
+**Known limits:**
+- When the comeback reserve is short, pro-rata flooring can leave a few base units in the Holdout's vault, fewer than its finishers.
+- Easy's evidence is mostly one person's recordings: 87% of knee reps counted, 3 of 56 cobras slipped through, 2 of them at about 30°. More recordings are being collected this week (README weakness).
+
+**Source:** brainstorm files A-r2, B-r2 and C-r2 (session scratchpad, summarised here); constitution v1.6.0.
+
+### H36. No feature freeze; leaderboards, offline auto-submit and a test lobby for judges
+
+**Decided (2026-10-06, product owner; constitution v2.0.0):**
+- **The 5 October feature freeze is removed.** Phase 2 items are built after Phase 1 works end to end, with no date gate. H35 is an ordinary decision, no longer an exception. (Earlier the same day, v1.7.0 admitted leaderboards and offline auto-submit past the freeze; v2.0.0 replaced that by removing the freeze.)
+- **League leaderboards** (US-10, FR-060…FR-063) are built: **all-time, one per league**, from on-chain progress. The Easy 7-day and Hard 21-day boards are separate because the leagues are. **Quarterly and yearly boards are deferred.**
+- **One labelled board for the short test league.** Every test league shares one progress slot, so it is one combined board. No member can finish three judged cohorts before 9 October, so it is where ranking can be seen during judging.
+- **The ranking rules live once, in Kotlin core**, with given-when-then tests for AC-14. The contract suite checks the on-chain progress figures the board reads, not a second copy of the ranking.
+- **Automatic offline submission** (T098, PR #16): the wallet opens on its own once the phone is back online.
+- **A short test lobby, kept running on devnet for judges** (FR-044a): the devnet build carries a test league whose labelled cohorts keep opening alongside the real 7-day and 21-day lobbies through the live period, so **a single judge can run the whole cycle alone**. **Three 10-minute days at 5 reps, a new cohort every 30 minutes**, joinable right up to each start (join lock 0 since 2026-10-07; it was 5 minutes, which left a gap with no cohort to join; before that, seven 10-minute days, H32). The presentation video shows the cycle on a test cohort and says so.
+
+**Why:** the leaderboards and offline auto-submit are client and crank only, and their data has been recorded since the first cohort (H23). A judge installing the app on any day of judging must be able to see the whole loop by themselves, which a real 7-day Holdout cannot give in one sitting.
+
+**Source:** spec clarifications, session 2026-10-06; constitution v2.0.0.
 
 ---
 
@@ -607,9 +697,10 @@ Carried forward unchanged; full reasoning in the archive.
 | Three leagues: Push-Up 7d → Front Lever 21d → Human Flag 28d (30 reps) | archived D1 | H2 |
 | A free 7-day clear qualifies | archived D2 | H2, H3 |
 | Staked qualifier closes on a clear | archived D3 | H2 — the 7-day never closes |
-| Front Lever and Human Flag as permanent "homes" | archived D4 | Post-hackathon only; Human Flag is a locked UI rung |
+| Front Lever and Human Flag as permanent "homes" | archived D4 | H2 — two leagues only |
 | USD chip ladders ($5…$200), Human Flag doubled, ceilings lowered | archived D5, D6, D7 | H8 |
 | Free cohorts beside staked ones | archived D12 | H3 |
+| No-finisher pool split 50/50 with a carry-over into the league's open lobby; `deliver_carry_over` for a held one | H12, T099 | H34 — the whole pool to the fee destination |
 | Comeback path is the free week | archived D14 | H3 — daily challenge plus the open 7-day cohort |
 | Free 7-day → staked 21-day | scope doc D-I (first version) | H2 |
 | Fixed SKR chips 100 / 250 / 500 / 1,000 | scope doc D-C | H8 |
@@ -642,7 +733,6 @@ By decision, not by omission.
 
 | Removed | Why |
 |---|---|
-| Human Flag league (contract) | Locked UI rung only (H2) |
 | Free cohorts | H3 |
 | Conditional pre-joining | H10 |
 | Cohort cancellation and minimum size | H15 |
@@ -731,3 +821,12 @@ By decision, not by omission.
 | 2026-09-19 | Two setup-window holes closed, from a Codex review of the pushed branch (R14, FR-055b): **`initialize` now accepts only the program's upgrade authority**, checked against `ProgramData` before anything is created (`NotUpgradeAuthority`, 6003) — until `Config` exists there is no stored key to authenticate a signer, so a stranger could have claimed a freshly deployed program along with `operator`, `sponsor` and the fee destination, and the program ID the app and README name could not have been reclaimed; `initialize` must therefore run before the upgrade authority is revoked. And **no cohort opens before the first chip set is published** (`chip_set.version > 0`, `ChipSetNotPublished`, 6012): `open_cohort` is permissionless, a cohort keeps the amounts it copied for life (FR-007), so one opened in the gap after deployment would have taken zero-stake joins until it settled. `crank init` now publishes the first set between `initialize` and the leagues. Golden vector V7 rewritten to the refusal behaviour the 2026-09-19 carry-over change introduced. |
 | 2026-09-26 | Constitution v1.4.0 (minor): **one disclosed short test cohort, devnet only** — a test league with a compressed day on the devnet program built with `test-leagues`, admin-created, labelled everywhere in the app and disclosed in the README, video and deck; the demo and walkthrough may be recorded from it. The first judged start and the feature freeze move from 28 September to **Monday 5 October 2026**. Mainnet builds never carry `test-leagues`. Spec: Session 2026-09-26, FR-044 amended, FR-044a added. |
 | 2026-09-27 | Constitution v1.5.0 (minor): Principle X gains **one narrow exception for rep recognition** — a **debug build** may save a sitting's camera stream as video (no audio), on the device only, pulled by the team over USB and deleted after, from people who agreed in writing to be filmed; a release build must not contain the recorder, enforced by a build check. Members sharing their own recordings stays a later decision. Pulls forward spec 002 T035. |
+| 2026-10-05 | **Automatic offline submission built (H18, T098).** Every submission needs the member's wallet signature, so "automatic" was decided to mean the wallet's approval opens by itself — no tap on "Done" — as soon as the app is open and the chain answers again; a returning network triggers a chain read at once. A member who declines in the wallet is not asked again until the connection drops and returns, and the day then shows "Done — tap to submit". Rejected: a notification while the app is in the background (more surface for no judged gain) and keeping the Phase 1 tap. Spec FR-024b amended to say so. |
+| 2026-10-05 | **Fee 70/30, no carry-over (H34).** A forfeited stake now goes 70% to the prize pool and 30% to the fee destination. A no-finisher Holdout's whole pool goes to the fee destination, so `settle_finalize` needs no other cohort, 6046/6047 and the carry-over events are removed, and T099 is cut. How the 30% is divided afterwards is open, pending research. Program, IDL, Codama client, LiteSVM scenarios, golden vectors, Kotlin, crank and app copy changed together (T111). |
+| 2026-10-05 | **Constitution v1.6.0 and H35.** The freeze is overridden for one package. League boost and comeback reserves are credited at settlement. Developer and operations fee destinations are on chain. The league `form` sets Easy (knees allowed, 40–60° only) for 7-day and Hard (from the toes) for 21-day. The Daily 25 gets a toes meter and earned streak freezes, and is never paid on any network. Principle I now admits a capped share of a league's earlier forfeits into a pool; Principle V names the form. Out of scope gains "any payment for the Daily 25" and loses "bonus matching" and "insurance fund". |
+| 2026-10-06 | **Human Flag removed.** The locked third rung is gone from the ladder screen, US-1, the out-of-scope list, H2, the PRD, the scope doc and the demo script. The ladder is the Daily 25 under the 7-day and 21-day leagues, nothing above them. It never existed in the contract, so nothing on chain changes. The archive keeps its history. |
+| 2026-10-06 | **Constitution v2.0.0 and H36.** The feature freeze is removed (v1.7.0 had admitted leaderboards and offline auto-submit past it earlier the same day). League leaderboards are built (all-time, one per league, plus one labelled test-league board; quarterly and yearly deferred), with automatic offline submission. The short test cohort becomes a test lobby kept running on devnet for judges: three 10-minute days, a new cohort every 30 minutes. |
+| 2026-10-06 | **Weekly chip re-pricing (H8 revised, T100).** `crank chips publish --auto` reads the Jupiter Price API (mainnet SKR mint) and re-prices every week with no drift threshold, at most once per Monday 05:00 UTC boundary; a standalone Operator command, never `crank run`. The race of two overlapping runs is accepted. |
+| 2026-10-07 | **Test lobby join lock 0** (FR-044a, H36). The next test cohort opens only once the current one starts, so a 5-minute join lock left 5 minutes in every 30 with nothing to join. Each test cohort now stays joinable until its own start. The judged leagues keep their one-hour lock. |
+| 2026-10-07 | **Weekly chip check runs hourly** (FR-056, T100). The Operator schedules `crank chips publish --auto` every hour in any time zone, and the once-per-boundary guard publishes on the first run after Monday 05:00 UTC. A failed run, or one with no rate, is retried the next hour within the same week. A once-a-Monday cron needed `CRON_TZ`, which Debian's cron ignores. |
+| 2026-10-07 | **One test league at a time** (FR-044a, FR-060). The newest test league is the lobby, and the crank opens no more cohorts in an older one, which winds down. Streaks are written when a cohort is counted, after it ends, so two concurrent test leagues of different lengths could write a member's later clear before an earlier forfeit on the combined test board. No program change. |

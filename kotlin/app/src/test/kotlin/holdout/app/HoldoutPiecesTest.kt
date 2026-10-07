@@ -44,6 +44,8 @@ class HoldoutPiecesTest {
     @Test
     fun `a refusal is explained in words a member can act on`() {
         assertEquals(6021, WalletRepository.failure("Transaction simulation failed: custom program error: 0x1785").programError)
+        // A refusal came back through the wallet: the member was asked.
+        assertFalse(WalletRepository.failure("Transaction simulation failed: custom program error: 0x1785").beforeWallet)
         assertEquals("Joining for this Holdout has closed.", ProgramErrors.explain(6021))
         assertNull(ProgramErrors.explain(null))
     }

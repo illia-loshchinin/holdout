@@ -8,7 +8,7 @@
 //! makes this instruction worth having rather than a redeploy.
 //!
 //! It moves no money. Nothing here, and nothing the admin can call, touches a
-//! held stake, a pool or a carry-over (constitution I).
+//! held stake or a pool (constitution I).
 
 use anchor_lang::prelude::*;
 

@@ -34,6 +34,7 @@ import holdout.app.home.HomeScreen
 import holdout.app.home.HomeState
 import holdout.app.ladder.HoldoutOffer
 import holdout.app.ladder.LadderScreen
+import holdout.app.leaderboard.LeaderboardScreen
 import holdout.app.lobby.LobbyScreen
 import holdout.app.reminders.ReminderScheduler
 import holdout.app.roster.RosterScreen
@@ -59,11 +60,14 @@ import holdout.core.ChainClock
 import holdout.core.Derive
 import holdout.core.HoldoutDay
 import holdout.core.Journey
+import holdout.core.Leaderboard
 import holdout.core.LeagueParams
 import holdout.core.Reminders
+import holdout.core.ScriptedWallets
 import holdout.core.Stage
 import holdout.repcounter.Stakes
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Every screen past the connect screen (contracts/android-app §5). Holdouts are named by cohort address. */
@@ -74,6 +78,7 @@ private sealed interface Route {
     data object About : Route
     data object Walkthrough : Route
     data object Tour : Route
+    data class Leaderboards(val board: Leaderboard.Board) : Route
     data class Stake(val cohort: SolanaPublicKey) : Route
     data class Lobby(val cohort: SolanaPublicKey) : Route
     data class Detail(val cohort: SolanaPublicKey) : Route
@@ -119,6 +124,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     val holdouts: HoldoutViewModel = viewModel { HoldoutViewModel(store) }
     val chain by holdouts.state.collectAsStateWithLifecycle()
     val rosters by holdouts.rosters.collectAsStateWithLifecycle()
+    val leaderboardRead by holdouts.leaderboard.collectAsStateWithLifecycle()
 
     // The wallet a previous run connected is restored with its auth token, so a
     // restart does not ask again (contracts/android-app §3).
@@ -146,7 +152,8 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 val slot = clock.slot
                 if (boot >= 0 && chainNow != null && slot != null) store.setChainReading(SavedChainReading(chainNow, slot, boot, elapsed))
             }
-            delay(if (clock.hasReading) CHAIN_REFRESH_MILLIS else CHAIN_RETRY_MILLIS)
+            // With no reading yet, the network's return asks again at once (below).
+            if (clock.hasReading) delay(CHAIN_REFRESH_MILLIS) else clockViewModel.retry.await(CHAIN_RETRY_MILLIS)
         }
     }
     // The clock is a plain object, not Compose state: sampled once a second.
@@ -155,6 +162,14 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         while (true) {
             now = clock.nowSeconds()
             delay(1_000)
+        }
+    }
+    // The default network is followed for as long as the view model lives, not only
+    // while started: a loss while the wallet holds the screen must still re-arm the
+    // automatic send (T098). Its return reads at once only while in front.
+    LaunchedEffect(holdouts) {
+        holdouts.followNetwork(context.applicationContext.getSystemService(android.net.ConnectivityManager::class.java)) {
+            clockViewModel.retry.networkBack()
         }
     }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -289,17 +304,6 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     // Compose state, not a storage read: storage is not observed, so finishing the
     // tour must change something this composition reads or the screen never leaves it.
     var tourSeen by remember(wallet) { mutableStateOf(store.hasSeenTour(wallet)) }
-    if (!tourSeen || route == Route.Tour) {
-        TourScreen(
-            onDone = {
-                store.setSeenTour(wallet)
-                tourSeen = true
-                route = Route.Home
-            },
-            modifier = modifier,
-        )
-        return
-    }
 
     val dayIndex = now?.let { HoldoutDay.indexOf(it) } ?: Store.UNKNOWN_DAY
 
@@ -311,6 +315,46 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         if (!idle) return@LaunchedEffect
         val chainNow = now ?: return@LaunchedEffect
         if (offlineDays.settle(wallet, boot, android.os.SystemClock.elapsedRealtime(), chainNow) != null) refreshToken += 1
+    }
+
+    val chainNow = now
+    val view = chain.view
+    fun holdout(address: SolanaPublicKey): Holdout? = view?.holdouts?.firstOrNull { it.address == address }
+
+    /** Today's day of [h] done on this phone and not yet on chain, if any. Only today's counts: an older one left behind must not hide it. */
+    @Composable
+    fun pendingTodayOf(h: Holdout, stage: Stage.Active): Int? {
+        val pending = remember(wallet, h.address, refreshToken, chain.busy) { holdouts.pendingDay(h) }
+        val locallyDone = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.isDayComplete(wallet, cohortScope(h), stage.dayIndex.toLong()) }
+        return pending?.takeIf { it == stage.dayIndex } ?: stage.dayIndex.takeIf { locallyDone && !stage.todayDone }
+    }
+
+    fun submitDayOf(h: Holdout, day: Int) {
+        // A day recovered from the phone's own record — the app closed after the
+        // last rep, before the sitting's own exit ran — is that day's training for
+        // the streak as well. Recording the same date twice changes nothing.
+        if (!h.isTest) streaks.recordCompletedDay(wallet, HoldoutDay.indexOf(h.cohort.start + day * h.cohort.dayLength))
+        holdouts.submitDay(sender, h, day, h.cohort.repsPerDay)
+    }
+
+    /**
+     * A day waiting for the network sends itself once the chain answers again
+     * (FR-024b Phase 2, T098) — on whichever screen the member is, the tour and
+     * the Daily 25 included, short of a cohort sitting, and again after the
+     * system reports the network lost and the chain answers once more.
+     * [whenFree] returns once the screen may give way to the wallet; [key] is
+     * what it waits on.
+     */
+    @Composable
+    fun SendWaitingDay(key: Any? = null, whenFree: suspend () -> Unit = {}) {
+        val running = chainNow?.let { n -> view?.mine(n)?.firstNotNullOfOrNull { h -> (h.stage(n) as? Stage.Active)?.let { h to it } } } ?: return
+        val (h, stage) = running
+        val pendingToday = pendingTodayOf(h, stage)
+        LaunchedEffect(h.address, pendingToday, stage.todayDone, chain.offline, chain.busy, chain.autoSubmit, key) {
+            if (pendingToday == null) return@LaunchedEffect
+            whenFree()
+            if (holdouts.autoSubmitDue(h, pendingToday, stage.todayDone)) submitDayOf(h, pendingToday)
+        }
     }
 
     // ---- a sitting -------------------------------------------------------------
@@ -330,6 +374,13 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 )
             }
             DisposableEffect(vm) { onDispose { vm.release() } }
+            // A cohort day waiting for the network goes over the Daily 25 too: a sitting
+            // has no pause limit, and the day's deadline must not pass with the app open
+            // and connected. Never mid-set, though — leaving for the wallet then would
+            // cost the set's loose reps; it opens once the set ends. Out of a set the
+            // wallet's round trip costs nothing: banked blocks are stored, and this
+            // sitting, held in the composition, is where the member comes back to.
+            SendWaitingDay(vm) { vm.uiState.first { !it.step.inSet } }
             val done = {
                 sitting = null
                 refreshToken += 1
@@ -349,8 +400,10 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                     dayIndex = s.day.toLong(),
                     target = h.cohort.repsPerDay,
                     chainSecondsNow = { clock.nowSeconds() },
-                    // Every sitting of a staked Holdout: 45° only, from the toes (FR-021a).
-                    stakes = Stakes.STAKED,
+                    // The cohort's own form (H35): Hard from the toes, Easy with knees
+                    // allowed — 45° only either way (FR-021a). An unknown form never
+                    // reaches here: Start refuses it.
+                    stakes = Stakes.ofForm(h.cohort.form) ?: Stakes.STAKED,
                     // The cohort's own days — ten minutes each in the short test cohort.
                     dayOf = { Derive.dayIndex(h.cohort, it).toLong() },
                     // A Holdout day ends at its deadline: no rolling into the next (a missed day is a breach).
@@ -389,9 +442,22 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         null -> Unit
     }
 
-    val chainNow = now
-    val view = chain.view
-    fun holdout(address: SolanaPublicKey): Holdout? = view?.holdouts?.firstOrNull { it.address == address }
+    SendWaitingDay()
+
+    // The tour — first run, or opened again from About — shows only after the
+    // automatic send above is composed, so a reconnect during it still sends.
+    if (!tourSeen || route == Route.Tour) {
+        TourScreen(
+            onDone = {
+                store.setSeenTour(wallet)
+                tourSeen = true
+                route = Route.Home
+            },
+            modifier = modifier,
+        )
+        return
+    }
+
     BackHandler(enabled = route != Route.Home) { route = Route.Home }
     val goHome = { route = Route.Home }
 
@@ -509,6 +575,19 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             WalkthroughScreen(onBack = { route = Route.About }, modifier = modifier)
             return
         }
+        is Route.Leaderboards -> {
+            InFrontLoop(Unit) {
+                holdouts.loadLeaderboard()
+                delay(ROSTER_REFRESH_MILLIS)
+            }
+            val read = leaderboardRead
+            // The test board exists only where a test league does (FR-044a).
+            val boards = Leaderboard.Board.entries.filter { it != Leaderboard.Board.TEST || read?.cohortsAfter.orEmpty().any { c -> Leaderboard.Board.TEST.covers(c.leagueId) } }
+            val board = routed.board
+            val shown = if (read == null || chainNow == null) null else Leaderboard.view(board, read, chainNow, ScriptedWallets::isScripted)
+            LeaderboardScreen(board, boards, shown, address, { route = Route.Leaderboards(it) }, goHome, modifier)
+            return
+        }
         else -> Unit
     }
 
@@ -535,7 +614,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             if (label != null && next != null) {
                 HoldoutCard(Modifier.clickable { route = next }) {
                     if (h.isTest) TestCohortBadge(h.cohort.dayLength)
-                    Text("${h.cohort.durationDays}-day Holdout", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+                    Text(Format.holdoutTitle(h.cohort), style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
                     Text(label, style = MaterialTheme.typography.bodyLarge, color = if (stage is Stage.Forfeited) HoldoutColors.Warning else HoldoutColors.Success)
                 }
             }
@@ -560,32 +639,27 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             if (BankingController.recover(store, streaks, wallet, cohortScope, stage.dayIndex.toLong(), h.cohort.repsPerDay)) refreshToken += 1
         }
         val banked = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.bankedReps(wallet, cohortScope, stage.dayIndex.toLong()) }
-        val pending = remember(wallet, h.address, refreshToken, chain.busy) { holdouts.pendingDay(h) }
-        val locallyDone = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.isDayComplete(wallet, cohortScope, stage.dayIndex.toLong()) }
+        val pendingToday = pendingTodayOf(h, stage)
+        val submit = { day: Int -> submitDayOf(h, day) }
         CohortHome(
             h = h,
             members = rosters[h.address],
             stage = stage,
             now = chainNow,
             banked = banked,
-            // Only today's pending day counts: an older one left behind must not hide today's.
-            pendingDay = pending?.takeIf { it == stage.dayIndex } ?: stage.dayIndex.takeIf { locallyDone && !stage.todayDone },
+            pendingDay = pendingToday,
+            autoSendTried = pendingToday != null && chain.autoSubmit.tried(h.address.base58(), pendingToday),
             offline = chain.offline,
             busy = chain.busy,
             message = chain.message,
             messageIsWarning = chain.messageIsWarning,
             onStart = {
-                // An exercise this build does not know is refused, never guessed (FR-014, H30).
+                // An exercise or a form this build does not know is refused, never guessed (FR-014, H30, H35).
                 if (h.cohort.exercise != LeagueParams.EXERCISE_PUSHUP) return@CohortHome
+                if (Stakes.ofForm(h.cohort.form) == null) return@CohortHome
                 sitting = Sitting.CohortDay(h, stage.dayIndex)
             },
-            onSubmit = { day ->
-                // A day recovered from the phone's own record — the app closed after the
-                // last rep, before the sitting's own exit ran — is that day's training for
-                // the streak as well. Recording the same date twice changes nothing.
-                if (!h.isTest) streaks.recordCompletedDay(wallet, HoldoutDay.indexOf(h.cohort.start + day * h.cohort.dayLength))
-                holdouts.submitDay(sender, h, day, h.cohort.repsPerDay)
-            },
+            onSubmit = submit,
             onDetail = { route = Route.Detail(h.address) },
             onAbout = { route = Route.About },
             onRoster = { route = Route.Roster(h.address) },
@@ -610,6 +684,9 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             target = DAILY_25,
             completedToday = complete,
             streak = streak.current,
+            freezes = streak.freezes,
+            toes = holdout.app.streak.ToesMeter(store, DAILY_25).read(wallet, dayIndex),
+            holdoutLine = chainNow?.let { n -> view?.let { v -> holdout.app.home.DailyHoldoutLine.of(v.openToJoin(n).map { it.cohort }, v.profile, n) } },
             secondsLeftToday = chainNow?.let { HoldoutDay.secondsLeftIn(it) },
         ),
         onStart = {
@@ -648,7 +725,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 val claimed = h.stage(chainNow) as? Stage.Claimed ?: return@forEach
                 HoldoutCard(Modifier.clickable { route = Route.Detail(h.address) }) {
                     if (h.isTest) TestCohortBadge(h.cohort.dayLength)
-                    Text("${h.cohort.durationDays}-day Holdout", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+                    Text(Format.holdoutTitle(h.cohort), style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
                     Text("Finished · claimed ${Format.skr(claimed.amount)}", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
                 }
             }
@@ -656,6 +733,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             if (open.isNotEmpty()) SectionLabel("Holdouts open to join")
             open.forEach { h -> HoldoutOffer(h, chainNow, onClick = { route = Route.Stake(h.address) }) }
             SecondaryButton("The ladder", { route = Route.Ladder })
+            SecondaryButton("Leaderboards", { route = Route.Leaderboards(Leaderboard.Board.EASY_7D) })
             SecondaryButton("Get test tokens · ${Format.skr(view.skr)} held", { route = Route.Faucet })
             TextButton(onClick = { route = Route.About }) { Text("About · for judges", color = HoldoutColors.TextTertiary) }
             TextButton(onClick = {

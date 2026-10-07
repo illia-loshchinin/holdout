@@ -33,8 +33,12 @@ sealed interface Stage {
     /** Finished every day; settlement has not finalised yet (contracts §5). */
     data object Settling : Stage
 
-    /** Finished and settled: [amount] = stake + the tier's share is claimable, forever (FR-035). */
-    data class ReadyToClaim(val amount: ULong, val stake: ULong, val share: ULong) : Stage
+    /**
+     * Finished and settled: [amount] = stake + the tier's share + any comeback
+     * refund is claimable, forever (FR-035, FR-037e). [comeback] is `0` for a
+     * finisher who was owed none.
+     */
+    data class ReadyToClaim(val amount: ULong, val stake: ULong, val share: ULong, val comeback: ULong = 0uL) : Stage
 
     data class Claimed(val amount: ULong) : Stage
 }
@@ -49,7 +53,12 @@ object Journey {
             MembershipSnapshot.State.Claimed -> Stage.Claimed(payout)
             MembershipSnapshot.State.Forfeited -> Stage.Forfeited(member.daysCompleted, recorded = true)
             MembershipSnapshot.State.Finished ->
-                if (c.settled) Stage.ReadyToClaim(payout, member.stake, payout - member.stake) else Stage.Settling
+                if (c.settled) {
+                    val comeback = Derive.comebackRefund(member, c) ?: 0uL
+                    Stage.ReadyToClaim(payout, member.stake, payout - member.stake - comeback, comeback)
+                } else {
+                    Stage.Settling
+                }
             MembershipSnapshot.State.Joined ->
                 when (status) {
                     CohortStatus.Open -> Stage.Lobby
@@ -68,8 +77,11 @@ object Journey {
         }
     }
 
-    /** `stake + share_per_tier[tier]` — what `claim_payout` pays, meaningful once the cohort is settled. */
-    fun payoutOf(c: CohortSnapshot, member: MembershipSnapshot): ULong = member.stake + (c.sharePerTier.getOrNull(member.tier) ?: 0uL)
+    /**
+     * `stake + share_per_tier[tier] + comeback_refund` — what `claim_payout`
+     * pays (FR-034, FR-037e), meaningful once the cohort is settled.
+     */
+    fun payoutOf(c: CohortSnapshot, member: MembershipSnapshot): ULong = member.stake + (c.sharePerTier.getOrNull(member.tier) ?: 0uL) + (Derive.comebackRefund(member, c) ?: 0uL)
 
     /**
      * The cohort a member's next join must name as its running one: the

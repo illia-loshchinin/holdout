@@ -1,7 +1,7 @@
 //! Holdout — push-up commitment cohorts on Solana devnet.
 //!
 //! The contract is the only authority on funds (constitution I): no off-chain
-//! key can move a stake, a pool or a carry-over. Breach is derived from chain
+//! key can move a stake or a pool. Breach is derived from chain
 //! time (II), never declared by automation.
 //!
 //! Members read "the Daily 25" and "a Holdout"; this code stores a `Cohort` in
@@ -22,6 +22,7 @@ pub mod guards;
 pub mod instructions;
 pub mod math;
 pub mod state;
+pub mod vault;
 
 use instructions::*;
 
@@ -38,6 +39,7 @@ pub mod holdout {
         operator: Pubkey,
         sponsor: Pubkey,
         treasury_wallet: Pubkey,
+        developer_wallet: Pubkey,
         faucet_sol_top_up: u64,
         faucet_daily_lamport_cap: u64,
         faucet_sponsor_float: u64,
@@ -47,6 +49,7 @@ pub mod holdout {
             operator,
             sponsor,
             treasury_wallet,
+            developer_wallet,
             faucet_sol_top_up,
             faucet_daily_lamport_cap,
             faucet_sponsor_float,
@@ -62,6 +65,7 @@ pub mod holdout {
         duration_days: u8,
         reps_per_day: u16,
         exercise: u8,
+        form: u8,
         first_start: i64,
         day_length: i64,
         cadence: i64,
@@ -73,6 +77,7 @@ pub mod holdout {
             duration_days,
             reps_per_day,
             exercise,
+            form,
             first_start,
             day_length,
             cadence,
@@ -115,8 +120,8 @@ pub mod holdout {
         instructions::settle_count::handler(ctx)
     }
 
-    /// Once. Constant-time per-tier shares; the carry-over's destination is
-    /// fixed by chain state, never by the caller (FR-030a, FR-037a).
+    /// Once. Constant-time per-tier shares; with no finishers the whole pool
+    /// goes to the fee destination (FR-030a, FR-037).
     pub fn settle_finalize<'info>(ctx: Context<'info, SettleFinalize<'info>>) -> Result<()> {
         instructions::settle_finalize::handler(ctx)
     }

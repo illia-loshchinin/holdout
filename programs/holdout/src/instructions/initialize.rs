@@ -84,11 +84,12 @@ pub struct Initialize<'info> {
     #[account(seeds = [MINT_AUTHORITY_SEED], bump)]
     pub mint_authority: UncheckedAccount<'info>,
 
-    /// CHECK: the treasury's wallet. It owns the fee destination and signs nothing.
+    /// CHECK: the treasury's (operations) wallet. It owns the fee destination and signs nothing.
     pub treasury_wallet: UncheckedAccount<'info>,
 
-    /// Forfeit fees, the no-finisher half and rounding remainders land here, in
-    /// the treasury's own associated token account — the program never holds them.
+    /// The operations destination: the operations part of every forfeit, two
+    /// thirds of a no-finisher pool and rounding remainders land here, in the
+    /// treasury's own associated token account — the program never holds them.
     #[account(
         init,
         payer = admin,
@@ -96,6 +97,19 @@ pub struct Initialize<'info> {
         associated_token::authority = treasury_wallet,
     )]
     pub fee_destination: Account<'info, TokenAccount>,
+
+    /// CHECK: the developer's wallet. It owns the developer destination — the
+    /// developer part of every forfeit (H35), named in the README (constitution
+    /// XI) — and signs nothing.
+    pub developer_wallet: UncheckedAccount<'info>,
+
+    #[account(
+        init,
+        payer = admin,
+        associated_token::mint = skr_mint,
+        associated_token::authority = developer_wallet,
+    )]
+    pub developer_destination: Account<'info, TokenAccount>,
 
     /// CHECK: a system-owned PDA holding nothing but lamports. Created empty and
     /// rent-exempt; the Operator tops it up with an ordinary transfer, and only
@@ -121,6 +135,7 @@ pub(crate) fn handler(
     operator: Pubkey,
     sponsor: Pubkey,
     treasury_wallet: Pubkey,
+    developer_wallet: Pubkey,
     faucet_sol_top_up: u64,
     faucet_daily_lamport_cap: u64,
     faucet_sponsor_float: u64,
@@ -132,6 +147,11 @@ pub(crate) fn handler(
         ctx.accounts.treasury_wallet.key(),
         HoldoutError::AccountMismatch
     );
+    require_keys_eq!(
+        developer_wallet,
+        ctx.accounts.developer_wallet.key(),
+        HoldoutError::AccountMismatch
+    );
 
     let config = &mut ctx.accounts.config;
     config.admin = ctx.accounts.admin.key();
@@ -139,6 +159,7 @@ pub(crate) fn handler(
     config.sponsor = sponsor;
     config.skr_mint = ctx.accounts.skr_mint.key();
     config.fee_destination = ctx.accounts.fee_destination.key();
+    config.developer_destination = ctx.accounts.developer_destination.key();
     // Both gates are off in this build, and the README says why (FR-003, R17).
     config.ladder_gate_enabled = false;
     config.genesis_gate_enabled = false;

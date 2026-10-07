@@ -7,6 +7,7 @@ import holdout.core.CohortStatus
 import holdout.core.ConfigSnapshot
 import holdout.core.Derive
 import holdout.core.Journey
+import holdout.core.Leaderboard
 import holdout.core.LeagueSnapshot
 import holdout.core.MembershipSnapshot
 import holdout.core.Pdas
@@ -99,6 +100,26 @@ class ChainRepository(private val rpc: Rpc = Rpc(Deployment.rpcUrl), private val
 
     /** The roster of one cohort (FR-062), for the roster screen. */
     suspend fun roster(cohort: SolanaPublicKey): List<MembershipSnapshot>? = rpc.memberships(programId, cohort)
+
+    /**
+     * What the league leaderboards read (FR-060, R8): every cohort, every
+     * profile, every forfeit not yet counted, then every cohort again, so a
+     * count or forfeit landing between the calls is seen rather than mixed
+     * into the board. Null when any read failed.
+     */
+    suspend fun leaderboard(): Leaderboard.Snapshot? {
+        val before = rpc.cohorts(programId) ?: return null
+        val profiles = rpc.profiles(programId) ?: return null
+        val forfeits = rpc.uncountedForfeits(programId) ?: return null
+        val after = rpc.cohorts(programId)?.map { it.second } ?: return null
+        // A forfeit in a cohort the first read did not hold changes the cohort list, which holds the board anyway.
+        val leagueOf = before.associate { (address, cohort) -> address to cohort.leagueId }
+        val uncounted = forfeits
+            .mapNotNull { f -> leagueOf[f.cohort]?.let { it to f.member.wallet } }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { it.value.toSet() }
+        return Leaderboard.Snapshot(before.map { it.second }, profiles, after, uncounted)
+    }
 
     suspend fun chainTime(): Rpc.ChainTime? = rpc.chainTime()
 }

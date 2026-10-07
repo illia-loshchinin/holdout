@@ -17,7 +17,7 @@
 //! counted (`AccountMismatch`, 6060).
 
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token::{Token, TokenAccount};
 
 use crate::{
     errors::HoldoutError,
@@ -31,6 +31,7 @@ use crate::{
         membership::{Membership, MembershipState},
         profile::{Profile, PROFILE_SEED},
     },
+    vault::transfer_signed,
 };
 
 pub use super::record_forfeits::MAX_PAIRS;
@@ -72,6 +73,12 @@ pub struct SettleCount<'info> {
     )]
     pub fee_destination: Box<Account<'info, TokenAccount>>,
 
+    #[account(
+        mut,
+        constraint = developer_destination.key() == config.developer_destination @ HoldoutError::AccountMismatch,
+    )]
+    pub developer_destination: Box<Account<'info, TokenAccount>>,
+
     /// The league's cohort `index - 1`, required for every index but 0.
     pub previous_cohort: Option<Box<Account<'info, Cohort>>>,
 
@@ -105,7 +112,8 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleCount<'info>>) -> Result<
     let cohort_key = ctx.accounts.cohort.key();
     let duration_days = ctx.accounts.cohort.duration_days;
     let league_id = ctx.accounts.cohort.league_id;
-    let mut fees_owed: u64 = 0;
+    let mut to_developer: u64 = 0;
+    let mut to_operations: u64 = 0;
 
     // Validate the whole page first: a page wrong anywhere writes nothing.
     let mut decoded: Vec<(Account<'info, Membership>, Account<'info, Profile>)> =
@@ -164,24 +172,16 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleCount<'info>>) -> Result<
         }
 
         // A breach nobody recorded is recorded here, on exactly the terms
-        // `record_forfeits` uses — the fee, the pool, the missed deadline.
+        // `record_forfeits` uses — the split, the pool, the missed deadline.
         if membership.in_breach(&ctx.accounts.cohort, now) {
-            let stake = membership.stake;
-            let fee = settlement::fee_of(stake);
-            fees_owed = fees_owed
-                .checked_add(fee)
-                .ok_or(error!(HoldoutError::AccountMismatch))?;
-
             let cohort = &mut ctx.accounts.cohort;
-            cohort.held_stake = cohort
-                .held_stake
-                .checked_sub(stake)
+            let split = cohort.take_forfeit(membership.stake)?;
+            to_developer = to_developer
+                .checked_add(split.developer)
                 .ok_or(error!(HoldoutError::AccountMismatch))?;
-            cohort.pool = cohort
-                .pool
-                .checked_add(settlement::pool_contribution(stake))
+            to_operations = to_operations
+                .checked_add(split.operations)
                 .ok_or(error!(HoldoutError::AccountMismatch))?;
-            cohort.forfeits_recorded += 1;
 
             let outcome_at = guards::forfeit_instant(membership, cohort);
             let progress = profile.progress_mut(league_id);
@@ -194,7 +194,7 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleCount<'info>>) -> Result<
                 cohort: cohort_key,
                 wallet: membership.wallet,
                 days_completed: membership.days_completed,
-                fee,
+                fee: split.fee(),
             });
         }
 
@@ -217,6 +217,22 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleCount<'info>>) -> Result<
             // The cohort's `end`, identical for everyone who cleared it, so no
             // two finishers can be ordered apart by when they were counted.
             let outcome_at = guards::clear_instant(cohort);
+            let cohort_start = cohort.start;
+            let progress = profile.progress_mut(league_id);
+
+            // A comeback (FR-037e): this cohort started inside the window a
+            // counted forfeit of the same league opened. Counting runs in cohort
+            // order, so which forfeit that is never depends on the crank.
+            if let Some(forfeited_stake) = progress.take_comeback(cohort_start) {
+                let entitled = settlement::comeback_owed(forfeited_stake, stake);
+                membership.comeback_entitled = entitled;
+                let cohort = &mut ctx.accounts.cohort;
+                cohort.comeback_owed = cohort
+                    .comeback_owed
+                    .checked_add(entitled)
+                    .ok_or(error!(HoldoutError::AccountMismatch))?;
+            }
+
             let progress = profile.progress_mut(league_id);
             progress.record_clear(outcome_at);
 
@@ -228,9 +244,19 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleCount<'info>>) -> Result<
         } else {
             // Counted in a forfeited state, whenever that forfeit was recorded.
             let outcome_at = guards::forfeit_instant(membership, &ctx.accounts.cohort);
-            profile
-                .progress_mut(league_id)
-                .record_forfeit_counted(outcome_at);
+            let window = settlement::COMEBACK_WINDOW_DAYS * ctx.accounts.cohort.day_length;
+            let progress = profile.progress_mut(league_id);
+            progress.record_forfeit_counted(outcome_at);
+            // The latest counted forfeit of this league may still be made good
+            // by finishing a later cohort that starts within the window (FR-037e).
+            // A member who left is never counted, so only a real forfeit opens one.
+            if membership.state == MembershipState::Forfeited {
+                progress.open_comeback(
+                    membership.stake,
+                    outcome_at,
+                    outcome_at.saturating_add(window),
+                );
+            }
         }
 
         // Either way the obligation is over, so the member is free to stake
@@ -253,24 +279,27 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleCount<'info>>) -> Result<
         profile.exit(&crate::ID)?;
     }
 
-    // One transfer for the page, as `record_forfeits` does.
-    if fees_owed > 0 {
-        let index_bytes = ctx.accounts.cohort.index.to_le_bytes();
-        let bump = [ctx.accounts.cohort.bump];
-        let seeds: &[&[u8]] = &[COHORT_SEED, &[league_id], &index_bytes, &bump];
-        token::transfer(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.key(),
-                Transfer {
-                    from: ctx.accounts.vault.to_account_info(),
-                    to: ctx.accounts.fee_destination.to_account_info(),
-                    authority: ctx.accounts.cohort.to_account_info(),
-                },
-                &[seeds],
-            ),
-            fees_owed,
-        )?;
-    }
+    // One transfer per destination for the page, as `record_forfeits` does.
+    let index_bytes = ctx.accounts.cohort.index.to_le_bytes();
+    let bump = [ctx.accounts.cohort.bump];
+    let seeds: &[&[u8]] = &[COHORT_SEED, &[league_id], &index_bytes, &bump];
+    let token_program = ctx.accounts.token_program.to_account_info();
+    transfer_signed(
+        &token_program,
+        ctx.accounts.vault.to_account_info(),
+        ctx.accounts.developer_destination.to_account_info(),
+        ctx.accounts.cohort.to_account_info(),
+        seeds,
+        to_developer,
+    )?;
+    transfer_signed(
+        &token_program,
+        ctx.accounts.vault.to_account_info(),
+        ctx.accounts.fee_destination.to_account_info(),
+        ctx.accounts.cohort.to_account_info(),
+        seeds,
+        to_operations,
+    )?;
 
     Ok(())
 }

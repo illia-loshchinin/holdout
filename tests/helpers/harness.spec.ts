@@ -30,7 +30,7 @@ import {
   expectProgramError,
   type Harness,
 } from './harness.js';
-import { PROGRAM_ID, cohortPda, leaguePda, profilePda, programDataPda, vaultPda } from './pdas.js';
+import { PROGRAM_ID, cohortPda, leaguePda, profilePda, programDataPda, reserveBump, reservePda, vaultPda } from './pdas.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const IDL_PATH = resolve(HERE, '../../target/idl/holdout.json');
@@ -151,6 +151,23 @@ describe('injected state reads back exactly', () => {
     expect(h.tokenBalance(await vaultPda(at))).toBe(1_080n);
   });
 
+  it('a league, with a reserve vault that holds its two reserves', async () => {
+    const league = h.freshTestLeague();
+    await h.injectLeague(league, { form: 1, boostReserve: 300n, comebackReserve: 120n });
+    const back = await h.readLeague(league.leagueId);
+    expect(back).toMatchObject({ form: 1, boostReserve: 300n, comebackReserve: 120n });
+    expect(back.reserveVaultBump).toBe(await reserveBump(league.leagueId));
+    expect(h.tokenBalance(await reservePda(league.leagueId))).toBe(420n);
+  });
+
+  it('a cohort holding reserve dues and unclaimed refunds, all in its vault (INV-1)', async () => {
+    const league = h.freshTestLeague();
+    const at = await h.injectCohort(league, 0, {
+      heldStake: 400n, pool: 680n, boostDue: 10n, comebackDue: 5n, comebackFunded: 7n, comebackClaimed: 3n,
+    });
+    expect(h.tokenBalance(await vaultPda(at))).toBe(400n + 680n + 10n + 5n + 4n);
+  });
+
   it('a later cohort starts a week on, on the real cadence', async () => {
     const league = h.freshTestLeague();
     await h.injectCohort(league, 0);
@@ -226,12 +243,19 @@ describe('a snapshot flows from the SVM into the invariant checker', () => {
     await fresh.injectMembership(a, wallet, { state: 'Claimed', daysCompleted: 7, counted: true });
     await fresh.injectMembership(b, wallet, { state: 'Forfeited', daysCompleted: 0, counted: true });
 
-    const progress = (over: object) => ({ cleared: 0, forfeited: 0, currentStreak: 0, longestStreak: 0, lastChanged: 0n, ...over });
+    const progress = (over: object) => ({
+      cleared: 0, forfeited: 0, currentStreak: 0, longestStreak: 0, lastChanged: 0n,
+      comebackStake: 0n, comebackFrom: 0n, comebackUntil: 0n, ...over,
+    });
     // The instant of the most recent outcome: cohort b's missed day-0 deadline,
     // which is later than cohort a's end. INV-9 derives it from the counted
     // memberships, so a figure taken from the crank's clock would not match.
     const outcome = BigInt(FIRST_START + WEEK + DAY - 1);
-    const settledProgress = { cleared: 1, forfeited: 1, currentStreak: 0, longestStreak: 1, lastChanged: outcome };
+    // The counted forfeit also opens a comeback for 14 of cohort b's days (FR-037e).
+    const settledProgress = {
+      cleared: 1, forfeited: 1, currentStreak: 0, longestStreak: 1, lastChanged: outcome,
+      comebackStake: DEFAULT_CHIPS[3], comebackFrom: outcome, comebackUntil: outcome + 14n * BigInt(DAY),
+    };
     const leagues = [progress({}), progress({}), progress(settledProgress)] as never;
     await fresh.injectProfile(wallet, { leagues });
     fresh.setTime(FIRST_START + 3 * WEEK);

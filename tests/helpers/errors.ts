@@ -14,10 +14,12 @@ export const ERROR_CODES = {
   NotOperator: 6001,
   NotSponsorOrRecipient: 6002,
   NotUpgradeAuthority: 6003,
-  // 6010–6012 · league and chip-set setup
+  // 6010–6013 · league and chip-set setup
   InvalidLeagueTiming: 6010,
   InvalidChipSet: 6011,
   ChipSetNotPublished: 6012,
+  /** A league's form is 0 (from the toes) or 1 (knees allowed) — H35. */
+  InvalidForm: 6013,
   // 6020–6026 · opening, joining and the lobby
   CohortNotDue: 6020,
   JoiningClosed: 6021,
@@ -31,15 +33,13 @@ export const ERROR_CODES = {
   WrongDay: 6031,
   DeadlinePassed: 6032,
   DayAlreadyCompleted: 6033,
-  // 6040–6047 · settlement and the claim
+  // 6040–6045 · settlement and the claim
   NotSettling: 6040,
   AlreadySettled: 6041,
   CountIncomplete: 6042,
   NotClaimable: 6043,
   AlreadyClaimed: 6044,
   PreviousCohortUnsettled: 6045,
-  CarryOverTargetRequired: 6046,
-  CarryOverTargetNotOpen: 6047,
   // 6050–6054 · the faucet, and the exercise guard that shares it
   FaucetAlreadyClaimedToday: 6050,
   FaucetCapReached: 6051,

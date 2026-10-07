@@ -34,6 +34,7 @@ import {
   settleCountIx,
   settleFinalizeIx,
   submitDayIx,
+  type FeeDestinations,
 } from '../helpers/instructions.js';
 import { associatedTokenPda, cohortPda, profilePda } from '../helpers/pdas.js';
 
@@ -50,7 +51,7 @@ const NO_KEY = '11111111111111111111111111111111' as Address;
 describe('the 21-day unlock (AC-1, FR-003a, FR-004)', () => {
   let h: Harness;
   let mint: Address;
-  let feeDestination: Address;
+  let fees: FeeDestinations;
   let crank: KeyPairSigner;
   let member: KeyPairSigner;
 
@@ -61,10 +62,8 @@ describe('the 21-day unlock (AC-1, FR-003a, FR-004)', () => {
     mint = (await generateKeyPairSigner()).address;
     h.injectMint(mint, null, 10_000_000n * SKR);
 
-    const treasury = (await generateKeyPairSigner()).address;
-    feeDestination = await associatedTokenPda(treasury, mint);
-    h.injectTokenAccount(feeDestination, mint, treasury, 0n);
-    await h.injectConfig({ skrMint: mint, feeDestination });
+    fees = await h.injectFeeDestinations(mint);
+    await h.injectConfig({ skrMint: mint, feeDestination: fees.operations, developerDestination: fees.developer });
 
     await h.injectLeague(LEAGUE_7D, { ...timing, firstStart: BigInt(FIRST_START), nextIndex: 2 });
     await h.injectLeague(LEAGUE_21D, { ...timing, durationDays: 21, firstStart: BigInt(FIRST_START), nextIndex: 2 });
@@ -93,10 +92,9 @@ describe('the 21-day unlock (AC-1, FR-003a, FR-004)', () => {
   };
 
   /**
-   * Another wallet that joins cohort `index` and clears it. A cohort nobody
-   * finished has to be handed a carry-over target (6046), and these cases are
-   * about one member's profile rather than about the carry-over, so they give
-   * the cohort a finisher instead.
+   * Another wallet that joins cohort `index` and clears it, so the cohort has a
+   * finisher: these cases are about one member's profile, not about how a
+   * no-finisher pool settles.
    */
   const finisherIn = async (index: number): Promise<KeyPairSigner> => {
     const who = await h.newWallet();
@@ -112,7 +110,7 @@ describe('the 21-day unlock (AC-1, FR-003a, FR-004)', () => {
       [
         await settleCountIx(
           crank.address,
-          feeDestination,
+          fees,
           LEAGUE_7D,
           index,
           await forfeitPairs(cohort, wallets),
@@ -122,7 +120,7 @@ describe('the 21-day unlock (AC-1, FR-003a, FR-004)', () => {
       crank,
     );
     await h.sendOrThrow(
-      [await settleFinalizeIx(crank.address, feeDestination, LEAGUE_7D, index, undefined)],
+      [await settleFinalizeIx(crank.address, fees, LEAGUE_7D, index)],
       crank,
     );
   };
@@ -291,7 +289,7 @@ describe('the 21-day unlock (AC-1, FR-003a, FR-004)', () => {
       [
         await settleCountIx(
           crank.address,
-          feeDestination,
+          fees,
           league,
           0,
           await forfeitPairs(cohort, [member.address]),

@@ -43,8 +43,9 @@ import holdout.core.Stage
  *
  * Under them: the member's own record, today's reps still owed and the time
  * left — with the clear warning inside the last 10 minutes, and no refusal to
- * start (FR-047) — then Start, or "Done — tap to submit" when a completed day
- * is waiting to reach the chain (FR-024b).
+ * start (FR-047) — then Start, or a completed day waiting to reach the chain:
+ * "Done — waiting for network" while it cannot, sent by itself once it can, and
+ * "Done — tap to submit" only if that send did not land (FR-024b, T098).
  */
 @Composable
 fun CohortHome(
@@ -58,6 +59,8 @@ fun CohortHome(
     offline: Boolean,
     /** A completed day waiting to be submitted, or null. */
     pendingDay: Int?,
+    /** The pending day was already sent by itself since the chain last answered: the tap is the way left. */
+    autoSendTried: Boolean,
     busy: Boolean,
     message: String?,
     messageIsWarning: Boolean,
@@ -77,7 +80,7 @@ fun CohortHome(
     otherHoldouts: @Composable () -> Unit = {},
 ) {
     val c = h.cohort
-    val figures = members?.let { Derive.figures(c, it, now) }
+    val figures = members?.let { Derive.figures(c, it, now, boostReserve = h.league?.boostReserve) }
     val standing by animateIntAsState(figures?.survivors?.standing ?: c.memberCount.toInt(), animationSpec = tween(900), label = "survivors")
     val timeLeft = Derive.timeLeftToday(c, now)
     val warning = Derive.inWarningWindow(timeLeft)
@@ -94,11 +97,20 @@ fun CohortHome(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (h.isTest) TestCohortBadge(c.dayLength)
-        SectionLabel("${c.durationDays}-day Holdout · day ${stage.dayIndex + 1} of ${c.durationDays}")
+        SectionLabel("${Format.holdoutTitle(c)} · day ${stage.dayIndex + 1} of ${c.durationDays}")
         Text("$standing", style = CounterStyle, color = HoldoutColors.TextPrimary)
         Text("still standing of ${c.memberCount}", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
         Text(figures?.let { Format.skr(it.projectedPool) } ?: Format.skr(c.pool), style = DisplayStyle, color = HoldoutColors.Accent)
         Text("prize pool, running", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
+        // The league's boost, as its reserve stands today (FR-037d): an estimate,
+        // drawn only at settlement and only if someone finishes.
+        figures?.projectedBoost?.takeIf { it > 0uL }?.let {
+            Text(
+                "+ about ${Format.skr(it)} boost from this league's reserve if anyone finishes",
+                style = MaterialTheme.typography.bodyMedium,
+                color = HoldoutColors.TextSecondary,
+            )
+        }
 
         HoldoutCard {
             h.membership?.let { m ->
@@ -117,10 +129,32 @@ fun CohortHome(
                 timeLeft?.let { Body("Next day opens in ${Format.countdown(it)}.") }
             }
             pendingDay != null && pendingDay == stage.dayIndex -> {
-                Text("Done — tap to submit", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
-                Body("Your ${c.repsPerDay} are counted on this phone. It only counts once it reaches the chain before the deadline.")
+                val tap = !offline && !busy && autoSendTried
+                Text(
+                    when {
+                        offline -> "Done — waiting for network"
+                        tap -> "Done — tap to submit"
+                        else -> "Done — sending to the chain"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = HoldoutColors.Success,
+                )
+                Body(
+                    "Your ${c.repsPerDay} are counted on this phone. It only counts once it reaches the chain before the deadline" +
+                        if (offline) {
+                            ", and it is sent by itself as soon as the connection is back."
+                        } else if (tap) {
+                            "."
+                        } else {
+                            ": approve it in your wallet."
+                        },
+                )
                 timeLeft?.let { Body("${Format.countdown(it)} left.") }
-                PrimaryButton(if (busy) "Waiting for the wallet…" else "Submit day ${stage.dayIndex + 1}", { onSubmit(stage.dayIndex) }, enabled = !busy)
+                if (tap) {
+                    PrimaryButton("Submit day ${stage.dayIndex + 1}", { onSubmit(stage.dayIndex) })
+                } else if (!offline) {
+                    PrimaryButton("Waiting for the wallet…", {}, enabled = false)
+                }
             }
             else -> {
                 val owed = (c.repsPerDay - banked).coerceAtLeast(0)

@@ -35,6 +35,14 @@ pub struct LeagueProgress {
     /// transaction landed, so no caller's timing can reorder two members tied on
     /// a leaderboard (FR-060b). Written through [`LeagueProgress::touch`].
     pub last_changed: i64,
+    /// The stake of the latest **counted** forfeit in this league, while it can
+    /// still earn a comeback; 0 once used (FR-037e). Written only by
+    /// `settle_count`, so in cohort order like the streak (INV-9).
+    pub comeback_stake: u64,
+    /// That forfeit's missed deadline.
+    pub comeback_from: i64,
+    /// The last instant a cohort may start and still be its comeback.
+    pub comeback_until: i64,
 }
 
 impl LeagueProgress {
@@ -60,6 +68,30 @@ impl LeagueProgress {
     pub fn record_forfeit_counted(&mut self, outcome_at: i64) {
         self.current_streak = 0;
         self.touch(outcome_at);
+    }
+
+    /// A forfeit counted at settlement may be made good by finishing a later
+    /// cohort of the league that starts after `missed_at` and by `until`
+    /// (FR-037e). Only the latest counted forfeit is kept: counting runs in
+    /// cohort order, so "latest" never depends on the crank (INV-9).
+    pub fn open_comeback(&mut self, forfeited_stake: u64, missed_at: i64, until: i64) {
+        self.comeback_stake = forfeited_stake;
+        self.comeback_from = missed_at;
+        self.comeback_until = until;
+    }
+
+    /// The forfeited stake a finisher of a cohort starting at `cohort_start`
+    /// makes good, if that cohort is the comeback — and the record is used up.
+    pub fn take_comeback(&mut self, cohort_start: i64) -> Option<u64> {
+        let open = self.comeback_stake > 0
+            && cohort_start > self.comeback_from
+            && cohort_start <= self.comeback_until;
+        if !open {
+            return None;
+        }
+        let stake = self.comeback_stake;
+        self.comeback_stake = 0;
+        Some(stake)
     }
 
     /// Cohorts played — cleared plus forfeited (FR-060a).
@@ -196,6 +228,42 @@ mod tests {
         );
         p.record_clear(400);
         assert_eq!((p.current_streak, p.longest_streak, p.played()), (1, 2, 4));
+    }
+
+    #[test]
+    fn a_counted_forfeit_opens_a_comeback_that_a_later_cohort_in_its_window_uses_once() {
+        let mut p = LeagueProgress::default();
+        // Missed at 1_000, window of 14 days of 100 s: cohorts starting by 2_400.
+        p.open_comeback(250, 1_000, 2_400);
+        assert_eq!(
+            p.take_comeback(1_000),
+            None,
+            "a cohort that started before the breach is not a comeback"
+        );
+        assert_eq!(
+            p.take_comeback(2_401),
+            None,
+            "nor one that started after the window"
+        );
+        assert_eq!(
+            p.take_comeback(2_400),
+            Some(250),
+            "the last second of the window still counts"
+        );
+        assert_eq!(p.take_comeback(2_400), None, "used up");
+    }
+
+    #[test]
+    fn only_the_latest_counted_forfeit_can_earn_a_comeback() {
+        let mut p = LeagueProgress::default();
+        p.open_comeback(250, 1_000, 2_400);
+        p.open_comeback(500, 3_000, 4_400);
+        assert_eq!(
+            p.take_comeback(2_000),
+            None,
+            "the earlier forfeit's window was replaced"
+        );
+        assert_eq!(p.take_comeback(3_500), Some(500));
     }
 
     #[test]

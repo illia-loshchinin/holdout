@@ -2,6 +2,8 @@
 
 **Version:** 2.7 · **Date:** 2026-09-18 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
 
+> **Revision note, 2026-10-05 (decision H34):** the forfeit split is now **70/30** (70 % to the prize pool, 30 % fee) and a Holdout nobody finished sends its **whole pool to the fee destination**: nothing carries over. Wherever this document still says 20 %/80 %, a 50/50 split or carry-over, including the §19 vectors, the spec (FR-027, FR-037) and `fixtures/settlement-vectors.json` govern.
+
 > **Changed in 2.7:** §8 records **how the rep rules are actually measured** — 3D world landmarks, smoothing, and trigger thresholds wider than the stated rule, because the pose model's own error is about 2° (H30, research R4) · other push-up variants, negative (eccentric) and decline, are named as post-hackathon with the cohort already carrying which exercise it is.
 
 > **Changed in 2.6:** members' names for the two things — **the Daily 25** (free, solo) and **a Holdout** (a staked 7-day or 21-day run), mapped to the on-chain vocabulary in spec §1a · a **three-card first-run tour** (FR-067) as screen 0 · the recorded full-cycle walkthrough is **for judges**, moved to About plus a quiet connect-screen link · Holdouts open to join show **what is at stake** in them.
@@ -101,7 +103,6 @@ Holdout is a Solana Mobile fitness commitment app. Anyone can do a **free Daily 
 | **Daily 25** | today | 25 | none | everyone, every day |
 | **7-day league** | 7 days | 25 | one of four chips | everyone; never closes |
 | **21-day league** | 21 days | 25 | one of four chips | requirement: clear a 7-day cohort — **stated, not enforced** in this build |
-| Human Flag | — | — | — | locked rung in the ladder UI only |
 
 - **The 7-day league never closes** — not after a clear, not after a forfeit. It is the entry rung and the way back (FR-002).
 - **The unlock is permanent** and never revoked, including after a forfeit (FR-004).
@@ -508,7 +509,7 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 4. **Home** — the running Holdout (§10.1a) if the member is in one; otherwise **today's Daily 25 as the primary action**, with the Holdouts open to join underneath — each showing how many have joined, **what is at stake**, any carry-over, and the closing countdown (FR-053). Daily streak always visible. Never empty, never *"come back later"*. **Offline-completion variant:** *"Done — tap to submit"* once online (Phase 1), or *"Done — waiting for network"* with automatic submission **[Phase 2]** (FR-024b)
 
 **Ladder and staking**
-5. **Ladder** — the Daily 25, then the 7-day and 21-day Holdouts both open, the 21-day requirement stated plainly, Human Flag as a locked rung (US-1)
+5. **Ladder** — the Daily 25, then the 7-day and 21-day Holdouts both open, the 21-day requirement stated plainly (US-1)
 6. **Stake confirm** — league, chip picker (§6.3), daily obligation, duration, time until joining closes and until start, current prize pool with any carry-over shown separately, and: *"If nobody drops out, you get exactly your stake back."* Test-network notice (US-6, FR-041, FR-042)
 7. **Lobby** — countdown to cutoff and start, live roster count, held stake, leave button (§5.2). **Locked variant:** joining closed, final roster, countdown to start (ES-12a)
 
@@ -955,7 +956,7 @@ For every cohort: `fee = 0.20 × Σ forfeited`, taken at forfeit time. Cross-che
 | **Sitting** | One continuous run of pre-flight, the held start position and counting. A day can take any number of sittings; each re-verifies |
 | **Banked block** | 10 verified reps saved on the device the instant the 10th is counted. Kept until the day's deadline; reps short of a block are lost when a sitting ends |
 | **Completed day** | The banked total reaching the day's requirement. A cohort day is then recorded on-chain; a challenge day only on the device |
-| **League** | The 7-day or 21-day staked league, both 25 reps a day — a Holdout's length. Human Flag is a locked rung in the UI only |
+| **League** | The 7-day or 21-day staked league, both 25 reps a day — a Holdout's length |
 | **Cohort** | The stored name for a Holdout: members of one league who start and finish at the same instants. Starts weekly, Monday 05:00 UTC |
 | **Day boundary** | The single 05:00 UTC instant at which every cohort day, and the streak day, turns over |
 | **Join cutoff** | 1 hour before a cohort's start. Joining and leaving both close |

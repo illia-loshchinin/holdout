@@ -48,6 +48,14 @@ export const cohortPda = (leagueId: number, index: number): Promise<Address> =>
 export const vaultPda = (cohort: Address): Promise<Address> =>
   derive(PROGRAM_ID, [utf8('vault'), addr(cohort)]);
 
+/**
+ * A league's SKR reserve vault (H35): a token account whose authority is the
+ * league PDA, created by `create_league`. Boost and comeback reserves live here,
+ * credited only when a cohort of the league finalizes (FR-037c, INV-10).
+ */
+export const reservePda = (leagueId: number): Promise<Address> =>
+  derive(PROGRAM_ID, [utf8('reserve'), u8(leagueId)]);
+
 export const membershipPda = (cohort: Address, wallet: Address): Promise<Address> =>
   derive(PROGRAM_ID, [utf8('member'), addr(cohort), addr(wallet)]);
 
@@ -77,6 +85,10 @@ export const cohortBump = (leagueId: number, index: number): Promise<number> =>
 
 export const vaultBump = (cohort: Address): Promise<number> =>
   deriveBump(PROGRAM_ID, [utf8('vault'), addr(cohort)]);
+
+/** `LeagueConfig.reserve_vault_bump`. */
+export const reserveBump = (leagueId: number): Promise<number> =>
+  deriveBump(PROGRAM_ID, [utf8('reserve'), u8(leagueId)]);
 
 export const membershipBump = (cohort: Address, wallet: Address): Promise<number> =>
   deriveBump(PROGRAM_ID, [utf8('member'), addr(cohort), addr(wallet)]);

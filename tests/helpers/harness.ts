@@ -75,16 +75,20 @@ import {
   membershipPda,
   profilePda,
   programDataPda,
+  reservePda,
   vaultPda,
   cohortBump,
   configBump,
   leagueBump,
   membershipBump,
   profileBump,
+  reserveBump,
   vaultBump,
 } from './pdas.js';
+import type { FeeDestinations } from './instructions.js';
 import type {
   CohortSnapshot,
+  LeagueSnapshot,
   LeagueProgressSnapshot,
   MembershipSnapshot,
   ProfileSnapshot,
@@ -174,7 +178,10 @@ export const expectProgramError = (result: SendResult, name: ErrorName): void =>
 // ------------------------------------------------------------------- injectors
 
 export type CohortOverrides = Partial<CohortAccount> & {
-  /** SKR the vault holds. Defaults to `heldStake + pool + carryOverHeld` (INV-1). */
+  /**
+   * SKR the vault holds. Defaults to what INV-1 says it must: `heldStake + pool +
+   * boostDue + comebackDue + (comebackFunded − comebackClaimed)`.
+   */
   vaultAmount?: bigint;
 };
 
@@ -183,7 +190,14 @@ export interface LeagueRef {
 }
 
 /** Everything an injected league needs; timing defaults to the real devnet league. */
-export type LeagueOverrides = Partial<LeagueConfigAccount>;
+export type LeagueOverrides = Partial<LeagueConfigAccount> & {
+  /** SKR the reserve vault holds. Defaults to `boostReserve + comebackReserve` (INV-1). */
+  reserveVaultAmount?: bigint;
+};
+
+/** INV-1's custody figure for a cohort's vault (H35). */
+export const cohortCustody = (c: CohortAccount): bigint =>
+  c.heldStake + c.pool + c.boostDue + c.comebackDue + (c.comebackFunded - c.comebackClaimed);
 
 const tokenAccountBytes = (mint: Address, owner: Address, amount: bigint): Uint8Array => {
   // SPL Token account, 165 bytes: mint, owner, amount, delegate (None), state
@@ -396,6 +410,7 @@ export class Harness {
       sponsor: NO_KEY,
       skrMint: NO_KEY,
       feeDestination: NO_KEY,
+      developerDestination: NO_KEY,
       ladderGateEnabled: false,
       genesisGateEnabled: false,
       chipSet: { amounts: DEFAULT_CHIPS, version: 1, publishedAt: BigInt(FIRST_START - WEEK), maxTopTier: DEFAULT_CHIPS[3] },
@@ -423,8 +438,32 @@ export class Harness {
     return { leagueId: this.nextTestLeague++ };
   }
 
+  /**
+   * Two empty token accounts of `mint` — the operations and the developer
+   * destination — each the associated account of a fresh wallet, as
+   * `initialize` makes them. Pass both to `injectConfig`.
+   */
+  async injectFeeDestinations(mint: Address): Promise<FeeDestinations> {
+    const treasury = (await generateKeyPairSigner()).address;
+    const developer = (await generateKeyPairSigner()).address;
+    const fees: FeeDestinations = {
+      operations: await associatedTokenPda(treasury, mint),
+      developer: await associatedTokenPda(developer, mint),
+    };
+    this.injectTokenAccount(fees.operations, mint, treasury, 0n);
+    this.injectTokenAccount(fees.developer, mint, developer, 0n);
+    return fees;
+  }
+
+  /**
+   * A league and its reserve vault (H35). The vault is a token account of the
+   * configured mint (the placeholder if no config exists yet — inject the config
+   * first for anything that moves SKR) whose authority is the league PDA, holding
+   * `boostReserve + comebackReserve` unless told otherwise.
+   */
   async injectLeague(league: LeagueRef | number, over: LeagueOverrides = {}): Promise<Address> {
     const leagueId = typeof league === 'number' ? league : league.leagueId;
+    const { reserveVaultAmount, ...fields } = over;
     const at = await leaguePda(leagueId);
     const account: LeagueConfigAccount = {
       leagueId,
@@ -436,11 +475,26 @@ export class Harness {
       cadence: BigInt(WEEK),
       joinLock: BigInt(HOUR),
       nextIndex: 0,
+      form: 0,
+      boostReserve: 0n,
+      comebackReserve: 0n,
+      reserveVaultBump: await reserveBump(leagueId),
       bump: await leagueBump(leagueId),
-      ...over,
+      ...fields,
     };
     this.put(at, LeagueConfig.encode(account));
+    this.injectTokenAccount(
+      await reservePda(leagueId),
+      await this.mintOrPlaceholder(),
+      at,
+      reserveVaultAmount ?? account.boostReserve + account.comebackReserve,
+    );
     return at;
+  }
+
+  private async mintOrPlaceholder(): Promise<Address> {
+    const configAccount = this.svm.getAccount(await configPda());
+    return configAccount.exists ? Config.decode(new Uint8Array(configAccount.data)).skrMint : NO_KEY;
   }
 
   /**
@@ -466,11 +520,13 @@ export class Harness {
       repsPerDay: 25,
       dayLength,
       exercise: 0,
+      form: 0,
       chips: DEFAULT_CHIPS,
       memberCount: 0,
       heldStake: 0n,
       pool: 0n,
-      carryOverReceived: 0n,
+      boostDue: 0n,
+      comebackDue: 0n,
       forfeitsRecorded: 0,
       counted: 0,
       finisherCount: 0,
@@ -480,9 +536,10 @@ export class Harness {
       sharePerTier: [0n, 0n, 0n, 0n],
       roundingRemainder: 0n,
       noFinisherFee: 0n,
-      carryOverSent: 0n,
-      carryOverHeld: 0n,
-      carryOverTarget: NO_KEY,
+      boostReceived: 0n,
+      comebackOwed: 0n,
+      comebackFunded: 0n,
+      comebackClaimed: 0n,
       // The real bumps, not placeholders: the program signs the vault transfers
       // with `cohort.bump`, so an injected lie here fails inside `leave_cohort`.
       vaultBump: await vaultBump(await cohortPda(leagueId, index)),
@@ -496,16 +553,8 @@ export class Harness {
     // The vault is a token account owned by the token program, authority = the cohort.
     // It needs a mint; use the configured one if `initialize` ran or injectConfig did,
     // otherwise the system-program placeholder (fine for a checker that reads amounts).
-    const configAddr = await configPda();
-    const configAccount = this.svm.getAccount(configAddr);
-    const mint = configAccount.exists ? Config.decode(new Uint8Array(configAccount.data)).skrMint : NO_KEY;
     const vault = await vaultPda(at);
-    this.injectTokenAccount(
-      vault,
-      mint,
-      at,
-      vaultAmount ?? cohort.heldStake + cohort.pool + cohort.carryOverHeld,
-    );
+    this.injectTokenAccount(vault, await this.mintOrPlaceholder(), at, vaultAmount ?? cohortCustody(cohort));
     return at;
   }
 
@@ -524,6 +573,7 @@ export class Harness {
       daysCompleted: 0,
       state: 'Joined',
       counted: false,
+      comebackEntitled: 0n,
       bump: await membershipBump(cohort, wallet),
       ...over,
     };
@@ -533,7 +583,16 @@ export class Harness {
 
   async injectProfile(wallet: Address, over: Partial<ProfileAccount> = {}): Promise<Address> {
     const at = await profilePda(wallet);
-    const zero: LeagueProgress = { cleared: 0, forfeited: 0, currentStreak: 0, longestStreak: 0, lastChanged: 0n };
+    const zero: LeagueProgress = {
+      cleared: 0,
+      forfeited: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      lastChanged: 0n,
+      comebackStake: 0n,
+      comebackFrom: 0n,
+      comebackUntil: 0n,
+    };
     const profile: ProfileAccount = {
       wallet,
       qualified: false,
@@ -562,6 +621,10 @@ export class Harness {
     return this.read(await profilePda(wallet), Profile.decode, 'Profile');
   }
 
+  async readLeague(leagueId: number): Promise<LeagueConfigAccount> {
+    return this.read(await leaguePda(leagueId), LeagueConfig.decode, 'LeagueConfig');
+  }
+
   async readConfig(): Promise<ConfigAccount> {
     return this.read(await configPda(), Config.decode, 'Config');
   }
@@ -588,6 +651,7 @@ export class Harness {
    */
   async snapshot(): Promise<Snapshot> {
     const cohorts: CohortSnapshot[] = [];
+    const leagues: LeagueSnapshot[] = [];
     const memberships: MembershipSnapshot[] = [];
     const rawProfiles: { address: Address; account: ProfileAccount }[] = [];
 
@@ -610,7 +674,8 @@ export class Harness {
           memberCount: c.memberCount,
           heldStake: c.heldStake,
           pool: c.pool,
-          carryOverReceived: c.carryOverReceived,
+          boostDue: c.boostDue,
+          comebackDue: c.comebackDue,
           forfeitsRecorded: c.forfeitsRecorded,
           counted: c.counted,
           finisherCount: c.finisherCount,
@@ -620,10 +685,20 @@ export class Harness {
           sharePerTier: c.sharePerTier,
           roundingRemainder: c.roundingRemainder,
           noFinisherFee: c.noFinisherFee,
-          carryOverSent: c.carryOverSent,
-          carryOverTarget: c.carryOverTarget === NO_KEY ? null : c.carryOverTarget,
-          carryOverHeld: c.carryOverHeld,
+          boostReceived: c.boostReceived,
+          comebackOwed: c.comebackOwed,
+          comebackFunded: c.comebackFunded,
+          comebackClaimed: c.comebackClaimed,
           vaultAmount: this.tokenBalance(vault),
+        });
+      } else if (same(data, LeagueConfig.discriminator)) {
+        const l = LeagueConfig.decode(data);
+        leagues.push({
+          address: acct.address,
+          leagueId: l.leagueId,
+          boostReserve: l.boostReserve,
+          comebackReserve: l.comebackReserve,
+          reserveVaultAmount: this.tokenBalance(await reservePda(l.leagueId)),
         });
       } else if (same(data, Membership.discriminator)) {
         const m = Membership.decode(data);
@@ -636,6 +711,7 @@ export class Harness {
           daysCompleted: m.daysCompleted,
           state: m.state,
           counted: m.counted,
+          comebackEntitled: m.comebackEntitled,
         });
       } else if (same(data, Profile.discriminator)) {
         rawProfiles.push({ address: acct.address, account: Profile.decode(data) });
@@ -650,6 +726,9 @@ export class Harness {
         currentStreak: x.currentStreak,
         longestStreak: x.longestStreak,
         lastChanged: Number(x.lastChanged),
+        comebackStake: x.comebackStake,
+        comebackFrom: Number(x.comebackFrom),
+        comebackUntil: Number(x.comebackUntil),
       });
       const leagues: Record<number, LeagueProgressSnapshot> = {
         0: asSnapshot(p.leagues[0]),
@@ -697,11 +776,16 @@ export class Harness {
     return {
       now: this.now(),
       cohorts,
+      leagues,
       memberships,
       profiles,
-      feeDestination:
+      operationsDestination:
         config && config.feeDestination !== NO_KEY
           ? this.tokenBalance(config.feeDestination)
+          : undefined,
+      developerDestination:
+        config && config.developerDestination !== NO_KEY
+          ? this.tokenBalance(config.developerDestination)
           : undefined,
       walletBalances: config ? balances : undefined,
       faucetMint: config ? config.chipSet.maxTopTier : undefined,

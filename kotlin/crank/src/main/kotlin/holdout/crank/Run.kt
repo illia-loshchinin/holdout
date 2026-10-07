@@ -7,9 +7,11 @@ import holdout.core.CohortStatus
 import holdout.core.ConfigSnapshot
 import holdout.core.Derive
 import holdout.core.Instructions
+import holdout.core.LeagueParams
 import holdout.core.LeagueSnapshot
 import holdout.core.MembershipSnapshot
 import holdout.core.Pdas
+import holdout.core.ProfileSnapshot
 import holdout.core.ProgramErrorCode
 import holdout.core.Rpc
 import kotlinx.coroutines.delay
@@ -24,16 +26,21 @@ import kotlinx.serialization.json.putJsonArray
  * order that cannot strand anything.
  *
  * 1. **Open** every league's due cohorts — index 0 at once, index *i* once
- *    cohort *i − 1* has started. This comes first so a no-finisher settlement
- *    below always finds the league's open lobby to carry into (6047).
+ *    cohort *i − 1* has started.
  * 2. **Refill** the faucet sponsor when it holds less than half its float
  *    (FR-042b). A refusal — float sufficient, the day's budget spent, the vault
  *    empty — is an expected outcome, reported and retried next pass.
  * 3. **Forfeit** every member of a running cohort who is in breach, in pages.
+ *    Each forfeit's developer and operations parts leave at once, to
+ *    `Config.developer_destination` and `Config.fee_destination` (H35).
  * 4. **Settle** each league's finished cohorts **oldest first**: page
- *    `settle_count` over the uncounted members, then `settle_finalize` with the
- *    league's newest cohort as carry-over target. Cohort *i* waits while *i − 1*
- *    is unsettled — the program refuses it (6045), so this is not a preference.
+ *    `settle_count` over the uncounted members, then `settle_finalize`, which
+ *    draws the boost and the comeback funding from the league's reserve vault,
+ *    credits the cohort's own reserve dues to it, and with no finishers sends
+ *    the whole pool out, a third to the developer destination and the rest to
+ *    operations (FR-037, FR-037c–e).
+ *    Cohort *i* waits while *i − 1* is unsettled — the program refuses it
+ *    (6045), so this is not a preference.
  *
  * Every step is idempotent on-chain, so two cranks, or a crank and a stranger,
  * running at once produce one outcome (FR-030a). A failed step is reported and
@@ -63,6 +70,48 @@ object Run {
         return due
     }
 
+    /**
+     * The test leagues that open no more cohorts: every one but the newest.
+     * Streaks are written when a cohort is counted, after it ends, so two test
+     * leagues of different lengths running together could count a member's
+     * outcomes out of order on the one progress record they share. The newest
+     * test league is the lobby; an older one winds down, its cohorts still
+     * forfeited and settled as usual (FR-044a, FR-060).
+     */
+    fun retiredTestLeagues(leagueIds: Collection<Int>): Set<Int> {
+        val tests = leagueIds.filter { it >= LeagueParams.TEST_LEAGUE_MIN }
+        val lobby = tests.maxOrNull() ?: return emptySet()
+        return tests.filter { it != lobby }.toSet()
+    }
+
+    /**
+     * The older test league the new lobby waits for, if any: one of [retired]
+     * with a cohort not yet settled. Until every cohort of the older leagues
+     * has settled, the newest opens nothing, so a member can never hold
+     * outcomes in two test leagues at once and the shared streak stays in
+     * order through a switchover (FR-044a, FR-060).
+     */
+    fun lobbyHeldBy(retired: Set<Int>, cohorts: Collection<CohortSnapshot>): Int? = cohorts
+        .filter { it.leagueId in retired && !it.settled }
+        .minOfOrNull { it.leagueId }
+
+    /**
+     * The earliest instant after [now] at which one of [leagues] falls due to
+     * open its next cohort: the start of its newest one (`open_cohort` refuses
+     * before it). The loop wakes for it instead of waiting out its interval, so
+     * a test cohort is joinable seconds after the one before it starts
+     * (FR-044a). Null when nothing falls due later — what is due now, the pass
+     * has just opened.
+     */
+    fun nextOpenAt(leagues: Collection<LeagueSnapshot>, cohorts: Collection<CohortSnapshot>, now: Long): Long? {
+        val starts = cohorts.associate { (it.leagueId to it.index) to it.start }
+        return leagues
+            .filter { it.nextIndex > 0 }
+            .map { l -> starts[l.params.leagueId to l.nextIndex - 1] ?: scheduledStart(l, l.nextIndex - 1) }
+            .filter { it > now }
+            .minOrNull()
+    }
+
     /** The program's `schedule::cohort_start`. */
     fun scheduledStart(league: LeagueSnapshot, index: Long): Long = league.params.firstStart + index * league.params.cadence
 
@@ -75,23 +124,20 @@ object Run {
         .map { it.wallet }
         .chunked(pageSize.coerceIn(1, Instructions.MAX_PAGE_PAIRS))
 
-    /** Each league's cohorts awaiting settlement at [now], oldest first. */
-    fun settleQueue(cohorts: Collection<CohortSnapshot>, now: Long): Map<Int, List<CohortSnapshot>> = cohorts
-        .filter { Derive.status(it, now) == CohortStatus.Settling }
-        .groupBy { it.leagueId }
-        .mapValues { (_, list) -> list.sortedBy { it.index } }
-        .toSortedMap()
-
     /**
-     * The carry-over target for a cohort of a league whose `next_index` is
-     * [nextIndex]: the league's newest cohort, unless that is the cohort itself.
-     * With finishers the program ignores it; without, it is required (FR-037a).
+     * The cohorts awaiting settlement at [now], in the order their outcomes
+     * happened: by end, then league, then index. Each league's cohorts come
+     * oldest first, as the program requires, and the test leagues, which all
+     * write one `Profile` slot, are counted in time order across leagues too,
+     * so the combined test board's streaks follow the cohorts as they ended
+     * (FR-060, FR-061a).
      */
-    fun carryOverTargetIndex(nextIndex: Long, cohortIndex: Long): Long? = (nextIndex - 1).takeIf { it >= 0 && it != cohortIndex }
+    fun settleQueue(cohorts: Collection<CohortSnapshot>, now: Long): List<CohortSnapshot> = cohorts
+        .filter { Derive.status(it, now) == CohortStatus.Settling }
+        .sortedWith(compareBy({ Derive.end(it) }, { it.leagueId }, { it.index }))
 
     // ---- the pass ----------------------------------------------------------
 
-    const val CARRY_OVER_TARGET_NOT_OPEN = 6047
     const val FAUCET_CAP_REACHED = 6051
     const val FAUCET_EMPTY = 6052
     const val SPONSOR_FLOAT_SUFFICIENT = 6054
@@ -191,8 +237,7 @@ object Run {
                     }
                 if (opened != Outcome.Landed) break
                 // A simulated open created nothing, so nothing downstream may treat
-                // it as existing: the league's index stays the on-chain one (the
-                // carry-over target settlement names), and the later opens, which
+                // it as existing: the league's index stays the on-chain one, and the later opens, which
                 // name this cohort as their predecessor, are reported as planned.
                 if (!args.dryRun) {
                     nextIndex[id] = index + 1
@@ -208,7 +253,26 @@ object Run {
                 }
             }
         }
-        leagues.forEach { openDue(it) }
+        val retired = retiredTestLeagues(leagues.map { it.params.leagueId })
+        for (league in leagues) {
+            val id = league.params.leagueId
+            if (id in retired) {
+                pass.record("open_cohort", "retired") {
+                    put("league", id)
+                    put("reason", "a newer test league is the lobby; this one opens no more cohorts (FR-044a)")
+                }
+            } else {
+                val heldBy = if (id >= LeagueParams.TEST_LEAGUE_MIN) lobbyHeldBy(retired, cohorts.values) else null
+                if (heldBy != null) {
+                    pass.record("open_cohort", "waiting") {
+                        put("league", id)
+                        put("reason", "test league $heldBy still has a cohort to settle; the new lobby opens once it has wound down (FR-044a)")
+                    }
+                } else {
+                    openDue(league)
+                }
+            }
+        }
 
         // ---- 2. sponsor refill ----------------------------------------------
         val sponsorLamports = rpc.balance(onChain.sponsor)
@@ -243,101 +307,117 @@ object Run {
                     put("members", wallets.size)
                 }) {
                     val pairs = wallets.map { Instructions.MemberPair.of(programId, address, it) }
-                    send("record_forfeits ${key.first}/${key.second}#$page", listOf(Instructions.recordForfeits(programId, payer.publicKey, onChain.feeDestination, address, pairs)))
+                    send("record_forfeits ${key.first}/${key.second}#$page", listOf(Instructions.recordForfeits(programId, payer.publicKey, onChain.feeDestination, onChain.developerDestination, address, pairs)))
                 }
             }
         }
 
-        // ---- 4. settlement, oldest first per league -------------------------
-        for ((leagueId, queue) in settleQueue(cohorts.values, now)) {
-            for (cohort in queue) {
-                val index = cohort.index
-                val detail: JsonObjectBuilder.() -> Unit = {
-                    put("league", leagueId)
-                    put("index", index)
-                }
-                val previous = if (index == 0L) null else cohorts[leagueId to index - 1]
-                if (index > 0 && previous?.settled != true) {
+        // ---- 4. settlement, in the order the cohorts ended --------------------
+        // A cohort that cannot settle this pass holds every later cohort writing
+        // the same progress slot: its own league's, and for a test league every
+        // other test league's too, so no streak is written out of order.
+        val heldBy = mutableMapOf<Int, Int>() // progress slot -> the league holding it
+        for (cohort in settleQueue(cohorts.values, now)) {
+            val leagueId = cohort.leagueId
+            val index = cohort.index
+            val slot = ProfileSnapshot.slotOf(leagueId)
+            val detail: JsonObjectBuilder.() -> Unit = {
+                put("league", leagueId)
+                put("index", index)
+            }
+            val holder = heldBy[slot]
+            if (holder != null) {
+                if (holder != leagueId) {
                     pass.record("settle", "waiting") {
                         detail()
-                        put("reason", "cohort ${index - 1} of league $leagueId is not settled yet (FR-061a)")
+                        put("reason", "an earlier cohort of test league $holder, which shares its progress, is not settled yet (FR-061a)")
                     }
-                    break
                 }
-                val address = Pdas.cohort(programId, leagueId, index)
-                val previousAddress = if (index == 0L) null else Pdas.cohort(programId, leagueId, index - 1)
+                continue
+            }
+            val previous = if (index == 0L) null else cohorts[leagueId to index - 1]
+            if (index > 0 && previous?.settled != true) {
+                pass.record("settle", "waiting") {
+                    detail()
+                    put("reason", "cohort ${index - 1} of league $leagueId is not settled yet (FR-061a)")
+                }
+                heldBy[slot] = leagueId
+                continue
+            }
+            val address = Pdas.cohort(programId, leagueId, index)
+            val previousAddress = if (index == 0L) null else Pdas.cohort(programId, leagueId, index - 1)
 
-                // Count every member not yet counted.
-                val members = rpc.membershipAccounts(programId, address)
-                if (members == null) {
-                    pass.failures++
-                    pass.record("settle_count", "failed") {
+            // Count every member not yet counted.
+            val members = rpc.membershipAccounts(programId, address)
+            if (members == null) {
+                pass.failures++
+                pass.record("settle_count", "failed") {
+                    detail()
+                    put("error", "could not read the members")
+                }
+                heldBy[slot] = leagueId
+                continue
+            }
+            val uncounted = members.filter { !it.second.counted }.map { it.second.member.wallet }
+            var countsLanded = true
+            uncounted.chunked(config.pageSize.coerceIn(1, Instructions.MAX_PAGE_PAIRS)).forEachIndexed { page, wallets ->
+                val outcome =
+                    pass.send("settle_count", {
                         detail()
-                        put("error", "could not read the members")
+                        put("page", page)
+                        put("members", wallets.size)
+                    }) {
+                        val pairs = wallets.map { Instructions.MemberPair.of(programId, address, it) }
+                        send("settle_count $leagueId/$index#$page", listOf(Instructions.settleCount(programId, payer.publicKey, onChain.feeDestination, onChain.developerDestination, leagueId, address, pairs, previousAddress)))
                     }
-                    break
-                }
-                val uncounted = members.filter { !it.second.counted }.map { it.second.member.wallet }
-                var countsLanded = true
-                uncounted.chunked(config.pageSize.coerceIn(1, Instructions.MAX_PAGE_PAIRS)).forEachIndexed { page, wallets ->
-                    val outcome =
-                        pass.send("settle_count", {
-                            detail()
-                            put("page", page)
-                            put("members", wallets.size)
-                        }) {
-                            val pairs = wallets.map { Instructions.MemberPair.of(programId, address, it) }
-                            send("settle_count $leagueId/$index#$page", listOf(Instructions.settleCount(programId, payer.publicKey, onChain.feeDestination, leagueId, address, pairs, previousAddress)))
-                        }
-                    countsLanded = countsLanded && outcome == Outcome.Landed
-                }
-                if (!countsLanded) break
+                countsLanded = countsLanded && outcome == Outcome.Landed
+            }
+            if (!countsLanded) {
+                heldBy[slot] = leagueId
+                continue
+            }
 
-                // Finalize once the count is complete on chain.
-                val counted =
-                    if (uncounted.isEmpty()) {
-                        cohort
-                    } else if (args.dryRun) {
-                        pass.record("settle_finalize", "skipped") {
-                            detail()
-                            put("reason", "dry run: counting has not landed")
-                        }
-                        break
-                    } else {
-                        rpc.accountData(address)?.let { runCatching { CohortSnapshot.decode(it) }.getOrNull() }
-                    }
-                if (counted == null || counted.counted != counted.memberCount) {
-                    pass.failures++
-                    pass.record("settle_finalize", "failed") {
-                        detail()
-                        put("error", if (counted == null) "could not re-read the cohort after counting" else "counted ${counted.counted} of ${counted.memberCount} members")
-                    }
-                    break
-                }
-                suspend fun finalize() = pass.send("settle_finalize", detail, expected = setOf(CARRY_OVER_TARGET_NOT_OPEN)) {
-                    val target = carryOverTargetIndex(nextIndex.getValue(leagueId), index)?.let { Pdas.cohort(programId, leagueId, it) }
-                    send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, leagueId, address, target)))
-                }
-                var outcome = finalize()
-                if (outcome == Outcome.Refused && args.dryRun) {
-                    // 6047 in a dry run: the lobby it needs would be opened first, but
-                    // only simulated — a retry against unchanged chain state proves nothing.
-                    leagues.firstOrNull { it.params.leagueId == leagueId }?.let { openDue(it) }
+            // Finalize once the count is complete on chain.
+            val counted =
+                if (uncounted.isEmpty()) {
+                    cohort
+                } else if (args.dryRun) {
                     pass.record("settle_finalize", "skipped") {
                         detail()
-                        put("reason", "dry run: needs the league's next cohort open first, which was only simulated")
+                        put("reason", "dry run: counting has not landed")
                     }
-                } else if (outcome == Outcome.Refused) {
-                    // 6047: no open lobby to carry into. Open the league's next cohort and retry once.
-                    leagues.firstOrNull { it.params.leagueId == leagueId }?.let { openDue(it) }
-                    outcome = finalize()
-                    if (outcome == Outcome.Refused) pass.failures++
+                    heldBy[slot] = leagueId
+                    continue
+                } else {
+                    rpc.accountData(address)?.let { runCatching { CohortSnapshot.decode(it) }.getOrNull() }
                 }
-                // A simulated finalize changed nothing: the next cohort still waits on this one.
-                if (outcome != Outcome.Landed || args.dryRun) break
-                cohorts[leagueId to index] = counted.copy(settled = true)
+            if (counted == null || counted.counted != counted.memberCount) {
+                pass.failures++
+                pass.record("settle_finalize", "failed") {
+                    detail()
+                    put("error", if (counted == null) "could not re-read the cohort after counting" else "counted ${counted.counted} of ${counted.memberCount} members")
+                }
+                heldBy[slot] = leagueId
+                continue
             }
+            val outcome =
+                pass.send("settle_finalize", detail) {
+                    send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, onChain.developerDestination, leagueId, address, previousAddress)))
+                }
+            // A simulated finalize changed nothing: the next cohort still waits on this one.
+            if (outcome != Outcome.Landed || args.dryRun) {
+                heldBy[slot] = leagueId
+                continue
+            }
+            cohorts[leagueId to index] = counted.copy(settled = true)
         }
+
+        // The leagues this crank opens in, as they stand after this pass; a lobby
+        // held by an older test league waits on settlement, not on a clock.
+        val opening = leagues
+            .filter { it.params.leagueId !in retired && (it.params.leagueId < LeagueParams.TEST_LEAGUE_MIN || lobbyHeldBy(retired, cohorts.values) == null) }
+            .map { it.copy(nextIndex = nextIndex.getValue(it.params.leagueId)) }
+        val nextOpen = nextOpenAt(opening, cohorts.values, now)
 
         val summary =
             buildJsonObject {
@@ -345,6 +425,7 @@ object Run {
                 put("dryRun", args.dryRun)
                 put("chainTime", now)
                 put("failed", pass.failures)
+                nextOpen?.let { put("nextOpenAt", it) }
                 putJsonArray("steps") { pass.steps.forEach { add(it) } }
             }
         if (pass.failures > 0) throw CrankSummaryException(EXIT_FAILED, summary)

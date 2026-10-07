@@ -12,18 +12,26 @@ export const COHORT_SETTLED_EVENT_DISCRIMINATOR: ReadonlyUint8Array = new Uint8A
 
 export function getCohortSettledEventDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(COHORT_SETTLED_EVENT_DISCRIMINATOR); }
 
-export type CohortSettledEvent = { cohort: Address; finishers: number; totalFinisherStake: bigint; sharePerTier: Array<bigint>; roundingRemainder: bigint;  };
+export type CohortSettledEvent = { cohort: Address; finishers: number; totalFinisherStake: bigint; sharePerTier: Array<bigint>; roundingRemainder: bigint; 
+/** Drawn from the league's boost reserve into this pool (FR-037d). */
+boost: bigint; 
+/** Drawn from the league's comeback reserve for this cohort's finishers (FR-037e). */
+comebackFunded: bigint;  };
 
-export type CohortSettledEventArgs = { cohort: Address; finishers: number; totalFinisherStake: number | bigint; sharePerTier: Array<number | bigint>; roundingRemainder: number | bigint;  };
+export type CohortSettledEventArgs = { cohort: Address; finishers: number; totalFinisherStake: number | bigint; sharePerTier: Array<number | bigint>; roundingRemainder: number | bigint; 
+/** Drawn from the league's boost reserve into this pool (FR-037d). */
+boost: number | bigint; 
+/** Drawn from the league's comeback reserve for this cohort's finishers (FR-037e). */
+comebackFunded: number | bigint;  };
 
 /** Gets the encoder for {@link CohortSettledEventArgs} event data. */
 export function getCohortSettledEventEncoder(): FixedSizeEncoder<CohortSettledEventArgs> {
-    return getHiddenPrefixEncoder(getStructEncoder([['cohort', getAddressEncoder()], ['finishers', getU32Encoder()], ['totalFinisherStake', getU64Encoder()], ['sharePerTier', getArrayEncoder(getU64Encoder(), { size: 4 })], ['roundingRemainder', getU64Encoder()]]), [getConstantEncoder(COHORT_SETTLED_EVENT_DISCRIMINATOR)]);
+    return getHiddenPrefixEncoder(getStructEncoder([['cohort', getAddressEncoder()], ['finishers', getU32Encoder()], ['totalFinisherStake', getU64Encoder()], ['sharePerTier', getArrayEncoder(getU64Encoder(), { size: 4 })], ['roundingRemainder', getU64Encoder()], ['boost', getU64Encoder()], ['comebackFunded', getU64Encoder()]]), [getConstantEncoder(COHORT_SETTLED_EVENT_DISCRIMINATOR)]);
 }
 
 /** Gets the decoder for {@link CohortSettledEvent} event data. */
 export function getCohortSettledEventDecoder(): FixedSizeDecoder<CohortSettledEvent> {
-    return getHiddenPrefixDecoder(getStructDecoder([['cohort', getAddressDecoder()], ['finishers', getU32Decoder()], ['totalFinisherStake', getU64Decoder()], ['sharePerTier', getArrayDecoder(getU64Decoder(), { size: 4 })], ['roundingRemainder', getU64Decoder()]]), [getConstantDecoder(COHORT_SETTLED_EVENT_DISCRIMINATOR)]);
+    return getHiddenPrefixDecoder(getStructDecoder([['cohort', getAddressDecoder()], ['finishers', getU32Decoder()], ['totalFinisherStake', getU64Decoder()], ['sharePerTier', getArrayDecoder(getU64Decoder(), { size: 4 })], ['roundingRemainder', getU64Decoder()], ['boost', getU64Decoder()], ['comebackFunded', getU64Decoder()]]), [getConstantDecoder(COHORT_SETTLED_EVENT_DISCRIMINATOR)]);
 }
 
 /** Gets the codec for {@link CohortSettledEvent} event data. */

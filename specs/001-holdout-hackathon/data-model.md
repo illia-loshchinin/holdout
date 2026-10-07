@@ -66,8 +66,8 @@ The faucet figures above are **normative**: research R13 explains where they com
 |---|---|---|
 | `member_count` | u32 | +1 `join_cohort`, −1 `leave_cohort` |
 | `held_stake` | u64 | + stake on join; − stake on leave, forfeit, claim |
-| `pool` | u64 | + (stake − fee) on each recorded forfeit; + carry-over received; − shares paid on claim |
-| `carry_over_received` | u64 | + on carry-over arrival (FR-037b) |
+| `pool` | u64 | + (stake − fee) on each recorded forfeit; − shares paid on claim |
+| `carry_over_received` | u64 | Always 0 since 2026-10-05 (FR-037): kept so the layout is unchanged |
 | `forfeits_recorded` | u32 | +1 per recorded forfeit |
 | `counted` | u32 | +1 per membership processed by `settle_count` |
 | `finisher_count` | u32 | +1 per finisher counted |
@@ -83,7 +83,7 @@ The faucet figures above are **normative**: research R13 explains where they com
 | `rounding_remainder` | u64 | Sent to fee destination (FR-032a) |
 | `no_finisher_fee` | u64 | `floor(pool ÷ 2)` when no finishers (FR-037) |
 | `carry_over_sent` | u64 | `pool − no_finisher_fee`, delivered at finalize |
-| `carry_over_held` | u64 | Always 0 in Phase 1 — settlement is refused rather than held (FR-037a); the field carries the amount only for a league in which no further cohort is ever opened, and returns to 0 once `deliver_carry_over` moves it **[Phase 2]** |
+| `carry_over_held` | u64 | Always 0 since 2026-10-05 (FR-037): nothing carries over, nothing is held. Kept so the layout is unchanged |
 | `carry_over_target` | Pubkey | Receiving cohort, or default while held |
 
 **Derived, never stored** (`kotlin/core` `Derive.kt`, mirrored in program guards and pinned by `fixtures/`):
@@ -149,7 +149,7 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 |---|---|---|
 | Faucet vault | `["faucet_vault"]` | Program-owned lamport store for SOL top-ups and sponsor reimbursement (R13) |
 | Mint authority | `["mint_authority"]` | Signs `mint_to` for faucet SKR |
-| Cohort vault | `["vault", cohort]` | SKR token account holding held stakes + pool (+ held carry-over) |
+| Cohort vault | `["vault", cohort]` | SKR token account holding held stakes + pool |
 
 ---
 
@@ -164,13 +164,13 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | Genesis check **only if** `genesis_gate_enabled` | R17 | `join_cohort` |
 | Leave only while `Open`; full stake refund | FR-009 | `leave_cohort` |
 | Submit only while `Running`, `day_index == days_completed`, `now ≤ deadline_of(days_completed)` | FR-013, FR-017, FR-018, FR-025, INV-8 | `submit_day` |
-| Forfeit only if `in_breach(now)`; fee `floor(stake × 20 ÷ 100)` | FR-026, FR-027, INV-2 | `record_forfeits` |
+| Forfeit only if `in_breach(now)`; fee `floor(stake × 30 ÷ 100)` | FR-026, FR-027, INV-2 | `record_forfeits` |
 | Count only when `status == Settling`; any member of the page still in unrecorded breach is forfeited first by the same rule as `record_forfeits`, then counted | spec §8.1, FR-030 | `settle_count` |
 | Count cohort `i > 0` only once the league's cohort `i − 1` is `settled`, so streaks are written in cohort order | FR-061a, INV-9 | `settle_count` |
 | Finalize only when `counted == member_count` | R10, INV-5 | `settle_finalize` |
 | Claim only when `settled`, `state == Finished` | FR-034, INV-6 | `claim_payout` |
 | Open only `index == next_index`, previous cohort started | R11, FR-007a | `open_cohort` |
-| Carry-over only into a cohort of the same league with `status == Open`. A no-finisher `settle_finalize` must be given the league's cohort `next_index − 1` and its vault (`CarryOverTargetRequired`), and that cohort must be another cohort and `Open` (`CarryOverTargetNotOpen`) — so the destination follows from chain state, a caller can neither choose it nor strand the carry by settling before the lobby exists, and opening that lobby is itself permissionless | FR-037a, FR-030a | `settle_finalize`, `deliver_carry_over` **[Phase 2]** |
+| A no-finisher cohort's whole pool goes to the fee destination; nothing carries over, so no other cohort's money is involved — finalization reads the previous cohort only for its `settled` flag, to keep cohort order (revised 2026-10-05; ordering check 2026-10-06) | FR-037, FR-030a | `settle_finalize` |
 | Chip set: 4 increasing positive amounts; operator only | FR-054, R14 | `publish_chip_set` |
 | Only the program's current upgrade authority may `initialize`, verified against `ProgramData` | R14, constitution I | `initialize` |
 | No cohort opens before the first chip set is published (`chip_set.version > 0`) | FR-055b | `open_cohort` |
@@ -183,11 +183,11 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | Invariant | Mechanism | Test |
 |---|---|---|
 | **INV-1** custody | `vault.amount == held_stake + pool + carry_over_held` after every instruction touching a cohort | Assert in every integration test step; property test |
-| **INV-2** pool sources | Only `record_forfeits`, carry-over arrival and claims change `pool` | Property test over random instruction sequences |
+| **INV-2** pool sources | Only `record_forfeits`, settlement's remainder and claims change `pool` | Property test over random instruction sequences |
 | **INV-3** days | `submit_day` requires `day_index == days_completed == day_index(now)`, so `days_completed ≤ max_days_completed(now)` | Unit + property test |
 | **INV-4** one running, one pending, no overlap | Profile slot rules | Scenario tests incl. 21-day refusal (AC-13) |
 | **INV-5** denominator once | `settle_finalize` requires `!settled` | Double-finalize test |
-| **INV-6** settled is final | Only `claim_payout` and **[Phase 2]** `deliver_carry_over` accept a settled cohort | Instruction-matrix test |
+| **INV-6** settled is final | Only `claim_payout` accepts a settled cohort | Instruction-matrix test |
 | **INV-7** idempotent automation | Per-membership state and `counted` flags | Pages out of order and repeated (AC-7) |
 | **INV-8** breach blocks submit | `submit_day` deadline guard, no dependency on forfeits. The guard is ordered so the deadline is read **before** the current-day check: a missed day always falls on a day that has since turned over, so the reverse order answers every late submission with `WrongDay` and 6032 is never raised. Checked per step at the **post-transaction** clock — reading the breach at the pre-step instant passes a submission the step's own clock advance made late | V16 |
 | **INV-9** streaks follow cohort order | Streaks written only by `settle_count`, which requires the league's previous cohort to be settled. Checkable on any snapshot: for a wallet, take its memberships whose cohort is `settled`, order them by cohort `start`, and count the finishes since the last forfeit — that number is `current_streak`, and the largest it reaches across that history is `longest_streak` | Per-step derivation in the invariant checker (T017) + the interleaved-settlement scenario across two cohorts of one league (T077a) |
@@ -218,13 +218,13 @@ Computed in `kotlin/core` (`Derive.kt`) from chain accounts and chain time only,
 | Figure | Definition |
 |---|---|
 | Survivor counter | `count(standing) / member_count_at_start` |
-| Projected pool | `pool + Σ over breached-but-unrecorded members of (stake − floor(stake × 20 ÷ 100))` |
+| Projected pool | `pool + Σ over breached-but-unrecorded members of (stake − floor(stake × 30 ÷ 100))` |
 | Projected share (member *m*) | `floor(projected_pool × m.stake ÷ Σ stake of standing members)` |
 | Roster | standing members first; then `Forfeited` or breached members by `days_lasted` descending (FR-062); scripted labels from the bundled list (FR-064) |
 | Time left today | `deadline_of(day_index) − chainNow` (FR-046) |
 | Warning window | Time left ≤ 600 s (FR-047) |
 | **At stake** (a Holdout open for joining) | `held_stake` — the sum of the stakes taken so far. Shown on the lobby card with the joined count (FR-053). Labelled "at stake", never "prize": an open cohort has no forfeits yet |
-| **Carry-over received** | `carry_over_received` — the stored field of §1.3, shown as its own line when it is non-zero (FR-037b). `carry_over_in` is only the input key of `fixtures/settlement-vectors.json`, never an account field |
+| **Carry-over received** | *(Removed 2026-10-05: always zero, no longer shown.)* |
 | Time until joining closes | `join_cutoff − chainNow` (FR-008) |
 
 `member_count_at_start` = `member_count` read at or after `start` (the roster is final from the join cutoff, FR-010).

@@ -158,6 +158,36 @@ class RecordedTracesTest {
         assertEquals(1, events.count { it == RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT) }, "the one whose legs read honest: the chest came up first")
     }
 
+    /** [recording] replayed as a sitting at [stakes] rather than the stakes it was recorded at. */
+    private fun eventsAs(recording: Trace.Recording, stakes: Stakes): List<RepEvent> {
+        val counter = RepCounter(view = recording.countingView!!, stakes = stakes)
+        for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
+        return recording.countingFrames.mapNotNull { counter.onFrame(it.world, it.image) }
+    }
+
+    @Test
+    fun `push-ups from the knees with the feet raised count where knees count - straight from shoulder to knee is enough`() {
+        // Ten push-ups from the knees, feet in the air. Read shoulder–hip–ankle the raised
+        // feet put three under the floor (138–142°), refused "Keep your body straight"
+        // where Easy and the Daily 25 allow them (Codex P1, PR #18).
+        val recording = Trace.parse(traces().single { it.name == "angled-right-knees-feetup-01.trace.csv" }.readLines())
+        for (stakes in listOf(Stakes.EASY, Stakes.DAILY)) {
+            assertEquals(List(10) { true }, eventsAs(recording, stakes).take(10).map { it is RepEvent.Counted }, "$stakes")
+        }
+        assertTrue(eventsAs(recording, Stakes.STAKED).none { it is RepEvent.Counted }, "Hard still refuses them")
+    }
+
+    @Test
+    fun `where knees count, cobras from a placement Easy accepts are still refused`() {
+        // Held ratios 0.44 and 0.56, inside Easy's 0.90: the knee line reads a cobra
+        // straighter than the ankle line does, and the hip rise still refuses all of them.
+        for ((name, cobras) in listOf("angled45-left-mixed-11" to 7, "angled55-right-mixed-07" to 5)) {
+            val recording = Trace.parse(traces().single { it.name == "$name.trace.csv" }.readLines())
+            val events = eventsAs(recording, Stakes.EASY)
+            assertEquals(cobras, events.count { it == RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT) }, name)
+        }
+    }
+
     @Test
     fun `cobras with the body nearly straight are refused, on a second person`() {
         val recording = Trace.parse(traces().single { it.name == "angled45-right-loose-trousers-cobra-16.trace.csv" }.readLines())
