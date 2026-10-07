@@ -274,7 +274,7 @@ enum class RepHint(val message: String) {
 data class Readout(
     val view: CameraView,
     val elbow: Float,
-    /** At 45°: the near side's shoulder–hip–ankle line. Head-on: the torso's rise above horizontal. */
+    /** At 45°: the near side's body line — to the ankle on Hard, the straighter of ankle and knee where knees count. Head-on: the torso's rise above horizontal. */
     val posture: Float,
     /** Near leg at 45°; null head-on, or when the leg is not clearly in frame. */
     val knee: Float?,
@@ -369,6 +369,18 @@ class RepCounter(
      * to full push-ups should be able to keep it (FR-021a).
      */
     private val judgeKnees = stakes.judgesKnees
+
+    /**
+     * And where push-ups from the knees count, a body straight from shoulder
+     * to **knee** is a body held, whatever the lower legs do behind it: raised
+     * or crossed, they pull shoulder–hip–ankle under the floor and refused
+     * reps the rule allows (FR-021a; Codex P1 on PR #18). The line read is
+     * the straighter of the two ([ViewReading.of] says why not the knee's
+     * alone). A sag or a fold at the hips bends both, so it is still caught.
+     * Every posture check — [bodyHeld], the push floor, the ready hold — reads
+     * this line; the hip rise reads hip and shoulder heights and needs neither.
+     */
+    private val bodyLineToKnee = !judgeKnees
 
     /**
      * Where money is staked — Hard or Easy — the legs must stay in view: a rep
@@ -540,7 +552,7 @@ class RepCounter(
 
     fun onFrame(frame: PoseFrame, image: ImagePose? = null): RepEvent? {
         val side = nearSideFor(image)
-        val reading = ViewReading.of(view, frame, image, side = side) ?: run {
+        val reading = ViewReading.of(view, frame, image, side = side, bodyLineToKnee = bodyLineToKnee) ?: run {
             // A frame that cannot be read is dropped, not scored — but where
             // money is staked, one on the way back up is a frame the knee was
             // not seen in: a leg hidden through the push must not leave only
