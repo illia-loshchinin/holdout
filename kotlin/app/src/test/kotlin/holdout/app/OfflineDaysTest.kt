@@ -4,6 +4,7 @@ import holdout.app.storage.InMemoryStore
 import holdout.app.storage.Store
 import holdout.app.streak.OfflineDays
 import holdout.app.streak.StreakStore
+import holdout.app.streak.ToesMeter
 import holdout.core.HoldoutDay
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -79,6 +80,35 @@ class OfflineDaysTest {
     }
 
     @Test
+    fun `the toes meter moves with the reps, so the day it lands on is a Hard day`() {
+        days.sittingStarted(wallet, boot = 7, elapsedMillis = 0)
+        store.setBankedReps(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY, 25)
+        store.markDayComplete(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY)
+        store.setToesDay(wallet, Store.UNKNOWN_DAY, 25, 25)
+
+        days.settle(wallet, boot = 7, elapsedMillis = 60_000, chainNow = chainAt(day, 600))
+
+        assertEquals(25 to 25, store.toesDay(wallet, day))
+        assertEquals(0 to 0, store.toesDay(wallet, Store.UNKNOWN_DAY))
+        assertTrue(ToesMeter(store, target = 25).read(wallet, day).hardDay(25))
+    }
+
+    @Test
+    fun `offline toes add to what the day already measured, up to the target`() {
+        store.setBankedReps(wallet, Store.CHALLENGE, day, 20)
+        store.setToesDay(wallet, day, 12, 20)
+        days.sittingStarted(wallet, boot = 7, elapsedMillis = 0)
+        store.setBankedReps(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY, 10)
+        store.setToesDay(wallet, Store.UNKNOWN_DAY, 10, 10)
+
+        days.settle(wallet, boot = 7, elapsedMillis = 60_000, chainNow = chainAt(day, 600))
+
+        val (toes, measured) = store.toesDay(wallet, day)
+        assertEquals(25, measured)
+        assertTrue(toes <= measured, "never more from the toes than were measured")
+    }
+
+    @Test
     fun `a later day already on the streak is never walked back`() {
         streaks.recordCompletedDay(wallet, day)
         days.sittingStarted(wallet, boot = 7, elapsedMillis = 0)
@@ -136,5 +166,22 @@ class OfflineDaysTest {
         assertEquals(20, store.bankedReps(wallet, Store.CHALLENGE, day), "10 dated + 10 offline, not 10 + 10 + 10")
         assertFalse(store.isDayComplete(wallet, Store.CHALLENGE, day))
         assertEquals(0, store.bankedReps(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY))
+    }
+
+    @Test
+    fun `a settlement killed half-way and run again moves the toes once`() {
+        val dying = DiesOnceClearing(store)
+        val days = OfflineDays(dying, StreakStore(dying), target = 25)
+        store.setToesDay(wallet, day, 10, 10)
+        days.sittingStarted(wallet, boot = 7, elapsedMillis = 0)
+        store.setBankedReps(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY, 10)
+        store.setToesDay(wallet, Store.UNKNOWN_DAY, 10, 10)
+
+        kotlin.runCatching { days.settle(wallet, boot = 7, elapsedMillis = 60_000, chainNow = chainAt(day, 600)) }
+        days.settle(wallet, boot = 7, elapsedMillis = 90_000, chainNow = chainAt(day, 630))
+
+        assertEquals(20 to 20, store.toesDay(wallet, day), "10 dated + 10 offline, not 10 + 10 + 10")
+        assertEquals(0 to 0, store.toesDay(wallet, Store.UNKNOWN_DAY))
+        assertEquals(20, store.bestToes(wallet))
     }
 }
