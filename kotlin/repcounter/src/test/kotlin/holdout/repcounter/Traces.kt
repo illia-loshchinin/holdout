@@ -313,11 +313,22 @@ object Traces {
     /**
      * The picture of a body at 45°, as far as the angled reading needs it: the
      * near side only (the far one is hidden, as it is on a phone), drawn in
-     * pixels with the elbow at [elbowDegrees] and the knee at [kneeDegrees].
-     * Shoulder, hip and ankle stay on one line whatever the knee does; the
-     * knee drops off it as it bends, as a push-up from the knees looks.
+     * pixels with the elbow at [elbowDegrees], shoulder–hip–knee at
+     * [hipDegrees] and the knee at [kneeDegrees].
+     *
+     * Shoulder, hip and knee stay on one line whatever the knee does — what a
+     * push-up from the knees promises — and a bent knee raises the lower leg
+     * off the floor behind it, so shoulder–hip–ankle bends with it: at 70° it
+     * reads about 125°. [hipDegrees] under 180 drops the hips towards the
+     * floor, a sag, and bends both lines.
      */
-    fun angledImage(timestampMillis: Long, elbowDegrees: Float, kneeDegrees: Float = 178f, presence: Float = 1f): ImagePose {
+    fun angledImage(
+        timestampMillis: Long,
+        elbowDegrees: Float,
+        kneeDegrees: Float = 178f,
+        presence: Float = 1f,
+        hipDegrees: Float = 180f,
+    ): ImagePose {
         val landmarks = MutableList(PoseIndex.COUNT) { Landmark(0f, 0f, 0f, 0f) }
 
         // Drawn at half size, lower in the frame, so the whole body — knees and
@@ -340,18 +351,22 @@ object Traces {
         val (dx, dy) = if (span > 0) (wrist.first - shoulder.first) / span to (wrist.second - shoulder.second) / span else 0.0 to 1.0
         val elbow = mid.first - dy * apex to mid.second + dx * apex
 
-        // Body: shoulder, hip and ankle on one line running away from the
-        // lens — the feet are farther off, so they sit higher in the picture
-        // than the hands, as on the phone. A push-up from the knees keeps the
-        // shin lying back along that line (it read 168–173° shoulder–hip–ankle);
-        // bending the knee drops it off the line, towards the floor.
-        val (ux, uy) = 0.97 to -0.24
-        val hip = shoulder.first + 330 * ux to shoulder.second + 330 * uy
-        val half = Math.toRadians(kneeDegrees / 2.0)
-        val reach = 2 * 230 * sin(half)
-        val ankle = hip.first + reach * ux to hip.second + reach * uy
-        val drop = 230 * cos(half)
-        val knee = hip.first + reach / 2 * ux - drop * uy to hip.second + reach / 2 * uy + drop * ux
+        // Body: shoulder, hip and knee on one line running away from the
+        // lens — the legs are farther off, so they sit higher in the picture
+        // than the hands, as on the phone. y points down the picture, so a
+        // turn by a negative angle lifts a limb off the floor.
+        fun turn(v: Pair<Double, Double>, degrees: Double): Pair<Double, Double> {
+            val a = Math.toRadians(degrees)
+            return v.first * cos(a) - v.second * sin(a) to v.first * sin(a) + v.second * cos(a)
+        }
+        val trunk = 0.97 to -0.24
+        val hip = shoulder.first + 330 * trunk.first to shoulder.second + 330 * trunk.second
+        // A sag: the hips drop, so the thigh leaves them pointing up off the trunk's line.
+        val thigh = turn(trunk, -(180.0 - hipDegrees))
+        val knee = hip.first + 230 * thigh.first to hip.second + 230 * thigh.second
+        // The lower leg raised behind the knee by however far the knee bends.
+        val shin = turn(thigh, -(180.0 - kneeDegrees))
+        val ankle = knee.first + 230 * shin.first to knee.second + 230 * shin.second
 
         landmarks[PoseIndex.LEFT_SHOULDER] = at(shoulder.first, shoulder.second)
         landmarks[PoseIndex.LEFT_ELBOW] = at(elbow.first, elbow.second)

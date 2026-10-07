@@ -217,7 +217,9 @@ class StakesTest {
             val counter = RepCounter(view = CameraView.OBLIQUE, stakes = stakes)
             val hints = mutableListOf<RepHint?>()
             for (frame in Traces.set(count = 10)) {
-                val image = withoutKnee(Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = 70f))
+                // From the knees, shins down. With no knee to end the body line at, the
+                // Daily 25 reads it to the ankle, as it did before the knee line.
+                val image = withoutKnee(Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = SHINS_DOWN))
                 (counter.onFrame(frame, image) as? RepEvent.Discarded)?.let { hints += it.hint }
             }
             assertEquals(expected, counter.total, "$stakes")
@@ -400,6 +402,79 @@ class StakesTest {
         assertEquals(0, count(Stakes.STAKED), "Hard does not")
     }
 
+    /** Ten reps at 45° under [stakes], the knee at [kneeDegrees] with the lower leg raised, shoulder–hip–knee at [hipDegrees]. */
+    private fun kneesSet(stakes: Stakes, kneeDegrees: Float, hipDegrees: Float = 180f): Pair<Int, List<RepHint?>> {
+        val counter = RepCounter(view = CameraView.OBLIQUE, stakes = stakes)
+        val hints = mutableListOf<RepHint?>()
+        for (frame in Traces.set(count = 10)) {
+            val image = Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!, kneeDegrees, hipDegrees = hipDegrees)
+            (counter.onFrame(frame, image) as? RepEvent.Discarded)?.let { hints += it.hint }
+        }
+        return counter.total to hints
+    }
+
+    @Test
+    fun `a knee push-up with the lower legs raised is straight from shoulder to knee, and bent from shoulder to ankle`() {
+        val image = Traces.angledImage(0, elbowDegrees = 175f, kneeDegrees = 60f)
+        assertTrue(Angles.bodyLineToKneeInImage(image, Side.LEFT)!! > 178f)
+        assertTrue(Angles.bodyLineInImage(image, Side.LEFT)!! < RepRules().angledBodyLineFloorDegrees)
+    }
+
+    @Test
+    fun `the world reading takes the knee line too where knees count, and the ankle line alone where they do not`() {
+        // Shoulder–hip–ankle bent to 120°, the knees straight on along the trunk.
+        val bent = Traces.frame(0, elbowDegrees = 175f, bodyLineDegrees = 120f)
+        val landmarks = bent.landmarks.toMutableList()
+        for (knee in listOf(PoseIndex.LEFT_KNEE, PoseIndex.RIGHT_KNEE)) landmarks[knee] = Landmark(0f, -2f, 0f, 1f)
+        val frame = bent.copy(landmarks = landmarks)
+        assertEquals(180f, ViewReading.of(CameraView.SIDE, frame, null, bodyLineToKnee = true)!!.posture, 0.5f)
+        assertEquals(120f, ViewReading.of(CameraView.SIDE, frame, null)!!.posture, 0.5f)
+    }
+
+    @Test
+    fun `given an Easy Holdout, when push-ups come from the knees with the lower legs raised, then they count - the body line runs to the knee`() {
+        // Codex P1 on PR #18: read shoulder–hip–ankle, raised or crossed lower legs
+        // pulled every rep under the 140° floor and an Easy member following the
+        // rule on the join screen was refused "Keep your body straight" (FR-021a).
+        val (count, hints) = kneesSet(Stakes.EASY, kneeDegrees = 60f)
+        assertEquals(10, count)
+        assertTrue(hints.isEmpty(), "expected no hints, got $hints")
+    }
+
+    @Test
+    fun `given a Hard Holdout, when the same push-ups come from the knees with the lower legs raised, then they are refused - knees down`() {
+        val (count, hints) = kneesSet(Stakes.STAKED, kneeDegrees = 60f)
+        assertEquals(0, count)
+        assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.UP_ON_YOUR_TOES }, "got $hints")
+    }
+
+    @Test
+    fun `given an Easy Holdout, when the hips sag between shoulder and knee, then the rep is refused - keep your body straight`() {
+        for (knee in listOf(60f, 178f)) {
+            val (count, hints) = kneesSet(Stakes.EASY, kneeDegrees = knee, hipDegrees = 125f)
+            assertEquals(0, count, "knee $knee")
+            assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.KEEP_BODY_STRAIGHT }, "knee $knee: got $hints")
+        }
+    }
+
+    @Test
+    fun `given a Daily 25 at 45 degrees, when push-ups come from the knees with the lower legs raised, then they count`() {
+        val (count, hints) = kneesSet(Stakes.DAILY, kneeDegrees = 60f)
+        assertEquals(10, count)
+        assertTrue(hints.isEmpty(), "expected no hints, got $hints")
+    }
+
+    @Test
+    fun `given an Easy Holdout, when the member holds the start from the knees with the lower legs raised, then the hold is accepted`() {
+        for ((stakes, opens) in listOf(Stakes.EASY to true, Stakes.DAILY to true, Stakes.STAKED to false)) {
+            val gate = ReadyGate(holdMillis = 1_000, stakes = stakes)
+            val top = { t: Long -> Traces.frame(t, elbowDegrees = 175f, bodyLineDegrees = 180f) }
+            val knees = { t: Long -> Traces.angledImage(t, elbowDegrees = 175f, kneeDegrees = 60f) }
+            gate.onFrame(top(0), 0, pillsGreen = true, view = CameraView.OBLIQUE, image = knees(0))
+            assertEquals(opens, gate.onFrame(top(2_000), 2_000, pillsGreen = true, view = CameraView.OBLIQUE, image = knees(2_000)), "$stakes")
+        }
+    }
+
     @Test
     fun `given an Easy Holdout, when the knees leave the picture, then the rep is not credited - the legs stay in view`() {
         val counter = RepCounter(view = CameraView.OBLIQUE, stakes = Stakes.EASY)
@@ -453,7 +528,7 @@ class StakesTest {
     fun `given a Daily 25 at 45 degrees, when reps are counted, then each says whether Hard would have counted it`() {
         assertEquals(List(5) { RepStance.TOES }, stances(CameraView.OBLIQUE))
         assertEquals(List(5) { RepStance.KNEES }, stances(CameraView.OBLIQUE, kneeDegrees = 70f), "counted all the same - the Daily 25 allows knees")
-        assertEquals(List(5) { RepStance.NOT_VISIBLE }, stances(CameraView.OBLIQUE, kneeDegrees = 70f, hideKnee = true))
+        assertEquals(List(5) { RepStance.NOT_VISIBLE }, stances(CameraView.OBLIQUE, kneeDegrees = SHINS_DOWN, hideKnee = true))
     }
 
     @Test
@@ -478,5 +553,10 @@ class StakesTest {
         val rule = Stakes.STAKED_RULE.lowercase()
         assertTrue("45" in rule && "not in front" in rule, "the placement")
         assertTrue("toes" in rule && "knees" in rule, "the knees")
+    }
+
+    private companion object {
+        /** A push-up from the knees with the shins near the floor: shoulder–hip–ankle reads 160°, over the floor. */
+        const val SHINS_DOWN = 140f
     }
 }
