@@ -224,20 +224,19 @@ java -jar kotlin/crank/build/libs/crank.jar chips publish --rate <usd-per-skr>
 java -jar kotlin/crank/build/libs/crank.jar chips publish --auto --dry-run
 ```
 
-Then schedule it for Mondays a few minutes after 05:00 UTC, with `HOLDOUT_RPC_URL`, `HOLDOUT_PROGRAM_ID` and `HOLDOUT_OPERATOR_KEYPAIR` set (and `HOLDOUT_JUPITER_API_KEY` if you have one). Linux or WSL2 cron, which runs in the machine's time zone — set `CRON_TZ=UTC` or convert:
+Then schedule it to run **every hour**, with `HOLDOUT_RPC_URL`, `HOLDOUT_PROGRAM_ID` and `HOLDOUT_OPERATOR_KEYPAIR` set (and `HOLDOUT_JUPITER_API_KEY` if you have one). The machine's time zone doesn't matter: the command itself knows the Monday 05:00 UTC boundary, so the first run after it publishes and every other run that week does nothing, without fetching a rate. Linux or WSL2 cron:
 
 ```cron
-CRON_TZ=UTC
-10 5 * * 1  cd /path/to/holdout && java -jar kotlin/crank/build/libs/crank.jar chips publish --auto >> crank-chips.log 2>&1
+17 * * * *  cd /path/to/holdout && java -jar kotlin/crank/build/libs/crank.jar chips publish --auto >> crank-chips.log 2>&1
 ```
 
-Windows Task Scheduler (the time is local — pick the local time of Monday 05:10 UTC):
+Windows Task Scheduler:
 
 ```powershell
-schtasks /Create /TN "Holdout weekly chip check" /SC WEEKLY /D MON /ST 07:10 /TR "cmd /c cd /d C:\path\to\holdout && java -jar kotlin\crank\build\libs\crank.jar chips publish --auto >> crank-chips.log 2>&1"
+schtasks /Create /TN "Holdout weekly chip check" /SC HOURLY /ST 00:17 /TR "cmd /c cd /d C:\path\to\holdout && java -jar kotlin\crank\build\libs\crank.jar chips publish --auto >> crank-chips.log 2>&1"
 ```
 
-A missed Monday is skipped, not caught up; running it again the same week does nothing once a set has been published.
+A run that fails or finds no rate is simply tried again the next hour, within the same week; once a set has been published, running it again that week does nothing. A once-a-Monday schedule is not used: cron ignores `CRON_TZ` on Debian, and a local-time Monday run can land before 05:00 UTC, or move with daylight saving, and publish a week late.
 
 **Expected:** `Config`, the 7-day and 21-day `LeagueConfig`s (first start Monday 5 October 05:00 UTC by default — moved from 28 September on 26 September — so cohort index 0 is the first judged cohort and its lobby can open immediately), the mock SKR mint and a funded faucet vault exist; `crank status` lists the leagues with no cohorts yet.
 

@@ -325,8 +325,8 @@ object Chips {
     }
 
     /**
-     * `--auto`: the Operator's weekly re-pricing, run by the Operator's own
-     * scheduler after Monday 05:00 UTC — never by `crank run`, so the
+     * `--auto`: the Operator's weekly re-pricing, run every hour by the
+     * Operator's own scheduler, in any time zone — never by `crank run`, so the
      * Operator key is loaded only for this. In order: nothing to do if a set
      * was already published since the latest boundary (no rate fetched); no
      * rate, nothing published, and the report says why (FR-057); otherwise all
