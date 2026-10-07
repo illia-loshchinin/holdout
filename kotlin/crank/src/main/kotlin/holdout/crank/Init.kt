@@ -234,18 +234,24 @@ object Init {
     /** The shortest day a test league may have: long enough for a sitting and a submission to land. */
     const val MIN_TEST_DAY_SECONDS = 60L
 
-    /** Joining closes this long before a test cohort starts unless `--join-lock` says otherwise. */
-    const val DEFAULT_TEST_JOIN_LOCK = 300L
+    /**
+     * Joining closes this long before a test cohort starts unless `--join-lock`
+     * says otherwise: never early. The next cohort opens only once this one has
+     * started, so any lock would leave the test lobby with nothing to join for
+     * that long in every cadence (FR-044a, 2026-10-07).
+     */
+    const val DEFAULT_TEST_JOIN_LOCK = 0L
 
     private const val INVALID_LEAGUE_TIMING = 6010
 
     /**
-     * The short test cohort, by default (decision H32, amended 2026-09-29): **a 7-day
-     * Holdout in 70 minutes** — seven 10-minute days at 5 reps a day, so a tester
-     * lives through a whole cycle in about an hour, without 175 push-ups.
+     * The short test lobby, by default (FR-044a, decision H36, 2026-10-06; was
+     * seven days, H32): **three 10-minute days at 5 reps a day, a new cohort every
+     * 30 minutes**, so a single judge lives through a whole cycle in about an hour,
+     * waiting at most half an hour for the next start.
      */
     const val DEFAULT_TEST_DAY_SECONDS = 600L
-    const val DEFAULT_TEST_DAYS = 7L
+    const val DEFAULT_TEST_DAYS = 3L
     const val DEFAULT_TEST_REPS = 5L
 
     /** A test league is Easy (knees allowed) unless `--form` says otherwise: its default shape is the 7-day Holdout's (H35). */
@@ -261,7 +267,7 @@ object Init {
     /**
      * The short test league's parameters from the command line (quickstart §5):
      * `--first-start` is required — any instant the admin chooses; `--day-seconds`,
-     * `--days` and `--reps` default to seven 10-minute days at 5 reps; `--form`
+     * `--days` and `--reps` default to three 10-minute days at 5 reps; `--form`
      * to Easy ([DEFAULT_TEST_FORM]);
      * `--cadence` defaults to back-to-back cohorts (`days × day-seconds`) and
      * `--join-lock` to [DEFAULT_TEST_JOIN_LOCK].
@@ -331,6 +337,23 @@ object Init {
         }
 
         if (existing != null) {
+            // A league's shape is fixed for life, so re-running with the same shape is
+            // a no-op — but asking for a different one (the test lobby's three days
+            // where league 100 was made with seven, H36) must not pass for success.
+            val e = existing.params
+            val sameShape = e.durationDays == params.durationDays &&
+                e.repsPerDay == params.repsPerDay &&
+                e.dayLength == params.dayLength &&
+                e.cadence == params.cadence &&
+                e.joinLock == params.joinLock &&
+                e.form == params.form
+            if (!sameShape) {
+                configError(
+                    "league ${params.leagueId} already exists as ${e.durationDays} days of ${e.dayLength} s, ${e.repsPerDay} reps, a cohort every ${e.cadence} s " +
+                        "(${LeagueParams.formName(e.form)}), and a league never changes; pass --league-id with a free id (100..255) for " +
+                        "${params.durationDays} days of ${params.dayLength} s, a cohort every ${params.cadence} s",
+                )
+            }
             return buildJsonObject {
                 put("command", "init --test-league")
                 put("status", "skipped")

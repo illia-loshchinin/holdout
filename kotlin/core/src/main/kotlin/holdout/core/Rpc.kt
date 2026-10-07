@@ -145,6 +145,18 @@ class Rpc(
         return runCatching { accounts.map { it.address to CohortSnapshot.decode(it.data) } }.getOrNull()
     }
 
+    /** Every wallet's `Profile` — the league leaderboards' only input (FR-060, R8). */
+    /** Every recorded forfeit settlement has not counted yet — see [AccountQueries.uncountedForfeits]. */
+    suspend fun uncountedForfeits(programId: SolanaPublicKey): List<MembershipAccount>? {
+        val accounts = programAccounts(programId, AccountQueries.uncountedForfeits()) ?: return null
+        return runCatching { accounts.map { MembershipAccount.decode(it.data) } }.getOrNull()
+    }
+
+    suspend fun profiles(programId: SolanaPublicKey): List<ProfileSnapshot>? {
+        val accounts = programAccounts(programId, AccountQueries.profiles()) ?: return null
+        return runCatching { accounts.map { ProfileSnapshot.decode(it.data) } }.getOrNull()
+    }
+
     /**
      * Every member of [cohort], whole — with the settlement flag the crank
      * pages `settle_count` by, which the roster slice leaves out.
@@ -512,6 +524,29 @@ object AccountQueries {
     /** Every `LeagueConfig`. */
     fun leagues(): ProgramAccountsQuery = ProgramAccountsQuery(
         filters = listOf(AccountFilter.DataSize(LeagueSnapshot.SIZE), AccountFilter.Memcmp(0, LeagueSnapshot.DISCRIMINATOR)),
+    )
+
+    /** Every `Profile`, whole: what the league leaderboards rank (R8, FR-060). */
+    /**
+     * Every membership whose forfeit is recorded and not yet counted: the
+     * member's `forfeited` has risen, and settlement has still to break the
+     * streak (FR-061a). One call, however many cohorts exist.
+     */
+    fun uncountedForfeits(): ProgramAccountsQuery {
+        val l = AccountLayout.Membership
+        return ProgramAccountsQuery(
+            filters =
+            listOf(
+                AccountFilter.DataSize(l.SIZE),
+                AccountFilter.Memcmp(0, l.DISCRIMINATOR),
+                AccountFilter.Memcmp(l.STATE, byteArrayOf(MembershipSnapshot.State.Forfeited.ordinal.toByte())),
+                AccountFilter.Memcmp(l.COUNTED, byteArrayOf(0)),
+            ),
+        )
+    }
+
+    fun profiles(): ProgramAccountsQuery = ProgramAccountsQuery(
+        filters = listOf(AccountFilter.DataSize(ProfileLayout.SIZE), AccountFilter.Memcmp(0, ProfileLayout.DISCRIMINATOR)),
     )
 
     /** Every cohort, whole. */

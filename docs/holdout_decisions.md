@@ -561,6 +561,8 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 
 ### H32. The short test cohort is a 7-day Holdout in 70 minutes
 
+> **Superseded 2026-10-06 by H36:** a test lobby kept running for judges, three 10-minute days, a new cohort every 30 minutes.
+
 **Decided (2026-09-29, product owner; amends 2026-09-27):** the disclosed short test cohort (FR-044a, constitution v1.4.0) runs **seven 10-minute days at 5 reps a day** — a 7-day Holdout in 70 minutes. `crank init --test-league` makes that the default; `--day-seconds`, `--days` and `--reps` still override it (`--day-seconds 3600` gives the one-hour days of the 27 September version).
 
 **Why:** one-hour days (27 Sep) proved hard to test: a tester who missed one sitting waited hours for the next cohort, and a full cycle took most of a day. At 5 reps, a real sitting — the set-up checks, the ready hold and the counting — fits in a 10-minute day, which the 27 September version doubted when the target was 25. Every step stays real — the checks, the counting, a missed real deadline, settlement and the claim — within about an hour. The real 7-day and 21-day leagues stay at 24-hour days and 25 reps.
@@ -653,6 +655,20 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 - Easy's evidence is mostly one person's recordings: 87% of knee reps counted, 3 of 56 cobras slipped through, 2 of them at about 30°. More recordings are being collected this week (README weakness).
 
 **Source:** brainstorm files A-r2, B-r2 and C-r2 (session scratchpad, summarised here); constitution v1.6.0.
+
+### H36. No feature freeze; leaderboards, offline auto-submit and a test lobby for judges
+
+**Decided (2026-10-06, product owner; constitution v2.0.0):**
+- **The 5 October feature freeze is removed.** Phase 2 items are built after Phase 1 works end to end, with no date gate. H35 is an ordinary decision, no longer an exception. (Earlier the same day, v1.7.0 admitted leaderboards and offline auto-submit past the freeze; v2.0.0 replaced that by removing the freeze.)
+- **League leaderboards** (US-10, FR-060…FR-063) are built: **all-time, one per league**, from on-chain progress. The Easy 7-day and Hard 21-day boards are separate because the leagues are. **Quarterly and yearly boards are deferred.**
+- **One labelled board for the short test league.** Every test league shares one progress slot, so it is one combined board. No member can finish three judged cohorts before 9 October, so it is where ranking can be seen during judging.
+- **The ranking rules live once, in Kotlin core**, with given-when-then tests for AC-14. The contract suite checks the on-chain progress figures the board reads, not a second copy of the ranking.
+- **Automatic offline submission** (T098, PR #16): the wallet opens on its own once the phone is back online.
+- **A short test lobby, kept running on devnet for judges** (FR-044a): the devnet build carries a test league whose labelled cohorts keep opening alongside the real 7-day and 21-day lobbies through the live period, so **a single judge can run the whole cycle alone**. **Three 10-minute days at 5 reps, a new cohort every 30 minutes**, joinable right up to each start (join lock 0 since 2026-10-07; it was 5 minutes, which left a gap with no cohort to join; before that, seven 10-minute days, H32). The presentation video shows the cycle on a test cohort and says so.
+
+**Why:** the leaderboards and offline auto-submit are client and crank only, and their data has been recorded since the first cohort (H23). A judge installing the app on any day of judging must be able to see the whole loop by themselves, which a real 7-day Holdout cannot give in one sitting.
+
+**Source:** spec clarifications, session 2026-10-06; constitution v2.0.0.
 
 ---
 
@@ -806,3 +822,6 @@ By decision, not by omission.
 | 2026-10-05 | **Fee 70/30, no carry-over (H34).** A forfeited stake now goes 70% to the prize pool and 30% to the fee destination. A no-finisher Holdout's whole pool goes to the fee destination, so `settle_finalize` needs no other cohort, 6046/6047 and the carry-over events are removed, and T099 is cut. How the 30% is divided afterwards is open, pending research. Program, IDL, Codama client, LiteSVM scenarios, golden vectors, Kotlin, crank and app copy changed together (T111). |
 | 2026-10-05 | **Constitution v1.6.0 and H35.** The freeze is overridden for one package. League boost and comeback reserves are credited at settlement. Developer and operations fee destinations are on chain. The league `form` sets Easy (knees allowed, 40–60° only) for 7-day and Hard (from the toes) for 21-day. The Daily 25 gets a toes meter and earned streak freezes, and is never paid on any network. Principle I now admits a capped share of a league's earlier forfeits into a pool; Principle V names the form. Out of scope gains "any payment for the Daily 25" and loses "bonus matching" and "insurance fund". |
 | 2026-10-06 | **Human Flag removed.** The locked third rung is gone from the ladder screen, US-1, the out-of-scope list, H2, the PRD, the scope doc and the demo script. The ladder is the Daily 25 under the 7-day and 21-day leagues, nothing above them. It never existed in the contract, so nothing on chain changes. The archive keeps its history. |
+| 2026-10-06 | **Constitution v2.0.0 and H36.** The feature freeze is removed (v1.7.0 had admitted leaderboards and offline auto-submit past it earlier the same day). League leaderboards are built (all-time, one per league, plus one labelled test-league board; quarterly and yearly deferred), with automatic offline submission. The short test cohort becomes a test lobby kept running on devnet for judges: three 10-minute days, a new cohort every 30 minutes. |
+| 2026-10-07 | **Test lobby join lock 0** (FR-044a, H36). The next test cohort opens only once the current one starts, so a 5-minute join lock left 5 minutes in every 30 with nothing to join. Each test cohort now stays joinable until its own start. The judged leagues keep their one-hour lock. |
+| 2026-10-07 | **One test league at a time** (FR-044a, FR-060). The newest test league is the lobby, and the crank opens no more cohorts in an older one, which winds down. Streaks are written when a cohort is counted, after it ends, so two concurrent test leagues of different lengths could write a member's later clear before an earlier forfeit on the combined test board. No program change. |

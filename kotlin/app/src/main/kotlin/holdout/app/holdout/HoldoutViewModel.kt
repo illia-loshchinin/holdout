@@ -16,6 +16,7 @@ import holdout.app.wallet.SendResult
 import holdout.app.wallet.WalletRepository
 import holdout.core.Instructions
 import holdout.core.Journey
+import holdout.core.Leaderboard
 import holdout.core.MembershipSnapshot
 import holdout.core.Rpc
 import kotlinx.coroutines.Job
@@ -79,6 +80,25 @@ class HoldoutViewModel(
             _rosters.update { it + (cohort to roster) }
         }
     }
+
+    private val _leaderboard = MutableStateFlow<Leaderboard.Snapshot?>(null)
+
+    /** The leaderboards' last read — cohorts, every profile, cohorts again (FR-060); null until the first read lands. */
+    val leaderboard: StateFlow<Leaderboard.Snapshot?> = _leaderboard.asStateFlow()
+
+    /** Reads a leaderboard snapshot (R8); a failed read keeps the last one, and an older answer never replaces a newer. */
+    fun loadLeaderboard() {
+        val started = ++profileLoadsStarted
+        viewModelScope.launch {
+            val read = chain.leaderboard() ?: return@launch
+            if (started < newestProfiles) return@launch
+            newestProfiles = started
+            _leaderboard.value = read
+        }
+    }
+
+    private var profileLoadsStarted = 0
+    private var newestProfiles = 0
 
     /** Roster loads started, and per cohort the latest one whose answer was taken — both on the main thread. */
     private var rosterLoadsStarted = 0
