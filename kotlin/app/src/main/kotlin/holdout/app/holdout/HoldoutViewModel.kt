@@ -1,5 +1,7 @@
 package holdout.app.holdout
 
+import android.net.ConnectivityManager
+import android.net.Network
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
@@ -108,10 +110,6 @@ class HoldoutViewModel(
     fun pause() {
         refresher?.cancel()
         refresher = null
-    }
-
-    fun refresh() {
-        viewModelScope.launch { refreshNow() }
     }
 
     /** Reads started, and the latest one whose answer was taken — both on the main thread. */
@@ -254,13 +252,54 @@ class HoldoutViewModel(
      * return asks for at once — never before (T098).
      */
     fun networkLost() {
-        // Called from the system's network thread: counted on the main one, in order with [refresh].
+        // Called from the system's network thread: counted on the main one, in order with the return's read.
         viewModelScope.launch {
             readsBeforeLoss = refreshesStarted
             _state.update { it.copy(autoSubmit = it.autoSubmit.lost()) }
             // Kept, so a restart before the network returns still re-arms it then.
             keepAutoSubmit()
         }
+    }
+
+    /** The default-network callback [followNetwork] registered, until [onCleared]. */
+    private var network: Pair<ConnectivityManager, ConnectivityManager.NetworkCallback>? = null
+
+    /**
+     * Follows the phone's default network from now until this view model is
+     * cleared — not only while the app is in front. The automatic send opens
+     * the wallet full screen and Holdout stops behind it; a drop and return
+     * there, then a decline, must still re-arm the send (T098), so a loss is
+     * recorded whenever it comes. A return reads the chain at once, and calls
+     * [back], only while in front ([watch] to [pause]): nothing is read in the
+     * background, and [watch] reads at once on the way back anyway. Called
+     * again, it keeps the callback it has.
+     */
+    fun followNetwork(connectivity: ConnectivityManager?, back: () -> Unit) {
+        if (network != null || connectivity == null) return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            // A connection coming back is read at once, not at the next 30-second pass,
+            // so a completed day waiting for the network goes as soon as it can (FR-024b) —
+            // chain time too, which a start with no network and no saved reading still lacks.
+            override fun onAvailable(network: Network) {
+                // Called from the system's network thread: whether the app is in front is read on the main one.
+                viewModelScope.launch {
+                    if (refresher == null) return@launch
+                    back()
+                    refreshNow()
+                }
+            }
+
+            // A drop and return between two 30-second reads never shows as offline,
+            // so the loss itself re-arms the automatic send — for the next read that answers.
+            override fun onLost(network: Network) = networkLost()
+        }
+        connectivity.registerDefaultNetworkCallback(callback)
+        network = connectivity to callback
+    }
+
+    override fun onCleared() {
+        network?.let { (connectivity, callback) -> connectivity.unregisterNetworkCallback(callback) }
+        network = null
     }
 
     /**

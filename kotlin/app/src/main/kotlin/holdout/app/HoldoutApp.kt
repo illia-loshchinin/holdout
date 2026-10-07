@@ -159,29 +159,21 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             delay(1_000)
         }
     }
+    // The default network is followed for as long as the view model lives, not only
+    // while started: a loss while the wallet holds the screen must still re-arm the
+    // automatic send (T098). Its return reads at once only while in front.
+    LaunchedEffect(holdouts) {
+        holdouts.followNetwork(context.applicationContext.getSystemService(android.net.ConnectivityManager::class.java)) {
+            clockViewModel.retry.networkBack()
+        }
+    }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     LaunchedEffect(address, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
             holdouts.watch(address)
-            // A connection coming back is read at once, not at the next 30-second pass,
-            // so a completed day waiting for the network goes as soon as it can (FR-024b, T098) —
-            // chain time too, which a start with no network and no saved reading still lacks.
-            val connectivity = context.getSystemService(android.net.ConnectivityManager::class.java)
-            val onNetwork = object : android.net.ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: android.net.Network) {
-                    holdouts.refresh()
-                    clockViewModel.retry.networkBack()
-                }
-
-                // A drop and return between two 30-second reads never shows as offline,
-                // so the loss itself re-arms the automatic send — for the next read that answers.
-                override fun onLost(network: android.net.Network) = holdouts.networkLost()
-            }
-            connectivity?.registerDefaultNetworkCallback(onNetwork)
             try {
                 kotlinx.coroutines.awaitCancellation()
             } finally {
-                connectivity?.unregisterNetworkCallback(onNetwork)
                 holdouts.pause()
             }
         }

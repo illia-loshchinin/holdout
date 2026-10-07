@@ -65,6 +65,19 @@ class AutoSubmitTest {
     }
 
     @Test
+    fun `given the automatic send holds the wallet, when the network drops and returns behind it and the member declines, then it goes once more`() {
+        // Sent by itself: the mark is recorded as the wallet opens, full screen, with Holdout stopped behind it.
+        val inWallet = AutoSubmit().step(cohort, 3, todayDone = false, offline = false, busy = false).next
+        // The loss is reported while Holdout is in the background, and the member declines.
+        val declined = inWallet.lost()
+        assertFalse(declined.step(cohort, 3, todayDone = false, offline = false, busy = true).send, "not while the wallet still holds it")
+        // Back in front, the send's closing read answers: the day goes again, once.
+        val back = declined.answered().step(cohort, 3, todayDone = false, offline = false, busy = false)
+        assertTrue(back.send)
+        assertFalse(back.next.answered().step(cohort, 3, todayDone = false, offline = false, busy = false).send, "and only once")
+    }
+
+    @Test
     fun `given a declined send, when the chain answers with no loss in between, then the wallet is not opened again`() {
         val declined = AutoSubmit().step(cohort, 3, todayDone = false, offline = false, busy = false).next
         assertFalse(declined.answered().step(cohort, 3, todayDone = false, offline = false, busy = false).send)
