@@ -1,6 +1,8 @@
 package holdout.app
 
 import holdout.app.storage.InMemoryStore
+import holdout.app.storage.Store
+import holdout.app.storage.StreakRecord
 import holdout.app.streak.StreakStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -102,14 +104,14 @@ class StreakStoreTest {
     @Test
     fun `the longest streak is never shown below the current one`() {
         // A process killed after the streak write and before the longest-streak write.
-        store.setStreak(wallet, 5, 100)
+        store.setStreak(wallet, 5, 100, freezes = 0)
         assertEquals(5, streaks.read(wallet, 100).longest)
     }
 
     @Test
     fun `the longest streak is saved with the streak, so it survives a lapse`() {
         // A process killed after the streak write and before the longest-streak write.
-        store.setStreak(wallet, 5, 100)
+        store.setStreak(wallet, 5, 100, freezes = 0)
         assertEquals(5, streaks.read(wallet, dayIndex = 103).longest, "the streak lapsed; its record did not")
     }
 
@@ -150,8 +152,51 @@ class StreakStoreTest {
         assertEquals(0, after.freezes)
     }
 
+    /** A store that dies straight after the streak write, as a process killed mid-record would. */
+    private class DiesAfterStreakWrite(private val inner: Store) : Store by inner {
+        override fun setStreak(wallet: String, streak: Int, dayIndex: Long, freezes: Int) {
+            inner.setStreak(wallet, streak, dayIndex, freezes)
+            throw IllegalStateException("killed")
+        }
+    }
+
+    @Test
+    fun `given a kill straight after the seventh day's streak write, then the freeze it earned is kept`() {
+        repeat(6) { streaks.recordCompletedDay(wallet, 100L + it) }
+        runCatching { StreakStore(DiesAfterStreakWrite(store)).recordCompletedDay(wallet, 106) }
+
+        assertEquals(7, streaks.read(wallet, 106).current)
+        assertEquals(1, streaks.recordCompletedDay(wallet, 106).freezes, "the freeze was saved with the day it was earned on")
+        assertEquals(7, streaks.read(wallet, 108).current, "and it covers a missed day")
+    }
+
+    @Test
+    fun `given a kill straight after a frozen day's streak write, then the freeze is not used twice`() {
+        repeat(7) { streaks.recordCompletedDay(wallet, 100L + it) }
+        // Day 107 is missed; day 108 uses the freeze, and the process dies there.
+        runCatching { StreakStore(DiesAfterStreakWrite(store)).recordCompletedDay(wallet, 108) }
+
+        assertEquals(0, streaks.read(wallet, 108).freezes)
+        assertEquals(0, streaks.read(wallet, 110).current, "day 109 missed with no freeze left breaks it")
+    }
+
     @Test
     fun `given no freezes, a new wallet starts with none`() {
         assertEquals(0, streaks.read(wallet, 100).freezes)
+    }
+
+    // ---- the record MMKV keeps --------------------------------------------
+
+    @Test
+    fun `the streak record carries its freezes, and reads back as written`() {
+        val record = StreakRecord(streak = 14, day = 20_000, longest = 21, freezes = 2)
+        assertEquals("14,20000,21,2", record.encode())
+        assertEquals(record, StreakRecord.decode(record.encode(), legacyFreezes = 0), "the old key is not read once the record has them")
+    }
+
+    @Test
+    fun `a record from before freezes rode in it still reads the freezes from their old key`() {
+        assertEquals(StreakRecord(7, 20_000, 9, freezes = 1), StreakRecord.decode("7,20000,9", legacyFreezes = 1))
+        assertEquals(StreakRecord(7, 20_000, 0, freezes = 1), StreakRecord.decode("7,20000", legacyFreezes = 1), "nor the longest")
     }
 }
