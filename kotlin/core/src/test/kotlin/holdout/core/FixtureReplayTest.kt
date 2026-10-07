@@ -75,6 +75,7 @@ class FixtureReplayTest {
                 a.key("operator"),
                 a.key("sponsor"),
                 a.key("treasuryWallet"),
+                a.key("developerWallet"),
                 FaucetParams(
                     a.getValue("faucetSolTopUp").jsonPrimitive.content.toULong(),
                     a.getValue("faucetDailyLamportCap").jsonPrimitive.content.toULong(),
@@ -84,11 +85,13 @@ class FixtureReplayTest {
             "create_league" -> Instructions.createLeague(
                 programId,
                 f.accountAt(0),
+                f.accountAt(3),
                 LeagueParams(
                     a.getValue("leagueId").jsonPrimitive.int,
                     a.getValue("durationDays").jsonPrimitive.int,
                     a.getValue("repsPerDay").jsonPrimitive.int,
                     a.getValue("exercise").jsonPrimitive.int,
+                    a.getValue("form").jsonPrimitive.int,
                     a.getValue("firstStart").jsonPrimitive.content.toLong(),
                     a.getValue("dayLength").jsonPrimitive.content.toLong(),
                     a.getValue("cadence").jsonPrimitive.content.toLong(),
@@ -108,17 +111,18 @@ class FixtureReplayTest {
             "join_cohort" -> Instructions.joinCohort(programId, f.accountAt(0), f.accountAt(8), f.accountAt(2), a.getValue("tier").jsonPrimitive.int, a.optionalKey("runningCohort"))
             "leave_cohort" -> Instructions.leaveCohort(programId, f.accountAt(0), mintOf(f), f.accountAt(2))
             "submit_day" -> Instructions.submitDay(programId, f.accountAt(0), f.accountAt(1), a.getValue("dayIndex").jsonPrimitive.int, RepoFiles.hex(a.getValue("proofHash").jsonPrimitive.content))
-            "record_forfeits" -> Instructions.recordForfeits(programId, f.accountAt(0), f.accountAt(4), f.accountAt(2), pairsOf(f, from = 6, count = a.getValue("pairs").jsonPrimitive.int))
+            "record_forfeits" -> Instructions.recordForfeits(programId, f.accountAt(0), f.accountAt(4), f.accountAt(5), f.accountAt(2), pairsOf(f, from = 7, count = a.getValue("pairs").jsonPrimitive.int))
             "settle_count" -> Instructions.settleCount(
                 programId,
                 f.accountAt(0),
                 f.accountAt(5),
+                f.accountAt(6),
                 leagueOf(f),
                 f.accountAt(3),
-                pairsOf(f, from = 8, count = a.getValue("pairs").jsonPrimitive.int),
+                pairsOf(f, from = 9, count = a.getValue("pairs").jsonPrimitive.int),
                 a.optionalKey("previousCohort"),
             )
-            "settle_finalize" -> Instructions.settleFinalize(programId, f.accountAt(0), f.accountAt(5), leagueOf(f), f.accountAt(3))
+            "settle_finalize" -> Instructions.settleFinalize(programId, f.accountAt(0), f.accountAt(5), f.accountAt(6), leagueOf(f), f.accountAt(3), a.optionalKey("previousCohort"))
             "claim_payout" -> Instructions.claimPayout(programId, f.accountAt(0), mintOf(f), f.accountAt(2))
             "claim_faucet" -> Instructions.claimFaucet(programId, f.accountAt(0), a.key("recipient"), f.accountAt(4), f.accountAt(8))
             "top_up_sponsor" -> Instructions.topUpSponsor(programId, f.accountAt(0), f.accountAt(3))
@@ -129,7 +133,10 @@ class FixtureReplayTest {
     /** The fixtures' member uses the same stand-in mint as `join_cohort`, whose accounts name it. */
     private fun mintOf(@Suppress("UNUSED_PARAMETER") f: JsonObject) = instructions.first { it.getValue("name").jsonPrimitive.content == "join_cohort" }.accountAt(8)
 
-    /** The generator settles cohorts of league 0; the league PDA sits third and is checked by the replay itself. */
+    /**
+     * The generator settles cohorts of league 0; the league PDA sits third (and
+     * `settle_finalize`'s reserve vault eighth), both checked by the replay itself.
+     */
     private fun leagueOf(@Suppress("UNUSED_PARAMETER") f: JsonObject) = 0
 
     private fun pairsOf(f: JsonObject, from: Int, count: Int) = List(count) { Instructions.MemberPair(f.accountAt(from + 2 * it), f.accountAt(from + 2 * it + 1)) }
@@ -158,6 +165,31 @@ class FixtureReplayTest {
     }
 
     @Test
+    fun `every PDA fixture derives to its recorded address`() = runBlocking {
+        val pdas = Json.parseToJsonElement(RepoFiles.read("fixtures/pdas.json")).jsonObject.getValue("pdas").jsonArray.map { it.jsonObject }
+        assertTrue(pdas.isNotEmpty())
+        pdas.forEach { p ->
+            val seeds = p.getValue("seeds").jsonArray.map { it.jsonPrimitive }
+            fun n(i: Int) = seeds[i].content.toInt()
+            fun k(i: Int) = SolanaPublicKey.from(seeds[i].content)
+            val derived =
+                when (val name = p.getValue("name").jsonPrimitive.content) {
+                    "config" -> Pdas.config(programId)
+                    "league" -> Pdas.league(programId, n(1))
+                    "reserve" -> Pdas.reserveVault(programId, n(1))
+                    "cohort" -> Pdas.cohort(programId, n(1), n(2).toLong())
+                    "vault" -> Pdas.vault(programId, k(1))
+                    "member" -> Pdas.membership(programId, k(1), k(2))
+                    "profile" -> Pdas.profile(programId, k(1))
+                    "faucet_vault" -> Pdas.faucetVault(programId)
+                    "mint_authority" -> Pdas.mintAuthority(programId)
+                    else -> error("no Kotlin derivation for the PDA $name")
+                }
+            assertEquals(p.getValue("address").jsonPrimitive.content, derived.base58(), "${p.getValue("name")} ${p.getValue("seeds")}")
+        }
+    }
+
+    @Test
     fun `the builders refuse what the program would`() = runBlocking {
         val cohort = SolanaPublicKey(ByteArray(32) { 3 })
         val wallet = SolanaPublicKey(ByteArray(32) { 4 })
@@ -165,8 +197,8 @@ class FixtureReplayTest {
         assertFailsWith<IllegalArgumentException> { Instructions.submitDay(programId, wallet, cohort, 0, ByteArray(31)) }
         assertFailsWith<IllegalArgumentException> { Instructions.submitDay(programId, wallet, cohort, 256, ByteArray(32)) }
         val pair = Instructions.MemberPair.of(programId, cohort, wallet)
-        assertFailsWith<IllegalArgumentException> { Instructions.recordForfeits(programId, wallet, wallet, cohort, emptyList()) }
-        assertFailsWith<IllegalArgumentException> { Instructions.settleCount(programId, wallet, wallet, 0, cohort, List(11) { pair }) }
+        assertFailsWith<IllegalArgumentException> { Instructions.recordForfeits(programId, wallet, wallet, wallet, cohort, emptyList()) }
+        assertFailsWith<IllegalArgumentException> { Instructions.settleCount(programId, wallet, wallet, wallet, 0, cohort, List(11) { pair }) }
         assertEquals(Pdas.membership(programId, cohort, wallet), pair.membership)
         assertEquals(Pdas.profile(programId, wallet), pair.profile)
     }
@@ -191,7 +223,10 @@ class FixtureReplayTest {
 
         fields("Config").forEach { (f, bytes) ->
             val c = ConfigSnapshot.decode(bytes)
-            assertEquals(listOf(f.key("admin"), f.key("operator"), f.key("sponsor"), f.key("skrMint"), f.key("feeDestination")), listOf(c.admin, c.operator, c.sponsor, c.skrMint, c.feeDestination))
+            assertEquals(
+                listOf(f.key("admin"), f.key("operator"), f.key("sponsor"), f.key("skrMint"), f.key("feeDestination"), f.key("developerDestination")),
+                listOf(c.admin, c.operator, c.sponsor, c.skrMint, c.feeDestination, c.developerDestination),
+            )
             assertEquals(f.b("ladderGateEnabled"), c.ladderGateEnabled)
             assertEquals(f.b("genesisGateEnabled"), c.genesisGateEnabled)
             val chips = f.getValue("chipSet").jsonObject
@@ -209,15 +244,17 @@ class FixtureReplayTest {
             assertEquals(f.i("leagueId"), c.leagueId)
             assertEquals(f.l("index"), c.index)
             assertEquals(listOf(f.l("start"), f.l("joinCutoff"), f.l("dayLength")), listOf(c.start, c.joinCutoff, c.dayLength))
-            assertEquals(listOf(f.i("durationDays"), f.i("repsPerDay"), f.i("exercise")), listOf(c.durationDays, c.repsPerDay, c.exercise))
+            assertEquals(listOf(f.i("durationDays"), f.i("repsPerDay"), f.i("exercise"), f.i("form")), listOf(c.durationDays, c.repsPerDay, c.exercise, c.form))
             assertEquals(f.getValue("chips").ulongs(), c.chips)
             assertEquals(listOf(f.l("memberCount"), f.l("forfeitsRecorded"), f.l("counted"), f.l("finisherCount")), listOf(c.memberCount, c.forfeitsRecorded, c.counted, c.finisherCount))
-            assertEquals(listOf(f.u("heldStake"), f.u("pool"), f.u("carryOverReceived"), f.u("totalFinisherStake")), listOf(c.heldStake, c.pool, c.carryOverReceived, c.totalFinisherStake))
+            assertEquals(listOf(f.u("heldStake"), f.u("pool"), f.u("boostDue"), f.u("comebackDue"), f.u("totalFinisherStake")), listOf(c.heldStake, c.pool, c.boostDue, c.comebackDue, c.totalFinisherStake))
             assertEquals(f.getValue("finishersPerTier").longs(), c.finishersPerTier)
             assertEquals(f.b("settled"), c.settled)
             assertEquals(f.getValue("sharePerTier").ulongs(), c.sharePerTier)
-            assertEquals(listOf(f.u("roundingRemainder"), f.u("noFinisherFee"), f.u("carryOverSent"), f.u("carryOverHeld")), listOf(c.roundingRemainder, c.noFinisherFee, c.carryOverSent, c.carryOverHeld))
-            assertEquals(f.key("carryOverTarget"), c.carryOverTarget)
+            assertEquals(
+                listOf(f.u("roundingRemainder"), f.u("noFinisherFee"), f.u("boostReceived"), f.u("comebackOwed"), f.u("comebackFunded"), f.u("comebackClaimed")),
+                listOf(c.roundingRemainder, c.noFinisherFee, c.boostReceived, c.comebackOwed, c.comebackFunded, c.comebackClaimed),
+            )
         }
 
         fields("Membership").forEach { (f, bytes) ->
@@ -230,6 +267,7 @@ class FixtureReplayTest {
             assertEquals(f.i("daysCompleted"), m.member.daysCompleted)
             assertEquals(f.getValue("state").jsonPrimitive.content, m.member.state.name)
             assertEquals(f.b("counted"), m.counted)
+            assertEquals(f.u("comebackEntitled"), m.member.comebackEntitled)
         }
 
         val profiles = fields("Profile")
@@ -239,7 +277,18 @@ class FixtureReplayTest {
             assertEquals(f.key("wallet"), p.wallet)
             assertEquals(f.b("qualified"), p.qualified)
             assertEquals(
-                f.getValue("leagues").jsonArray.map { it.jsonObject }.map { ProfileSnapshot.LeagueProgress(it.i("cleared"), it.i("forfeited"), it.i("currentStreak"), it.i("longestStreak"), it.l("lastChanged")) },
+                f.getValue("leagues").jsonArray.map { it.jsonObject }.map {
+                    ProfileSnapshot.LeagueProgress(
+                        it.i("cleared"),
+                        it.i("forfeited"),
+                        it.i("currentStreak"),
+                        it.i("longestStreak"),
+                        it.l("lastChanged"),
+                        it.u("comebackStake"),
+                        it.l("comebackFrom"),
+                        it.l("comebackUntil"),
+                    )
+                },
                 p.leagues,
             )
             val running = f.getValue("running").jsonObject

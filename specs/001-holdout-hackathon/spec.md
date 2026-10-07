@@ -93,6 +93,8 @@ Product owner decisions, before the program is first deployed.
 
 - Q: How is a forfeited stake split? (FR-027) → A: **70/30** — 70% to that cohort's prize pool, 30% to the fee destination (was 80/20). How the 30% is then divided — the next Holdout's prize, a Daily 25 promotion, the treasury — is **still open**, to be researched before anything is built; until then all of it reaches the fee destination on chain.
 - Q: Where does a no-finisher cohort's pool go? (FR-037) → A: **All of it to the fee destination.** Nothing carries over any more, so settling such a cohort needs no other cohort, error 6047's refusal is gone, and the Phase 2 delivery of a held carry-over (`deliver_carry_over`, T099) is cut rather than built.
+- Q: How is the 30% fee divided, and what does it fund? (FR-027, H35) → A: **10 boost reserve / 5 comeback reserve / 5 developer / 10 operations**, all by program rule. Reserves are credited at settlement; a boost of up to 20% of a cohort's own pool, and a comeback refund of 10% of a forfeited stake for finishing a later Holdout within 14 days. **The Daily 25 is never paid**, on any network. Random airdrops rejected.
+- Q: Easy and Hard? (FR-007, FR-021a, H35) → A: The league carries a **form**, copied to each cohort: the 7-day league is **Easy** (knee push-ups count, phone at 40–60° only), the 21-day league **Hard** (from the toes). Shipped now, overriding the freeze (constitution v1.6.0).
 
 ---
 
@@ -298,7 +300,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 ### Cohorts and the lobby
 
-- **FR-007** A cohort has a fixed start, a fixed join cutoff, a fixed duration, a fixed daily rep requirement, a fixed day length, a fixed **exercise** and a fixed chip set, all set at creation and immutable thereafter. Only push-ups are accepted in this build; the parameter exists so a later exercise never has to change a running cohort or an existing account layout.
+- **FR-007** A cohort has a fixed start, a fixed join cutoff, a fixed duration, a fixed daily rep requirement, a fixed day length, a fixed **exercise** and a fixed chip set, all set at creation and immutable thereafter. Only push-ups are accepted in this build; the parameter exists so a later exercise never has to change a running cohort or an existing account layout. *(2026-10-05, H35:)* a cohort also has a fixed **form**, copied from its league — 0, from the toes (Hard), or 1, knees allowed (Easy) — and the app refuses to start a sitting for a form it does not know.
 - **FR-007a** Cohorts start weekly, on Monday at the 05:00 UTC boundary. Every league opens its next cohort for joining at the instant its current cohort starts, so each league has exactly one cohort open for joining at all times except the locked hour before each start. For the 21-day league this means up to three cohorts running at once. Opening is automated and needs no manual action (FR-043), and may be triggered by anyone once it is due (FR-030a).
 - **FR-007b** The deployed contract remains upgradeable through the judging period, and an upgrade may only fix a defect. An upgrade never changes the rules, parameters or stored layout of any existing cohort, membership or progress record, and never moves a held stake or prize pool except through the rule-driven steps every member already relies on. The upgrade authority is named in the README as a known weakness, with its real fix — revoking it once the contract is final — beside it (constitution XI).
 - **FR-008** A cohort accepts joins until its join cutoff, **1 hour before its start**, and starts for everyone at the same instant.
@@ -335,7 +337,8 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
   | | Placements accepted | Verified |
   |---|---|---|
   | **Daily 25** (free) | **head-on** (phone in front, head towards it) **or 45°** | depth, lockout, tempo, torso down / no hip fold. **Push-ups from the knees count** — a free habit for building strength (decided 2026-09-24) |
-  | **Staked Holdout** | **45° only** — phone on the floor ahead of the shoulder, turned to the member | depth, lockout, tempo, a body not folded at the hips, and **knees off the floor** (a leg bent a little in the air is allowed): a push-up from the knees is discarded with "Knees off the floor" |
+  | **Hard Holdout** (21-day, form 0) | **45° only** — phone on the floor ahead of the shoulder, turned to the member | depth, lockout, tempo, a body not folded at the hips, and **knees off the floor** (a leg bent a little in the air is allowed): a push-up from the knees is discarded with "Knees off the floor" |
+  | **Easy Holdout** (7-day, form 1 — added 2026-10-05, H35) | **45° only, and only at 40–60°**: a sitting does not start outside that band | everything a Hard Holdout verifies, including body line, hip rise and the knees in view, except that **push-ups from the knees count** |
 
   Square side-on is accepted by neither. Angles are read **in the picture**: head-on the elbow from both arms and a torso-is-down check in place of the body line; at 45° elbow, body line and knee on the side nearer the lens, because the model guesses the hidden far side. The staked rule is stated in one sentence **before staking** — on the stake sheet beside the chips — and again by the camera check if the phone is placed anywhere else; the sentence has one source in the app (`Stakes.STAKED_RULE`), and the placements one source (`Stakes.allowedViews`).
 - **FR-022** Camera frames are processed on the device and never transmitted or stored.
@@ -349,7 +352,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 ### Forfeiture
 
 - **FR-026** On breach, the member's entire stake is forfeited. No partial credit.
-- **FR-027** 30% of a forfeited stake is taken as fee and sent to the fee destination; the remaining 70% is added to that cohort's prize pool. *(Amended 2026-10-05 from 20%. How the fee is divided after it reaches the fee destination is open.)*
+- **FR-027** *(Amended 2026-10-05, H34, H35.)* A forfeited stake is split by fixed program rule: **70%** to that cohort's prize pool, **10%** to its league's boost reserve, **5%** to its league's comeback reserve, **5%** to the developer destination and **10%** to the operations destination. Each part is rounded down and the operations part takes whatever rounding leaves, so the parts always add up to the stake. The two reserve shares stay in the cohort's vault until it settles (FR-037c).
 - **FR-028** Forfeiture resets the member's league streak in that league and ends their participation in that cohort. The reset is written when that cohort settles, in cohort order, so it can never be undone by an earlier cohort settling later (FR-061a).
 - **FR-030** The automated process that records forfeitures is safe to run twice, and safe to run late.
 - **FR-030a** Recording forfeitures, settling a finished cohort, and opening a league's next cohort are **permissionless**: any wallet may trigger them once they are due. The caller cannot choose or influence any parameter, outcome, recipient or amount — each step only does what on-chain state and the schedule already require, and does nothing if it is not yet due or already done. A step that is not yet due may refuse plainly instead of silently doing nothing — settling a cohort before the previous cohort of its league has settled is refused (FR-061a) — and the caller simply runs it again once it is due. Publishing a chip set is the only Operator-restricted instruction; the contract's upgrade authority is governed by FR-007b.
@@ -362,9 +365,13 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 - **FR-033** The payout denominator is computed once and never recomputed.
 - **FR-034** Payout is claimed by a deliberate member action, never deposited automatically.
 - **FR-035** An unclaimed payout remains claimable indefinitely.
-- **FR-037** If a cohort settles with no finishers, its whole prize pool goes to the fee destination, recorded on the settled cohort. Nothing carries over into another cohort, so settling it needs no other cohort and nothing is lost to rounding. *(Amended 2026-10-05; it was split 50/50 with a carry-over.)*
+- **FR-037** If a cohort settles with no finishers, its whole prize pool goes out: a third (rounded down) to the developer destination and the rest to the operations destination, recorded on the settled cohort. Nothing carries over into another cohort, so settling it needs no other cohort. *(Amended 2026-10-05, H34, H35.)*
 - **FR-037a** *(Superseded 2026-10-05 by FR-037: there is no carry-over, so no destination to choose, nothing held and nothing to deliver.)*
 - **FR-037b** *(Superseded 2026-10-05: no cohort receives a carry-over.)*
+- **FR-037c** *(Added 2026-10-05, H35.)* **League reserves are credited only at settlement.** When a cohort finalizes, the boost and comeback shares of every forfeit in it move from its vault into its league's program-owned reserve. Finalization runs in cohort order within a league (FR-061a), so the reserve a cohort can draw on depends only on earlier cohorts of its league, never on when automation recorded anyone's forfeit (constitution II).
+- **FR-037d** *(Added 2026-10-05, H35.)* **Prize boost.** When a cohort with at least one finisher finalizes, its prize pool first receives `min(20% of its own pool, the league's boost reserve)` from that reserve; the shares are computed on the boosted pool, and the boost is recorded on the cohort. A cohort with no forfeits receives no boost. The boost is drawn before the cohort's own reserve shares are credited.
+- **FR-037e** *(Added 2026-10-05, H35.)* **Comeback refund.** When settlement counts a member's forfeit, their league progress keeps that forfeited stake and its missed deadline (only the latest counted forfeit). When the same member is later counted as a finisher of a cohort of the same league that started after that deadline and no more than 14 days after it — days of the forfeited cohort's length, which is the league's — they are owed `min(10% of the forfeited stake, their new stake)`, and the record is used up. At finalization the cohort draws `min(total owed, the league's comeback reserve)`; each finisher's refund is paid with their claim, reduced pro rata if the reserve fell short.
+- **FR-037f** *(Added 2026-10-05, H35.)* The developer and operations destinations are fixed at initialization and named in the README with what each is for (constitution XI).
 
 ### Display and honesty
 
@@ -485,8 +492,8 @@ Sittings may repeat without limit until the day's deadline, at which point that 
 
 ### 8.4 Invariants
 
-- **INV-1** Held stakes plus the prize pool always equal the balance under custody.
-- **INV-2** Only forfeited stakes ever enter a prize pool.
+- **INV-1** A cohort's vault always holds exactly its held stakes, plus its prize pool, plus its reserve shares not yet credited, plus comeback refunds funded and not yet claimed. A league's reserve vault always holds exactly its boost reserve plus its comeback reserve.
+- **INV-2** Only forfeited stakes ever enter a prize pool: the cohort's own, or a boost drawn from its league's reserve, which holds nothing but shares of earlier forfeits of that league.
 - **INV-3** A member's completed days never exceed the days their cohort has reached, counting the day in progress: at the cohort's first second at most one day can be complete, and never more than the cohort's duration.
 - **INV-4** Per member: at most one membership in a `Running` cohort, at most one `Pending` membership, and no `Pending` membership whose cohort starts before the final deadline of the member's running one — so no two daily obligations ever overlap.
 - **INV-5** The payout denominator is written exactly once.
@@ -494,6 +501,7 @@ Sittings may repeat without limit until the day's deadline, at which point that 
 - **INV-7** Recording forfeitures and settling are both safe to repeat.
 - **INV-8** A member in breach cannot submit, regardless of automation state.
 - **INV-9** A member's league streak depends only on the order of their own cohorts, never on the order in which forfeits and settlements are processed.
+- **INV-10** *(Added 2026-10-05.)* A league reserve changes only when one of its cohorts finalizes, so what any cohort draws from it is independent of when forfeits were recorded.
 
 ---
 

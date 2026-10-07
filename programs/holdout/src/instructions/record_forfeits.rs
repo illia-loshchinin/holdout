@@ -3,8 +3,10 @@
 //! Permissionless, paged and repeatable. It does not *decide* anything: a
 //! member whose deadline passed with the day incomplete is already out by
 //! `Membership::in_breach`, which every reader computes from chain time alone
-//! (constitution II, AC-2). This only materialises that — moves the 20 % fee to
-//! the treasury, funds the cohort's pool with the rest, and records the outcome
+//! (constitution II, AC-2). This only materialises that — splits the stake
+//! 70 / 10 / 5 / 5 / 10 (FR-027, H35): the pool part funds the cohort's pool, the
+//! developer and operations parts leave at once, and the two reserve parts wait
+//! in the vault until the cohort finalizes (FR-037c) — and records the outcome
 //! on the profile.
 //!
 //! **Repeatable by construction** (AC-5, INV-7, research R9). A pair that is
@@ -25,19 +27,19 @@
 //! leaderboard (FR-060b).
 
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token::{Token, TokenAccount};
 
 use crate::{
     errors::HoldoutError,
     events::ForfeitRecorded,
     guards,
-    math::settlement,
     state::{
         cohort::{Cohort, COHORT_SEED, VAULT_SEED},
         config::{Config, CONFIG_SEED},
         membership::{Membership, MembershipState},
         profile::{Profile, PROFILE_SEED},
     },
+    vault::transfer_signed,
 };
 
 /// Pairs one page may carry (research R9). Ten `(Membership, Profile)` pairs
@@ -72,6 +74,12 @@ pub struct RecordForfeits<'info> {
     )]
     pub fee_destination: Box<Account<'info, TokenAccount>>,
 
+    #[account(
+        mut,
+        constraint = developer_destination.key() == config.developer_destination @ HoldoutError::AccountMismatch,
+    )]
+    pub developer_destination: Box<Account<'info, TokenAccount>>,
+
     pub token_program: Program<'info, Token>,
 }
 
@@ -85,7 +93,8 @@ pub(crate) fn handler<'info>(ctx: Context<'info, RecordForfeits<'info>>) -> Resu
     require!(pairs.len() / 2 <= MAX_PAIRS, HoldoutError::AccountMismatch);
 
     let cohort_key = ctx.accounts.cohort.key();
-    let mut fees_owed: u64 = 0;
+    let mut to_developer: u64 = 0;
+    let mut to_operations: u64 = 0;
 
     for pair in pairs.chunks(2) {
         let mut membership: Account<'info, Membership> = Account::try_from(&pair[0])?;
@@ -115,23 +124,14 @@ pub(crate) fn handler<'info>(ctx: Context<'info, RecordForfeits<'info>>) -> Resu
             continue;
         }
 
-        let stake = membership.stake;
-        let fee = settlement::fee_of(stake);
-        let to_pool = settlement::pool_contribution(stake);
-        fees_owed = fees_owed
-            .checked_add(fee)
-            .ok_or(error!(HoldoutError::AccountMismatch))?;
-
         let cohort = &mut ctx.accounts.cohort;
-        cohort.held_stake = cohort
-            .held_stake
-            .checked_sub(stake)
+        let split = cohort.take_forfeit(membership.stake)?;
+        to_developer = to_developer
+            .checked_add(split.developer)
             .ok_or(error!(HoldoutError::AccountMismatch))?;
-        cohort.pool = cohort
-            .pool
-            .checked_add(to_pool)
+        to_operations = to_operations
+            .checked_add(split.operations)
             .ok_or(error!(HoldoutError::AccountMismatch))?;
-        cohort.forfeits_recorded += 1;
 
         // The deadline they missed, not the moment automation noticed it.
         let outcome_at = guards::forfeit_instant(&membership, cohort);
@@ -154,33 +154,36 @@ pub(crate) fn handler<'info>(ctx: Context<'info, RecordForfeits<'info>>) -> Resu
             cohort: cohort_key,
             wallet: membership.wallet,
             days_completed: membership.days_completed,
-            fee,
+            fee: split.fee(),
         });
 
         membership.exit(&crate::ID)?;
         profile.exit(&crate::ID)?;
     }
 
-    // One transfer for the page rather than one per pair: the end state is
-    // identical and the CPI budget is not spent ten times over.
-    if fees_owed > 0 {
-        let league_id = ctx.accounts.cohort.league_id;
-        let index = ctx.accounts.cohort.index.to_le_bytes();
-        let bump = [ctx.accounts.cohort.bump];
-        let seeds: &[&[u8]] = &[COHORT_SEED, &[league_id], &index, &bump];
-        token::transfer(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.key(),
-                Transfer {
-                    from: ctx.accounts.vault.to_account_info(),
-                    to: ctx.accounts.fee_destination.to_account_info(),
-                    authority: ctx.accounts.cohort.to_account_info(),
-                },
-                &[seeds],
-            ),
-            fees_owed,
-        )?;
-    }
+    // One transfer per destination for the page rather than one per pair: the
+    // end state is identical and the CPI budget is not spent ten times over.
+    let league_id = ctx.accounts.cohort.league_id;
+    let index = ctx.accounts.cohort.index.to_le_bytes();
+    let bump = [ctx.accounts.cohort.bump];
+    let seeds: &[&[u8]] = &[COHORT_SEED, &[league_id], &index, &bump];
+    let token_program = ctx.accounts.token_program.to_account_info();
+    transfer_signed(
+        &token_program,
+        ctx.accounts.vault.to_account_info(),
+        ctx.accounts.developer_destination.to_account_info(),
+        ctx.accounts.cohort.to_account_info(),
+        seeds,
+        to_developer,
+    )?;
+    transfer_signed(
+        &token_program,
+        ctx.accounts.vault.to_account_info(),
+        ctx.accounts.fee_destination.to_account_info(),
+        ctx.accounts.cohort.to_account_info(),
+        seeds,
+        to_operations,
+    )?;
 
     Ok(())
 }

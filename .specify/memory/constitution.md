@@ -5,7 +5,7 @@ Scope: the CLOCK IN hackathon submission, devnet only. Every later phase — `/s
 ## Core Principles
 
 ### I. The Contract Is the Only Authority on Funds
-No off-chain service may move, hold, or decide the fate of a stake. Principal stays segregated from the prize pool at every instant; only forfeited stakes ever enter a pool, so a shortfall is impossible by construction rather than by arithmetic care.
+No off-chain service may move, hold, or decide the fate of a stake. Principal stays segregated from the prize pool at every instant; only forfeited stakes ever enter a pool — a cohort's own, or a capped share of its league's earlier forfeits held in that league's program-owned reserve — so a shortfall is impossible by construction rather than by arithmetic care. Every split of a forfeited stake (prize pool, league reserves, developer, operations) is a fixed program rule; no key chooses where it goes.
 
 ### II. Forfeiture Is Derived, Never Declared
 A member is in breach if and only if `now > deadline_of(days_completed)`, computable from on-chain state alone. Automation *materialises* breach into a transfer; it never creates it. A missed automated run may delay money and displayed counters; it may never change who won or lost.
@@ -21,7 +21,7 @@ Fiat figures shown to members are display metadata only, always marked approxima
 Stakes, pool, payouts and fees are all SKR. No second asset, no swap, no conversion path anywhere in the system.
 
 ### V. Parameters Live on the Cohort
-`reps_per_day`, `duration_days`, `day_length`, the exercise, the boundary instant, the join cutoff and the stake chip amounts are fixed at cohort creation and read from the account, never from constants. A running cohort's rules can never move under its members. The list is not a closed set: anything that decides how a cohort behaves belongs on the cohort, not in a constant.
+`reps_per_day`, `duration_days`, `day_length`, the exercise, the form (from the toes, or knees allowed), the boundary instant, the join cutoff and the stake chip amounts are fixed at cohort creation and read from the account, never from constants. A running cohort's rules can never move under its members. The list is not a closed set: anything that decides how a cohort behaves belongs on the cohort, not in a constant.
 
 ### VI. One Clock
 Day boundaries are a single instant shared by every member of a cohort — 05:00 UTC — derived from chain time. No timezone, offset or locale exists anywhere in the system, and the streak day resets on that same instant. Time is presented to members as a countdown, never as a calendar date.
@@ -63,14 +63,14 @@ Those cohorts MAY be populated by scripted members, and only on these terms: the
 
 - **Devnet only**, with a mock SKR mint. Stated in the README and in the app.
 - **Delivered as a signed APK** with the submission. Publishing on the Solana dApp Store and any mainnet deployment are post-hackathon work; a winning app must be published on the dApp Store within 30 calendar days of the winners' announcement.
-- **Two staked leagues** — 7-day and 21-day **Holdouts**, 25 reps a day — over **the Daily 25**, free and open to everyone, which builds a cosmetic streak that unlocks nothing, appears on no leaderboard and is never paid against. A forfeit does not break a streak. (Members read "the Daily 25" and "a Holdout"; the contract stores a cohort in a league — spec §1a.)
+- **Two staked leagues** — the **Easy** 7-day and the **Hard** 21-day **Holdout**, 25 reps a day — over **the Daily 25**, free and open to everyone, which builds a cosmetic streak that unlocks nothing, appears on no leaderboard and is never paid against, on any network. A forfeit does not break a streak; the streak may be kept through a missed day by a freeze earned from consecutive active days, which never covers a Holdout day. How reps are judged (from the toes, or knees allowed) is the league's **form**, copied to each cohort (Principle V). (Members read "the Daily 25" and "a Holdout"; the contract stores a cohort in a league — spec §1a.)
 - **Leaderboards are derived only from on-chain progress** — no server and no device-reported figure ever feeds a ranking.
-- **Feature-frozen 5 October**, when the first judged cohort starts (Monday 5 October 2026, 05:00 UTC; moved from 28 September on 26 September). Everything after that date is bug fixes, filming and writing.
+- **Feature-frozen 5 October**, when the first judged cohort starts (Monday 5 October 2026, 05:00 UTC; moved from 28 September on 26 September). Everything after that date is bug fixes, filming and writing — **except the H35 package**, admitted by the product owner on 5 October before the program's first deploy: the league reserves (prize boost and comeback), the developer and operations fee destinations, the league form (Easy and Hard), the Daily 25 toes meter and earned streak freezes.
 - **Submission due 9 October 2026, 08:59 CEST** — no late entries. It contains a functional APK that runs on a real device, a GitHub repository someone else can clone and run, a demo video of about three minutes and a pitch deck. Judges score completion from the demo video and technical depth from the commit history, so the full cycle is shown from the real app on devnet — never a mock-up. Because a judged 7-day Holdout cannot finish before the deadline, the video MAY show the cycle on **the short test cohort** below, and says so on screen.
 - **One short test cohort, devnet only.** So the whole cycle — joining, daily sittings, a forfeit, settlement and the claim — can be tested with real testers and shown in the submission video, the devnet program MAY be built with the `test-leagues` feature and the admin MAY create a test league (id 100 and up) with a compressed day. It is created by the admin alone; it is labelled as a short test cohort everywhere it appears in the app, rosters included; and it is disclosed in the README, the demo video and the pitch deck (Principle XI). The judged 7-day and 21-day leagues keep real 24-hour days and never share a cohort with it. **A mainnet build never carries the `test-leagues` feature.**
 - **Contract upgrade authority is retained** through the live period, for defect fixes only. An upgrade never changes the rules, parameters or stored layout of an existing cohort, membership or progress record (Principle V) and never moves funds outside the rule-driven instructions (Principle I). The authority is named in the README with its real fix — revoking it once the contract is final (Principle XI).
 - **Deliberate flags, all named in the README:** `ladder_gate_enabled=false` (both leagues open), `genesis_gate_enabled=false` (testers have no Seeker), non-default `day_seconds` for compressed test cohorts. Flags disable checks; they never delete the logic behind them.
-- **Out of scope by decision, not by omission:** geo-blocking, terms of service, third-party audit, free cohorts, calibration, Swelfie, share cards, badges, daily-streak or server-fed leaderboards, conditional pre-joining (a lobby place that depends on clearing the current cohort — the unconditional lobby place is in scope), cohort cancellation, bonus matching, insurance fund, demotion, a dApp Store listing, mainnet deployment.
+- **Out of scope by decision, not by omission:** geo-blocking, terms of service, third-party audit, free cohorts, calibration, Swelfie, share cards, badges, daily-streak or server-fed leaderboards, conditional pre-joining (a lobby place that depends on clearing the current cohort — the unconditional lobby place is in scope), cohort cancellation, demotion, any payment for the Daily 25, a dApp Store listing, mainnet deployment.
 
 ## Development Workflow
 
@@ -82,4 +82,4 @@ Those cohorts MAY be populated by scripted members, and only on these terms: the
 
 This constitution supersedes other practice in this repository. Anything not required by a scenario in `specs/001-holdout-hackathon/spec.md` is out of scope; additions are made by amending the spec, not by writing code. Amendments are recorded here with a version bump and a line in `docs/holdout_decisions.md`. The deadline is what makes scope discipline load-bearing rather than decorative.
 
-**Version**: 1.5.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-09-27
+**Version**: 1.6.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-10-05

@@ -2,6 +2,8 @@ package holdout.app.sitting
 
 import holdout.app.storage.Store
 import holdout.app.streak.StreakStore
+import holdout.app.streak.ToesMeter
+import holdout.repcounter.RepStance
 
 /**
  * Banked reps (T051, FR-024, FR-023, PRD §8.6).
@@ -28,6 +30,12 @@ class BankingController(
     private val scope: String,
     dayIndex: Long,
     private val target: Int,
+    /**
+     * The Daily 25's toes meter, or null where it is not kept. It is told a
+     * rep's stance only once that rep is banked: a rep discarded with its
+     * sitting was never part of the day, and must not hold a Hard day back.
+     */
+    private val toes: ToesMeter? = null,
 ) {
     companion object {
         const val BLOCK = 10
@@ -82,6 +90,9 @@ class BankingController(
     var loose: Int = 0
         private set
 
+    /** How each [loose] rep was done, in order; recorded with the block, dropped with it. */
+    private val looseStances = mutableListOf<RepStance?>()
+
     /** Whole banked blocks carried from earlier sittings today. */
     val banked: Int get() = store.bankedReps(wallet, scope, dayIndex)
 
@@ -111,15 +122,17 @@ class BankingController(
      * the moment the target is reached — waiting for a tenth rep that the
      * member does not owe would be asking for 30 push-ups to finish 25.
      */
-    fun onVerifiedRep(): Outcome {
+    fun onVerifiedRep(stance: RepStance? = null): Outcome {
         if (isDayComplete) return Outcome.DayComplete(total)
 
         loose += 1
+        looseStances += stance
 
         if (banked + loose >= target) {
             store.setBankedReps(wallet, scope, dayIndex, target)
             store.markDayComplete(wallet, scope, dayIndex)
             loose = 0
+            recordStances()
             return Outcome.DayComplete(target)
         }
 
@@ -128,6 +141,7 @@ class BankingController(
             loose -= blocks * BLOCK
             val newTotal = banked + blocks * BLOCK
             store.setBankedReps(wallet, scope, dayIndex, newTotal)
+            recordStances()
             return Outcome.Banked(newTotal, (target - newTotal).coerceAtLeast(0))
         }
 
@@ -145,6 +159,17 @@ class BankingController(
     fun endSitting(): Int {
         val discarded = loose
         loose = 0
+        looseStances.clear()
         return discarded
+    }
+
+    /**
+     * The reps just banked go on the toes meter, on the day they banked into.
+     * After the banked figure, never before: a kill in between leaves the meter
+     * short, which only ever under-claims a Hard day.
+     */
+    private fun recordStances() {
+        looseStances.forEach { toes?.record(wallet, dayIndex, it) }
+        looseStances.clear()
     }
 }

@@ -14,10 +14,12 @@ export const ERROR_CODES = {
   NotOperator: 6001,
   NotSponsorOrRecipient: 6002,
   NotUpgradeAuthority: 6003,
-  // 6010–6012 · league and chip-set setup
+  // 6010–6013 · league and chip-set setup
   InvalidLeagueTiming: 6010,
   InvalidChipSet: 6011,
   ChipSetNotPublished: 6012,
+  /** A league's form is 0 (from the toes) or 1 (knees allowed) — H35. */
+  InvalidForm: 6013,
   // 6020–6026 · opening, joining and the lobby
   CohortNotDue: 6020,
   JoiningClosed: 6021,

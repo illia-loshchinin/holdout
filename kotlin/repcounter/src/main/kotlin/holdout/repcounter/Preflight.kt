@@ -161,7 +161,7 @@ class Preflight(
                     passing = stakes.accepts(view),
                     specificFix = when {
                         view == null -> null
-                        stakes == Stakes.STAKED -> stakedCameraFix(view, placementRatio(input.image, xScale), input.imagePose)
+                        stakes.staked -> stakedCameraFix(view, placementRatio(input.image, xScale), input.imagePose)
                         else -> stakes.cameraFix
                     },
                 ),
@@ -218,7 +218,7 @@ class Preflight(
         if (!wholeBodyVisible(input.world, input.image)) return failing()
         if (input.image != null && !Angles.headInFrame(input.image)) return failing(HEAD_FIX)
         val pose = input.imagePose
-        if (stakes == Stakes.STAKED && pose != null) {
+        if (stakes.staked && pose != null) {
             // Two different problems, two different fixes: a knee the model
             // cannot find is hidden behind the body — turning a little away from
             // the phone shows it; one at the picture's edge needs more room.
@@ -288,12 +288,23 @@ class Preflight(
      * Returns null when there is not enough of a body to judge — which is the
      * only thing the camera-view check now fails on.
      */
+    /**
+     * The ratio from which the phone reads as "in front": sooner where money is
+     * staked ([stakedFrontRatio]), sooner still for Easy, where a more frontal
+     * phone let knee-down cobras through ([Stakes.EASY_MAX_PLACEMENT_RATIO]).
+     */
+    private val frontLimit: Float = when (stakes) {
+        Stakes.DAILY -> frontRatio
+        Stakes.STAKED -> minOf(frontRatio, stakedFrontRatio)
+        Stakes.EASY -> minOf(frontRatio, stakedFrontRatio, Stakes.EASY_MAX_PLACEMENT_RATIO)
+    }
+
     fun classifyView(frame: PoseFrame?, xScale: Float = 1f): CameraView? {
         val ratio = placementRatio(frame, xScale) ?: return null
         return when {
             ratio <= sideRatio -> CameraView.SIDE
             // Where money is staked, "in front" starts sooner: see [stakedFrontRatio].
-            ratio >= (if (stakes == Stakes.STAKED) minOf(frontRatio, stakedFrontRatio) else frontRatio) -> CameraView.FRONT
+            ratio >= frontLimit -> CameraView.FRONT
             else -> CameraView.OBLIQUE
         }
     }

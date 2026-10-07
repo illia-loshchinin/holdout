@@ -274,7 +274,7 @@ enum class RepHint(val message: String) {
 data class Readout(
     val view: CameraView,
     val elbow: Float,
-    /** At 45°: the near side's shoulder–hip–ankle line. Head-on: the torso's rise above horizontal. */
+    /** At 45°: the near side's body line — to the ankle on Hard, the straighter of ankle and knee where knees count. Head-on: the torso's rise above horizontal. */
     val posture: Float,
     /** Near leg at 45°; null head-on, or when the leg is not clearly in frame. */
     val knee: Float?,
@@ -303,9 +303,28 @@ data class CycleReadout(
     val cycleMillis: Long,
 )
 
+/**
+ * How a counted rep would fare under Hard's knee rule, for the Daily 25's toes
+ * meter (H35). It never changes what counts: the Daily 25 counts push-ups from
+ * the knees either way.
+ */
+enum class RepStance {
+    /** Hard's rule would have counted it: knees off the floor, legs in view. */
+    TOES,
+
+    /** Down on the knees for some of it. */
+    KNEES,
+
+    /** The legs were not in the picture enough to say. */
+    NOT_VISIBLE,
+}
+
 sealed interface RepEvent {
-    /** A rep met every rule. [total] counts reps in this sitting. */
-    data class Counted(val total: Int, val cycleMillis: Long) : RepEvent
+    /**
+     * A rep met every rule. [total] counts reps in this sitting. [stance] is
+     * read at 45° only — head-on the legs point into the lens — and null there.
+     */
+    data class Counted(val total: Int, val cycleMillis: Long, val stance: RepStance? = null) : RepEvent
 
     /**
      * A cycle was attempted and thrown away. Never surfaced as an error.
@@ -339,7 +358,7 @@ class RepCounter(
         // Pre-flight already refuses to start a staked sitting anywhere but at
         // 45°. This is the second lock on the same door: a staked counter
         // measured from a view that cannot see the knees must not exist.
-        require(stakes != Stakes.STAKED || stakes.accepts(view)) { "$stakes sittings cannot be counted from the $view view" }
+        require(!stakes.staked || stakes.accepts(view)) { "$stakes sittings cannot be counted from the $view view" }
     }
 
     private val rules = rules.forView(view)
@@ -349,7 +368,33 @@ class RepCounter(
      * from the knees on purpose: it is a free habit, and a member building up
      * to full push-ups should be able to keep it (FR-021a).
      */
-    private val judgeKnees = stakes == Stakes.STAKED
+    private val judgeKnees = stakes.judgesKnees
+
+    /**
+     * And where push-ups from the knees count, a body straight from shoulder
+     * to **knee** is a body held, whatever the lower legs do behind it: raised
+     * or crossed, they pull shoulder–hip–ankle under the floor and refused
+     * reps the rule allows (FR-021a; Codex P1 on PR #18). The line read is
+     * the straighter of the two ([ViewReading.of] says why not the knee's
+     * alone). A sag or a fold at the hips bends both, so it is still caught.
+     * Every posture check — [bodyHeld], the push floor, the ready hold — reads
+     * this line; the hip rise reads hip and shoulder heights and needs neither.
+     */
+    private val bodyLineToKnee = !judgeKnees
+
+    /**
+     * Where money is staked — Hard or Easy — the legs must stay in view: a rep
+     * whose knees spent the push out of the picture cannot be judged for the
+     * body line or the hip rise either (H35).
+     */
+    private val watchLegs = stakes.staked
+
+    /**
+     * At 45° the legs are followed whatever the stakes, so every counted rep
+     * can be tagged for the toes meter ([RepStance]); only [watchLegs] lets
+     * them decide anything.
+     */
+    private val followLegs = watchLegs || view == CameraView.OBLIQUE
 
     private enum class Phase {
         /** Nothing yet: waiting for the body to be at the top, straight. */
@@ -507,19 +552,19 @@ class RepCounter(
 
     fun onFrame(frame: PoseFrame, image: ImagePose? = null): RepEvent? {
         val side = nearSideFor(image)
-        val reading = ViewReading.of(view, frame, image, side = side) ?: run {
+        val reading = ViewReading.of(view, frame, image, side = side, bodyLineToKnee = bodyLineToKnee) ?: run {
             // A frame that cannot be read is dropped, not scored — but where
             // money is staked, one on the way back up is a frame the knee was
             // not seen in: a leg hidden through the push must not leave only
             // the frames it showed in to be judged.
             // During the countdown too: a rep begun on "1" is judged once counting
             // starts, on everything since its bottom.
-            if (judgeKnees && phase == Phase.AT_BOTTOM) {
+            if (followLegs && phase == Phase.AT_BOTTOM) {
                 pushFrames++
                 pushLegsUnseen++
             }
             // The same on the way down, once the arms have really started.
-            if (judgeKnees && phase == Phase.AT_TOP && minElbowInCycle <= rules.descentAttemptDegrees) {
+            if (followLegs && phase == Phase.AT_TOP && minElbowInCycle <= rules.descentAttemptDegrees) {
                 descentFrames++
                 descentKneeUnseen++
             }
@@ -577,7 +622,7 @@ class RepCounter(
                 }
                 if (cycleStartMillis != 0L) {
                     observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight)
-                    if (judgeKnees && elbow >= PUSH_FROM_ELBOW) {
+                    if (followLegs && elbow >= PUSH_FROM_ELBOW) {
                         descentFrames++
                         if (knee != null && image != null && side != null && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin)) {
                             descentKnees += knee
@@ -607,7 +652,7 @@ class RepCounter(
                     // a knee seen: it neither passes nor fails the knee check.
                     // Nor is one the model could not place (loose trousers).
                     val angled = reading as? ViewReading.Angled
-                    val kneeSeen = !judgeKnees || (image != null && side != null && angled?.kneeUnreadable != true && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin))
+                    val kneeSeen = !followLegs || (image != null && side != null && angled?.kneeUnreadable != true && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin))
                     pushFrames++
                     if (kneeSeen) {
                         knee?.let { pushKnees += it }
@@ -638,11 +683,11 @@ class RepCounter(
                     // not knees off the floor: the rep cannot be judged. Nor
                     // can one whose knee spent much of the push out of the
                     // picture or at its edge — the knees may have been down.
-                    judgeKnees && (pushKnees.isEmpty() && pushLegs.isEmpty() || legsUnseenShare() > rules.maxLegsUnseenShare) ->
+                    watchLegs && (pushKnees.isEmpty() && pushLegs.isEmpty() || legsUnseenShare() > rules.maxLegsUnseenShare) ->
                         RepEvent.Discarded(RepHint.LEGS_IN_VIEW)
                     // The way down is held to the same: a knee hidden while
                     // lowering onto it, then shown for the push, proves nothing.
-                    judgeKnees && (descentKnees.isEmpty() || descentKneeUnseen > rules.maxLegsUnseenShare * descentFrames) ->
+                    watchLegs && (descentKnees.isEmpty() || descentKneeUnseen > rules.maxLegsUnseenShare * descentFrames) ->
                         RepEvent.Discarded(RepHint.LEGS_IN_VIEW)
                     // Depth before knees: it is read off the arms, which the
                     // camera sees best, while a half push-up on the toes reads
@@ -666,13 +711,28 @@ class RepCounter(
                     cycleMillis > rules.maxCycleMillis -> RepEvent.Discarded(null)
                     else -> {
                         count += 1
-                        RepEvent.Counted(count, cycleMillis)
+                        RepEvent.Counted(count, cycleMillis, stance())
                     }
                 }
                 phase = Phase.AT_TOP
                 resetCycle()
                 verdict
             }
+        }
+    }
+
+    /** Hard's knee rule applied to the rep just counted, at 45° only ([RepStance]). */
+    private fun stance(): RepStance? {
+        if (view != CameraView.OBLIQUE) return null
+        val unseen = (pushKnees.isEmpty() && pushLegs.isEmpty()) ||
+            legsUnseenShare() > rules.maxLegsUnseenShare ||
+            descentKnees.isEmpty() ||
+            descentKneeUnseen > rules.maxLegsUnseenShare * descentFrames
+        return when {
+            unseen -> RepStance.NOT_VISIBLE
+            !kneesOffFloor(pushKnees.medianOrNull(), pushLegs.medianOrNull(), rules, descentKnees.medianOrNull()) -> RepStance.KNEES
+            !kneesOffFloor(descentKnees.medianOrNull(), null, rules) -> RepStance.KNEES
+            else -> RepStance.TOES
         }
     }
 

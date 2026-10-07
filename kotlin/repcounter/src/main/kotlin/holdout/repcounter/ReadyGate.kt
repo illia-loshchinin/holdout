@@ -81,7 +81,8 @@ class ReadyGate(
         }
 
         val measuredFrom = view ?: CameraView.SIDE
-        val reading = ViewReading.of(measuredFrom, frame, image) ?: return false
+        // The same body line the counter will judge: straight to the knee will do where push-ups from the knees count.
+        val reading = ViewReading.of(measuredFrom, frame, image, bodyLineToKnee = !stakes.judgesKnees) ?: return false
 
         blocker = blockerOf(measuredFrom, reading, rulesFor(view))
         if (blocker != null) {
@@ -110,8 +111,8 @@ class ReadyGate(
         val angled = reading as? ViewReading.Angled
         return when {
             reading.elbow < (if (view == CameraView.OBLIQUE) rules.obliqueTopDegrees else rules.topTriggerDegrees) -> HoldBlocker.ARMS
-            stakes == Stakes.STAKED && angled?.kneeUnreadable == true -> HoldBlocker.KNEES_UNREADABLE
-            stakes == Stakes.STAKED && !kneesSeenOffFloor(reading.knee, angled?.legsAboveHands, rules) -> HoldBlocker.KNEES
+            stakes.staked && angled?.kneeUnreadable == true -> HoldBlocker.KNEES_UNREADABLE
+            stakes.judgesKnees && !kneesSeenOffFloor(reading.knee, angled?.legsAboveHands, rules) -> HoldBlocker.KNEES
             !postureHeld(view, reading, reading.posture, rules) -> HoldBlocker.BODY
             else -> null
         }

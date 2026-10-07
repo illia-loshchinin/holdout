@@ -29,9 +29,14 @@ import kotlinx.serialization.json.putJsonArray
  *    (FR-042b). A refusal — float sufficient, the day's budget spent, the vault
  *    empty — is an expected outcome, reported and retried next pass.
  * 3. **Forfeit** every member of a running cohort who is in breach, in pages.
+ *    Each forfeit's developer and operations parts leave at once, to
+ *    `Config.developer_destination` and `Config.fee_destination` (H35).
  * 4. **Settle** each league's finished cohorts **oldest first**: page
  *    `settle_count` over the uncounted members, then `settle_finalize`, which
- *    with no finishers sends the whole pool to the fee destination (FR-037).
+ *    draws the boost and the comeback funding from the league's reserve vault,
+ *    credits the cohort's own reserve dues to it, and with no finishers sends
+ *    the whole pool out, a third to the developer destination and the rest to
+ *    operations (FR-037, FR-037c–e).
  *    Cohort *i* waits while *i − 1* is unsettled — the program refuses it
  *    (6045), so this is not a preference.
  *
@@ -234,7 +239,7 @@ object Run {
                     put("members", wallets.size)
                 }) {
                     val pairs = wallets.map { Instructions.MemberPair.of(programId, address, it) }
-                    send("record_forfeits ${key.first}/${key.second}#$page", listOf(Instructions.recordForfeits(programId, payer.publicKey, onChain.feeDestination, address, pairs)))
+                    send("record_forfeits ${key.first}/${key.second}#$page", listOf(Instructions.recordForfeits(programId, payer.publicKey, onChain.feeDestination, onChain.developerDestination, address, pairs)))
                 }
             }
         }
@@ -278,7 +283,7 @@ object Run {
                             put("members", wallets.size)
                         }) {
                             val pairs = wallets.map { Instructions.MemberPair.of(programId, address, it) }
-                            send("settle_count $leagueId/$index#$page", listOf(Instructions.settleCount(programId, payer.publicKey, onChain.feeDestination, leagueId, address, pairs, previousAddress)))
+                            send("settle_count $leagueId/$index#$page", listOf(Instructions.settleCount(programId, payer.publicKey, onChain.feeDestination, onChain.developerDestination, leagueId, address, pairs, previousAddress)))
                         }
                     countsLanded = countsLanded && outcome == Outcome.Landed
                 }
@@ -307,7 +312,7 @@ object Run {
                 }
                 val outcome =
                     pass.send("settle_finalize", detail) {
-                        send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, leagueId, address)))
+                        send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, onChain.developerDestination, leagueId, address, previousAddress)))
                     }
                 // A simulated finalize changed nothing: the next cohort still waits on this one.
                 if (outcome != Outcome.Landed || args.dryRun) break

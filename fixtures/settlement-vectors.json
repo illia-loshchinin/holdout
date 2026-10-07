@@ -5,8 +5,11 @@
     "pool": "pool = (forfeited - fee) summed over forfeits",
     "share_per_tier": "share_t = floor(pool * chip_t / total_finisher_stake) — constant time per tier (research R10)",
     "remainder": "remainder = pool - sum over tiers of (finisher_count_t * share_t); sent to the fee destination at settlement (FR-032a)",
-    "no_finishers": "to_fee_destination = pool: a cohort nobody finished sends its whole pool to the fee destination, and nothing carries over (FR-037)",
-    "payout": "payout = stake + share_of(stake tier)"
+    "no_finishers": "developer = floor(pool / 3); operations = pool - developer: the whole pool goes out and nothing carries over (FR-037, H34, H35)",
+    "payout": "payout = stake + share_of(stake tier)",
+    "forfeit_split": "per forfeited stake s: fee = floor(30% s); boost = floor(10% s); comeback = floor(5% s); developer = floor(5% s); operations = fee - boost - comeback - developer; pool = s - fee (FR-027, H35)",
+    "boost": "boost = min(floor(20% of the cohort's own pool), league boost reserve), drawn at finalization before shares (FR-037d)",
+    "comeback": "owed = min(floor(10% of the counted forfeited stake), the new stake); refund = floor(entitled * funded / total owed), funded = min(total owed, comeback reserve) (FR-037e)"
   },
   "math_vectors": [
     {
@@ -57,7 +60,7 @@
       "stakes": { "250": 6 },
       "forfeited_stakes": { "250": 6 },
       "finisher_stakes": {},
-      "expected": { "forfeited": 1500, "fee": 450, "pool": 1050, "total_finisher_stake": 0, "to_fee_destination": 1050 }
+      "expected": { "forfeited": 1500, "fee": 450, "pool": 1050, "total_finisher_stake": 0, "developer": 350, "operations": 700 }
     },
     {
       "id": "V6",
@@ -66,7 +69,7 @@
       "league": "7-day",
       "pool_override": 1001,
       "finisher_stakes": {},
-      "expected": { "pool": 1001, "total_finisher_stake": 0, "to_fee_destination": 1001 }
+      "expected": { "pool": 1001, "total_finisher_stake": 0, "developer": 333, "operations": 668 }
     },
     {
       "id": "V9",
@@ -122,5 +125,47 @@
     { "id": "V20", "name": "Late offline completion — rejected after the deadline, counts before it", "source": "FR-024b, ES-3b" },
     { "id": "V21", "name": "Faucet once per wallet per day", "source": "FR-042a, AC-16" },
     { "id": "V22", "name": "Scripted forfeits fund real prizes — amounts unchanged by who is scripted", "source": "FR-043a" }
-  ]
+  ],
+  "reserve_vectors": {
+    "forfeit_split": [
+      { "stake": 0, "pool": 0, "boost": 0, "comeback": 0, "developer": 0, "operations": 0 },
+      { "stake": 1, "pool": 1, "boost": 0, "comeback": 0, "developer": 0, "operations": 0 },
+      { "stake": 9, "pool": 7, "boost": 0, "comeback": 0, "developer": 0, "operations": 2 },
+      { "stake": 19, "pool": 14, "boost": 1, "comeback": 0, "developer": 0, "operations": 4 },
+      { "stake": 100, "pool": 70, "boost": 10, "comeback": 5, "developer": 5, "operations": 10 },
+      { "stake": 1250, "pool": 875, "boost": 125, "comeback": 62, "developer": 62, "operations": 126 },
+      { "stake": 25000000, "pool": 17500000, "boost": 2500000, "comeback": 1250000, "developer": 1250000, "operations": 2500000 },
+      { "stake": 18446744073709551615, "pool": 12912720851596686131, "boost": 1844674407370955161, "comeback": 922337203685477580, "developer": 922337203685477580, "operations": 1844674407370955163 }
+    ],
+    "boost": [
+      { "own_pool": 0, "reserve": 500, "boost": 0 },
+      { "own_pool": 350, "reserve": 0, "boost": 0 },
+      { "own_pool": 350, "reserve": 1000, "boost": 70 },
+      { "own_pool": 350, "reserve": 40, "boost": 40 },
+      { "own_pool": 28000, "reserve": 5000, "boost": 5000 },
+      { "own_pool": 18446744073709551615, "reserve": 18446744073709551615, "boost": 3689348814741910323 }
+    ],
+    "comeback_owed": [
+      { "forfeited_stake": 100, "new_stake": 100, "owed": 10 },
+      { "forfeited_stake": 1000, "new_stake": 25, "owed": 25 },
+      { "forfeited_stake": 9, "new_stake": 100, "owed": 0 },
+      { "forfeited_stake": 25000000, "new_stake": 10000000, "owed": 2500000 },
+      { "forfeited_stake": 18446744073709551615, "new_stake": 18446744073709551615, "owed": 1844674407370955161 }
+    ],
+    "comeback_refund": [
+      { "entitled": 10, "funded": 30, "owed": 30, "refund": 10 },
+      { "entitled": 10, "funded": 20, "owed": 30, "refund": 6 },
+      { "entitled": 7, "funded": 0, "owed": 21, "refund": 0 },
+      { "entitled": 0, "funded": 0, "owed": 0, "refund": 0 },
+      { "entitled": 2500000, "funded": 1000000, "owed": 7500000, "refund": 333333 }
+    ],
+    "no_finisher_split": [
+      { "pool": 0, "developer": 0, "operations": 0 },
+      { "pool": 1, "developer": 0, "operations": 1 },
+      { "pool": 2, "developer": 0, "operations": 2 },
+      { "pool": 1050, "developer": 350, "operations": 700 },
+      { "pool": 1001, "developer": 333, "operations": 668 },
+      { "pool": 18446744073709551615, "developer": 6148914691236517205, "operations": 12297829382473034410 }
+    ]
+  }
 }

@@ -108,7 +108,7 @@ fun HoldoutOffer(h: Holdout, now: Long, onClick: (() -> Unit)?, modifier: Modifi
     HoldoutCard(if (onClick != null) modifier.clickable(onClick = onClick) else modifier) {
         if (h.isTest) TestCohortBadge(c.dayLength)
         Text(
-            "${c.durationDays}-day Holdout · ${c.repsPerDay} push-ups a day",
+            "${Format.holdoutTitle(c)} · ${c.repsPerDay} push-ups a day",
             style = MaterialTheme.typography.titleMedium,
             color = HoldoutColors.TextPrimary,
         )

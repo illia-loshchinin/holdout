@@ -41,6 +41,7 @@ class RunTest {
     private val sponsor = SolanaPublicKey(ByteArray(32) { 5 })
     private val mint = SolanaPublicKey(ByteArray(32) { 9 })
     private val feeDestination = SolanaPublicKey(ByteArray(32) { 6 })
+    private val developerDestination = SolanaPublicKey(ByteArray(32) { 8 })
 
     private val week = 604_800L
     private val day = 86_400L
@@ -105,7 +106,7 @@ class RunTest {
         val l = AccountLayout.Config
         val b = le(l.SIZE)
         b.put(0, l.DISCRIMINATOR)
-        b.put(l.SPONSOR, sponsor.bytes).put(l.SKR_MINT, mint.bytes).put(l.FEE_DESTINATION, feeDestination.bytes)
+        b.put(l.SPONSOR, sponsor.bytes).put(l.SKR_MINT, mint.bytes).put(l.FEE_DESTINATION, feeDestination.bytes).put(l.DEVELOPER_DESTINATION, developerDestination.bytes)
         b.putInt(l.CHIP_VERSION, 1).putLong(l.SPONSOR_FLOAT, sponsorFloat).putLong(l.DAILY_LAMPORT_CAP, 720_000_000)
         return b.array()
     }
@@ -115,6 +116,7 @@ class RunTest {
         b.put(0, LeagueSnapshot.DISCRIMINATOR)
         b.put(8, l.params.leagueId.toByte()).put(9, l.params.durationDays.toByte()).putShort(10, l.params.repsPerDay.toShort()).put(12, l.params.exercise.toByte())
         b.putLong(13, l.params.dayLength).putLong(21, l.params.firstStart).putLong(29, l.params.cadence).putLong(37, l.params.joinLock).putInt(45, l.nextIndex.toInt())
+        b.put(LeagueSnapshot.FORM, l.params.form.toByte()).putLong(LeagueSnapshot.BOOST_RESERVE, l.boostReserve.toLong()).putLong(LeagueSnapshot.COMEBACK_RESERVE, l.comebackReserve.toLong())
         return b.array()
     }
 
@@ -267,8 +269,21 @@ class RunTest {
         assertFalse(forfeit.message.accounts.contains(Pdas.membership(programId, Pdas.cohort(programId, 0, 2), member(3, 1).wallet)), "not the member still standing")
         val finalize = chain.sentTx[4]
         assertFalse(finalize.message.accounts.contains(Pdas.cohort(programId, 0, 3)), "settlement names no other cohort: nothing carries over")
+
+        // H35: every step that moves fee money names both destinations, and finalize the league's reserve vault.
+        fun accountsOf(t: Transaction) = t.message.instructions.single().accountIndices.map { t.message.accounts[it.toInt()] }
+        assertEquals(listOf(feeDestination, developerDestination), accountsOf(forfeit).subList(4, 6), "record_forfeits: operations, then developer")
+        assertEquals(listOf(feeDestination, developerDestination), accountsOf(chain.sentTx[3]).subList(5, 7), "settle_count: operations, then developer")
+        assertEquals(
+            listOf(Pdas.league(programId, 0), Pdas.cohort(programId, 0, 1)),
+            accountsOf(finalize).subList(2, 4),
+        )
+        assertEquals(listOf(feeDestination, developerDestination, Pdas.reserveVault(programId, 0)), accountsOf(finalize).subList(5, 8), "settle_finalize: both destinations, then the reserve vault")
+        assertTrue(writableIn(finalize, Pdas.league(programId, 0)), "finalize writes the league's reserves")
         chain.sentTx.forEach { assertEquals(payer.publicKey, it.message.accounts[0], "the crank's payer pays every fee") }
     }
+
+    private fun writableIn(t: Transaction, key: SolanaPublicKey): Boolean = holdout.core.Transactions.isWritable(t.message, t.message.accounts.indexOf(key))
 
     @Test
     fun `a sponsor above half its float is left alone`() = runBlocking {

@@ -23,6 +23,7 @@ import {
   HOUR,
   SKR,
   WEEK,
+  cohortCustody,
   createHarness,
   expectProgramError,
   type Harness,
@@ -262,14 +263,14 @@ describe('join_cohort and leave_cohort (contracts §3)', () => {
     let after = await h.readCohort(LEAGUE, INDEX);
     expect(after.memberCount).toBe(4);
     expect(after.heldStake).toBe(expected);
-    expect(vaulted()).toBe(after.heldStake + after.pool + after.carryOverHeld);
+    expect(vaulted()).toBe(cohortCustody(after));
 
     // One of them leaves; the books still balance.
     await h.sendOrThrow([await leaveCohortIx(members[1]!.address, mint, LEAGUE, INDEX)], members[1]!);
     after = await h.readCohort(LEAGUE, INDEX);
     expect(after.memberCount).toBe(3);
     expect(after.heldStake).toBe(expected - DEFAULT_CHIPS[1]);
-    expect(vaulted()).toBe(after.heldStake + after.pool + after.carryOverHeld);
+    expect(vaulted()).toBe(cohortCustody(after));
   });
 
   it('is the cohort it was asked for, not another of the same league', async () => {

@@ -85,7 +85,7 @@ fun ConnectScreen(
                     val figures = rosters[h.address]?.let { Derive.figures(h.cohort, it, now) }
                     HoldoutCard {
                         if (h.isTest) TestCohortBadge(h.cohort.dayLength)
-                        Text("${h.cohort.durationDays}-day Holdout · running", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+                        Text("${Format.holdoutTitle(h.cohort)} · running", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
                         Text(
                             figures?.let { "${it.survivors.standing} still standing of ${it.survivors.starters} · prize pool ${Format.skr(it.projectedPool)}" }
                                 ?: "${h.cohort.memberCount} started · prize pool ${Format.skr(h.cohort.pool)}",

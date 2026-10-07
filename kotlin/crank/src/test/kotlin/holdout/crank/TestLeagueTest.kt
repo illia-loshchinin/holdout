@@ -37,6 +37,7 @@ class TestLeagueTest {
     private val programId = SolanaPublicKey.from("Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4")
     private val admin = Keypair.fromSeed(ByteArray(32) { 1 })
     private val stranger = Keypair.fromSeed(ByteArray(32) { 2 })
+    private val mint = SolanaPublicKey(ByteArray(32) { 9 })
     private val now = Instant.parse("2026-09-27T12:00:00Z").epochSecond
     private val start = "2026-09-27T15:00:00Z"
     private val env = mapOf("HOLDOUT_RPC_URL" to "http://rpc.test", "HOLDOUT_PROGRAM_ID" to programId.base58(), "HOLDOUT_ADMIN_KEYPAIR" to "/keys/admin.json")
@@ -51,7 +52,7 @@ class TestLeagueTest {
         private fun configBytes(): ByteArray {
             val l = AccountLayout.Config
             val b = ByteBuffer.allocate(l.SIZE).order(ByteOrder.LITTLE_ENDIAN)
-            b.put(0, l.DISCRIMINATOR).put(l.ADMIN, admin.publicKey.bytes).putInt(l.CHIP_VERSION, 1)
+            b.put(0, l.DISCRIMINATOR).put(l.ADMIN, admin.publicKey.bytes).put(l.SKR_MINT, mint.bytes).putInt(l.CHIP_VERSION, 1)
             return b.array()
         }
 
@@ -98,7 +99,7 @@ class TestLeagueTest {
     @Test
     fun `by default the test league is a 7-day Holdout in 70 minutes - seven 10-minute days at 5 reps, back to back, as league 100`() {
         val p = Init.testLeagueParams(parseArgs(listOf("init", "--test-league") + quickstart))
-        assertEquals(LeagueParams(100, 7, 5, 0, Instant.parse(start).epochSecond, 600, 4_200, 300), p)
+        assertEquals(LeagueParams(100, 7, 5, 0, LeagueParams.FORM_KNEES_ALLOWED, Instant.parse(start).epochSecond, 600, 4_200, 300), p, "Easy by default (H35)")
         val quick = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--day-seconds", "3600", "--reps", "10", "--days", "3") + quickstart))
         assertEquals(listOf(3_600L, 10L, 3L, 10_800L), listOf(quick.dayLength, quick.repsPerDay.toLong(), quick.durationDays.toLong(), quick.cadence), "every default can be overridden")
         val custom = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--league-id", "101", "--cadence", "600", "--join-lock", "60") + quickstart))
@@ -113,6 +114,16 @@ class TestLeagueTest {
         assertEquals(EXIT_CONFIG, refused("--day-seconds", "600", "--reps", "0", "--days", "7", "--first-start", start), "zero reps")
         assertEquals(EXIT_CONFIG, refused("--day-seconds", "600", "--reps", "5", "--days", "0", "--first-start", start), "zero days")
         assertEquals(EXIT_CONFIG, refused("--league-id", "1", *quickstart), "a judged league id")
+        assertEquals(EXIT_CONFIG, refused("--form", "2", *quickstart), "a form the program refuses (6013)")
+    }
+
+    @Test
+    fun `given --form hard, when the test league is planned, then it judges from the toes`() {
+        fun form(vararg args: String) = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", *args) + quickstart)).form
+        assertEquals(LeagueParams.FORM_TOES, form("--form", "hard"))
+        assertEquals(LeagueParams.FORM_TOES, form("--form", "0"))
+        assertEquals(LeagueParams.FORM_KNEES_ALLOWED, form("--form", "Easy"))
+        assertEquals(LeagueParams.FORM_KNEES_ALLOWED, form())
     }
 
     @Test
@@ -127,12 +138,17 @@ class TestLeagueTest {
         val ix = tx.message.instructions.single()
         assertContentEquals(Instructions.discriminator("create_league"), ix.data.copyOf(8))
         assertEquals(100, ix.data[8].toInt())
+        assertEquals(LeagueParams.FORM_KNEES_ALLOWED, ix.data[13].toInt(), "the form follows the exercise")
+        assertEquals("Easy", json.getValue("formName").jsonPrimitive.content)
+        // The reserve vault is created with the league, holding Config's SKR mint.
+        val accounts = ix.accountIndices.map { tx.message.accounts[it.toInt()] }
+        assertEquals(listOf(mint, runBlocking { Pdas.reserveVault(programId, 100) }), accounts.subList(3, 5))
     }
 
     @Test
     fun `a league that exists is left alone`() {
         val chain = Chain()
-        chain.league = ByteBuffer.allocate(50).order(ByteOrder.LITTLE_ENDIAN).apply {
+        chain.league = ByteBuffer.allocate(holdout.core.LeagueSnapshot.SIZE).order(ByteOrder.LITTLE_ENDIAN).apply {
             put(0, holdout.core.LeagueSnapshot.DISCRIMINATOR).put(8, 100.toByte()).put(9, 7.toByte()).putShort(10, 5).putLong(13, 600).putLong(21, now + 3_600).putLong(29, 4_200).putLong(37, 300).putInt(45, 1)
         }.array()
         val json = testLeague(chain, *quickstart)

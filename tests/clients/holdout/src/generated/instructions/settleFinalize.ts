@@ -15,8 +15,8 @@ export const SETTLE_FINALIZE_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array(
 
 export function getSettleFinalizeDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(SETTLE_FINALIZE_DISCRIMINATOR); }
 
-export type SettleFinalizeInstruction<TProgram extends string = typeof HOLDOUT_PROGRAM_ADDRESS, TAccountCaller extends string | AccountMeta<string> = string, TAccountConfig extends string | AccountMeta<string> = string, TAccountLeague extends string | AccountMeta<string> = string, TAccountCohort extends string | AccountMeta<string> = string, TAccountVault extends string | AccountMeta<string> = string, TAccountFeeDestination extends string | AccountMeta<string> = string, TAccountTokenProgram extends string | AccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
-Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountCaller extends string ? WritableSignerAccount<TAccountCaller> & AccountSignerMeta<TAccountCaller> : TAccountCaller, TAccountConfig extends string ? ReadonlyAccount<TAccountConfig> : TAccountConfig, TAccountLeague extends string ? ReadonlyAccount<TAccountLeague> : TAccountLeague, TAccountCohort extends string ? WritableAccount<TAccountCohort> : TAccountCohort, TAccountVault extends string ? WritableAccount<TAccountVault> : TAccountVault, TAccountFeeDestination extends string ? WritableAccount<TAccountFeeDestination> : TAccountFeeDestination, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, ...TRemainingAccounts]>;
+export type SettleFinalizeInstruction<TProgram extends string = typeof HOLDOUT_PROGRAM_ADDRESS, TAccountCaller extends string | AccountMeta<string> = string, TAccountConfig extends string | AccountMeta<string> = string, TAccountLeague extends string | AccountMeta<string> = string, TAccountCohort extends string | AccountMeta<string> = string, TAccountVault extends string | AccountMeta<string> = string, TAccountFeeDestination extends string | AccountMeta<string> = string, TAccountDeveloperDestination extends string | AccountMeta<string> = string, TAccountReserveVault extends string | AccountMeta<string> = string, TAccountPreviousCohort extends string | AccountMeta<string> = string, TAccountTokenProgram extends string | AccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
+Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountCaller extends string ? WritableSignerAccount<TAccountCaller> & AccountSignerMeta<TAccountCaller> : TAccountCaller, TAccountConfig extends string ? ReadonlyAccount<TAccountConfig> : TAccountConfig, TAccountLeague extends string ? WritableAccount<TAccountLeague> : TAccountLeague, TAccountCohort extends string ? WritableAccount<TAccountCohort> : TAccountCohort, TAccountVault extends string ? WritableAccount<TAccountVault> : TAccountVault, TAccountFeeDestination extends string ? WritableAccount<TAccountFeeDestination> : TAccountFeeDestination, TAccountDeveloperDestination extends string ? WritableAccount<TAccountDeveloperDestination> : TAccountDeveloperDestination, TAccountReserveVault extends string ? WritableAccount<TAccountReserveVault> : TAccountReserveVault, TAccountPreviousCohort extends string ? ReadonlyAccount<TAccountPreviousCohort> : TAccountPreviousCohort, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, ...TRemainingAccounts]>;
 
 export type SettleFinalizeInstructionData = { discriminator: ReadonlyUint8Array;  };
 
@@ -34,18 +34,29 @@ export function getSettleFinalizeInstructionDataCodec(): FixedSizeCodec<SettleFi
     return combineCodec(getSettleFinalizeInstructionDataEncoder(), getSettleFinalizeInstructionDataDecoder());
 }
 
-export type SettleFinalizeAsyncInput<TAccountCaller extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountLeague extends InstructionAccountInput = InstructionAccountInput, TAccountCohort extends InstructionAccountInput = InstructionAccountInput, TAccountVault extends InstructionAccountInput = InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput = InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput = InstructionAccountInput> =  {
+export type SettleFinalizeAsyncInput<TAccountCaller extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountLeague extends InstructionAccountInput = InstructionAccountInput, TAccountCohort extends InstructionAccountInput = InstructionAccountInput, TAccountVault extends InstructionAccountInput = InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput = InstructionAccountInput, TAccountDeveloperDestination extends InstructionAccountInput = InstructionAccountInput, TAccountReserveVault extends InstructionAccountInput = InstructionAccountInput, TAccountPreviousCohort extends InstructionAccountInput = InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput = InstructionAccountInput> =  {
   /** Anyone. The caller's identity never changes the outcome (FR-030a). */
 caller: TAccountCaller;
 config?: TAccountConfig;
+/** Writable: its reserves move here, and only here (INV-10). */
 league: TAccountLeague;
 cohort: TAccountCohort;
 vault?: TAccountVault;
+/** Operations. */
 feeDestination: TAccountFeeDestination;
+developerDestination: TAccountDeveloperDestination;
+reserveVault: TAccountReserveVault;
+/**
+ * The league's cohort `index - 1`, required for every index but 0. A
+ * cohort nobody joined is never counted, so this is its only ordering
+ * check: without it an empty cohort could settle ahead of an older one
+ * and let the next cohort count past it (FR-061a, INV-10).
+ */
+previousCohort?: TAccountPreviousCohort;
 tokenProgram?: TAccountTokenProgram;
 }
 
-export async function getSettleFinalizeInstructionAsync<TAccountCaller extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TAccountLeague extends InstructionAccountInput, TAccountCohort extends InstructionAccountInput, TAccountVault extends InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof HOLDOUT_PROGRAM_ADDRESS>(input: SettleFinalizeAsyncInput<TAccountCaller, TAccountConfig, TAccountLeague, TAccountCohort, TAccountVault, TAccountFeeDestination, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): Promise<SettleFinalizeInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>> {
+export async function getSettleFinalizeInstructionAsync<TAccountCaller extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TAccountLeague extends InstructionAccountInput, TAccountCohort extends InstructionAccountInput, TAccountVault extends InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput, TAccountDeveloperDestination extends InstructionAccountInput, TAccountReserveVault extends InstructionAccountInput, TAccountPreviousCohort extends InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof HOLDOUT_PROGRAM_ADDRESS>(input: SettleFinalizeAsyncInput<TAccountCaller, TAccountConfig, TAccountLeague, TAccountCohort, TAccountVault, TAccountFeeDestination, TAccountDeveloperDestination, TAccountReserveVault, TAccountPreviousCohort, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): Promise<SettleFinalizeInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountDeveloperDestination, InstructionAccountInputAddress<TAccountDeveloperDestination>>, ResolvedInstructionAccountMeta<TAccountReserveVault, InstructionAccountInputAddress<TAccountReserveVault>>, ResolvedInstructionAccountMeta<TAccountPreviousCohort, InstructionAccountInputAddress<TAccountPreviousCohort>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>> {
   // Program address.
 const programAddress = config?.programAddress ?? HOLDOUT_PROGRAM_ADDRESS;
 
@@ -53,7 +64,7 @@ const programAddress = config?.programAddress ?? HOLDOUT_PROGRAM_ADDRESS;
 const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
 
  // Original accounts.
-const originalAccounts = { caller: { value: input.caller ?? null, isSigner: true, isWritable: true }, config: { value: input.config ?? null, isSigner: false, isWritable: false }, league: { value: input.league ?? null, isSigner: false, isWritable: false }, cohort: { value: input.cohort ?? null, isSigner: false, isWritable: true }, vault: { value: input.vault ?? null, isSigner: false, isWritable: true }, feeDestination: { value: input.feeDestination ?? null, isSigner: false, isWritable: true }, tokenProgram: { value: input.tokenProgram ?? null, isSigner: false, isWritable: false } }
+const originalAccounts = { caller: { value: input.caller ?? null, isSigner: true, isWritable: true }, config: { value: input.config ?? null, isSigner: false, isWritable: false }, league: { value: input.league ?? null, isSigner: false, isWritable: true }, cohort: { value: input.cohort ?? null, isSigner: false, isWritable: true }, vault: { value: input.vault ?? null, isSigner: false, isWritable: true }, feeDestination: { value: input.feeDestination ?? null, isSigner: false, isWritable: true }, developerDestination: { value: input.developerDestination ?? null, isSigner: false, isWritable: true }, reserveVault: { value: input.reserveVault ?? null, isSigner: false, isWritable: true }, previousCohort: { value: input.previousCohort ?? null, isSigner: false, isWritable: false }, tokenProgram: { value: input.tokenProgram ?? null, isSigner: false, isWritable: false } }
 const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
 
@@ -68,21 +79,32 @@ if (!accounts.tokenProgram.value) {
 accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
 }
 
-return Object.freeze({ accounts: [getAccountMeta("caller", accounts.caller), getAccountMeta("config", accounts.config), getAccountMeta("league", accounts.league), getAccountMeta("cohort", accounts.cohort), getAccountMeta("vault", accounts.vault), getAccountMeta("feeDestination", accounts.feeDestination), getAccountMeta("tokenProgram", accounts.tokenProgram)], data: getSettleFinalizeInstructionDataEncoder().encode({}), programAddress } as SettleFinalizeInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>);
+return Object.freeze({ accounts: [getAccountMeta("caller", accounts.caller), getAccountMeta("config", accounts.config), getAccountMeta("league", accounts.league), getAccountMeta("cohort", accounts.cohort), getAccountMeta("vault", accounts.vault), getAccountMeta("feeDestination", accounts.feeDestination), getAccountMeta("developerDestination", accounts.developerDestination), getAccountMeta("reserveVault", accounts.reserveVault), getAccountMeta("previousCohort", accounts.previousCohort), getAccountMeta("tokenProgram", accounts.tokenProgram)], data: getSettleFinalizeInstructionDataEncoder().encode({}), programAddress } as SettleFinalizeInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountDeveloperDestination, InstructionAccountInputAddress<TAccountDeveloperDestination>>, ResolvedInstructionAccountMeta<TAccountReserveVault, InstructionAccountInputAddress<TAccountReserveVault>>, ResolvedInstructionAccountMeta<TAccountPreviousCohort, InstructionAccountInputAddress<TAccountPreviousCohort>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>);
 }
 
-export type SettleFinalizeInput<TAccountCaller extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountLeague extends InstructionAccountInput = InstructionAccountInput, TAccountCohort extends InstructionAccountInput = InstructionAccountInput, TAccountVault extends InstructionAccountInput = InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput = InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput = InstructionAccountInput> =  {
+export type SettleFinalizeInput<TAccountCaller extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput, TAccountLeague extends InstructionAccountInput = InstructionAccountInput, TAccountCohort extends InstructionAccountInput = InstructionAccountInput, TAccountVault extends InstructionAccountInput = InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput = InstructionAccountInput, TAccountDeveloperDestination extends InstructionAccountInput = InstructionAccountInput, TAccountReserveVault extends InstructionAccountInput = InstructionAccountInput, TAccountPreviousCohort extends InstructionAccountInput = InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput = InstructionAccountInput> =  {
   /** Anyone. The caller's identity never changes the outcome (FR-030a). */
 caller: TAccountCaller;
 config: TAccountConfig;
+/** Writable: its reserves move here, and only here (INV-10). */
 league: TAccountLeague;
 cohort: TAccountCohort;
 vault: TAccountVault;
+/** Operations. */
 feeDestination: TAccountFeeDestination;
+developerDestination: TAccountDeveloperDestination;
+reserveVault: TAccountReserveVault;
+/**
+ * The league's cohort `index - 1`, required for every index but 0. A
+ * cohort nobody joined is never counted, so this is its only ordering
+ * check: without it an empty cohort could settle ahead of an older one
+ * and let the next cohort count past it (FR-061a, INV-10).
+ */
+previousCohort?: TAccountPreviousCohort;
 tokenProgram?: TAccountTokenProgram;
 }
 
-export function getSettleFinalizeInstruction<TAccountCaller extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TAccountLeague extends InstructionAccountInput, TAccountCohort extends InstructionAccountInput, TAccountVault extends InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof HOLDOUT_PROGRAM_ADDRESS>(input: SettleFinalizeInput<TAccountCaller, TAccountConfig, TAccountLeague, TAccountCohort, TAccountVault, TAccountFeeDestination, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): SettleFinalizeInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>> {
+export function getSettleFinalizeInstruction<TAccountCaller extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TAccountLeague extends InstructionAccountInput, TAccountCohort extends InstructionAccountInput, TAccountVault extends InstructionAccountInput, TAccountFeeDestination extends InstructionAccountInput, TAccountDeveloperDestination extends InstructionAccountInput, TAccountReserveVault extends InstructionAccountInput, TAccountPreviousCohort extends InstructionAccountInput, TAccountTokenProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof HOLDOUT_PROGRAM_ADDRESS>(input: SettleFinalizeInput<TAccountCaller, TAccountConfig, TAccountLeague, TAccountCohort, TAccountVault, TAccountFeeDestination, TAccountDeveloperDestination, TAccountReserveVault, TAccountPreviousCohort, TAccountTokenProgram>, config?: { programAddress?: TProgramAddress } ): SettleFinalizeInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountDeveloperDestination, InstructionAccountInputAddress<TAccountDeveloperDestination>>, ResolvedInstructionAccountMeta<TAccountReserveVault, InstructionAccountInputAddress<TAccountReserveVault>>, ResolvedInstructionAccountMeta<TAccountPreviousCohort, InstructionAccountInputAddress<TAccountPreviousCohort>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>> {
   // Program address.
 const programAddress = config?.programAddress ?? HOLDOUT_PROGRAM_ADDRESS;
 
@@ -90,7 +112,7 @@ const programAddress = config?.programAddress ?? HOLDOUT_PROGRAM_ADDRESS;
 const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
 
  // Original accounts.
-const originalAccounts = { caller: { value: input.caller ?? null, isSigner: true, isWritable: true }, config: { value: input.config ?? null, isSigner: false, isWritable: false }, league: { value: input.league ?? null, isSigner: false, isWritable: false }, cohort: { value: input.cohort ?? null, isSigner: false, isWritable: true }, vault: { value: input.vault ?? null, isSigner: false, isWritable: true }, feeDestination: { value: input.feeDestination ?? null, isSigner: false, isWritable: true }, tokenProgram: { value: input.tokenProgram ?? null, isSigner: false, isWritable: false } }
+const originalAccounts = { caller: { value: input.caller ?? null, isSigner: true, isWritable: true }, config: { value: input.config ?? null, isSigner: false, isWritable: false }, league: { value: input.league ?? null, isSigner: false, isWritable: true }, cohort: { value: input.cohort ?? null, isSigner: false, isWritable: true }, vault: { value: input.vault ?? null, isSigner: false, isWritable: true }, feeDestination: { value: input.feeDestination ?? null, isSigner: false, isWritable: true }, developerDestination: { value: input.developerDestination ?? null, isSigner: false, isWritable: true }, reserveVault: { value: input.reserveVault ?? null, isSigner: false, isWritable: true }, previousCohort: { value: input.previousCohort ?? null, isSigner: false, isWritable: false }, tokenProgram: { value: input.tokenProgram ?? null, isSigner: false, isWritable: false } }
 const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
 
@@ -99,7 +121,7 @@ if (!accounts.tokenProgram.value) {
 accounts.tokenProgram.value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
 }
 
-return Object.freeze({ accounts: [getAccountMeta("caller", accounts.caller), getAccountMeta("config", accounts.config), getAccountMeta("league", accounts.league), getAccountMeta("cohort", accounts.cohort), getAccountMeta("vault", accounts.vault), getAccountMeta("feeDestination", accounts.feeDestination), getAccountMeta("tokenProgram", accounts.tokenProgram)], data: getSettleFinalizeInstructionDataEncoder().encode({}), programAddress } as SettleFinalizeInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>);
+return Object.freeze({ accounts: [getAccountMeta("caller", accounts.caller), getAccountMeta("config", accounts.config), getAccountMeta("league", accounts.league), getAccountMeta("cohort", accounts.cohort), getAccountMeta("vault", accounts.vault), getAccountMeta("feeDestination", accounts.feeDestination), getAccountMeta("developerDestination", accounts.developerDestination), getAccountMeta("reserveVault", accounts.reserveVault), getAccountMeta("previousCohort", accounts.previousCohort), getAccountMeta("tokenProgram", accounts.tokenProgram)], data: getSettleFinalizeInstructionDataEncoder().encode({}), programAddress } as SettleFinalizeInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountCaller, InstructionAccountInputAddress<TAccountCaller>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountLeague, InstructionAccountInputAddress<TAccountLeague>>, ResolvedInstructionAccountMeta<TAccountCohort, InstructionAccountInputAddress<TAccountCohort>>, ResolvedInstructionAccountMeta<TAccountVault, InstructionAccountInputAddress<TAccountVault>>, ResolvedInstructionAccountMeta<TAccountFeeDestination, InstructionAccountInputAddress<TAccountFeeDestination>>, ResolvedInstructionAccountMeta<TAccountDeveloperDestination, InstructionAccountInputAddress<TAccountDeveloperDestination>>, ResolvedInstructionAccountMeta<TAccountReserveVault, InstructionAccountInputAddress<TAccountReserveVault>>, ResolvedInstructionAccountMeta<TAccountPreviousCohort, InstructionAccountInputAddress<TAccountPreviousCohort>>, ResolvedInstructionAccountMeta<TAccountTokenProgram, InstructionAccountInputAddress<TAccountTokenProgram>>>);
 }
 
 export type ParsedSettleFinalizeInstruction<TProgram extends string = typeof HOLDOUT_PROGRAM_ADDRESS, TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]> = { programAddress: Address<TProgram>;
@@ -107,17 +129,28 @@ accounts: {
 /** Anyone. The caller's identity never changes the outcome (FR-030a). */
 caller: TAccountMetas[0];
 config: TAccountMetas[1];
+/** Writable: its reserves move here, and only here (INV-10). */
 league: TAccountMetas[2];
 cohort: TAccountMetas[3];
 vault: TAccountMetas[4];
+/** Operations. */
 feeDestination: TAccountMetas[5];
-tokenProgram: TAccountMetas[6];
+developerDestination: TAccountMetas[6];
+reserveVault: TAccountMetas[7];
+/**
+ * The league's cohort `index - 1`, required for every index but 0. A
+ * cohort nobody joined is never counted, so this is its only ordering
+ * check: without it an empty cohort could settle ahead of an older one
+ * and let the next cohort count past it (FR-061a, INV-10).
+ */
+previousCohort?: TAccountMetas[8] | undefined;
+tokenProgram: TAccountMetas[9];
 };
 data: SettleFinalizeInstructionData; };
 
 export function parseSettleFinalizeInstruction<TProgram extends string, TAccountMetas extends readonly AccountMeta[]>(instruction: Instruction<TProgram> & InstructionWithAccounts<TAccountMetas> & InstructionWithData<ReadonlyUint8Array>): ParsedSettleFinalizeInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 7) {
-  throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, { actualAccountMetas: instruction.accounts.length, expectedAccountMetas: 7 });
+  if (instruction.accounts.length < 10) {
+  throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, { actualAccountMetas: instruction.accounts.length, expectedAccountMetas: 10 });
 }
 let accountIndex = 0;
 const getNextAccount = () => {
@@ -125,5 +158,9 @@ const getNextAccount = () => {
   accountIndex += 1;
   return accountMeta;
 }
-  return { programAddress: instruction.programAddress, accounts: { caller: getNextAccount(), config: getNextAccount(), league: getNextAccount(), cohort: getNextAccount(), vault: getNextAccount(), feeDestination: getNextAccount(), tokenProgram: getNextAccount() }, data: getSettleFinalizeInstructionDataDecoder().decode(instruction.data) };
+const getNextOptionalAccount = () => {
+  const accountMeta = getNextAccount();
+  return accountMeta.address === HOLDOUT_PROGRAM_ADDRESS ? undefined : accountMeta;
+};
+  return { programAddress: instruction.programAddress, accounts: { caller: getNextAccount(), config: getNextAccount(), league: getNextAccount(), cohort: getNextAccount(), vault: getNextAccount(), feeDestination: getNextAccount(), developerDestination: getNextAccount(), reserveVault: getNextAccount(), previousCohort: getNextOptionalAccount(), tokenProgram: getNextAccount() }, data: getSettleFinalizeInstructionDataDecoder().decode(instruction.data) };
 }

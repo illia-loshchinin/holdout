@@ -21,7 +21,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { inBreach, type CohortSnapshot, type MembershipSnapshot, type Snapshot } from '../invariants/checker.js';
 import { DEFAULT_CHIPS, FIRST_START, SKR, createHarness, type Harness } from '../helpers/harness.js';
-import { forfeitPairs, joinCohortIx, recordForfeitsIx, submitDayIx } from '../helpers/instructions.js';
+import { forfeitPairs, joinCohortIx, recordForfeitsIx, submitDayIx, type FeeDestinations } from '../helpers/instructions.js';
 import { associatedTokenPda, cohortPda } from '../helpers/pdas.js';
 
 const LEAGUE = 100;
@@ -92,7 +92,7 @@ describe('the figures move at the deadline, not when the crank runs (FR-038a, AC
   let h: Harness;
   let cohort: Address;
   let mint: Address;
-  let feeDestination: Address;
+  let fees: FeeDestinations;
   let crank: KeyPairSigner;
   let wallets: Address[];
   /** Everyone who completed day 0 — the ones still standing after it. */
@@ -106,10 +106,8 @@ describe('the figures move at the deadline, not when the crank runs (FR-038a, AC
     mint = (await generateKeyPairSigner()).address;
     h.injectMint(mint, null, 1_000_000_000n * SKR);
 
-    const treasury = (await generateKeyPairSigner()).address;
-    feeDestination = await associatedTokenPda(treasury, mint);
-    h.injectTokenAccount(feeDestination, mint, treasury, 0n);
-    await h.injectConfig({ skrMint: mint, feeDestination });
+    fees = await h.injectFeeDestinations(mint);
+    await h.injectConfig({ skrMint: mint, feeDestination: fees.operations, developerDestination: fees.developer });
     await h.injectLeague(LEAGUE, {
       durationDays: DURATION,
       dayLength: BigInt(DAY_LENGTH),
@@ -180,7 +178,7 @@ describe('the figures move at the deadline, not when the crank runs (FR-038a, AC
         [
           await recordForfeitsIx(
             crank.address,
-            feeDestination,
+            fees,
             LEAGUE,
             INDEX,
             await forfeitPairs(cohort, page),

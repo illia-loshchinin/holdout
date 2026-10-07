@@ -58,7 +58,7 @@ fun CohortDetailScreen(
     ) {
         TextButton(onClick = onBack) { Text("← Back", color = HoldoutColors.TextSecondary) }
         if (h.isTest) TestCohortBadge(c.dayLength)
-        Text("${c.durationDays}-day Holdout", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
+        Text(Format.holdoutTitle(c), style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
 
         when (stage) {
             Stage.Settling -> HoldoutCard {

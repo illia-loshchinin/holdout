@@ -77,6 +77,24 @@
       "bump": 255
     },
     {
+      "name": "reserve",
+      "seeds": [
+        "reserve",
+        0
+      ],
+      "address": "4dzYHLXBcYUHQpdYvtrGyhMybKFqqq4eKZpBAwHyXwCc",
+      "bump": 254
+    },
+    {
+      "name": "reserve",
+      "seeds": [
+        "reserve",
+        1
+      ],
+      "address": "EJoyCoqrdnX6bth7BM7J3m1CpPbsMhpcCtaEJQQ2tR4Y",
+      "bump": 255
+    },
+    {
       "name": "member",
       "seeds": [
         "member",
