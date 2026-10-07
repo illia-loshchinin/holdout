@@ -225,6 +225,21 @@ data class RepRules(
      * and 120–134° on cobra reps.
      */
     val angledPushBodyLineFloorDegrees: Float = 145f,
+    /**
+     * At 45°, every sitting: **face down, hands on the floor.** The body line
+     * cannot say it — lying on the back with the knees up, and standing, both
+     * read near straight — and on 7 Oct a Daily 25 at 45° counted sixteen
+     * crunches and two kettlebell stands among seven push-ups. Medians over the
+     * rep, in arm lengths:
+     *
+     * - the near knee above the hip: every labelled push-up, on the toes or
+     *   the knees, −0.59 to 0.02 (one rep labelled unsure 0.14); crunches
+     *   0.51–0.81;
+     * - the near ankle below the hand: push-ups −0.38 to 0.04 (unsure up to
+     *   0.34); standing 1.87–1.94, crunches with the arms up 0.28–0.76.
+     */
+    val maxKneeAboveHip: Float = 0.3f,
+    val maxAnkleBelowHand: Float = 0.6f,
 ) {
     init {
         require(topTriggerDegrees >= topDegrees) {
@@ -462,6 +477,10 @@ class RepCounter(
     private val cycleKnees = mutableListOf<Float>()
     private val cyclePostures = mutableListOf<Float>()
 
+    /** At 45°, over the whole rep: knee above hip and ankle below hand ([RepRules.maxKneeAboveHip]). */
+    private val cycleKneeAboveHip = mutableListOf<Float>()
+    private val cycleAnkleBelowHand = mutableListOf<Float>()
+
     /** The body line while pushing back up — after the bottom, elbow past [PUSH_FROM_ELBOW]. */
     private val pushPostures = mutableListOf<Float>()
     private val pushKnees = mutableListOf<Float>()
@@ -512,6 +531,11 @@ class RepCounter(
         val held = heldLegs.medianOrNull()?.takeIf { it > 0f } ?: return false
         return pushLegs.medianOrNull()?.let { it / held < rules.minLegsShareOfHeld } == true
     }
+
+    /** Lying on the back, or standing: not a body in push-up position at all ([RepRules.maxKneeAboveHip]). Unknown passes. */
+    private fun notFaceDown(): Boolean =
+        cycleKneeAboveHip.medianOrNull()?.let { it > rules.maxKneeAboveHip } == true ||
+            cycleAnkleBelowHand.medianOrNull()?.let { it > rules.maxAnkleBelowHand } == true
 
     private fun hipRise(): Float? {
         val hipAtTop = topHips.medianOrNull()?.takeIf { it > 0f } ?: return null
@@ -678,7 +702,7 @@ class RepCounter(
                     startCycle(frame.timestampMillis)
                 }
                 if (cycleStartMillis != 0L) {
-                    observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight)
+                    observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight, reading as? ViewReading.Angled)
                     if (followLegs && elbow >= PUSH_FROM_ELBOW) {
                         descentFrames++
                         if (knee != null && image != null && side != null && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin)) {
@@ -702,7 +726,7 @@ class RepCounter(
             }
 
             Phase.AT_BOTTOM -> {
-                observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight)
+                observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight, reading as? ViewReading.Angled)
                 if (elbow >= PUSH_FROM_ELBOW) {
                     pushPostures += posture
                     // A knee at the edge of the picture is the model's guess, not
@@ -766,6 +790,11 @@ class RepCounter(
                     !bodyHeld() -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)
                     // The chest first and the hips after: off the floor, or a cobra.
                     hipRiseTooLow() -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)
+                    // Not a push-up at all — on the back, or standing — though the arms
+                    // bent and the body line read straight: nothing to coach, so
+                    // nothing is said. Last of the body checks, so a rep any of them
+                    // refuses keeps its words.
+                    notFaceDown() -> RepEvent.Discarded(null)
                     cycleMillis < rules.minCycleMillis -> RepEvent.Discarded(RepHint.SLOW_DOWN)
                     cycleMillis > rules.maxCycleMillis -> RepEvent.Discarded(null)
                     else -> {
@@ -839,6 +868,7 @@ class RepCounter(
         posture: Float,
         knee: Float?,
         shoulderHeight: Float?,
+        angled: ViewReading.Angled?,
     ) {
         // Until the arms have really started down, the rep's clock keeps
         // restarting: resting at the top with the elbow wobbling around the
@@ -850,6 +880,8 @@ class RepCounter(
         if (!straight) bodyLineHeld = false
         cyclePostures += posture
         knee?.let { cycleKnees += it }
+        angled?.kneeAboveHip?.let { cycleKneeAboveHip += it }
+        angled?.ankleBelowHand?.let { cycleAnkleBelowHand += it }
         if (shoulderHeight != null && shoulderHeight < minShoulderHeightInCycle) minShoulderHeightInCycle = shoulderHeight
     }
 
@@ -924,6 +956,8 @@ class RepCounter(
         bodyLineHeld = true
         cycleKnees.clear()
         cyclePostures.clear()
+        cycleKneeAboveHip.clear()
+        cycleAnkleBelowHand.clear()
         pushPostures.clear()
         pushKnees.clear()
         pushLegs.clear()

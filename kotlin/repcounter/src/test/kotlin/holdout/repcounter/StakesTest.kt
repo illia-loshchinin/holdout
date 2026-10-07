@@ -152,6 +152,39 @@ class StakesTest {
         assertEquals(0, angledSet(kneeDegrees = 70f).first, "money is only staked on full push-ups")
     }
 
+    /** [image] with [joint] moved [pixels] down the picture (up when negative). The drawn arm is 170 px long. */
+    private fun moved(image: ImagePose, joint: Int, pixels: Float): ImagePose {
+        val landmarks = image.frame.landmarks.toMutableList()
+        landmarks[joint] = landmarks[joint].copy(y = landmarks[joint].y + pixels / image.height)
+        return image.copy(frame = image.frame.copy(landmarks = landmarks))
+    }
+
+    private fun dailySet(picture: (ImagePose) -> ImagePose): Pair<Int, List<RepHint?>> {
+        val daily = RepCounter(view = CameraView.OBLIQUE, stakes = Stakes.DAILY)
+        val hints = mutableListOf<RepHint?>()
+        for (frame in Traces.set(count = 10)) {
+            val image = picture(Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!))
+            (daily.onFrame(frame, image) as? RepEvent.Discarded)?.let { hints += it.hint }
+        }
+        return daily.total to hints
+    }
+
+    @Test
+    fun `the Daily 25 counts nothing done on the back or standing up - in silence`() {
+        // 7 Oct: crunches with the knees up, and a kettlebell held standing, counted
+        // among push-ups — the arms bent and straightened, the body line read straight.
+        assertEquals(10, dailySet { it }.first, "the same arms, face down: ten push-ups")
+        val onTheBack = dailySet {
+            val (hip, knee) = it.frame.landmarks.let { l -> l[PoseIndex.LEFT_HIP] to l[PoseIndex.LEFT_KNEE] }
+            moved(it, PoseIndex.LEFT_KNEE, (hip.y - knee.y) * it.height - 100f)
+        }
+        assertEquals(0, onTheBack.first, "the knee above the hip: lying on the back")
+        assertTrue(onTheBack.second.all { it == null }, "nothing to coach: ${onTheBack.second}")
+        val standing = dailySet { moved(it, PoseIndex.LEFT_ANKLE, 300f) }
+        assertEquals(0, standing.first, "the ankle a whole leg below the hand: standing")
+        assertTrue(standing.second.all { it == null }, "nothing to coach: ${standing.second}")
+    }
+
     @Test
     fun `the Daily 25 may start from the knees`() {
         val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.DAILY)

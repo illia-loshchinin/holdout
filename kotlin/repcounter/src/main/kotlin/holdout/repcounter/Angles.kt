@@ -229,6 +229,46 @@ object Angles {
     }
 
     /**
+     * At 45°: how high the near knee stands above the near hip, in lengths of
+     * the near arm. Face down — on the toes or on the knees — the knee is never
+     * above the hip; lying on the back with the knees up it is well above it
+     * ([RepRules.maxKneeAboveHip]). `null` when any of those joints is not
+     * clearly in frame.
+     */
+    fun kneeAboveHipInImage(image: ImagePose, side: Side): Float? {
+        val (s, e, w) = ARM.getValue(side)
+        val (h, k, _) = LEG.getValue(side)
+        val shoulder = image.frame[s]
+        val elbow = image.frame[e]
+        val wrist = image.frame[w]
+        val hip = image.frame[h]
+        val knee = image.frame[k]
+        if (!visible(shoulder, elbow, wrist, hip, knee)) return null
+        val arm = shoulder!!.distanceTo(elbow!!, image) + elbow.distanceTo(wrist!!, image)
+        if (arm <= 0f) return null
+        return (hip!!.y - knee!!.y) * image.height / arm
+    }
+
+    /**
+     * At 45°: how far the near ankle stands below the near hand, in lengths of
+     * the near arm. In a push-up both are on the floor, and the feet, further
+     * from the lens, read a little higher; standing, the ankle is a whole leg
+     * below the hand ([RepRules.maxAnkleBelowHand]). `null` when any of those
+     * joints is not clearly in frame.
+     */
+    fun ankleBelowHandInImage(image: ImagePose, side: Side): Float? {
+        val (s, e, w) = ARM.getValue(side)
+        val ankle = image.frame[LEG.getValue(side).third]
+        val shoulder = image.frame[s]
+        val elbow = image.frame[e]
+        val wrist = image.frame[w]
+        if (!visible(shoulder, elbow, wrist, ankle)) return null
+        val arm = shoulder!!.distanceTo(elbow!!, image) + elbow.distanceTo(wrist!!, image)
+        if (arm <= 0f) return null
+        return (ankle!!.y - wrist.y) * image.height / arm
+    }
+
+    /**
      * Whether the foot on [side] is clearly in the picture: the ankle
      * confidently placed and at least [margin] inside every edge. A foot at
      * the edge flickers in and out of the model's confidence, and a frame

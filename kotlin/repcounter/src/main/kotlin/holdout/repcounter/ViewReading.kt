@@ -57,6 +57,10 @@ internal sealed interface ViewReading {
         val kneeUnreadable: Boolean = false,
         /** Near hip height above the near hand, in arm lengths; null when the hip is not clearly in frame. */
         val hipAboveHand: Float? = null,
+        /** Near knee height above the near hip, in arm lengths; null when not all visible, or the knee is not readable. */
+        val kneeAboveHip: Float? = null,
+        /** Near ankle depth below the near hand, in arm lengths; null when not all visible. */
+        val ankleBelowHand: Float? = null,
     ) : ViewReading {
         override val posture: Float get() = bodyLine
     }
@@ -123,6 +127,8 @@ internal sealed interface ViewReading {
                             Angles.shoulderOverHandInImage(image, side),
                             kneeUnreadable = Angles.kneeCollapsed(image, side),
                             hipAboveHand = Angles.hipAboveHandInImage(image, side),
+                            kneeAboveHip = if (readable) Angles.kneeAboveHipInImage(image, side) else null,
+                            ankleBelowHand = Angles.ankleBelowHandInImage(image, side),
                         )
                     }
                 }
