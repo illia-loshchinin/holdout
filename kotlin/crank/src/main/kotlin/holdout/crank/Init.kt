@@ -332,6 +332,23 @@ object Init {
         }
 
         if (existing != null) {
+            // A league's shape is fixed for life, so re-running with the same shape is
+            // a no-op — but asking for a different one (the test lobby's three days
+            // where league 100 was made with seven, H36) must not pass for success.
+            val e = existing.params
+            val sameShape = e.durationDays == params.durationDays &&
+                e.repsPerDay == params.repsPerDay &&
+                e.dayLength == params.dayLength &&
+                e.cadence == params.cadence &&
+                e.joinLock == params.joinLock &&
+                e.form == params.form
+            if (!sameShape) {
+                configError(
+                    "league ${params.leagueId} already exists as ${e.durationDays} days of ${e.dayLength} s, ${e.repsPerDay} reps, a cohort every ${e.cadence} s " +
+                        "(${LeagueParams.formName(e.form)}), and a league never changes; pass --league-id with a free id (100..255) for " +
+                        "${params.durationDays} days of ${params.dayLength} s, a cohort every ${params.cadence} s",
+                )
+            }
             return buildJsonObject {
                 put("command", "init --test-league")
                 put("status", "skipped")

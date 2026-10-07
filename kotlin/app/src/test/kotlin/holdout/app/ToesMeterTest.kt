@@ -22,7 +22,7 @@ class ToesMeterTest {
         val today = meter.read(wallet, 100)
         assertEquals(18, today.toes)
         assertEquals(25, today.measured, "a rep the camera could not judge still happened at 45 degrees")
-        assertFalse(today.hardDay)
+        assertFalse(today.hardDay(25))
     }
 
     @Test
@@ -32,9 +32,18 @@ class ToesMeterTest {
     }
 
     @Test
+    fun `given most reps head-on and one from the toes at 45 degrees, then it is not called a Hard day`() {
+        repeat(24) { meter.record(wallet, 100, null) }
+        meter.record(wallet, 100, RepStance.TOES)
+        val today = meter.read(wallet, 100)
+        assertEquals(1, today.toes)
+        assertFalse(today.hardDay(25), "24 reps were never measured")
+    }
+
+    @Test
     fun `given all 25 from the toes, then it is a Hard day`() {
         repeat(25) { meter.record(wallet, 100, RepStance.TOES) }
-        assertTrue(meter.read(wallet, 100).hardDay)
+        assertTrue(meter.read(wallet, 100).hardDay(25))
     }
 
     @Test

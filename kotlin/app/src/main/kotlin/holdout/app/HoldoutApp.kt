@@ -123,7 +123,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     val holdouts: HoldoutViewModel = viewModel { HoldoutViewModel(store) }
     val chain by holdouts.state.collectAsStateWithLifecycle()
     val rosters by holdouts.rosters.collectAsStateWithLifecycle()
-    val profiles by holdouts.profiles.collectAsStateWithLifecycle()
+    val leaderboardRead by holdouts.leaderboard.collectAsStateWithLifecycle()
 
     // The wallet a previous run connected is restored with its auth token, so a
     // restart does not ask again (contracts/android-app §3).
@@ -518,19 +518,14 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         }
         is Route.Leaderboards -> {
             InFrontLoop(Unit) {
-                holdouts.loadProfiles()
+                holdouts.loadLeaderboard()
                 delay(ROSTER_REFRESH_MILLIS)
             }
-            val cohorts = view?.holdouts?.map { it.cohort }
+            val read = leaderboardRead
             // The test board exists only where a test league does (FR-044a).
-            val boards = Leaderboard.Board.entries.filter { it != Leaderboard.Board.TEST || cohorts.orEmpty().any { c -> Leaderboard.Board.TEST.covers(c.leagueId) } }
+            val boards = Leaderboard.Board.entries.filter { it != Leaderboard.Board.TEST || read?.cohortsAfter.orEmpty().any { c -> Leaderboard.Board.TEST.covers(c.leagueId) } }
             val board = routed.board
-            val shown =
-                if (profiles == null || cohorts == null || chainNow == null) {
-                    null
-                } else {
-                    Leaderboard.view(board, profiles.orEmpty(), cohorts, chainNow, ScriptedWallets::isScripted)
-                }
+            val shown = if (read == null || chainNow == null) null else Leaderboard.view(board, read, chainNow, ScriptedWallets::isScripted)
             LeaderboardScreen(board, boards, shown, address, { route = Route.Leaderboards(it) }, goHome, modifier)
             return
         }

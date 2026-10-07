@@ -31,7 +31,11 @@ object Leaderboard {
         }
     }
 
-    /** One member's line: the figures FR-060 shows, straight from their progress. */
+    /**
+     * One member's line: the figures FR-060 shows, from their progress — with
+     * the current streak at 0 while a forfeit of theirs is recorded and not yet
+     * counted, which is what settlement will write (FR-061a).
+     */
     data class Row(
         val wallet: SolanaPublicKey,
         val cleared: Int,
@@ -87,19 +91,69 @@ object Leaderboard {
      * `Settling` with some members already counted holds it (FR-061a keeps
      * that to one per league).
      */
-    fun view(board: Board, profiles: List<ProfileSnapshot>, cohorts: List<CohortSnapshot>, now: Long, isScripted: (SolanaPublicKey) -> Boolean): View {
+    fun view(board: Board, profiles: List<ProfileSnapshot>, cohorts: List<CohortSnapshot>, now: Long, isScripted: (SolanaPublicKey) -> Boolean): View = view(board, profiles, cohorts, now, emptyMap(), isScripted)
+
+    /** [view], with the wallets whose forfeit is recorded and not yet counted, by league id (see [Snapshot]). */
+    fun view(
+        board: Board,
+        profiles: List<ProfileSnapshot>,
+        cohorts: List<CohortSnapshot>,
+        now: Long,
+        uncountedForfeits: Map<Int, Set<SolanaPublicKey>>,
+        isScripted: (SolanaPublicKey) -> Boolean,
+    ): View {
         if (cohorts.any { board.covers(it.leagueId) && midCount(it, now) }) return View.Updating
-        return rank(rows(board, profiles, isScripted))
+        val breaking = uncountedForfeits.filterKeys { board.covers(it) }.values.flatten().toSet()
+        return rank(rows(board, profiles, isScripted, breaking))
+    }
+
+    /**
+     * One read of what a board needs: every cohort, then every profile, then
+     * every forfeit recorded and not yet counted, then every cohort again.
+     * They come from separate calls, so a count or a forfeit can land between
+     * them; reading cohorts on both sides is what lets the board tell
+     * (FR-060a, FR-065).
+     *
+     * [uncountedForfeits] holds the wallets by league id. `record_forfeits`
+     * raises a member's `forfeited` at once, but only counting breaks the
+     * streak, so for the rest of the cohort the profile alone pairs the new
+     * forfeit with the old streak.
+     */
+    data class Snapshot(
+        val cohortsBefore: List<CohortSnapshot>,
+        val profiles: List<ProfileSnapshot>,
+        val cohortsAfter: List<CohortSnapshot>,
+        val uncountedForfeits: Map<Int, Set<SolanaPublicKey>> = emptyMap(),
+    )
+
+    /**
+     * [view] over a [Snapshot]: also [View.Updating] when any of the board's
+     * cohorts moved in its count, its recorded forfeits or its settlement
+     * between the two cohort reads — the reads in between may hold some of
+     * that change and not the rest.
+     */
+    fun view(board: Board, snapshot: Snapshot, now: Long, isScripted: (SolanaPublicKey) -> Boolean): View {
+        fun progress(cohorts: List<CohortSnapshot>) = cohorts
+            .filter { board.covers(it.leagueId) }
+            .associate { (it.leagueId to it.index) to Triple(it.counted, it.forfeitsRecorded, it.settled) }
+        if (progress(snapshot.cohortsBefore) != progress(snapshot.cohortsAfter)) return View.Updating
+        if (snapshot.cohortsBefore.any { board.covers(it.leagueId) && midCount(it, now) }) return View.Updating
+        return view(board, snapshot.profiles, snapshot.cohortsAfter, now, snapshot.uncountedForfeits, isScripted)
     }
 
     /** Counted in part: settlement has begun writing its members' progress and not finished. */
     fun midCount(c: CohortSnapshot, now: Long): Boolean = Derive.status(c, now) == CohortStatus.Settling && c.counted > 0
 
-    /** Every wallet that has finished at least one cohort of the board's league. */
-    fun rows(board: Board, profiles: List<ProfileSnapshot>, isScripted: (SolanaPublicKey) -> Boolean): List<Row> = profiles
+    /**
+     * Every wallet that has finished at least one cohort of the board's league;
+     * a wallet in [breaking] has a recorded forfeit settlement has not counted,
+     * so its current streak already reads 0.
+     */
+    fun rows(board: Board, profiles: List<ProfileSnapshot>, isScripted: (SolanaPublicKey) -> Boolean, breaking: Set<SolanaPublicKey> = emptySet()): List<Row> = profiles
         .map { p ->
             val l = p.leagues[board.slot]
-            Row(p.wallet, l.cleared, l.forfeited, l.currentStreak, l.longestStreak, l.lastChanged, isScripted(p.wallet))
+            val streak = if (p.wallet in breaking) 0 else l.currentStreak
+            Row(p.wallet, l.cleared, l.forfeited, streak, l.longestStreak, l.lastChanged, isScripted(p.wallet))
         }
         .filter { it.played > 0 }
 

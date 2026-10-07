@@ -53,7 +53,14 @@ class StreakStore(private val store: Store) {
             current,
             maxOf(longest, current),
             completedToday = last == dayIndex,
-            freezes = if (alive) freezes - missed.toInt() else freezes,
+            // A streak that broke used every freeze it held on the way down.
+            freezes = if (alive) {
+                freezes - missed.toInt()
+            } else if (last == Store.NO_DAY) {
+                freezes
+            } else {
+                0
+            },
         )
     }
 
@@ -71,7 +78,14 @@ class StreakStore(private val store: Store) {
         // Every missed day costs a freeze; with enough of them the streak goes on.
         val continues = missed in 0..held.toLong()
         val current = if (continues) store.streak(wallet) + 1 else 1
-        var freezes = if (continues) held - missed.toInt() else held
+        // Freezes go automatically on missed days, so a break has used them all.
+        var freezes = if (continues) {
+            held - missed.toInt()
+        } else if (last == Store.NO_DAY) {
+            held
+        } else {
+            0
+        }
         // One freeze per seven consecutive active days, never more than two held.
         if (current % FREEZE_EVERY_DAYS == 0) freezes = minOf(MAX_FREEZES, freezes + 1)
         store.setStreak(wallet, current, dayIndex)

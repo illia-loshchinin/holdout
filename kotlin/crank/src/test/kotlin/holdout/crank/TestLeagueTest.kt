@@ -145,15 +145,29 @@ class TestLeagueTest {
         assertEquals(listOf(mint, runBlocking { Pdas.reserveVault(programId, 100) }), accounts.subList(3, 5))
     }
 
+    /** League 100 as stored on chain: [days] days of 600 s at 5 reps, a cohort every [cadence] s, Easy. */
+    private fun existingLeague(days: Int, cadence: Long) = ByteBuffer.allocate(holdout.core.LeagueSnapshot.SIZE).order(ByteOrder.LITTLE_ENDIAN).apply {
+        put(0, holdout.core.LeagueSnapshot.DISCRIMINATOR).put(8, 100.toByte()).put(9, days.toByte()).putShort(10, 5).putLong(13, 600).putLong(21, now + 3_600).putLong(29, cadence).putLong(37, 300).putInt(45, 1)
+            .put(holdout.core.LeagueSnapshot.FORM, LeagueParams.FORM_KNEES_ALLOWED.toByte())
+    }.array()
+
     @Test
-    fun `a league that exists is left alone`() {
+    fun `a league that exists with the same shape is left alone`() {
         val chain = Chain()
-        chain.league = ByteBuffer.allocate(holdout.core.LeagueSnapshot.SIZE).order(ByteOrder.LITTLE_ENDIAN).apply {
-            put(0, holdout.core.LeagueSnapshot.DISCRIMINATOR).put(8, 100.toByte()).put(9, 7.toByte()).putShort(10, 5).putLong(13, 600).putLong(21, now + 3_600).putLong(29, 4_200).putLong(37, 300).putInt(45, 1)
-        }.array()
+        chain.league = existingLeague(days = 3, cadence = 1_800)
         val json = testLeague(chain, *quickstart)
         assertEquals("skipped", json.getValue("status").jsonPrimitive.content)
         assertEquals(1, json.getValue("nextIndex").jsonPrimitive.long)
+        assertTrue(chain.sent.isEmpty())
+    }
+
+    @Test
+    fun `a league that exists with another shape is refused, naming --league-id, not passed off as done`() {
+        val chain = Chain()
+        chain.league = existingLeague(days = 7, cadence = 4_200) // the earlier seven-day test league
+        val e = assertFailsWith<CrankException> { testLeague(chain, *quickstart) }
+        assertEquals(EXIT_CONFIG, e.exitCode)
+        assertTrue(e.message!!.contains("--league-id"), e.message)
         assertTrue(chain.sent.isEmpty())
     }
 

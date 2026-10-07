@@ -15,9 +15,10 @@
 //! of its own forfeits to the league. A cohort draws before it credits, so its
 //! own forfeits fund later cohorts, never itself.
 //!
-//! The reserve moves only here, and `settle_count` refuses cohort *i* until
-//! cohort *i − 1* of the league is settled, so finalization runs in cohort
-//! order: what a cohort draws depends only on earlier cohorts of its league,
+//! The reserve moves only here, and both `settle_count` and this instruction
+//! refuse cohort *i* until cohort *i − 1* of the league is settled — this one
+//! too, because a cohort nobody joined is never counted — so finalization runs
+//! in cohort order: what a cohort draws depends only on earlier cohorts of its league,
 //! never on when the crank recorded anyone's forfeit (INV-10, constitution II).
 //!
 //! ## Nobody finished
@@ -96,6 +97,12 @@ pub struct SettleFinalize<'info> {
     )]
     pub reserve_vault: Box<Account<'info, TokenAccount>>,
 
+    /// The league's cohort `index - 1`, required for every index but 0. A
+    /// cohort nobody joined is never counted, so this is its only ordering
+    /// check: without it an empty cohort could settle ahead of an older one
+    /// and let the next cohort count past it (FR-061a, INV-10).
+    pub previous_cohort: Option<Box<Account<'info, Cohort>>>,
+
     pub token_program: Program<'info, Token>,
 }
 
@@ -106,6 +113,19 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleFinalize<'info>>) -> Resu
         ctx.accounts.cohort.counted == ctx.accounts.cohort.member_count,
         HoldoutError::CountIncomplete
     );
+    let index = ctx.accounts.cohort.index;
+    if index > 0 {
+        let previous = ctx
+            .accounts
+            .previous_cohort
+            .as_ref()
+            .ok_or(error!(HoldoutError::AccountMismatch))?;
+        require!(
+            previous.league_id == ctx.accounts.cohort.league_id && previous.index == index - 1,
+            HoldoutError::AccountMismatch
+        );
+        require!(previous.settled, HoldoutError::PreviousCohortUnsettled);
+    }
 
     let cohort_key = ctx.accounts.cohort.key();
     let league_id = ctx.accounts.cohort.league_id;

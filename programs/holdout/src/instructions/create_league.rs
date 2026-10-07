@@ -138,10 +138,16 @@ pub(crate) fn handler(
         exercise == EXERCISE_PUSHUP,
         HoldoutError::ExerciseNotSupported
     );
-    require!(
-        form == FORM_TOES || form == FORM_KNEES_ALLOWED,
-        HoldoutError::InvalidForm
-    );
+    // The judged leagues' forms are the product, not a setting: the 7-day is
+    // Easy and the 21-day Hard (constitution, H35). A league is created once and
+    // every cohort copies its form, so a slip here could never be corrected.
+    // Test leagues may take either.
+    let form_ok = match league_id {
+        LEAGUE_7D => form == FORM_KNEES_ALLOWED,
+        LEAGUE_21D => form == FORM_TOES,
+        _ => form == FORM_TOES || form == FORM_KNEES_ALLOWED,
+    };
+    require!(form_ok, HoldoutError::InvalidForm);
     require!(
         timing_ok(
             league_id,

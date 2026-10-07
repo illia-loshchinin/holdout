@@ -313,9 +313,9 @@ private fun ToesMeterCard(meter: ToesMeter.Meter, target: Int) {
         Text(
             if (meter.measured < target) "${meter.toes} of ${meter.measured} seen at 45° from your toes" else "${meter.toes} of ${meter.measured} from your toes",
             style = AmountStyle,
-            color = if (meter.hardDay) HoldoutColors.Success else HoldoutColors.TextPrimary,
+            color = if (meter.hardDay(target)) HoldoutColors.Success else HoldoutColors.TextPrimary,
         )
-        if (meter.hardDay) {
+        if (meter.hardDay(target)) {
             Text("That's a Hard day.", style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.Success)
         }
         Row(

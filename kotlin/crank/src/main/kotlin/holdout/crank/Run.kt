@@ -10,6 +10,7 @@ import holdout.core.Instructions
 import holdout.core.LeagueSnapshot
 import holdout.core.MembershipSnapshot
 import holdout.core.Pdas
+import holdout.core.ProfileSnapshot
 import holdout.core.ProgramErrorCode
 import holdout.core.Rpc
 import kotlinx.coroutines.delay
@@ -80,12 +81,17 @@ object Run {
         .map { it.wallet }
         .chunked(pageSize.coerceIn(1, Instructions.MAX_PAGE_PAIRS))
 
-    /** Each league's cohorts awaiting settlement at [now], oldest first. */
-    fun settleQueue(cohorts: Collection<CohortSnapshot>, now: Long): Map<Int, List<CohortSnapshot>> = cohorts
+    /**
+     * The cohorts awaiting settlement at [now], in the order their outcomes
+     * happened: by end, then league, then index. Each league's cohorts come
+     * oldest first, as the program requires, and the test leagues, which all
+     * write one `Profile` slot, are counted in time order across leagues too,
+     * so the combined test board's streaks follow the cohorts as they ended
+     * (FR-060, FR-061a).
+     */
+    fun settleQueue(cohorts: Collection<CohortSnapshot>, now: Long): List<CohortSnapshot> = cohorts
         .filter { Derive.status(it, now) == CohortStatus.Settling }
-        .groupBy { it.leagueId }
-        .mapValues { (_, list) -> list.sortedBy { it.index } }
-        .toSortedMap()
+        .sortedWith(compareBy({ Derive.end(it) }, { it.leagueId }, { it.index }))
 
     // ---- the pass ----------------------------------------------------------
 
@@ -244,80 +250,104 @@ object Run {
             }
         }
 
-        // ---- 4. settlement, oldest first per league -------------------------
-        for ((leagueId, queue) in settleQueue(cohorts.values, now)) {
-            for (cohort in queue) {
-                val index = cohort.index
-                val detail: JsonObjectBuilder.() -> Unit = {
-                    put("league", leagueId)
-                    put("index", index)
-                }
-                val previous = if (index == 0L) null else cohorts[leagueId to index - 1]
-                if (index > 0 && previous?.settled != true) {
+        // ---- 4. settlement, in the order the cohorts ended --------------------
+        // A cohort that cannot settle this pass holds every later cohort writing
+        // the same progress slot: its own league's, and for a test league every
+        // other test league's too, so no streak is written out of order.
+        val heldBy = mutableMapOf<Int, Int>() // progress slot -> the league holding it
+        for (cohort in settleQueue(cohorts.values, now)) {
+            val leagueId = cohort.leagueId
+            val index = cohort.index
+            val slot = ProfileSnapshot.slotOf(leagueId)
+            val detail: JsonObjectBuilder.() -> Unit = {
+                put("league", leagueId)
+                put("index", index)
+            }
+            val holder = heldBy[slot]
+            if (holder != null) {
+                if (holder != leagueId) {
                     pass.record("settle", "waiting") {
                         detail()
-                        put("reason", "cohort ${index - 1} of league $leagueId is not settled yet (FR-061a)")
+                        put("reason", "an earlier cohort of test league $holder, which shares its progress, is not settled yet (FR-061a)")
                     }
-                    break
                 }
-                val address = Pdas.cohort(programId, leagueId, index)
-                val previousAddress = if (index == 0L) null else Pdas.cohort(programId, leagueId, index - 1)
-
-                // Count every member not yet counted.
-                val members = rpc.membershipAccounts(programId, address)
-                if (members == null) {
-                    pass.failures++
-                    pass.record("settle_count", "failed") {
-                        detail()
-                        put("error", "could not read the members")
-                    }
-                    break
-                }
-                val uncounted = members.filter { !it.second.counted }.map { it.second.member.wallet }
-                var countsLanded = true
-                uncounted.chunked(config.pageSize.coerceIn(1, Instructions.MAX_PAGE_PAIRS)).forEachIndexed { page, wallets ->
-                    val outcome =
-                        pass.send("settle_count", {
-                            detail()
-                            put("page", page)
-                            put("members", wallets.size)
-                        }) {
-                            val pairs = wallets.map { Instructions.MemberPair.of(programId, address, it) }
-                            send("settle_count $leagueId/$index#$page", listOf(Instructions.settleCount(programId, payer.publicKey, onChain.feeDestination, onChain.developerDestination, leagueId, address, pairs, previousAddress)))
-                        }
-                    countsLanded = countsLanded && outcome == Outcome.Landed
-                }
-                if (!countsLanded) break
-
-                // Finalize once the count is complete on chain.
-                val counted =
-                    if (uncounted.isEmpty()) {
-                        cohort
-                    } else if (args.dryRun) {
-                        pass.record("settle_finalize", "skipped") {
-                            detail()
-                            put("reason", "dry run: counting has not landed")
-                        }
-                        break
-                    } else {
-                        rpc.accountData(address)?.let { runCatching { CohortSnapshot.decode(it) }.getOrNull() }
-                    }
-                if (counted == null || counted.counted != counted.memberCount) {
-                    pass.failures++
-                    pass.record("settle_finalize", "failed") {
-                        detail()
-                        put("error", if (counted == null) "could not re-read the cohort after counting" else "counted ${counted.counted} of ${counted.memberCount} members")
-                    }
-                    break
-                }
-                val outcome =
-                    pass.send("settle_finalize", detail) {
-                        send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, onChain.developerDestination, leagueId, address)))
-                    }
-                // A simulated finalize changed nothing: the next cohort still waits on this one.
-                if (outcome != Outcome.Landed || args.dryRun) break
-                cohorts[leagueId to index] = counted.copy(settled = true)
+                continue
             }
+            val previous = if (index == 0L) null else cohorts[leagueId to index - 1]
+            if (index > 0 && previous?.settled != true) {
+                pass.record("settle", "waiting") {
+                    detail()
+                    put("reason", "cohort ${index - 1} of league $leagueId is not settled yet (FR-061a)")
+                }
+                heldBy[slot] = leagueId
+                continue
+            }
+            val address = Pdas.cohort(programId, leagueId, index)
+            val previousAddress = if (index == 0L) null else Pdas.cohort(programId, leagueId, index - 1)
+
+            // Count every member not yet counted.
+            val members = rpc.membershipAccounts(programId, address)
+            if (members == null) {
+                pass.failures++
+                pass.record("settle_count", "failed") {
+                    detail()
+                    put("error", "could not read the members")
+                }
+                heldBy[slot] = leagueId
+                continue
+            }
+            val uncounted = members.filter { !it.second.counted }.map { it.second.member.wallet }
+            var countsLanded = true
+            uncounted.chunked(config.pageSize.coerceIn(1, Instructions.MAX_PAGE_PAIRS)).forEachIndexed { page, wallets ->
+                val outcome =
+                    pass.send("settle_count", {
+                        detail()
+                        put("page", page)
+                        put("members", wallets.size)
+                    }) {
+                        val pairs = wallets.map { Instructions.MemberPair.of(programId, address, it) }
+                        send("settle_count $leagueId/$index#$page", listOf(Instructions.settleCount(programId, payer.publicKey, onChain.feeDestination, onChain.developerDestination, leagueId, address, pairs, previousAddress)))
+                    }
+                countsLanded = countsLanded && outcome == Outcome.Landed
+            }
+            if (!countsLanded) {
+                heldBy[slot] = leagueId
+                continue
+            }
+
+            // Finalize once the count is complete on chain.
+            val counted =
+                if (uncounted.isEmpty()) {
+                    cohort
+                } else if (args.dryRun) {
+                    pass.record("settle_finalize", "skipped") {
+                        detail()
+                        put("reason", "dry run: counting has not landed")
+                    }
+                    heldBy[slot] = leagueId
+                    continue
+                } else {
+                    rpc.accountData(address)?.let { runCatching { CohortSnapshot.decode(it) }.getOrNull() }
+                }
+            if (counted == null || counted.counted != counted.memberCount) {
+                pass.failures++
+                pass.record("settle_finalize", "failed") {
+                    detail()
+                    put("error", if (counted == null) "could not re-read the cohort after counting" else "counted ${counted.counted} of ${counted.memberCount} members")
+                }
+                heldBy[slot] = leagueId
+                continue
+            }
+            val outcome =
+                pass.send("settle_finalize", detail) {
+                    send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, onChain.developerDestination, leagueId, address, previousAddress)))
+                }
+            // A simulated finalize changed nothing: the next cohort still waits on this one.
+            if (outcome != Outcome.Landed || args.dryRun) {
+                heldBy[slot] = leagueId
+                continue
+            }
+            cohorts[leagueId to index] = counted.copy(settled = true)
         }
 
         val summary =
