@@ -182,10 +182,16 @@ class SittingViewModel(
     fun onLens(lens: Lens) {
         this.lens = lens
     }
-    private val banking = BankingController(store, wallet, scope, dayIndex, target)
 
-    /** The Daily 25's toes meter (H35): read at 45°, never in a Holdout. */
-    private val toesMeter = holdout.app.streak.ToesMeter(store, target)
+    /** The Daily 25's toes meter (H35) rides on the banking: read at 45°, never in a Holdout. */
+    private val banking = BankingController(
+        store,
+        wallet,
+        scope,
+        dayIndex,
+        target,
+        toes = holdout.app.streak.ToesMeter(store, target).takeIf { stakes == Stakes.DAILY && scope == Store.CHALLENGE },
+    )
     private var repCounter = RepCounter()
 
     /**
@@ -334,9 +340,8 @@ class SittingViewModel(
                 when (event) {
                     is RepEvent.Counted -> {
                         lastRefusal = null
-                        if (stakes == Stakes.DAILY && scope == Store.CHALLENGE) toesMeter.record(wallet, banking.dayIndex, event.stance)
                         _uiState.update { it.copy(repsCounted = repCounter.total) }
-                        onVerifiedRep()
+                        onVerifiedRep(event.stance)
                     }
                     is RepEvent.Discarded -> {
                         _uiState.update { it.copy(hint = event.hint?.message) }
@@ -416,8 +421,8 @@ class SittingViewModel(
         _cues.tryEmit(Cue.Counting)
     }
 
-    private fun onVerifiedRep() {
-        when (val outcome = banking.onVerifiedRep()) {
+    private fun onVerifiedRep(stance: holdout.repcounter.RepStance?) {
+        when (val outcome = banking.onVerifiedRep(stance)) {
             is BankingController.Outcome.Counted -> {
                 _uiState.update { it.copy(looseReps = banking.loose, hint = null, justBanked = null) }
                 _cues.tryEmit(Cue.Rep)

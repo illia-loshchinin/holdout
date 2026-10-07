@@ -3,6 +3,8 @@ package holdout.app
 import holdout.app.sitting.BankingController
 import holdout.app.storage.InMemoryStore
 import holdout.app.storage.Store
+import holdout.app.streak.ToesMeter
+import holdout.repcounter.RepStance
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -154,6 +156,57 @@ class BankingControllerTest {
         assertFalse(banking.rollOverTo(day))
         assertFalse(banking.rollOverTo(day - 1))
         assertEquals(10, banking.banked)
+    }
+
+    private fun BankingController.doReps(n: Int, stance: RepStance) = (1..n).map { onVerifiedRep(stance) }
+
+    @Test
+    fun `an abandoned sitting's loose reps never reach the toes meter - a later all-toes 25 is a Hard day`() {
+        val store = InMemoryStore()
+        val toes = ToesMeter(store, target = 25)
+
+        // Nine from the knees, then the member gave up: none of them banked.
+        val abandoned = BankingController(store, wallet, Store.CHALLENGE, day, 25, toes)
+        abandoned.doReps(9, RepStance.KNEES)
+        abandoned.endSitting()
+        assertEquals(0, toes.read(wallet, day).measured, "a discarded rep is not part of the day")
+
+        BankingController(store, wallet, Store.CHALLENGE, day, 25, toes).doReps(25, RepStance.TOES)
+        val meter = toes.read(wallet, day)
+        assertEquals(25, meter.toes)
+        assertEquals(25, meter.measured)
+        assertTrue(meter.hardDay(25), "not 16 of 25")
+    }
+
+    @Test
+    fun `the toes meter counts the reps a block banked, not the loose ones after it`() {
+        val store = InMemoryStore()
+        val toes = ToesMeter(store, target = 25)
+        val banking = BankingController(store, wallet, Store.CHALLENGE, day, 25, toes)
+
+        banking.doReps(9, RepStance.TOES)
+        assertEquals(0, toes.read(wallet, day).measured, "nothing is durable before the tenth rep")
+        banking.doReps(1, RepStance.TOES)
+        banking.doReps(7, RepStance.KNEES)
+        banking.endSitting()
+
+        assertEquals(10, toes.read(wallet, day).toes)
+        assertEquals(10, toes.read(wallet, day).measured)
+    }
+
+    @Test
+    fun `a rolled-over sitting's loose reps carry their stances into the new day`() {
+        val store = InMemoryStore()
+        val toes = ToesMeter(store, target = 25)
+        val banking = BankingController(store, wallet, Store.CHALLENGE, day, 25, toes)
+        banking.doReps(10, RepStance.TOES)
+        banking.doReps(4, RepStance.KNEES)
+
+        banking.rollOverTo(day + 1)
+        banking.doReps(6, RepStance.TOES)
+
+        assertEquals(10 to 10, store.toesDay(wallet, day))
+        assertEquals(6 to 10, store.toesDay(wallet, day + 1), "four from the knees and six from the toes, banked today")
     }
 
     @Test

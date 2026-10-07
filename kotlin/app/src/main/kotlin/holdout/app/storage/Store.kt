@@ -120,8 +120,11 @@ interface Store {
  */
 data class OfflineMark(val boot: Int, val elapsedMillis: Long, val settled: SettledOffline? = null)
 
-/** An offline bucket being moved onto [day]: the day's total afterwards, absolute, and whether it completes it. */
-data class SettledOffline(val day: Long, val total: Int, val complete: Boolean)
+/**
+ * An offline bucket being moved onto [day]: the day's total afterwards, absolute,
+ * whether it completes it, and its toes meter afterwards, absolute too.
+ */
+data class SettledOffline(val day: Long, val total: Int, val complete: Boolean, val toes: Int = 0, val measured: Int = 0)
 
 /** A wallet address and the auth token that lets the app reuse its authorisation. */
 data class WalletSession(val address: String, val authToken: String?)
@@ -220,10 +223,15 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
     }
 
     // One record too: `boot,elapsed` or, once a transfer is journalled,
-    // `boot,elapsed,day,total,complete`.
+    // `boot,elapsed,day,total,complete,toes,measured` (a journal from before
+    // the toes meter stops at `complete`).
     override fun offlineSittingMark(wallet: String): OfflineMark? {
         val f = kv.decodeString("offline_rec:$wallet")?.split(',') ?: return null
-        val settled = if (f.size >= 5) SettledOffline(f[2].toLong(), f[3].toInt(), f[4].toBoolean()) else null
+        val settled = if (f.size >= 5) {
+            SettledOffline(f[2].toLong(), f[3].toInt(), f[4].toBoolean(), f.getOrNull(5)?.toInt() ?: 0, f.getOrNull(6)?.toInt() ?: 0)
+        } else {
+            null
+        }
         return OfflineMark(f[0].toInt(), f[1].toLong(), settled)
     }
 
@@ -231,7 +239,7 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         if (mark == null) {
             kv.removeValueForKey("offline_rec:$wallet")
         } else {
-            val settled = mark.settled?.let { ",${it.day},${it.total},${it.complete}" }.orEmpty()
+            val settled = mark.settled?.let { ",${it.day},${it.total},${it.complete},${it.toes},${it.measured}" }.orEmpty()
             kv.encode("offline_rec:$wallet", "${mark.boot},${mark.elapsedMillis}$settled")
         }
     }
