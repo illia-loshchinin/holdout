@@ -21,6 +21,7 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.Base64
@@ -405,6 +406,27 @@ class RunTest {
         val opens = chain.sentTx.filter { chain.nameOf(it) == "open_cohort" }.map { t -> t.message.accounts }
         assertTrue(opens.isNotEmpty() && opens.all { Pdas.cohort(programId, 101, 1) in it }, "league 101 opens its next cohort")
         assertTrue(opens.none { Pdas.cohort(programId, 100, 1) in it }, "league 100 stays retired")
+    }
+
+    @Test
+    fun `the next open is due when the newest cohort starts, so the loop can wake for it`() {
+        // League 100 has opened cohort 1, which starts at first + 1_800: cohort 2 opens then.
+        val league = LeagueSnapshot(LeagueParams(100, 3, 5, 0, LeagueParams.FORM_KNEES_ALLOWED, first, 600, 1_800, 0), nextIndex = 2)
+        val cohorts = listOf(testCohort(100, 0, start = first), testCohort(100, 1, start = first + 1_800))
+        assertEquals(first + 1_800, Run.nextOpenAt(listOf(league), cohorts, now = first + 100))
+        assertEquals(null, Run.nextOpenAt(listOf(league), cohorts, now = first + 1_800), "already due: this pass opened what it could")
+        val judged = league0.copy(nextIndex = 3)
+        assertEquals(first + 2 * week, Run.nextOpenAt(listOf(judged), emptyList(), now = first + 100), "a judged league from its schedule")
+        assertEquals(first + 1_800, Run.nextOpenAt(listOf(judged, league), cohorts, now = first + 100), "the earliest of them")
+    }
+
+    @Test
+    fun `a pass reports when the next open falls due`() = runBlocking {
+        val chain = twoTestLeagues(earlierMembers = 0)
+        chain.accounts[Pdas.cohort(programId, 100, 0)] = cohortBytes(testCohort(100, 0, start = first + 600).copy(settled = true))
+        val json = pass(chain)
+        // League 101 opened cohort 1 (start first + 100_000): its successor falls due then. League 100 is retired and adds nothing.
+        assertEquals(first + 100_000, json.getValue("nextOpenAt").jsonPrimitive.long)
     }
 
     @Test
