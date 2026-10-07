@@ -362,7 +362,10 @@ object Chips {
             more()
         }
 
-        if (onChain.chipPublishedAt >= boundary) return report(false, "already published this week")
+        // A dry run is the Operator's check of the rate source and the set, so
+        // it goes on past the weekly guard; a real run stops here (FR-056).
+        val alreadyThisWeek = onChain.chipPublishedAt >= boundary
+        if (alreadyThisWeek && !args.dryRun) return report(false, "already published this week")
         val rate = source.usdPerSkr() ?: return report(false, "no rate") { source.problem?.let { put("detail", it) } }
         val decimals = mintDecimals(rpc, onChain)
         // A rate the four tiers cannot be priced at (two tiers collapsing onto one
@@ -381,6 +384,7 @@ object Chips {
             put("command", "chips publish --auto")
             put("published", sent)
             put("week", Instant.ofEpochSecond(boundary).toString())
+            if (alreadyThisWeek) put("alreadyPublishedThisWeek", true)
             putJsonArray("previous") { onChain.chipAmounts.forEach { add(JsonPrimitive(it.toBig())) } }
         }
         if (operator == null) {

@@ -193,6 +193,19 @@ class ChipsAutoTest {
     }
 
     @Test
+    fun `given this week's set already published, when dry-run, then the rate is still fetched, priced and simulated, and nothing is sent`() {
+        val c = cluster(configBytes(publishedAt = monday + 60))
+        val rate = FixedRate(BigDecimal("0.03"))
+        val json = auto(c, rate, "--dry-run")
+        assertEquals(1, rate.asked, "the pre-scheduling check reaches Jupiter whatever the week")
+        assertEquals("0.03", json.text("rate"))
+        assertEquals("true", json.text("alreadyPublishedThisWeek"), "and says a real run would send nothing this week")
+        assertEquals("false", json.text("published"))
+        assertEquals(1, c.sent("simulateTransaction").size)
+        assertTrue(c.sent("sendTransaction").isEmpty())
+    }
+
+    @Test
     fun `given a set published just before this Monday 05 00 UTC, when checked, then the week is still open`() {
         val json = auto(cluster(configBytes(publishedAt = monday - 1)), FixedRate(BigDecimal("0.03")))
         assertEquals("true", json.text("published"))
