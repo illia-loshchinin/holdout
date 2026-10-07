@@ -109,6 +109,40 @@ class OfflineDaysTest {
     }
 
     @Test
+    fun `only the offline reps that fit bring their stance with them`() {
+        // 20 from the knees already banked; 10 from the toes done offline. The
+        // Daily 25 keeps 5 of the offline reps, so 5 toes, not 10.
+        store.setBankedReps(wallet, Store.CHALLENGE, day, 20)
+        store.setToesDay(wallet, day, 0, 20)
+        days.sittingStarted(wallet, boot = 7, elapsedMillis = 0)
+        store.setBankedReps(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY, 10)
+        store.setToesDay(wallet, Store.UNKNOWN_DAY, 10, 10)
+
+        days.settle(wallet, boot = 7, elapsedMillis = 60_000, chainNow = chainAt(day, 600))
+
+        assertEquals(25, store.bankedReps(wallet, Store.CHALLENGE, day))
+        assertEquals(5 to 25, store.toesDay(wallet, day))
+        assertEquals(5, store.bestToes(wallet))
+    }
+
+    @Test
+    fun `when it is unknown which offline reps fit, the ones left out are counted against the toes`() {
+        // 20 from the toes already; offline, 5 from the toes and 5 from the
+        // knees. Which 5 the Daily 25 kept is not recorded, so the meter never
+        // claims a toe rep it cannot be sure of — and so no Hard day either.
+        store.setBankedReps(wallet, Store.CHALLENGE, day, 20)
+        store.setToesDay(wallet, day, 20, 20)
+        days.sittingStarted(wallet, boot = 7, elapsedMillis = 0)
+        store.setBankedReps(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY, 10)
+        store.setToesDay(wallet, Store.UNKNOWN_DAY, 5, 10)
+
+        days.settle(wallet, boot = 7, elapsedMillis = 60_000, chainNow = chainAt(day, 600))
+
+        assertEquals(20 to 25, store.toesDay(wallet, day))
+        assertFalse(ToesMeter(store, target = 25).read(wallet, day).hardDay(25))
+    }
+
+    @Test
     fun `a later day already on the streak is never walked back`() {
         streaks.recordCompletedDay(wallet, day)
         days.sittingStarted(wallet, boot = 7, elapsedMillis = 0)
