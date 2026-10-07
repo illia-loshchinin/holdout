@@ -377,15 +377,34 @@ class RunTest {
     }
 
     @Test
-    fun `a pass opens the next cohort in the newest test league only, and still settles the older one`() = runBlocking {
+    fun `the new test lobby waits until every cohort of an older test league has settled`() {
+        val old = testCohort(100, 0, start = first)
+        assertEquals(100, Run.lobbyHeldBy(setOf(100), listOf(old, testCohort(101, 0, start = first + 600))), "an older cohort still unsettled holds the lobby")
+        assertEquals(null, Run.lobbyHeldBy(setOf(100), listOf(old.copy(settled = true))), "all settled: the lobby opens")
+        assertEquals(null, Run.lobbyHeldBy(emptySet(), listOf(old)), "no older test league, nothing to wait for")
+    }
+
+    @Test
+    fun `a pass holds the newest test league while the older one winds down, and still settles the older one`() = runBlocking {
         val chain = twoTestLeagues(earlierMembers = 0)
         val json = pass(chain)
+        assertTrue(chain.sentTx.none { chain.nameOf(it) == "open_cohort" }, "league 101 opens nothing while league 100 has an unsettled cohort; league 100 opens nothing more")
+        val steps = json.getValue("steps").jsonArray.map { it.jsonObject }.filter { it.getValue("step").jsonPrimitive.content == "open_cohort" }
+        assertEquals("retired", steps.single { it["league"]?.jsonPrimitive?.int == 100 }.getValue("status").jsonPrimitive.content)
+        val held = steps.single { it["league"]?.jsonPrimitive?.int == 101 }
+        assertEquals("waiting", held.getValue("status").jsonPrimitive.content)
+        assertTrue(held.getValue("reason").jsonPrimitive.content.contains("test league 100"))
+        assertEquals(listOf(Pdas.cohort(programId, 101, 0), Pdas.cohort(programId, 100, 0)), finalized(chain), "its cohorts still settle (FR-044a)")
+    }
+
+    @Test
+    fun `once the older test league has settled, the newest one opens its next cohort`() = runBlocking {
+        val chain = twoTestLeagues(earlierMembers = 0)
+        chain.accounts[Pdas.cohort(programId, 100, 0)] = cohortBytes(testCohort(100, 0, start = first + 600).copy(settled = true))
+        pass(chain)
         val opens = chain.sentTx.filter { chain.nameOf(it) == "open_cohort" }.map { t -> t.message.accounts }
         assertTrue(opens.isNotEmpty() && opens.all { Pdas.cohort(programId, 101, 1) in it }, "league 101 opens its next cohort")
-        assertTrue(opens.none { Pdas.cohort(programId, 100, 1) in it }, "league 100 opens nothing more")
-        val retired = json.getValue("steps").jsonArray.map { it.jsonObject }.single { it.getValue("step").jsonPrimitive.content == "open_cohort" && it["league"]?.jsonPrimitive?.int == 100 }
-        assertEquals("retired", retired.getValue("status").jsonPrimitive.content)
-        assertEquals(listOf(Pdas.cohort(programId, 101, 0), Pdas.cohort(programId, 100, 0)), finalized(chain), "its cohorts still settle (FR-044a)")
+        assertTrue(opens.none { Pdas.cohort(programId, 100, 1) in it }, "league 100 stays retired")
     }
 
     @Test
