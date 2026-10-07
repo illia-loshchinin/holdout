@@ -148,7 +148,7 @@ The same compressed idea, but on devnet with real testers and real phones: a tes
 java -jar kotlin/crank/build/libs/crank.jar init --test-league --first-start <iso>
 ```
 
-Three 10-minute days at 5 reps, back to back every 30 minutes, joinable right up to each start (join lock 0, so one test cohort is always open), is the default; `--day-seconds`, `--days`, `--reps`, `--cadence` and `--join-lock` override it. If a test league already exists at id 100 with another shape (an earlier seven-day league, or the 5-minute join lock), the command refuses it; pass `--league-id 101`, or the next free id, to create the lobby. The newest test league is the lobby: the crank opens no more cohorts in the older one, which winds down (FR-044a).
+Three 10-minute days at 5 reps, back to back every 30 minutes, joinable right up to each start (join lock 0, so one test cohort is always open), is the default; `--day-seconds`, `--days`, `--reps`, `--cadence` and `--join-lock` override it. If a test league already exists at id 100 with another shape (an earlier seven-day league, or the 5-minute join lock), the command refuses it; pass `--league-id 101`, or the next free id, to create the lobby. The newest test league is the lobby: the crank opens no more cohorts in the older one, which winds down, and opens the new lobby's first cohort only once every cohort of the older one has settled (FR-044a).
 
 **Expected:** 5–7 testers each complete a full cycle on the short test cohort (FR-044a); bugs are fixed the same day. This run is the one the walkthrough and demo video are recorded from, labelled on screen as a short test cohort (constitution v1.4.0).
 

@@ -84,6 +84,17 @@ object Run {
         return tests.filter { it != lobby }.toSet()
     }
 
+    /**
+     * The older test league the new lobby waits for, if any: one of [retired]
+     * with a cohort not yet settled. Until every cohort of the older leagues
+     * has settled, the newest opens nothing, so a member can never hold
+     * outcomes in two test leagues at once and the shared streak stays in
+     * order through a switchover (FR-044a, FR-060).
+     */
+    fun lobbyHeldBy(retired: Set<Int>, cohorts: Collection<CohortSnapshot>): Int? = cohorts
+        .filter { it.leagueId in retired && !it.settled }
+        .minOfOrNull { it.leagueId }
+
     /** The program's `schedule::cohort_start`. */
     fun scheduledStart(league: LeagueSnapshot, index: Long): Long = league.params.firstStart + index * league.params.cadence
 
@@ -234,7 +245,15 @@ object Run {
                     put("reason", "a newer test league is the lobby; this one opens no more cohorts (FR-044a)")
                 }
             } else {
-                openDue(league)
+                val heldBy = if (id >= LeagueParams.TEST_LEAGUE_MIN) lobbyHeldBy(retired, cohorts.values) else null
+                if (heldBy != null) {
+                    pass.record("open_cohort", "waiting") {
+                        put("league", id)
+                        put("reason", "test league $heldBy still has a cohort to settle; the new lobby opens once it has wound down (FR-044a)")
+                    }
+                } else {
+                    openDue(league)
+                }
             }
         }
 
