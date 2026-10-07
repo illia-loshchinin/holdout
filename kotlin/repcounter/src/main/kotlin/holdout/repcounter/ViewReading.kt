@@ -46,6 +46,7 @@ internal sealed interface ViewReading {
     /** At 45° (or side-on): the rule's own angles, near side, in the picture. */
     data class Angled(
         override val elbow: Float,
+        /** Shoulder–hip–ankle; where push-ups from the knees count, shoulder–hip–knee if that reads straighter ([of]). */
         val bodyLine: Float,
         override val knee: Float?,
         /** Near knee + ankle height above the near hand, in arm lengths; null when not all visible. */
@@ -76,8 +77,24 @@ internal sealed interface ViewReading {
          * `null` when the frame cannot be read in this view — dropped, not scored.
          * [side], when given, is the side to read at 45°; otherwise the side the
          * frame itself shows longer.
+         *
+         * [bodyLineToKnee]: where push-ups from the knees count — Easy and the
+         * Daily 25, whatever does not judge the knees ([Stakes.judgesKnees]) —
+         * a body straight from shoulder to **knee** is a body held
+         * ([Angles.bodyLineToKneeInImage]). That is all a push-up from the
+         * knees promises; the lower legs behind it may be raised or crossed,
+         * and pull shoulder–hip–ankle far under the floor. So the body line
+         * read there is the straighter of the two: the knee line where the
+         * lower legs are raised, the ankle line where it reads straighter — on
+         * the recorded knee push-ups at 45° the picture often put the knee off
+         * the line (shoulder–hip–knee 120–155° against shoulder–hip–ankle
+         * 138–170°, `fixtures/rep-traces`), and the knee line alone refused
+         * more of them than the ankle line did. A sag or a fold bends both
+         * lines at the hip, so it is caught either way. Which frames are read
+         * stays the ankle line's: the stakes never decide that. Hard keeps
+         * shoulder–hip–ankle alone: there the legs must be straight behind.
          */
-        fun of(view: CameraView, world: PoseFrame, image: ImagePose?, side: Side? = null): ViewReading? = when (view) {
+        fun of(view: CameraView, world: PoseFrame, image: ImagePose?, side: Side? = null, bodyLineToKnee: Boolean = false): ViewReading? = when (view) {
             CameraView.FRONT -> {
                 val elbow = image?.let(Angles::elbowInImage)
                 val torso = Angles.torsoElevation(world)
@@ -86,12 +103,12 @@ internal sealed interface ViewReading {
 
             CameraView.SIDE, CameraView.OBLIQUE -> if (image == null) {
                 val elbow = Angles.elbow(world)
-                val bodyLine = Angles.bodyLine(world)
+                val bodyLine = straighter(Angles.bodyLine(world)) { if (bodyLineToKnee) Angles.bodyLineToKnee(world) else null }
                 if (elbow == null || bodyLine == null) null else Angled(elbow, bodyLine, knee = null)
             } else {
                 (side ?: Angles.nearSide(image))?.let { side ->
                     val elbow = Angles.elbowInImage(image, side)
-                    val bodyLine = Angles.bodyLineInImage(image, side)
+                    val bodyLine = straighter(Angles.bodyLineInImage(image, side)) { if (bodyLineToKnee) Angles.bodyLineToKneeInImage(image, side) else null }
                     if (elbow == null || bodyLine == null) {
                         null
                     } else {
@@ -111,6 +128,9 @@ internal sealed interface ViewReading {
                 }
             }
         }
+
+        /** [toAnkle], raised to [toKnee] where that reads straighter; `null` with no line to the ankle. */
+        private inline fun straighter(toAnkle: Float?, toKnee: () -> Float?): Float? = toAnkle?.let { ankle -> maxOf(ankle, toKnee() ?: ankle) }
     }
 }
 
