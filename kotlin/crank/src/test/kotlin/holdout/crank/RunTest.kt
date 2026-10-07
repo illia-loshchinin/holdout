@@ -370,6 +370,25 @@ class RunTest {
     }
 
     @Test
+    fun `only the newest test league opens cohorts - an older one winds down`() {
+        assertEquals(setOf(100, 101), Run.retiredTestLeagues(listOf(0, 1, 100, 101, 102)))
+        assertEquals(emptySet<Int>(), Run.retiredTestLeagues(listOf(0, 1, 100)), "one test league is the lobby")
+        assertEquals(emptySet<Int>(), Run.retiredTestLeagues(listOf(0, 1)), "the judged leagues are never retired")
+    }
+
+    @Test
+    fun `a pass opens the next cohort in the newest test league only, and still settles the older one`() = runBlocking {
+        val chain = twoTestLeagues(earlierMembers = 0)
+        val json = pass(chain)
+        val opens = chain.sentTx.filter { chain.nameOf(it) == "open_cohort" }.map { t -> t.message.accounts }
+        assertTrue(opens.isNotEmpty() && opens.all { Pdas.cohort(programId, 101, 1) in it }, "league 101 opens its next cohort")
+        assertTrue(opens.none { Pdas.cohort(programId, 100, 1) in it }, "league 100 opens nothing more")
+        val retired = json.getValue("steps").jsonArray.map { it.jsonObject }.single { it.getValue("step").jsonPrimitive.content == "open_cohort" && it["league"]?.jsonPrimitive?.int == 100 }
+        assertEquals("retired", retired.getValue("status").jsonPrimitive.content)
+        assertEquals(listOf(Pdas.cohort(programId, 101, 0), Pdas.cohort(programId, 100, 0)), finalized(chain), "its cohorts still settle (FR-044a)")
+    }
+
+    @Test
     fun `a dry run simulates and sends nothing`() = runBlocking {
         val chain = liveLeague(sponsorLamports = 10_000_000)
         val json = pass(chain, "--dry-run")

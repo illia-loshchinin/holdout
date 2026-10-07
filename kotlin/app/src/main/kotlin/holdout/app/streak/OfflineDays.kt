@@ -50,13 +50,19 @@ class OfflineDays(
 
         val startedAt = chainNow - (elapsedMillis - mark.elapsedMillis) / 1000
         val day = HoldoutDay.indexOf(startedAt)
-        val total = (store.bankedReps(wallet, scope, day) + banked).coerceAtMost(target)
+        val dayBanked = store.bankedReps(wallet, scope, day)
+        val total = (dayBanked + banked).coerceAtMost(target)
         // The toes meter moves the same way, or the day it lands on reads zero
-        // from the toes however its reps were done. Capped like the meter is.
+        // from the toes however its reps were done — but only for the offline
+        // reps that fit under the target. The bucket keeps counts, not the
+        // order its stances came in, so which reps were left out is unknown:
+        // they are taken from the measured, and from the toes, first. The
+        // meter never claims a toe rep, or a Hard day, it cannot be sure of.
+        val dropped = (banked - (total - dayBanked)).coerceAtLeast(0)
         val (dayToes, dayMeasured) = store.toesDay(wallet, day)
         val (offToes, offMeasured) = store.toesDay(wallet, Store.UNKNOWN_DAY)
-        val measured = (dayMeasured + offMeasured).coerceAtMost(target)
-        val toes = (dayToes + offToes).coerceAtMost(measured)
+        val measured = (dayMeasured + (offMeasured - dropped).coerceAtLeast(0)).coerceAtMost(target)
+        val toes = (dayToes + (offToes - dropped).coerceAtLeast(0)).coerceAtMost(measured)
         // Journal first, in one write, then apply absolute values: whatever
         // point a killed process stops at, running this again lands the same
         // numbers instead of adding the offline reps a second time.

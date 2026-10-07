@@ -7,6 +7,7 @@ import holdout.core.CohortStatus
 import holdout.core.ConfigSnapshot
 import holdout.core.Derive
 import holdout.core.Instructions
+import holdout.core.LeagueParams
 import holdout.core.LeagueSnapshot
 import holdout.core.MembershipSnapshot
 import holdout.core.Pdas
@@ -67,6 +68,20 @@ object Run {
             index++
         }
         return due
+    }
+
+    /**
+     * The test leagues that open no more cohorts: every one but the newest.
+     * Streaks are written when a cohort is counted, after it ends, so two test
+     * leagues of different lengths running together could count a member's
+     * outcomes out of order on the one progress record they share. The newest
+     * test league is the lobby; an older one winds down, its cohorts still
+     * forfeited and settled as usual (FR-044a, FR-060).
+     */
+    fun retiredTestLeagues(leagueIds: Collection<Int>): Set<Int> {
+        val tests = leagueIds.filter { it >= LeagueParams.TEST_LEAGUE_MIN }
+        val lobby = tests.maxOrNull() ?: return emptySet()
+        return tests.filter { it != lobby }.toSet()
     }
 
     /** The program's `schedule::cohort_start`. */
@@ -210,7 +225,18 @@ object Run {
                 }
             }
         }
-        leagues.forEach { openDue(it) }
+        val retired = retiredTestLeagues(leagues.map { it.params.leagueId })
+        for (league in leagues) {
+            val id = league.params.leagueId
+            if (id in retired) {
+                pass.record("open_cohort", "retired") {
+                    put("league", id)
+                    put("reason", "a newer test league is the lobby; this one opens no more cohorts (FR-044a)")
+                }
+            } else {
+                openDue(league)
+            }
+        }
 
         // ---- 2. sponsor refill ----------------------------------------------
         val sponsorLamports = rpc.balance(onChain.sponsor)

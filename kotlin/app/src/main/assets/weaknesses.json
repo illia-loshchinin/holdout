@@ -23,7 +23,7 @@
     },
     {
       "what": "Non-default `day_seconds` for test cohorts — a **short test lobby kept running on devnet** for judges, from which the walkthrough and the demo video are recorded",
-      "why": "Lets a single judge run a whole cycle alone: three 10-minute days, a new cohort every 30 minutes (FR-044a, H36)",
+      "why": "Lets a single judge run a whole cycle alone: three 10-minute days, a new cohort every 30 minutes (FR-044a, H36). Only one test league runs at a time, since streaks are written when a cohort is counted and two test leagues of different lengths could count a member's outcomes out of order on the combined test board",
       "fix": "Admin-guarded; real cohorts always use 24 hours"
     },
     {
