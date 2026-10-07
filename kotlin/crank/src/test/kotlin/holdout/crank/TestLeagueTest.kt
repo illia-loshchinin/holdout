@@ -97,9 +97,9 @@ class TestLeagueTest {
     }
 
     @Test
-    fun `by default the test league is the test lobby - three 10-minute days at 5 reps, a new cohort every 30 minutes, back to back, as league 100`() {
+    fun `by default the test league is the test lobby - three 10-minute days at 5 reps, a new cohort every 30 minutes, back to back and joinable up to each start, as league 100`() {
         val p = Init.testLeagueParams(parseArgs(listOf("init", "--test-league") + quickstart))
-        assertEquals(LeagueParams(100, 3, 5, 0, LeagueParams.FORM_KNEES_ALLOWED, Instant.parse(start).epochSecond, 600, 1_800, 300), p, "three 10-minute days, a cohort every 30 minutes, Easy by default (FR-044a, H35, H36)")
+        assertEquals(LeagueParams(100, 3, 5, 0, LeagueParams.FORM_KNEES_ALLOWED, Instant.parse(start).epochSecond, 600, 1_800, 0), p, "three 10-minute days, a cohort every 30 minutes, joinable until it starts, Easy by default (FR-044a, H35, H36)")
         val quick = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--day-seconds", "3600", "--reps", "10", "--days", "3") + quickstart))
         assertEquals(listOf(3_600L, 10L, 3L, 10_800L), listOf(quick.dayLength, quick.repsPerDay.toLong(), quick.durationDays.toLong(), quick.cadence), "every default can be overridden")
         val custom = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--league-id", "101", "--cadence", "600", "--join-lock", "60") + quickstart))
@@ -145,9 +145,9 @@ class TestLeagueTest {
         assertEquals(listOf(mint, runBlocking { Pdas.reserveVault(programId, 100) }), accounts.subList(3, 5))
     }
 
-    /** League 100 as stored on chain: [days] days of 600 s at 5 reps, a cohort every [cadence] s, Easy. */
-    private fun existingLeague(days: Int, cadence: Long) = ByteBuffer.allocate(holdout.core.LeagueSnapshot.SIZE).order(ByteOrder.LITTLE_ENDIAN).apply {
-        put(0, holdout.core.LeagueSnapshot.DISCRIMINATOR).put(8, 100.toByte()).put(9, days.toByte()).putShort(10, 5).putLong(13, 600).putLong(21, now + 3_600).putLong(29, cadence).putLong(37, 300).putInt(45, 1)
+    /** League 100 as stored on chain: [days] days of 600 s at 5 reps, a cohort every [cadence] s, joining closing [joinLock] s before each start, Easy. */
+    private fun existingLeague(days: Int, cadence: Long, joinLock: Long = 0) = ByteBuffer.allocate(holdout.core.LeagueSnapshot.SIZE).order(ByteOrder.LITTLE_ENDIAN).apply {
+        put(0, holdout.core.LeagueSnapshot.DISCRIMINATOR).put(8, 100.toByte()).put(9, days.toByte()).putShort(10, 5).putLong(13, 600).putLong(21, now + 3_600).putLong(29, cadence).putLong(37, joinLock).putInt(45, 1)
             .put(holdout.core.LeagueSnapshot.FORM, LeagueParams.FORM_KNEES_ALLOWED.toByte())
     }.array()
 
@@ -164,19 +164,24 @@ class TestLeagueTest {
     @Test
     fun `a league that exists with another shape is refused, naming --league-id, not passed off as done`() {
         val chain = Chain()
-        chain.league = existingLeague(days = 7, cadence = 4_200) // the earlier seven-day test league
+        chain.league = existingLeague(days = 7, cadence = 4_200, joinLock = 300) // the earlier seven-day test league
         val e = assertFailsWith<CrankException> { testLeague(chain, *quickstart) }
         assertEquals(EXIT_CONFIG, e.exitCode)
         assertTrue(e.message!!.contains("--league-id"), e.message)
         assertTrue(chain.sent.isEmpty())
+        // Today's shape but the 5-minute lock it had until 2026-10-07: refused too.
+        chain.league = existingLeague(days = 3, cadence = 1_800, joinLock = 300)
+        assertEquals(EXIT_CONFIG, assertFailsWith<CrankException> { testLeague(chain, *quickstart) }.exitCode)
     }
 
     @Test
     fun `only the admin, only after init, and only while joining can still open`() {
         assertEquals(EXIT_CONFIG, assertFailsWith<CrankException> { testLeague(Chain(), *quickstart, key = stranger) }.exitCode)
         assertEquals(EXIT_CONFIG, assertFailsWith<CrankException> { testLeague(Chain(initialized = false), *quickstart) }.exitCode)
-        val past = arrayOf("--day-seconds", "600", "--reps", "5", "--days", "7", "--first-start", "2026-09-27T12:02:00Z")
-        assertEquals(EXIT_CONFIG, assertFailsWith<CrankException> { testLeague(Chain(), *past) }.exitCode, "joining would already be closed")
+        val locked = arrayOf("--join-lock", "300", "--first-start", "2026-09-27T12:02:00Z")
+        assertEquals(EXIT_CONFIG, assertFailsWith<CrankException> { testLeague(Chain(), *locked) }.exitCode, "joining would already be closed")
+        val started = arrayOf("--first-start", "2026-09-27T12:00:00Z")
+        assertEquals(EXIT_CONFIG, assertFailsWith<CrankException> { testLeague(Chain(), *started) }.exitCode, "with no lock, a first start already reached is still too late")
     }
 
     @Test

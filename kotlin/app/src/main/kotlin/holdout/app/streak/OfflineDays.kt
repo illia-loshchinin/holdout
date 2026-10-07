@@ -29,8 +29,9 @@ class OfflineDays(
 
     /**
      * Chain time is now [chainNow], at [elapsedMillis] on boot [boot]: moves
-     * anything banked under [Store.UNKNOWN_DAY] onto its real day. Returns
-     * that day, or null when there was nothing to move or it cannot be dated.
+     * anything banked under [Store.UNKNOWN_DAY] onto its real day, its toes
+     * meter with it. Returns that day, or null when there was nothing to move
+     * or it cannot be dated.
      */
     fun settle(wallet: String, boot: Int, elapsedMillis: Long, chainNow: Long): Long? {
         val mark = store.offlineSittingMark(wallet) ?: return null
@@ -40,6 +41,7 @@ class OfflineDays(
         val banked = store.bankedReps(wallet, scope, Store.UNKNOWN_DAY)
         val done = store.isDayComplete(wallet, scope, Store.UNKNOWN_DAY)
         if (banked == 0 && !done) {
+            store.setToesDay(wallet, Store.UNKNOWN_DAY, 0, 0)
             store.setOfflineSittingMark(wallet, null)
             return null
         }
@@ -49,10 +51,16 @@ class OfflineDays(
         val startedAt = chainNow - (elapsedMillis - mark.elapsedMillis) / 1000
         val day = HoldoutDay.indexOf(startedAt)
         val total = (store.bankedReps(wallet, scope, day) + banked).coerceAtMost(target)
+        // The toes meter moves the same way, or the day it lands on reads zero
+        // from the toes however its reps were done. Capped like the meter is.
+        val (dayToes, dayMeasured) = store.toesDay(wallet, day)
+        val (offToes, offMeasured) = store.toesDay(wallet, Store.UNKNOWN_DAY)
+        val measured = (dayMeasured + offMeasured).coerceAtMost(target)
+        val toes = (dayToes + offToes).coerceAtMost(measured)
         // Journal first, in one write, then apply absolute values: whatever
         // point a killed process stops at, running this again lands the same
         // numbers instead of adding the offline reps a second time.
-        val settled = SettledOffline(day, total, complete = done || total >= target)
+        val settled = SettledOffline(day, total, complete = done || total >= target, toes = toes, measured = measured)
         store.setOfflineSittingMark(wallet, mark.copy(settled = settled))
         return apply(wallet, settled)
     }
@@ -60,6 +68,11 @@ class OfflineDays(
     private fun apply(wallet: String, settled: SettledOffline): Long {
         val scope = Store.CHALLENGE
         store.setBankedReps(wallet, scope, settled.day, settled.total)
+        // A journal from before the meter carries no toes: the day keeps its own.
+        if (settled.measured > 0) {
+            store.setToesDay(wallet, settled.day, settled.toes, settled.measured)
+            if (settled.toes > store.bestToes(wallet)) store.setBestToes(wallet, settled.toes)
+        }
         if (settled.complete) {
             store.markDayComplete(wallet, scope, settled.day)
             // Never walk the streak back: a later day already on it stays.
@@ -67,6 +80,7 @@ class OfflineDays(
             if (last == Store.NO_DAY || last < settled.day) streaks.recordCompletedDay(wallet, settled.day)
         }
         store.clearDay(wallet, scope, Store.UNKNOWN_DAY)
+        store.setToesDay(wallet, Store.UNKNOWN_DAY, 0, 0)
         store.setOfflineSittingMark(wallet, null)
         return settled.day
     }
