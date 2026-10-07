@@ -131,7 +131,7 @@ fun runCrank(
 private fun usage(): JsonObject = buildJsonObject {
     put(
         "usage",
-        "crank <command> [--dry-run]; commands: status, chips publish --rate <usd-per-skr> [--decimals <n>], " +
+        "crank <command> [--dry-run]; commands: status, chips publish --rate <usd-per-skr> [--decimals <n>], chips publish --auto, " +
             "init [--admin <keypair>] --operator <pubkey> --sponsor <pubkey> --treasury <pubkey> --developer <pubkey> --rate <usd-per-skr> [--first-start <iso>] [--fund-faucet <sol>], " +
             "init --test-league --first-start <iso> [--day-seconds <n, default 600>] [--days <n, default 3>] [--reps <n, default 5>] [--form <easy|hard, default easy>] [--league-id <100..255>] [--cadence <s>] [--join-lock <s>], " +
             "run, scripted plan --cohort <address> | scripted run [--floor-7d <n>] [--floor-21d <n>] [--last-start <iso>] | scripted fund [--lamports <n>] (contracts/crank-cli.md)",
@@ -203,6 +203,10 @@ data class CrankConfig(
     val scriptedKeysDir: String?,
     /** `(Membership, Profile)` pairs per paged transaction (R9). */
     val pageSize: Int,
+    /** Optional free key for the Jupiter Price API; the weekly chip check works keyless too (R15). */
+    val jupiterApiKey: String? = null,
+    /** Overrides the Jupiter Price API URL, for a mirror or a test (R15). */
+    val jupiterPriceUrl: String? = null,
 ) {
     fun requirePayer(): String = payerKeypair ?: configError("HOLDOUT_PAYER_KEYPAIR is not set")
 
@@ -232,6 +236,8 @@ data class CrankConfig(
                 adminKeypair = optional("HOLDOUT_ADMIN_KEYPAIR"),
                 scriptedKeysDir = optional("HOLDOUT_SCRIPTED_KEYS_DIR"),
                 pageSize = pageSize,
+                jupiterApiKey = optional("HOLDOUT_JUPITER_API_KEY"),
+                jupiterPriceUrl = optional("HOLDOUT_JUPITER_PRICE_URL"),
             )
         }
     }

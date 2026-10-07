@@ -12,6 +12,8 @@ Packaging: `kotlin/crank/build/libs/crank.jar` (`java -jar crank.jar <command>`)
 | `HOLDOUT_PROGRAM_ID` | yes | Deployed `holdout` program |
 | `HOLDOUT_PAYER_KEYPAIR` | yes | Fee payer for automation (any funded devnet wallet) |
 | `HOLDOUT_OPERATOR_KEYPAIR` | `chips publish` only | Must equal `Config.operator` |
+| `HOLDOUT_JUPITER_API_KEY` | no | `chips publish --auto` only: a free Jupiter key sent as `x-api-key`; keyless works for a weekly call |
+| `HOLDOUT_JUPITER_PRICE_URL` | no | `chips publish --auto` only: overrides `https://api.jup.ag/price/v3` |
 | `HOLDOUT_ADMIN_KEYPAIR` | `init` only (or `--admin`) | Becomes `Config.admin` |
 | `HOLDOUT_SCRIPTED_KEYS_DIR` | `scripted` only | Secret keypairs for the wallets listed in `scripted-wallets.json` |
 | `HOLDOUT_PAGE_SIZE` | no (default 10) | `(Membership, Profile)` pairs per paged transaction |
@@ -30,12 +32,12 @@ All commands print a JSON summary to stdout and exit `0` on success, `1` on conf
 
 Floors are crank configuration — `--floor-7d` (default 20) and `--floor-21d` (default 12) — and never reach the chain: no account records which wallets are scripted, and no cohort behaves differently because of them (FR-043a, constitution I).
 | `crank chips publish --rate <usd-per-skr>` | Converts $10/$25/$50/$100 at the given rate, rounds each down to the nearest 10 whole SKR (min 10), sends `publish_chip_set` | Publishes a new version each time — run deliberately |
-| `crank chips publish --auto --if-drift 0.20` **[Phase 2]** | Fetches the SKR rate; publishes only if the current chip set is off its tiers by more than 20 %; exits `0` without publishing if no rate is available | Yes |
+| `crank chips publish --auto` **[Phase 2]** | The Operator's weekly re-pricing, run **every hour** by the Operator's OS scheduler in any time zone — never by `crank run`; the boundary guard makes all but one run a week do nothing. Fetches the SKR rate from the Jupiter Price API (by mint) and publishes all four tiers re-priced at it, every week, even if unchanged; exits `0` without publishing if no rate is available, saying why; `--dry-run` reports the rate and the set it would publish | Yes — at most once per weekly boundary: nothing is fetched or sent when `Config.chip_published_at` is at or after the latest Monday 05:00 UTC; a `--dry-run` still fetches, prices and simulates, reporting `alreadyPublishedThisWeek`, so the rate source can be checked any day |
 | `crank status` | Prints every cohort's status, member count, recorded forfeits, counted and settled flags; the faucet vault's balance, the sponsor's balance against `sponsor_float`, and the day's faucet spend as `lamports_today / daily_lamport_cap` — the figures the live period is monitored on (T110, FR-042b) | Yes *(H35: also both fee destinations, and per league its form, both reserves and the reserve vault's balance.)* |
 
 ## Schedule
 
-A Fly.io scheduled machine runs `crank run && crank scripted run` **every 10 minutes**, and sooner when a cohort open falls due first: `crank run`'s summary carries `nextOpenAt` (chain time, absent when nothing falls due later), and `scripts/crank-loop.sh` wakes 5 s after it, so the test lobby's next cohort opens moments after the one before starts (FR-044a). The Phase 2 chip check runs Mondays after 05:00 UTC. The GitHub Actions workflow `.github/workflows/crank.yml` is a disabled-by-default fallback with the same commands.
+A Fly.io scheduled machine runs `crank run && crank scripted run` **every 10 minutes**, and sooner when a cohort open falls due first: `crank run`'s summary carries `nextOpenAt` (chain time, absent when nothing falls due later), and `scripts/crank-loop.sh` wakes 5 s after it, so the test lobby's next cohort opens moments after the one before starts (FR-044a). The Phase 2 chip check runs hourly on the Operator's machine and publishes once a week, on its first run after Monday 05:00 UTC. The GitHub Actions workflow `.github/workflows/crank.yml` is a disabled-by-default fallback with the same commands.
 
 ## Guarantees
 
