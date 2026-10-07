@@ -54,7 +54,7 @@ class HoldoutViewModel(
         val lastFaucet: FaucetOutcome? = null,
         /** The last claim that landed — its cohort and signature — for that cohort's link only. */
         val lastClaim: Pair<SolanaPublicKey, String>? = null,
-        /** The completed day last sent while the chain could be reached, by any path (FR-024b, T098). */
+        /** The completed day last sent while the chain could be reached, by any path — kept in the store too (FR-024b, T098). */
         val autoSubmit: AutoSubmit = AutoSubmit(),
     )
 
@@ -91,8 +91,9 @@ class HoldoutViewModel(
         if (refresher != null && wallet == address) return
         // Another wallet: the last view was the previous wallet's memberships,
         // profile and balances. It is kept across failed reads of the same
-        // wallet only, never shown as the new one's.
-        if (wallet != address) _state.value = UiState()
+        // wallet only, never shown as the new one's. Its automatic send starts
+        // from what this phone kept for it, so a restart does not ask again (T098).
+        if (wallet != address) _state.value = UiState(autoSubmit = wallet?.let { AutoSubmit.restore(store, it.base58()) } ?: AutoSubmit())
         address = wallet
         refresher?.cancel()
         refresher = viewModelScope.launch {
@@ -138,6 +139,12 @@ class HoldoutViewModel(
                 it.copy(view = view, offline = false, autoSubmit = if (back) it.autoSubmit.answered() else it.autoSubmit)
             }
         }
+        if (view != null && back) keepAutoSubmit()
+    }
+
+    /** Keeps the automatic send's state for the connected wallet, so it outlives the process (T098). */
+    private fun keepAutoSubmit() {
+        address?.let { _state.value.autoSubmit.saveTo(store, it.base58()) }
     }
 
     fun clearMessage() = _state.update { it.copy(message = null, lastFaucet = null) }
@@ -214,14 +221,20 @@ class HoldoutViewModel(
         act {
             // Sent — from the sitting's exit, a tap or by itself: not sent by itself again
             // until the connection drops and returns, even before the chain shows it landed.
+            // Kept on the phone too, so a decline holds across a restart of the app.
             _state.update { it.copy(autoSubmit = it.autoSubmit.sent(h.address.base58(), day)) }
+            keepAutoSubmit()
             val ix = Instructions.submitDay(Deployment.programId, me, h.address, day, proofOf(h.address, day, reps))
             val result = wallet.send(sender, listOf(ix))
             describe(result, "Day ${day + 1} is on chain.")
             // Landed, already on chain (6033), or past saving — not today's day
             // (6031) or past its deadline (6032): nothing is left to submit.
             val settled = result is SendResult.Landed || (result as? SendResult.Failed)?.programError in NOTHING_LEFT_TO_SUBMIT
-            if (settled) store.setPendingCohortDay(me.base58(), h.address.base58(), null)
+            if (settled) {
+                store.setPendingCohortDay(me.base58(), h.address.base58(), null)
+                // Nothing pending, nothing held back: the kept send goes with it — this wallet's only.
+                if (me == address) keepAutoSubmit()
+            }
         }
     }
 
@@ -237,6 +250,8 @@ class HoldoutViewModel(
         viewModelScope.launch {
             readsBeforeLoss = refreshesStarted
             _state.update { it.copy(autoSubmit = it.autoSubmit.lost()) }
+            // Kept, so a restart before the network returns still re-arms it then.
+            keepAutoSubmit()
         }
     }
 
@@ -251,7 +266,10 @@ class HoldoutViewModel(
     fun autoSubmitDue(h: Holdout, pendingDay: Int?, todayDone: Boolean): Boolean {
         val s = _state.value
         val step = s.autoSubmit.step(h.address.base58(), pendingDay, todayDone, s.offline, s.busy)
-        if (step.next != s.autoSubmit) _state.update { it.copy(autoSubmit = step.next) }
+        if (step.next != s.autoSubmit) {
+            _state.update { it.copy(autoSubmit = step.next) }
+            keepAutoSubmit()
+        }
         return step.send
     }
 

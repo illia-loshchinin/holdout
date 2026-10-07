@@ -146,7 +146,8 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 val slot = clock.slot
                 if (boot >= 0 && chainNow != null && slot != null) store.setChainReading(SavedChainReading(chainNow, slot, boot, elapsed))
             }
-            delay(if (clock.hasReading) CHAIN_REFRESH_MILLIS else CHAIN_RETRY_MILLIS)
+            // With no reading yet, the network's return asks again at once (below).
+            if (clock.hasReading) delay(CHAIN_REFRESH_MILLIS) else clockViewModel.retry.await(CHAIN_RETRY_MILLIS)
         }
     }
     // The clock is a plain object, not Compose state: sampled once a second.
@@ -162,10 +163,14 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
             holdouts.watch(address)
             // A connection coming back is read at once, not at the next 30-second pass,
-            // so a completed day waiting for the network goes as soon as it can (FR-024b, T098).
+            // so a completed day waiting for the network goes as soon as it can (FR-024b, T098) —
+            // chain time too, which a start with no network and no saved reading still lacks.
             val connectivity = context.getSystemService(android.net.ConnectivityManager::class.java)
             val onNetwork = object : android.net.ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: android.net.Network) = holdouts.refresh()
+                override fun onAvailable(network: android.net.Network) {
+                    holdouts.refresh()
+                    clockViewModel.retry.networkBack()
+                }
 
                 // A drop and return between two 30-second reads never shows as offline,
                 // so the loss itself re-arms the automatic send — for the next read that answers.

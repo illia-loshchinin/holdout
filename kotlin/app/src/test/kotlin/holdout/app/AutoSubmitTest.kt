@@ -1,9 +1,11 @@
 package holdout.app
 
 import holdout.app.holdout.AutoSubmit
+import holdout.app.storage.InMemoryStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** A completed day waiting for the network sends itself once the chain answers (FR-024b Phase 2, ES-3b, T098). */
@@ -117,5 +119,77 @@ class AutoSubmitTest {
     @Test
     fun `given a fresh gate, when nothing was sent yet, then the tap is not offered`() {
         assertFalse(AutoSubmit().tried(cohort, 3))
+    }
+
+    // ---- across a restart of the app ------------------------------------------
+
+    private val wallet = "Ho5vmods3ZvjAegHJ8mZTnDa1zbp2Rw4HDNy8Ni2bjfU"
+    private val store = InMemoryStore()
+
+    /** What the app holds after it is killed and started again: only what the store kept. */
+    private fun restarted() = AutoSubmit.restore(store, wallet)
+
+    @Test
+    fun `given a declined send, when the app restarts with the day still pending, then the wallet is not opened again`() {
+        store.setPendingCohortDay(wallet, cohort, 3)
+        AutoSubmit().step(cohort, 3, todayDone = false, offline = false, busy = false).next.saveTo(store, wallet)
+        // The new process's first read answers: no loss in between, so the tap is the way left.
+        val back = restarted().answered()
+        assertTrue(back.tried(cohort, 3))
+        assertFalse(back.step(cohort, 3, todayDone = false, offline = false, busy = false).send)
+    }
+
+    @Test
+    fun `given a declined send and a lost network, when the app restarts and the chain answers, then it is sent once and the mark is gone`() {
+        store.setPendingCohortDay(wallet, cohort, 3)
+        AutoSubmit().sent(cohort, 3).lost().saveTo(store, wallet)
+        val back = restarted().answered()
+        // Re-armed, and nothing kept: a restart now would not hold it back either.
+        back.saveTo(store, wallet)
+        assertNull(store.autoSubmitMark(wallet))
+        val step = back.step(cohort, 3, todayDone = false, offline = false, busy = false)
+        assertTrue(step.send)
+        step.next.saveTo(store, wallet)
+        assertFalse(restarted().answered().step(cohort, 3, todayDone = false, offline = false, busy = false).send, "and only once")
+    }
+
+    @Test
+    fun `given a sent day, when it is no longer pending, then a restart keeps nothing`() {
+        store.setPendingCohortDay(wallet, cohort, 3)
+        val sent = AutoSubmit().sent(cohort, 3)
+        sent.saveTo(store, wallet)
+        // Landed: the pending day is cleared, and the mark with it.
+        store.setPendingCohortDay(wallet, cohort, null)
+        sent.saveTo(store, wallet)
+        assertNull(store.autoSubmitMark(wallet))
+        assertFalse(restarted().tried(cohort, 3))
+    }
+
+    @Test
+    fun `given a kept mark, when its day is no longer the one pending, then a restart ignores it`() {
+        store.setPendingCohortDay(wallet, cohort, 3)
+        AutoSubmit().sent(cohort, 3).saveTo(store, wallet)
+        // The next day is waiting now: it is sent by itself once more.
+        store.setPendingCohortDay(wallet, cohort, 4)
+        assertTrue(restarted().step(cohort, 4, todayDone = false, offline = false, busy = false).send)
+        assertFalse(restarted().tried(cohort, 3))
+    }
+
+    @Test
+    fun `given a declined send, when a chain read fails, then the kept mark is cleared too`() {
+        store.setPendingCohortDay(wallet, cohort, 3)
+        val declined = AutoSubmit().sent(cohort, 3)
+        declined.saveTo(store, wallet)
+        declined.step(cohort, 3, todayDone = false, offline = true, busy = false).next.saveTo(store, wallet)
+        assertNull(store.autoSubmitMark(wallet))
+    }
+
+    @Test
+    fun `given two wallets on one phone, when one declined, then the other's gate is untouched`() {
+        val other = "Other11111111111111111111111111111111111111"
+        store.setPendingCohortDay(wallet, cohort, 3)
+        store.setPendingCohortDay(other, cohort, 3)
+        AutoSubmit().sent(cohort, 3).saveTo(store, wallet)
+        assertFalse(AutoSubmit.restore(store, other).tried(cohort, 3))
     }
 }

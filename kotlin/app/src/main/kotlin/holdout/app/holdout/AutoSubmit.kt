@@ -1,5 +1,8 @@
 package holdout.app.holdout
 
+import holdout.app.storage.AutoSubmitMark
+import holdout.app.storage.Store
+
 /**
  * When a completed cohort day waiting on this phone sends itself (FR-024b
  * Phase 2, T098): as soon as the chain answers again, once. Sending opens the
@@ -14,6 +17,10 @@ package holdout.app.holdout
  * again before the chain shows it. [lostSince] is set when the system reported
  * the network gone after that: the send re-arms only when the chain answers
  * again ([answered]), never into no network.
+ *
+ * Both are kept in the store ([saveTo], [restore]) while the day sent is still
+ * pending, so the app killed and started again does not open the wallet again
+ * for a day the member declined — the restart is no lost connection.
  */
 data class AutoSubmit(val sentFor: Pair<String, Int>? = null, val lostSince: Boolean = false) {
 
@@ -44,4 +51,22 @@ data class AutoSubmit(val sentFor: Pair<String, Int>? = null, val lostSince: Boo
 
     /** Whether [day] of [cohort] was already sent since the chain last answered: the tap is the way left. */
     fun tried(cohort: String, day: Int): Boolean = sentFor == cohort to day
+
+    /**
+     * Keeps this for [wallet] in [store] — only while the day it names is still
+     * pending there: one landed or past saving holds nothing back, and a re-arm
+     * ([answered]) leaves nothing to keep.
+     */
+    fun saveTo(store: Store, wallet: String) {
+        val kept = sentFor?.takeIf { (cohort, day) -> store.pendingCohortDay(wallet, cohort) == day }
+        store.setAutoSubmitMark(wallet, kept?.let { (cohort, day) -> AutoSubmitMark(cohort, day, lostSince) })
+    }
+
+    companion object {
+        /** What [saveTo] kept for [wallet], if its day is still the one pending; otherwise a fresh gate. */
+        fun restore(store: Store, wallet: String): AutoSubmit {
+            val mark = store.autoSubmitMark(wallet)?.takeIf { store.pendingCohortDay(wallet, it.cohort) == it.day } ?: return AutoSubmit()
+            return AutoSubmit(mark.cohort to mark.day, mark.lost)
+        }
+    }
 }
