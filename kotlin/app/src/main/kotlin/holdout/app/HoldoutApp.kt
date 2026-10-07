@@ -64,6 +64,7 @@ import holdout.core.Reminders
 import holdout.core.Stage
 import holdout.repcounter.Stakes
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Every screen past the connect screen (contracts/android-app §5). Holdouts are named by cohort address. */
@@ -319,6 +320,46 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         if (offlineDays.settle(wallet, boot, android.os.SystemClock.elapsedRealtime(), chainNow) != null) refreshToken += 1
     }
 
+    val chainNow = now
+    val view = chain.view
+    fun holdout(address: SolanaPublicKey): Holdout? = view?.holdouts?.firstOrNull { it.address == address }
+
+    /** Today's day of [h] done on this phone and not yet on chain, if any. Only today's counts: an older one left behind must not hide it. */
+    @Composable
+    fun pendingTodayOf(h: Holdout, stage: Stage.Active): Int? {
+        val pending = remember(wallet, h.address, refreshToken, chain.busy) { holdouts.pendingDay(h) }
+        val locallyDone = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.isDayComplete(wallet, cohortScope(h), stage.dayIndex.toLong()) }
+        return pending?.takeIf { it == stage.dayIndex } ?: stage.dayIndex.takeIf { locallyDone && !stage.todayDone }
+    }
+
+    fun submitDayOf(h: Holdout, day: Int) {
+        // A day recovered from the phone's own record — the app closed after the
+        // last rep, before the sitting's own exit ran — is that day's training for
+        // the streak as well. Recording the same date twice changes nothing.
+        if (!h.isTest) streaks.recordCompletedDay(wallet, HoldoutDay.indexOf(h.cohort.start + day * h.cohort.dayLength))
+        holdouts.submitDay(sender, h, day, h.cohort.repsPerDay)
+    }
+
+    /**
+     * A day waiting for the network sends itself once the chain answers again
+     * (FR-024b Phase 2, T098) — on whichever screen the member is, the tour and
+     * the Daily 25 included, short of a cohort sitting, and again after the
+     * system reports the network lost and the chain answers once more.
+     * [whenFree] returns once the screen may give way to the wallet; [key] is
+     * what it waits on.
+     */
+    @Composable
+    fun SendWaitingDay(key: Any? = null, whenFree: suspend () -> Unit = {}) {
+        val running = chainNow?.let { n -> view?.mine(n)?.firstNotNullOfOrNull { h -> (h.stage(n) as? Stage.Active)?.let { h to it } } } ?: return
+        val (h, stage) = running
+        val pendingToday = pendingTodayOf(h, stage)
+        LaunchedEffect(h.address, pendingToday, stage.todayDone, chain.offline, chain.busy, chain.autoSubmit, key) {
+            if (pendingToday == null) return@LaunchedEffect
+            whenFree()
+            if (holdouts.autoSubmitDue(h, pendingToday, stage.todayDone)) submitDayOf(h, pendingToday)
+        }
+    }
+
     // ---- a sitting -------------------------------------------------------------
     when (val s = sitting) {
         is Sitting.Daily25 -> {
@@ -336,6 +377,13 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 )
             }
             DisposableEffect(vm) { onDispose { vm.release() } }
+            // A cohort day waiting for the network goes over the Daily 25 too: a sitting
+            // has no pause limit, and the day's deadline must not pass with the app open
+            // and connected. Never mid-set, though — leaving for the wallet then would
+            // cost the set's loose reps; it opens once the set ends. Out of a set the
+            // wallet's round trip costs nothing: banked blocks are stored, and this
+            // sitting, held in the composition, is where the member comes back to.
+            SendWaitingDay(vm) { vm.uiState.first { !it.step.inSet } }
             val done = {
                 sitting = null
                 refreshToken += 1
@@ -395,38 +443,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         null -> Unit
     }
 
-    val chainNow = now
-    val view = chain.view
-    fun holdout(address: SolanaPublicKey): Holdout? = view?.holdouts?.firstOrNull { it.address == address }
-
-    /** Today's day of [h] done on this phone and not yet on chain, if any. Only today's counts: an older one left behind must not hide it. */
-    @Composable
-    fun pendingTodayOf(h: Holdout, stage: Stage.Active): Int? {
-        val pending = remember(wallet, h.address, refreshToken, chain.busy) { holdouts.pendingDay(h) }
-        val locallyDone = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.isDayComplete(wallet, cohortScope(h), stage.dayIndex.toLong()) }
-        return pending?.takeIf { it == stage.dayIndex } ?: stage.dayIndex.takeIf { locallyDone && !stage.todayDone }
-    }
-
-    fun submitDayOf(h: Holdout, day: Int) {
-        // A day recovered from the phone's own record — the app closed after the
-        // last rep, before the sitting's own exit ran — is that day's training for
-        // the streak as well. Recording the same date twice changes nothing.
-        if (!h.isTest) streaks.recordCompletedDay(wallet, HoldoutDay.indexOf(h.cohort.start + day * h.cohort.dayLength))
-        holdouts.submitDay(sender, h, day, h.cohort.repsPerDay)
-    }
-
-    // A day waiting for the network sends itself once the chain answers again
-    // (FR-024b Phase 2, T098) — on whichever screen the member is, the tour
-    // included, short of a sitting, and again after the system reports the
-    // network lost and the chain answers once more.
-    val running = chainNow?.let { n -> view?.mine(n)?.firstNotNullOfOrNull { h -> (h.stage(n) as? Stage.Active)?.let { h to it } } }
-    if (running != null) {
-        val (h, stage) = running
-        val pendingToday = pendingTodayOf(h, stage)
-        LaunchedEffect(h.address, pendingToday, stage.todayDone, chain.offline, chain.busy, chain.autoSubmit) {
-            if (pendingToday != null && holdouts.autoSubmitDue(h, pendingToday, stage.todayDone)) submitDayOf(h, pendingToday)
-        }
-    }
+    SendWaitingDay()
 
     // The tour — first run, or opened again from About — shows only after the
     // automatic send above is composed, so a reconnect during it still sends.

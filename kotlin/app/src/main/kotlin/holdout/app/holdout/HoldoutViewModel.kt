@@ -227,6 +227,14 @@ class HoldoutViewModel(
             val ix = Instructions.submitDay(Deployment.programId, me, h.address, day, proofOf(h.address, day, reps))
             val result = wallet.send(sender, listOf(ix))
             describe(result, "Day ${day + 1} is on chain.")
+            if ((result as? SendResult.Failed)?.beforeWallet == true && me == address) {
+                // Devnet did not answer before the wallet could open: nothing was declined,
+                // so it goes by itself again at the chain's next answer — not this send's
+                // own closing read, which would only ask devnet again at once.
+                readsBeforeLoss = refreshesStarted + 1
+                _state.update { it.copy(autoSubmit = it.autoSubmit.unreached(h.address.base58(), day)) }
+                keepAutoSubmit()
+            }
             // Landed, already on chain (6033), or past saving — not today's day
             // (6031) or past its deadline (6032): nothing is left to submit.
             val settled = result is SendResult.Landed || (result as? SendResult.Failed)?.programError in NOTHING_LEFT_TO_SUBMIT
@@ -255,7 +263,10 @@ class HoldoutViewModel(
         }
     }
 
-    /** Reads started when the network was last lost — on the main thread, as [refreshesStarted]. */
+    /**
+     * Reads started when the network was last lost, or a send last found devnet
+     * silent before the wallet opened — on the main thread, as [refreshesStarted].
+     */
     private var readsBeforeLoss = 0
 
     /**

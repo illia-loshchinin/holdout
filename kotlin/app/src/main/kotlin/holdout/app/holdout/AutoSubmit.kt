@@ -49,6 +49,14 @@ data class AutoSubmit(val sentFor: Pair<String, Int>? = null, val lostSince: Boo
     /** [day] of [cohort] was sent — by itself, a tap or the sitting's own exit. A loss not yet answered still re-arms it. */
     fun sent(cohort: String, day: Int): AutoSubmit = copy(sentFor = cohort to day)
 
+    /**
+     * The send of [day] of [cohort] never reached the wallet — devnet did not
+     * answer before it could open — so the member declined nothing: the next
+     * time the chain answers it goes again, as after a lost network. Not at
+     * once, which would only ask devnet again straight away.
+     */
+    fun unreached(cohort: String, day: Int): AutoSubmit = if (tried(cohort, day)) lost() else this
+
     /** Whether [day] of [cohort] was already sent since the chain last answered: the tap is the way left. */
     fun tried(cohort: String, day: Int): Boolean = sentFor == cohort to day
 

@@ -1,6 +1,7 @@
 package holdout.app
 
 import holdout.app.holdout.AutoSubmit
+import holdout.app.sitting.SittingViewModel
 import holdout.app.storage.InMemoryStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -75,6 +76,24 @@ class AutoSubmitTest {
         val sent = AutoSubmit().lost().sent(cohort, 3)
         assertTrue(sent.tried(cohort, 3))
         assertTrue(sent.answered().step(cohort, 3, todayDone = false, offline = false, busy = false).send)
+    }
+
+    @Test
+    fun `given a send that never reached the wallet, when the chain answers again, then it is sent again by itself, once`() {
+        // Devnet did not answer before the wallet could open: the member declined nothing.
+        val unreached = AutoSubmit().step(cohort, 3, todayDone = false, offline = false, busy = false).next.unreached(cohort, 3)
+        // Not at once — that would only ask devnet again straight away — and the tap stays the way meanwhile.
+        assertFalse(unreached.step(cohort, 3, todayDone = false, offline = false, busy = false).send)
+        assertTrue(unreached.tried(cohort, 3))
+        val back = unreached.answered().step(cohort, 3, todayDone = false, offline = false, busy = false)
+        assertTrue(back.send)
+        assertFalse(back.next.answered().step(cohort, 3, todayDone = false, offline = false, busy = false).send, "and only once")
+    }
+
+    @Test
+    fun `given a send of another day that never reached the wallet, when the chain answers, then the day tried is still held back`() {
+        val declined = AutoSubmit().sent(cohort, 3).unreached(cohort, 2)
+        assertFalse(declined.answered().step(cohort, 3, todayDone = false, offline = false, busy = false).send)
     }
 
     @Test
@@ -154,6 +173,13 @@ class AutoSubmitTest {
     }
 
     @Test
+    fun `given a send that never reached the wallet, when the app restarts, then the chain's first answer sends it`() {
+        store.setPendingCohortDay(wallet, cohort, 3)
+        AutoSubmit().sent(cohort, 3).unreached(cohort, 3).saveTo(store, wallet)
+        assertTrue(restarted().answered().step(cohort, 3, todayDone = false, offline = false, busy = false).send)
+    }
+
+    @Test
     fun `given a sent day, when it is no longer pending, then a restart keeps nothing`() {
         store.setPendingCohortDay(wallet, cohort, 3)
         val sent = AutoSubmit().sent(cohort, 3)
@@ -191,5 +217,16 @@ class AutoSubmitTest {
         store.setPendingCohortDay(other, cohort, 3)
         AutoSubmit().sent(cohort, 3).saveTo(store, wallet)
         assertFalse(AutoSubmit.restore(store, other).tried(cohort, 3))
+    }
+
+    // ---- during a Daily 25 sitting ----------------------------------------------
+
+    @Test
+    fun `given a Daily 25 sitting, when it is mid-set, then the wallet waits, and otherwise it may open over it`() {
+        // Leaving for the wallet mid-set would cost the set's loose reps (onLeftForeground).
+        assertTrue(SittingViewModel.Step.COUNTDOWN.inSet)
+        assertTrue(SittingViewModel.Step.COUNTING.inSet)
+        assertFalse(SittingViewModel.Step.PREFLIGHT.inSet)
+        assertFalse(SittingViewModel.Step.COMPLETE.inSet)
     }
 }
