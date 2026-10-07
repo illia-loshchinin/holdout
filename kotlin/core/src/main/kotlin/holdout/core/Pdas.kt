@@ -22,6 +22,13 @@ object Pdas {
 
     suspend fun league(programId: SolanaPublicKey, leagueId: Int): SolanaPublicKey = derive(programId, "league".encodeToByteArray(), byteArrayOf(leagueId.toByte()))
 
+    /**
+     * `"reserve"`, `league_id`: the league's SKR token account for its boost
+     * and comeback reserves, owned by the league PDA and created by
+     * `create_league` (H35, FR-037c).
+     */
+    suspend fun reserveVault(programId: SolanaPublicKey, leagueId: Int): SolanaPublicKey = derive(programId, "reserve".encodeToByteArray(), byteArrayOf(leagueId.toByte()))
+
     /** `"cohort"`, `league_id`, `index` as a little-endian u32. */
     suspend fun cohort(programId: SolanaPublicKey, leagueId: Int, index: Long): SolanaPublicKey = derive(
         programId,

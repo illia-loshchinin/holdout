@@ -59,7 +59,7 @@ pub struct OpenCohort<'info> {
     )]
     pub cohort: Account<'info, Cohort>,
 
-    /// The cohort's own SKR vault: stakes, the pool and any carry-over, held
+    /// The cohort's own SKR vault: stakes and the pool, held
     /// under the cohort's authority so no key outside the program can move them
     /// (constitution I).
     #[account(
@@ -123,6 +123,8 @@ pub(crate) fn handler(ctx: Context<OpenCohort>, league_id: u8, index: u32) -> Re
     cohort.reps_per_day = league.reps_per_day;
     cohort.day_length = league.day_length;
     cohort.exercise = league.exercise;
+    // How reps are judged, fixed for this cohort's whole life (constitution V, H35).
+    cohort.form = league.form;
     // Today's amounts, kept for this cohort's whole life (FR-007, FR-055).
     cohort.chips = config.chip_set.amounts;
     cohort.vault_bump = ctx.bumps.vault;

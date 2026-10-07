@@ -17,7 +17,8 @@
     "memberCount": 5,
     "heldStake": "185000000",
     "pool": "20000000",
-    "carryOverReceived": "20000000",
+    "boostDue": "0",
+    "comebackDue": "0",
     "forfeitsRecorded": 0,
     "counted": 0,
     "finisherCount": 0,
@@ -37,9 +38,10 @@
     ],
     "roundingRemainder": "0",
     "noFinisherFee": "0",
-    "carryOverSent": "0",
-    "carryOverTarget": null,
-    "carryOverHeld": "0",
+    "boostReceived": "0",
+    "comebackOwed": "0",
+    "comebackFunded": "0",
+    "comebackClaimed": "0",
     "vaultAmount": "205000000"
   },
   "roster": [
@@ -122,7 +124,7 @@
       "inWarningWindow": false,
       "timeUntilJoiningCloses": 3600,
       "atStake": "185000000",
-      "carryOverReceived": "20000000"
+      "boostReceived": "0"
     },
     {
       "label": "locked",
@@ -166,7 +168,7 @@
       "inWarningWindow": false,
       "timeUntilJoiningCloses": 0,
       "atStake": "185000000",
-      "carryOverReceived": "20000000"
+      "boostReceived": "0"
     },
     {
       "label": "day-3-mid",
@@ -176,27 +178,27 @@
       "maxDaysCompleted": 4,
       "survivorCount": 2,
       "memberCountAtStart": 5,
-      "projectedPool": "48000000",
+      "projectedPool": "44500000",
       "projectedSharePerWallet": [
         {
           "wallet": "w0",
-          "share": "32000000"
+          "share": "29666666"
         },
         {
           "wallet": "w1",
-          "share": "16000000"
+          "share": "14833333"
         },
         {
           "wallet": "w2",
-          "share": "8000000"
+          "share": "7416666"
         },
         {
           "wallet": "w3",
-          "share": "3200000"
+          "share": "2966666"
         },
         {
           "wallet": "w4",
-          "share": "32000000"
+          "share": "29666666"
         }
       ],
       "rosterOrder": [
@@ -210,7 +212,7 @@
       "inWarningWindow": false,
       "timeUntilJoiningCloses": -263400,
       "atStake": "185000000",
-      "carryOverReceived": "20000000"
+      "boostReceived": "0"
     },
     {
       "label": "day-3-warning-window",
@@ -220,27 +222,27 @@
       "maxDaysCompleted": 4,
       "survivorCount": 2,
       "memberCountAtStart": 5,
-      "projectedPool": "48000000",
+      "projectedPool": "44500000",
       "projectedSharePerWallet": [
         {
           "wallet": "w0",
-          "share": "32000000"
+          "share": "29666666"
         },
         {
           "wallet": "w1",
-          "share": "16000000"
+          "share": "14833333"
         },
         {
           "wallet": "w2",
-          "share": "8000000"
+          "share": "7416666"
         },
         {
           "wallet": "w3",
-          "share": "3200000"
+          "share": "2966666"
         },
         {
           "wallet": "w4",
-          "share": "32000000"
+          "share": "29666666"
         }
       ],
       "rosterOrder": [
@@ -254,7 +256,7 @@
       "inWarningWindow": true,
       "timeUntilJoiningCloses": -348900,
       "atStake": "185000000",
-      "carryOverReceived": "20000000"
+      "boostReceived": "0"
     },
     {
       "label": "day-3-deadline",
@@ -264,27 +266,27 @@
       "maxDaysCompleted": 4,
       "survivorCount": 2,
       "memberCountAtStart": 5,
-      "projectedPool": "48000000",
+      "projectedPool": "44500000",
       "projectedSharePerWallet": [
         {
           "wallet": "w0",
-          "share": "32000000"
+          "share": "29666666"
         },
         {
           "wallet": "w1",
-          "share": "16000000"
+          "share": "14833333"
         },
         {
           "wallet": "w2",
-          "share": "8000000"
+          "share": "7416666"
         },
         {
           "wallet": "w3",
-          "share": "3200000"
+          "share": "2966666"
         },
         {
           "wallet": "w4",
-          "share": "32000000"
+          "share": "29666666"
         }
       ],
       "rosterOrder": [
@@ -298,7 +300,7 @@
       "inWarningWindow": true,
       "timeUntilJoiningCloses": -349199,
       "atStake": "185000000",
-      "carryOverReceived": "20000000"
+      "boostReceived": "0"
     },
     {
       "label": "day-3-deadline-passed",
@@ -308,7 +310,7 @@
       "maxDaysCompleted": 5,
       "survivorCount": 0,
       "memberCountAtStart": 5,
-      "projectedPool": "168000000",
+      "projectedPool": "149500000",
       "projectedSharePerWallet": [
         {
           "wallet": "w0",
@@ -342,7 +344,7 @@
       "inWarningWindow": false,
       "timeUntilJoiningCloses": -349200,
       "atStake": "185000000",
-      "carryOverReceived": "20000000"
+      "boostReceived": "0"
     },
     {
       "label": "settling",
@@ -352,7 +354,7 @@
       "maxDaysCompleted": 7,
       "survivorCount": 0,
       "memberCountAtStart": 5,
-      "projectedPool": "168000000",
+      "projectedPool": "149500000",
       "projectedSharePerWallet": [
         {
           "wallet": "w0",
@@ -386,7 +388,7 @@
       "inWarningWindow": false,
       "timeUntilJoiningCloses": -608400,
       "atStake": "185000000",
-      "carryOverReceived": "20000000"
+      "boostReceived": "0"
     }
   ]
 }

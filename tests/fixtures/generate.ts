@@ -76,6 +76,8 @@ import {
   mintAuthorityPda,
   profileBump,
   profilePda,
+  reserveBump,
+  reservePda,
   vaultBump,
   vaultPda,
 } from '../helpers/pdas.js';
@@ -85,6 +87,7 @@ import {
   inBreach,
   maxDaysCompleted,
   statusOf,
+  feeOf,
   type CohortSnapshot,
   type MembershipSnapshot,
 } from '../invariants/checker.js';
@@ -116,6 +119,9 @@ const SPONSOR = key(2);
 const MINT = key(4);
 const FEE_DESTINATION = key(5);
 const MEMBER = key(6);
+/** The developer destination (H35): a key distinct from the operations one. */
+const DEVELOPER_DESTINATION = key(0);
+const FEES = { operations: FEE_DESTINATION, developer: DEVELOPER_DESTINATION };
 
 const write = (name: string, value: unknown): string => {
   mkdirSync(OUT, { recursive: true });
@@ -132,6 +138,7 @@ const config: ConfigAccount = {
   sponsor: SPONSOR,
   skrMint: MINT,
   feeDestination: FEE_DESTINATION,
+  developerDestination: DEVELOPER_DESTINATION,
   ladderGateEnabled: false,
   genesisGateEnabled: false,
   chipSet: { amounts: DEFAULT_CHIPS, version: 1, publishedAt: BigInt(FIRST_START - WEEK), maxTopTier: DEFAULT_CHIPS[3] },
@@ -155,6 +162,10 @@ const league: LeagueConfigAccount = {
   cadence: BigInt(WEEK),
   joinLock: BigInt(HOUR),
   nextIndex: 3,
+  form: 1,
+  boostReserve: 37n * SKR + 250_000n,
+  comebackReserve: 12n * SKR + 625_000n,
+  reserveVaultBump: 251,
   bump: 254,
 };
 
@@ -168,11 +179,15 @@ const running: CohortAccount = {
   repsPerDay: 25,
   dayLength: BigInt(DAY),
   exercise: 0,
+  form: 1,
   chips: DEFAULT_CHIPS,
   memberCount: 37,
   heldStake: 900n * SKR,
   pool: 176n * SKR,
-  carryOverReceived: 8n * SKR,
+  // The reserve shares of the forfeits recorded so far, held in the vault until
+  // the cohort finalizes (FR-037c). Distinct, non-zero values, as in every H35 field.
+  boostDue: 25n * SKR,
+  comebackDue: 12n * SKR + 500_000n,
   forfeitsRecorded: 5,
   counted: 0,
   finisherCount: 0,
@@ -182,19 +197,26 @@ const running: CohortAccount = {
   sharePerTier: [0n, 0n, 0n, 0n],
   roundingRemainder: 0n,
   noFinisherFee: 0n,
-  carryOverSent: 0n,
-  carryOverHeld: 0n,
-  carryOverTarget: key(0),
+  boostReceived: 0n,
+  comebackOwed: 0n,
+  comebackFunded: 0n,
+  comebackClaimed: 0n,
   vaultBump: 253,
   bump: 252,
 };
 
-/** The same cohort settled, with its four shares and a remainder written. */
+/**
+ * The same cohort settled, with its four shares and a remainder written, a
+ * boost drawn, its dues credited to the league, and a comeback funded short and
+ * partly claimed — every H35 field non-zero and distinct.
+ */
 const settled: CohortAccount = {
   ...running,
   memberCount: 37,
   heldStake: 620n * SKR,
   pool: 175n * SKR,
+  boostDue: 0n,
+  comebackDue: 0n,
   counted: 37,
   finisherCount: 20,
   finishersPerTier: [6, 5, 5, 4],
@@ -202,11 +224,14 @@ const settled: CohortAccount = {
   settled: true,
   sharePerTier: [2n * SKR, 7n * SKR, 14n * SKR, 28n * SKR],
   roundingRemainder: 1n * SKR,
-  carryOverTarget: key(0),
+  boostReceived: 35n * SKR + 200_000n,
+  comebackOwed: 7n * SKR + 500_000n,
+  comebackFunded: 6n * SKR,
+  comebackClaimed: 2n * SKR + 400_000n,
 };
 
-/** A no-finisher cohort that sent its carry-over on. */
-const carriedOver: CohortAccount = {
+/** A no-finisher cohort: its whole pool went to the developer and operations destinations (FR-037). */
+const noFinishers: CohortAccount = {
   ...running,
   index: 1,
   memberCount: 3,
@@ -217,10 +242,9 @@ const carriedOver: CohortAccount = {
   finishersPerTier: [0, 0, 0, 0],
   totalFinisherStake: 0n,
   settled: true,
-  noFinisherFee: 60n * SKR,
-  carryOverSent: 60n * SKR,
-  carryOverHeld: 0n,
-  carryOverTarget: key(3),
+  boostDue: 0n,
+  comebackDue: 0n,
+  noFinisherFee: 120n * SKR,
 };
 
 const membership = (over: Partial<MembershipAccount> = {}): MembershipAccount => ({
@@ -232,18 +256,48 @@ const membership = (over: Partial<MembershipAccount> = {}): MembershipAccount =>
   daysCompleted: 4,
   state: 'Joined',
   counted: false,
+  comebackEntitled: 0n,
   bump: 251,
   ...over,
 });
 
-const zeroProgress = { cleared: 0, forfeited: 0, currentStreak: 0, longestStreak: 0, lastChanged: 0n };
+const zeroProgress = {
+  cleared: 0,
+  forfeited: 0,
+  currentStreak: 0,
+  longestStreak: 0,
+  lastChanged: 0n,
+  comebackStake: 0n,
+  comebackFrom: 0n,
+  comebackUntil: 0n,
+};
 
 const profile = (over: Partial<ProfileAccount> = {}): ProfileAccount => ({
   wallet: MEMBER,
   qualified: true,
   leagues: [
-    { cleared: 3, forfeited: 1, currentStreak: 2, longestStreak: 3, lastChanged: BigInt(FIRST_START + 7 * DAY) },
-    { cleared: 1, forfeited: 0, currentStreak: 1, longestStreak: 1, lastChanged: BigInt(FIRST_START + 21 * DAY) },
+    // A counted forfeit whose comeback window is still open: 14 days from its missed deadline.
+    {
+      cleared: 3,
+      forfeited: 1,
+      currentStreak: 2,
+      longestStreak: 3,
+      lastChanged: BigInt(FIRST_START + 7 * DAY),
+      comebackStake: 25n * SKR,
+      comebackFrom: BigInt(FIRST_START + 2 * DAY - 1),
+      comebackUntil: BigInt(FIRST_START + 16 * DAY - 1),
+    },
+    // One that was used up: the stake is zero, the window it had is kept.
+    {
+      cleared: 1,
+      forfeited: 0,
+      currentStreak: 1,
+      longestStreak: 1,
+      lastChanged: BigInt(FIRST_START + 21 * DAY),
+      comebackStake: 0n,
+      comebackFrom: BigInt(FIRST_START + 3 * DAY - 1),
+      comebackUntil: BigInt(FIRST_START + 17 * DAY - 1),
+    },
     { ...zeroProgress },
   ],
   running: { cohort: key(3), end: BigInt(FIRST_START + 7 * DAY) },
@@ -271,13 +325,27 @@ const accountFixtures = () => {
   add('Config', 'initialised', Config, config);
   add('Config', 'gates-on', Config, { ...config, ladderGateEnabled: true, genesisGateEnabled: true });
   add('LeagueConfig', 'seven-day', LeagueConfig, league);
-  add('LeagueConfig', 'twenty-one-day', LeagueConfig, { ...league, leagueId: 1, durationDays: 21 });
+  add('LeagueConfig', 'twenty-one-day', LeagueConfig, {
+    ...league,
+    leagueId: 1,
+    durationDays: 21,
+    form: 0,
+    boostReserve: 0n,
+    comebackReserve: 0n,
+    reserveVaultBump: 249,
+  });
   add('Cohort', 'running', Cohort, running);
   add('Cohort', 'settled', Cohort, settled);
-  add('Cohort', 'no-finisher-carried-over', Cohort, carriedOver);
+  add('Cohort', 'no-finisher', Cohort, noFinishers);
   add('Membership', 'joined', Membership, membership());
   add('Membership', 'forfeited', Membership, membership({ state: 'Forfeited', daysCompleted: 2, counted: true }));
   add('Membership', 'finished', Membership, membership({ state: 'Finished', daysCompleted: 7, counted: true }));
+  add('Membership', 'finished-comeback', Membership, membership({
+    state: 'Finished',
+    daysCompleted: 7,
+    counted: true,
+    comebackEntitled: 2n * SKR + 500_000n,
+  }));
   add('Membership', 'claimed', Membership, membership({ state: 'Claimed', daysCompleted: 7, counted: true }));
   add('Profile', 'qualified-with-history', Profile, profile());
   add('Profile', 'fresh', Profile, profile({
@@ -303,6 +371,8 @@ const pdaFixtures = async () => {
     { name: 'cohort', seeds: ['cohort', 0, 2], address: cohort, bump: await cohortBump(0, 2) },
     { name: 'cohort', seeds: ['cohort', 1, 511], address: await cohortPda(1, 511), bump: await cohortBump(1, 511) },
     { name: 'vault', seeds: ['vault', cohort], address: await vaultPda(cohort), bump: await vaultBump(cohort) },
+    { name: 'reserve', seeds: ['reserve', 0], address: await reservePda(0), bump: await reserveBump(0) },
+    { name: 'reserve', seeds: ['reserve', 1], address: await reservePda(1), bump: await reserveBump(1) },
     {
       name: 'member',
       seeds: ['member', cohort, MEMBER],
@@ -337,6 +407,7 @@ const instructionFixtures = async () => {
       operator: OPERATOR,
       sponsor: SPONSOR,
       treasuryWallet: FEE_DESTINATION,
+      developerWallet: DEVELOPER_DESTINATION,
       faucetSolTopUp: '20000000',
       faucetDailyLamportCap: '720000000',
       faucetSponsorFloat: '50000000',
@@ -345,6 +416,7 @@ const instructionFixtures = async () => {
       operator: OPERATOR,
       sponsor: SPONSOR,
       treasuryWallet: FEE_DESTINATION,
+      developerWallet: DEVELOPER_DESTINATION,
       faucetSolTopUp: 20_000_000n,
       faucetDailyLamportCap: 720_000_000n,
       faucetSponsorFloat: 50_000_000n,
@@ -352,12 +424,13 @@ const instructionFixtures = async () => {
   );
   await add(
     'create_league',
-    { leagueId: 0, durationDays: 7, repsPerDay: 25, exercise: 0, firstStart: FIRST_START, dayLength: DAY, cadence: WEEK, joinLock: HOUR },
-    await createLeagueIx(ADMIN, {
+    { leagueId: 0, durationDays: 7, repsPerDay: 25, exercise: 0, form: 1, firstStart: FIRST_START, dayLength: DAY, cadence: WEEK, joinLock: HOUR },
+    await createLeagueIx(ADMIN, MINT, {
       leagueId: 0,
       durationDays: 7,
       repsPerDay: 25,
       exercise: 0,
+      form: 1,
       firstStart: FIRST_START,
       dayLength: DAY,
       cadence: WEEK,
@@ -388,13 +461,13 @@ const instructionFixtures = async () => {
     { dayIndex: 4, proofHash: '2a'.repeat(32) },
     await submitDayIx(MEMBER, 0, 2, 4, new Uint8Array(32).fill(0x2a)),
   );
-  await add('record_forfeits', { pairs: 1 }, await recordForfeitsIx(ADMIN, FEE_DESTINATION, 0, 2, pairs));
+  await add('record_forfeits', { pairs: 1 }, await recordForfeitsIx(ADMIN, FEES, 0, 2, pairs));
   await add(
     'settle_count',
     { pairs: 1, previousCohort: await cohortPda(0, 1) },
-    await settleCountIx(ADMIN, FEE_DESTINATION, 0, 2, pairs, await cohortPda(0, 1)),
+    await settleCountIx(ADMIN, FEES, 0, 2, pairs, await cohortPda(0, 1)),
   );
-  await add('settle_finalize', { target: null }, await settleFinalizeIx(ADMIN, FEE_DESTINATION, 0, 2));
+  await add('settle_finalize', { previousCohort: await cohortPda(0, 1) }, await settleFinalizeIx(ADMIN, FEES, 0, 2, await cohortPda(0, 1)));
   await add('claim_payout', {}, await claimPayoutIx(MEMBER, MINT, 0, 2));
   await add('claim_faucet', { recipient: MEMBER }, await claimFaucetIx(SPONSOR, MEMBER, MINT, SPONSOR));
   await add('top_up_sponsor', {}, await topUpSponsorIx(ADMIN, SPONSOR));
@@ -402,8 +475,6 @@ const instructionFixtures = async () => {
 };
 
 // ------------------------------------------------------------ derived figures
-
-const feeOf = (stake: bigint) => (stake * 20n) / 100n;
 
 /** The cohort and roster the derived figures are computed over. */
 const derivedFixtures = () => {
@@ -419,7 +490,8 @@ const derivedFixtures = () => {
     memberCount: 5,
     heldStake: 185n * SKR,
     pool: 20n * SKR,
-    carryOverReceived: 20n * SKR,
+    boostDue: 0n,
+    comebackDue: 0n,
     forfeitsRecorded: 0,
     counted: 0,
     finisherCount: 0,
@@ -429,18 +501,19 @@ const derivedFixtures = () => {
     sharePerTier: [0n, 0n, 0n, 0n],
     roundingRemainder: 0n,
     noFinisherFee: 0n,
-    carryOverSent: 0n,
-    carryOverTarget: null,
-    carryOverHeld: 0n,
+    boostReceived: 0n,
+    comebackOwed: 0n,
+    comebackFunded: 0n,
+    comebackClaimed: 0n,
     vaultAmount: 205n * SKR,
   };
 
   const roster: MembershipSnapshot[] = [
-    { address: 'm0', cohort: cohort.address, wallet: 'w0', tier: 3, stake: DEFAULT_CHIPS[3]!, daysCompleted: 3, state: 'Joined', counted: false },
-    { address: 'm1', cohort: cohort.address, wallet: 'w1', tier: 2, stake: DEFAULT_CHIPS[2]!, daysCompleted: 3, state: 'Joined', counted: false },
-    { address: 'm2', cohort: cohort.address, wallet: 'w2', tier: 1, stake: DEFAULT_CHIPS[1]!, daysCompleted: 2, state: 'Joined', counted: false },
-    { address: 'm3', cohort: cohort.address, wallet: 'w3', tier: 0, stake: DEFAULT_CHIPS[0]!, daysCompleted: 1, state: 'Joined', counted: false },
-    { address: 'm4', cohort: cohort.address, wallet: 'w4', tier: 3, stake: DEFAULT_CHIPS[3]!, daysCompleted: 0, state: 'Forfeited', counted: false },
+    { address: 'm0', cohort: cohort.address, wallet: 'w0', tier: 3, stake: DEFAULT_CHIPS[3]!, daysCompleted: 3, state: 'Joined', counted: false, comebackEntitled: 0n },
+    { address: 'm1', cohort: cohort.address, wallet: 'w1', tier: 2, stake: DEFAULT_CHIPS[2]!, daysCompleted: 3, state: 'Joined', counted: false, comebackEntitled: 0n },
+    { address: 'm2', cohort: cohort.address, wallet: 'w2', tier: 1, stake: DEFAULT_CHIPS[1]!, daysCompleted: 2, state: 'Joined', counted: false, comebackEntitled: 0n },
+    { address: 'm3', cohort: cohort.address, wallet: 'w3', tier: 0, stake: DEFAULT_CHIPS[0]!, daysCompleted: 1, state: 'Joined', counted: false, comebackEntitled: 0n },
+    { address: 'm4', cohort: cohort.address, wallet: 'w4', tier: 3, stake: DEFAULT_CHIPS[3]!, daysCompleted: 0, state: 'Forfeited', counted: false, comebackEntitled: 0n },
   ];
 
   /** Every instant worth a fixture: inside a day, at a deadline, and past it. */
@@ -493,7 +566,10 @@ const derivedFixtures = () => {
         inWarningWindow: now < cohort.start ? false : timeLeftToday <= 600 && timeLeftToday >= 0,
         timeUntilJoiningCloses: cohort.joinCutoff - now,
         atStake: cohort.heldStake,
-        carryOverReceived: cohort.carryOverReceived,
+        // The boost a cohort drew from its league's reserve (FR-037d): the one
+        // figure of its pool that did not come from its own forfeits. Replaces
+        // `carryOverReceived`, which the carry-over's removal left always zero.
+        boostReceived: cohort.boostReceived,
       };
     }),
   };

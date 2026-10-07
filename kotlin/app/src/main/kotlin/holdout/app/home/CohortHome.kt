@@ -80,7 +80,7 @@ fun CohortHome(
     otherHoldouts: @Composable () -> Unit = {},
 ) {
     val c = h.cohort
-    val figures = members?.let { Derive.figures(c, it, now) }
+    val figures = members?.let { Derive.figures(c, it, now, boostReserve = h.league?.boostReserve) }
     val standing by animateIntAsState(figures?.survivors?.standing ?: c.memberCount.toInt(), animationSpec = tween(900), label = "survivors")
     val timeLeft = Derive.timeLeftToday(c, now)
     val warning = Derive.inWarningWindow(timeLeft)
@@ -97,11 +97,20 @@ fun CohortHome(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (h.isTest) TestCohortBadge(c.dayLength)
-        SectionLabel("${c.durationDays}-day Holdout · day ${stage.dayIndex + 1} of ${c.durationDays}")
+        SectionLabel("${Format.holdoutTitle(c)} · day ${stage.dayIndex + 1} of ${c.durationDays}")
         Text("$standing", style = CounterStyle, color = HoldoutColors.TextPrimary)
         Text("still standing of ${c.memberCount}", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
         Text(figures?.let { Format.skr(it.projectedPool) } ?: Format.skr(c.pool), style = DisplayStyle, color = HoldoutColors.Accent)
         Text("prize pool, running", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
+        // The league's boost, as its reserve stands today (FR-037d): an estimate,
+        // drawn only at settlement and only if someone finishes.
+        figures?.projectedBoost?.takeIf { it > 0uL }?.let {
+            Text(
+                "+ about ${Format.skr(it)} boost from this league's reserve if anyone finishes",
+                style = MaterialTheme.typography.bodyMedium,
+                color = HoldoutColors.TextSecondary,
+            )
+        }
 
         HoldoutCard {
             h.membership?.let { m ->

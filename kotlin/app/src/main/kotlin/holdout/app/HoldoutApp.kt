@@ -34,6 +34,7 @@ import holdout.app.home.HomeScreen
 import holdout.app.home.HomeState
 import holdout.app.ladder.HoldoutOffer
 import holdout.app.ladder.LadderScreen
+import holdout.app.leaderboard.LeaderboardScreen
 import holdout.app.lobby.LobbyScreen
 import holdout.app.reminders.ReminderScheduler
 import holdout.app.roster.RosterScreen
@@ -59,8 +60,10 @@ import holdout.core.ChainClock
 import holdout.core.Derive
 import holdout.core.HoldoutDay
 import holdout.core.Journey
+import holdout.core.Leaderboard
 import holdout.core.LeagueParams
 import holdout.core.Reminders
+import holdout.core.ScriptedWallets
 import holdout.core.Stage
 import holdout.repcounter.Stakes
 import kotlinx.coroutines.delay
@@ -75,6 +78,7 @@ private sealed interface Route {
     data object About : Route
     data object Walkthrough : Route
     data object Tour : Route
+    data class Leaderboards(val board: Leaderboard.Board) : Route
     data class Stake(val cohort: SolanaPublicKey) : Route
     data class Lobby(val cohort: SolanaPublicKey) : Route
     data class Detail(val cohort: SolanaPublicKey) : Route
@@ -120,6 +124,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     val holdouts: HoldoutViewModel = viewModel { HoldoutViewModel(store) }
     val chain by holdouts.state.collectAsStateWithLifecycle()
     val rosters by holdouts.rosters.collectAsStateWithLifecycle()
+    val leaderboardRead by holdouts.leaderboard.collectAsStateWithLifecycle()
 
     // The wallet a previous run connected is restored with its auth token, so a
     // restart does not ask again (contracts/android-app §3).
@@ -395,8 +400,10 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                     dayIndex = s.day.toLong(),
                     target = h.cohort.repsPerDay,
                     chainSecondsNow = { clock.nowSeconds() },
-                    // Every sitting of a staked Holdout: 45° only, from the toes (FR-021a).
-                    stakes = Stakes.STAKED,
+                    // The cohort's own form (H35): Hard from the toes, Easy with knees
+                    // allowed — 45° only either way (FR-021a). An unknown form never
+                    // reaches here: Start refuses it.
+                    stakes = Stakes.ofForm(h.cohort.form) ?: Stakes.STAKED,
                     // The cohort's own days — ten minutes each in the short test cohort.
                     dayOf = { Derive.dayIndex(h.cohort, it).toLong() },
                     // A Holdout day ends at its deadline: no rolling into the next (a missed day is a breach).
@@ -568,6 +575,19 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             WalkthroughScreen(onBack = { route = Route.About }, modifier = modifier)
             return
         }
+        is Route.Leaderboards -> {
+            InFrontLoop(Unit) {
+                holdouts.loadLeaderboard()
+                delay(ROSTER_REFRESH_MILLIS)
+            }
+            val read = leaderboardRead
+            // The test board exists only where a test league does (FR-044a).
+            val boards = Leaderboard.Board.entries.filter { it != Leaderboard.Board.TEST || read?.cohortsAfter.orEmpty().any { c -> Leaderboard.Board.TEST.covers(c.leagueId) } }
+            val board = routed.board
+            val shown = if (read == null || chainNow == null) null else Leaderboard.view(board, read, chainNow, ScriptedWallets::isScripted)
+            LeaderboardScreen(board, boards, shown, address, { route = Route.Leaderboards(it) }, goHome, modifier)
+            return
+        }
         else -> Unit
     }
 
@@ -594,7 +614,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             if (label != null && next != null) {
                 HoldoutCard(Modifier.clickable { route = next }) {
                     if (h.isTest) TestCohortBadge(h.cohort.dayLength)
-                    Text("${h.cohort.durationDays}-day Holdout", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+                    Text(Format.holdoutTitle(h.cohort), style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
                     Text(label, style = MaterialTheme.typography.bodyLarge, color = if (stage is Stage.Forfeited) HoldoutColors.Warning else HoldoutColors.Success)
                 }
             }
@@ -634,8 +654,9 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             message = chain.message,
             messageIsWarning = chain.messageIsWarning,
             onStart = {
-                // An exercise this build does not know is refused, never guessed (FR-014, H30).
+                // An exercise or a form this build does not know is refused, never guessed (FR-014, H30, H35).
                 if (h.cohort.exercise != LeagueParams.EXERCISE_PUSHUP) return@CohortHome
+                if (Stakes.ofForm(h.cohort.form) == null) return@CohortHome
                 sitting = Sitting.CohortDay(h, stage.dayIndex)
             },
             onSubmit = submit,
@@ -663,6 +684,9 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             target = DAILY_25,
             completedToday = complete,
             streak = streak.current,
+            freezes = streak.freezes,
+            toes = holdout.app.streak.ToesMeter(store, DAILY_25).read(wallet, dayIndex),
+            holdoutLine = chainNow?.let { n -> view?.let { v -> holdout.app.home.DailyHoldoutLine.of(v.openToJoin(n).map { it.cohort }, v.profile, n) } },
             secondsLeftToday = chainNow?.let { HoldoutDay.secondsLeftIn(it) },
         ),
         onStart = {
@@ -701,7 +725,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 val claimed = h.stage(chainNow) as? Stage.Claimed ?: return@forEach
                 HoldoutCard(Modifier.clickable { route = Route.Detail(h.address) }) {
                     if (h.isTest) TestCohortBadge(h.cohort.dayLength)
-                    Text("${h.cohort.durationDays}-day Holdout", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+                    Text(Format.holdoutTitle(h.cohort), style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
                     Text("Finished · claimed ${Format.skr(claimed.amount)}", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
                 }
             }
@@ -709,6 +733,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             if (open.isNotEmpty()) SectionLabel("Holdouts open to join")
             open.forEach { h -> HoldoutOffer(h, chainNow, onClick = { route = Route.Stake(h.address) }) }
             SecondaryButton("The ladder", { route = Route.Ladder })
+            SecondaryButton("Leaderboards", { route = Route.Leaderboards(Leaderboard.Board.EASY_7D) })
             SecondaryButton("Get test tokens · ${Format.skr(view.skr)} held", { route = Route.Faucet })
             TextButton(onClick = { route = Route.About }) { Text("About · for judges", color = HoldoutColors.TextTertiary) }
             TextButton(onClick = {

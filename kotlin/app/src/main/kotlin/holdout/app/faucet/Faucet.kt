@@ -23,8 +23,7 @@ import org.bouncycastle.crypto.signers.Ed25519Signer
  * Its secret ships in the APK **by design**, and the README says so: it holds
  * a 0.05 SOL float and nothing else, `claim_faucet` reimburses it in the same
  * instruction, a daily lamport budget bounds what anyone can make it cost, and
- * anyone can refill it with `top_up_sponsor`. It cannot touch a stake, a pool
- * or a carry-over.
+ * anyone can refill it with `top_up_sponsor`. It cannot touch a stake or a pool.
  */
 class SponsorKey private constructor(private val seed: ByteArray, val publicKey: SolanaPublicKey) {
     fun sign(message: ByteArray): ByteArray = Ed25519Signer().run {

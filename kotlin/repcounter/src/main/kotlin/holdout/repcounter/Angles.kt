@@ -9,7 +9,9 @@ import kotlin.math.sqrt
  * The two angles the push-up rule is written in (FR-021, PRD §8.4):
  *
  *   elbow      shoulder–elbow–wrist
- *   body line  shoulder–hip–ankle; 180° is straight
+ *   body line  shoulder–hip–ankle; 180° is straight — or, where push-ups
+ *              from the knees count, shoulder–hip–knee if that reads
+ *              straighter ([bodyLineToKneeInImage], `ViewReading`)
  *
  * On a phone they are read **in the picture**: at 45° on the near side
  * ([nearSide]), head-on the elbow from both arms and the body line replaced
@@ -68,16 +70,21 @@ object Angles {
     }
 
     /** The shoulder–hip–ankle angle for one side, or `null` when it is not clearly in frame. */
-    fun bodyLine(frame: PoseFrame, side: Side): Float? {
-        val (s, h, a) = when (side) {
-            Side.LEFT -> Triple(PoseIndex.LEFT_SHOULDER, PoseIndex.LEFT_HIP, PoseIndex.LEFT_ANKLE)
-            Side.RIGHT -> Triple(PoseIndex.RIGHT_SHOULDER, PoseIndex.RIGHT_HIP, PoseIndex.RIGHT_ANKLE)
-        }
-        val shoulder = frame[s]
-        val hip = frame[h]
-        val ankle = frame[a]
-        if (!visible(shoulder, hip, ankle)) return null
-        return angleAt(shoulder!!, hip!!, ankle!!).takeIf { !it.isNaN() }
+    fun bodyLine(frame: PoseFrame, side: Side): Float? = inWorld(frame, TRUNK.getValue(side))
+
+    /**
+     * The shoulder–hip–knee angle for one side, or `null` when it is not
+     * clearly in frame: the body line where push-ups from the knees count
+     * ([bodyLineToKneeInImage]).
+     */
+    fun bodyLineToKnee(frame: PoseFrame, side: Side): Float? = inWorld(frame, TRUNK_TO_KNEE.getValue(side))
+
+    private fun inWorld(frame: PoseFrame, joints: Triple<Int, Int, Int>): Float? {
+        val a = frame[joints.first]
+        val b = frame[joints.second]
+        val c = frame[joints.third]
+        if (!visible(a, b, c)) return null
+        return angleAt(a!!, b!!, c!!).takeIf { !it.isNaN() }
     }
 
     /**
@@ -108,6 +115,10 @@ object Angles {
     private val TRUNK = mapOf(
         Side.LEFT to Triple(PoseIndex.LEFT_SHOULDER, PoseIndex.LEFT_HIP, PoseIndex.LEFT_ANKLE),
         Side.RIGHT to Triple(PoseIndex.RIGHT_SHOULDER, PoseIndex.RIGHT_HIP, PoseIndex.RIGHT_ANKLE),
+    )
+    private val TRUNK_TO_KNEE = mapOf(
+        Side.LEFT to Triple(PoseIndex.LEFT_SHOULDER, PoseIndex.LEFT_HIP, PoseIndex.LEFT_KNEE),
+        Side.RIGHT to Triple(PoseIndex.RIGHT_SHOULDER, PoseIndex.RIGHT_HIP, PoseIndex.RIGHT_KNEE),
     )
 
     /**
@@ -142,6 +153,17 @@ object Angles {
 
     /** Shoulder–hip–ankle on [side], as the picture shows it. 180° is straight. */
     fun bodyLineInImage(image: ImagePose, side: Side): Float? = inImage(image, TRUNK.getValue(side))
+
+    /**
+     * Shoulder–hip–**knee** on [side], as the picture shows it. 180° is
+     * straight. Enough for a body line where push-ups from the knees count —
+     * Easy and the Daily 25 (FR-021a): a push-up from the knees promises a straight line
+     * from shoulder to knee and nothing about the lower legs, which may be
+     * raised or crossed behind it and pull shoulder–hip–ankle far under any
+     * floor. A push-up from the toes keeps the knee on the same line, so a
+     * sag or a fold at the hips reads here just as it does to the ankle.
+     */
+    fun bodyLineToKneeInImage(image: ImagePose, side: Side): Float? = inImage(image, TRUNK_TO_KNEE.getValue(side))
 
     /**
      * Hip–knee–ankle on [side], as the picture shows it. From the side or at
@@ -359,4 +381,6 @@ object Angles {
     private fun Landmark.distanceTo(other: Landmark, image: ImagePose): Float = hypot((x - other.x) * image.width, (y - other.y) * image.height)
 
     fun bodyLine(frame: PoseFrame): Float? = bothSides(bodyLine(frame, Side.LEFT), bodyLine(frame, Side.RIGHT))
+
+    fun bodyLineToKnee(frame: PoseFrame): Float? = bothSides(bodyLineToKnee(frame, Side.LEFT), bodyLineToKnee(frame, Side.RIGHT))
 }

@@ -52,10 +52,10 @@ fun ForfeitScreen(
     ) {
         TextButton(onClick = onBack, modifier = Modifier.align(Alignment.Start)) { Text("← Home", color = HoldoutColors.TextSecondary) }
         if (h.isTest) TestCohortBadge(c.dayLength)
-        SectionLabel("${c.durationDays}-day Holdout")
+        SectionLabel(Format.holdoutTitle(c))
         Text("You missed day ${stage.daysLasted + 1}.", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.Warning)
         HoldoutCard {
-            Body("You lasted ${stage.daysLasted} of ${c.durationDays} days. The deadline passed before day ${stage.daysLasted + 1} reached the chain, so your stake of ${h.membership?.let { Format.skr(it.stake) } ?: "—"} went into this Holdout's prize pool — 80 % to the pool, 20 % fee.")
+            Body("You lasted ${stage.daysLasted} of ${c.durationDays} days. The deadline passed before day ${stage.daysLasted + 1} reached the chain, so your stake of ${h.membership?.let { Format.skr(it.stake) } ?: "—"} went into this Holdout's prize pool — 70 % to the pool, 30 % fee.")
             if (!stage.recorded) Body("It is final from the deadline; the record catches up on the next automation pass.")
         }
         HoldoutCard {

@@ -134,9 +134,17 @@ class MainTest {
     }
 
     @Test
-    fun `the Phase 2 drift check is not in this build`() {
-        val (code, _) = run("chips", "publish", "--auto", "--if-drift", "0.20")
+    fun `the weekly check takes no hand-typed rate`() {
+        val (code, json) = run("chips", "publish", "--auto", "--rate", "0.02")
         assertEquals(EXIT_CONFIG, code)
+        assertTrue(json.getValue("error").jsonPrimitive.content.contains("--auto"))
+    }
+
+    @Test
+    fun `the weekly check without --dry-run needs the operator key`() {
+        val (code, json) = run("chips", "publish", "--auto")
+        assertEquals(EXIT_CONFIG, code)
+        assertTrue(json.getValue("error").jsonPrimitive.content.contains("HOLDOUT_OPERATOR_KEYPAIR"))
     }
 
     @Test

@@ -77,7 +77,7 @@ fun StakeSheet(
     ) {
         TextButton(onClick = onBack) { Text("← Back", color = HoldoutColors.TextSecondary) }
         if (h.isTest) TestCohortBadge(c.dayLength)
-        Text("${c.durationDays}-day Holdout", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
+        Text(Format.holdoutTitle(c), style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
 
         SectionLabel("Your stake")
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
@@ -102,7 +102,7 @@ fun StakeSheet(
         HoldoutCard {
             SectionLabel("Every day")
             Text("${c.repsPerDay} push-ups before each day's deadline, for ${c.durationDays} days", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
-            Body("Miss one and your stake goes into the prize pool — 80 % to the pool, 20 % fee.")
+            Body("Miss one and your stake goes into the prize pool — 70 % to the pool and a 30 % fee, half of which funds this league's prize boosts and comeback refunds.")
             Body("Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))} · starts in ${Format.countdown(c.start - now)}")
             Body("You can leave for a full refund until joining closes.")
             Body("If you allow notifications, this phone reminds you when it starts and before each deadline you haven't met yet. The reminders never leave the phone.")
@@ -111,14 +111,17 @@ fun StakeSheet(
         HoldoutCard {
             SectionLabel("The pool")
             Text("${Format.skr(Derive.atStake(c))} at stake · ${c.memberCount} joined", style = AmountStyle, color = HoldoutColors.Accent)
-            Derive.carryOverReceived(c)?.let { Body("+ ${Format.skr(it)} carry-over already in the prize pool") }
             Body("Finish and you take back your stake plus your share of what the members who miss a day leave behind.")
-            Body("If everyone finishes, you get your stake back plus your share of any carry-over.")
+            Body("If everyone finishes, you get exactly your stake back.")
         }
 
         HoldoutCard {
             SectionLabel("How reps are counted here")
-            Text(Stakes.STAKED_RULE, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextPrimary)
+            Text(
+                if (Stakes.ofForm(c.form) == Stakes.EASY) Stakes.EASY_RULE else Stakes.STAKED_RULE,
+                style = MaterialTheme.typography.bodyLarge,
+                color = HoldoutColors.TextPrimary,
+            )
         }
 
         val short = skrBalance < chip

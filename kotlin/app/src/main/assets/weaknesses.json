@@ -22,8 +22,8 @@
       "fix": "Flip the flag on mainnet"
     },
     {
-      "what": "Non-default `day_seconds` for test cohorts — including **one short test cohort on devnet**, from which the walkthrough and the demo video are recorded",
-      "why": "Lets a full 7-day cycle run in 70 minutes — 10-minute days (H32) — during testing",
+      "what": "Non-default `day_seconds` for test cohorts — a **short test lobby kept running on devnet** for judges, from which the walkthrough and the demo video are recorded",
+      "why": "Lets a single judge run a whole cycle alone: three 10-minute days, a new cohort every 30 minutes (FR-044a, H36). Only one test league runs at a time, since streaks are written when a cohort is counted and two test leagues of different lengths could count a member's outcomes out of order on the combined test board",
       "fix": "Admin-guarded; real cohorts always use 24 hours"
     },
     {
@@ -53,8 +53,8 @@
     },
     {
       "what": "A cobra is refused at 45°, not proven head-on",
-      "why": "Lying flat and pressing only the chest up, hips on the floor, counted at 45° until the body line was judged on the push back up (honest 157–174°, cobra 120–134°). A cobra done with the body nearly straight, and a rep pushed up from lying on the floor, passed that check; they are refused by how far the hips have risen half-way up the push against the shoulders (honest 0.92–1.06, those 0.63–0.87, line 0.90) — with a margin of 0.02–0.03, measured on two people. From further in front than about 35° that check does not hold, so a staked sitting does not start there. Head-on no cobra has been recorded",
-      "fix": "Record head-on cobra reps before relying on the Daily 25 there"
+      "why": "Lying flat and pressing only the chest up, hips on the floor, counted at 45° until the body line was judged on the push back up (honest 157–174°, cobra 120–134°). A cobra done with the body nearly straight, and a rep pushed up from lying on the floor, passed that check; they are refused by how far the hips have risen half-way up the push against the shoulders (honest 0.92–1.06, those 0.63–0.87, line 0.90) — with a margin of 0.02–0.03, measured on two people. From further in front than about 35° that check does not hold, so a staked sitting does not start there. The free Daily 25 does start there, and since it accepts a body line straight to the ankle **or to the knee** (so knee push-ups with the feet raised count), more cobras get through at those spots: 4 of 5 on one recording (`angled-mixed-03`). Accepted for a free set with no stake and no prize. Head-on no cobra has been recorded",
+      "fix": "Record head-on and wide-45° cobra reps before relying on the Daily 25 there; a hip-rise check that holds from further in front"
     },
     {
       "what": "No liveness check and no audio anti-spoofing in rep verification",
@@ -62,7 +62,7 @@
       "fix": "Reinstate the audio check and the audio rep condition together — one move restores liveness and anti-spoofing both"
     },
     {
-      "what": "Stake chips (≈ $10 / $25 / $50 / $100) are priced in SKR by the Operator from an off-chain rate — once at launch, re-checked weekly in Phase 2",
+      "what": "Stake chips (≈ $10 / $25 / $50 / $100) are priced in SKR by the Operator from an off-chain rate — **a trusted input**: by hand at launch, then re-priced every week by the Operator's `crank chips publish --auto`, which reads the **Jupiter Price API** (mainnet SKR mint)",
       "why": "The contract must never read a price",
       "fix": "On-chain chip governance before real value is at stake"
     },
@@ -92,9 +92,14 @@
       "fix": "Used only for defect fixes that change no existing cohort, account layout or fund movement. Real fix: revoke the authority once the contract is final"
     },
     {
-      "what": "A cohort nobody finished cannot settle until its league has a lobby open for joining",
-      "why": "The carry-over has to go into a cohort members can still join, and the contract will not let a caller's timing decide otherwise: settlement is refused while no such cohort exists (error 6047). Opening the league's next cohort is permissionless and already due, and the crank does it before settling anything, so the refusal costs one automation pass",
-      "fix": "Ship `deliver_carry_over` (Phase 2, already specified) so a league that stops opening cohorts entirely can still move the amount it would then hold"
+      "what": "The fee funds reserves, a developer share and operations by rule, but the developer and operations shares are ordinary wallets",
+      "why": "Of every forfeited stake, 10% and 5% go to the league's boost and comeback reserves, which only the program can move, and 5% and 10% to the developer and operations wallets named in this README (H35). What those two wallets then do with it is not enforced by the contract",
+      "fix": "Publish both wallets' addresses and their spending; later, move operations spending on chain or under a multisig"
+    },
+    {
+      "what": "Easy Holdouts count push-ups from the knees on thin evidence",
+      "why": "Knees-allowed counting at 45 degrees was measured on about 26 recordings from mostly one person: 87% of honest knee reps counted, 3 of 56 cobras slipped through - 2 of them filmed at about 30 degrees, which the Easy camera check now refuses (H35)",
+      "fix": "Record at least 3 people, 100 knee reps and cobras at 30-60 degrees, and replay them before any real money rides on Easy"
     },
     {
       "what": "A Daily 25 done before the phone has ever read chain time is dated afterwards, from the phone's own uptime clock",

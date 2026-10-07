@@ -28,6 +28,9 @@ object Format {
     /** The mock SKR mint's decimals — `SKR_DECIMALS` in `initialize` (decision H31). */
     const val SKR_DECIMALS = 6
 
+    /** "Easy · 7-day Holdout", "Hard · 21-day Holdout": a Holdout's level is its form (H35). */
+    fun holdoutTitle(c: holdout.core.CohortSnapshot): String = "${holdout.core.LeagueParams.formName(c.form)} · ${c.durationDays}-day Holdout"
+
     /** `46 SKR`, `12.5 SKR`: every amount a member stakes or receives, in SKR (FR-059). */
     fun skr(baseUnits: ULong): String = BigDecimal(baseUnits.toString()).movePointLeft(SKR_DECIMALS).stripTrailingZeros().toPlainString() + " SKR"
 

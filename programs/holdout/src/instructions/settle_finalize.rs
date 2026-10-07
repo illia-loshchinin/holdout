@@ -6,43 +6,45 @@
 //! every finisher and finalisation costs the same whether the cohort holds ten
 //! members or a thousand (research R10).
 //!
-//! ## The carry-over destination is not the caller's to choose
+//! ## The league reserve, in cohort order (FR-037c–e, H35)
 //!
-//! When nobody finished, half the pool goes to the treasury and the rest must
-//! reach a cohort members can still join (FR-037, FR-037a). The destination is
-//! fixed by chain state — the league's cohort `next_index − 1` — and the
-//! accounts for it are **required**, not optional:
+//! With finishers, in this order: the cohort draws its **boost** —
+//! `min(20% of its own pool, the boost reserve)` — and the shares are computed
+//! on the boosted pool; it draws `min(comeback owed, the comeback reserve)` for
+//! its finishers' **comeback refunds**; then it **credits** the reserve shares
+//! of its own forfeits to the league. A cohort draws before it credits, so its
+//! own forfeits fund later cohorts, never itself.
 //!
-//!  - withheld → `CarryOverTargetRequired` (6046), so no caller can strand the
-//!    money by omission;
-//!  - not that cohort → `AccountMismatch` (6060), so none can pick a different
-//!    one;
-//!  - that cohort is this one, or has already locked → `CarryOverTargetNotOpen`
-//!    (6047).
+//! The reserve moves only here, and both `settle_count` and this instruction
+//! refuse cohort *i* until cohort *i − 1* of the league is settled — this one
+//! too, because a cohort nobody joined is never counted — so finalization runs
+//! in cohort order: what a cohort draws depends only on earlier cohorts of its league,
+//! never on when the crank recorded anyone's forfeit (INV-10, constitution II).
 //!
-//! The last refusal is always answerable: `open_cohort` is permissionless and
-//! due the moment the previous cohort started, so the crank opens the league's
-//! next lobby and settles in the same pass. It therefore costs one automation
-//! pass rather than parking money the caller's timing chose to strand — which
-//! is why **Phase 1 never writes `carry_over_held`** (FR-030a).
+//! ## Nobody finished
+//!
+//! Its whole pool goes out — a third to the developer, the rest to operations —
+//! and nothing carries over into another cohort (FR-037, H34, H35). Its reserve
+//! shares are still credited to the league.
 
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token::{Token, TokenAccount};
 
 use crate::{
     errors::HoldoutError,
-    events::{CarryOverSent, CohortSettled},
+    events::CohortSettled,
     guards,
     math::settlement,
     state::{
-        cohort::{Cohort, CohortStatus, COHORT_SEED, VAULT_SEED},
+        cohort::{Cohort, COHORT_SEED, VAULT_SEED},
         config::{Config, CONFIG_SEED},
-        league::{LeagueConfig, LEAGUE_SEED},
+        league::{LeagueConfig, LEAGUE_SEED, RESERVE_SEED},
     },
+    vault::transfer_signed,
 };
 
-/// The large accounts are boxed: two `Cohort`s and a `Config` do not fit in
-/// `try_accounts`' own SBF stack frame.
+/// The large accounts are boxed: a `Cohort` and a `Config` do not fit in
+/// `try_accounts`' own SBF stack frame beside the rest.
 #[derive(Accounts)]
 pub struct SettleFinalize<'info> {
     /// Anyone. The caller's identity never changes the outcome (FR-030a).
@@ -52,7 +54,9 @@ pub struct SettleFinalize<'info> {
     #[account(seeds = [CONFIG_SEED], bump = config.bump)]
     pub config: Box<Account<'info, Config>>,
 
+    /// Writable: its reserves move here, and only here (INV-10).
     #[account(
+        mut,
         seeds = [LEAGUE_SEED, &[league.league_id]],
         bump = league.bump,
     )]
@@ -72,19 +76,32 @@ pub struct SettleFinalize<'info> {
     )]
     pub vault: Box<Account<'info, TokenAccount>>,
 
+    /// Operations.
     #[account(
         mut,
         constraint = fee_destination.key() == config.fee_destination @ HoldoutError::AccountMismatch,
     )]
     pub fee_destination: Box<Account<'info, TokenAccount>>,
 
-    /// The league's cohort `next_index - 1`. Required when nobody finished.
-    #[account(mut)]
-    pub target_cohort: Option<Box<Account<'info, Cohort>>>,
+    #[account(
+        mut,
+        constraint = developer_destination.key() == config.developer_destination @ HoldoutError::AccountMismatch,
+    )]
+    pub developer_destination: Box<Account<'info, TokenAccount>>,
 
-    /// That cohort's vault.
-    #[account(mut)]
-    pub target_vault: Option<Box<Account<'info, TokenAccount>>>,
+    #[account(
+        mut,
+        seeds = [RESERVE_SEED, &[league.league_id]],
+        bump = league.reserve_vault_bump,
+        constraint = reserve_vault.mint == config.skr_mint @ HoldoutError::AccountMismatch,
+    )]
+    pub reserve_vault: Box<Account<'info, TokenAccount>>,
+
+    /// The league's cohort `index - 1`, required for every index but 0. A
+    /// cohort nobody joined is never counted, so this is its only ordering
+    /// check: without it an empty cohort could settle ahead of an older one
+    /// and let the next cohort count past it (FR-061a, INV-10).
+    pub previous_cohort: Option<Box<Account<'info, Cohort>>>,
 
     pub token_program: Program<'info, Token>,
 }
@@ -96,190 +113,164 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleFinalize<'info>>) -> Resu
         ctx.accounts.cohort.counted == ctx.accounts.cohort.member_count,
         HoldoutError::CountIncomplete
     );
+    let index = ctx.accounts.cohort.index;
+    if index > 0 {
+        let previous = ctx
+            .accounts
+            .previous_cohort
+            .as_ref()
+            .ok_or(error!(HoldoutError::AccountMismatch))?;
+        require!(
+            previous.league_id == ctx.accounts.cohort.league_id && previous.index == index - 1,
+            HoldoutError::AccountMismatch
+        );
+        require!(previous.settled, HoldoutError::PreviousCohortUnsettled);
+    }
 
     let cohort_key = ctx.accounts.cohort.key();
     let league_id = ctx.accounts.cohort.league_id;
     let index_bytes = ctx.accounts.cohort.index.to_le_bytes();
-    let bump = [ctx.accounts.cohort.bump];
-    let signer: &[&[u8]] = &[COHORT_SEED, &[league_id], &index_bytes, &bump];
+    let cohort_bump = [ctx.accounts.cohort.bump];
+    let cohort_seeds: &[&[u8]] = &[COHORT_SEED, &[league_id], &index_bytes, &cohort_bump];
+    let league_bump = [ctx.accounts.league.bump];
+    let league_seeds: &[&[u8]] = &[LEAGUE_SEED, &[league_id], &league_bump];
 
-    let pool = ctx.accounts.cohort.pool;
+    let token_program = ctx.accounts.token_program.to_account_info();
+    let vault = ctx.accounts.vault.to_account_info();
+    let reserve_vault = ctx.accounts.reserve_vault.to_account_info();
+    let cohort_info = ctx.accounts.cohort.to_account_info();
+    let league_info = ctx.accounts.league.to_account_info();
+
     let total_finisher_stake = ctx.accounts.cohort.total_finisher_stake;
+    let mut boost = 0u64;
+    let mut comeback_funded = 0u64;
+    let mut shares = [0u64; 4];
+    let mut remainder = 0u64;
 
     if total_finisher_stake > 0 {
+        // (1) The boost, drawn before the shares so they are computed on it.
+        boost = settlement::boost_for(ctx.accounts.cohort.pool, ctx.accounts.league.boost_reserve);
+        transfer_signed(
+            &token_program,
+            reserve_vault.clone(),
+            vault.clone(),
+            league_info.clone(),
+            league_seeds,
+            boost,
+        )?;
+        ctx.accounts.league.boost_reserve -= boost;
+        let pool = ctx
+            .accounts
+            .cohort
+            .pool
+            .checked_add(boost)
+            .ok_or(error!(HoldoutError::AccountMismatch))?;
+
+        // (2) Per-tier shares on the boosted pool; the floors' remainder to operations.
         let chips = ctx.accounts.cohort.chips;
-        let mut shares = [0u64; 4];
         for tier in 0..4 {
             shares[tier] = settlement::share_for_tier(pool, chips[tier], total_finisher_stake);
         }
-        let remainder =
+        remainder =
             settlement::rounding_remainder(pool, ctx.accounts.cohort.finishers_per_tier, shares);
+        transfer_signed(
+            &token_program,
+            vault.clone(),
+            ctx.accounts.fee_destination.to_account_info(),
+            cohort_info.clone(),
+            cohort_seeds,
+            remainder,
+        )?;
 
-        if remainder > 0 {
-            transfer_from_vault(
-                &ctx,
-                signer,
-                ctx.accounts.fee_destination.to_account_info(),
-                remainder,
-            )?;
-        }
+        // (3) The comeback refunds this cohort's finishers are owed, as far as
+        // the reserve reaches; each is paid, scaled, with its claim (FR-037e).
+        comeback_funded = ctx
+            .accounts
+            .cohort
+            .comeback_owed
+            .min(ctx.accounts.league.comeback_reserve);
+        transfer_signed(
+            &token_program,
+            reserve_vault.clone(),
+            vault.clone(),
+            league_info.clone(),
+            league_seeds,
+            comeback_funded,
+        )?;
+        ctx.accounts.league.comeback_reserve -= comeback_funded;
 
         let cohort = &mut ctx.accounts.cohort;
+        cohort.boost_received = boost;
         cohort.share_per_tier = shares;
         cohort.rounding_remainder = remainder;
+        cohort.comeback_funded = comeback_funded;
         cohort.pool = pool
             .checked_sub(remainder)
             .ok_or(error!(HoldoutError::AccountMismatch))?;
-        cohort.settled = true;
-
-        emit!(CohortSettled {
-            cohort: cohort_key,
-            finishers: cohort.finisher_count,
-            total_finisher_stake,
-            share_per_tier: shares,
-            rounding_remainder: remainder,
-        });
-
-        return Ok(());
-    }
-
-    // Nobody finished. The destination is whatever chain state says it is.
-    let target_index = ctx
-        .accounts
-        .league
-        .next_index
-        .checked_sub(1)
-        .ok_or(error!(HoldoutError::CarryOverTargetNotOpen))?;
-
-    // Answered before the accounts are even asked for. When the league's latest
-    // cohort is *this* one there is no later cohort to carry into, and no
-    // account the caller could pass would change that — the same account in two
-    // mutable slots is not even representable. So the caller gets the reason
-    // (6047: open the league's next cohort, then settle) rather than a bare
-    // "target required" they could not satisfy (FR-037a).
-    require!(
-        target_index != ctx.accounts.cohort.index,
-        HoldoutError::CarryOverTargetNotOpen
-    );
-
-    let (target_cohort, target_vault) = match (
-        ctx.accounts.target_cohort.as_ref(),
-        ctx.accounts.target_vault.as_ref(),
-    ) {
-        (Some(cohort), Some(vault)) => (cohort, vault),
-        // Omission must not decide anything (FR-030a).
-        _ => return Err(error!(HoldoutError::CarryOverTargetRequired)),
-    };
-
-    let expected_target = Pubkey::create_program_address(
-        &[
-            COHORT_SEED,
-            &[league_id],
-            &target_index.to_le_bytes(),
-            &[target_cohort.bump],
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| error!(HoldoutError::AccountMismatch))?;
-    require_keys_eq!(
-        target_cohort.key(),
-        expected_target,
-        HoldoutError::AccountMismatch
-    );
-    let expected_vault = Pubkey::create_program_address(
-        &[
-            VAULT_SEED,
-            target_cohort.key().as_ref(),
-            &[target_cohort.vault_bump],
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| error!(HoldoutError::AccountMismatch))?;
-    require_keys_eq!(
-        target_vault.key(),
-        expected_vault,
-        HoldoutError::AccountMismatch
-    );
-
-    // The destination has to be one members can still join.
-    require!(
-        target_cohort.status(now) == CohortStatus::Open,
-        HoldoutError::CarryOverTargetNotOpen
-    );
-
-    let (fee_half, carry) = settlement::no_finisher_split(pool);
-    let target_key = target_cohort.key();
-    let target_vault_info = target_vault.to_account_info();
-
-    if fee_half > 0 {
-        transfer_from_vault(
-            &ctx,
-            signer,
-            ctx.accounts.fee_destination.to_account_info(),
-            fee_half,
+    } else {
+        // Nobody finished: the whole pool goes out and nothing carries over.
+        let pool = ctx.accounts.cohort.pool;
+        let (developer, operations) = settlement::no_finisher_split(pool);
+        transfer_signed(
+            &token_program,
+            vault.clone(),
+            ctx.accounts.developer_destination.to_account_info(),
+            cohort_info.clone(),
+            cohort_seeds,
+            developer,
         )?;
-    }
-    if carry > 0 {
-        transfer_from_vault(&ctx, signer, target_vault_info, carry)?;
+        transfer_signed(
+            &token_program,
+            vault.clone(),
+            ctx.accounts.fee_destination.to_account_info(),
+            cohort_info.clone(),
+            cohort_seeds,
+            operations,
+        )?;
+        let cohort = &mut ctx.accounts.cohort;
+        cohort.no_finisher_fee = pool;
+        cohort.pool = 0;
     }
 
-    let target = ctx
-        .accounts
-        .target_cohort
-        .as_mut()
-        .ok_or(error!(HoldoutError::CarryOverTargetRequired))?;
-    target.pool = target
-        .pool
-        .checked_add(carry)
+    // (4) This cohort's own reserve shares go to its league — after it drew,
+    // so they fund later cohorts only (FR-037c).
+    let boost_due = ctx.accounts.cohort.boost_due;
+    let comeback_due = ctx.accounts.cohort.comeback_due;
+    let credit = boost_due
+        .checked_add(comeback_due)
         .ok_or(error!(HoldoutError::AccountMismatch))?;
-    target.carry_over_received = target
-        .carry_over_received
-        .checked_add(carry)
+    transfer_signed(
+        &token_program,
+        vault,
+        reserve_vault,
+        cohort_info,
+        cohort_seeds,
+        credit,
+    )?;
+    let league = &mut ctx.accounts.league;
+    league.boost_reserve = league
+        .boost_reserve
+        .checked_add(boost_due)
+        .ok_or(error!(HoldoutError::AccountMismatch))?;
+    league.comeback_reserve = league
+        .comeback_reserve
+        .checked_add(comeback_due)
         .ok_or(error!(HoldoutError::AccountMismatch))?;
 
     let cohort = &mut ctx.accounts.cohort;
-    cohort.no_finisher_fee = fee_half;
-    cohort.carry_over_sent = carry;
-    // Stays zero: Phase 1 refuses rather than parking money (FR-037a).
-    cohort.carry_over_held = 0;
-    cohort.carry_over_target = target_key;
-    cohort.pool = 0;
+    cohort.boost_due = 0;
+    cohort.comeback_due = 0;
     cohort.settled = true;
 
     emit!(CohortSettled {
         cohort: cohort_key,
-        finishers: 0,
-        total_finisher_stake: 0,
-        share_per_tier: [0; 4],
-        rounding_remainder: 0,
-    });
-    emit!(CarryOverSent {
-        from: cohort_key,
-        to: target_key,
-        amount: carry,
-        fee: fee_half,
+        finishers: cohort.finisher_count,
+        total_finisher_stake,
+        share_per_tier: shares,
+        rounding_remainder: remainder,
+        boost,
+        comeback_funded,
     });
 
     Ok(())
-}
-
-/// Move SKR out of this cohort's vault, signed by the cohort PDA that holds it.
-fn transfer_from_vault<'info>(
-    ctx: &Context<'info, SettleFinalize<'info>>,
-    signer: &[&[u8]],
-    to: AccountInfo<'info>,
-    amount: u64,
-) -> Result<()> {
-    token::transfer(
-        CpiContext::new_with_signer(
-            ctx.accounts.token_program.key(),
-            Transfer {
-                from: ctx.accounts.vault.to_account_info(),
-                to,
-                authority: ctx.accounts.cohort.to_account_info(),
-            },
-            &[signer],
-        ),
-        amount,
-    )
 }

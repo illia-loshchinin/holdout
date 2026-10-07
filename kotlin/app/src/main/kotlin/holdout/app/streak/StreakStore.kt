@@ -9,8 +9,12 @@ import holdout.app.storage.Store
  *
  * - **+1 on a completed day, from either source.** A cohort day counts as that
  *   day's Daily 25 — nobody trains twice to hold both (FR-050).
- * - **Broken by a day with none.** Banked reps short of the target do not keep
- *   it alive (FR-049).
+ * - **Broken by a day with none** — unless a **freeze** covers it (H35): one
+ *   is earned for every seven consecutive active days, at most two are held,
+ *   and they are used automatically. A frozen day keeps the streak without
+ *   adding to it. Freezes cover the Daily 25 streak only; a Holdout day has no
+ *   grace (FR-016). Banked reps short of the target do not keep it alive
+ *   (FR-049).
  * - **A forfeit does not touch it** (FR-052). Losing a stake and losing a habit
  *   are different failures, and the app must not conflate them. There is
  *   deliberately no method here for a forfeit to call.
@@ -25,7 +29,8 @@ import holdout.app.storage.Store
  */
 class StreakStore(private val store: Store) {
 
-    data class Streak(val current: Int, val longest: Int, val completedToday: Boolean)
+    /** [freezes]: held now, after any the days since the last active one have used. */
+    data class Streak(val current: Int, val longest: Int, val completedToday: Boolean, val freezes: Int = 0)
 
     /**
      * What to show for [dayIndex]. Reading never writes: a streak that lapsed
@@ -37,15 +42,26 @@ class StreakStore(private val store: Store) {
         val stored = store.streak(wallet)
         val longest = store.longestStreak(wallet)
 
-        val current = when {
-            last == Store.NO_DAY -> 0
-            // Trained today, or yesterday and today is still open.
-            last == dayIndex || last == dayIndex - 1 -> stored
-            else -> 0
-        }
+        val freezes = store.streakFreezes(wallet)
+        // Whole days that passed with nothing done, before today.
+        val missed = if (last == Store.NO_DAY) 0L else (dayIndex - last - 1).coerceAtLeast(0)
+        val alive = last != Store.NO_DAY && missed <= freezes
+        val current = if (alive) stored else 0
         // A process killed between the two streak writes leaves the longest
         // behind the current; it is never shown below it.
-        return Streak(current, maxOf(longest, current), completedToday = last == dayIndex)
+        return Streak(
+            current,
+            maxOf(longest, current),
+            completedToday = last == dayIndex,
+            // A streak that broke used every freeze it held on the way down.
+            freezes = if (alive) {
+                freezes - missed.toInt()
+            } else if (last == Store.NO_DAY) {
+                freezes
+            } else {
+                0
+            },
+        )
     }
 
     /**
@@ -57,12 +73,36 @@ class StreakStore(private val store: Store) {
         val last = store.lastStreakDay(wallet)
         if (last == dayIndex) return read(wallet, dayIndex)
 
-        val current = if (last == dayIndex - 1) store.streak(wallet) + 1 else 1
-        store.setStreak(wallet, current, dayIndex)
+        val held = store.streakFreezes(wallet)
+        val missed = if (last == Store.NO_DAY) Long.MAX_VALUE else dayIndex - last - 1
+        // Every missed day costs a freeze; with enough of them the streak goes on.
+        val continues = missed in 0..held.toLong()
+        val current = if (continues) store.streak(wallet) + 1 else 1
+        // Freezes go automatically on missed days, so a break has used them all.
+        var freezes = if (continues) {
+            held - missed.toInt()
+        } else if (last == Store.NO_DAY) {
+            held
+        } else {
+            0
+        }
+        // One freeze per seven consecutive active days, never more than two held.
+        if (current % FREEZE_EVERY_DAYS == 0) freezes = minOf(MAX_FREEZES, freezes + 1)
+        // One write: the day and its freezes can never be saved apart, and a
+        // second call for this day returns above without writing anything.
+        store.setStreak(wallet, current, dayIndex, freezes)
 
         val longest = maxOf(current, store.longestStreak(wallet))
         if (longest != store.longestStreak(wallet)) store.setLongestStreak(wallet, longest)
 
-        return Streak(current, longest, completedToday = true)
+        return Streak(current, longest, completedToday = true, freezes = freezes)
+    }
+
+    companion object {
+        /** Active days in a row that earn one freeze (H35). */
+        const val FREEZE_EVERY_DAYS = 7
+
+        /** The most freezes held at once (H35). */
+        const val MAX_FREEZES = 2
     }
 }

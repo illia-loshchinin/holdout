@@ -2,6 +2,7 @@ package holdout.app.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -24,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import holdout.app.streak.ToesMeter
 import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.CounterStyle
 import holdout.app.ui.theme.HoldoutColors
@@ -59,6 +62,12 @@ data class HomeState(
     val streak: Int,
     /** Null while chain time is unknown — the screen says so rather than guessing. */
     val secondsLeftToday: Long?,
+    /** Streak freezes held, 0–2 (H35): each keeps the streak through one missed day. */
+    val freezes: Int = 0,
+    /** Today's toes meter (H35), or null before any Daily 25 rep is counted. */
+    val toes: ToesMeter.Meter? = null,
+    /** The way into a Holdout once today is done ([DailyHoldoutLine]), or null. */
+    val holdoutLine: String? = null,
 )
 
 @Composable
@@ -218,6 +227,22 @@ fun HomeScreen(
             color = HoldoutColors.Accent,
             modifier = Modifier.padding(top = 8.dp),
         )
+        state.toes?.takeIf { state.completedToday }?.let { ToesMeterCard(it, state.target) }
+        state.holdoutLine?.takeIf { state.completedToday }?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.TextPrimary, textAlign = TextAlign.Center)
+        }
+
+        if (state.streak > 0) {
+            Text(
+                text = when (state.freezes) {
+                    0 -> "Seven days in a row earn a freeze for a missed day"
+                    1 -> "1 freeze held — a missed day won't break the streak"
+                    else -> "${state.freezes} freezes held — two missed days won't break the streak"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = HoldoutColors.TextSecondary,
+            )
+        }
 
         below()
     }
@@ -265,5 +290,48 @@ private fun HomeDonePreview() {
             state = HomeState(0, 25, 25, completedToday = true, streak = 13, secondsLeftToday = 14_760),
             onStart = {},
         )
+    }
+}
+
+/**
+ * "18 of 25 from your toes", seven bars for the last week and the best day
+ * (H35): how far from a Hard Holdout today's Daily 25 was. Measured at 45° only;
+ * head-on it says how to see it instead of guessing.
+ */
+@Composable
+private fun ToesMeterCard(meter: ToesMeter.Meter, target: Int) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 8.dp)) {
+        if (meter.measured == 0) {
+            Text(
+                "Do it with the phone at 45° to see how many come from your toes",
+                style = MaterialTheme.typography.bodySmall,
+                color = HoldoutColors.TextSecondary,
+                textAlign = TextAlign.Center,
+            )
+            return@Column
+        }
+        Text(
+            if (meter.measured < target) "${meter.toes} of ${meter.measured} seen at 45° from your toes" else "${meter.toes} of ${meter.measured} from your toes",
+            style = AmountStyle,
+            color = if (meter.hardDay(target)) HoldoutColors.Success else HoldoutColors.TextPrimary,
+        )
+        if (meter.hardDay(target)) {
+            Text("That's a Hard day.", style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.Success)
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.Bottom,
+            modifier = Modifier.height(32.dp).padding(top = 4.dp),
+        ) {
+            meter.week.forEach { toes ->
+                Box(
+                    modifier = Modifier
+                        .width(10.dp)
+                        .height((4 + 28 * toes.coerceAtMost(target) / target.coerceAtLeast(1)).dp)
+                        .background(if (toes >= target) HoldoutColors.Success else HoldoutColors.Accent),
+                )
+            }
+        }
+        Text("Best: ${meter.best} from your toes", style = MaterialTheme.typography.bodySmall, color = HoldoutColors.TextTertiary)
     }
 }

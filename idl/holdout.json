@@ -495,8 +495,24 @@
           "writable": true
         },
         {
+          "name": "skr_mint"
+        },
+        {
+          "name": "reserve_vault",
+          "docs": [
+            "The league's SKR reserve: boosts and comeback refunds, credited only when",
+            "one of its cohorts finalizes (FR-037c). Its authority is the league PDA,",
+            "so no key outside the program can move what it holds (constitution I)."
+          ],
+          "writable": true
+        },
+        {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": [
@@ -514,6 +530,10 @@
         },
         {
           "name": "exercise",
+          "type": "u8"
+        },
+        {
+          "name": "form",
           "type": "u8"
         },
         {
@@ -636,8 +656,9 @@
         {
           "name": "fee_destination",
           "docs": [
-            "Forfeit fees, the no-finisher half and rounding remainders land here, in",
-            "the treasury's own associated token account — the program never holds them."
+            "The operations destination: the operations part of every forfeit, two",
+            "thirds of a no-finisher pool and rounding remainders land here, in the",
+            "treasury's own associated token account — the program never holds them."
           ],
           "writable": true,
           "pda": {
@@ -645,6 +666,103 @@
               {
                 "kind": "account",
                 "path": "treasury_wallet"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "skr_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "developer_wallet",
+          "docs": [
+            "developer part of every forfeit (H35), named in the README (constitution",
+            "XI) — and signs nothing."
+          ]
+        },
+        {
+          "name": "developer_destination",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "developer_wallet"
               },
               {
                 "kind": "const",
@@ -780,6 +898,10 @@
         },
         {
           "name": "treasury_wallet",
+          "type": "pubkey"
+        },
+        {
+          "name": "developer_wallet",
           "type": "pubkey"
         },
         {
@@ -1312,7 +1434,7 @@
         {
           "name": "vault",
           "docs": [
-            "The cohort's own SKR vault: stakes, the pool and any carry-over, held",
+            "The cohort's own SKR vault: stakes and the pool, held",
             "under the cohort's authority so no key outside the program can move them",
             "(constitution I)."
           ],
@@ -1493,6 +1615,10 @@
           "writable": true
         },
         {
+          "name": "developer_destination",
+          "writable": true
+        },
+        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
@@ -1626,6 +1752,10 @@
           "writable": true
         },
         {
+          "name": "developer_destination",
+          "writable": true
+        },
+        {
           "name": "previous_cohort",
           "docs": [
             "The league's cohort `index - 1`, required for every index but 0."
@@ -1642,8 +1772,8 @@
     {
       "name": "settle_finalize",
       "docs": [
-        "Once. Constant-time per-tier shares; the carry-over's destination is",
-        "fixed by chain state, never by the caller (FR-030a, FR-037a)."
+        "Once. Constant-time per-tier shares; with no finishers the whole pool",
+        "goes to the fee destination (FR-030a, FR-037)."
       ],
       "discriminator": [
         182,
@@ -1683,7 +1813,11 @@
           }
         },
         {
-          "name": "league"
+          "name": "league",
+          "docs": [
+            "Writable: its reserves move here, and only here (INV-10)."
+          ],
+          "writable": true
         },
         {
           "name": "cohort",
@@ -1713,22 +1847,27 @@
         },
         {
           "name": "fee_destination",
+          "docs": [
+            "Operations."
+          ],
           "writable": true
         },
         {
-          "name": "target_cohort",
-          "docs": [
-            "The league's cohort `next_index - 1`. Required when nobody finished."
-          ],
-          "writable": true,
-          "optional": true
+          "name": "developer_destination",
+          "writable": true
         },
         {
-          "name": "target_vault",
+          "name": "reserve_vault",
+          "writable": true
+        },
+        {
+          "name": "previous_cohort",
           "docs": [
-            "That cohort's vault."
+            "The league's cohort `index - 1`, required for every index but 0. A",
+            "cohort nobody joined is never counted, so this is its only ordering",
+            "check: without it an empty cohort could settle ahead of an older one",
+            "and let the next cohort count past it (FR-061a, INV-10)."
           ],
-          "writable": true,
           "optional": true
         },
         {
@@ -1986,45 +2125,6 @@
   ],
   "events": [
     {
-      "name": "CarryOverDelivered",
-      "discriminator": [
-        133,
-        4,
-        96,
-        150,
-        141,
-        96,
-        107,
-        182
-      ]
-    },
-    {
-      "name": "CarryOverHeld",
-      "discriminator": [
-        61,
-        84,
-        89,
-        35,
-        170,
-        204,
-        29,
-        242
-      ]
-    },
-    {
-      "name": "CarryOverSent",
-      "discriminator": [
-        3,
-        56,
-        84,
-        193,
-        174,
-        246,
-        82,
-        216
-      ]
-    },
-    {
       "name": "ChipSetPublished",
       "discriminator": [
         48,
@@ -2218,6 +2318,11 @@
       "msg": "No cohort can open before the first chip set is published"
     },
     {
+      "code": 6013,
+      "name": "InvalidForm",
+      "msg": "A league's form is 0 (from the toes) or 1 (knees allowed)"
+    },
+    {
       "code": 6020,
       "name": "CohortNotDue",
       "msg": "This cohort is not due yet, or its index is wrong"
@@ -2303,16 +2408,6 @@
       "msg": "The previous cohort of this league must settle first"
     },
     {
-      "code": 6046,
-      "name": "CarryOverTargetRequired",
-      "msg": "A no-finisher settlement needs the league's latest cohort and its vault"
-    },
-    {
-      "code": 6047,
-      "name": "CarryOverTargetNotOpen",
-      "msg": "The league has no cohort open for joining: open the next one, then settle"
-    },
-    {
       "code": 6050,
       "name": "FaucetAlreadyClaimedToday",
       "msg": "This wallet has already used the faucet today"
@@ -2344,78 +2439,6 @@
     }
   ],
   "types": [
-    {
-      "name": "CarryOverDelivered",
-      "docs": [
-        "**[Phase 2]** — the single delivery of an amount a stopped league held."
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "from",
-            "type": "pubkey"
-          },
-          {
-            "name": "to",
-            "type": "pubkey"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CarryOverHeld",
-      "docs": [
-        "Phase 1 never emits this: a no-finisher cohort is refused rather than settled",
-        "while its carry-over has nowhere to go (FR-037a). It stays for the league in",
-        "which nobody ever opens another cohort."
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "cohort",
-            "type": "pubkey"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          },
-          {
-            "name": "fee",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CarryOverSent",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "from",
-            "type": "pubkey"
-          },
-          {
-            "name": "to",
-            "type": "pubkey"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          },
-          {
-            "name": "fee",
-            "type": "u64"
-          }
-        ]
-      }
-    },
     {
       "name": "ChipSet",
       "docs": [
@@ -2522,6 +2545,13 @@
             "type": "u8"
           },
           {
+            "name": "form",
+            "docs": [
+              "How reps are judged, copied from the league (H35): see [`crate::state::league::FORM_TOES`]."
+            ],
+            "type": "u8"
+          },
+          {
             "name": "chips",
             "docs": [
               "The four chip amounts, copied from `Config.chip_set` and never changed —",
@@ -2548,12 +2578,24 @@
           {
             "name": "pool",
             "docs": [
-              "Only forfeited stakes and carry-over ever enter this (INV-2)."
+              "Only forfeited stakes ever enter this, and a boost drawn from the",
+              "league's reserve of earlier forfeits (INV-2)."
             ],
             "type": "u64"
           },
           {
-            "name": "carry_over_received",
+            "name": "boost_due",
+            "docs": [
+              "The boost-reserve share of this cohort's forfeits, held in its vault",
+              "until it finalizes and moves to the league (FR-037c)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "comeback_due",
+            "docs": [
+              "The comeback-reserve share, held likewise (FR-037c)."
+            ],
             "type": "u64"
           },
           {
@@ -2607,23 +2649,39 @@
           },
           {
             "name": "no_finisher_fee",
-            "type": "u64"
-          },
-          {
-            "name": "carry_over_sent",
-            "type": "u64"
-          },
-          {
-            "name": "carry_over_held",
             "docs": [
-              "Always 0 in Phase 1: a no-finisher cohort is refused rather than settled",
-              "while its carry-over has nowhere to go (FR-037a, error 6047)."
+              "A cohort nobody finished: its whole pool, sent to the developer and",
+              "operations destinations (FR-037)."
             ],
             "type": "u64"
           },
           {
-            "name": "carry_over_target",
-            "type": "pubkey"
+            "name": "boost_received",
+            "docs": [
+              "The boost this cohort drew from its league's reserve (FR-037d)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "comeback_owed",
+            "docs": [
+              "Comeback refunds owed to its finishers, summed as they are counted (FR-037e)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "comeback_funded",
+            "docs": [
+              "What finalization drew from the comeback reserve: `min(owed, reserve)`."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "comeback_claimed",
+            "docs": [
+              "Refunds paid out with claims so far."
+            ],
+            "type": "u64"
           },
           {
             "name": "vault_bump",
@@ -2694,6 +2752,20 @@
           {
             "name": "rounding_remainder",
             "type": "u64"
+          },
+          {
+            "name": "boost",
+            "docs": [
+              "Drawn from the league's boost reserve into this pool (FR-037d)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "comeback_funded",
+            "docs": [
+              "Drawn from the league's comeback reserve for this cohort's finishers (FR-037e)."
+            ],
+            "type": "u64"
           }
         ]
       }
@@ -2736,8 +2808,17 @@
           {
             "name": "fee_destination",
             "docs": [
-              "The treasury's SKR token account: forfeit fees, the no-finisher half and",
-              "rounding remainders land here (research R14)."
+              "The **operations** destination: the treasury's SKR token account. The",
+              "operations part of every forfeit, two thirds of a no-finisher pool and",
+              "rounding remainders land here (research R14, H35)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "developer_destination",
+            "docs": [
+              "The **developer** destination: the developer's SKR token account. The",
+              "developer part of every forfeit and a third of a no-finisher pool (H35)."
             ],
             "type": "pubkey"
           },
@@ -2986,6 +3067,32 @@
             "type": "u32"
           },
           {
+            "name": "form",
+            "docs": [
+              "How reps are judged, copied to every cohort: [`FORM_TOES`] or [`FORM_KNEES_ALLOWED`]."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "boost_reserve",
+            "docs": [
+              "SKR in the reserve vault set aside for boosts (FR-037d). Credited only",
+              "when a cohort of this league finalizes (FR-037c, INV-10)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "comeback_reserve",
+            "docs": [
+              "SKR in the reserve vault set aside for comeback refunds (FR-037e)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "reserve_vault_bump",
+            "type": "u8"
+          },
+          {
             "name": "bump",
             "type": "u8"
           }
@@ -3025,6 +3132,29 @@
               "clear, the missed deadline for a forfeit — and never the time the",
               "transaction landed, so no caller's timing can reorder two members tied on",
               "a leaderboard (FR-060b). Written through [`LeagueProgress::touch`]."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "comeback_stake",
+            "docs": [
+              "The stake of the latest **counted** forfeit in this league, while it can",
+              "still earn a comeback; 0 once used (FR-037e). Written only by",
+              "`settle_count`, so in cohort order like the streak (INV-9)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "comeback_from",
+            "docs": [
+              "That forfeit's missed deadline."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "comeback_until",
+            "docs": [
+              "The last instant a cohort may start and still be its comeback."
             ],
             "type": "i64"
           }
@@ -3150,6 +3280,14 @@
             "type": "bool"
           },
           {
+            "name": "comeback_entitled",
+            "docs": [
+              "The comeback refund this finisher is owed, written when they are counted",
+              "(FR-037e); paid, scaled to what the reserve funded, with the claim."
+            ],
+            "type": "u64"
+          },
+          {
             "name": "bump",
             "type": "u8"
           }
@@ -3196,6 +3334,16 @@
           },
           {
             "name": "amount",
+            "docs": [
+              "Everything paid: stake, share and any comeback refund."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "comeback",
+            "docs": [
+              "The comeback refund within `amount` (FR-037e)."
+            ],
             "type": "u64"
           }
         ]

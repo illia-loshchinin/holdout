@@ -64,11 +64,11 @@ class RpcTest {
                   "encoding": "base64",
                   "commitment": "confirmed",
                   "filters": [
-                    {"dataSize": 93},
+                    {"dataSize": 101},
                     {"memcmp": {"offset": 0, "bytes": "fjMqo7A2sRw"}},
                     {"memcmp": {"offset": 8, "bytes": "93MB2qRDNVLxbmmPuYpLdAqn3u2x9ZhaVZK5wELHueP8"}}
                   ],
-                  "dataSlice": {"offset": 40, "length": 51}
+                  "dataSlice": {"offset": 40, "length": 60}
                 }]
                 """,
             )
@@ -95,23 +95,41 @@ class RpcTest {
         val params = Rpc.programAccountsParams(programId, AccountQueries.cohorts())
         val config = params.jsonArray[1].jsonObject
         assertEquals(
-            Json.parseToJsonElement("""[{"dataSize": 236}, {"memcmp": {"offset": 0, "bytes": "PvkMGFCafqS"}}]"""),
+            Json.parseToJsonElement("""[{"dataSize": 229}, {"memcmp": {"offset": 0, "bytes": "PvkMGFCafqS"}}]"""),
             config.getValue("filters"),
         )
         assertNull(config["dataSlice"], "status reads the whole cohort")
+    }
+
+    @Test
+    fun `the profile query lists every Profile and nothing else`() {
+        val config = Rpc.programAccountsParams(programId, AccountQueries.profiles()).jsonArray[1].jsonObject
+        val filters = config.getValue("filters").jsonArray
+        assertEquals(Json.parseToJsonElement("""{"dataSize": 258}"""), filters[0])
+        assertEquals(0, filters[1].jsonObject.getValue("memcmp").jsonObject.getValue("offset").jsonPrimitive.content.toInt())
+        assertNull(config["dataSlice"], "the board reads the whole profile")
+    }
+
+    @Test
+    fun `the uncounted-forfeit query matches a Forfeited membership not yet counted`() {
+        val filters = Rpc.programAccountsParams(programId, AccountQueries.uncountedForfeits()).jsonArray[1].jsonObject.getValue("filters").jsonArray
+        val memcmp = filters.mapNotNull { it.jsonObject["memcmp"]?.jsonObject }.associate { it.getValue("offset").jsonPrimitive.content.toInt() to it.getValue("bytes").jsonPrimitive.content }
+        assertEquals(Json.parseToJsonElement("""{"dataSize": 101}"""), filters[0])
+        assertEquals("2", memcmp.getValue(AccountLayout.Membership.STATE), "state 1, Forfeited: the single byte 1 in base58")
+        assertEquals("1", memcmp.getValue(AccountLayout.Membership.COUNTED), "counted false: the single byte 0 in base58")
     }
 
     // ---- the read --------------------------------------------------------------
 
     @Test
     fun `a roster read is one getProgramAccounts, decoded from the slices`() {
-        val slice = "iIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIgCgPD6AgAAAADAfcBqAAAAAA0C"
+        val slice = "iIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIgCgPD6AgAAAADAfcBqAAAAAA0CAUBLTAAAAAAA"
         val http =
             FakeHttp {
                 ok(
                     """[{"pubkey":"93MB2qRDNVLxbmmPuYpLdAqn3u2x9ZhaVZK5wELHueP8",
                         "account":{"data":["$slice","base64"],"executable":false,"lamports":1500000,
-                        "owner":"Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4","rentEpoch":0,"space":51}}]""",
+                        "owner":"Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4","rentEpoch":0,"space":60}}]""",
                 )
             }
         val members = runBlocking { rpcWith(http).memberships(programId, cohortKey) }
@@ -138,7 +156,7 @@ class RpcTest {
 
     @Test
     fun `a member that does not decode fails the read rather than vanishing from the roster`() {
-        val bad = Base64.getEncoder().encodeToString(ByteArray(51).also { it[50] = 9 }) // state 9
+        val bad = Base64.getEncoder().encodeToString(ByteArray(AccountLayout.Membership.ROSTER_SLICE_LENGTH).also { it[50] = 9 }) // state 9
         val http =
             FakeHttp {
                 ok("""[{"pubkey":"${cohortKey.base58()}","account":{"data":["$bad","base64"],"lamports":1,"owner":"${programId.base58()}"}}]""")

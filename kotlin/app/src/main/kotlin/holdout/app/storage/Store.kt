@@ -40,10 +40,25 @@ interface Store {
 
     fun streak(wallet: String): Int
     fun lastStreakDay(wallet: String): Long
-    fun setStreak(wallet: String, streak: Int, dayIndex: Long)
+
+    /**
+     * The streak, its day and the [freezes] held after it, in one write: a
+     * freeze earned or used on [dayIndex] can never be lost, or kept, apart
+     * from the day that earned or used it.
+     */
+    fun setStreak(wallet: String, streak: Int, dayIndex: Long, freezes: Int)
 
     fun longestStreak(wallet: String): Int
     fun setLongestStreak(wallet: String, streak: Int)
+
+    /** Streak freezes held, 0–2: earned one per seven consecutive active days (H35). */
+    fun streakFreezes(wallet: String): Int
+
+    /** The toes meter (H35): a day's reps from the toes, and the reps measured at 45°. */
+    fun toesDay(wallet: String, dayIndex: Long): Pair<Int, Int>
+    fun setToesDay(wallet: String, dayIndex: Long, toes: Int, measured: Int)
+    fun bestToes(wallet: String): Int
+    fun setBestToes(wallet: String, toes: Int)
 
     fun hasSeenTour(wallet: String): Boolean
     fun setSeenTour(wallet: String)
@@ -120,8 +135,27 @@ interface Store {
  */
 data class OfflineMark(val boot: Int, val elapsedMillis: Long, val settled: SettledOffline? = null)
 
-/** An offline bucket being moved onto [day]: the day's total afterwards, absolute, and whether it completes it. */
-data class SettledOffline(val day: Long, val total: Int, val complete: Boolean)
+/**
+ * An offline bucket being moved onto [day]: the day's total afterwards, absolute,
+ * whether it completes it, and its toes meter afterwards, absolute too.
+ */
+data class SettledOffline(val day: Long, val total: Int, val complete: Boolean, val toes: Int = 0, val measured: Int = 0)
+
+/**
+ * The streak as MMKV holds it, one record: `streak,day,longest,freezes`. A
+ * record from before the longest stops at `day`, and one from before freezes
+ * at `longest`; those read [legacyFreezes], the freezes' old separate key.
+ */
+data class StreakRecord(val streak: Int, val day: Long, val longest: Int, val freezes: Int) {
+    fun encode(): String = "$streak,$day,$longest,$freezes"
+
+    companion object {
+        fun decode(record: String, legacyFreezes: Int): StreakRecord {
+            val f = record.split(',')
+            return StreakRecord(f[0].toInt(), f[1].toLong(), f.getOrNull(2)?.toInt() ?: 0, f.getOrNull(3)?.toInt() ?: legacyFreezes)
+        }
+    }
+}
 
 /** A wallet address and the auth token that lets the app reuse its authorisation. */
 data class WalletSession(val address: String, val authToken: String?)
@@ -166,29 +200,45 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         )
     }
 
-    // The streak and its day are one record, written in one go: a process
-    // killed between two writes would otherwise leave a count with the wrong
-    // day, and a later recovery would add to it twice. The two older keys are
-    // still read for a record written before this.
-    private fun streakRecord(wallet: String): Triple<Int, Long, Int>? = kv.decodeString("streak_rec:$wallet")?.split(',')?.let { f ->
-        Triple(f[0].toInt(), f[1].toLong(), f.getOrNull(2)?.toInt() ?: 0)
-    }
+    // The streak, its day and the freezes are one record, written in one go:
+    // a process killed between two writes would otherwise leave a count with
+    // the wrong day, and a later recovery would add to it twice — or a day
+    // with the freezes from before it, which nothing would ever correct. The
+    // older separate keys are still read for a record written before this.
+    private fun legacyFreezes(wallet: String): Int = kv.decodeInt("streak_freezes:$wallet", 0)
 
-    override fun streak(wallet: String): Int = streakRecord(wallet)?.first ?: kv.decodeInt("streak:$wallet", 0)
+    private fun streakRecord(wallet: String): StreakRecord? = kv.decodeString("streak_rec:$wallet")?.let { StreakRecord.decode(it, legacyFreezes(wallet)) }
 
-    override fun lastStreakDay(wallet: String): Long = streakRecord(wallet)?.second ?: kv.decodeLong("streak_day:$wallet", Store.NO_DAY)
+    override fun streak(wallet: String): Int = streakRecord(wallet)?.streak ?: kv.decodeInt("streak:$wallet", 0)
 
-    override fun setStreak(wallet: String, streak: Int, dayIndex: Long) {
+    override fun lastStreakDay(wallet: String): Long = streakRecord(wallet)?.day ?: kv.decodeLong("streak_day:$wallet", Store.NO_DAY)
+
+    override fun setStreak(wallet: String, streak: Int, dayIndex: Long, freezes: Int) {
         // The longest rides in the same record, so a record-breaking day can
         // never be saved without its record.
         val longest = maxOf(longestStreak(wallet), streak)
-        kv.encode("streak_rec:$wallet", "$streak,$dayIndex,$longest")
+        kv.encode("streak_rec:$wallet", StreakRecord(streak, dayIndex, longest, freezes).encode())
     }
 
-    override fun longestStreak(wallet: String): Int = maxOf(streakRecord(wallet)?.third ?: 0, kv.decodeInt("streak_best:$wallet", 0))
+    override fun longestStreak(wallet: String): Int = maxOf(streakRecord(wallet)?.longest ?: 0, kv.decodeInt("streak_best:$wallet", 0))
 
     override fun setLongestStreak(wallet: String, streak: Int) {
         kv.encode("streak_best:$wallet", streak)
+    }
+
+    override fun streakFreezes(wallet: String): Int = streakRecord(wallet)?.freezes ?: legacyFreezes(wallet)
+
+    override fun toesDay(wallet: String, dayIndex: Long): Pair<Int, Int> = kv.decodeString("toes:$wallet:$dayIndex")?.split(',')?.let { it[0].toInt() to it[1].toInt() } ?: (0 to 0)
+
+    override fun setToesDay(wallet: String, dayIndex: Long, toes: Int, measured: Int) {
+        // One record, so the two can never disagree after a kill.
+        kv.encode("toes:$wallet:$dayIndex", "$toes,$measured")
+    }
+
+    override fun bestToes(wallet: String): Int = kv.decodeInt("toes_best:$wallet", 0)
+
+    override fun setBestToes(wallet: String, toes: Int) {
+        kv.encode("toes_best:$wallet", toes)
     }
 
     override fun hasSeenTour(wallet: String): Boolean = kv.decodeBool("tour:$wallet", false)
@@ -204,10 +254,15 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
     }
 
     // One record too: `boot,elapsed` or, once a transfer is journalled,
-    // `boot,elapsed,day,total,complete`.
+    // `boot,elapsed,day,total,complete,toes,measured` (a journal from before
+    // the toes meter stops at `complete`).
     override fun offlineSittingMark(wallet: String): OfflineMark? {
         val f = kv.decodeString("offline_rec:$wallet")?.split(',') ?: return null
-        val settled = if (f.size >= 5) SettledOffline(f[2].toLong(), f[3].toInt(), f[4].toBoolean()) else null
+        val settled = if (f.size >= 5) {
+            SettledOffline(f[2].toLong(), f[3].toInt(), f[4].toBoolean(), f.getOrNull(5)?.toInt() ?: 0, f.getOrNull(6)?.toInt() ?: 0)
+        } else {
+            null
+        }
         return OfflineMark(f[0].toInt(), f[1].toLong(), settled)
     }
 
@@ -215,7 +270,7 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         if (mark == null) {
             kv.removeValueForKey("offline_rec:$wallet")
         } else {
-            val settled = mark.settled?.let { ",${it.day},${it.total},${it.complete}" }.orEmpty()
+            val settled = mark.settled?.let { ",${it.day},${it.total},${it.complete},${it.toes},${it.measured}" }.orEmpty()
             kv.encode("offline_rec:$wallet", "${mark.boot},${mark.elapsedMillis}$settled")
         }
     }
@@ -299,16 +354,32 @@ class InMemoryStore : Store {
 
     override fun lastStreakDay(wallet: String): Long = values["streak_day:$wallet"] as? Long ?: Store.NO_DAY
 
-    override fun setStreak(wallet: String, streak: Int, dayIndex: Long) {
+    override fun setStreak(wallet: String, streak: Int, dayIndex: Long, freezes: Int) {
         values["streak:$wallet"] = streak
         values["streak_day:$wallet"] = dayIndex
         values["streak_best:$wallet"] = maxOf(longestStreak(wallet), streak)
+        values["streak_freezes:$wallet"] = freezes
     }
 
     override fun longestStreak(wallet: String): Int = values["streak_best:$wallet"] as? Int ?: 0
 
     override fun setLongestStreak(wallet: String, streak: Int) {
         values["streak_best:$wallet"] = streak
+    }
+
+    override fun streakFreezes(wallet: String): Int = values["streak_freezes:$wallet"] as? Int ?: 0
+
+    @Suppress("UNCHECKED_CAST")
+    override fun toesDay(wallet: String, dayIndex: Long): Pair<Int, Int> = values["toes:$wallet:$dayIndex"] as? Pair<Int, Int> ?: (0 to 0)
+
+    override fun setToesDay(wallet: String, dayIndex: Long, toes: Int, measured: Int) {
+        values["toes:$wallet:$dayIndex"] = toes to measured
+    }
+
+    override fun bestToes(wallet: String): Int = values["toes_best:$wallet"] as? Int ?: 0
+
+    override fun setBestToes(wallet: String, toes: Int) {
+        values["toes_best:$wallet"] = toes
     }
 
     override fun hasSeenTour(wallet: String): Boolean = values["tour:$wallet"] as? Boolean ?: false
