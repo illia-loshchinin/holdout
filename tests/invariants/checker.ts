@@ -430,10 +430,20 @@ const checkSlots = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void =>
   // empty passes here, and the *next* join then sees a free slot and takes a
   // second obligation — which only a scenario that tries that second join would
   // ever surface.
+  //
+  // Only a cohort that can still overlap something needs a slot: one in its
+  // lobby or running. Once a cohort has ended (Settling) its membership stays
+  // `Joined` until it is counted, but the slot may already be gone, and that is
+  // lawful. Normalisation promotes the next lobby place over it, and recording
+  // that next cohort's forfeit then releases `running` (data-model §1.5). An
+  // ended cohort has no deadline left to overlap, so dropping it from the slot
+  // loses nothing.
   const slotsOf = new Map(s.profiles.map((p) => [p.wallet, p]));
   for (const m of s.memberships) {
     const c = cohorts.get(m.cohort);
-    if (!c || m.state !== 'Joined' || statusOf(c, s.now) === 'Settled') continue;
+    if (!c || m.state !== 'Joined') continue;
+    const status = statusOf(c, s.now);
+    if (status === 'Settling' || status === 'Settled') continue;
     const p = slotsOf.get(m.wallet);
     if (!p) {
       fail('INV-4', `${m.wallet} is joined to ${c.address} with no profile to hold the slot`);
