@@ -89,11 +89,21 @@ interface Store {
 
     /**
      * A cohort day completed on this phone and not yet on chain — offline, or
-     * the send failed — waiting for "Done — tap to submit" (FR-024b, T066).
+     * the send failed — waiting to be sent: by itself once the chain answers,
+     * or by "Done — tap to submit" if that send did not land (FR-024b, T066, T098).
      * The cohort day index, or null when nothing is waiting.
      */
     fun pendingCohortDay(wallet: String, cohort: String): Int?
     fun setPendingCohortDay(wallet: String, cohort: String, day: Int?)
+
+    /**
+     * The pending day already sent while the chain could be reached, so a
+     * member who declined it in the wallet is not asked again after the app
+     * restarts — only once the connection drops and returns (T098). Null when
+     * nothing is held back.
+     */
+    fun autoSubmitMark(wallet: String): AutoSubmitMark?
+    fun setAutoSubmitMark(wallet: String, mark: AutoSubmitMark?)
 
     /** Debug builds: whether sittings record the camera as video (constitution X, v1.5.0). Off until switched on. */
     fun recordsVideo(): Boolean
@@ -149,6 +159,9 @@ data class StreakRecord(val streak: Int, val day: Long, val longest: Int, val fr
 
 /** A wallet address and the auth token that lets the app reuse its authorisation. */
 data class WalletSession(val address: String, val authToken: String?)
+
+/** [day] of [cohort] was sent while the chain could be reached; [lost] if the network has gone since. */
+data class AutoSubmitMark(val cohort: String, val day: Int, val lost: Boolean)
 
 /** What the chain said, and when on this boot's monotonic clock it said it. */
 data class SavedChainReading(val chainSeconds: Long, val slot: Long, val boot: Int, val elapsedMillis: Long)
@@ -302,6 +315,16 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
     override fun setPendingCohortDay(wallet: String, cohort: String, day: Int?) {
         if (day == null) kv.removeValueForKey("pending:$wallet:$cohort") else kv.encode("pending:$wallet:$cohort", day)
     }
+
+    // One record, `cohort,day,lost`: a cohort address is base58, never a comma.
+    override fun autoSubmitMark(wallet: String): AutoSubmitMark? {
+        val f = kv.decodeString("auto_sent:$wallet")?.split(',')?.takeIf { it.size == 3 } ?: return null
+        return AutoSubmitMark(f[0], f[1].toInt(), f[2].toBoolean())
+    }
+
+    override fun setAutoSubmitMark(wallet: String, mark: AutoSubmitMark?) {
+        if (mark == null) kv.removeValueForKey("auto_sent:$wallet") else kv.encode("auto_sent:$wallet", "${mark.cohort},${mark.day},${mark.lost}")
+    }
 }
 
 /** In-memory, for unit tests and Compose previews. */
@@ -405,5 +428,11 @@ class InMemoryStore : Store {
 
     override fun setPendingCohortDay(wallet: String, cohort: String, day: Int?) {
         if (day == null) values.remove("pending:$wallet:$cohort") else values["pending:$wallet:$cohort"] = day
+    }
+
+    override fun autoSubmitMark(wallet: String): AutoSubmitMark? = values["auto_sent:$wallet"] as? AutoSubmitMark
+
+    override fun setAutoSubmitMark(wallet: String, mark: AutoSubmitMark?) {
+        if (mark == null) values.remove("auto_sent:$wallet") else values["auto_sent:$wallet"] = mark
     }
 }

@@ -4,6 +4,9 @@
 
     <!-- The devnet RPC endpoint (contracts/android-app.md §1–§2). -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- To read the chain the moment a connection returns, so a completed day
+         waiting for the network is sent as soon as it can be (FR-024b, T098). -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- Rep verification. Frames are analysed in process and discarded: nothing
          is written, nothing is uploaded (FR-022, constitution X).

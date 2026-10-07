@@ -1,5 +1,7 @@
 package holdout.app.holdout
 
+import android.net.ConnectivityManager
+import android.net.Network
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
@@ -55,6 +57,8 @@ class HoldoutViewModel(
         val lastFaucet: FaucetOutcome? = null,
         /** The last claim that landed — its cohort and signature — for that cohort's link only. */
         val lastClaim: Pair<SolanaPublicKey, String>? = null,
+        /** The completed day last sent while the chain could be reached, by any path — kept in the store too (FR-024b, T098). */
+        val autoSubmit: AutoSubmit = AutoSubmit(),
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -109,8 +113,9 @@ class HoldoutViewModel(
         if (refresher != null && wallet == address) return
         // Another wallet: the last view was the previous wallet's memberships,
         // profile and balances. It is kept across failed reads of the same
-        // wallet only, never shown as the new one's.
-        if (wallet != address) _state.value = UiState()
+        // wallet only, never shown as the new one's. Its automatic send starts
+        // from what this phone kept for it, so a restart does not ask again (T098).
+        if (wallet != address) _state.value = UiState(autoSubmit = wallet?.let { AutoSubmit.restore(store, it.base58()) } ?: AutoSubmit())
         address = wallet
         refresher?.cancel()
         refresher = viewModelScope.launch {
@@ -125,10 +130,6 @@ class HoldoutViewModel(
     fun pause() {
         refresher?.cancel()
         refresher = null
-    }
-
-    fun refresh() {
-        viewModelScope.launch { refreshNow() }
     }
 
     /** Reads started, and the latest one whose answer was taken — both on the main thread. */
@@ -146,7 +147,22 @@ class HoldoutViewModel(
         // a join or a claim that landed would look undone until the next pass.
         if (started < newestApplied) return
         newestApplied = started
-        _state.update { if (view == null) it.copy(offline = true) else it.copy(view = view, offline = false) }
+        // An answer to a read started after the loss is the network back: the send
+        // re-arms now (T098). One already out when it went proves nothing.
+        val back = started > readsBeforeLoss
+        _state.update {
+            if (view == null) {
+                it.copy(offline = true)
+            } else {
+                it.copy(view = view, offline = false, autoSubmit = if (back) it.autoSubmit.answered() else it.autoSubmit)
+            }
+        }
+        if (view != null && back) keepAutoSubmit()
+    }
+
+    /** Keeps the automatic send's state for the connected wallet, so it outlives the process (T098). */
+    private fun keepAutoSubmit() {
+        address?.let { _state.value.autoSubmit.saveTo(store, it.base58()) }
     }
 
     fun clearMessage() = _state.update { it.copy(message = null, lastFaucet = null) }
@@ -213,25 +229,119 @@ class HoldoutViewModel(
 
     /**
      * Sends the completed [day] of [h], recorded first as pending so a failed
-     * or offline send leaves "Done — tap to submit" rather than nothing (FR-024b).
+     * or offline send leaves the day waiting to be sent again rather than nothing (FR-024b).
      */
     fun submitDay(sender: ActivityResultSender, h: Holdout, day: Int, reps: Int) {
         val me = address ?: return
         // Recorded before anything else, so a send that never starts — another
-        // action still busy — leaves "Done — tap to submit", not nothing.
+        // action still busy — leaves the day pending, not nothing.
         store.setPendingCohortDay(me.base58(), h.address.base58(), day)
         act {
+            // Sent — from the sitting's exit, a tap or by itself: not sent by itself again
+            // until the connection drops and returns, even before the chain shows it landed.
+            // Kept on the phone too, so a decline holds across a restart of the app.
+            _state.update { it.copy(autoSubmit = it.autoSubmit.sent(h.address.base58(), day)) }
+            keepAutoSubmit()
             val ix = Instructions.submitDay(Deployment.programId, me, h.address, day, proofOf(h.address, day, reps))
             val result = wallet.send(sender, listOf(ix))
             describe(result, "Day ${day + 1} is on chain.")
+            if ((result as? SendResult.Failed)?.beforeWallet == true && me == address) {
+                // Devnet did not answer before the wallet could open: nothing was declined,
+                // so it goes by itself again at the chain's next answer — not this send's
+                // own closing read, which would only ask devnet again at once.
+                readsBeforeLoss = refreshesStarted + 1
+                _state.update { it.copy(autoSubmit = it.autoSubmit.unreached(h.address.base58(), day)) }
+                keepAutoSubmit()
+            }
             // Landed, already on chain (6033), or past saving — not today's day
             // (6031) or past its deadline (6032): nothing is left to submit.
             val settled = result is SendResult.Landed || (result as? SendResult.Failed)?.programError in NOTHING_LEFT_TO_SUBMIT
-            if (settled) store.setPendingCohortDay(me.base58(), h.address.base58(), null)
+            if (settled) {
+                store.setPendingCohortDay(me.base58(), h.address.base58(), null)
+                // Nothing pending, nothing held back: the kept send goes with it — this wallet's only.
+                if (me == address) keepAutoSubmit()
+            }
         }
     }
 
     fun pendingDay(h: Holdout): Int? = address?.let { store.pendingCohortDay(it.base58(), h.address.base58()) }
+
+    /**
+     * The default network went away: a waiting day may open the wallet again
+     * once the chain answers — the next successful read, which the network's
+     * return asks for at once — never before (T098).
+     */
+    fun networkLost() {
+        // Called from the system's network thread: counted on the main one, in order with the return's read.
+        viewModelScope.launch {
+            readsBeforeLoss = refreshesStarted
+            _state.update { it.copy(autoSubmit = it.autoSubmit.lost()) }
+            // Kept, so a restart before the network returns still re-arms it then.
+            keepAutoSubmit()
+        }
+    }
+
+    /** The default-network callback [followNetwork] registered, until [onCleared]. */
+    private var network: Pair<ConnectivityManager, ConnectivityManager.NetworkCallback>? = null
+
+    /**
+     * Follows the phone's default network from now until this view model is
+     * cleared — not only while the app is in front. The automatic send opens
+     * the wallet full screen and Holdout stops behind it; a drop and return
+     * there, then a decline, must still re-arm the send (T098), so a loss is
+     * recorded whenever it comes. A return reads the chain at once, and calls
+     * [back], only while in front ([watch] to [pause]): nothing is read in the
+     * background, and [watch] reads at once on the way back anyway. Called
+     * again, it keeps the callback it has.
+     */
+    fun followNetwork(connectivity: ConnectivityManager?, back: () -> Unit) {
+        if (network != null || connectivity == null) return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            // A connection coming back is read at once, not at the next 30-second pass,
+            // so a completed day waiting for the network goes as soon as it can (FR-024b) —
+            // chain time too, which a start with no network and no saved reading still lacks.
+            override fun onAvailable(network: Network) {
+                // Called from the system's network thread: whether the app is in front is read on the main one.
+                viewModelScope.launch {
+                    if (refresher == null) return@launch
+                    back()
+                    refreshNow()
+                }
+            }
+
+            // A drop and return between two 30-second reads never shows as offline,
+            // so the loss itself re-arms the automatic send — for the next read that answers.
+            override fun onLost(network: Network) = networkLost()
+        }
+        connectivity.registerDefaultNetworkCallback(callback)
+        network = connectivity to callback
+    }
+
+    override fun onCleared() {
+        network?.let { (connectivity, callback) -> connectivity.unregisterNetworkCallback(callback) }
+        network = null
+    }
+
+    /**
+     * Reads started when the network was last lost, or a send last found devnet
+     * silent before the wallet opened — on the main thread, as [refreshesStarted].
+     */
+    private var readsBeforeLoss = 0
+
+    /**
+     * Whether [pendingDay] of [h] should be sent by itself now: the chain answers
+     * again and nothing has sent it since (FR-024b Phase 2, T098). The send itself
+     * is [submitDay], which records it.
+     */
+    fun autoSubmitDue(h: Holdout, pendingDay: Int?, todayDone: Boolean): Boolean {
+        val s = _state.value
+        val step = s.autoSubmit.step(h.address.base58(), pendingDay, todayDone, s.offline, s.busy)
+        if (step.next != s.autoSubmit) {
+            _state.update { it.copy(autoSubmit = step.next) }
+            keepAutoSubmit()
+        }
+        return step.send
+    }
 
     // ---- the claim (T081) ----------------------------------------------------
 

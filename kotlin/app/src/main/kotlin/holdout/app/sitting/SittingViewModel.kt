@@ -96,7 +96,16 @@ class SittingViewModel(
 
     private val trace = traceDir?.let { TraceRecorder(it, stakes) }
 
-    enum class Step { PREFLIGHT, COUNTDOWN, COUNTING, COMPLETE }
+    enum class Step {
+        PREFLIGHT,
+        COUNTDOWN,
+        COUNTING,
+        COMPLETE,
+        ;
+
+        /** Counting down or counting: leaving the foreground now ends the set — its loose reps go, the checks start over ([onLeftForeground]). */
+        val inSet: Boolean get() = this == COUNTDOWN || this == COUNTING
+    }
 
     /**
      * Something the member should hear. The screen is on the floor and they are
@@ -476,8 +485,7 @@ class SittingViewModel(
      */
     fun onLeftForeground() {
         synchronized(countdownLock) {
-            val step = _uiState.value.step
-            if (stopped || (step != Step.COUNTDOWN && step != Step.COUNTING)) return
+            if (stopped || !_uiState.value.step.inSet) return
             banking.endSitting()
             backToChecks()
             _uiState.update { it.copy(looseReps = 0, hint = null) }
