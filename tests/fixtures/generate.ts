@@ -172,7 +172,7 @@ const running: CohortAccount = {
   memberCount: 37,
   heldStake: 900n * SKR,
   pool: 176n * SKR,
-  carryOverReceived: 8n * SKR,
+  carryOverReceived: 0n,
   forfeitsRecorded: 5,
   counted: 0,
   finisherCount: 0,
@@ -205,8 +205,8 @@ const settled: CohortAccount = {
   carryOverTarget: key(0),
 };
 
-/** A no-finisher cohort that sent its carry-over on. */
-const carriedOver: CohortAccount = {
+/** A no-finisher cohort: its whole pool went to the fee destination (FR-037). */
+const noFinishers: CohortAccount = {
   ...running,
   index: 1,
   memberCount: 3,
@@ -217,10 +217,10 @@ const carriedOver: CohortAccount = {
   finishersPerTier: [0, 0, 0, 0],
   totalFinisherStake: 0n,
   settled: true,
-  noFinisherFee: 60n * SKR,
-  carryOverSent: 60n * SKR,
+  noFinisherFee: 120n * SKR,
+  carryOverSent: 0n,
   carryOverHeld: 0n,
-  carryOverTarget: key(3),
+  carryOverTarget: key(0),
 };
 
 const membership = (over: Partial<MembershipAccount> = {}): MembershipAccount => ({
@@ -274,7 +274,7 @@ const accountFixtures = () => {
   add('LeagueConfig', 'twenty-one-day', LeagueConfig, { ...league, leagueId: 1, durationDays: 21 });
   add('Cohort', 'running', Cohort, running);
   add('Cohort', 'settled', Cohort, settled);
-  add('Cohort', 'no-finisher-carried-over', Cohort, carriedOver);
+  add('Cohort', 'no-finisher', Cohort, noFinishers);
   add('Membership', 'joined', Membership, membership());
   add('Membership', 'forfeited', Membership, membership({ state: 'Forfeited', daysCompleted: 2, counted: true }));
   add('Membership', 'finished', Membership, membership({ state: 'Finished', daysCompleted: 7, counted: true }));
@@ -394,7 +394,7 @@ const instructionFixtures = async () => {
     { pairs: 1, previousCohort: await cohortPda(0, 1) },
     await settleCountIx(ADMIN, FEE_DESTINATION, 0, 2, pairs, await cohortPda(0, 1)),
   );
-  await add('settle_finalize', { target: null }, await settleFinalizeIx(ADMIN, FEE_DESTINATION, 0, 2));
+  await add('settle_finalize', {}, await settleFinalizeIx(ADMIN, FEE_DESTINATION, 0, 2));
   await add('claim_payout', {}, await claimPayoutIx(MEMBER, MINT, 0, 2));
   await add('claim_faucet', { recipient: MEMBER }, await claimFaucetIx(SPONSOR, MEMBER, MINT, SPONSOR));
   await add('top_up_sponsor', {}, await topUpSponsorIx(ADMIN, SPONSOR));
@@ -403,7 +403,7 @@ const instructionFixtures = async () => {
 
 // ------------------------------------------------------------ derived figures
 
-const feeOf = (stake: bigint) => (stake * 20n) / 100n;
+const feeOf = (stake: bigint) => (stake * 30n) / 100n;
 
 /** The cohort and roster the derived figures are computed over. */
 const derivedFixtures = () => {
@@ -419,7 +419,7 @@ const derivedFixtures = () => {
     memberCount: 5,
     heldStake: 185n * SKR,
     pool: 20n * SKR,
-    carryOverReceived: 20n * SKR,
+    carryOverReceived: 0n,
     forfeitsRecorded: 0,
     counted: 0,
     finisherCount: 0,

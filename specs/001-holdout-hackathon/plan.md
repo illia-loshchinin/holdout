@@ -116,7 +116,7 @@ programs/holdout/
     ├── state/                      # config.rs, league.rs, cohort.rs, membership.rs, profile.rs
     ├── instructions/               # initialize, create_league, set_flags, publish_chip_set,
     │                               # open_cohort, record_forfeits, settle_count, settle_finalize,
-    │                               # deliver_carry_over [Phase 2], claim_faucet,
+    │                               # claim_faucet,
     │                               # top_up_sponsor, join_cohort, leave_cohort,
     │                               # submit_day, claim_payout
     ├── math/                       # settlement.rs, schedule.rs — pure, no Anchor types

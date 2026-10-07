@@ -24,16 +24,16 @@ import kotlinx.serialization.json.putJsonArray
  * order that cannot strand anything.
  *
  * 1. **Open** every league's due cohorts — index 0 at once, index *i* once
- *    cohort *i − 1* has started. This comes first so a no-finisher settlement
- *    below always finds the league's open lobby to carry into (6047).
+ *    cohort *i − 1* has started.
  * 2. **Refill** the faucet sponsor when it holds less than half its float
  *    (FR-042b). A refusal — float sufficient, the day's budget spent, the vault
  *    empty — is an expected outcome, reported and retried next pass.
  * 3. **Forfeit** every member of a running cohort who is in breach, in pages.
  * 4. **Settle** each league's finished cohorts **oldest first**: page
- *    `settle_count` over the uncounted members, then `settle_finalize` with the
- *    league's newest cohort as carry-over target. Cohort *i* waits while *i − 1*
- *    is unsettled — the program refuses it (6045), so this is not a preference.
+ *    `settle_count` over the uncounted members, then `settle_finalize`, which
+ *    with no finishers sends the whole pool to the fee destination (FR-037).
+ *    Cohort *i* waits while *i − 1* is unsettled — the program refuses it
+ *    (6045), so this is not a preference.
  *
  * Every step is idempotent on-chain, so two cranks, or a crank and a stranger,
  * running at once produce one outcome (FR-030a). A failed step is reported and
@@ -82,16 +82,8 @@ object Run {
         .mapValues { (_, list) -> list.sortedBy { it.index } }
         .toSortedMap()
 
-    /**
-     * The carry-over target for a cohort of a league whose `next_index` is
-     * [nextIndex]: the league's newest cohort, unless that is the cohort itself.
-     * With finishers the program ignores it; without, it is required (FR-037a).
-     */
-    fun carryOverTargetIndex(nextIndex: Long, cohortIndex: Long): Long? = (nextIndex - 1).takeIf { it >= 0 && it != cohortIndex }
-
     // ---- the pass ----------------------------------------------------------
 
-    const val CARRY_OVER_TARGET_NOT_OPEN = 6047
     const val FAUCET_CAP_REACHED = 6051
     const val FAUCET_EMPTY = 6052
     const val SPONSOR_FLOAT_SUFFICIENT = 6054
@@ -191,8 +183,7 @@ object Run {
                     }
                 if (opened != Outcome.Landed) break
                 // A simulated open created nothing, so nothing downstream may treat
-                // it as existing: the league's index stays the on-chain one (the
-                // carry-over target settlement names), and the later opens, which
+                // it as existing: the league's index stays the on-chain one, and the later opens, which
                 // name this cohort as their predecessor, are reported as planned.
                 if (!args.dryRun) {
                     nextIndex[id] = index + 1
@@ -314,25 +305,10 @@ object Run {
                     }
                     break
                 }
-                suspend fun finalize() = pass.send("settle_finalize", detail, expected = setOf(CARRY_OVER_TARGET_NOT_OPEN)) {
-                    val target = carryOverTargetIndex(nextIndex.getValue(leagueId), index)?.let { Pdas.cohort(programId, leagueId, it) }
-                    send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, leagueId, address, target)))
-                }
-                var outcome = finalize()
-                if (outcome == Outcome.Refused && args.dryRun) {
-                    // 6047 in a dry run: the lobby it needs would be opened first, but
-                    // only simulated — a retry against unchanged chain state proves nothing.
-                    leagues.firstOrNull { it.params.leagueId == leagueId }?.let { openDue(it) }
-                    pass.record("settle_finalize", "skipped") {
-                        detail()
-                        put("reason", "dry run: needs the league's next cohort open first, which was only simulated")
+                val outcome =
+                    pass.send("settle_finalize", detail) {
+                        send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, leagueId, address)))
                     }
-                } else if (outcome == Outcome.Refused) {
-                    // 6047: no open lobby to carry into. Open the league's next cohort and retry once.
-                    leagues.firstOrNull { it.params.leagueId == leagueId }?.let { openDue(it) }
-                    outcome = finalize()
-                    if (outcome == Outcome.Refused) pass.failures++
-                }
                 // A simulated finalize changed nothing: the next cohort still waits on this one.
                 if (outcome != Outcome.Landed || args.dryRun) break
                 cohorts[leagueId to index] = counted.copy(settled = true)

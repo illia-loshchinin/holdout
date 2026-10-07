@@ -99,7 +99,7 @@ private fun HoldoutList(holdouts: List<Holdout>, now: Long, onHoldout: (Holdout)
 
 /**
  * A Holdout open to join, as the ladder, home and the connect screen show it:
- * **at stake** — the stakes already held — joined count, carry-over and the
+ * **at stake** — the stakes already held — joined count and the
  * time until joining closes (FR-053). Never a promised amount.
  */
 @Composable
@@ -113,7 +113,6 @@ fun HoldoutOffer(h: Holdout, now: Long, onClick: (() -> Unit)?, modifier: Modifi
             color = HoldoutColors.TextPrimary,
         )
         Text("${Format.skr(Derive.atStake(c))} at stake · ${c.memberCount} joined", style = AmountStyle, color = HoldoutColors.Accent)
-        Derive.carryOverReceived(c)?.let { Body("+ ${Format.skr(it)} carried over from a cohort nobody finished") }
         Body("Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))} · starts in ${Format.countdown(c.start - now)}")
     }
 }

@@ -2,6 +2,8 @@
 
 **Version:** 1.8 · **Date:** 2026-09-18 · **Status:** D-A … D-I decided; §1, §3 and §4 synced to `specs/001-holdout-hackathon/spec.md`
 
+**Revision note, 2026-10-05 (decision H34):** the forfeit split is now **70/30** and a no-finisher pool goes **wholly to the fee destination**, with no carry-over and no held state. Where this document still describes 20 % fees, 50/50 splits or carry-over states, the spec (FR-027, FR-037) governs.
+
 **Changed in 1.8 (18 Sept):** pointers follow constitution v1.3.1 and decisions H1–H30 · the **exercise is now a cohort parameter** with negative and decline push-ups reserved for later (H30), so F1's rep counter is push-ups only by validation, not by assumption.
 
 **Changed in 1.7 (17 Sept):** members' names adopted — **the Daily 25** and **a Holdout** (H28, spec §1a), with on-chain names unchanged · **first-run tour** added as F12 (FR-067) and the full-cycle walkthrough becomes judge-facing (H29) · guest mode proposed and dropped, so F10 wallet-first stands.

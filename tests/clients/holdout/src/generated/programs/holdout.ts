@@ -26,14 +26,11 @@ if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Arr
     throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT, { accountData: data, programName: "holdout" });
 }
 
-export enum HoldoutEvent { CarryOverDelivered, CarryOverHeld, CarryOverSent, ChipSetPublished, CohortOpened, CohortSettled, DayCompleted, FaucetClaimed, FlagsSet, ForfeitRecorded, MemberCounted, MemberJoined, MemberLeft, PayoutClaimed, SponsorToppedUp }
+export enum HoldoutEvent { ChipSetPublished, CohortOpened, CohortSettled, DayCompleted, FaucetClaimed, FlagsSet, ForfeitRecorded, MemberCounted, MemberJoined, MemberLeft, PayoutClaimed, SponsorToppedUp }
 
 export function identifyHoldoutEvent(event: { data: ReadonlyUint8Array } | ReadonlyUint8Array): HoldoutEvent {
     const data = 'data' in event ? event.data : event;
-    if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([133, 4, 96, 150, 141, 96, 107, 182])), 0)) { return HoldoutEvent.CarryOverDelivered; }
-if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([61, 84, 89, 35, 170, 204, 29, 242])), 0)) { return HoldoutEvent.CarryOverHeld; }
-if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([3, 56, 84, 193, 174, 246, 82, 216])), 0)) { return HoldoutEvent.CarryOverSent; }
-if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([48, 130, 183, 224, 63, 232, 95, 131])), 0)) { return HoldoutEvent.ChipSetPublished; }
+    if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([48, 130, 183, 224, 63, 232, 95, 131])), 0)) { return HoldoutEvent.ChipSetPublished; }
 if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([141, 177, 142, 22, 93, 105, 143, 171])), 0)) { return HoldoutEvent.CohortOpened; }
 if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([51, 102, 180, 239, 7, 199, 225, 63])), 0)) { return HoldoutEvent.CohortSettled; }
 if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Array([29, 125, 47, 231, 128, 2, 43, 73])), 0)) { return HoldoutEvent.DayCompleted; }

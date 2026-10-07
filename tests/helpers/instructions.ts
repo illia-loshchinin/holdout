@@ -426,17 +426,15 @@ export const settleCountIx = async (
 // ------------------------------------------------------------- settle_finalize
 
 /**
- * `settle_finalize()`. With finishers it needs no target. With none, the
- * league's cohort `next_index - 1` and its vault are **required** — the
- * accounts that decide whether the carry-over is delivered or held — so no
- * caller can strand it by omission (FR-030a, FR-037a).
+ * `settle_finalize()`. With finishers it writes the shares; with none it sends
+ * the whole pool to the fee destination (FR-037). Either way it needs no other
+ * cohort, so no caller can change the outcome (FR-030a).
  */
 export const settleFinalizeIx = async (
   caller: Address,
   feeDestination: Address,
   leagueId: number,
   index: number,
-  target?: { cohort: Address; vault: Address },
 ): Promise<Instruction> => {
   const cohort = await cohortPda(leagueId, index);
   return {
@@ -448,21 +446,10 @@ export const settleFinalizeIx = async (
       rw(cohort),
       rw(await vaultPda(cohort)),
       rw(feeDestination),
-      target ? rw(target.cohort) : ro(PROGRAM_ID),
-      target ? rw(target.vault) : ro(PROGRAM_ID),
       ro(TOKEN_PROGRAM),
     ],
     data: instructionDiscriminator('settle_finalize'),
   };
-};
-
-/** The league's cohort `index` and its vault, as `settle_finalize` wants them. */
-export const carryOverTarget = async (
-  leagueId: number,
-  index: number,
-): Promise<{ cohort: Address; vault: Address }> => {
-  const cohort = await cohortPda(leagueId, index);
-  return { cohort, vault: await vaultPda(cohort) };
 };
 
 // ---------------------------------------------------------------- claim_payout

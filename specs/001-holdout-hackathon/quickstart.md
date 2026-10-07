@@ -128,7 +128,7 @@ cd kotlin && ./gradlew :app:lint :app:checkNoAudioPermission
 cd kotlin && ./gradlew :app:testDevnetDebugUnitTest --tests '*ThemeTest*' --tests '*LobbyCardTest*'
 ```
 
-**Expected:** the Compose theme carries the PRD §11 hex values with dynamic colour off, and a lobby card renders "at stake" with the joined count and any carry-over — never the word "prize" before a Holdout starts (FR-053, spec §1a).
+**Expected:** the Compose theme carries the PRD §11 hex values with dynamic colour off, and a lobby card renders "at stake" with the joined count — never the word "prize" before a Holdout starts (FR-053, spec §1a).
 
 ## 5. Full cycle on a compressed clock (spike S3 / rehearsal)
 
@@ -241,7 +241,7 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | # | Scenario | How to run | Pass when |
 |---|---|---|---|
 | 1 | 7-day cycle, unlock, gate | *local*: join 7-day, 7 submits, settle, claim; flip `set_flags(ladder=true)`; try 21-day join with a fresh wallet | Claim lands; `Profile.qualified`; fresh wallet gets `LadderGateClosed` |
-| 2 | Forfeit fee | *local*: join, skip a day, `crank run` | Pool rises by stake − 20 %; fee destination +20 % |
+| 2 | Forfeit fee | *local*: join, skip a day, `crank run` | Pool rises by stake − 30 %; fee destination +30 % |
 | 3 | Equal stakes, equal payouts; remainder | *local*: V17 shape | Byte-identical payouts; remainder at fee destination; Σ claims = Σ stakes + pool − remainder |
 | 4 | Claim arrives | Devnet cohort #3 finisher | SKR balance increases by payout |
 | 5 | Crank killed a day; stranger cranks | *local*: stop crank, advance 1 day, run `crank run` from a different payer | Same forfeits and payouts as uninterrupted run; breached member's submit failed meanwhile |
@@ -250,7 +250,7 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 8 | Fresh install; counters at the deadline | Devnet: install, play the walkthrough **without connecting**, then connect; stop crank before a boundary | Wallet asked first, with only the walkthrough available before it; the first-run tour appears once the wallet connects, skips cleanly and re-opens from About (FR-067); cohort populated to at least its floor, scripted members labelled; one second after the deadline the counter already excludes non-submitters |
 | 9 | No price read | Code search + test | No instruction reads a price; only `crank chips publish` uses a rate |
 | 10 | No frame leaves device | Proxy the phone, run a sitting | Only RPC traffic observed |
-| 11 | No finishers, carry-over | *local*: all forfeit; with the league's next cohort open, and with none open | 50 % fee; carry-over in the open cohort. With none open the finalize is refused with `CarryOverTargetNotOpen` (6047) and nothing changes; opening the league's next cohort and repeating lands the same carry-over in it |
+| 11 | No finishers | *local*: all forfeit | The whole pool reaches the fee destination; no other cohort changes, whether or not the league has one open |
 | 12 **[Phase 2]** | Weekly re-pricing | *local*: `crank chips publish --auto` with drift below and above 20 % | Publishes only above 20 %; old cohorts keep old chips |
 | 13 | Lobby place, lock, overlap | *local* | Continuous 7-day → 7-day; cutoff ±1 s behaviour; 21-day overlap refused |
 | 14 **[Phase 2]** | Leaderboard ranking | Devnet or *local* with seeded profiles | Ranking and "not ranked yet" as specified; no amounts; scripted labels |

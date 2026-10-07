@@ -680,7 +680,7 @@ describe('INV-2 · the fee reaches the fee destination', () => {
   const live = cohort({ memberCount: 1, heldStake: 100n, pool: 0n, vaultAmount: 100n });
   const joined = membership();
   const forfeited = { ...joined, state: 'Forfeited' as const };
-  const after = cohort({ memberCount: 1, heldStake: 0n, pool: 80n, vaultAmount: 80n });
+  const after = cohort({ memberCount: 1, heldStake: 0n, pool: 70n, vaultAmount: 70n });
   const slots = [profile(inCohortA)];
   /** The missed deadline of day 0, which is the outcome instant a record writes. */
   const missed = FIRST_START + DAY - 1;
@@ -690,13 +690,13 @@ describe('INV-2 · the fee reaches the fee destination', () => {
 
   it('accepts a forfeit whose fee lands in the treasury', () => {
     const prev = snapshot({ now: at, cohorts: [live], memberships: [joined], profiles: slots, feeDestination: 500n });
-    const next = snapshot({ now: at, cohorts: [after], memberships: [forfeited], profiles: released, feeDestination: 520n });
+    const next = snapshot({ now: at, cohorts: [after], memberships: [forfeited], profiles: released, feeDestination: 530n });
     expect(() => assertInvariants(next, prev)).not.toThrow();
   });
 
   it('catches a fee that left the vault for somewhere else', () => {
-    // Every figure the cohort keeps is right: the stake left held, 80 of it
-    // reached the pool, and the vault fell by the whole 100. The 20 simply
+    // Every figure the cohort keeps is right: the stake left held, 70 of it
+    // reached the pool, and the vault fell by the whole 100. The 30 simply
     // never arrived, and only reading the destination shows it.
     const prev = snapshot({ now: at, cohorts: [live], memberships: [joined], profiles: slots, feeDestination: 500n });
     const next = snapshot({ now: at, cohorts: [after], memberships: [forfeited], profiles: released, feeDestination: 500n });

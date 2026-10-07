@@ -174,11 +174,11 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 **Decided:**
 
-- 20% of each forfeited stake is fee; the rest enters that cohort's prize pool. Only forfeited stakes (and carry-over, H12) ever enter a pool; held stakes are segregated at every instant.
+- **30%** of each forfeited stake is fee; the remaining 70% enters that cohort's prize pool (**revised 2026-10-05 from 20/80, H34**). Only forfeited stakes ever enter a pool; held stakes are segregated at every instant.
 - Every finisher settles at the same moment on the same figures. Payout = `stake + pool × (stake ÷ total finisher stake)`. The denominator is written exactly once.
 - **Each share rounds down** to the smallest SKR unit. At settlement the **rounding remainder** — always fewer units than there are finishers — **goes to the fee destination** and is recorded on the cohort, so the pool then holds exactly the shares (clarified 2026-09-15).
 - **Claim is a deliberate member action**, never an automatic deposit, and stays claimable indefinitely.
-- If nobody forfeits, finishers get exactly their stake back (plus any carry-over share), and the app says so before they join.
+- If nobody forfeits, finishers get exactly their stake back, and the app says so before they join.
 
 **Why the remainder goes to the fee destination:** it can be computed exactly at settlement, since every finisher's stake is known then; it needs no change to INV-2, which only admits forfeits and no-finisher carry-overs into a pool; and it is the only option that leaves nothing stranded in a settled cohort. **Rejected:** adding it to the carry-over (would let carry-over come from cohorts with finishers, changing INV-2); leaving it in the cohort forever; giving it to one finisher (two equal stakes would then be paid differently, breaking acceptance criterion 3).
 
@@ -188,7 +188,7 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 **Source:** spec FR-026…FR-037b, FR-032a, INV-1, INV-2, INV-5, INV-6, acceptance criterion 3; constitution I.
 
-### H12. When nobody finishes: 50% fee, 50% carry-over
+### H12. When nobody finishes: 50% fee, 50% carry-over — **SUPERSEDED 2026-10-05 by H34**
 
 **Decided (OD-5, clarified 2026-09-15):** at settlement of a cohort with no finishers, **50% of the pool goes to the fee destination and 50% carries over** into the prize pool of the next cohort of the same league that is still open for joining. Any indivisible remainder goes to the carry-over. Both amounts are recorded on the settled cohort. If no cohort of that league is open, **settlement is refused until one is** (revised 2026-09-19, from a review of `settle_finalize`): holding the carry-over instead let whoever settled first decide, by timing alone, whether it ever reached a prize pool — and with delivery in Phase 2, a cut Phase 2 would have stranded it. Opening the league's next cohort is permissionless and already due, so any caller can clear the refusal; the held field survives only for a league in which nobody ever opens another cohort, and error 6047 names the refusal. A carry-over never enters a cohort that has already started. A cohort that received a carry-over and also has no finishers applies the same rule to its whole pool.
 
@@ -423,7 +423,7 @@ Copy uses "prize", never "winnings", "returns", "yield" or "earnings"; never "be
 |---|---|
 | League leaderboards (H17) | No league board screen; on-chain progress is still recorded from the first cohort, and the cohort roster ships in Phase 1 |
 | Weekly chip re-pricing (H8) | One chip set published at launch; publishing a new set is already possible, so re-pricing is tooling only |
-| Delivery of a held carry-over (H12) | Phase 1 holds none: a no-finisher cohort settles only once its league has an open lobby, and delivers the carry-over into it (error 6047 until then). The field and the instruction remain for a league nobody opens another cohort in |
+| Delivery of a held carry-over (H12) — **cut 2026-10-05 (H34)**: nothing carries over any more | Phase 1 holds none: a no-finisher cohort settles only once its league has an open lobby, and delivers the carry-over into it (error 6047 until then). The field and the instruction remain for a league nobody opens another cohort in |
 | Automatic offline submission (H18) | "Done — tap to submit" once online; every offline warning ships in Phase 1 |
 
 **Why:** after three clarify sessions the spec is more than 13 days of work. These four items are the ones cohort #3 doesn't need on its first day — nobody can be ranked until three cohorts have been played, a mock SKR price doesn't move, an open cohort almost always exists at settlement, and one tap after reconnecting is an acceptable first version — and each has a stand-in that keeps Phase 2 free of data migrations.
@@ -582,6 +582,33 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 
 **Source:** spec FR-068, FR-068a, clarification 2026-09-27; research R21; tasks T067a, T067b.
 
+### H34. The fee becomes 30%, and a no-finisher pool goes to the treasury
+
+**Decided (2026-10-05, product owner, before the program's first deploy):**
+
+- A forfeited stake splits **70/30**: 70% to that Holdout's prize pool, 30% to the fee destination (was 80/20, H11).
+- A Holdout nobody finished sends its **whole pool to the fee destination**. Nothing carries over into another Holdout (was 50/50 with a carry-over, H12).
+- **Still open:** how the 30% is divided once it reaches the treasury. Candidates the product owner named are a share toward the next Holdout's prize, as a reason to join it, and a promotion pool for the Daily 25. These come from research and brainstorming first, before anything is built. Until then all of it reaches the fee destination on chain, so the division can be done off chain from the treasury, or added later, without touching a member's stake or pool. A random airdrop to Daily 25 players would be a luck mechanic, which constitution XIII's language rule and Principle I ("nothing the admin calls moves money") both bear on, so it needs its own decision and probably an amendment.
+
+**Why:** the product owner wants a larger treasury share to fund retention, such as prizes and promotions that keep members coming back. Dropping the carry-over also removes the one place where settlement depended on another cohort. Since 19 September a no-finisher cohort had been refused (6047) until its league's next lobby opened, and the Phase 2 delivery of a held carry-over (T099) had turned out to be unreachable: `open_cohort` is permissionless and nothing stops a league. Settlement is now self-contained.
+
+**Rejected:** building `deliver_carry_over` (T099), which nothing could reach; keeping the carry-over beside the larger fee, which the product owner chose not to do.
+
+**Consequences:**
+
+- **Contract:**
+  - `settle_finalize` takes no target accounts.
+  - Errors 6046 and 6047 and the `CarryOverSent`/`CarryOverHeld`/`CarryOverDelivered` events are removed.
+  - The cohort's carry-over fields stay in its layout, always zero, so no client's decoder changed.
+- **Tests and invariants:**
+  - INV-1, INV-2 and INV-6 lose their carry-over clauses.
+  - Golden vectors V5b and V8 are dropped, and V1–V19 are recomputed.
+- **Off-chain:**
+  - The crank no longer opens a lobby before settling.
+  - The app says "70 % to the pool, 30 % fee", and "if everyone finishes, you get exactly your stake back".
+
+**Source:** spec clarification 2026-10-05, FR-027, FR-037 (FR-037a/b superseded), ES-5…ES-7b, FR-041, acceptance criteria 2 and 11; tasks T099 (cut), T111.
+
 ---
 
 ## 2. Still valid from the product-vision record
@@ -610,6 +637,7 @@ Carried forward unchanged; full reasoning in the archive.
 | Front Lever and Human Flag as permanent "homes" | archived D4 | Post-hackathon only; Human Flag is a locked UI rung |
 | USD chip ladders ($5…$200), Human Flag doubled, ceilings lowered | archived D5, D6, D7 | H8 |
 | Free cohorts beside staked ones | archived D12 | H3 |
+| No-finisher pool split 50/50 with a carry-over into the league's open lobby; `deliver_carry_over` for a held one | H12, T099 | H34 — the whole pool to the fee destination |
 | Comeback path is the free week | archived D14 | H3 — daily challenge plus the open 7-day cohort |
 | Free 7-day → staked 21-day | scope doc D-I (first version) | H2 |
 | Fixed SKR chips 100 / 250 / 500 / 1,000 | scope doc D-C | H8 |
@@ -731,3 +759,4 @@ By decision, not by omission.
 | 2026-09-19 | Two setup-window holes closed, from a Codex review of the pushed branch (R14, FR-055b): **`initialize` now accepts only the program's upgrade authority**, checked against `ProgramData` before anything is created (`NotUpgradeAuthority`, 6003) — until `Config` exists there is no stored key to authenticate a signer, so a stranger could have claimed a freshly deployed program along with `operator`, `sponsor` and the fee destination, and the program ID the app and README name could not have been reclaimed; `initialize` must therefore run before the upgrade authority is revoked. And **no cohort opens before the first chip set is published** (`chip_set.version > 0`, `ChipSetNotPublished`, 6012): `open_cohort` is permissionless, a cohort keeps the amounts it copied for life (FR-007), so one opened in the gap after deployment would have taken zero-stake joins until it settled. `crank init` now publishes the first set between `initialize` and the leagues. Golden vector V7 rewritten to the refusal behaviour the 2026-09-19 carry-over change introduced. |
 | 2026-09-26 | Constitution v1.4.0 (minor): **one disclosed short test cohort, devnet only** — a test league with a compressed day on the devnet program built with `test-leagues`, admin-created, labelled everywhere in the app and disclosed in the README, video and deck; the demo and walkthrough may be recorded from it. The first judged start and the feature freeze move from 28 September to **Monday 5 October 2026**. Mainnet builds never carry `test-leagues`. Spec: Session 2026-09-26, FR-044 amended, FR-044a added. |
 | 2026-09-27 | Constitution v1.5.0 (minor): Principle X gains **one narrow exception for rep recognition** — a **debug build** may save a sitting's camera stream as video (no audio), on the device only, pulled by the team over USB and deleted after, from people who agreed in writing to be filmed; a release build must not contain the recorder, enforced by a build check. Members sharing their own recordings stays a later decision. Pulls forward spec 002 T035. |
+| 2026-10-05 | **Fee 70/30, no carry-over (H34).** A forfeited stake now goes 70% to the prize pool and 30% to the fee destination. A no-finisher Holdout's whole pool goes to the fee destination, so `settle_finalize` needs no other cohort, 6046/6047 and the carry-over events are removed, and T099 is cut. How the 30% is divided afterwards is open, pending research. Program, IDL, Codama client, LiteSVM scenarios, golden vectors, Kotlin, crank and app copy changed together (T111). |

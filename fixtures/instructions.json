@@ -493,9 +493,7 @@
     },
     {
       "name": "settle_finalize",
-      "args": {
-        "target": null
-      },
+      "args": {},
       "data": "b66363c83c29783d",
       "accounts": [
         {
@@ -521,14 +519,6 @@
         {
           "address": "SysvarRent111111111111111111111111111111111",
           "role": "1"
-        },
-        {
-          "address": "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4",
-          "role": "0"
-        },
-        {
-          "address": "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4",
-          "role": "0"
         },
         {
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",

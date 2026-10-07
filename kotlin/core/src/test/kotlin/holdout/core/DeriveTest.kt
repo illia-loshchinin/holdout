@@ -156,14 +156,14 @@ class DeriveTest {
     // ---- settlement arithmetic, as `settlement.rs` has it -----------------
 
     @Test
-    fun `the fee is twenty percent rounded down, in 128-bit arithmetic`() {
-        assertEquals(20uL, Settlement.feeOf(100uL))
+    fun `the fee is thirty percent rounded down, in 128-bit arithmetic`() {
+        assertEquals(30uL, Settlement.feeOf(100uL))
         assertEquals(0uL, Settlement.feeOf(1uL))
-        assertEquals(1uL, Settlement.feeOf(9uL))
-        assertEquals(250uL, Settlement.feeOf(1_250uL))
-        // `stake * 20` overflows 64 bits here; the program widens to u128 first.
-        assertEquals(3_689_348_814_741_910_323uL, Settlement.feeOf(ULong.MAX_VALUE))
-        assertEquals(ULong.MAX_VALUE - 3_689_348_814_741_910_323uL, Settlement.poolContribution(ULong.MAX_VALUE))
+        assertEquals(2uL, Settlement.feeOf(9uL))
+        assertEquals(375uL, Settlement.feeOf(1_250uL))
+        // `stake * 30` overflows 64 bits here; the program widens to u128 first.
+        assertEquals(5_534_023_222_112_865_484uL, Settlement.feeOf(ULong.MAX_VALUE))
+        assertEquals(ULong.MAX_VALUE - 5_534_023_222_112_865_484uL, Settlement.poolContribution(ULong.MAX_VALUE))
     }
 
     @Test
@@ -247,7 +247,7 @@ class DeriveTest {
         val members = listOf(member(1, 0), member(2, 1))
         val f = Derive.figures(c, members, Derive.end(c))
         assertEquals(Survivors(0, 2), f.survivors)
-        assertEquals(160uL, f.projectedPool)
+        assertEquals(140uL, f.projectedPool)
         members.forEach { assertEquals(0uL, f.projectedShare(it)) }
     }
 
@@ -289,14 +289,14 @@ class DeriveTest {
     }
 
     @Test
-    fun `the projected pool holds 80 percent of every breach nobody has recorded`() {
-        val c = cohort(memberCount = 3, pool = 600uL, carryOverReceived = 600uL)
+    fun `the projected pool holds 70 percent of every breach nobody has recorded`() {
+        val c = cohort(memberCount = 3, pool = 600uL)
         val members = listOf(member(1, 1), member(2, 1), member(3, 0, stake = 250uL))
         val at = Derive.deadlineOf(c, 0) + 1
-        assertEquals(600uL + 200uL, Derive.projectedPool(c, members, at))
+        assertEquals(600uL + 175uL, Derive.projectedPool(c, members, at))
         assertEquals(600uL, Derive.projectedPool(c, members, at - 1), "not a second early")
-        // Standing stake 200: each 100-stake member projects 100 × 800 ÷ 200.
-        assertEquals(400uL, Derive.projectedShare(members[0], c, members, at))
+        // Standing stake 200: each 100-stake member projects floor(100 × 775 ÷ 200).
+        assertEquals(387uL, Derive.projectedShare(members[0], c, members, at))
     }
 
     @Test

@@ -6,36 +6,23 @@
 //! every finisher and finalisation costs the same whether the cohort holds ten
 //! members or a thousand (research R10).
 //!
-//! ## The carry-over destination is not the caller's to choose
+//! ## Nobody finished: the whole pool goes to the fee destination
 //!
-//! When nobody finished, half the pool goes to the treasury and the rest must
-//! reach a cohort members can still join (FR-037, FR-037a). The destination is
-//! fixed by chain state — the league's cohort `next_index − 1` — and the
-//! accounts for it are **required**, not optional:
-//!
-//!  - withheld → `CarryOverTargetRequired` (6046), so no caller can strand the
-//!    money by omission;
-//!  - not that cohort → `AccountMismatch` (6060), so none can pick a different
-//!    one;
-//!  - that cohort is this one, or has already locked → `CarryOverTargetNotOpen`
-//!    (6047).
-//!
-//! The last refusal is always answerable: `open_cohort` is permissionless and
-//! due the moment the previous cohort started, so the crank opens the league's
-//! next lobby and settles in the same pass. It therefore costs one automation
-//! pass rather than parking money the caller's timing chose to strand — which
-//! is why **Phase 1 never writes `carry_over_held`** (FR-030a).
+//! A cohort nobody finished sends its whole pool to the fee destination, and
+//! nothing carries over into another cohort (FR-037, decided 2026-10-05). So
+//! settling it needs no other cohort, its outcome depends on nothing but its
+//! own state, and no caller's timing or omission can change it (FR-030a).
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
 use crate::{
     errors::HoldoutError,
-    events::{CarryOverSent, CohortSettled},
+    events::CohortSettled,
     guards,
     math::settlement,
     state::{
-        cohort::{Cohort, CohortStatus, COHORT_SEED, VAULT_SEED},
+        cohort::{Cohort, COHORT_SEED, VAULT_SEED},
         config::{Config, CONFIG_SEED},
         league::{LeagueConfig, LEAGUE_SEED},
     },
@@ -77,14 +64,6 @@ pub struct SettleFinalize<'info> {
         constraint = fee_destination.key() == config.fee_destination @ HoldoutError::AccountMismatch,
     )]
     pub fee_destination: Box<Account<'info, TokenAccount>>,
-
-    /// The league's cohort `next_index - 1`. Required when nobody finished.
-    #[account(mut)]
-    pub target_cohort: Option<Box<Account<'info, Cohort>>>,
-
-    /// That cohort's vault.
-    #[account(mut)]
-    pub target_vault: Option<Box<Account<'info, TokenAccount>>>,
 
     pub token_program: Program<'info, Token>,
 }
@@ -143,106 +122,19 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleFinalize<'info>>) -> Resu
         return Ok(());
     }
 
-    // Nobody finished. The destination is whatever chain state says it is.
-    let target_index = ctx
-        .accounts
-        .league
-        .next_index
-        .checked_sub(1)
-        .ok_or(error!(HoldoutError::CarryOverTargetNotOpen))?;
-
-    // Answered before the accounts are even asked for. When the league's latest
-    // cohort is *this* one there is no later cohort to carry into, and no
-    // account the caller could pass would change that — the same account in two
-    // mutable slots is not even representable. So the caller gets the reason
-    // (6047: open the league's next cohort, then settle) rather than a bare
-    // "target required" they could not satisfy (FR-037a).
-    require!(
-        target_index != ctx.accounts.cohort.index,
-        HoldoutError::CarryOverTargetNotOpen
-    );
-
-    let (target_cohort, target_vault) = match (
-        ctx.accounts.target_cohort.as_ref(),
-        ctx.accounts.target_vault.as_ref(),
-    ) {
-        (Some(cohort), Some(vault)) => (cohort, vault),
-        // Omission must not decide anything (FR-030a).
-        _ => return Err(error!(HoldoutError::CarryOverTargetRequired)),
-    };
-
-    let expected_target = Pubkey::create_program_address(
-        &[
-            COHORT_SEED,
-            &[league_id],
-            &target_index.to_le_bytes(),
-            &[target_cohort.bump],
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| error!(HoldoutError::AccountMismatch))?;
-    require_keys_eq!(
-        target_cohort.key(),
-        expected_target,
-        HoldoutError::AccountMismatch
-    );
-    let expected_vault = Pubkey::create_program_address(
-        &[
-            VAULT_SEED,
-            target_cohort.key().as_ref(),
-            &[target_cohort.vault_bump],
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| error!(HoldoutError::AccountMismatch))?;
-    require_keys_eq!(
-        target_vault.key(),
-        expected_vault,
-        HoldoutError::AccountMismatch
-    );
-
-    // The destination has to be one members can still join.
-    require!(
-        target_cohort.status(now) == CohortStatus::Open,
-        HoldoutError::CarryOverTargetNotOpen
-    );
-
-    let (fee_half, carry) = settlement::no_finisher_split(pool);
-    let target_key = target_cohort.key();
-    let target_vault_info = target_vault.to_account_info();
-
-    if fee_half > 0 {
+    // Nobody finished: the whole pool goes to the fee destination (FR-037).
+    let fee = settlement::no_finisher_fee(pool);
+    if fee > 0 {
         transfer_from_vault(
             &ctx,
             signer,
             ctx.accounts.fee_destination.to_account_info(),
-            fee_half,
+            fee,
         )?;
     }
-    if carry > 0 {
-        transfer_from_vault(&ctx, signer, target_vault_info, carry)?;
-    }
-
-    let target = ctx
-        .accounts
-        .target_cohort
-        .as_mut()
-        .ok_or(error!(HoldoutError::CarryOverTargetRequired))?;
-    target.pool = target
-        .pool
-        .checked_add(carry)
-        .ok_or(error!(HoldoutError::AccountMismatch))?;
-    target.carry_over_received = target
-        .carry_over_received
-        .checked_add(carry)
-        .ok_or(error!(HoldoutError::AccountMismatch))?;
 
     let cohort = &mut ctx.accounts.cohort;
-    cohort.no_finisher_fee = fee_half;
-    cohort.carry_over_sent = carry;
-    // Stays zero: Phase 1 refuses rather than parking money (FR-037a).
-    cohort.carry_over_held = 0;
-    cohort.carry_over_target = target_key;
+    cohort.no_finisher_fee = fee;
     cohort.pool = 0;
     cohort.settled = true;
 
@@ -252,12 +144,6 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleFinalize<'info>>) -> Resu
         total_finisher_stake: 0,
         share_per_tier: [0; 4],
         rounding_remainder: 0,
-    });
-    emit!(CarryOverSent {
-        from: cohort_key,
-        to: target_key,
-        amount: carry,
-        fee: fee_half,
     });
 
     Ok(())

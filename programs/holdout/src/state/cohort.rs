@@ -50,8 +50,10 @@ pub struct Cohort {
     pub member_count: u32,
     /// Members' stakes, held separately from the pool at every instant (INV-1).
     pub held_stake: u64,
-    /// Only forfeited stakes and carry-over ever enter this (INV-2).
+    /// Only forfeited stakes ever enter this (INV-2).
     pub pool: u64,
+    /// Always 0 since the carry-over was cut (FR-037, 2026-10-05); kept so the
+    /// account layout every client decodes is unchanged.
     pub carry_over_received: u64,
     pub forfeits_recorded: u32,
     /// Memberships `settle_count` has processed; settlement finalizes when this
@@ -66,10 +68,11 @@ pub struct Cohort {
     pub settled: bool,
     pub share_per_tier: [u64; 4],
     pub rounding_remainder: u64,
+    /// A cohort nobody finished: its whole pool, sent to the fee destination (FR-037).
     pub no_finisher_fee: u64,
+    /// These three are always 0 since the carry-over was cut (FR-037,
+    /// 2026-10-05); kept so the account layout every client decodes is unchanged.
     pub carry_over_sent: u64,
-    /// Always 0 in Phase 1: a no-finisher cohort is refused rather than settled
-    /// while its carry-over has nowhere to go (FR-037a, error 6047).
     pub carry_over_held: u64,
     pub carry_over_target: Pubkey,
 

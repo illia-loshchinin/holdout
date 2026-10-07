@@ -41,7 +41,7 @@ config?: TAccountConfig;
 league: TAccountLeague;
 cohort: TAccountCohort;
 /**
- * The cohort's own SKR vault: stakes, the pool and any carry-over, held
+ * The cohort's own SKR vault: stakes and the pool, held
  * under the cohort's authority so no key outside the program can move them
  * (constitution I).
  */
@@ -99,7 +99,7 @@ config: TAccountConfig;
 league: TAccountLeague;
 cohort: TAccountCohort;
 /**
- * The cohort's own SKR vault: stakes, the pool and any carry-over, held
+ * The cohort's own SKR vault: stakes and the pool, held
  * under the cohort's authority so no key outside the program can move them
  * (constitution I).
  */
@@ -152,7 +152,7 @@ config: TAccountMetas[1];
 league: TAccountMetas[2];
 cohort: TAccountMetas[3];
 /**
- * The cohort's own SKR vault: stakes, the pool and any carry-over, held
+ * The cohort's own SKR vault: stakes and the pool, held
  * under the cohort's authority so no key outside the program can move them
  * (constitution I).
  */

@@ -3,7 +3,7 @@
 //! One account holds every privileged key, the mock SKR mint, the chip set and
 //! the faucet's books. Nothing here decides who won or lost: the keys may only
 //! run the instructions listed beside them in `contracts/program-instructions.md`
-//! §1, and none of those moves a stake, a pool or a carry-over (constitution I).
+//! §1, and none of those moves a stake or a pool (constitution I).
 
 use anchor_lang::prelude::*;
 

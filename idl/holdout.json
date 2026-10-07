@@ -1312,7 +1312,7 @@
         {
           "name": "vault",
           "docs": [
-            "The cohort's own SKR vault: stakes, the pool and any carry-over, held",
+            "The cohort's own SKR vault: stakes and the pool, held",
             "under the cohort's authority so no key outside the program can move them",
             "(constitution I)."
           ],
@@ -1642,8 +1642,8 @@
     {
       "name": "settle_finalize",
       "docs": [
-        "Once. Constant-time per-tier shares; the carry-over's destination is",
-        "fixed by chain state, never by the caller (FR-030a, FR-037a)."
+        "Once. Constant-time per-tier shares; with no finishers the whole pool",
+        "goes to the fee destination (FR-030a, FR-037)."
       ],
       "discriminator": [
         182,
@@ -1714,22 +1714,6 @@
         {
           "name": "fee_destination",
           "writable": true
-        },
-        {
-          "name": "target_cohort",
-          "docs": [
-            "The league's cohort `next_index - 1`. Required when nobody finished."
-          ],
-          "writable": true,
-          "optional": true
-        },
-        {
-          "name": "target_vault",
-          "docs": [
-            "That cohort's vault."
-          ],
-          "writable": true,
-          "optional": true
         },
         {
           "name": "token_program",
@@ -1985,45 +1969,6 @@
     }
   ],
   "events": [
-    {
-      "name": "CarryOverDelivered",
-      "discriminator": [
-        133,
-        4,
-        96,
-        150,
-        141,
-        96,
-        107,
-        182
-      ]
-    },
-    {
-      "name": "CarryOverHeld",
-      "discriminator": [
-        61,
-        84,
-        89,
-        35,
-        170,
-        204,
-        29,
-        242
-      ]
-    },
-    {
-      "name": "CarryOverSent",
-      "discriminator": [
-        3,
-        56,
-        84,
-        193,
-        174,
-        246,
-        82,
-        216
-      ]
-    },
     {
       "name": "ChipSetPublished",
       "discriminator": [
@@ -2303,16 +2248,6 @@
       "msg": "The previous cohort of this league must settle first"
     },
     {
-      "code": 6046,
-      "name": "CarryOverTargetRequired",
-      "msg": "A no-finisher settlement needs the league's latest cohort and its vault"
-    },
-    {
-      "code": 6047,
-      "name": "CarryOverTargetNotOpen",
-      "msg": "The league has no cohort open for joining: open the next one, then settle"
-    },
-    {
       "code": 6050,
       "name": "FaucetAlreadyClaimedToday",
       "msg": "This wallet has already used the faucet today"
@@ -2344,78 +2279,6 @@
     }
   ],
   "types": [
-    {
-      "name": "CarryOverDelivered",
-      "docs": [
-        "**[Phase 2]** — the single delivery of an amount a stopped league held."
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "from",
-            "type": "pubkey"
-          },
-          {
-            "name": "to",
-            "type": "pubkey"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CarryOverHeld",
-      "docs": [
-        "Phase 1 never emits this: a no-finisher cohort is refused rather than settled",
-        "while its carry-over has nowhere to go (FR-037a). It stays for the league in",
-        "which nobody ever opens another cohort."
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "cohort",
-            "type": "pubkey"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          },
-          {
-            "name": "fee",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CarryOverSent",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "from",
-            "type": "pubkey"
-          },
-          {
-            "name": "to",
-            "type": "pubkey"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          },
-          {
-            "name": "fee",
-            "type": "u64"
-          }
-        ]
-      }
-    },
     {
       "name": "ChipSet",
       "docs": [
@@ -2548,12 +2411,16 @@
           {
             "name": "pool",
             "docs": [
-              "Only forfeited stakes and carry-over ever enter this (INV-2)."
+              "Only forfeited stakes ever enter this (INV-2)."
             ],
             "type": "u64"
           },
           {
             "name": "carry_over_received",
+            "docs": [
+              "Always 0 since the carry-over was cut (FR-037, 2026-10-05); kept so the",
+              "account layout every client decodes is unchanged."
+            ],
             "type": "u64"
           },
           {
@@ -2607,18 +2474,21 @@
           },
           {
             "name": "no_finisher_fee",
+            "docs": [
+              "A cohort nobody finished: its whole pool, sent to the fee destination (FR-037)."
+            ],
             "type": "u64"
           },
           {
             "name": "carry_over_sent",
+            "docs": [
+              "These three are always 0 since the carry-over was cut (FR-037,",
+              "2026-10-05); kept so the account layout every client decodes is unchanged."
+            ],
             "type": "u64"
           },
           {
             "name": "carry_over_held",
-            "docs": [
-              "Always 0 in Phase 1: a no-finisher cohort is refused rather than settled",
-              "while its carry-over has nowhere to go (FR-037a, error 6047)."
-            ],
             "type": "u64"
           },
           {

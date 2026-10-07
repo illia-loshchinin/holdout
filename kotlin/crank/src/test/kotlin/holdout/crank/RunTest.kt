@@ -28,7 +28,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -96,13 +95,6 @@ class RunTest {
         val now = first + 3 * week + 1
         val queue = Run.settleQueue(listOf(cohort(2), cohort(0, settled = true), cohort(1), cohort(3)), now)
         assertEquals(listOf(1L, 2L), queue.getValue(0).map { it.index }, "settled and running cohorts are not queued")
-    }
-
-    @Test
-    fun `the carry-over target is the league's newest cohort, never the cohort itself`() {
-        assertEquals(4L, Run.carryOverTargetIndex(nextIndex = 5, cohortIndex = 2))
-        assertNull(Run.carryOverTargetIndex(nextIndex = 3, cohortIndex = 2))
-        assertNull(Run.carryOverTargetIndex(nextIndex = 0, cohortIndex = 0))
     }
 
     // ---- one whole pass ----------------------------------------------------
@@ -274,7 +266,7 @@ class RunTest {
         assertTrue(forfeit.message.accounts.contains(Pdas.membership(programId, Pdas.cohort(programId, 0, 2), member(4, 0).wallet)), "the member who missed day 0")
         assertFalse(forfeit.message.accounts.contains(Pdas.membership(programId, Pdas.cohort(programId, 0, 2), member(3, 1).wallet)), "not the member still standing")
         val finalize = chain.sentTx[4]
-        assertTrue(finalize.message.accounts.contains(Pdas.cohort(programId, 0, 3)), "the carry-over target is the lobby this pass opened")
+        assertFalse(finalize.message.accounts.contains(Pdas.cohort(programId, 0, 3)), "settlement names no other cohort: nothing carries over")
         chain.sentTx.forEach { assertEquals(payer.publicKey, it.message.accounts[0], "the crank's payer pays every fee") }
     }
 
@@ -338,8 +330,8 @@ class RunTest {
     }
 
     @Test
-    fun `a dry run whose finalize needs a lobby only simulated reports it skipped, not failed`() = runBlocking {
-        val chain = liveLeague(sponsorLamports = 50_000_000, refuseSimulation = mapOf("settle_finalize" to Run.CARRY_OVER_TARGET_NOT_OPEN))
+    fun `a dry run that reaches a counted cohort simulates its finalize and fails nothing`() = runBlocking {
+        val chain = liveLeague(sponsorLamports = 50_000_000)
         // Cohort 1 already counted, so the dry run reaches its finalize.
         val c1 = Pdas.cohort(programId, 0, 1)
         chain.accounts[c1] = cohortBytes(cohort(1, memberCount = 2, counted = 2))
@@ -349,7 +341,7 @@ class RunTest {
         val json = pass(chain, "--dry-run")
         assertEquals(0, json.getValue("failed").jsonPrimitive.int)
         val finalize = json.getValue("steps").jsonArray.map { it.jsonObject }.filter { it.getValue("step").jsonPrimitive.content == "settle_finalize" }
-        assertEquals(listOf("refused", "skipped"), finalize.map { it.getValue("status").jsonPrimitive.content })
+        assertEquals(listOf("simulated"), finalize.map { it.getValue("status").jsonPrimitive.content })
     }
 
     @Test

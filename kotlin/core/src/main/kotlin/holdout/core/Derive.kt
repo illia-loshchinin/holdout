@@ -42,8 +42,8 @@ object Schedule {
  * can exceed it, because the program's own results are `u64`.
  */
 object Settlement {
-    /** 20 % of one forfeited stake, rounded down (FR-027). */
-    fun feeOf(forfeitedStake: ULong): ULong = (forfeitedStake.big() * TWENTY / HUNDRED).toULongExact()
+    /** 30 % of one forfeited stake, rounded down (FR-027). */
+    fun feeOf(forfeitedStake: ULong): ULong = (forfeitedStake.big() * FEE_PERCENT / HUNDRED).toULongExact()
 
     /** What one forfeited stake adds to the pool: the stake minus its fee. */
     fun poolContribution(forfeitedStake: ULong): ULong = forfeitedStake - feeOf(forfeitedStake)
@@ -57,7 +57,7 @@ object Settlement {
         return (pool.big() * chip.big() / totalFinisherStake.big()).toULongExact()
     }
 
-    private val TWENTY = BigInteger.valueOf(20)
+    private val FEE_PERCENT = BigInteger.valueOf(30)
     private val HUNDRED = BigInteger.valueOf(100)
 }
 
@@ -174,7 +174,7 @@ object Derive {
     fun survivors(c: CohortSnapshot, members: List<MembershipSnapshot>, now: Long): Survivors = Survivors(members.count { standing(it, c, now) }, c.memberCount)
 
     /**
-     * `pool + Σ (stake − floor(stake × 20 ÷ 100))` over members in breach whose
+     * `pool + Σ (stake − floor(stake × 30 ÷ 100))` over members in breach whose
      * forfeit is not yet recorded — exactly what `record_forfeits` will add, so
      * recording it changes nothing on screen (FR-038a, V16).
      *
