@@ -96,6 +96,10 @@ Product owner decisions, before the program is first deployed.
 - Q: How is the 30% fee divided, and what does it fund? (FR-027, H35) → A: **10 boost reserve / 5 comeback reserve / 5 developer / 10 operations**, all by program rule. Reserves are credited at settlement; a boost of up to 20% of a cohort's own pool, and a comeback refund of 10% of a forfeited stake for finishing a later Holdout within 14 days. **The Daily 25 is never paid**, on any network. Random airdrops rejected.
 - Q: Easy and Hard? (FR-007, FR-021a, H35) → A: The league carries a **form**, copied to each cohort: the 7-day league is **Easy** (knee push-ups count, phone at 40–60° only), the 21-day league **Hard** (from the toes). Shipped now, overriding the freeze (constitution v1.6.0).
 
+### Session 2026-10-06
+
+- Q: Does the ladder keep a locked Human Flag rung above the two leagues? (US-1) → A: **No — removed entirely.** The ladder is the Daily 25 under the 7-day and 21-day leagues, nothing above them. It never existed in the contract, so nothing on chain changes. *(Removes it from US-1 and from the §3 out-of-scope list.)*
+
 ---
 
 ### Session 2026-09-23
@@ -122,7 +126,7 @@ Product owner decisions, before the program is first deployed.
 
 ## 3. Out of scope
 
-Human Flag league (locked rung in the UI only) · **free cohorts of any league** · geo-blocking · terms of service · calibration flow · Swelfie · conditional pre-joining (a lobby place that depends on clearing the current cohort and is refunded automatically on forfeit — the unconditional lobby place of FR-006a is in scope) · cohort cancellation and minimum size · cold-start bonus matching · insurance fund · demotion · push notifications from a server (reminders are on-device only, FR-068) · share cards · badges · a daily-streak leaderboard, or any leaderboard fed by a server · audio of any kind in verification — no audio environment check, no audio rep condition, no microphone access *(§9 OD-3)* · publishing on the Solana dApp Store, and any mainnet deployment — not required for submission; if the app wins, the dApp Store listing is due within 30 calendar days of the winners' announcement, as post-hackathon work.
+**Free cohorts of any league** · geo-blocking · terms of service · calibration flow · Swelfie · conditional pre-joining (a lobby place that depends on clearing the current cohort and is refunded automatically on forfeit — the unconditional lobby place of FR-006a is in scope) · cohort cancellation and minimum size · cold-start bonus matching · insurance fund · demotion · push notifications from a server (reminders are on-device only, FR-068) · share cards · badges · a daily-streak leaderboard, or any leaderboard fed by a server · audio of any kind in verification — no audio environment check, no audio rep condition, no microphone access *(§9 OD-3)* · publishing on the Solana dApp Store, and any mainnet deployment — not required for submission; if the app wins, the dApp Store listing is due within 30 calendar days of the winners' announcement, as post-hackathon work.
 
 ## 3a. Phasing
 
@@ -158,7 +162,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 **Given** a person has installed the app and has a wallet
 **When** they open it for the first time
-**Then** they connect their wallet before anything else is available (FR-001a), are walked through the three-card tour (FR-067), and then see the ladder with both Holdout lengths open (the 21-day league's requirement stated plainly, but not enforced in this build — FR-003) and Human Flag as a locked rung, and can start today's Daily 25 in one tap.
+**Then** they connect their wallet before anything else is available (FR-001a), are walked through the three-card tour (FR-067), and then see the ladder with both Holdout lengths open (the 21-day league's requirement stated plainly, but not enforced in this build — FR-003), and can start today's Daily 25 in one tap.
 
 ### US-2 · Joining from the lobby
 

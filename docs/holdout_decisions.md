@@ -35,7 +35,6 @@ Judges score completion from the demo video and technical depth from the GitHub 
 | **Daily challenge** | 25 push-ups, every day, free, for everyone. No cohort, no stake, no prize. Builds a cosmetic streak. |
 | **7-day league** | Staked, 25 reps/day. The entry rung and the comeback lane. **Never closes** — not on a clear, not on a forfeit. |
 | **21-day league** | Staked, 25 reps/day. Where the money is. |
-| Human Flag | Locked third rung in the UI only. Does not exist in the contract. |
 
 Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off for the hackathon** (`ladder_gate_enabled = false`): both leagues are joinable from first launch, the unlock is still computed and recorded, and enabling the gate later is one flag, never a migration.
 
@@ -680,7 +679,7 @@ Carried forward unchanged; full reasoning in the archive.
 | Three leagues: Push-Up 7d → Front Lever 21d → Human Flag 28d (30 reps) | archived D1 | H2 |
 | A free 7-day clear qualifies | archived D2 | H2, H3 |
 | Staked qualifier closes on a clear | archived D3 | H2 — the 7-day never closes |
-| Front Lever and Human Flag as permanent "homes" | archived D4 | Post-hackathon only; Human Flag is a locked UI rung |
+| Front Lever and Human Flag as permanent "homes" | archived D4 | H2 — two leagues only |
 | USD chip ladders ($5…$200), Human Flag doubled, ceilings lowered | archived D5, D6, D7 | H8 |
 | Free cohorts beside staked ones | archived D12 | H3 |
 | No-finisher pool split 50/50 with a carry-over into the league's open lobby; `deliver_carry_over` for a held one | H12, T099 | H34 — the whole pool to the fee destination |
@@ -716,7 +715,6 @@ By decision, not by omission.
 
 | Removed | Why |
 |---|---|
-| Human Flag league (contract) | Locked UI rung only (H2) |
 | Free cohorts | H3 |
 | Conditional pre-joining | H10 |
 | Cohort cancellation and minimum size | H15 |
@@ -807,3 +805,4 @@ By decision, not by omission.
 | 2026-09-27 | Constitution v1.5.0 (minor): Principle X gains **one narrow exception for rep recognition** — a **debug build** may save a sitting's camera stream as video (no audio), on the device only, pulled by the team over USB and deleted after, from people who agreed in writing to be filmed; a release build must not contain the recorder, enforced by a build check. Members sharing their own recordings stays a later decision. Pulls forward spec 002 T035. |
 | 2026-10-05 | **Fee 70/30, no carry-over (H34).** A forfeited stake now goes 70% to the prize pool and 30% to the fee destination. A no-finisher Holdout's whole pool goes to the fee destination, so `settle_finalize` needs no other cohort, 6046/6047 and the carry-over events are removed, and T099 is cut. How the 30% is divided afterwards is open, pending research. Program, IDL, Codama client, LiteSVM scenarios, golden vectors, Kotlin, crank and app copy changed together (T111). |
 | 2026-10-05 | **Constitution v1.6.0 and H35.** The freeze is overridden for one package. League boost and comeback reserves are credited at settlement. Developer and operations fee destinations are on chain. The league `form` sets Easy (knees allowed, 40–60° only) for 7-day and Hard (from the toes) for 21-day. The Daily 25 gets a toes meter and earned streak freezes, and is never paid on any network. Principle I now admits a capped share of a league's earlier forfeits into a pool; Principle V names the form. Out of scope gains "any payment for the Daily 25" and loses "bonus matching" and "insurance fund". |
+| 2026-10-06 | **Human Flag removed.** The locked third rung is gone from the ladder screen, US-1, the out-of-scope list, H2, the PRD, the scope doc and the demo script. The ladder is the Daily 25 under the 7-day and 21-day leagues, nothing above them. It never existed in the contract, so nothing on chain changes. The archive keeps its history. |

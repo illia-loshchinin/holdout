@@ -26,8 +26,8 @@ import holdout.core.Derive
 import holdout.core.LeagueParams
 
 /**
- * The ladder (US-1, FR-003, T044, T085): the Daily 25 at the bottom rung, both
- * Holdout lengths open, and the Human Flag locked above them.
+ * The ladder (US-1, FR-003, T044, T085): the Daily 25 at the bottom rung and
+ * both Holdout lengths open above it.
  *
  * The 21-day league's requirement — a 7-day clear — is stated and recorded but
  * not enforced in this build (`ladder_gate_enabled = false`), and the screen
@@ -53,12 +53,6 @@ fun LadderScreen(
     ) {
         TextButton(onClick = onBack) { Text("← Home", color = HoldoutColors.TextSecondary) }
         Text("The ladder", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
-
-        SectionLabel("Locked")
-        HoldoutCard {
-            Text("Human Flag", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextTertiary)
-            Body("Coming after the 21-day Holdout. Not in this build.")
-        }
 
         SectionLabel("21-day Holdout")
         Body(
