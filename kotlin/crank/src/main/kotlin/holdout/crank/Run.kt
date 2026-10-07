@@ -95,6 +95,23 @@ object Run {
         .filter { it.leagueId in retired && !it.settled }
         .minOfOrNull { it.leagueId }
 
+    /**
+     * The earliest instant after [now] at which one of [leagues] falls due to
+     * open its next cohort: the start of its newest one (`open_cohort` refuses
+     * before it). The loop wakes for it instead of waiting out its interval, so
+     * a test cohort is joinable seconds after the one before it starts
+     * (FR-044a). Null when nothing falls due later — what is due now, the pass
+     * has just opened.
+     */
+    fun nextOpenAt(leagues: Collection<LeagueSnapshot>, cohorts: Collection<CohortSnapshot>, now: Long): Long? {
+        val starts = cohorts.associate { (it.leagueId to it.index) to it.start }
+        return leagues
+            .filter { it.nextIndex > 0 }
+            .map { l -> starts[l.params.leagueId to l.nextIndex - 1] ?: scheduledStart(l, l.nextIndex - 1) }
+            .filter { it > now }
+            .minOrNull()
+    }
+
     /** The program's `schedule::cohort_start`. */
     fun scheduledStart(league: LeagueSnapshot, index: Long): Long = league.params.firstStart + index * league.params.cadence
 
@@ -395,12 +412,20 @@ object Run {
             cohorts[leagueId to index] = counted.copy(settled = true)
         }
 
+        // The leagues this crank opens in, as they stand after this pass; a lobby
+        // held by an older test league waits on settlement, not on a clock.
+        val opening = leagues
+            .filter { it.params.leagueId !in retired && (it.params.leagueId < LeagueParams.TEST_LEAGUE_MIN || lobbyHeldBy(retired, cohorts.values) == null) }
+            .map { it.copy(nextIndex = nextIndex.getValue(it.params.leagueId)) }
+        val nextOpen = nextOpenAt(opening, cohorts.values, now)
+
         val summary =
             buildJsonObject {
                 put("command", "run")
                 put("dryRun", args.dryRun)
                 put("chainTime", now)
                 put("failed", pass.failures)
+                nextOpen?.let { put("nextOpenAt", it) }
                 putJsonArray("steps") { pass.steps.forEach { add(it) } }
             }
         if (pass.failures > 0) throw CrankSummaryException(EXIT_FAILED, summary)

@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # The crank's schedule (T094, research R12): one automation pass, then scripted
-# members, every CRANK_INTERVAL_SECONDS (default 600). Runs in the Fly machine
-# and in the GitHub Actions fallback (with --once).
+# members, every CRANK_INTERVAL_SECONDS (default 600) — or sooner, when `crank
+# run` reports a cohort open falling due before then (`nextOpenAt`, chain time):
+# the loop wakes a few seconds after it, so the next test cohort is joinable
+# moments after the one before starts, not up to an interval later (FR-044a).
+# Runs in the Fly machine and in the GitHub Actions fallback (with --once).
 #
 # Keys come from the environment, never from the image or the repository:
 #   HOLDOUT_PAYER_KEY_JSON        the payer's Solana CLI keypair (a JSON array)
@@ -43,10 +46,12 @@ elif [[ -z "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" && "${CRANK_WITHOUT_SCRIPTED:-}" != 
 fi
 chmod 600 "$KEYS"/*.json "$KEYS"/scripted/*.json 2>/dev/null || true
 
+SUMMARY="$KEYS/last-run.json"
+
 pass() {
   echo "=== $(date -u +%FT%TZ) crank run"
-  java -jar "$JAR" run
-  local run=$? scripted=0
+  java -jar "$JAR" run | tee "$SUMMARY"
+  local run=${PIPESTATUS[0]} scripted=0
   if [[ -n "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" ]]; then
     echo "=== $(date -u +%FT%TZ) crank scripted run"
     java -jar "$JAR" scripted run
@@ -62,7 +67,19 @@ if [[ "${1:-}" == "--once" ]]; then
   exit $?
 fi
 
+# Seconds to sleep: the interval, or until 5 s after the next open falls due
+# (a margin for the chain clock), never less than 5 s.
+next_sleep() {
+  local interval="${CRANK_INTERVAL_SECONDS:-600}" next wait
+  next="$(grep -o '"nextOpenAt":[0-9]*' "$SUMMARY" 2>/dev/null | head -n 1 | cut -d: -f2)"
+  [[ -z "$next" ]] && { echo "$interval"; return; }
+  wait=$(( next + 5 - $(date +%s) ))
+  (( wait < 5 )) && wait=5
+  (( wait < interval )) && echo "$wait" || echo "$interval"
+}
+
 while true; do
+  : > "$SUMMARY"
   pass || echo "=== pass ended with a failure; the next pass retries (exit $?)"
-  sleep "${CRANK_INTERVAL_SECONDS:-600}"
+  sleep "$(next_sleep)"
 done

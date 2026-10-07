@@ -35,7 +35,7 @@ Floors are crank configuration — `--floor-7d` (default 20) and `--floor-21d` (
 
 ## Schedule
 
-A Fly.io scheduled machine runs `crank run && crank scripted run` **every 10 minutes**. The Phase 2 chip check runs Mondays after 05:00 UTC. The GitHub Actions workflow `.github/workflows/crank.yml` is a disabled-by-default fallback with the same commands.
+A Fly.io scheduled machine runs `crank run && crank scripted run` **every 10 minutes**, and sooner when a cohort open falls due first: `crank run`'s summary carries `nextOpenAt` (chain time, absent when nothing falls due later), and `scripts/crank-loop.sh` wakes 5 s after it, so the test lobby's next cohort opens moments after the one before starts (FR-044a). The Phase 2 chip check runs Mondays after 05:00 UTC. The GitHub Actions workflow `.github/workflows/crank.yml` is a disabled-by-default fallback with the same commands.
 
 ## Guarantees
 
