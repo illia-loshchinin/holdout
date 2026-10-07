@@ -128,7 +128,16 @@ class HoldoutViewModel(
         // a join or a claim that landed would look undone until the next pass.
         if (started < newestApplied) return
         newestApplied = started
-        _state.update { if (view == null) it.copy(offline = true) else it.copy(view = view, offline = false) }
+        // An answer to a read started after the loss is the network back: the send
+        // re-arms now (T098). One already out when it went proves nothing.
+        val back = started > readsBeforeLoss
+        _state.update {
+            if (view == null) {
+                it.copy(offline = true)
+            } else {
+                it.copy(view = view, offline = false, autoSubmit = if (back) it.autoSubmit.answered() else it.autoSubmit)
+            }
+        }
     }
 
     fun clearMessage() = _state.update { it.copy(message = null, lastFaucet = null) }
@@ -219,15 +228,26 @@ class HoldoutViewModel(
     fun pendingDay(h: Holdout): Int? = address?.let { store.pendingCohortDay(it.base58(), h.address.base58()) }
 
     /**
+     * The default network went away: a waiting day may open the wallet again
+     * once the chain answers — the next successful read, which the network's
+     * return asks for at once — never before (T098).
+     */
+    fun networkLost() {
+        // Called from the system's network thread: counted on the main one, in order with [refresh].
+        viewModelScope.launch {
+            readsBeforeLoss = refreshesStarted
+            _state.update { it.copy(autoSubmit = it.autoSubmit.lost()) }
+        }
+    }
+
+    /** Reads started when the network was last lost — on the main thread, as [refreshesStarted]. */
+    private var readsBeforeLoss = 0
+
+    /**
      * Whether [pendingDay] of [h] should be sent by itself now: the chain answers
      * again and nothing has sent it since (FR-024b Phase 2, T098). The send itself
      * is [submitDay], which records it.
      */
-    /** The default network went away: a waiting day may open the wallet again once it is back (T098). */
-    fun networkLost() {
-        _state.update { it.copy(autoSubmit = it.autoSubmit.lost()) }
-    }
-
     fun autoSubmitDue(h: Holdout, pendingDay: Int?, todayDone: Boolean): Boolean {
         val s = _state.value
         val step = s.autoSubmit.step(h.address.base58(), pendingDay, todayDone, s.offline, s.busy)

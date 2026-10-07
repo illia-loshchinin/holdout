@@ -168,7 +168,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 override fun onAvailable(network: android.net.Network) = holdouts.refresh()
 
                 // A drop and return between two 30-second reads never shows as offline,
-                // so the loss itself re-arms the automatic send.
+                // so the loss itself re-arms the automatic send — for the next read that answers.
                 override fun onLost(network: android.net.Network) = holdouts.networkLost()
             }
             connectivity?.registerDefaultNetworkCallback(onNetwork)
@@ -301,17 +301,6 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     // Compose state, not a storage read: storage is not observed, so finishing the
     // tour must change something this composition reads or the screen never leaves it.
     var tourSeen by remember(wallet) { mutableStateOf(store.hasSeenTour(wallet)) }
-    if (!tourSeen || route == Route.Tour) {
-        TourScreen(
-            onDone = {
-                store.setSeenTour(wallet)
-                tourSeen = true
-                route = Route.Home
-            },
-            modifier = modifier,
-        )
-        return
-    }
 
     val dayIndex = now?.let { HoldoutDay.indexOf(it) } ?: Store.UNKNOWN_DAY
 
@@ -404,8 +393,6 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     val chainNow = now
     val view = chain.view
     fun holdout(address: SolanaPublicKey): Holdout? = view?.holdouts?.firstOrNull { it.address == address }
-    BackHandler(enabled = route != Route.Home) { route = Route.Home }
-    val goHome = { route = Route.Home }
 
     /** Today's day of [h] done on this phone and not yet on chain, if any. Only today's counts: an older one left behind must not hide it. */
     @Composable
@@ -424,8 +411,9 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     }
 
     // A day waiting for the network sends itself once the chain answers again
-    // (FR-024b Phase 2, T098) — on whichever screen the member is, short of a
-    // sitting, and again after the system reports the network lost and back.
+    // (FR-024b Phase 2, T098) — on whichever screen the member is, the tour
+    // included, short of a sitting, and again after the system reports the
+    // network lost and the chain answers once more.
     val running = chainNow?.let { n -> view?.mine(n)?.firstNotNullOfOrNull { h -> (h.stage(n) as? Stage.Active)?.let { h to it } } }
     if (running != null) {
         val (h, stage) = running
@@ -434,6 +422,23 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             if (pendingToday != null && holdouts.autoSubmitDue(h, pendingToday, stage.todayDone)) submitDayOf(h, pendingToday)
         }
     }
+
+    // The tour — first run, or opened again from About — shows only after the
+    // automatic send above is composed, so a reconnect during it still sends.
+    if (!tourSeen || route == Route.Tour) {
+        TourScreen(
+            onDone = {
+                store.setSeenTour(wallet)
+                tourSeen = true
+                route = Route.Home
+            },
+            modifier = modifier,
+        )
+        return
+    }
+
+    BackHandler(enabled = route != Route.Home) { route = Route.Home }
+    val goHome = { route = Route.Home }
 
     // ---- routes that need a Holdout and chain time -----------------------------
     val routed = route

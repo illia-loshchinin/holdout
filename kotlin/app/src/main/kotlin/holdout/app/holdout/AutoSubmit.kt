@@ -11,9 +11,11 @@ package holdout.app.holdout
  * [sentFor] is the cohort and day already sent while the chain could be
  * reached — by itself, a tap or the sitting's own exit — or null. A send is
  * recorded when it starts ([sent]), so a day that has just landed is not sent
- * again before the chain shows it.
+ * again before the chain shows it. [lostSince] is set when the system reported
+ * the network gone after that: the send re-arms only when the chain answers
+ * again ([answered]), never into no network.
  */
-data class AutoSubmit(val sentFor: Pair<String, Int>? = null) {
+data class AutoSubmit(val sentFor: Pair<String, Int>? = null, val lostSince: Boolean = false) {
 
     /** What to do now: the state to keep, and whether to send [pendingDay] of [cohort]. */
     data class Step(val next: AutoSubmit, val send: Boolean)
@@ -22,18 +24,23 @@ data class AutoSubmit(val sentFor: Pair<String, Int>? = null) {
         offline -> Step(AutoSubmit(), send = false)
         pendingDay == null || todayDone || busy -> Step(this, send = false)
         sentFor == cohort to pendingDay -> Step(this, send = false)
-        else -> Step(AutoSubmit(cohort to pendingDay), send = true)
+        else -> Step(copy(sentFor = cohort to pendingDay), send = true)
     }
 
     /**
-     * The phone lost its network. Re-arms the send exactly as an offline read
-     * would — a drop and return between two chain reads is never seen as
-     * offline there, so the system's own network callback reports it.
+     * The phone lost its network. Arms the send again once the chain answers
+     * ([answered]) — a drop and return between two chain reads is never seen
+     * as offline there, so the system's own network callback reports it. Not
+     * at once: the last read may still say online, and a send now would fail
+     * for want of a network and count as tried.
      */
-    fun lost(): AutoSubmit = AutoSubmit()
+    fun lost(): AutoSubmit = copy(lostSince = true)
 
-    /** [day] of [cohort] was sent — by itself, a tap or the sitting's own exit. */
-    fun sent(cohort: String, day: Int): AutoSubmit = AutoSubmit(cohort to day)
+    /** The chain answered: if the network was lost since, the day sent before may go again. */
+    fun answered(): AutoSubmit = if (lostSince) AutoSubmit() else this
+
+    /** [day] of [cohort] was sent — by itself, a tap or the sitting's own exit. A loss not yet answered still re-arms it. */
+    fun sent(cohort: String, day: Int): AutoSubmit = copy(sentFor = cohort to day)
 
     /** Whether [day] of [cohort] was already sent since the chain last answered: the tap is the way left. */
     fun tried(cohort: String, day: Int): Boolean = sentFor == cohort to day

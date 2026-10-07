@@ -41,10 +41,38 @@ class AutoSubmitTest {
         assertTrue(tried.send)
         // Declined: the chain still shows day 3 pending, and no read ever saw offline.
         assertFalse(tried.next.step(cohort, 3, todayDone = false, offline = false, busy = false).send)
-        // The system reports the loss; the next read with the day still pending sends again.
-        val back = tried.next.lost().step(cohort, 3, todayDone = false, offline = false, busy = false)
+        // The system reports the loss and the chain answers again: with the day still pending it sends again.
+        val back = tried.next.lost().answered().step(cohort, 3, todayDone = false, offline = false, busy = false)
         assertTrue(back.send)
         assertFalse(back.next.step(cohort, 3, todayDone = false, offline = false, busy = false).send, "and only once")
+    }
+
+    @Test
+    fun `given a declined send, when the network is lost and has not come back, then nothing is sent yet`() {
+        val declined = AutoSubmit().step(cohort, 3, todayDone = false, offline = false, busy = false).next
+        // The last read still says online: the loss alone must not send into no network.
+        val lost = declined.lost()
+        val down = lost.step(cohort, 3, todayDone = false, offline = false, busy = false)
+        assertFalse(down.send)
+        assertTrue(down.next.tried(cohort, 3), "the tap stays the way while the network is down")
+        // The chain answers again: now it goes, once.
+        val back = down.next.answered().step(cohort, 3, todayDone = false, offline = false, busy = false)
+        assertTrue(back.send)
+        assertFalse(back.next.answered().step(cohort, 3, todayDone = false, offline = false, busy = false).send, "and only once")
+    }
+
+    @Test
+    fun `given a declined send, when the chain answers with no loss in between, then the wallet is not opened again`() {
+        val declined = AutoSubmit().step(cohort, 3, todayDone = false, offline = false, busy = false).next
+        assertFalse(declined.answered().step(cohort, 3, todayDone = false, offline = false, busy = false).send)
+    }
+
+    @Test
+    fun `given a lost network, when a send starts before the chain answers, then the answer still re-arms it`() {
+        // The send went out with no network under it and failed: the return must try again.
+        val sent = AutoSubmit().lost().sent(cohort, 3)
+        assertTrue(sent.tried(cohort, 3))
+        assertTrue(sent.answered().step(cohort, 3, todayDone = false, offline = false, busy = false).send)
     }
 
     @Test
