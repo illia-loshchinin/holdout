@@ -88,8 +88,9 @@ class StreakStore(private val store: Store) {
         }
         // One freeze per seven consecutive active days, never more than two held.
         if (current % FREEZE_EVERY_DAYS == 0) freezes = minOf(MAX_FREEZES, freezes + 1)
-        store.setStreak(wallet, current, dayIndex)
-        store.setStreakFreezes(wallet, freezes)
+        // One write: the day and its freezes can never be saved apart, and a
+        // second call for this day returns above without writing anything.
+        store.setStreak(wallet, current, dayIndex, freezes)
 
         val longest = maxOf(current, store.longestStreak(wallet))
         if (longest != store.longestStreak(wallet)) store.setLongestStreak(wallet, longest)
