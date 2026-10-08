@@ -319,6 +319,20 @@ class StakesTest {
     }
 
     @Test
+    fun `the plank is read whatever the arms do - a Hard countdown stops on knees down once the arms bend`() {
+        // The gate's own blocker names the arms first; a member who starts down on "1" and
+        // drops the knees would otherwise show only ARMS, and the countdown run on (PR #14 review).
+        val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.STAKED)
+        fun at(elbow: Float, knee: Float): Pair<HoldBlocker?, HoldBlocker?> {
+            gate.onFrame(Traces.frame(0, elbowDegrees = elbow, bodyLineDegrees = 180f), 0, pillsGreen = true, view = CameraView.OBLIQUE, image = Traces.angledImage(0, elbow, kneeDegrees = knee))
+            return gate.blocker to gate.plankBlocker
+        }
+        assertEquals(HoldBlocker.ARMS to HoldBlocker.KNEES, at(elbow = 120f, knee = 70f))
+        assertEquals(HoldBlocker.ARMS to null, at(elbow = 120f, knee = 178f), "going down on the toes: the plank holds")
+        assertEquals(null to null, at(elbow = 175f, knee = 178f))
+    }
+
+    @Test
     fun `with the pills green the ready hold says what the position lacks`() {
         val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.STAKED)
         fun blockerAt(elbow: Float, knee: Float = 178f, bodyLine: Float = 180f, image: (ImagePose) -> ImagePose = { it }): HoldBlocker? {

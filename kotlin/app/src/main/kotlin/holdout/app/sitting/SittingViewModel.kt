@@ -7,7 +7,6 @@ import holdout.app.vision.VisionAnalyzer
 import holdout.repcounter.CameraView
 import holdout.repcounter.Coach
 import holdout.repcounter.Guidance
-import holdout.repcounter.HoldBlocker
 import holdout.repcounter.ImagePose
 import holdout.repcounter.Lens
 import holdout.repcounter.Placement
@@ -334,11 +333,14 @@ class SittingViewModel(
                 // Hard: the counter calibrates on this plank, so the plank must stay one
                 // it can read — knees coming down, a knee it cannot place, or the body
                 // out of line stop the countdown as a moved phone does (review, PR #14).
-                // Arms bending is not checked — people start down on "1".
+                // Arms bending is not checked — people start down on "1" — so the plank is read
+                // whatever the arms do: the gate's own blocker names the arms first and would
+                // hide the rest once they bend. On every Hard countdown recorded the plank
+                // failed for at most 400 ms in a row, under the guard's 500 ms grace.
                 val kneesDown = stakes == Stakes.STAKED &&
                     readyGate.run {
                         onFrame(observation.world, observation.world.timestampMillis, pillsGreen = true, view = countingView, image = observation.imagePose())
-                        blocker in PLANK_BLOCKERS
+                        plankBlocker != null
                     }
                 val holds = report.canStart && report.view == countingView && !kneesDown
                 synchronized(countdownLock) {
@@ -604,9 +606,6 @@ class SittingViewModel(
     private companion object {
         const val COACH_SETTLE_MILLIS = 700L
         const val COACH_REPEAT_MILLIS = 5_000L
-
-        /** What stops a Hard countdown: a plank the counter could not calibrate on. */
-        val PLANK_BLOCKERS = setOf(HoldBlocker.KNEES, HoldBlocker.KNEES_UNREADABLE, HoldBlocker.BODY)
     }
 
     /** The guide was closed. [dontShowAgain] is remembered for this wallet and these stakes. */

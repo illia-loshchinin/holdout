@@ -390,6 +390,9 @@ class RepCounter(
      */
     private val judgeKnees = stakes.judgesKnees
 
+    /** Money is on it — Hard or Easy: an unknown that would let a rep pass does not ([hipRiseTooLow]). */
+    private val moneyStaked = stakes.staked
+
     /**
      * And where push-ups from the knees count, a body straight from shoulder
      * to **knee** is a body held, whatever the lower legs do behind it: raised
@@ -494,10 +497,11 @@ class RepCounter(
         if (view != CameraView.OBLIQUE) return false
         val ratio = heldRatio ?: return false
         if (ratio >= rules.maxHipRisePlacementRatio) return false
-        // Where money is staked, a rise that could not be read is not a body that
-        // came up as one piece — as a knee never seen is not off the floor. On
-        // every recording only one counted rep had none: a cobra (4 Oct).
-        return hipRise()?.let { it < rules.minHipRise } ?: judgeKnees
+        // Where money is staked — Hard or Easy — a rise that could not be read is not
+        // a body that came up as one piece, as a knee never seen is not off the floor.
+        // On every recording only one counted rep had none: a cobra (4 Oct). Easy is
+        // staked though it counts knee push-ups, so it is held to this too (review, PR #14).
+        return hipRise()?.let { it < rules.minHipRise } ?: moneyStaked
     }
 
     /**

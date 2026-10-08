@@ -52,6 +52,15 @@ class ReadyGate(
     var blocker: HoldBlocker? = null
         private set
 
+    /**
+     * What the plank lacks this frame, whatever the arms do: the knee unreadable,
+     * the knees down (where knees are judged), the body out of line. [blocker]
+     * names the arms first, so once the arms bend on "1" it says nothing else —
+     * a Hard countdown watches this instead (review, PR #14).
+     */
+    var plankBlocker: HoldBlocker? = null
+        private set
+
     /** How far through the hold, 0..1 — for a progress ring on the screen. */
     var progress: Float = 0f
         private set
@@ -77,6 +86,7 @@ class ReadyGate(
         if (!pillsGreen) {
             reset()
             blocker = null
+            plankBlocker = null
             return false
         }
 
@@ -85,6 +95,7 @@ class ReadyGate(
         val reading = ViewReading.of(measuredFrom, frame, image, bodyLineToKnee = !stakes.judgesKnees) ?: return false
 
         blocker = blockerOf(measuredFrom, reading, rulesFor(view))
+        plankBlocker = blockerOf(measuredFrom, reading, rulesFor(view), armsToo = false)
         if (blocker != null) {
             reset()
             return false
@@ -107,10 +118,10 @@ class ReadyGate(
     //
     // One thing at a time, in the order a body gets into position: arms, then
     // knees, then the line of the body.
-    private fun blockerOf(view: CameraView, reading: ViewReading, rules: RepRules): HoldBlocker? {
+    private fun blockerOf(view: CameraView, reading: ViewReading, rules: RepRules, armsToo: Boolean = true): HoldBlocker? {
         val angled = reading as? ViewReading.Angled
         return when {
-            reading.elbow < (if (view == CameraView.OBLIQUE) rules.obliqueTopDegrees else rules.topTriggerDegrees) -> HoldBlocker.ARMS
+            armsToo && reading.elbow < (if (view == CameraView.OBLIQUE) rules.obliqueTopDegrees else rules.topTriggerDegrees) -> HoldBlocker.ARMS
             angled?.kneeUnreadable == true -> HoldBlocker.KNEES_UNREADABLE
             stakes.judgesKnees && !kneesSeenOffFloor(reading.knee, angled?.legsAboveHands, rules) -> HoldBlocker.KNEES
             !postureHeld(view, reading, reading.posture, rules) -> HoldBlocker.BODY
