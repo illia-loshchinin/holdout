@@ -331,7 +331,7 @@ class SittingViewModel(
                 _uiState.update { it.withFrame(observation).copy(preflight = report) }
                 record(observation, countingView)
                 // Every stakes: the counter calibrates on this plank, so it must stay one it
-                // can read — a knee it cannot place or the body out of line (and on Hard, knees
+                // can read — a frame it cannot read, a knee it cannot place or the body out of line (and on Hard, knees
                 // coming down) stop the countdown as a moved phone does. Easy and the Daily 25
                 // keep their knee stance (review, PR #14).
                 // Arms bending is not checked — people start down on "1" — so the plank is read

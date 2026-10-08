@@ -360,6 +360,18 @@ class StakesTest {
     }
 
     @Test
+    fun `a frame the model cannot read is no plank to the countdown, though the ready hold waits it out`() {
+        // Kept from the frame before, the countdown would hold on any number of them (PR #14 review).
+        val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.STAKED)
+        gate.onFrame(Traces.frame(0, elbowDegrees = 175f, bodyLineDegrees = 180f), 0, pillsGreen = true, view = CameraView.OBLIQUE, image = Traces.angledImage(0, 175f))
+        assertEquals(null, gate.plankBlocker)
+        val progress = gate.progress
+        gate.onFrame(Traces.blind(33), 33, pillsGreen = true, view = CameraView.OBLIQUE, image = ImagePose(Traces.blind(33), Traces.IMAGE_WIDTH, Traces.IMAGE_HEIGHT))
+        assertEquals(HoldBlocker.UNREADABLE, gate.plankBlocker)
+        assertEquals(progress, gate.progress, "the hold neither fills nor breaks")
+    }
+
+    @Test
     fun `with the pills green the ready hold says what the position lacks`() {
         val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.STAKED)
         fun blockerAt(elbow: Float, knee: Float = 178f, bodyLine: Float = 180f, image: (ImagePose) -> ImagePose = { it }): HoldBlocker? {
