@@ -177,16 +177,17 @@ function pairToday(today, ends) {
 }
 
 /**
- * Trace times where today's counter counts a rep the recording has none for:
- * near no recorded rep, and not the one count inside a recorded rep's stretch
- * (as [near] and [within] pair them). The recorded counter missed a push-up
- * there, or today's counts one too many — either way nobody could label it
- * until it is listed (review, PR #14). The page lists the same reps.
+ * Trace times where today's counter judges a rep — counts or refuses it — and the
+ * recording ended none: no recorded rep is paired with it ([pairToday]). The
+ * recorded counter missed a movement there, or today's sees one too many —
+ * either way nobody could label it until it is listed (review, PR #14). The
+ * page lists the same reps.
  */
 function onlyToday(byT, ends) {
   if (!byT) return [];
+  // Counted or refused: a real rep the recording missed is a candidate either way (review, PR #14).
   const paired = new Set(pairToday(byT, ends).values());
-  return [...byT].filter(([k, v]) => v === 'counted' && !paired.has(k)).map(([k]) => k);
+  return [...byT.keys()].filter((k) => !paired.has(k));
 }
 
 /**
@@ -221,8 +222,9 @@ function queue() {
       const l = byT.get(t);
       const rank = !l ? 3 : l.flag === 'answered' ? 0 : l.by === 'claude' ? 2 : null;
       if (rank === null) continue;
-      const why = ['Claude answered', '', "Claude's label", 'not recorded: only today counts it'][rank];
-      items.push({ base, t, rank, why, label: l?.label ?? '', verdict: 'counted' });
+      const verdict = now.get(t);
+      const why = ['Claude answered', '', "Claude's label", `not recorded: only today ${verdict === 'counted' ? 'counts' : 'refuses'} it`][rank];
+      items.push({ base, t, rank, why, label: l?.label ?? '', verdict });
     }
   }
   const order = sittings().map((x) => x.base);

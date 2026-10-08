@@ -305,10 +305,9 @@ function todayAt(t) {
 const verdictOf = (r) => todayAt(r.end) ?? r.verdict;
 
 /**
- * Reps today's counter counts where the recording has none: a replayed count
- * near no recorded rep, and not the one count inside a recorded rep's stretch
- * (how [todayAt] pairs them). The recorded counter never ended a rep there — it
- * missed a real push-up, or today's counts one too many — so until now nobody
+ * Reps today's counter judges — counts or refuses — where the recording ended
+ * none: no recorded rep is paired with them ([pairToday]). The recorded counter
+ * missed a movement there, or today's sees one too many, so until now nobody
  * could label it. Each is listed as a rep of its own (review, PR #14).
  */
 const NOT_RECORDED = 'not-recorded';
@@ -346,10 +345,15 @@ function pairToday(today, ends) {
 /** The trace times the recording ended a rep at. */
 const recordedEnds = (trace) => trace.rows.filter((r) => r[1] === 'COUNTING' && r[r.length - 1]).map((r) => Number(r[0]));
 
+/**
+ * Reps today's replay judges where the recording ended none — counted or refused:
+ * a real rep the recorded counter missed is as much a candidate when today's
+ * refuses it, and only a label can say which it was (review, PR #14).
+ */
 function onlyToday(trace, today) {
   if (!today) return new Set();
   const paired = new Set(pairToday(today, recordedEnds(trace)).values());
-  return new Set([...today].filter(([k, v]) => v === 'counted' && !paired.has(k)).map(([k]) => k));
+  return new Set([...today.keys()].filter((k) => !paired.has(k)));
 }
 
 /**
@@ -444,7 +448,11 @@ async function goQueue(i) {
   const q = Q[qAt];
   renderQueue();
   if (S?.base !== q.base) await open(q.base, q.t);
-  else show(S.reps.findIndex((r) => r.end === q.t));
+  else {
+    // A rep the queue knows and the page does not yet: today's verdicts changed since it opened.
+    if (!S.reps.some((r) => r.end === q.t)) await refreshSitting();
+    show(S.reps.findIndex((r) => r.end === q.t));
+  }
 }
 
 /**
@@ -467,7 +475,13 @@ async function refreshSitting() {
   S.labels = parseLabels(labelsText);
   S.today = parseToday(todayText);
   S.pairing = pairToday(S.today, [...S.recorded]);
+  // The candidates follow a replay run again: a rep only the new one judges is listed,
+  // and the rep on screen stays on screen (review, PR #14).
+  const at = S.reps[current]?.end;
+  S.reps = repsOf(S.trace, S.today, new Set(S.labels.byT.keys()));
+  current = Math.max(0, S.reps.findIndex((r) => r.end === at));
   $('reviewed').checked = Boolean(S.labels.meta.reviewed);
+  renderList();
   show(current, false);
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshSitting(); });

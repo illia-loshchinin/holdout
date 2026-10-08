@@ -220,11 +220,22 @@ fun benchSitting(name: String, recording: Trace.Recording, labels: RepLabels, to
         BenchRep(name, labels.person, placement, (t - t0) / 1000f, kind, label.note, verdict, label.by, label.flagged, label.claudeNote, label.hint, label.endMillis)
     }
     val unlabelledCounts = events.filter { (t, event) -> event is RepEvent.Counted && t !in pairs }.map { it.first }
-    return BenchSitting(judged, labels.reps.filter { it !in pairs.values && it.label != "unsure" }, unlabelledCounts)
+    val unlabelledRefusals = events.filter { (t, event) -> event is RepEvent.Discarded && t !in pairs }.map { it.first }
+    return BenchSitting(judged, labels.reps.filter { it !in pairs.values && it.label != "unsure" }, unlabelledCounts, unlabelledRefusals)
 }
 
-/** One sitting on the bench: its judged labelled reps, the labels no judged rep landed near, and reps counted where no label lies (trace times). */
-data class BenchSitting(val judged: List<BenchRep>, val missing: List<RepLabels.Rep>, val unlabelledCounts: List<Long>)
+/**
+ * One sitting on the bench: its judged labelled reps, the labels no judged rep
+ * landed near, and reps judged where no label lies (trace times) — counted, or
+ * refused. A refusal adds no count, so it fails nothing; but it may be an honest
+ * rep, and only a label can say (review, PR #14).
+ */
+data class BenchSitting(
+    val judged: List<BenchRep>,
+    val missing: List<RepLabels.Rep>,
+    val unlabelledCounts: List<Long>,
+    val unlabelledRefusals: List<Long> = emptyList(),
+)
 
 /**
  * `./gradlew :repcounter:testBench [-Ptraces=<dir>] [-Pgate]` — every labelled
@@ -249,6 +260,7 @@ fun main(args: Array<String>) {
     val reps = mutableListOf<BenchRep>()
     val lost = mutableListOf<String>()
     val strays = mutableListOf<String>()
+    val refusedStrays = mutableListOf<String>()
     val unlabelled = mutableListOf<String>()
     val notStarted = mutableListOf<String>()
     for (trace in traces) {
@@ -264,7 +276,7 @@ fun main(args: Array<String>) {
             continue
         }
         val labels = RepLabels.parse(labelsFile.readLines())
-        val (judged, missing, unlabelledCounts) = benchSitting(name, recording, labels)
+        val (judged, missing, unlabelledCounts, unlabelledRefusals) = benchSitting(name, recording, labels)
         reps += judged
         // A labelled rep today's counter does not judge at all counts nothing: scored
         // as not judged — a miss for one that should count, right for a cheat — as the
@@ -278,6 +290,7 @@ fun main(args: Array<String>) {
         }
         val t0Counted = recording.countingFrames.firstOrNull()?.timestampMillis ?: 0L
         unlabelledCounts.forEach { strays += "$name: counted at %.1f s into counting (t=$it), where no rep is labelled".format((it - t0Counted) / 1000f) }
+        unlabelledRefusals.forEach { refusedStrays += "$name: refused at %.1f s into counting (t=$it), where no rep is labelled".format((it - t0Counted) / 1000f) }
     }
 
     fun pct(n: Int, of: Int) = if (of == 0) "-" else "%.0f %%".format(100.0 * n / of)
@@ -345,6 +358,10 @@ fun main(args: Array<String>) {
     if (strays.isNotEmpty()) {
         failures += "counted where no rep is labelled"
         println("\n## Counted where no rep is labelled (${strays.size}) — label them\n\n" + strays.joinToString("\n") { "- $it" })
+    }
+    // A refusal there fails nothing, but may be an honest rep nobody has seen.
+    if (refusedStrays.isNotEmpty()) {
+        println("\n## Refused where no rep is labelled (${refusedStrays.size}) — label them if they were push-ups\n\n" + refusedStrays.joinToString("\n") { "- $it" })
     }
     if (notStarted.isNotEmpty()) {
         println("\n## Not scored: sittings today's app would not record as they were (${notStarted.size})\n\n" + notStarted.joinToString("\n") { "- $it" })
