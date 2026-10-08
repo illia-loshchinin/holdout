@@ -121,7 +121,7 @@ fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modi
 
 @Composable
 private fun BusyMark() {
-    HoldoutLoader()
+    HoldoutLoader(contentDescription = null)
     Spacer(Modifier.width(Spacing.tight))
 }
 

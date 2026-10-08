@@ -68,6 +68,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import holdout.app.BuildConfig
+import holdout.app.ui.Reading
 import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.CounterStyle
 import holdout.app.ui.theme.HoldoutColors
@@ -333,7 +334,7 @@ private fun PreflightPills(
 
     val report = state.preflight
     if (report == null) {
-        Text("Looking…", style = LabelStyle, color = HoldoutColors.TextTertiary)
+        Reading { Text("Looking…", style = LabelStyle, color = HoldoutColors.TextTertiary) }
         return
     }
 
