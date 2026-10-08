@@ -128,7 +128,7 @@ cd kotlin && ./gradlew :app:lint :app:checkNoAudioPermission
 cd kotlin && ./gradlew :app:testDevnetDebugUnitTest --tests '*ThemeTest*' --tests '*LobbyCardTest*'
 ```
 
-**Expected:** the Compose theme carries the PRD §11 hex values with dynamic colour off, and a lobby card renders "at stake" with the joined count and any carry-over — never the word "prize" before a Holdout starts (FR-053, spec §1a).
+**Expected:** the Compose theme carries the PRD §11 hex values with dynamic colour off, and a lobby card renders "at stake" with the joined count — never the word "prize" before a Holdout starts (FR-053, spec §1a).
 
 ## 5. Full cycle on a compressed clock (spike S3 / rehearsal)
 
@@ -142,15 +142,15 @@ npm --prefix tests test -- --grep "full cycle"
 
 ### Beta test on the rehearsal deployment (24–26 Sep)
 
-The same compressed idea, but on devnet with real testers and real phones: a test league of **seven 10-minute days at 5 reps a day** — a 7-day Holdout in 70 minutes (H32) — so each tester runs faucet → join → sittings → a deliberate forfeit → settlement → claim in about an hour.
+The same compressed idea, but on devnet with real testers and real phones: a test league of **three 10-minute days at 5 reps a day**, a new cohort every 30 minutes (FR-044a, H36) — so each tester, or a single judge, runs faucet → join → sittings → a deliberate forfeit → settlement → claim in under an hour, and the lobby keeps opening cohorts through the live period.
 
 ```bash
 java -jar kotlin/crank/build/libs/crank.jar init --test-league --first-start <iso>
 ```
 
-Seven 10-minute days at 5 reps is the default; `--day-seconds`, `--days` and `--reps` override it.
+Three 10-minute days at 5 reps, back to back every 30 minutes, joinable right up to each start (join lock 0, so one test cohort is always open), is the default; `--day-seconds`, `--days`, `--reps`, `--cadence` and `--join-lock` override it. If a test league already exists at id 100 with another shape (an earlier seven-day league, or the 5-minute join lock), the command refuses it; pass `--league-id 101`, or the next free id, to create the lobby. The newest test league is the lobby: the crank opens no more cohorts in the older one, which winds down, and opens the new lobby's first cohort only once every cohort of the older one has settled (FR-044a).
 
-**Expected:** 5–7 testers each complete a full cycle on the short test cohort (FR-044a); bugs are fixed before the 5 October freeze. This run is the one the walkthrough and demo video are recorded from, labelled on screen as a short test cohort (constitution v1.4.0).
+**Expected:** 5–7 testers each complete a full cycle on the short test cohort (FR-044a); bugs are fixed the same day. This run is the one the walkthrough and demo video are recorded from, labelled on screen as a short test cohort (constitution v1.4.0).
 
 ## 5a. The whole build on a local validator
 
@@ -164,11 +164,11 @@ bash scripts/localnet.sh start && bash scripts/localnet.sh fund
 ```
 
 ```bash
-# Git Bash on Windows: set up the program, then the test league (seven 10-minute days, 5 reps) starting in ~20 minutes.
+# Git Bash on Windows: set up the program, then the test league (three 10-minute days, 5 reps) starting in ~20 minutes.
 cd kotlin && ./gradlew :crank:jar && cd ..
 bash scripts/localnet-crank.sh init --operator <operator> --sponsor <sponsor> --treasury <treasury> --rate 0.0213 --fund-faucet 20
 bash scripts/localnet-crank.sh init --test-league --first-start <iso, ~20 min ahead>
-# or: a new 70-minute cohort every 10 minutes, so a tester can always join one soon (local only)
+# or instead: a newer test league with a cohort every 10 minutes (local only); it becomes the lobby and league 100 winds down
 bash scripts/localnet-crank.sh init --test-league --league-id 102 --cadence 600 --join-lock 60 --first-start <iso>
 bash scripts/localnet-crank.sh scripted fund
 bash scripts/localnet-crank.sh --loop      # leave running: opens, fills, forfeits, settles
@@ -202,7 +202,7 @@ longer matches `declare_id!`:
 mkdir -p target/deploy && cp ~/.config/solana/holdout-program-keypair.json target/deploy/holdout-keypair.json && anchor keys list
 ```
 
-**Expected:** `holdout: Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4`, matching `Anchor.toml` and `declare_id!`. Back that file up — losing it means a new address and a redeploy, and after the 5 October freeze that would strand the judged cohort.
+**Expected:** `holdout: Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4`, matching `Anchor.toml` and `declare_id!`. Back that file up — losing it means a new address and a redeploy, and once judged cohorts are running that would strand them.
 
 ```bash
 NO_DNA=1 anchor deploy --provider.cluster devnet
@@ -217,6 +217,26 @@ java -jar kotlin/crank/build/libs/crank.jar init --admin <keypair> --operator <p
 ```bash
 java -jar kotlin/crank/build/libs/crank.jar chips publish --rate <usd-per-skr>
 ```
+
+**The weekly chip check** (FR-056, T100) is the Operator's own scheduled command — never part of `crank run`, so the Operator key is loaded only while it runs. It reads the SKR rate from the Jupiter Price API and re-prices all four chips from it every week, publishes at most once per Monday 05:00 UTC boundary, and exits `0` without publishing when Jupiter has no answer, saying why (FR-057). Try it first without sending:
+
+```bash
+java -jar kotlin/crank/build/libs/crank.jar chips publish --auto --dry-run
+```
+
+Then schedule it to run **every hour**, with `HOLDOUT_RPC_URL`, `HOLDOUT_PROGRAM_ID` and `HOLDOUT_OPERATOR_KEYPAIR` set (and `HOLDOUT_JUPITER_API_KEY` if you have one). The machine's time zone doesn't matter: the command itself knows the Monday 05:00 UTC boundary, so the first run after it publishes and every other run that week does nothing, without fetching a rate. Linux or WSL2 cron:
+
+```cron
+17 * * * *  cd /path/to/holdout && java -jar kotlin/crank/build/libs/crank.jar chips publish --auto >> crank-chips.log 2>&1
+```
+
+Windows Task Scheduler:
+
+```powershell
+schtasks /Create /TN "Holdout weekly chip check" /SC HOURLY /ST 00:17 /TR "cmd /c cd /d C:\path\to\holdout && java -jar kotlin\crank\build\libs\crank.jar chips publish --auto >> crank-chips.log 2>&1"
+```
+
+A run that fails or finds no rate is simply tried again the next hour, within the same week; once a set has been published, running it again that week does nothing. A once-a-Monday schedule is not used: cron ignores `CRON_TZ` on Debian, and a local-time Monday run can land before 05:00 UTC, or move with daylight saving, and publish a week late.
 
 **Expected:** `Config`, the 7-day and 21-day `LeagueConfig`s (first start Monday 5 October 05:00 UTC by default — moved from 28 September on 26 September — so cohort index 0 is the first judged cohort and its lobby can open immediately), the mock SKR mint and a funded faucet vault exist; `crank status` lists the leagues with no cohorts yet.
 
@@ -236,12 +256,12 @@ cd kotlin && ./gradlew :app:installDevnetDebug
 
 ## 8. Acceptance scenarios
 
-Run on devnet with real cohorts unless marked *local* (compressed clock, section 5). **[Phase 2]** scenarios are validated only if Phase 2 lands before the freeze.
+Run on devnet with real cohorts unless marked *local* (compressed clock, section 5). **[Phase 2]** scenarios are validated once their Phase 2 item is built.
 
 | # | Scenario | How to run | Pass when |
 |---|---|---|---|
 | 1 | 7-day cycle, unlock, gate | *local*: join 7-day, 7 submits, settle, claim; flip `set_flags(ladder=true)`; try 21-day join with a fresh wallet | Claim lands; `Profile.qualified`; fresh wallet gets `LadderGateClosed` |
-| 2 | Forfeit fee | *local*: join, skip a day, `crank run` | Pool rises by stake − 20 %; fee destination +20 % |
+| 2 | Forfeit fee | *local*: join, skip a day, `crank run` | Pool rises by stake − 30 %; fee destination +30 % |
 | 3 | Equal stakes, equal payouts; remainder | *local*: V17 shape | Byte-identical payouts; remainder at fee destination; Σ claims = Σ stakes + pool − remainder |
 | 4 | Claim arrives | Devnet cohort #3 finisher | SKR balance increases by payout |
 | 5 | Crank killed a day; stranger cranks | *local*: stop crank, advance 1 day, run `crank run` from a different payer | Same forfeits and payouts as uninterrupted run; breached member's submit failed meanwhile |
@@ -250,8 +270,8 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 8 | Fresh install; counters at the deadline | Devnet: install, play the walkthrough **without connecting**, then connect; stop crank before a boundary | Wallet asked first, with only the walkthrough available before it; the first-run tour appears once the wallet connects, skips cleanly and re-opens from About (FR-067); cohort populated to at least its floor, scripted members labelled; one second after the deadline the counter already excludes non-submitters |
 | 9 | No price read | Code search + test | No instruction reads a price; only `crank chips publish` uses a rate |
 | 10 | No frame leaves device | Proxy the phone, run a sitting | Only RPC traffic observed |
-| 11 | No finishers, carry-over | *local*: all forfeit; with the league's next cohort open, and with none open | 50 % fee; carry-over in the open cohort. With none open the finalize is refused with `CarryOverTargetNotOpen` (6047) and nothing changes; opening the league's next cohort and repeating lands the same carry-over in it |
-| 12 **[Phase 2]** | Weekly re-pricing | *local*: `crank chips publish --auto` with drift below and above 20 % | Publishes only above 20 %; old cohorts keep old chips |
+| 11 | No finishers | *local*: all forfeit | The whole pool reaches the fee destination; no other cohort changes, whether or not the league has one open |
+| 12 **[Phase 2]** | Weekly re-pricing | *local*: `crank chips publish --auto` twice in one week, then after the next Monday 05:00 UTC | Publishes once per week, the second run that week does nothing; old cohorts keep old chips |
 | 13 | Lobby place, lock, overlap | *local* | Continuous 7-day → 7-day; cutoff ±1 s behaviour; 21-day overlap refused |
 | 14 **[Phase 2]** | Leaderboard ranking | Devnet or *local* with seeded profiles | Ranking and "not ranked yet" as specified; no amounts; scripted labels |
 | 15 | Banked reps across sittings | Device: 10 + 10 + 5; stop at 17; kill app | Day lands only after rep 25; 10 kept at 17; blocks survive kill; late sitting allowed with warning |

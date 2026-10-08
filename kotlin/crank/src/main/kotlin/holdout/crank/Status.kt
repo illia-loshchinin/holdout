@@ -19,10 +19,11 @@ import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
 /**
- * `crank status` (T036): every cohort, and the faucet's three health figures —
- * the vault's balance, the sponsor's balance against its float, and the day's
- * lamport spend against its cap. What the live period is monitored on (T110,
- * FR-042b). Read-only: it signs nothing and needs no key.
+ * `crank status` (T036): every cohort, every league with its form and its two
+ * reserves (H35), and the faucet's three health figures — the vault's balance,
+ * the sponsor's balance against its float, and the day's lamport spend against
+ * its cap. What the live period is monitored on (T110, FR-042b). Read-only: it
+ * signs nothing and needs no key.
  */
 internal object Status {
     suspend fun run(config: CrankConfig, rpc: Rpc): JsonObject {
@@ -43,8 +44,8 @@ internal object Status {
                     }
             }
         val cohorts = rpc.cohorts(config.programId) ?: failed("could not list cohorts from ${config.rpcUrl}")
-        // The two judged leagues, so a run after `crank init` shows they exist and when they start.
-        val leagues =
+        // The two judged leagues, so a run after `crank init` shows they exist and when they start…
+        val judged =
             listOf(LeagueParams.LEAGUE_7D, LeagueParams.LEAGUE_21D).map { id ->
                 val address = Pdas.league(config.programId, id)
                 id to
@@ -53,6 +54,19 @@ internal object Status {
                         is Rpc.Answer.Unanswered -> failed("could not read league $id at $address: ${read.message}")
                         is Rpc.Answer.Ok -> read.value?.let { runCatching { LeagueSnapshot.decode(it) }.getOrNull() ?: failed("the account at $address is not a LeagueConfig") }
                     }
+            }
+        // …and any test league beside them.
+        val tests =
+            (rpc.leagues(config.programId) ?: failed("could not list leagues from ${config.rpcUrl}"))
+                .filter { it.params.leagueId >= LeagueParams.TEST_LEAGUE_MIN }
+                .sortedBy { it.params.leagueId }
+                .map { it.params.leagueId to it }
+        val leagues = judged + tests
+        // What each reserve vault really holds, beside what the league says it holds (INV-1). Null when unreadable.
+        val reserveVaults =
+            leagues.filter { it.second != null }.associate { (id, _) ->
+                val vault = Pdas.reserveVault(config.programId, id)
+                id to (vault to rpc.tokenAmount(vault))
             }
         val vaultLamports = rpc.balance(faucetVault) ?: failed("could not read the faucet vault's balance")
         val sponsorLamports = snapshot?.let { rpc.balance(it.sponsor) ?: failed("could not read the sponsor's balance") }
@@ -67,6 +81,7 @@ internal object Status {
             sponsorLamports = sponsorLamports,
             cohorts = cohorts,
             leagues = leagues,
+            reserveVaults = reserveVaults,
         )
     }
 
@@ -80,8 +95,10 @@ internal object Status {
         faucetVaultLamports: Long,
         sponsorLamports: Long?,
         cohorts: List<Pair<SolanaPublicKey, CohortSnapshot>>,
-        /** Each judged league id, with its stored account or null when it does not exist yet. */
+        /** Each judged league id, then each test league, with its stored account or null when it does not exist yet. */
         leagues: List<Pair<Int, LeagueSnapshot?>> = emptyList(),
+        /** Each existing league's reserve vault, and the SKR it holds (null when the read failed). */
+        reserveVaults: Map<Int, Pair<SolanaPublicKey, ULong?>> = emptyMap(),
     ): JsonObject {
         val today = HoldoutDay.indexOf(chainTime)
         return buildJsonObject {
@@ -96,6 +113,9 @@ internal object Status {
                 putJsonObject("config") {
                     put("address", configAddress.base58())
                     put("operator", config.operator.base58())
+                    // The two fee destinations (H35, FR-037f): operations and developer.
+                    put("feeDestination", config.feeDestination.base58())
+                    put("developerDestination", config.developerDestination.base58())
                     put("ladderGateEnabled", config.ladderGateEnabled)
                     put("genesisGateEnabled", config.genesisGateEnabled)
                     putJsonObject("chipSet") {
@@ -133,8 +153,16 @@ internal object Status {
                         if (league != null) {
                             put("durationDays", league.params.durationDays)
                             put("repsPerDay", league.params.repsPerDay)
+                            put("form", league.form)
+                            put("formName", LeagueParams.formName(league.form))
                             put("firstStart", league.params.firstStart)
                             put("nextIndex", league.nextIndex)
+                            put("boostReserve", JsonPrimitive(league.boostReserve.toBig()))
+                            put("comebackReserve", JsonPrimitive(league.comebackReserve.toBig()))
+                            reserveVaults[id]?.let { (vault, amount) ->
+                                put("reserveVault", vault.base58())
+                                put("reserveVaultAmount", amount?.toBig()?.let(::JsonPrimitive) ?: JsonNull)
+                            }
                         }
                     }
                 }
@@ -155,9 +183,16 @@ internal object Status {
                             put("counted", c.counted)
                             put("settled", c.settled)
                             put("heldStake", JsonPrimitive(c.heldStake.toBig()))
+                            put("form", c.form)
                             put("pool", JsonPrimitive(c.pool.toBig()))
-                            put("carryOverReceived", JsonPrimitive(c.carryOverReceived.toBig()))
-                            put("carryOverHeld", JsonPrimitive(c.carryOverHeld.toBig()))
+                            // Reserve shares held in the vault until the cohort finalizes (FR-037c).
+                            put("boostDue", JsonPrimitive(c.boostDue.toBig()))
+                            put("comebackDue", JsonPrimitive(c.comebackDue.toBig()))
+                            // Written by settlement (FR-037d, FR-037e).
+                            put("boostReceived", JsonPrimitive(c.boostReceived.toBig()))
+                            put("comebackOwed", JsonPrimitive(c.comebackOwed.toBig()))
+                            put("comebackFunded", JsonPrimitive(c.comebackFunded.toBig()))
+                            put("comebackClaimed", JsonPrimitive(c.comebackClaimed.toBig()))
                         }
                     }
             }

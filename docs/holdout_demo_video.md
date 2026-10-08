@@ -28,7 +28,7 @@ Screen numbers are the PRD's screen inventory (§10.1).
 | 0:08–0:20 | **The number** | Home (4): "14 / 20 still standing", prize rising | Home screen, day 4 |
 | 0:20–0:32 | **Open it cold** | App icon tapped → Welcome (1) → Connect wallet (2), with a glimpse of the no-wallet variant → Disclosure (3) | Fresh install, any day |
 | 0:32–0:44 | **Funding from zero** | Get test tokens (3a): one tap, test SKR and fee SOL arrive | A brand-new wallet |
-| 0:44–0:56 | **The free tier** | Ladder (5): Daily 25 as the primary action, streak, two staked leagues, Human Flag locked | 27 Sep |
+| 0:44–0:56 | **The free tier** | Ladder (5): Daily 25 as the primary action, streak, two staked leagues | 27 Sep |
 | 0:56–1:12 | **Stake** | Stake confirm (6): chips $10–$100 with their SKR amounts, "if nobody drops out you get exactly your stake back", wallet approval | 27 Sep |
 | 1:12–1:22 | **Lobby and lock** | Lobby (7) counting down → locked variant, roster final | 27 Sep, then 28 Sep 04:00–05:00 UTC |
 | 1:22–1:52 | **A day's reps** | Sitting (8) end to end: home → four pre-flight checks → the start position held → countdown → counting, with one rep rejected → "20 banked" → day complete → submitted | The best sitting, 28 Sep – 4 Oct |

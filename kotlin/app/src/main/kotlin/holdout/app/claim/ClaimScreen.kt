@@ -84,6 +84,9 @@ fun ClaimScreen(
             HoldoutCard {
                 Body("Your stake back: ${Format.skr(it.stake)}")
                 Body("Your share of the prize pool: ${Format.skr(it.share)}")
+                // A comeback refund (FR-037e, H35): part of the stake lost in this
+                // league's last Holdout, earned back by finishing this one.
+                if (it.comeback > 0uL) Body("Comeback — part of your last lost stake, back: ${Format.skr(it.comeback)}")
             }
         }
         val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current

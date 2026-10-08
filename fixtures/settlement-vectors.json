@@ -1,12 +1,15 @@
 {
-  "$comment": "Golden settlement vectors — PRD §19 V1–V22. The contract must reproduce these exactly (constitution VII: these exist as failing tests before the logic). Amounts are whole SKR base units.",
+  "$comment": "Golden settlement vectors — PRD §19 V1–V22, revised 2026-10-05 for the 70/30 forfeit split and no carry-over. The contract must reproduce these exactly (constitution VII: these exist as failing tests before the logic). Amounts are whole SKR base units.",
   "rules": {
-    "fee": "fee = floor(forfeited * 20 / 100), taken at forfeit time",
-    "pool": "pool = (forfeited - fee) summed over forfeits, plus any carry_over_in",
+    "fee": "fee = floor(forfeited * 30 / 100), taken at forfeit time",
+    "pool": "pool = (forfeited - fee) summed over forfeits",
     "share_per_tier": "share_t = floor(pool * chip_t / total_finisher_stake) — constant time per tier (research R10)",
     "remainder": "remainder = pool - sum over tiers of (finisher_count_t * share_t); sent to the fee destination at settlement (FR-032a)",
-    "no_finishers": "fee_half = floor(pool / 2); carry_over = pool - fee_half, so the indivisible unit goes to the carry-over (FR-037)",
-    "payout": "payout = stake + share_of(stake tier)"
+    "no_finishers": "developer = floor(pool / 3); operations = pool - developer: the whole pool goes out and nothing carries over (FR-037, H34, H35)",
+    "payout": "payout = stake + share_of(stake tier)",
+    "forfeit_split": "per forfeited stake s: fee = floor(30% s); boost = floor(10% s); comeback = floor(5% s); developer = floor(5% s); operations = fee - boost - comeback - developer; pool = s - fee (FR-027, H35)",
+    "boost": "boost = min(floor(20% of the cohort's own pool), league boost reserve), drawn at finalization before shares (FR-037d)",
+    "comeback": "owed = min(floor(10% of the counted forfeited stake), the new stake); refund = floor(entitled * funded / total owed), funded = min(total owed, comeback reserve) (FR-037e)"
   },
   "math_vectors": [
     {
@@ -17,7 +20,7 @@
       "stakes": { "100": 10 },
       "forfeited_stakes": { "100": 5 },
       "finisher_stakes": { "100": 5 },
-      "expected": { "forfeited": 500, "fee": 100, "pool": 400, "total_finisher_stake": 500, "shares": { "100": 80 }, "payouts": { "100": 180 }, "remainder": 0 }
+      "expected": { "forfeited": 500, "fee": 150, "pool": 350, "total_finisher_stake": 500, "shares": { "100": 70 }, "payouts": { "100": 170 }, "remainder": 0 }
     },
     {
       "id": "V2",
@@ -27,7 +30,7 @@
       "stakes": { "500": 20 },
       "forfeited_stakes": { "500": 12 },
       "finisher_stakes": { "500": 8 },
-      "expected": { "forfeited": 6000, "fee": 1200, "pool": 4800, "total_finisher_stake": 4000, "shares": { "500": 600 }, "payouts": { "500": 1100 }, "remainder": 0 }
+      "expected": { "forfeited": 6000, "fee": 1800, "pool": 4200, "total_finisher_stake": 4000, "shares": { "500": 525 }, "payouts": { "500": 1025 }, "remainder": 0 }
     },
     {
       "id": "V3",
@@ -37,7 +40,7 @@
       "stakes": { "1000": 8 },
       "forfeited_stakes": { "1000": 6 },
       "finisher_stakes": { "1000": 2 },
-      "expected": { "forfeited": 6000, "fee": 1200, "pool": 4800, "total_finisher_stake": 2000, "shares": { "1000": 2400 }, "payouts": { "1000": 3400 }, "remainder": 0 }
+      "expected": { "forfeited": 6000, "fee": 1800, "pool": 4200, "total_finisher_stake": 2000, "shares": { "1000": 2100 }, "payouts": { "1000": 3100 }, "remainder": 0 }
     },
     {
       "id": "V4",
@@ -47,48 +50,26 @@
       "stakes": { "100": 3, "250": 4, "500": 2, "1000": 1 },
       "forfeited_stakes": { "100": 3, "250": 2, "500": 1 },
       "finisher_stakes": { "250": 2, "500": 1, "1000": 1 },
-      "expected": { "forfeited": 1300, "fee": 260, "pool": 1040, "total_finisher_stake": 2000, "shares": { "250": 130, "500": 260, "1000": 520 }, "payouts": { "250": 380, "500": 760, "1000": 1520 }, "remainder": 0, "sum_payouts": 3040 }
+      "expected": { "forfeited": 1300, "fee": 390, "pool": 910, "total_finisher_stake": 2000, "shares": { "250": 113, "500": 227, "1000": 455 }, "payouts": { "250": 363, "500": 727, "1000": 1455 }, "remainder": 2, "sum_payouts": 2908 }
     },
     {
       "id": "V5a",
-      "name": "Nobody finishes — 50/50 split",
+      "name": "Nobody finishes — the whole pool goes to the fee destination",
       "source": "PRD §19.3",
       "league": "7-day",
       "stakes": { "250": 6 },
       "forfeited_stakes": { "250": 6 },
       "finisher_stakes": {},
-      "expected": { "forfeited": 1500, "fee": 300, "pool": 1200, "total_finisher_stake": 0, "fee_half": 600, "carry_over_out": 600, "remainder": 0 }
-    },
-    {
-      "id": "V5b",
-      "name": "Carry-over received and shared",
-      "source": "PRD §19.3",
-      "league": "7-day",
-      "carry_over_in": 600,
-      "stakes": { "100": 5 },
-      "forfeited_stakes": { "100": 1 },
-      "finisher_stakes": { "100": 4 },
-      "expected": { "forfeited": 100, "fee": 20, "pool": 680, "total_finisher_stake": 400, "shares": { "100": 170 }, "payouts": { "100": 270 }, "remainder": 0 }
+      "expected": { "forfeited": 1500, "fee": 450, "pool": 1050, "total_finisher_stake": 0, "developer": 350, "operations": 700 }
     },
     {
       "id": "V6",
-      "name": "Odd pool split — the indivisible unit goes to the carry-over",
+      "name": "Odd pool, nobody finishes — nothing is split, so nothing is lost to rounding",
       "source": "PRD §19.3",
       "league": "7-day",
       "pool_override": 1001,
       "finisher_stakes": {},
-      "expected": { "pool": 1001, "total_finisher_stake": 0, "fee_half": 500, "carry_over_out": 501 }
-    },
-    {
-      "id": "V8",
-      "name": "A cohort that received carry-over also has no finishers",
-      "source": "PRD §19.3, ES-7b",
-      "league": "7-day",
-      "carry_over_in": 600,
-      "stakes": { "100": 5 },
-      "forfeited_stakes": { "100": 5 },
-      "finisher_stakes": {},
-      "expected": { "forfeited": 500, "fee": 100, "pool": 1000, "total_finisher_stake": 0, "fee_half": 500, "carry_over_out": 500 }
+      "expected": { "pool": 1001, "total_finisher_stake": 0, "developer": 333, "operations": 668 }
     },
     {
       "id": "V9",
@@ -108,7 +89,7 @@
       "stakes": { "100": 5 },
       "forfeited_stakes": { "100": 4 },
       "finisher_stakes": { "100": 1 },
-      "expected": { "forfeited": 400, "fee": 80, "pool": 320, "total_finisher_stake": 100, "shares": { "100": 320 }, "payouts": { "100": 420 }, "remainder": 0 }
+      "expected": { "forfeited": 400, "fee": 120, "pool": 280, "total_finisher_stake": 100, "shares": { "100": 280 }, "payouts": { "100": 380 }, "remainder": 0 }
     },
     {
       "id": "V17",
@@ -118,7 +99,7 @@
       "stakes": { "100": 3, "250": 5 },
       "forfeited_stakes": { "250": 5 },
       "finisher_stakes": { "100": 3 },
-      "expected": { "forfeited": 1250, "fee": 250, "pool": 1000, "total_finisher_stake": 300, "shares": { "100": 333 }, "payouts": { "100": 433 }, "remainder": 1, "sum_shares": 999, "fee_destination_total": 251 }
+      "expected": { "forfeited": 1250, "fee": 375, "pool": 875, "total_finisher_stake": 300, "shares": { "100": 291 }, "payouts": { "100": 391 }, "remainder": 2, "sum_shares": 873, "fee_destination_total": 377 }
     },
     {
       "id": "V19",
@@ -128,21 +109,63 @@
       "stakes": { "100": 1000 },
       "forfeited_stakes": { "100": 400 },
       "finisher_stakes": { "100": 600 },
-      "expected": { "forfeited": 40000, "fee": 8000, "pool": 32000, "total_finisher_stake": 60000, "shares": { "100": 53 }, "payouts": { "100": 153 }, "remainder": 200, "sum_shares": 31800 },
-      "note": "The remainder (200) is always fewer units than there are finishers (600)."
+      "expected": { "forfeited": 40000, "fee": 12000, "pool": 28000, "total_finisher_stake": 60000, "shares": { "100": 46 }, "payouts": { "100": 146 }, "remainder": 400, "sum_shares": 27600 },
+      "note": "The remainder (400) is always fewer units than there are finishers (600)."
     }
   ],
   "scenario_vectors": [
-    { "id": "V7", "name": "No open lobby at settlement — finalize refused with CarryOverTargetNotOpen, nothing written; opening the league's next cohort and finalizing again delivers the carry-over into it, and the destination is the same in either order", "source": "FR-037a, FR-030a", "note": "Revised 2026-09-19: Phase 1 never holds a carry-over. The held field and deliver_carry_over remain for a league in which nobody ever opens another cohort, and that delivery is Phase 2." },
+    { "id": "V7", "name": "Nobody finishes — finalize sends the whole pool to the fee destination, needs no other cohort, and is the same whoever calls it and whenever", "source": "FR-037, FR-030a", "note": "Revised 2026-10-05: the carry-over is gone (70/30 decision); the held field, its events and deliver_carry_over are cut." },
     { "id": "V11", "name": "Leave while Open — full refund, member count falls", "source": "FR-009" },
     { "id": "V12", "name": "Join or leave after the cutoff — rejected by chain time", "source": "ES-12" },
     { "id": "V13", "name": "Forfeit while holding a lobby place — the lobby place is untouched", "source": "ES-14" },
     { "id": "V14", "name": "Share rounding — remainder to the fee destination at settlement", "source": "FR-032a", "worked_in": "V17" },
     { "id": "V15", "name": "Double claim fails; claim and transfer happen together", "source": "FR-034" },
-    { "id": "V16", "name": "Breach before the Scheduler runs — submission rejected, projected pool already includes 80%", "source": "INV-8, FR-038a" },
+    { "id": "V16", "name": "Breach before the Scheduler runs — submission rejected, projected pool already includes 70%", "source": "INV-8, FR-038a" },
     { "id": "V18", "name": "Permissionless steps — a stranger produces byte-identical state", "source": "FR-030a, AC-5" },
     { "id": "V20", "name": "Late offline completion — rejected after the deadline, counts before it", "source": "FR-024b, ES-3b" },
     { "id": "V21", "name": "Faucet once per wallet per day", "source": "FR-042a, AC-16" },
     { "id": "V22", "name": "Scripted forfeits fund real prizes — amounts unchanged by who is scripted", "source": "FR-043a" }
-  ]
+  ],
+  "reserve_vectors": {
+    "forfeit_split": [
+      { "stake": 0, "pool": 0, "boost": 0, "comeback": 0, "developer": 0, "operations": 0 },
+      { "stake": 1, "pool": 1, "boost": 0, "comeback": 0, "developer": 0, "operations": 0 },
+      { "stake": 9, "pool": 7, "boost": 0, "comeback": 0, "developer": 0, "operations": 2 },
+      { "stake": 19, "pool": 14, "boost": 1, "comeback": 0, "developer": 0, "operations": 4 },
+      { "stake": 100, "pool": 70, "boost": 10, "comeback": 5, "developer": 5, "operations": 10 },
+      { "stake": 1250, "pool": 875, "boost": 125, "comeback": 62, "developer": 62, "operations": 126 },
+      { "stake": 25000000, "pool": 17500000, "boost": 2500000, "comeback": 1250000, "developer": 1250000, "operations": 2500000 },
+      { "stake": 18446744073709551615, "pool": 12912720851596686131, "boost": 1844674407370955161, "comeback": 922337203685477580, "developer": 922337203685477580, "operations": 1844674407370955163 }
+    ],
+    "boost": [
+      { "own_pool": 0, "reserve": 500, "boost": 0 },
+      { "own_pool": 350, "reserve": 0, "boost": 0 },
+      { "own_pool": 350, "reserve": 1000, "boost": 70 },
+      { "own_pool": 350, "reserve": 40, "boost": 40 },
+      { "own_pool": 28000, "reserve": 5000, "boost": 5000 },
+      { "own_pool": 18446744073709551615, "reserve": 18446744073709551615, "boost": 3689348814741910323 }
+    ],
+    "comeback_owed": [
+      { "forfeited_stake": 100, "new_stake": 100, "owed": 10 },
+      { "forfeited_stake": 1000, "new_stake": 25, "owed": 25 },
+      { "forfeited_stake": 9, "new_stake": 100, "owed": 0 },
+      { "forfeited_stake": 25000000, "new_stake": 10000000, "owed": 2500000 },
+      { "forfeited_stake": 18446744073709551615, "new_stake": 18446744073709551615, "owed": 1844674407370955161 }
+    ],
+    "comeback_refund": [
+      { "entitled": 10, "funded": 30, "owed": 30, "refund": 10 },
+      { "entitled": 10, "funded": 20, "owed": 30, "refund": 6 },
+      { "entitled": 7, "funded": 0, "owed": 21, "refund": 0 },
+      { "entitled": 0, "funded": 0, "owed": 0, "refund": 0 },
+      { "entitled": 2500000, "funded": 1000000, "owed": 7500000, "refund": 333333 }
+    ],
+    "no_finisher_split": [
+      { "pool": 0, "developer": 0, "operations": 0 },
+      { "pool": 1, "developer": 0, "operations": 1 },
+      { "pool": 2, "developer": 0, "operations": 2 },
+      { "pool": 1050, "developer": 350, "operations": 700 },
+      { "pool": 1001, "developer": 333, "operations": 668 },
+      { "pool": 18446744073709551615, "developer": 6148914691236517205, "operations": 12297829382473034410 }
+    ]
+  }
 }

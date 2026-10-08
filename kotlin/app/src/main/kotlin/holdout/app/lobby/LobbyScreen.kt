@@ -61,7 +61,7 @@ fun LobbyScreen(
         TextButton(onClick = onBack, modifier = Modifier.align(Alignment.Start)) { Text("← Home", color = HoldoutColors.TextSecondary) }
         if (h.isTest) TestCohortBadge(c.dayLength)
         SectionLabel(if (locked) "Lobby · locked" else "Lobby")
-        Text("${c.durationDays}-day Holdout", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
+        Text(Format.holdoutTitle(c), style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
         Text("starts in", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
         Text(Format.countdown(c.start - now), style = DisplayStyle, color = HoldoutColors.Accent)
 

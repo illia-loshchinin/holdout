@@ -36,6 +36,7 @@ import {
   settleCountIx,
   settleFinalizeIx,
   submitDayIx,
+  type FeeDestinations,
 } from '../helpers/instructions.js';
 import { associatedTokenPda, cohortPda, vaultPda } from '../helpers/pdas.js';
 
@@ -54,7 +55,7 @@ const endOf = (index: number) => startOf(index) + DURATION * DAY;
 interface World {
   h: Harness;
   mint: Address;
-  feeDestination: Address;
+  fees: FeeDestinations;
   crank: KeyPairSigner;
   member: KeyPairSigner;
 }
@@ -64,10 +65,8 @@ const world = async (): Promise<World> => {
   const mint = (await generateKeyPairSigner()).address;
   h.injectMint(mint, null, 10_000_000n * SKR);
 
-  const treasury = (await generateKeyPairSigner()).address;
-  const feeDestination = await associatedTokenPda(treasury, mint);
-  h.injectTokenAccount(feeDestination, mint, treasury, 0n);
-  await h.injectConfig({ skrMint: mint, feeDestination });
+  const fees = await h.injectFeeDestinations(mint);
+  await h.injectConfig({ skrMint: mint, feeDestination: fees.operations, developerDestination: fees.developer });
 
   const league = { durationDays: DURATION, dayLength: BigInt(DAY), cadence: BigInt(WEEK), joinLock: BigInt(HOUR) };
   await h.injectLeague(LEAGUE, { ...league, firstStart: BigInt(FIRST_START), nextIndex: 3 });
@@ -83,7 +82,7 @@ const world = async (): Promise<World> => {
 
   const member = await h.newWallet();
   h.injectTokenAccount(await associatedTokenPda(member.address, mint), mint, member.address, 10n * DEFAULT_CHIPS[3]);
-  return { h, mint, feeDestination, crank: await h.newWallet(), member };
+  return { h, mint, fees, crank: await h.newWallet(), member };
 };
 
 const join = async (w: World, index: number, tier = 1, runningCohort?: Address) =>
@@ -123,7 +122,7 @@ const settle = async (w: World, index: number, alsoCount: readonly Address[] = [
     [
       await settleCountIx(
         w.crank.address,
-        w.feeDestination,
+        w.fees,
         LEAGUE,
         index,
         await forfeitPairs(cohort, [w.member.address, ...alsoCount]),
@@ -133,7 +132,7 @@ const settle = async (w: World, index: number, alsoCount: readonly Address[] = [
     w.crank,
   );
   await w.h.sendOrThrow(
-    [await settleFinalizeIx(w.crank.address, w.feeDestination, LEAGUE, index, undefined)],
+    [await settleFinalizeIx(w.crank.address, w.fees, LEAGUE, index)],
     w.crank,
   );
 };
@@ -144,7 +143,7 @@ const recordForfeit = async (w: World, index: number) => {
     [
       await recordForfeitsIx(
         w.crank.address,
-        w.feeDestination,
+        w.fees,
         LEAGUE,
         index,
         await forfeitPairs(cohort, [w.member.address]),
@@ -194,7 +193,7 @@ describe('a streak follows the member\'s cohorts, not the crank\'s order (T077a)
         [
           await settleCountIx(
             w.crank.address,
-            w.feeDestination,
+            w.fees,
             LEAGUE,
             1,
             await forfeitPairs(await cohortPda(LEAGUE, 1), [w.member.address]),

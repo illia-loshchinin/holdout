@@ -52,7 +52,7 @@ fun RosterScreen(
     ) {
         item { TextButton(onClick = onBack) { Text("← Back", color = HoldoutColors.TextSecondary) } }
         if (h.isTest) item { TestCohortBadge(c.dayLength) }
-        item { Text("${c.durationDays}-day Holdout · roster", style = MaterialTheme.typography.headlineSmall, color = HoldoutColors.TextPrimary) }
+        item { Text("${Format.holdoutTitle(c)} · roster", style = MaterialTheme.typography.headlineSmall, color = HoldoutColors.TextPrimary) }
         item { Body("Scripted members are real wallets under the same rules; their days are not camera-verified. They top a Holdout up to its minimum only.") }
         if (roster == null) {
             item { Reading { Body("Reading devnet…") } }

@@ -33,7 +33,7 @@ class TransactionsTest {
             // The sponsor pays for a zero-SOL wallet's claim and is reimbursed as a writable account.
             listOf(Instructions.claimFaucet(programId, sponsor, member, mint, sponsor)),
             // The program's own id stands for "none" beside the program itself.
-            listOf(Instructions.settleFinalize(programId, member, sponsor, 100, cohort)),
+            listOf(Instructions.settleFinalize(programId, member, sponsor, mint, 100, cohort)),
         )
     }
 

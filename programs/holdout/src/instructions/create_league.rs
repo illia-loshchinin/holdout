@@ -21,6 +21,7 @@
 //!     refused, whatever timing came with it.
 
 use anchor_lang::prelude::*;
+use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::{
     errors::HoldoutError,
@@ -28,7 +29,8 @@ use crate::{
         config::{Config, CONFIG_SEED},
         league::{
             is_monday_0500_utc, LeagueConfig, DEVNET_CADENCE, DEVNET_DAY_LENGTH, DEVNET_JOIN_LOCK,
-            DEVNET_REPS_PER_DAY, EXERCISE_PUSHUP, LEAGUE_21D, LEAGUE_7D, LEAGUE_SEED,
+            DEVNET_REPS_PER_DAY, EXERCISE_PUSHUP, FORM_KNEES_ALLOWED, FORM_TOES, LEAGUE_21D,
+            LEAGUE_7D, LEAGUE_SEED, RESERVE_SEED,
         },
     },
 };
@@ -51,7 +53,24 @@ pub struct CreateLeague<'info> {
     )]
     pub league: Account<'info, LeagueConfig>,
 
+    #[account(constraint = skr_mint.key() == config.skr_mint @ HoldoutError::AccountMismatch)]
+    pub skr_mint: Account<'info, Mint>,
+
+    /// The league's SKR reserve: boosts and comeback refunds, credited only when
+    /// one of its cohorts finalizes (FR-037c). Its authority is the league PDA,
+    /// so no key outside the program can move what it holds (constitution I).
+    #[account(
+        init,
+        payer = admin,
+        seeds = [RESERVE_SEED, &[league_id]],
+        bump,
+        token::mint = skr_mint,
+        token::authority = league,
+    )]
+    pub reserve_vault: Account<'info, TokenAccount>,
+
     pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
 }
 
 /// Whether this build may create a league with this id at all, and with this
@@ -109,6 +128,7 @@ pub(crate) fn handler(
     duration_days: u8,
     reps_per_day: u16,
     exercise: u8,
+    form: u8,
     first_start: i64,
     day_length: i64,
     cadence: i64,
@@ -118,6 +138,16 @@ pub(crate) fn handler(
         exercise == EXERCISE_PUSHUP,
         HoldoutError::ExerciseNotSupported
     );
+    // The judged leagues' forms are the product, not a setting: the 7-day is
+    // Easy and the 21-day Hard (constitution, H35). A league is created once and
+    // every cohort copies its form, so a slip here could never be corrected.
+    // Test leagues may take either.
+    let form_ok = match league_id {
+        LEAGUE_7D => form == FORM_KNEES_ALLOWED,
+        LEAGUE_21D => form == FORM_TOES,
+        _ => form == FORM_TOES || form == FORM_KNEES_ALLOWED,
+    };
+    require!(form_ok, HoldoutError::InvalidForm);
     require!(
         timing_ok(
             league_id,
@@ -142,6 +172,10 @@ pub(crate) fn handler(
     league.join_lock = join_lock;
     // No cohort yet; `open_cohort` is permissionless and must use this index.
     league.next_index = 0;
+    league.form = form;
+    league.boost_reserve = 0;
+    league.comeback_reserve = 0;
+    league.reserve_vault_bump = ctx.bumps.reserve_vault;
     league.bump = ctx.bumps.league;
 
     Ok(())

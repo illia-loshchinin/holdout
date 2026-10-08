@@ -58,7 +58,7 @@ fun CohortDetailScreen(
     ) {
         TextButton(onClick = onBack) { Text("← Back", color = HoldoutColors.TextSecondary) }
         if (h.isTest) TestCohortBadge(c.dayLength)
-        Text("${c.durationDays}-day Holdout", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
+        Text(Format.holdoutTitle(c), style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
 
         when (stage) {
             Stage.Settling -> HoldoutCard {
@@ -85,7 +85,6 @@ fun CohortDetailScreen(
             SectionLabel("Where it stands")
             figures?.let { Text("${it.survivors.standing} still standing of ${c.memberCount}", style = AmountStyle, color = HoldoutColors.TextPrimary) }
             Text("Prize pool: ${figures?.let { Format.skr(it.projectedPool) } ?: Format.skr(c.pool)}", style = AmountStyle, color = HoldoutColors.Accent)
-            Derive.carryOverReceived(c)?.let { Body("Includes ${Format.skr(it)} carried over.") }
             if (now < Derive.end(c)) Body("$daysLeft day${if (daysLeft == 1) "" else "s"} to go.")
         }
 

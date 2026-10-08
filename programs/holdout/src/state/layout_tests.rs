@@ -49,6 +49,7 @@ fn config() -> Config {
         sponsor: key(0x33),
         skr_mint: key(0x44),
         fee_destination: key(0x55),
+        developer_destination: key(0x56),
         ladder_gate_enabled: true,
         genesis_gate_enabled: false,
         chip_set: ChipSet {
@@ -79,6 +80,10 @@ fn league_config() -> LeagueConfig {
         cadence: 604_800,
         join_lock: 3_600,
         next_index: 3,
+        form: 1,
+        boost_reserve: 4_000_000,
+        comeback_reserve: 2_000_000,
+        reserve_vault_bump: 252,
         bump: 253,
     }
 }
@@ -93,11 +98,13 @@ fn cohort() -> Cohort {
         reps_per_day: 25,
         day_length: 86_400,
         exercise: 0,
+        form: 1,
         chips: [10_000_000, 25_000_000, 50_000_000, 100_000_000],
         member_count: 12,
         held_stake: 900,
         pool: 680,
-        carry_over_received: 600,
+        boost_due: 600,
+        comeback_due: 300,
         forfeits_recorded: 3,
         counted: 9,
         finisher_count: 4,
@@ -107,9 +114,10 @@ fn cohort() -> Cohort {
         share_per_tier: [17, 0, 42, 85],
         rounding_remainder: 2,
         no_finisher_fee: 500,
-        carry_over_sent: 501,
-        carry_over_held: 7,
-        carry_over_target: key(0x66),
+        boost_received: 501,
+        comeback_owed: 77,
+        comeback_funded: 66,
+        comeback_claimed: 11,
         vault_bump: 251,
         bump: 250,
     }
@@ -125,6 +133,7 @@ fn membership() -> Membership {
         days_completed: 13,
         state: MembershipState::Finished,
         counted: true,
+        comeback_entitled: 5_000_000,
         bump: 249,
     }
 }
@@ -140,6 +149,9 @@ fn profile() -> Profile {
                 current_streak: 3,
                 longest_streak: 4,
                 last_changed: 1_790_600_000,
+                comeback_stake: 25_000_000,
+                comeback_from: 1_790_599_999,
+                comeback_until: 1_791_809_999,
             },
             LeagueProgress {
                 cleared: 1,
@@ -147,6 +159,9 @@ fn profile() -> Profile {
                 current_streak: 1,
                 longest_streak: 1,
                 last_changed: 1_791_400_000,
+                comeback_stake: 0,
+                comeback_from: 1_791_300_000,
+                comeback_until: 1_792_500_000,
             },
             LeagueProgress {
                 cleared: 0,
@@ -154,6 +169,9 @@ fn profile() -> Profile {
                 current_streak: 0,
                 longest_streak: 0,
                 last_changed: 1_790_700_000,
+                comeback_stake: 10_000_000,
+                comeback_from: 1_790_699_000,
+                comeback_until: 1_790_840_000,
             },
         ],
         running: RunningSlot {
@@ -214,11 +232,11 @@ fn every_account_is_the_size_the_typescript_side_allocates() {
     // 8 bytes of discriminator + the packed fields. If one of these moves, the
     // TS `space` for the account moves with it, or a scenario would fund and
     // allocate a different account than the program does.
-    assert_eq!(8 + Config::INIT_SPACE, 263);
-    assert_eq!(8 + LeagueConfig::INIT_SPACE, 50);
-    assert_eq!(8 + Cohort::INIT_SPACE, 236);
-    assert_eq!(8 + Membership::INIT_SPACE, 93);
-    assert_eq!(8 + Profile::INIT_SPACE, 186);
+    assert_eq!(8 + Config::INIT_SPACE, 295);
+    assert_eq!(8 + LeagueConfig::INIT_SPACE, 68);
+    assert_eq!(8 + Cohort::INIT_SPACE, 229);
+    assert_eq!(8 + Membership::INIT_SPACE, 101);
+    assert_eq!(8 + Profile::INIT_SPACE, 258);
 }
 
 #[test]

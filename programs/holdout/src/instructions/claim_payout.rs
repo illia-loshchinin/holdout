@@ -14,6 +14,7 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use crate::{
     errors::HoldoutError,
     events::PayoutClaimed,
+    math::settlement,
     state::{
         cohort::{Cohort, COHORT_SEED, VAULT_SEED},
         config::{Config, CONFIG_SEED},
@@ -76,8 +77,16 @@ pub(crate) fn handler(ctx: Context<ClaimPayout>) -> Result<()> {
     let stake = ctx.accounts.membership.stake;
     let tier = ctx.accounts.membership.tier as usize;
     let share = ctx.accounts.cohort.share_per_tier[tier];
+    // The comeback refund, scaled to what the league's reserve could fund at
+    // finalization (FR-037e). Zero for a finisher with no comeback.
+    let comeback = settlement::comeback_refund(
+        ctx.accounts.membership.comeback_entitled,
+        ctx.accounts.cohort.comeback_funded,
+        ctx.accounts.cohort.comeback_owed,
+    );
     let amount = stake
         .checked_add(share)
+        .and_then(|a| a.checked_add(comeback))
         .ok_or(error!(HoldoutError::AccountMismatch))?;
 
     let cohort_key = ctx.accounts.cohort.key();
@@ -108,6 +117,10 @@ pub(crate) fn handler(ctx: Context<ClaimPayout>) -> Result<()> {
         .pool
         .checked_sub(share)
         .ok_or(error!(HoldoutError::AccountMismatch))?;
+    cohort.comeback_claimed = cohort
+        .comeback_claimed
+        .checked_add(comeback)
+        .ok_or(error!(HoldoutError::AccountMismatch))?;
 
     ctx.accounts.membership.state = MembershipState::Claimed;
 
@@ -115,6 +128,7 @@ pub(crate) fn handler(ctx: Context<ClaimPayout>) -> Result<()> {
         cohort: cohort_key,
         wallet: ctx.accounts.member.key(),
         amount,
+        comeback,
     });
 
     Ok(())

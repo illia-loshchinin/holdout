@@ -3,6 +3,8 @@ package holdout.crank
 import com.solana.publickey.SolanaPublicKey
 import holdout.core.CohortSnapshot
 import holdout.core.ConfigSnapshot
+import holdout.core.LeagueParams
+import holdout.core.LeagueSnapshot
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -33,6 +35,7 @@ class StatusTest {
             sponsor = key(0x33),
             skrMint = key(0x44),
             feeDestination = key(0x55),
+            developerDestination = key(0x56),
             ladderGateEnabled = false,
             genesisGateEnabled = false,
             chipAmounts = listOf(460_000_000uL, 1_170_000_000uL, 2_340_000_000uL, 4_690_000_000uL),
@@ -91,7 +94,38 @@ class StatusTest {
         assertEquals(5, first.getValue("forfeitsRecorded").jsonPrimitive.long)
         assertEquals(3, first.getValue("counted").jsonPrimitive.long)
         assertEquals("false", first.getValue("settled").jsonPrimitive.content)
-        assertEquals(0, first.getValue("carryOverHeld").jsonPrimitive.long)
+        assertEquals(0, first.getValue("boostDue").jsonPrimitive.long)
+        assertEquals(0, first.getValue("comebackFunded").jsonPrimitive.long)
+    }
+
+    @Test
+    fun `given two judged leagues with reserves, when status reports, then each shows its form, both reserves and its reserve vault`() {
+        val seven = LeagueSnapshot(LeagueParams.judged(0, firstStart), nextIndex = 2, boostReserve = 4_000_000uL, comebackReserve = 2_000_000uL)
+        val twentyOne = LeagueSnapshot(LeagueParams.judged(1, firstStart), nextIndex = 1)
+        val r =
+            Status.report(
+                chainTime = firstStart,
+                slot = 42,
+                configAddress = key(0xc0),
+                config = config,
+                faucetVault = key(0xfa),
+                faucetVaultLamports = 0,
+                sponsorLamports = 0,
+                cohorts = emptyList(),
+                leagues = listOf(0 to seven, 1 to twentyOne),
+                reserveVaults = mapOf(0 to (key(0xe0) to 6_000_000uL), 1 to (key(0xe1) to null)),
+            )
+        val leagues = r.getValue("leagues").jsonArray.map { it.jsonObject }
+        assertEquals(listOf(1L, 0L), leagues.map { it.getValue("form").jsonPrimitive.long })
+        assertEquals(listOf("Easy", "Hard"), leagues.map { it.getValue("formName").jsonPrimitive.content })
+        assertEquals(listOf(4_000_000L, 0L), leagues.map { it.getValue("boostReserve").jsonPrimitive.long })
+        assertEquals(listOf(2_000_000L, 0L), leagues.map { it.getValue("comebackReserve").jsonPrimitive.long })
+        assertEquals(key(0xe0).base58(), leagues[0].getValue("reserveVault").jsonPrimitive.content)
+        assertEquals(6_000_000L, leagues[0].getValue("reserveVaultAmount").jsonPrimitive.long)
+        assertEquals(JsonNull, leagues[1].getValue("reserveVaultAmount"), "an unreadable vault is unknown, never zero")
+        val c = r.getValue("config").jsonObject
+        assertEquals(key(0x55).base58(), c.getValue("feeDestination").jsonPrimitive.content)
+        assertEquals(key(0x56).base58(), c.getValue("developerDestination").jsonPrimitive.content)
     }
 
     @Test

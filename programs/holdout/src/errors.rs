@@ -24,13 +24,15 @@ pub enum HoldoutError {
     #[msg("Only the program's upgrade authority may initialize it")]
     NotUpgradeAuthority = 3,
 
-    // ---- 6010–6012 · league and chip-set setup --------------------------
+    // ---- 6010–6013 · league and chip-set setup --------------------------
     #[msg("A devnet league must use the default timing; test leagues need a test-leagues build")]
     InvalidLeagueTiming = 10,
     #[msg("Chip amounts must be strictly increasing and all above zero")]
     InvalidChipSet = 11,
     #[msg("No cohort can open before the first chip set is published")]
     ChipSetNotPublished = 12,
+    #[msg("A league's form is 0 (from the toes) or 1 (knees allowed)")]
+    InvalidForm = 13,
 
     // ---- 6020–6026 · opening, joining and the lobby ---------------------
     #[msg("This cohort is not due yet, or its index is wrong")]
@@ -58,7 +60,7 @@ pub enum HoldoutError {
     #[msg("This day is already completed")]
     DayAlreadyCompleted = 33,
 
-    // ---- 6040–6047 · settlement and the claim ---------------------------
+    // ---- 6040–6045 · settlement and the claim ---------------------------
     #[msg("This cohort is not settling")]
     NotSettling = 40,
     #[msg("This cohort is already settled")]
@@ -71,10 +73,6 @@ pub enum HoldoutError {
     AlreadyClaimed = 44,
     #[msg("The previous cohort of this league must settle first")]
     PreviousCohortUnsettled = 45,
-    #[msg("A no-finisher settlement needs the league's latest cohort and its vault")]
-    CarryOverTargetRequired = 46,
-    #[msg("The league has no cohort open for joining: open the next one, then settle")]
-    CarryOverTargetNotOpen = 47,
 
     // ---- 6050–6054 · the faucet, and the exercise guard that shares it ---
     #[msg("This wallet has already used the faucet today")]
@@ -122,6 +120,7 @@ mod tests {
         assert_eq!(code(HoldoutError::InvalidLeagueTiming), 6010);
         assert_eq!(code(HoldoutError::InvalidChipSet), 6011);
         assert_eq!(code(HoldoutError::ChipSetNotPublished), 6012);
+        assert_eq!(code(HoldoutError::InvalidForm), 6013);
 
         assert_eq!(code(HoldoutError::CohortNotDue), 6020);
         assert_eq!(code(HoldoutError::JoiningClosed), 6021);
@@ -142,8 +141,6 @@ mod tests {
         assert_eq!(code(HoldoutError::NotClaimable), 6043);
         assert_eq!(code(HoldoutError::AlreadyClaimed), 6044);
         assert_eq!(code(HoldoutError::PreviousCohortUnsettled), 6045);
-        assert_eq!(code(HoldoutError::CarryOverTargetRequired), 6046);
-        assert_eq!(code(HoldoutError::CarryOverTargetNotOpen), 6047);
 
         assert_eq!(code(HoldoutError::FaucetAlreadyClaimedToday), 6050);
         assert_eq!(code(HoldoutError::FaucetCapReached), 6051);

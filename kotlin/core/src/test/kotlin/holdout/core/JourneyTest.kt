@@ -50,6 +50,16 @@ class JourneyTest {
     }
 
     @Test
+    fun `given a finisher owed a comeback, when the cohort settles short, then the claim adds the pro-rata refund`() {
+        val end = start + 7 * day
+        // Owed 4 in all, the reserve funded 2: an entitlement of 2 refunds 1.
+        val settled = c.copy(settled = true, sharePerTier = listOf(2uL, 7uL, 14uL, 28uL), comebackOwed = 4uL, comebackFunded = 2uL)
+        val finisher = m(7, MembershipSnapshot.State.Finished).copy(comebackEntitled = 2uL)
+        assertEquals(Stage.ReadyToClaim(33uL, 25uL, 7uL, comeback = 1uL), Journey.stage(settled, finisher, end + 60))
+        assertEquals(Stage.Claimed(33uL), Journey.stage(settled, finisher.copy(state = MembershipSnapshot.State.Claimed), end + 120))
+    }
+
+    @Test
     fun `a join is blocked by closed joining, a held lobby place, or an overlap`() {
         val other = SolanaPublicKey(ByteArray(32) { 2 })
         fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, false, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending, -1)

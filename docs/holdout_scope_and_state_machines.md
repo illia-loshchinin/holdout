@@ -2,6 +2,8 @@
 
 **Version:** 1.8 · **Date:** 2026-09-18 · **Status:** D-A … D-I decided; §1, §3 and §4 synced to `specs/001-holdout-hackathon/spec.md`
 
+**Revision note, 2026-10-05 (decision H34):** the forfeit split is now **70/30** and a no-finisher pool goes **wholly to the fee destination**, with no carry-over and no held state. Where this document still describes 20 % fees, 50/50 splits or carry-over states, the spec (FR-027, FR-037) governs.
+
 **Changed in 1.8 (18 Sept):** pointers follow constitution v1.3.1 and decisions H1–H30 · the **exercise is now a cohort parameter** with negative and decline push-ups reserved for later (H30), so F1's rep counter is push-ups only by validation, not by assumption.
 
 **Changed in 1.7 (17 Sept):** members' names adopted — **the Daily 25** and **a Holdout** (H28, spec §1a), with on-chain names unchanged · **first-run tour** added as F12 (FR-067) and the full-cycle walkthrough becomes judge-facing (H29) · guest mode proposed and dropped, so F10 wallet-first stands.
@@ -75,7 +77,6 @@ The rule: **a feature earns its place only if it appears in the video or is load
 
 | # | Feature | How it is faked | Risk if a judge notices |
 |---|---|---|---|
-| S1 | Human Flag league | Present in the ladder UI as a locked third rung. Only the staked 7-day and staked 21-day leagues exist in the contract (D-I). | None — gating is the design |
 | S2 | — | *(was: SKR→USDC swap. Deleted entirely by D-C — there is no swap.)* | — |
 | S3 | — | *(was: badges. Cut — H17.)* | — |
 | S4 | — | *(was: leaderboard seeded from cohort #1 and #2 data. Now live from on-chain progress — F9.)* | — |
@@ -88,7 +89,7 @@ The rule: **a feature earns its place only if it appears in the video or is load
 
 ### 1.3 Cut entirely
 
-Geo-blocking · TOS · audit · calibration flow · audio in verification — both the pre-flight check and the rep condition (E12, H13) · Swelfie · share cards · badges · daily-streak or server-fed leaderboards · **free cohorts of any league** (H3) · conditional pre-joining (§5.6a — the unconditional lobby place is in, H10) · cohort cancellation and min-size auto-enrolment (§7.4) · cold-start bonus match (§6.5) · insurance fund · demotion logic (there is none) · Firebase · **`JupiterSwapRouter`, USDC in every form, slippage handling, and any on-chain price oracle** (D-C, H8) · **geo-IP** (D-B makes it pointless) · **the Human Flag league in the contract** (D-I).
+Geo-blocking · TOS · audit · calibration flow · audio in verification — both the pre-flight check and the rep condition (E12, H13) · Swelfie · share cards · badges · daily-streak or server-fed leaderboards · **free cohorts of any league** (H3) · conditional pre-joining (§5.6a — the unconditional lobby place is in, H10) · cohort cancellation and min-size auto-enrolment (§7.4) · cold-start bonus match (§6.5) · insurance fund · demotion logic (there is none) · Firebase · **`JupiterSwapRouter`, USDC in every form, slippage handling, and any on-chain price oracle** (D-C, H8) · **geo-IP** (D-B makes it pointless).
 
 *Solo sessions and the daily streak were on this list in v1.1 and came back as the daily challenge (D-I).*
 
@@ -209,7 +210,6 @@ This is the one place where cutting a corner has real consequences, so it gets d
 | **The Daily 25** | 25 reps, every day, free, for everyone. No cohort, no stake, no prize. Builds a streak. |
 | **7-day league** | Staked. The entry rung and the comeback lane. Clearing it unlocks the 21-day. |
 | **21-day league** | Staked. Where the money is. |
-| Human Flag | Locked third rung in the UI only. |
 
 **This inverts the product's shape, in a good direction.** Holdout is now a free daily habit app with a staking layer on top, rather than a staking app with a free trial. For a rubric that puts 25% on Stickiness & PMF, a free loop anyone can run on day one, forever, is a far stronger story than a cohort you must pay to enter.
 

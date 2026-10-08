@@ -43,6 +43,7 @@ const config: ConfigAccount = {
   sponsor: key(0x33),
   skrMint: key(0x44),
   feeDestination: key(0x55),
+  developerDestination: key(0x56),
   ladderGateEnabled: true,
   genesisGateEnabled: false,
   chipSet: {
@@ -71,6 +72,10 @@ const leagueConfig: LeagueConfigAccount = {
   cadence: 604_800n,
   joinLock: 3_600n,
   nextIndex: 3,
+  form: 1,
+  boostReserve: 4_000_000n,
+  comebackReserve: 2_000_000n,
+  reserveVaultBump: 252,
   bump: 253,
 };
 
@@ -83,11 +88,13 @@ const cohort: CohortAccount = {
   repsPerDay: 25,
   dayLength: 86_400n,
   exercise: 0,
+  form: 1,
   chips: [10_000_000n, 25_000_000n, 50_000_000n, 100_000_000n],
   memberCount: 12,
   heldStake: 900n,
   pool: 680n,
-  carryOverReceived: 600n,
+  boostDue: 600n,
+  comebackDue: 300n,
   forfeitsRecorded: 3,
   counted: 9,
   finisherCount: 4,
@@ -97,9 +104,10 @@ const cohort: CohortAccount = {
   sharePerTier: [17n, 0n, 42n, 85n],
   roundingRemainder: 2n,
   noFinisherFee: 500n,
-  carryOverSent: 501n,
-  carryOverHeld: 7n,
-  carryOverTarget: key(0x66),
+  boostReceived: 501n,
+  comebackOwed: 77n,
+  comebackFunded: 66n,
+  comebackClaimed: 11n,
   vaultBump: 251,
   bump: 250,
 };
@@ -113,6 +121,7 @@ const membership: MembershipAccount = {
   daysCompleted: 13,
   state: 'Finished',
   counted: true,
+  comebackEntitled: 5_000_000n,
   bump: 249,
 };
 
@@ -120,9 +129,18 @@ const profile: ProfileAccount = {
   wallet: key(0x99),
   qualified: true,
   leagues: [
-    { cleared: 5, forfeited: 2, currentStreak: 3, longestStreak: 4, lastChanged: 1_790_600_000n },
-    { cleared: 1, forfeited: 0, currentStreak: 1, longestStreak: 1, lastChanged: 1_791_400_000n },
-    { cleared: 0, forfeited: 1, currentStreak: 0, longestStreak: 0, lastChanged: 1_790_700_000n },
+    {
+      cleared: 5, forfeited: 2, currentStreak: 3, longestStreak: 4, lastChanged: 1_790_600_000n,
+      comebackStake: 25_000_000n, comebackFrom: 1_790_599_999n, comebackUntil: 1_791_809_999n,
+    },
+    {
+      cleared: 1, forfeited: 0, currentStreak: 1, longestStreak: 1, lastChanged: 1_791_400_000n,
+      comebackStake: 0n, comebackFrom: 1_791_300_000n, comebackUntil: 1_792_500_000n,
+    },
+    {
+      cleared: 0, forfeited: 1, currentStreak: 0, longestStreak: 0, lastChanged: 1_790_700_000n,
+      comebackStake: 10_000_000n, comebackFrom: 1_790_699_000n, comebackUntil: 1_790_840_000n,
+    },
   ],
   running: { cohort: key(0xaa), end: 1_791_800_000n },
   pending: { cohort: key(0xbb), start: 1_792_000_000n, end: 1_792_600_000n },
@@ -131,11 +149,11 @@ const profile: ProfileAccount = {
 };
 
 const cases = [
-  ['Config', Config, config, 263],
-  ['LeagueConfig', LeagueConfig, leagueConfig, 50],
-  ['Cohort', Cohort, cohort, 236],
-  ['Membership', Membership, membership, 93],
-  ['Profile', Profile, profile, 186],
+  ['Config', Config, config, 295],
+  ['LeagueConfig', LeagueConfig, leagueConfig, 68],
+  ['Cohort', Cohort, cohort, 229],
+  ['Membership', Membership, membership, 101],
+  ['Profile', Profile, profile, 258],
 ] as const;
 
 describe.each(cases)('%s', (name, layout, expected, space) => {

@@ -96,7 +96,16 @@ class SittingViewModel(
 
     private val trace = traceDir?.let { TraceRecorder(it, stakes) }
 
-    enum class Step { PREFLIGHT, COUNTDOWN, COUNTING, COMPLETE }
+    enum class Step {
+        PREFLIGHT,
+        COUNTDOWN,
+        COUNTING,
+        COMPLETE,
+        ;
+
+        /** Counting down or counting: leaving the foreground now ends the set — its loose reps go, the checks start over ([onLeftForeground]). */
+        val inSet: Boolean get() = this == COUNTDOWN || this == COUNTING
+    }
 
     /**
      * Something the member should hear. The screen is on the floor and they are
@@ -182,7 +191,16 @@ class SittingViewModel(
     fun onLens(lens: Lens) {
         this.lens = lens
     }
-    private val banking = BankingController(store, wallet, scope, dayIndex, target)
+
+    /** The Daily 25's toes meter (H35) rides on the banking: read at 45°, never in a Holdout. */
+    private val banking = BankingController(
+        store,
+        wallet,
+        scope,
+        dayIndex,
+        target,
+        toes = holdout.app.streak.ToesMeter(store, target).takeIf { stakes == Stakes.DAILY && scope == Store.CHALLENGE },
+    )
     private var repCounter = RepCounter()
 
     /**
@@ -332,7 +350,7 @@ class SittingViewModel(
                     is RepEvent.Counted -> {
                         lastRefusal = null
                         _uiState.update { it.copy(repsCounted = repCounter.total) }
-                        onVerifiedRep()
+                        onVerifiedRep(event.stance)
                     }
                     is RepEvent.Discarded -> {
                         _uiState.update { it.copy(hint = event.hint?.message) }
@@ -412,8 +430,8 @@ class SittingViewModel(
         _cues.tryEmit(Cue.Counting)
     }
 
-    private fun onVerifiedRep() {
-        when (val outcome = banking.onVerifiedRep()) {
+    private fun onVerifiedRep(stance: holdout.repcounter.RepStance?) {
+        when (val outcome = banking.onVerifiedRep(stance)) {
             is BankingController.Outcome.Counted -> {
                 _uiState.update { it.copy(looseReps = banking.loose, hint = null, justBanked = null) }
                 _cues.tryEmit(Cue.Rep)
@@ -467,8 +485,7 @@ class SittingViewModel(
      */
     fun onLeftForeground() {
         synchronized(countdownLock) {
-            val step = _uiState.value.step
-            if (stopped || (step != Step.COUNTDOWN && step != Step.COUNTING)) return
+            if (stopped || !_uiState.value.step.inSet) return
             banking.endSitting()
             backToChecks()
             _uiState.update { it.copy(looseReps = 0, hint = null) }

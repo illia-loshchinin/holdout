@@ -21,7 +21,13 @@
  *
  *  - Signers first, then the state the instruction reads or writes, then programs.
  *  - The SKR mint is a fresh keypair that signs `initialize` (§6 lists no mint seed).
- *  - `fee_destination` is the treasury wallet's **associated** token account.
+ *  - `fee_destination` is the treasury wallet's **associated** token account —
+ *    the **operations** destination since H35 — and `developer_destination` is
+ *    the developer wallet's associated token account. Every instruction that
+ *    moves a fee takes both, operations first ({@link FeeDestinations}).
+ *  - A league's reserve vault is the token-account PDA `["reserve", league_id]`
+ *    whose authority is the league PDA; `create_league` creates it and
+ *    `settle_finalize` draws from and credits it (H35).
  *  - The faucet vault is a system-owned PDA holding lamports; `initialize` funds it
  *    to rent exemption and the Operator tops it up by an ordinary transfer.
  *  - `open_cohort` takes the previous cohort as an optional account: the program's
@@ -64,6 +70,7 @@ import {
   mintAuthorityPda,
   profilePda,
   programDataPda,
+  reservePda,
   vaultPda,
 } from './pdas.js';
 
@@ -95,18 +102,30 @@ const rwSigner = (address: Address) => ({ address, role: AccountRole.WRITABLE_SI
 
 // ------------------------------------------------------------------ initialize
 
+/**
+ * The two token accounts the fee is split between (FR-027, FR-037f, H35):
+ * `Config.fee_destination` — operations — and `Config.developer_destination`.
+ */
+export interface FeeDestinations {
+  operations: Address;
+  developer: Address;
+}
+
 export interface InitializeArgs {
   operator: Address;
   sponsor: Address;
+  /** Owns the operations destination (`fee_destination`). */
   treasuryWallet: Address;
+  /** Owns the developer destination (H35). */
+  developerWallet: Address;
   faucetSolTopUp: bigint | number;
   faucetDailyLamportCap: bigint | number;
   faucetSponsorFloat: bigint | number;
 }
 
 /**
- * `initialize(operator, sponsor, treasury_wallet, faucet_sol_top_up,
- * faucet_daily_lamport_cap, faucet_sponsor_float)`. The `admin` signs and pays;
+ * `initialize(operator, sponsor, treasury_wallet, developer_wallet,
+ * faucet_sol_top_up, faucet_daily_lamport_cap, faucet_sponsor_float)`. The `admin` signs and pays;
  * `skrMint` is a new keypair that signs too, so both must reach `send()`.
  */
 export const initializeIx = async (
@@ -124,6 +143,8 @@ export const initializeIx = async (
     ro(await mintAuthorityPda()),
     ro(args.treasuryWallet),
     rw(await associatedTokenPda(args.treasuryWallet, skrMint)),
+    ro(args.developerWallet),
+    rw(await associatedTokenPda(args.developerWallet, skrMint)),
     rw(await faucetVaultPda()),
     ro(SYSTEM_PROGRAM),
     ro(TOKEN_PROGRAM),
@@ -134,6 +155,7 @@ export const initializeIx = async (
     key(args.operator),
     key(args.sponsor),
     key(args.treasuryWallet),
+    key(args.developerWallet),
     u64(args.faucetSolTopUp),
     u64(args.faucetDailyLamportCap),
     u64(args.faucetSponsorFloat),
@@ -147,20 +169,34 @@ export interface CreateLeagueArgs {
   durationDays: number;
   repsPerDay: number;
   exercise: number;
+  /** 0 = from the toes (Hard), 1 = knees allowed (Easy); anything else is `InvalidForm` (H35). */
+  form: number;
   firstStart: bigint | number;
   dayLength: bigint | number;
   cadence: bigint | number;
   joinLock: bigint | number;
 }
 
-/** `create_league(league_id, duration_days, reps_per_day, exercise, first_start, day_length, cadence, join_lock)`. */
-export const createLeagueIx = async (admin: Address, args: CreateLeagueArgs): Promise<Instruction> => ({
+/**
+ * `create_league(league_id, duration_days, reps_per_day, exercise, form,
+ * first_start, day_length, cadence, join_lock)`. `skrMint` must be
+ * `config.skr_mint`: the league's reserve vault is created here, a token
+ * account of that mint whose authority is the league PDA (H35).
+ */
+export const createLeagueIx = async (
+  admin: Address,
+  skrMint: Address,
+  args: CreateLeagueArgs,
+): Promise<Instruction> => ({
   programAddress: PROGRAM_ID,
   accounts: [
     rwSigner(admin),
     ro(await configPda()),
     rw(await leaguePda(args.leagueId)),
+    ro(skrMint),
+    rw(await reservePda(args.leagueId)),
     ro(SYSTEM_PROGRAM),
+    ro(TOKEN_PROGRAM),
   ],
   data: concat(
     instructionDiscriminator('create_league'),
@@ -168,6 +204,7 @@ export const createLeagueIx = async (admin: Address, args: CreateLeagueArgs): Pr
     u8(args.durationDays),
     u16(args.repsPerDay),
     u8(args.exercise),
+    u8(args.form),
     i64(args.firstStart),
     i64(args.dayLength),
     i64(args.cadence),
@@ -366,10 +403,15 @@ export const forfeitPairs = async (
  * accounts, up to ten of them, and pairs not in breach or already forfeited are
  * skipped rather than refused — so a page may be repeated and re-ordered freely
  * (research R9, INV-7).
+ *
+ * Each breached stake splits 70/10/5/5/10 (FR-027, H35): the pool part and the
+ * two reserve parts stay in the vault — the reserve parts as `boost_due` /
+ * `comeback_due` until the cohort finalizes — while the developer and
+ * operations parts leave at once, one batched transfer each per page.
  */
 export const recordForfeitsIx = async (
   caller: Address,
-  feeDestination: Address,
+  fees: FeeDestinations,
   leagueId: number,
   index: number,
   pairs: readonly ForfeitPair[],
@@ -382,7 +424,8 @@ export const recordForfeitsIx = async (
       ro(await configPda()),
       rw(cohort),
       rw(await vaultPda(cohort)),
-      rw(feeDestination),
+      rw(fees.operations),
+      rw(fees.developer),
       ro(TOKEN_PROGRAM),
       ...pairs.flatMap((pair) => [rw(pair.membership), rw(pair.profile)]),
     ],
@@ -395,11 +438,13 @@ export const recordForfeitsIx = async (
 /**
  * `settle_count()`, permissionless and paged like `record_forfeits`. The
  * league's cohort `index - 1` is required for every index but 0: counting runs
- * in cohort order so every profile's streak does too (FR-061a).
+ * in cohort order so every profile's streak does too (FR-061a) — and every
+ * profile's comeback record, which a counted forfeit opens and a counted finish
+ * of a later cohort in its window uses up (FR-037e).
  */
 export const settleCountIx = async (
   caller: Address,
-  feeDestination: Address,
+  fees: FeeDestinations,
   leagueId: number,
   index: number,
   pairs: readonly ForfeitPair[],
@@ -414,7 +459,8 @@ export const settleCountIx = async (
       ro(await leaguePda(leagueId)),
       rw(cohort),
       rw(await vaultPda(cohort)),
-      rw(feeDestination),
+      rw(fees.operations),
+      rw(fees.developer),
       ro(previousCohort ?? PROGRAM_ID),
       ro(TOKEN_PROGRAM),
       ...pairs.flatMap((pair) => [rw(pair.membership), rw(pair.profile)]),
@@ -426,48 +472,49 @@ export const settleCountIx = async (
 // ------------------------------------------------------------- settle_finalize
 
 /**
- * `settle_finalize()`. With finishers it needs no target. With none, the
- * league's cohort `next_index - 1` and its vault are **required** — the
- * accounts that decide whether the carry-over is delivered or held — so no
- * caller can strand it by omission (FR-030a, FR-037a).
+ * `settle_finalize()`. With finishers it draws the boost from the league's
+ * reserve, writes the shares on the boosted pool and funds the comeback
+ * refunds; with none it splits the whole pool a third to the developer and the
+ * rest to operations (FR-037). Either way it then credits the cohort's reserve
+ * shares to its league (FR-037c). Like `settle_count` it needs the league's
+ * cohort `index - 1`, settled — an empty cohort is never counted, so this is
+ * its only ordering check (FR-061a, INV-10).
  */
 export const settleFinalizeIx = async (
   caller: Address,
-  feeDestination: Address,
+  fees: FeeDestinations,
   leagueId: number,
   index: number,
-  target?: { cohort: Address; vault: Address },
+  /** The league's cohort `index - 1`: derived when omitted, withheld with `null`. */
+  previousCohort?: Address | null,
 ): Promise<Instruction> => {
   const cohort = await cohortPda(leagueId, index);
+  const previous = previousCohort === undefined ? (index > 0 ? await cohortPda(leagueId, index - 1) : null) : previousCohort;
   return {
     programAddress: PROGRAM_ID,
     accounts: [
       rwSigner(caller),
       ro(await configPda()),
-      ro(await leaguePda(leagueId)),
+      rw(await leaguePda(leagueId)),
       rw(cohort),
       rw(await vaultPda(cohort)),
-      rw(feeDestination),
-      target ? rw(target.cohort) : ro(PROGRAM_ID),
-      target ? rw(target.vault) : ro(PROGRAM_ID),
+      rw(fees.operations),
+      rw(fees.developer),
+      rw(await reservePda(leagueId)),
+      ro(previous ?? PROGRAM_ID),
       ro(TOKEN_PROGRAM),
     ],
     data: instructionDiscriminator('settle_finalize'),
   };
 };
 
-/** The league's cohort `index` and its vault, as `settle_finalize` wants them. */
-export const carryOverTarget = async (
-  leagueId: number,
-  index: number,
-): Promise<{ cohort: Address; vault: Address }> => {
-  const cohort = await cohortPda(leagueId, index);
-  return { cohort, vault: await vaultPda(cohort) };
-};
-
 // ---------------------------------------------------------------- claim_payout
 
-/** `claim_payout()`: `stake + share_per_tier[tier]`, read from the finalised cohort. */
+/**
+ * `claim_payout()`: `stake + share_per_tier[tier]`, read from the finalised
+ * cohort, plus any comeback refund — `comeback_entitled`, scaled by what the
+ * reserve funded (FR-037e).
+ */
 export const claimPayoutIx = async (
   member: Address,
   skrMint: Address,

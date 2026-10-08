@@ -181,9 +181,13 @@ private fun PhonePage(stakes: Stakes, detected: CameraView?) {
             highlighted = detected == CameraView.OBLIQUE,
         )
     }
-    if (stakes == Stakes.STAKED) {
+    if (stakes.staked) {
         Text(
-            "Staked: at 45° only — not in front, not straight beside you.",
+            if (stakes == Stakes.EASY) {
+                "Easy: at 45° only — turned well to the side of you, not in front, not straight beside you."
+            } else {
+                "Staked: at 45° only — not in front, not straight beside you."
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = HoldoutColors.Accent,
             textAlign = TextAlign.Center,
@@ -209,6 +213,9 @@ private fun BodyPage(stakes: Stakes) {
             if (stakes == Stakes.STAKED) {
                 add("On your toes. Push-ups from the knees do not count.")
                 add("The phone must see your knees: turn your body a little away from it, so the leg nearer the phone shows clearly.")
+            } else if (stakes == Stakes.EASY) {
+                add("From your toes or from your knees — both count in an Easy Holdout.")
+                add("Body straight from shoulders to knees, and the phone must see your knees: turn a little away from it.")
             } else {
                 add("Body straight from shoulders to heels — or from the knees if you are building up. Both count for the Daily 25.")
             }
@@ -226,8 +233,8 @@ private fun StartPage(stakes: Stakes) {
             "Stop at any time with the button in the corner.",
         ),
     )
-    if (stakes == Stakes.STAKED) {
-        Text(Stakes.STAKED_RULE, style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.Accent, textAlign = TextAlign.Center)
+    if (stakes.staked) {
+        Text(if (stakes == Stakes.EASY) Stakes.EASY_RULE else Stakes.STAKED_RULE, style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.Accent, textAlign = TextAlign.Center)
     }
 }
 

@@ -27,13 +27,17 @@ import java.time.format.DateTimeParseException
  *
  * 1. `initialize`, signed by the **program's upgrade authority** (`--admin` or
  *    `HOLDOUT_ADMIN_KEYPAIR`), which the program checks (6003) — plus a fresh
- *    keypair for the mock SKR mint.
+ *    keypair for the mock SKR mint. It names the two fee destinations by their
+ *    wallets (H35, FR-037f): `--treasury` (operations) and `--developer`; the
+ *    program creates each wallet's SKR account.
  * 2. The first `publish_chip_set` from `--rate`, signed by the Operator
  *    (`HOLDOUT_OPERATOR_KEYPAIR`) — **before any league exists**, so no cohort
  *    can ever be opened against a zero chip set (6012, FR-055b).
- * 3. `create_league` for the 7-day (0) and 21-day (1) leagues on the devnet
- *    clock, first start Monday 5 October 2026 05:00 UTC unless
- *    `--first-start` says otherwise.
+ * 3. `create_league` for the 7-day (0) league as **Easy** (form 1, knees
+ *    allowed) and the 21-day (1) league as **Hard** (form 0, from the toes) —
+ *    H35 — on the devnet clock, first start Monday 5 October 2026 05:00 UTC
+ *    unless `--first-start` says otherwise. Each also creates the league's
+ *    reserve vault.
  * 4. With `--fund-faucet <sol>`, a transfer from the admin that tops the
  *    faucet vault up to that balance (research R13).
  *
@@ -43,7 +47,7 @@ import java.time.format.DateTimeParseException
  * the first transaction is sent.
  */
 object Init {
-    fun checkArgs(args: Args) = args.allow("admin", "operator", "sponsor", "treasury", "rate", "first-start", "fund-faucet")
+    fun checkArgs(args: Args) = args.allow("admin", "operator", "sponsor", "treasury", "developer", "rate", "first-start", "fund-faucet")
 
     private class Step(val name: String, val status: String, val detail: JsonObjectBuilder.() -> Unit = {})
 
@@ -87,7 +91,7 @@ object Init {
         }
         if (onChain != null) {
             // Fixed by `initialize`: re-running init cannot change them, and must not look as if it did.
-            listOf("operator", "sponsor", "treasury").filter { args.option(it) != null }.forEach {
+            listOf("operator", "sponsor", "treasury", "developer").filter { args.option(it) != null }.forEach {
                 notes += "--$it ignored: the program is already initialized; Config keeps its own"
             }
         }
@@ -112,6 +116,7 @@ object Init {
         val operator = if (onChain == null) pubkey(args, "operator") else onChain.operator
         val sponsor = if (needInitialize) pubkey(args, "sponsor") else null
         val treasury = if (needInitialize) pubkey(args, "treasury") else null
+        val developer = if (needInitialize) pubkey(args, "developer") else null
         val rate = if (needChips) args.option("rate") ?: configError("the chip set is not published yet: init needs --rate <usd-per-skr>") else null
         if (rate != null) {
             // Checked now, not at step 2, so a bad rate never leaves a program initialised and unpriced.
@@ -125,19 +130,23 @@ object Init {
         // ---- the steps -------------------------------------------------------
         val steps = mutableListOf<Step>()
         val dryRun = args.dryRun
+        // `create_league` names the SKR mint its reserve vault holds: the one Config already has, or the one about to be created.
+        val mint = if (needInitialize) newMint() else null
+        val skrMint = onChain?.skrMint ?: mint!!.publicKey
 
         steps +=
             if (!needInitialize) {
                 Step("initialize", "skipped") { put("admin", onChain!!.admin.base58()) }
             } else {
-                val mint = newMint()
-                val ix = Instructions.initialize(programId, admin!!.publicKey, mint.publicKey, operator, sponsor!!, treasury!!, FaucetParams())
+                val ix = Instructions.initialize(programId, admin!!.publicKey, mint!!.publicKey, operator, sponsor!!, treasury!!, developer!!, FaucetParams())
                 val signature = signAndSend(rpc, "initialize", listOf(ix), listOf(admin, mint), dryRun, pause)
                 Step("initialize", if (dryRun) "simulated" else "sent") {
                     signature?.let { put("signature", it) }
                     put("skrMint", mint.publicKey.base58())
                     put("admin", admin.publicKey.base58())
                     put("operator", operator.base58())
+                    put("treasury", treasury.base58())
+                    put("developer", developer.base58())
                 }
             }
         val live = !needInitialize || !dryRun
@@ -155,19 +164,26 @@ object Init {
 
         for (id in listOf(LeagueParams.LEAGUE_7D, LeagueParams.LEAGUE_21D)) {
             val name = "league $id"
+            val params = LeagueParams.judged(id, firstStart)
             steps +=
                 when {
                     id !in missingLeagues -> Step(name, "skipped")
                     // A league needs a published chip set (6012). In a dry run that
                     // publication was only simulated, so the league cannot be
                     // simulated against it: it is planned, as after a simulated initialize.
-                    !live || (dryRun && needChips) -> Step(name, "planned") { put("firstStart", firstStart) }
+                    !live || (dryRun && needChips) ->
+                        Step(name, "planned") {
+                            put("firstStart", firstStart)
+                            put("form", params.form)
+                        }
                     else -> {
-                        val ix = Instructions.createLeague(programId, admin!!.publicKey, LeagueParams.judged(id, firstStart))
+                        val ix = Instructions.createLeague(programId, admin!!.publicKey, skrMint, params)
                         val signature = signAndSend(rpc, "create_league $id", listOf(ix), listOf(admin), dryRun, pause)
                         Step(name, if (dryRun) "simulated" else "sent") {
                             signature?.let { put("signature", it) }
                             put("firstStart", firstStart)
+                            put("form", params.form)
+                            put("formName", LeagueParams.formName(params.form))
                         }
                     }
                 }
@@ -213,29 +229,46 @@ object Init {
 
     // ---- init --test-league (T091a, FR-044a) --------------------------------
 
-    fun checkTestLeagueArgs(args: Args) = args.allow("test-league", "admin", "league-id", "day-seconds", "reps", "days", "first-start", "cadence", "join-lock")
+    fun checkTestLeagueArgs(args: Args) = args.allow("test-league", "admin", "league-id", "day-seconds", "reps", "days", "form", "first-start", "cadence", "join-lock")
 
     /** The shortest day a test league may have: long enough for a sitting and a submission to land. */
     const val MIN_TEST_DAY_SECONDS = 60L
 
-    /** Joining closes this long before a test cohort starts unless `--join-lock` says otherwise. */
-    const val DEFAULT_TEST_JOIN_LOCK = 300L
+    /**
+     * Joining closes this long before a test cohort starts unless `--join-lock`
+     * says otherwise: never early. The next cohort opens only once this one has
+     * started, so any lock would leave the test lobby with nothing to join for
+     * that long in every cadence (FR-044a, 2026-10-07).
+     */
+    const val DEFAULT_TEST_JOIN_LOCK = 0L
 
     private const val INVALID_LEAGUE_TIMING = 6010
 
     /**
-     * The short test cohort, by default (decision H32, amended 2026-09-29): **a 7-day
-     * Holdout in 70 minutes** — seven 10-minute days at 5 reps a day, so a tester
-     * lives through a whole cycle in about an hour, without 175 push-ups.
+     * The short test lobby, by default (FR-044a, decision H36, 2026-10-06; was
+     * seven days, H32): **three 10-minute days at 5 reps a day, a new cohort every
+     * 30 minutes**, so a single judge lives through a whole cycle in about an hour,
+     * waiting at most half an hour for the next start.
      */
     const val DEFAULT_TEST_DAY_SECONDS = 600L
-    const val DEFAULT_TEST_DAYS = 7L
+    const val DEFAULT_TEST_DAYS = 3L
     const val DEFAULT_TEST_REPS = 5L
+
+    /** A test league is Easy (knees allowed) unless `--form` says otherwise: its default shape is the 7-day Holdout's (H35). */
+    const val DEFAULT_TEST_FORM = LeagueParams.FORM_KNEES_ALLOWED
+
+    /** `--form easy|hard`, or the program's own number (1 or 0). */
+    fun parseForm(text: String): Int = when (text.trim().lowercase()) {
+        "easy", "knees", "1" -> LeagueParams.FORM_KNEES_ALLOWED
+        "hard", "toes", "0" -> LeagueParams.FORM_TOES
+        else -> configError("--form must be easy (1, knees allowed) or hard (0, from the toes), got $text")
+    }
 
     /**
      * The short test league's parameters from the command line (quickstart §5):
      * `--first-start` is required — any instant the admin chooses; `--day-seconds`,
-     * `--days` and `--reps` default to seven 10-minute days at 5 reps;
+     * `--days` and `--reps` default to three 10-minute days at 5 reps; `--form`
+     * to Easy ([DEFAULT_TEST_FORM]);
      * `--cadence` defaults to back-to-back cohorts (`days × day-seconds`) and
      * `--join-lock` to [DEFAULT_TEST_JOIN_LOCK].
      */
@@ -248,6 +281,7 @@ object Init {
         val daySeconds = number("day-seconds", MIN_TEST_DAY_SECONDS..HoldoutDay.SECONDS_PER_DAY, DEFAULT_TEST_DAY_SECONDS)
         val reps = number("reps", 1L..65_535L, DEFAULT_TEST_REPS)
         val days = number("days", 1L..255L, DEFAULT_TEST_DAYS)
+        val form = args.option("form")?.let(::parseForm) ?: DEFAULT_TEST_FORM
         val firstStart =
             args.option("first-start")?.let {
                 try {
@@ -259,7 +293,7 @@ object Init {
         // Cohorts may overlap: a new one every few minutes lets a tester join at any time.
         val cadence = args.option("cadence")?.let { number("cadence", MIN_TEST_DAY_SECONDS..Long.MAX_VALUE / 1024) } ?: (days * daySeconds)
         val joinLock = args.option("join-lock")?.let { number("join-lock", 0L..cadence) } ?: minOf(DEFAULT_TEST_JOIN_LOCK, cadence)
-        return LeagueParams(leagueId.toInt(), days.toInt(), reps.toInt(), LeagueParams.EXERCISE_PUSHUP, firstStart, daySeconds, cadence, joinLock)
+        return LeagueParams(leagueId.toInt(), days.toInt(), reps.toInt(), LeagueParams.EXERCISE_PUSHUP, form, firstStart, daySeconds, cadence, joinLock)
     }
 
     /**
@@ -294,6 +328,8 @@ object Init {
             put("address", leagueAddress.base58())
             put("durationDays", p.durationDays)
             put("repsPerDay", p.repsPerDay)
+            put("form", p.form)
+            put("formName", LeagueParams.formName(p.form))
             put("daySeconds", p.dayLength)
             put("firstStart", p.firstStart)
             put("cadence", p.cadence)
@@ -301,6 +337,23 @@ object Init {
         }
 
         if (existing != null) {
+            // A league's shape is fixed for life, so re-running with the same shape is
+            // a no-op — but asking for a different one (the test lobby's three days
+            // where league 100 was made with seven, H36) must not pass for success.
+            val e = existing.params
+            val sameShape = e.durationDays == params.durationDays &&
+                e.repsPerDay == params.repsPerDay &&
+                e.dayLength == params.dayLength &&
+                e.cadence == params.cadence &&
+                e.joinLock == params.joinLock &&
+                e.form == params.form
+            if (!sameShape) {
+                configError(
+                    "league ${params.leagueId} already exists as ${e.durationDays} days of ${e.dayLength} s, ${e.repsPerDay} reps, a cohort every ${e.cadence} s " +
+                        "(${LeagueParams.formName(e.form)}), and a league never changes; pass --league-id with a free id (100..255) for " +
+                        "${params.durationDays} days of ${params.dayLength} s, a cohort every ${params.cadence} s",
+                )
+            }
             return buildJsonObject {
                 put("command", "init --test-league")
                 put("status", "skipped")
@@ -323,7 +376,7 @@ object Init {
 
         val signature =
             try {
-                signAndSend(rpc, "create_league ${params.leagueId}", listOf(Instructions.createLeague(programId, admin.publicKey, params)), listOf(admin), args.dryRun, pause)
+                signAndSend(rpc, "create_league ${params.leagueId}", listOf(Instructions.createLeague(programId, admin.publicKey, onChain.skrMint, params)), listOf(admin), args.dryRun, pause)
             } catch (e: CrankException) {
                 if (ProgramErrorCode.of(e.message) == INVALID_LEAGUE_TIMING) {
                     configError("the program at $programId refuses a test league: it was built without the test-leagues feature (6010, FR-044a)")

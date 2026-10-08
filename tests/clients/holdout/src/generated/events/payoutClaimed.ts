@@ -12,18 +12,26 @@ export const PAYOUT_CLAIMED_EVENT_DISCRIMINATOR: ReadonlyUint8Array = new Uint8A
 
 export function getPayoutClaimedEventDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(PAYOUT_CLAIMED_EVENT_DISCRIMINATOR); }
 
-export type PayoutClaimedEvent = { cohort: Address; wallet: Address; amount: bigint;  };
+export type PayoutClaimedEvent = { cohort: Address; wallet: Address; 
+/** Everything paid: stake, share and any comeback refund. */
+amount: bigint; 
+/** The comeback refund within `amount` (FR-037e). */
+comeback: bigint;  };
 
-export type PayoutClaimedEventArgs = { cohort: Address; wallet: Address; amount: number | bigint;  };
+export type PayoutClaimedEventArgs = { cohort: Address; wallet: Address; 
+/** Everything paid: stake, share and any comeback refund. */
+amount: number | bigint; 
+/** The comeback refund within `amount` (FR-037e). */
+comeback: number | bigint;  };
 
 /** Gets the encoder for {@link PayoutClaimedEventArgs} event data. */
 export function getPayoutClaimedEventEncoder(): FixedSizeEncoder<PayoutClaimedEventArgs> {
-    return getHiddenPrefixEncoder(getStructEncoder([['cohort', getAddressEncoder()], ['wallet', getAddressEncoder()], ['amount', getU64Encoder()]]), [getConstantEncoder(PAYOUT_CLAIMED_EVENT_DISCRIMINATOR)]);
+    return getHiddenPrefixEncoder(getStructEncoder([['cohort', getAddressEncoder()], ['wallet', getAddressEncoder()], ['amount', getU64Encoder()], ['comeback', getU64Encoder()]]), [getConstantEncoder(PAYOUT_CLAIMED_EVENT_DISCRIMINATOR)]);
 }
 
 /** Gets the decoder for {@link PayoutClaimedEvent} event data. */
 export function getPayoutClaimedEventDecoder(): FixedSizeDecoder<PayoutClaimedEvent> {
-    return getHiddenPrefixDecoder(getStructDecoder([['cohort', getAddressDecoder()], ['wallet', getAddressDecoder()], ['amount', getU64Decoder()]]), [getConstantDecoder(PAYOUT_CLAIMED_EVENT_DISCRIMINATOR)]);
+    return getHiddenPrefixDecoder(getStructDecoder([['cohort', getAddressDecoder()], ['wallet', getAddressDecoder()], ['amount', getU64Decoder()], ['comeback', getU64Decoder()]]), [getConstantDecoder(PAYOUT_CLAIMED_EVENT_DISCRIMINATOR)]);
 }
 
 /** Gets the codec for {@link PayoutClaimedEvent} event data. */

@@ -6,7 +6,8 @@ package holdout.repcounter
  * | | placements | what is verified |
  * |---|---|---|
  * | [DAILY] — the free Daily 25 | **head-on or at 45°** | depth, lockout, tempo, torso down / no hip fold. **Push-ups from the knees count** — a free habit for building strength |
- * | [STAKED] — money on it | **at 45° only** | all of that, and **knees off the floor** |
+ * | [STAKED] — a **Hard** Holdout (form 0, 21-day) | **at 45° only** | all of that, and **knees off the floor** |
+ * | [EASY] — an **Easy** Holdout (form 1, 7-day; H35) | **at 45°, and no more frontal than about 40°** | everything Hard checks — the legs and knees in view, the body line, the hip rise — **except** knees off the floor: push-ups from the knees count |
  *
  * Knee push-ups are a choice for the Daily 25, not a limitation it lives with:
  * members building up to full push-ups keep their habit. Staked sittings are
@@ -24,13 +25,20 @@ package holdout.repcounter
 enum class Stakes {
     DAILY,
     STAKED,
+    EASY,
     ;
+
+    /** Money is on it: 45° only, the legs and knees kept in view (FR-021a). */
+    val staked: Boolean get() = this != DAILY
+
+    /** Knees must be off the floor: Hard only. Easy and the Daily 25 count push-ups from the knees. */
+    val judgesKnees: Boolean get() = this == STAKED
 
     /** The views a sitting at these stakes may be measured from. */
     val allowedViews: Set<CameraView>
         get() = when (this) {
             DAILY -> setOf(CameraView.FRONT, CameraView.OBLIQUE)
-            STAKED -> setOf(CameraView.OBLIQUE)
+            STAKED, EASY -> setOf(CameraView.OBLIQUE)
         }
 
     /** Whether a sitting at these stakes may be measured from [view]. */
@@ -40,7 +48,7 @@ enum class Stakes {
     val cameraFix: String
         get() = when (this) {
             DAILY -> "Put the phone in front of you, or at 45°"
-            STAKED -> "Turn the phone to 45°"
+            STAKED, EASY -> "Turn the phone to 45°"
         }
 
     companion object {
@@ -54,5 +62,27 @@ enum class Stakes {
             "Staked Holdouts are counted at 45°: stand the phone on the floor ahead of your shoulder, " +
                 "turned to look at you at about 45° — not in front, not straight beside you — " +
                 "and do full push-ups from your toes. Push-ups from the knees do not count."
+
+        /** The Easy rule, read on the join screen of a 7-day Holdout (H35). */
+        const val EASY_RULE =
+            "Easy Holdouts are counted at 45°: stand the phone on the floor ahead of your shoulder, " +
+                "turned to look at you at about 45° — not in front, not straight beside you. " +
+                "Push-ups from the knees count; keep your body in one straight line from the knees."
+
+        /**
+         * The Easy placement guard (H35): at a placement ratio this high or
+         * higher the phone stands more frontal than about 40°, and an Easy
+         * sitting will not start. On the recorded traces every 30° set read a
+         * median of 0.98–1.03 and every 40–60° set 0.37–0.87; the two cobras
+         * that counted with knees allowed were both filmed at about 30°.
+         */
+        const val EASY_MAX_PLACEMENT_RATIO = 0.90f
+
+        /** The stakes a cohort of this form is counted at: 0 Hard, 1 Easy. Null for a form this build does not know. */
+        fun ofForm(form: Int): Stakes? = when (form) {
+            0 -> STAKED
+            1 -> EASY
+            else -> null
+        }
     }
 }
