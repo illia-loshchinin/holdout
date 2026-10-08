@@ -25,6 +25,8 @@ class RepRatchetTest {
         val worse = baseline.values.mapNotNull { was ->
             val r = now[was.key]
             when {
+                // A count where no rep was labelled that is no longer made: better, not gone.
+                r == null && was.label == RepLabels.UNLABELLED_COUNT -> null
                 r == null -> "${describe(was)} → its label is gone"
                 r.state < was.state -> "${describe(was)} → ${r.state.name.lowercase()} (${r.verdict})"
                 else -> null

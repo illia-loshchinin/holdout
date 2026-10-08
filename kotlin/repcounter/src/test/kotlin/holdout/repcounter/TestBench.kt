@@ -33,10 +33,21 @@ data class RepLabels(val meta: Map<String, String>, val reps: List<Rep>) {
 
     companion object {
         /**
-         * What should count: `honest`, and in the Daily 25 a push-up from the knees,
-         * which it counts by design — benched as `knees-daily`. `unsure` is left out.
+         * What should count: `honest`, and wherever knees are not judged — the
+         * Daily 25 and an Easy Holdout ([Stakes.judgesKnees]) — a push-up from the
+         * knees, counted by design: benched as `knees-daily` (the name predates
+         * Easy; the baseline keeps it). `unsure` is left out.
          */
         const val KNEES_DAILY = "knees-daily"
+
+        /** How a [label] is benched in a sitting at [stakes]: a knee rep counts where knees are not judged. */
+        fun kind(stakes: Stakes, label: String): String = if (label == "knees" && !stakes.judgesKnees) KNEES_DAILY else label
+
+        /**
+         * A rep today's counter counts where no label lies: nobody has said what it
+         * was, so it is held as wrong until someone labels it ([benchSitting]).
+         */
+        const val UNLABELLED_COUNT = "unlabelled-count"
         val SHOULD_COUNT = setOf("honest", KNEES_DAILY)
         val CHEATS = listOf("half", "knees", "floor", "cobra", "sag", "other")
 
@@ -167,15 +178,18 @@ fun Trace.Recording.notScoredBecause(): String? = when {
  * exactly one: the same movement, ended a little sooner or later by a counter
  * whose top has moved (on 1 Oct a rep held at the top before locking out ended
  * a second earlier than when recorded). A stretch the counter now cuts into
- * several reps pairs with none. A label still unpaired is returned in the
- * second list: the counter cuts that stretch of the sitting differently.
+ * several reps pairs with none. A label still unpaired is returned in
+ * [BenchSitting.missing]: the counter cuts that stretch of the sitting
+ * differently. A rep counted where no label lies is returned in
+ * [BenchSitting.unlabelledCounts]: a count nobody has vouched for, which a
+ * change to the counter must not add unseen (review, PR #14).
  */
-fun benchSitting(name: String, recording: Trace.Recording, labels: RepLabels, toleranceMillis: Long = 400): Pair<List<BenchRep>, List<RepLabels.Rep>> {
-    val view = recording.countingView ?: return emptyList<BenchRep>() to labels.reps
+fun benchSitting(name: String, recording: Trace.Recording, labels: RepLabels, toleranceMillis: Long = 400): BenchSitting {
+    val view = recording.countingView ?: return BenchSitting(emptyList(), labels.reps, emptyList())
     val counter = RepCounter(view = view, stakes = recording.stakes)
     for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
     val counting = recording.countingFrames
-    val t0 = counting.firstOrNull()?.world?.timestampMillis ?: return emptyList<BenchRep>() to labels.reps
+    val t0 = counting.firstOrNull()?.world?.timestampMillis ?: return BenchSitting(emptyList(), labels.reps, emptyList())
     val events = counting.mapNotNull { frame ->
         counter.onFrame(frame.world, frame.image)?.let { frame.world.timestampMillis to it }
     }
@@ -202,11 +216,15 @@ fun benchSitting(name: String, recording: Trace.Recording, labels: RepLabels, to
             is RepEvent.Discarded -> event.hint?.name ?: "refused"
         }
         // The Daily 25 counts push-ups from the knees: there a knees label should count.
-        val kind = if (recording.stakes == Stakes.DAILY && label.label == "knees") RepLabels.KNEES_DAILY else label.label
+        val kind = RepLabels.kind(recording.stakes, label.label)
         BenchRep(name, labels.person, placement, (t - t0) / 1000f, kind, label.note, verdict, label.by, label.flagged, label.claudeNote, label.hint, label.endMillis)
     }
-    return judged to labels.reps.filter { it !in pairs.values && it.label != "unsure" }
+    val unlabelledCounts = events.filter { (t, event) -> event is RepEvent.Counted && t !in pairs }.map { it.first }
+    return BenchSitting(judged, labels.reps.filter { it !in pairs.values && it.label != "unsure" }, unlabelledCounts)
 }
+
+/** One sitting on the bench: its judged labelled reps, the labels no judged rep landed near, and reps counted where no label lies (trace times). */
+data class BenchSitting(val judged: List<BenchRep>, val missing: List<RepLabels.Rep>, val unlabelledCounts: List<Long>)
 
 /**
  * `./gradlew :repcounter:testBench [-Ptraces=<dir>] [-Pgate]` — every labelled
@@ -230,6 +248,7 @@ fun main(args: Array<String>) {
 
     val reps = mutableListOf<BenchRep>()
     val lost = mutableListOf<String>()
+    val strays = mutableListOf<String>()
     val unlabelled = mutableListOf<String>()
     val notStarted = mutableListOf<String>()
     for (trace in traces) {
@@ -245,7 +264,7 @@ fun main(args: Array<String>) {
             continue
         }
         val labels = RepLabels.parse(labelsFile.readLines())
-        val (judged, missing) = benchSitting(name, recording, labels)
+        val (judged, missing, unlabelledCounts) = benchSitting(name, recording, labels)
         reps += judged
         // A labelled rep today's counter does not judge at all counts nothing: scored
         // as not judged — a miss for one that should count, right for a cheat — as the
@@ -253,10 +272,12 @@ fun main(args: Array<String>) {
         val t0 = recording.countingFrames.firstOrNull()?.timestampMillis ?: 0L
         val placement = listOfNotNull(recording.placement, recording.phoneSide).joinToString(" ").ifEmpty { "?" }
         for (m in missing) {
-            val kind = if (recording.stakes == Stakes.DAILY && m.label == "knees") RepLabels.KNEES_DAILY else m.label
+            val kind = RepLabels.kind(recording.stakes, m.label)
             reps += BenchRep(name, labels.person, placement, (m.endMillis - t0) / 1000f, kind, m.note, Ratchet.NOT_JUDGED, m.by, m.flagged, m.claudeNote, m.hint, m.endMillis)
             lost += "$name: a ${m.label} rep ending at t=${m.endMillis} has no judged rep near it today"
         }
+        val t0Counted = recording.countingFrames.firstOrNull()?.timestampMillis ?: 0L
+        unlabelledCounts.forEach { strays += "$name: counted at %.1f s into counting (t=$it), where no rep is labelled".format((it - t0Counted) / 1000f) }
     }
 
     fun pct(n: Int, of: Int) = if (of == 0) "-" else "%.0f %%".format(100.0 * n / of)
@@ -265,7 +286,7 @@ fun main(args: Array<String>) {
     println("## Gate — honest (and Daily 25 knees) counted ≥ 98 %, each cheat counted ≤ 2 %\n")
     println("| label | reps | counted | refused | rate | gate |")
     println("|---|---|---|---|---|---|")
-    fun shown(label: String) = if (label == RepLabels.KNEES_DAILY) "knees (Daily 25, counts)" else label
+    fun shown(label: String) = if (label == RepLabels.KNEES_DAILY) "knees (Daily 25 / Easy, counts)" else label
     for (label in RepLabels.SHOULD_COUNT.toList() + RepLabels.CHEATS + RepLabels.UNSEEN) {
         val group = reps.filter { it.label == label }
         if (group.isEmpty()) continue
@@ -320,6 +341,11 @@ fun main(args: Array<String>) {
     val unconfirmed = reps.count { it.by == "claude" }
     if (unconfirmed > 0) println("\n$unconfirmed labels set by Claude are not yet confirmed by a reviewer.")
     if (lost.isNotEmpty()) println("\n## Labels with no judged rep near them\n\n" + lost.joinToString("\n") { "- $it" })
+    // A count nobody vouched for fails the gate until it is labelled: the count it adds is real.
+    if (strays.isNotEmpty()) {
+        failures += "counted where no rep is labelled"
+        println("\n## Counted where no rep is labelled (${strays.size}) — label them\n\n" + strays.joinToString("\n") { "- $it" })
+    }
     if (notStarted.isNotEmpty()) {
         println("\n## Not scored: sittings today's app would not record as they were (${notStarted.size})\n\n" + notStarted.joinToString("\n") { "- $it" })
     }

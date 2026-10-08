@@ -57,15 +57,18 @@ object Ratchet {
             val name = TraceFiles.name(trace)
             val recording = Trace.parse(TraceFiles.lines(trace))
             if (recording.notScoredBecause() != null) continue
-            val (judged, missing) = benchSitting(name, recording, RepLabels.parse(labelsFile.readLines()))
+            val (judged, missing, unlabelledCounts) = benchSitting(name, recording, RepLabels.parse(labelsFile.readLines()))
             judged.forEach { reps += RatchetRep(name, it.labelT, it.label, it.state(), it.verdict) }
             // A label no judged rep lands near is a rep the counter does not see: it counts
             // nothing — wrong for a rep that should count, right for a cheat.
             for (m in missing) {
-                val kind = if (recording.stakes == Stakes.DAILY && m.label == "knees") RepLabels.KNEES_DAILY else m.label
+                val kind = RepLabels.kind(recording.stakes, m.label)
                 val state = if (kind in RepLabels.SHOULD_COUNT) RepState.WRONG else RepState.RIGHT
                 reps += RatchetRep(name, m.endMillis, kind, state, NOT_JUDGED)
             }
+            // A rep counted where nobody labelled one: held as wrong, so a change that
+            // starts counting between labelled reps shows up as new until it is labelled.
+            unlabelledCounts.forEach { reps += RatchetRep(name, it, RepLabels.UNLABELLED_COUNT, RepState.WRONG, "counted") }
         }
         return reps.sortedWith(compareBy({ it.fixture }, { it.t }))
     }

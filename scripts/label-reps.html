@@ -146,7 +146,7 @@ const HINTS = {
   SLOW_DOWN: 'Slow down',
   LEGS_IN_VIEW: 'Keep your legs in the picture',
 };
-const said = (verdict) => (verdict === 'counted' ? 'counted' : verdict === 'not-judged' ? 'no rep seen' : HINTS[verdict] ?? verdict);
+const said = (verdict) => (verdict === 'counted' ? 'counted' : verdict === 'not-judged' ? 'no rep seen' : verdict === 'not-recorded' ? 'not recorded' : HINTS[verdict] ?? verdict);
 const $ = (id) => document.getElementById(id);
 const video = $('video'), overlay = $('overlay');
 
@@ -277,7 +277,9 @@ function sidesOf(trace) {
 }
 
 /** `<sitting>.today.csv`: today's counter's verdict per trace time (todayVerdicts). */
+/** Today's verdicts by trace time, or null when the replay has not run (no file): an empty file is a replay that judged nothing. */
 function parseToday(text) {
+  if (text === null) return null;
   const byT = new Map();
   for (const l of text.split(/\r?\n/)) if (/^\d/.test(l)) { const [t, v] = l.split(','); byT.set(Number(t), v); }
   return byT;
@@ -292,7 +294,7 @@ function parseToday(text) {
  */
 const NOT_JUDGED = 'not-judged';
 function todayAt(t) {
-  if (!S?.today?.size) return undefined;
+  if (!S?.today) return undefined;
   let best;
   for (const [k, v] of S.today) if (Math.abs(k - t) <= 400 && (!best || Math.abs(k - t) < Math.abs(best[0] - t))) best = [k, v];
   if (best) return best[1];
@@ -304,9 +306,33 @@ function todayAt(t) {
 /** What judges a rep now: today's verdict when the replay has been run, else the recorded one. */
 const verdictOf = (r) => todayAt(r.end) ?? r.verdict;
 
-/** Each judged rep: from the end of the one before (or the start of counting) to its own event. */
-function repsOf(trace) {
+/**
+ * Reps today's counter counts where the recording has none: a replayed count
+ * near no recorded rep, and not the one count inside a recorded rep's stretch
+ * (how [todayAt] pairs them). The recorded counter never ended a rep there — it
+ * missed a real push-up, or today's counts one too many — so until now nobody
+ * could label it. Each is listed as a rep of its own (review, PR #14).
+ */
+const NOT_RECORDED = 'not-recorded';
+function onlyToday(trace, today) {
+  if (!today) return new Set();
+  const ends = trace.rows.filter((r) => r[1] === 'COUNTING' && r[r.length - 1]).map((r) => Number(r[0]));
+  const times = [...today.keys()];
+  const claimed = new Set();
+  ends.forEach((e, i) => {
+    const near = times.filter((k) => Math.abs(k - e) <= 400);
+    if (near.length) { near.forEach((k) => claimed.add(k)); return; }
+    const from = i > 0 ? ends[i - 1] : -Infinity;
+    const inside = times.filter((k) => k > from && k <= e + 400 && !ends.some((o) => o !== e && Math.abs(o - k) <= 400));
+    if (inside.length === 1) claimed.add(inside[0]);
+  });
+  return new Set([...today].filter(([k, v]) => v === 'counted' && !claimed.has(k)).map(([k]) => k));
+}
+
+/** Each judged rep: from the end of the one before (or the start of counting) to its own event — recorded, or only today's ([onlyToday]). */
+function repsOf(trace, today) {
   const reps = [];
+  const extra = onlyToday(trace, today);
   const elbowAt = trace.col('elbow');
   let from = null, stretch = [];
   for (const r of trace.rows) {
@@ -314,7 +340,7 @@ function repsOf(trace) {
     const t = Number(r[0]);
     if (from === null) from = t;
     stretch.push([t, Number(r[elbowAt])]);
-    const ev = r[r.length - 1];
+    const ev = r[r.length - 1] || (extra.has(t) ? NOT_RECORDED : '');
     if (!ev) continue;
     reps.push({ start: from, clipStart: movementStart(stretch, from), end: t, verdict: ev.replace('discarded:', '') });
     from = t;
@@ -398,13 +424,17 @@ async function goQueue(i) {
  */
 async function refreshSitting() {
   if (!S) return;
+  // The sitting this read is for: another may be open by the time it returns.
+  const base = S.base;
   // A save still to run, or running, would be read back half-written: wait for it.
   if (saveTimer) { clearTimeout(saveTimer); writeNow(); }
   await saving;
   const [labelsText, todayText] = await Promise.all([
-    fetch(`/files/${S.base}.labels.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')),
-    fetch(`/files/${S.base}.today.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')),
+    fetch(`/files/${base}.labels.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')),
+    fetch(`/files/${base}.today.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : null)),
   ]);
+  // Put into another sitting, these labels would be saved over that one's file.
+  if (!S || S.base !== base) return;
   S.labels = parseLabels(labelsText);
   S.today = parseToday(todayText);
   $('reviewed').checked = Boolean(S.labels.meta.reviewed);
@@ -434,16 +464,17 @@ async function open(base, atT) {
     fetch(`/files/${base}.trace.csv`).then((r) => r.text()),
     fetch(`/files/${base}.video.json`).then((r) => r.json()),
     fetch(`/files/${base}.labels.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')),
-    fetch(`/files/${base}.today.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')),
+    fetch(`/files/${base}.today.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : null)),
   ]);
   const trace = parseTrace(traceText);
+  const today = parseToday(todayText);
   const labels = parseLabels(labelsText);
   S = {
     base, trace, labels,
     hasVideo: SITTINGS.find((s) => s.base === base)?.video !== false,
     wasComplete: false,
-    today: parseToday(todayText),
-    reps: repsOf(trace),
+    today,
+    reps: repsOf(trace, today),
     sides: sidesOf(trace),
     startedMs: meta.startedElapsedRealtimeNanos / 1e6,
     // The trace runs about half a second behind the video on the Seeker.
@@ -479,16 +510,16 @@ function renderList() {
     const cls = { ok: 'match', words: 'words', bad: 'miss' }[q] ?? '';
     const marks = `${l?.flag === 'check' ? '<span class="flag" title="ticked for review and fixing">⚑</span>' : ''}${l?.flag === 'answered' ? '<span class="flag" title="Claude answered">✉</span>' : ''}${l?.by === 'claude' ? '<span class="by-claude" title="set by Claude; press its key to confirm">C</span>' : ''}`;
     const now = todayAt(r.end), changed = now !== undefined && now !== r.verdict;
-    const allowed = l?.label === 'knees' && daily() && verdictOf(r) === 'counted' ? ' <span class="was">knees allowed</span>' : '';
+    const allowed = l?.label === 'knees' && kneesCount() && verdictOf(r) === 'counted' ? ' <span class="was">knees allowed</span>' : '';
     const v = `${said(verdictOf(r))}${allowed}${changed ? ` <span class="was" title="when recorded">was ${said(r.verdict)}</span>` : ''}`;
     return `<li class="${i === current ? 'on' : ''}" data-i="${i}"><span class="n">${i + 1}</span><span class="tm">${mmss(vt(r.end))}</span><span class="verdict">${v}</span><span class="tag ${cls}">${l ? l.label : '·'}</span><span>${marks}</span></li>`;
   }).join('');
   for (const li of $('reps').children) li.onclick = () => show(Number(li.dataset.i));
 }
 
-/** What should count: an honest rep — and in the Daily 25, which counts them by design, one from the knees. */
-const daily = () => S?.trace.facts.stakes === 'DAILY';
-const shouldCount = (label) => label === 'honest' || (label === 'knees' && daily());
+/** What should count: an honest rep — and where knees are not judged (the Daily 25, an Easy Holdout), one from the knees. */
+const kneesCount = () => ['DAILY', 'EASY'].includes(S?.trace.facts.stakes);
+const shouldCount = (label) => label === 'honest' || (label === 'knees' && kneesCount());
 
 /** Whether the app's verdict agrees with the label: undefined when unlabelled or unsure. */
 function verdictMatches(r) {
@@ -528,8 +559,8 @@ function show(i, replay = true) {
   $('hint').value = l?.hint ?? '';
   for (const b of $('labelButtons').children) b.classList.toggle('on', b.dataset.label === l?.label);
   const byText = l ? (l.by === 'claude' ? ' · label set by Claude — press its key to confirm' : ' · label yours') : '';
-  const kneesAllowed = l?.label === 'knees' && daily();
-  const words = (v) => (v === 'counted' ? (kneesAllowed ? 'counted (knees allowed in the Daily 25)' : 'counted') : `refused — "${said(v)}"`);
+  const kneesAllowed = l?.label === 'knees' && kneesCount();
+  const words = (v) => (v === 'counted' ? (kneesAllowed ? 'counted (knees allowed here)' : 'counted') : `refused — "${said(v)}"`);
   const now = todayAt(r.end);
   const verdictText = now === undefined ? `the app: <strong>${words(r.verdict)}</strong>`
     : now === r.verdict ? `the app, recorded and today: <strong>${words(now)}</strong>`
@@ -776,7 +807,8 @@ async function loadPrune() {
   $('pruneBtn').onclick = async () => {
     const list = due.map((v) => `${v.base} — finished ${v.finished}, ${v.mb} MB`).join('\n');
     if (!confirm(`Delete these videos? Their traces and labels stay; the skeleton still plays.\n\n${list}`)) return;
-    await fetch('/api/prune', { method: 'POST' });
+    // A header a cross-site form cannot send: without it the server deletes nothing.
+    await fetch('/api/prune', { method: 'POST', headers: { 'X-Label-Reps': 'prune' } });
     location.reload();
   };
 }

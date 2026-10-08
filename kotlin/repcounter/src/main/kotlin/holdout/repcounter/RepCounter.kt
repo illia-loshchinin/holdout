@@ -506,6 +506,14 @@ class RepCounter(
         return postureHeld(view, reading, posture, rules)
     }
 
+    /**
+     * Enough of a plank on the toes, read through the countdown, for the legs on
+     * each push to be judged against it ([RepRules.minLegsShareOfHeld]). Where
+     * knees are judged, counting must not start without it: the check would pass
+     * every rep (review, PR #14).
+     */
+    val plankCalibrated: Boolean get() = heldLegs.size >= MIN_HELD_FRAMES
+
     /** The legs on the push fell well under this person's own plank ([RepRules.minLegsShareOfHeld]). Unknown passes. */
     private fun legsDroppedFromPlank(): Boolean {
         if (heldLegs.size < MIN_HELD_FRAMES) return false
@@ -514,9 +522,8 @@ class RepCounter(
     }
 
     /** Lying on the back, or standing: not a body in push-up position at all ([RepRules.maxKneeAboveHip]). Unknown passes. */
-    private fun notFaceDown(): Boolean =
-        cycleKneeAboveHip.medianOrNull()?.let { it > rules.maxKneeAboveHip } == true ||
-            cycleAnkleBelowHand.medianOrNull()?.let { it > rules.maxAnkleBelowHand } == true
+    private fun notFaceDown(): Boolean = cycleKneeAboveHip.medianOrNull()?.let { it > rules.maxKneeAboveHip } == true ||
+        cycleAnkleBelowHand.medianOrNull()?.let { it > rules.maxAnkleBelowHand } == true
 
     private fun hipRise(): Float? {
         val hipAtTop = topHips.medianOrNull()?.takeIf { it > 0f } ?: return null

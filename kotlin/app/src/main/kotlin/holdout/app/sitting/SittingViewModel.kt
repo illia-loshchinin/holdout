@@ -331,13 +331,14 @@ class SittingViewModel(
                 )
                 _uiState.update { it.withFrame(observation).copy(preflight = report) }
                 record(observation, countingView)
-                // Staked, knees coming down stops the countdown as a moved phone does:
-                // the counter calibrates on this plank. Arms bending is not checked —
-                // people start down on "1".
+                // Hard: the counter calibrates on this plank, so the plank must stay one
+                // it can read — knees coming down, a knee it cannot place, or the body
+                // out of line stop the countdown as a moved phone does (review, PR #14).
+                // Arms bending is not checked — people start down on "1".
                 val kneesDown = stakes == Stakes.STAKED &&
                     readyGate.run {
                         onFrame(observation.world, observation.world.timestampMillis, pillsGreen = true, view = countingView, image = observation.imagePose())
-                        blocker == HoldBlocker.KNEES
+                        blocker in PLANK_BLOCKERS
                     }
                 val holds = report.canStart && report.view == countingView && !kneesDown
                 synchronized(countdownLock) {
@@ -426,7 +427,9 @@ class SittingViewModel(
             // decide whether counting may begin. An abort that already happened,
             // or a check failing at this very moment, wins over the timer.
             if (_uiState.value.step != Step.COUNTDOWN) return
-            if (countdownGuard.isFailing) {
+            // Hard, and no plank read through the countdown: the legs on each push could
+            // not be judged against this person's own, and every rep would pass that check.
+            if (countdownGuard.isFailing || (stakes == Stakes.STAKED && !repCounter.plankCalibrated)) {
                 backToChecks()
                 return
             }
@@ -601,6 +604,9 @@ class SittingViewModel(
     private companion object {
         const val COACH_SETTLE_MILLIS = 700L
         const val COACH_REPEAT_MILLIS = 5_000L
+
+        /** What stops a Hard countdown: a plank the counter could not calibrate on. */
+        val PLANK_BLOCKERS = setOf(HoldBlocker.KNEES, HoldBlocker.KNEES_UNREADABLE, HoldBlocker.BODY)
     }
 
     /** The guide was closed. [dontShowAgain] is remembered for this wallet and these stakes. */

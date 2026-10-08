@@ -129,10 +129,14 @@ function writeLabels(path, meta, reps) {
   writeFileSync(path, lines.join('\n') + '\n');
 }
 
-/** Today's counter's verdict per trace time, from `<sitting>.today.csv`; empty when not written. */
+/**
+ * Today's counter's verdict per trace time, from `<sitting>.today.csv`; null
+ * when not written. An empty map is a replay that judged nothing — every rep
+ * then reads "no rep seen", not the verdict recorded on the phone.
+ */
 function today(base) {
+  if (!existsSync(`${base}.today.csv`)) return null;
   const byT = new Map();
-  if (!existsSync(`${base}.today.csv`)) return byT;
   for (const l of readFileSync(`${base}.today.csv`, 'utf8').split(/\r?\n/)) {
     if (!/^\d/.test(l)) continue;
     const [t, v] = l.split(',');
@@ -143,6 +147,7 @@ function today(base) {
 
 /** The value at the time nearest [t], within 400 ms: a counter that cut reps a little differently still lines up. */
 function near(byT, t) {
+  if (!byT) return undefined;
   let best = null;
   for (const [k, v] of byT) if (Math.abs(k - t) <= 400 && (best === null || Math.abs(k - t) < Math.abs(best[0] - t))) best = [k, v];
   return best?.[1];
@@ -154,6 +159,27 @@ function within(byT, ends, t) {
   const from = i > 0 ? ends[i - 1] : -Infinity;
   const inside = [...byT].filter(([k]) => k > from && k <= t + 400 && !ends.some((e) => e !== t && Math.abs(e - k) <= 400));
   return inside.length === 1 ? inside[0][1] : undefined;
+}
+
+/**
+ * Trace times where today's counter counts a rep the recording has none for:
+ * near no recorded rep, and not the one count inside a recorded rep's stretch
+ * (as [near] and [within] pair them). The recorded counter missed a push-up
+ * there, or today's counts one too many — either way nobody could label it
+ * until it is listed (review, PR #14). The page lists the same reps.
+ */
+function onlyToday(byT, ends) {
+  if (!byT) return [];
+  const times = [...byT.keys()];
+  const claimed = new Set();
+  ends.forEach((e, i) => {
+    const close = times.filter((k) => Math.abs(k - e) <= 400);
+    if (close.length) return close.forEach((k) => claimed.add(k));
+    const from = i > 0 ? ends[i - 1] : -Infinity;
+    const inside = times.filter((k) => k > from && k <= e + 400 && !ends.some((o) => o !== e && Math.abs(o - k) <= 400));
+    if (inside.length === 1) claimed.add(inside[0]);
+  });
+  return [...byT].filter(([k, v]) => v === 'counted' && !claimed.has(k)).map(([k]) => k);
 }
 
 /**
@@ -176,12 +202,19 @@ function queue() {
       // Once the replay has run, a rep it judged nothing near — nor one rep alone
       // inside its stretch (as the page and the bench pair them) — is one today's
       // counter does not see.
-      const verdict = near(now, t) ?? (now.size ? within(now, ends, t) ?? 'not-judged' : was);
+      const verdict = near(now, t) ?? (now ? within(now, ends, t) ?? 'not-judged' : was);
       const wrong = l && l.label !== 'unsure' && shouldCount(l.label, stakes) !== (verdict === 'counted');
       const rank = !l ? 3 : l.flag === 'answered' ? 0 : l.by === 'claude' ? (wrong ? 1 : 2) : null;
       if (rank === null) continue;
       const why = ['Claude answered', "Claude's label: the app disagrees", "Claude's label", 'not labelled'][rank];
       items.push({ base, t, rank, why, label: l?.label ?? '', verdict });
+    }
+    for (const t of onlyToday(now, ends)) {
+      const l = byT.get(t);
+      const rank = !l ? 3 : l.flag === 'answered' ? 0 : l.by === 'claude' ? 2 : null;
+      if (rank === null) continue;
+      const why = ['Claude answered', '', "Claude's label", 'not recorded: only today counts it'][rank];
+      items.push({ base, t, rank, why, label: l?.label ?? '', verdict: 'counted' });
     }
   }
   const order = sittings().map((x) => x.base);
@@ -208,13 +241,13 @@ function reply() {
   console.log(`answered ${base} t=${t}`);
 }
 
-/** STAKED or DAILY, from the trace's header. */
+/** STAKED, EASY or DAILY, from the trace's header. */
 function stakesOf(tracePath) {
   return /stakes=(\w+)/.exec(readFileSync(tracePath, 'utf8').slice(0, 400))?.[1] ?? 'STAKED';
 }
 
-/** What should count: honest — and in the Daily 25, which counts them by design, a push-up from the knees. */
-const shouldCount = (label, stakes) => label === 'honest' || (label === 'knees' && stakes === 'DAILY');
+/** What should count: honest — and where knees are not judged (the Daily 25, an Easy Holdout), a push-up from the knees. */
+const shouldCount = (label, stakes) => label === 'honest' || (label === 'knees' && (stakes === 'DAILY' || stakes === 'EASY'));
 
 /** The verdict the app wrote at each trace time, and when counting began. */
 function verdicts(tracePath) {
@@ -267,8 +300,16 @@ const fixtures = join(here, '..', 'fixtures', 'rep-traces');
 const DAY = 24 * 3600 * 1000;
 const RETAIN_DAYS = 30;
 
-/** Every labels file under the root that is ticked "Sitting finished", with its sitting's base path. */
+/**
+ * Every labels file under the root that is ticked "Sitting finished" **and**
+ * whose every label a reviewer has confirmed, with its sitting's base path. A
+ * label Claude set is not ground truth until confirmed: promoted, it would be
+ * held by the ratchet; pruned, its video would go before anyone checked it
+ * (review, PR #14). Those finished but not confirmed are in [unconfirmed].
+ */
+const unconfirmed = [];
 function finished() {
+  unconfirmed.length = 0;
   const out = [];
   const walk = (dir) => readdirSync(dir, { withFileTypes: true }).forEach((e) => {
     const p = join(dir, e.name);
@@ -276,8 +317,11 @@ function finished() {
     if (!e.name.endsWith('.labels.csv')) return;
     const base = p.slice(0, -'.labels.csv'.length);
     if (!existsSync(`${base}.trace.csv`)) return;
-    const { meta } = readLabels(p);
-    if (meta.reviewed) out.push({ base, name: base.split(sep).pop(), meta });
+    const { meta, reps } = readLabels(p);
+    if (!meta.reviewed) return;
+    const byClaude = reps.filter((r) => r.by === 'claude').length;
+    if (byClaude) unconfirmed.push(`${relative(root, base).split(sep).join('/')}: ${byClaude} label(s) set by Claude, not confirmed`);
+    else out.push({ base, name: base.split(sep).pop(), meta });
   });
   walk(root);
   return out;
@@ -334,6 +378,7 @@ function promote() {
     else if (readFileSync(target, 'utf8') !== before) refreshed++;
     console.log(`${isNew ? 'promoted ' : 'labels   '} ${relative(root, s.base).split(sep).join('/')} -> fixtures/rep-traces/${fixture}`);
   }
+  if (unconfirmed.length) console.log(`\nNot promoted — finished, but with labels a reviewer has not confirmed:\n  ${unconfirmed.join('\n  ')}`);
   console.log(`\n${added} promoted, ${refreshed} with new labels. Next: cd kotlin && ./gradlew :repcounter:updateBaseline, then commit fixtures/rep-traces/.`);
 }
 
@@ -390,6 +435,13 @@ createServer((req, res) => {
   }
   if (url.pathname === '/api/prune') {
     // GET lists the videos due for deletion; POST deletes exactly those, after the page asked.
+    // Only from this page: any site can post a form to 127.0.0.1, but not with a custom
+    // header, and a browser names the page a request came from (review, PR #14).
+    const own = [`http://localhost:${port}`, `http://127.0.0.1:${port}`];
+    if (req.method === 'POST' && (req.headers['x-label-reps'] !== 'prune' || (req.headers.origin && !own.includes(req.headers.origin)))) {
+      res.writeHead(403);
+      return res.end();
+    }
     const due = dueVideos();
     if (req.method === 'POST') deleteVideos(due);
     res.writeHead(200, { 'Content-Type': types['.json'] });
