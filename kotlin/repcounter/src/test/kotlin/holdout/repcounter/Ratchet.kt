@@ -49,7 +49,9 @@ object Ratchet {
      * lands near included (verdict [NOT_JUDGED]). A sitting today's app would
      * not start, or that it read in another picture than today's, is left out
      * ([notScoredBecause]); so is every label set by Claude and not yet
-     * confirmed by a reviewer.
+     * confirmed by a reviewer. One whose countdown today's app would stop is
+     * kept: its reps are real movements, and holding them only makes a rule
+     * harder to change unseen (owner, 8 Oct).
      */
     fun today(dir: File): List<RatchetRep> {
         val reps = mutableListOf<RatchetRep>()
@@ -57,7 +59,7 @@ object Ratchet {
             val labelsFile = TraceFiles.labels(trace).takeIf { it.exists() } ?: continue
             val name = TraceFiles.name(trace)
             val recording = Trace.parse(TraceFiles.lines(trace))
-            if (recording.notScoredBecause() != null) continue
+            if (recording.notScoredBecause(countdown = false) != null) continue
             // A label Claude set and no reviewer has confirmed is not ground truth: the ratchet
             // holds none of them (review, PR #14). The bench still shows them, as unconfirmed.
             val labels = RepLabels.parse(labelsFile.readLines()).let { it.copy(reps = it.reps.filter { r -> r.by != "claude" }) }

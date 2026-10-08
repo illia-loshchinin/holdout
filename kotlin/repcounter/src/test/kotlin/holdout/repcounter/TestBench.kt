@@ -146,6 +146,34 @@ fun Trace.Recording.primedCounter(): RepCounter? {
 fun Trace.Recording.heldPlacementRatio(): Float? = primedCounter()?.calibratedPlacementRatio
 
 /**
+ * What would stop today's countdown on this recording, or null when it runs to
+ * "go": frame by frame, the pose checks of [Preflight] passing at 45° and the plank
+ * staying one the counter can read ([ReadyGate.plankBlocker]), held to the
+ * [CountdownGuard]'s grace, and nothing failing on the last frame — as
+ * SittingViewModel judges it. Light and background motion are not in the trace;
+ * they passed on the phone, and pass here (review, PR #14).
+ */
+fun Trace.Recording.countdownStopsBecause(): String? {
+    val preflight = Preflight(stakes = stakes)
+    val gate = ReadyGate(stakes = stakes)
+    val guard = CountdownGuard()
+    var failing: String? = null
+    for (frame in countdownFrames) {
+        val report = preflight.evaluate(PreflightInput(brightness = 0.5f, backgroundMotion = 0f, world = frame.world, image = frame.image.frame, imagePose = frame.image))
+        gate.onFrame(frame.world, frame.timestampMillis, pillsGreen = true, view = CameraView.OBLIQUE, image = frame.image)
+        val why = when {
+            !report.canStart -> report.fixes.firstOrNull() ?: "a check failed"
+            report.view != CameraView.OBLIQUE -> "the phone read ${report.view?.name?.lowercase() ?: "nowhere"}, not 45°"
+            else -> gate.plankBlocker?.fix
+        }
+        if (why != null && failing == null) failing = why
+        if (why == null) failing = null
+        if (guard.shouldAbort(frame.timestampMillis, holds = why == null)) return "today's countdown stops: $why"
+    }
+    return failing?.takeIf { guard.isFailing }?.let { "today's countdown stops at go: $it" }
+}
+
+/**
  * Why today's app would not start this sitting, or null when it would. Since 8 Oct
  * no sitting is counted but at 45°, and none starts counting without a plank held
  * through the countdown to read the placement from — on Hard, a plank on the toes
@@ -156,14 +184,15 @@ fun Trace.Recording.heldPlacementRatio(): Float? = primedCounter()?.calibratedPl
  * phone any more, so they are neither scored nor held by the ratchet: from in
  * front the body line reads 127–143° on straight bodies (29 Sep), head-on knees and
  * cobras read as honest reps, and no rule should be bent to fit a sitting the app
- * refuses (review, PR #14).
+ * refuses (review, PR #14). [countdown] false leaves out [countdownStopsBecause].
  */
-fun Trace.Recording.notStartedBecause(): String? {
+fun Trace.Recording.notStartedBecause(countdown: Boolean = true): String? {
     val counter = primedCounter() ?: return when (countingView) {
         null -> "never started counting"
         CameraView.FRONT -> "head-on, where no sitting is counted since 8 Oct"
         else -> "side-on, where no sitting is counted since 8 Oct"
     }
+    if (countdown) countdownStopsBecause()?.let { return it }
     if (!counter.placementCalibrated) return "no plank held through the countdown to read the placement from, which today's app does not start"
     if (stakes == Stakes.STAKED && !counter.plankCalibrated) return "no plank on the toes held through the countdown, which a Hard sitting needs to start"
     val frontLine = if (stakes == Stakes.STAKED) RepRules().maxHipRisePlacementRatio else Stakes.EASY_MAX_PLACEMENT_RATIO
@@ -183,10 +212,10 @@ fun Trace.Recording.startsToday(): Boolean = notStartedBecause() == null
  */
 fun Trace.Recording.inTodaysPicture(): Boolean = frames.firstOrNull()?.image?.let { it.width * 4 == it.height * 3 } != false
 
-/** Why this sitting is left out of the bench score and the ratchet, or null when it is scored. */
-fun Trace.Recording.notScoredBecause(): String? = when {
+/** Why this sitting is left out of the bench score and the ratchet ([countdown] false: kept in the ratchet), or null when it is scored. */
+fun Trace.Recording.notScoredBecause(countdown: Boolean = true): String? = when {
     !inTodaysPicture() -> frames.first().image.let { "read in a ${it.width}×${it.height} crop, not today's 4:3 picture" }
-    else -> notStartedBecause()
+    else -> notStartedBecause(countdown)
 }
 
 /**
