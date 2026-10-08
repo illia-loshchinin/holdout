@@ -138,6 +138,9 @@ function today(base) {
   if (!existsSync(`${base}.today.csv`)) return null;
   const byT = new Map();
   for (const l of readFileSync(`${base}.today.csv`, 'utf8').split(/\r?\n/)) {
+    // A sitting today's app would not record: no verdicts, and why (TodayVerdicts).
+    const skip = /^#\s*not counted:\s*(.*)$/.exec(l);
+    if (skip) byT.notCounted = skip[1].trim();
     if (!/^\d/.test(l)) continue;
     const [t, v] = l.split(',');
     byT.set(Number(t), v);
@@ -351,7 +354,10 @@ function finished() {
     if (!now) unconfirmed.push(`${name}: today's replay not run — cd kotlin && ./gradlew :repcounter:todayVerdicts`);
     if (byClaude) unconfirmed.push(`${name}: ${byClaude} label(s) set by Claude, not confirmed`);
     if (unlabelled) unconfirmed.push(`${name}: ${unlabelled} rep(s) not labelled`);
-    if (now && !byClaude && !unlabelled) out.push({ base, name: base.split(sep).pop(), meta });
+    // Not counted by today's app: no replay looked for the reps the recording missed, so its
+    // labels are not known to be whole — never promoted, its video never pruned (review, PR #14).
+    if (now?.notCounted) unconfirmed.push(`${name}: today's app does not count it (${now.notCounted})`);
+    if (now && !now.notCounted && !byClaude && !unlabelled) out.push({ base, name: base.split(sep).pop(), meta });
   });
   walk(root);
   return out;

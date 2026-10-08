@@ -19,7 +19,9 @@ import java.time.format.DateTimeFormatter
  * not record as it was — the bench's [notScoredBecause]: an old picture, not at
  * 45°, no plank held through the countdown, in front of its band — gets a replay
  * with no verdicts and the reason, never verdicts for reps that can no longer
- * happen, nor an old file left from a counter that judged them (review, PR #14).
+ * happen, nor an old file left from a counter that judged them (review, PR #14);
+ * the labelling tool never promotes it or prunes its video. One only today's
+ * countdown would stop is replayed and says so: the ratchet holds its labels.
  */
 fun main(args: Array<String>) {
     val dir = File(args.firstOrNull() ?: "../phone_traces")
@@ -32,7 +34,10 @@ fun main(args: Array<String>) {
             val recording = runCatching { Trace.parse(trace.readLines()) }.getOrNull() ?: return@forEach
             // The same sittings the bench scores and the ratchet holds: no verdict at all
             // for one today's app would not record, and why, said in the file.
-            val notScored = recording.notScoredBecause()
+            // One whose countdown today's app would stop is still replayed: the ratchet holds
+            // its labels (owner, 8 Oct), so the reps the recording missed must be labelled too.
+            val notScored = recording.notScoredBecause(countdown = false)
+            val stops = recording.countdownStopsBecause().takeIf { notScored == null }
             val counter = recording.primedCounter()
             val lines = if (notScored != null || counter == null) {
                 emptyList()
@@ -45,7 +50,10 @@ fun main(args: Array<String>) {
                     }
                 }
             }
-            val skipped = listOfNotNull(notScored?.let { "# not counted: $it" })
+            val skipped = listOfNotNull(
+                notScored?.let { "# not counted: $it" },
+                stops?.let { "# not scored on the bench, held by the ratchet: $it" },
+            )
             File(trace.path.removeSuffix(".trace.csv") + ".today.csv")
                 .writeText((listOf("# holdout-today-verdicts v1", "# replayed=$stamp") + skipped + "t,verdict" + lines).joinToString("\n", postfix = "\n"))
             written++
