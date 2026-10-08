@@ -481,7 +481,12 @@ class RepCounter(
     private val placement = Preflight()
     private val heldRatios = mutableListOf<Float>()
 
-    /** Legs above hands through the countdown with the arms straight: this person's plank ([RepRules.minLegsShareOfHeld]). */
+    /**
+     * Legs above hands through the countdown with the arms straight and the knees
+     * seen off the floor: this person's plank on the toes ([RepRules.minLegsShareOfHeld]).
+     * Where knees count, a member may hold the countdown from the knees; no
+     * reference is taken from that, so a knee rep cannot match a kneeling plank.
+     */
     private val heldLegs = mutableListOf<Float>()
     private var heldRatio: Float? = null
 
@@ -640,7 +645,9 @@ class RepCounter(
         // knee reps then match (review, 4 Oct).
         if (priming && image != null && elbow >= rules.obliqueTopDegrees && readyPlank(reading, posture)) {
             placement.placementRatio(image.frame, Aspect.xScale(image.width, image.height))?.let { heldRatios += it }
-            (reading as? ViewReading.Angled)?.legsAboveHands?.let { heldLegs += it }
+            (reading as? ViewReading.Angled)?.let { angled ->
+                if (kneesSeenOffFloor(angled.knee, angled.legsAboveHands, rules)) angled.legsAboveHands?.let { heldLegs += it }
+            }
         }
         calibrateTop(elbow)
         val straight = postureHeld(view, reading, posture, rules)
@@ -798,6 +805,9 @@ class RepCounter(
             unseen -> RepStance.NOT_VISIBLE
             !kneesOffFloor(pushKnees.medianOrNull(), pushLegs.medianOrNull(), rules, descentKnees.medianOrNull()) -> RepStance.KNEES
             !kneesOffFloor(descentKnees.medianOrNull(), null, rules) -> RepStance.KNEES
+            // Hard's own-plank rule too: a second person's knee reps clear the line set on
+            // one body, and would be claimed for the toes (PR #14 review).
+            legsDroppedFromPlank() -> RepStance.KNEES
             else -> RepStance.TOES
         }
     }

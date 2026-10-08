@@ -146,7 +146,7 @@ const HINTS = {
   SLOW_DOWN: 'Slow down',
   LEGS_IN_VIEW: 'Keep your legs in the picture',
 };
-const said = (verdict) => (verdict === 'counted' ? 'counted' : verdict === 'not-judged' ? 'no rep seen' : verdict === 'not-recorded' ? 'not recorded' : HINTS[verdict] ?? verdict);
+const said = (verdict) => (verdict === 'counted' ? 'counted' : verdict === 'not-judged' ? 'no rep seen' : verdict === 'not-recorded' ? 'not recorded' : verdict === 'labelled-only' ? 'labelled earlier' : HINTS[verdict] ?? verdict);
 const $ = (id) => document.getElementById(id);
 const video = $('video'), overlay = $('overlay');
 
@@ -295,13 +295,11 @@ function parseToday(text) {
 const NOT_JUDGED = 'not-judged';
 function todayAt(t) {
   if (!S?.today) return undefined;
-  let best;
-  for (const [k, v] of S.today) if (Math.abs(k - t) <= 400 && (!best || Math.abs(k - t) < Math.abs(best[0] - t))) best = [k, v];
-  if (best) return best[1];
-  const i = S.reps.findIndex((r) => r.end === t);
-  const from = i > 0 ? S.reps[i - 1].end : -Infinity;
-  const inside = [...S.today].filter(([k]) => k > from && k <= t + 400 && !S.reps.some((r) => r.end !== t && Math.abs(r.end - k) <= 400));
-  return inside.length === 1 ? inside[0][1] : NOT_JUDGED;
+  const k = S.pairing.get(t);
+  if (k !== undefined) return S.today.get(k);
+  // A rep only today's counter counts is judged by that count itself.
+  if (!S.recorded.has(t) && S.today.has(t)) return S.today.get(t);
+  return NOT_JUDGED;
 }
 /** What judges a rep now: today's verdict when the replay has been run, else the recorded one. */
 const verdictOf = (r) => todayAt(r.end) ?? r.verdict;
@@ -314,31 +312,54 @@ const verdictOf = (r) => todayAt(r.end) ?? r.verdict;
  * could label it. Each is listed as a rep of its own (review, PR #14).
  */
 const NOT_RECORDED = 'not-recorded';
-function onlyToday(trace, today) {
-  if (!today) return new Set();
-  const ends = trace.rows.filter((r) => r[1] === 'COUNTING' && r[r.length - 1]).map((r) => Number(r[0]));
+/**
+ * Which replay count judges each recorded rep — one count per rep, as the test
+ * bench pairs them: each count, in order, takes the nearest recorded rep within
+ * 400 ms not yet taken; a rep still without one takes the one count left inside
+ * its stretch (after the rep before it, on no other rep), when there is exactly
+ * one. Recorded reps can end 200 ms apart, so a count is never given to two.
+ * Map: recorded rep's end → the replay count's time.
+ */
+function pairToday(today, ends) {
+  const pairs = new Map();
+  if (!today) return pairs;
   const times = [...today.keys()].sort((a, b) => a - b);
-  // One replay event per recorded rep, as the test bench pairs them: each event, in
-  // order, takes the nearest recorded rep within 400 ms not yet taken. A second count
-  // near the same rep is left over — a count of its own, to be labelled.
-  const claimed = new Set(), paired = new Set();
+  const taken = new Set();
   for (const k of times) {
-    const e = ends.filter((x) => !paired.has(x) && Math.abs(x - k) <= 400).sort((a, b) => Math.abs(a - k) - Math.abs(b - k))[0];
+    const e = ends.filter((x) => !pairs.has(x) && Math.abs(x - k) <= 400).sort((a, b) => Math.abs(a - k) - Math.abs(b - k))[0];
     if (e === undefined) continue;
-    paired.add(e);
-    claimed.add(k);
+    pairs.set(e, k);
+    taken.add(k);
   }
   ends.forEach((e, i) => {
-    if (paired.has(e)) return;
+    if (pairs.has(e)) return;
     const from = i > 0 ? ends[i - 1] : -Infinity;
-    const inside = times.filter((k) => !claimed.has(k) && k > from && k <= e + 400 && !ends.some((o) => o !== e && Math.abs(o - k) <= 400));
-    if (inside.length === 1) claimed.add(inside[0]);
+    const inside = times.filter((k) => !taken.has(k) && k > from && k <= e + 400 && !ends.some((o) => o !== e && Math.abs(o - k) <= 400));
+    if (inside.length === 1) {
+      pairs.set(e, inside[0]);
+      taken.add(inside[0]);
+    }
   });
-  return new Set([...today].filter(([k, v]) => v === 'counted' && !claimed.has(k)).map(([k]) => k));
+  return pairs;
 }
 
-/** Each judged rep: from the end of the one before (or the start of counting) to its own event — recorded, or only today's ([onlyToday]). */
-function repsOf(trace, today) {
+/** The trace times the recording ended a rep at. */
+const recordedEnds = (trace) => trace.rows.filter((r) => r[1] === 'COUNTING' && r[r.length - 1]).map((r) => Number(r[0]));
+
+function onlyToday(trace, today) {
+  if (!today) return new Set();
+  const paired = new Set(pairToday(today, recordedEnds(trace)).values());
+  return new Set([...today].filter(([k, v]) => v === 'counted' && !paired.has(k)).map(([k]) => k));
+}
+
+/**
+ * A labelled rep no candidate stands at any more — a count the counter has since
+ * stopped making. Listed, so its label is seen, and kept in the file (review, PR #14).
+ */
+const LABELLED_ONLY = 'labelled-only';
+
+/** Each judged rep: from the end of the one before (or the start of counting) to its own event — recorded, only today's ([onlyToday]), or only labelled. */
+function repsOf(trace, today, labelled = new Set()) {
   const reps = [];
   const extra = onlyToday(trace, today);
   const elbowAt = trace.col('elbow');
@@ -348,7 +369,7 @@ function repsOf(trace, today) {
     const t = Number(r[0]);
     if (from === null) from = t;
     stretch.push([t, Number(r[elbowAt])]);
-    const ev = r[r.length - 1] || (extra.has(t) ? NOT_RECORDED : '');
+    const ev = r[r.length - 1] || (extra.has(t) ? NOT_RECORDED : labelled.has(t) ? LABELLED_ONLY : '');
     if (!ev) continue;
     reps.push({ start: from, clipStart: movementStart(stretch, from), end: t, verdict: ev.replace('discarded:', '') });
     from = t;
@@ -445,6 +466,7 @@ async function refreshSitting() {
   if (!S || S.base !== base) return;
   S.labels = parseLabels(labelsText);
   S.today = parseToday(todayText);
+  S.pairing = pairToday(S.today, [...S.recorded]);
   $('reviewed').checked = Boolean(S.labels.meta.reviewed);
   show(current, false);
 }
@@ -477,12 +499,15 @@ async function open(base, atT) {
   const trace = parseTrace(traceText);
   const today = parseToday(todayText);
   const labels = parseLabels(labelsText);
+  const ends = recordedEnds(trace);
   S = {
     base, trace, labels,
     hasVideo: SITTINGS.find((s) => s.base === base)?.video !== false,
     wasComplete: false,
     today,
-    reps: repsOf(trace, today),
+    recorded: new Set(ends),
+    pairing: pairToday(today, ends),
+    reps: repsOf(trace, today, new Set(labels.byT.keys())),
     sides: sidesOf(trace),
     startedMs: meta.startedElapsedRealtimeNanos / 1e6,
     // The trace runs about half a second behind the video on the Seeker.
@@ -767,9 +792,11 @@ async function write() {
     delete meta.holdout;
     S.labels.meta = meta;
     const lines = ['# holdout-rep-labels v2', ...Object.entries(meta).filter(([, v]) => v !== '' && v !== undefined).map(([k, v]) => `# ${k}=${v}`), 't,label,by,flag,hint,note,claude,reply'];
-    for (const r of S.reps) {
-      const l = S.labels.byT.get(r.end);
-      if (l) lines.push([r.end, l.label, l.by, l.flag, l.hint ?? '', oneLine(l.note), oneLine(l.claude), oneLine(l.reply)].map((v) => csvField(String(v ?? ''))).join(','));
+    // Every label row, in time order — one whose rep is no longer a candidate too: a count
+    // the counter stopped making is still the evidence that it once made it.
+    for (const t of [...S.labels.byT.keys()].sort((a, b) => a - b)) {
+      const l = S.labels.byT.get(t);
+      lines.push([t, l.label, l.by, l.flag, l.hint ?? '', oneLine(l.note), oneLine(l.claude), oneLine(l.reply)].map((v) => csvField(String(v ?? ''))).join(','));
     }
     const res = await fetch(`/files/${S.base}.labels.csv`, { method: 'PUT', body: lines.join('\n') + '\n' });
     $('status').textContent = res.ok ? `saved ${new Date().toLocaleTimeString()}` : `NOT saved (${res.status})`;

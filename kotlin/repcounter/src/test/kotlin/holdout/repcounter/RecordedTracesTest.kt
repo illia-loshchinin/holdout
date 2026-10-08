@@ -147,6 +147,28 @@ class RecordedTracesTest {
     }
 
     @Test
+    fun `the same knee push-ups count in a Daily 25, and the toes meter does not claim them for the toes`() {
+        // The Daily 25 counts knee reps by design, but tags each with whether Hard would
+        // have: against this person's own plank on the toes, these are knees (PR #14 review).
+        val recording = Trace.parse(traces().single { it.name == "angled40-right-mixed-19.trace.csv" }.readLines())
+        fun timed(stakes: Stakes): Map<Long, RepEvent> {
+            val counter = RepCounter(view = recording.countingView!!, stakes = stakes)
+            for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
+            return recording.countingFrames.mapNotNull { f -> counter.onFrame(f.world, f.image)?.let { f.timestampMillis to it } }.toMap()
+        }
+        val hard = timed(Stakes.STAKED)
+        val daily = timed(Stakes.DAILY)
+        // Every rep Hard refuses as knees down that the Daily 25 counts is tagged as knees.
+        val kneesDown = hard.filterValues { it == RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES) }.keys
+        val countedDaily = kneesDown.mapNotNull { daily[it] as? RepEvent.Counted }
+        assertTrue(countedDaily.size >= 4, "the knee reps count in a Daily 25: ${kneesDown.map { daily[it] }}")
+        assertEquals(List(countedDaily.size) { RepStance.KNEES }, countedDaily.map { it.stance })
+        // And every rep Hard counts is on the toes.
+        val countedHard = hard.filterValues { it is RepEvent.Counted }.keys
+        assertTrue(countedHard.all { (daily[it] as? RepEvent.Counted)?.stance == RepStance.TOES }, "Hard's reps are toes reps")
+    }
+
+    @Test
     fun `a rep pushed up from lying on the floor is refused - the body must come up as one piece`() {
         // Phone on the left at 45°: eleven full reps, five from the knees, two cobras, then
         // three let down onto the floor and pushed up from there. One of those had counted.

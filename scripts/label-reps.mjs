@@ -145,20 +145,35 @@ function today(base) {
   return byT;
 }
 
-/** The value at the time nearest [t], within 400 ms: a counter that cut reps a little differently still lines up. */
-function near(byT, t) {
-  if (!byT) return undefined;
-  let best = null;
-  for (const [k, v] of byT) if (Math.abs(k - t) <= 400 && (best === null || Math.abs(k - t) < Math.abs(best[0] - t))) best = [k, v];
-  return best?.[1];
-}
-
-/** The one value inside the stretch of the rep ending at [t] (after the rep before it, on no other rep); undefined for none or several. */
-function within(byT, ends, t) {
-  const i = ends.indexOf(t);
-  const from = i > 0 ? ends[i - 1] : -Infinity;
-  const inside = [...byT].filter(([k]) => k > from && k <= t + 400 && !ends.some((e) => e !== t && Math.abs(e - k) <= 400));
-  return inside.length === 1 ? inside[0][1] : undefined;
+/**
+ * Which replay count judges each recorded rep — one count per rep, as the test
+ * bench pairs them: each count, in order, takes the nearest recorded rep within
+ * 400 ms not yet taken; a rep still without one takes the one count left inside
+ * its stretch (after the rep before it, on no other rep), when there is exactly
+ * one. Recorded reps can end 200 ms apart, so a count is never given to two.
+ * Map: recorded rep's end → the replay count's time.
+ */
+function pairToday(today, ends) {
+  const pairs = new Map();
+  if (!today) return pairs;
+  const times = [...today.keys()].sort((a, b) => a - b);
+  const taken = new Set();
+  for (const k of times) {
+    const e = ends.filter((x) => !pairs.has(x) && Math.abs(x - k) <= 400).sort((a, b) => Math.abs(a - k) - Math.abs(b - k))[0];
+    if (e === undefined) continue;
+    pairs.set(e, k);
+    taken.add(k);
+  }
+  ends.forEach((e, i) => {
+    if (pairs.has(e)) return;
+    const from = i > 0 ? ends[i - 1] : -Infinity;
+    const inside = times.filter((k) => !taken.has(k) && k > from && k <= e + 400 && !ends.some((o) => o !== e && Math.abs(o - k) <= 400));
+    if (inside.length === 1) {
+      pairs.set(e, inside[0]);
+      taken.add(inside[0]);
+    }
+  });
+  return pairs;
 }
 
 /**
@@ -170,24 +185,8 @@ function within(byT, ends, t) {
  */
 function onlyToday(byT, ends) {
   if (!byT) return [];
-  const times = [...byT.keys()].sort((a, b) => a - b);
-  // One replay event per recorded rep, as the test bench pairs them: each event, in
-  // order, takes the nearest recorded rep within 400 ms not yet taken. A second count
-  // near the same rep is left over — a count of its own, to be labelled.
-  const claimed = new Set(), paired = new Set();
-  for (const k of times) {
-    const e = ends.filter((x) => !paired.has(x) && Math.abs(x - k) <= 400).sort((a, b) => Math.abs(a - k) - Math.abs(b - k))[0];
-    if (e === undefined) continue;
-    paired.add(e);
-    claimed.add(k);
-  }
-  ends.forEach((e, i) => {
-    if (paired.has(e)) return;
-    const from = i > 0 ? ends[i - 1] : -Infinity;
-    const inside = times.filter((k) => !claimed.has(k) && k > from && k <= e + 400 && !ends.some((o) => o !== e && Math.abs(o - k) <= 400));
-    if (inside.length === 1) claimed.add(inside[0]);
-  });
-  return [...byT].filter(([k, v]) => v === 'counted' && !claimed.has(k)).map(([k]) => k);
+  const paired = new Set(pairToday(byT, ends).values());
+  return [...byT].filter(([k, v]) => v === 'counted' && !paired.has(k)).map(([k]) => k);
 }
 
 /**
@@ -205,12 +204,13 @@ function queue() {
     const labels = existsSync(`${abs}.labels.csv`) ? readLabels(`${abs}.labels.csv`).reps : [];
     const byT = new Map(labels.map((r) => [r.t, r]));
     const ends = [...recorded.keys()];
+    const pairing = pairToday(now, ends);
     for (const [t, was] of recorded) {
       const l = byT.get(t);
       // Once the replay has run, a rep it judged nothing near — nor one rep alone
       // inside its stretch (as the page and the bench pair them) — is one today's
       // counter does not see.
-      const verdict = near(now, t) ?? (now ? within(now, ends, t) ?? 'not-judged' : was);
+      const verdict = now ? (pairing.has(t) ? now.get(pairing.get(t)) : 'not-judged') : was;
       const wrong = l && l.label !== 'unsure' && shouldCount(l.label, stakes) !== (verdict === 'counted');
       const rank = !l ? 3 : l.flag === 'answered' ? 0 : l.by === 'claude' ? (wrong ? 1 : 2) : null;
       if (rank === null) continue;
@@ -327,9 +327,16 @@ function finished() {
     if (!existsSync(`${base}.trace.csv`)) return;
     const { meta, reps } = readLabels(p);
     if (!meta.reviewed) return;
+    const name = relative(root, base).split(sep).join('/');
     const byClaude = reps.filter((r) => r.by === 'claude').length;
-    if (byClaude) unconfirmed.push(`${relative(root, base).split(sep).join('/')}: ${byClaude} label(s) set by Claude, not confirmed`);
-    else out.push({ base, name: base.split(sep).pop(), meta });
+    // "Sitting finished" is ticked by hand: every rep a candidate — recorded, or counted
+    // only today — must have a label too, or a half-labelled sitting becomes ground truth.
+    const labelled = new Set(reps.map((r) => r.t));
+    const ends = [...verdicts(`${base}.trace.csv`).keys()];
+    const unlabelled = [...ends, ...onlyToday(today(base), ends)].filter((t) => !labelled.has(t)).length;
+    if (byClaude) unconfirmed.push(`${name}: ${byClaude} label(s) set by Claude, not confirmed`);
+    if (unlabelled) unconfirmed.push(`${name}: ${unlabelled} rep(s) not labelled`);
+    if (!byClaude && !unlabelled) out.push({ base, name: base.split(sep).pop(), meta });
   });
   walk(root);
   return out;
@@ -386,7 +393,7 @@ function promote() {
     else if (readFileSync(target, 'utf8') !== before) refreshed++;
     console.log(`${isNew ? 'promoted ' : 'labels   '} ${relative(root, s.base).split(sep).join('/')} -> fixtures/rep-traces/${fixture}`);
   }
-  if (unconfirmed.length) console.log(`\nNot promoted — finished, but with labels a reviewer has not confirmed:\n  ${unconfirmed.join('\n  ')}`);
+  if (unconfirmed.length) console.log(`\nNot promoted — ticked finished, but not every rep has a label a reviewer confirmed:\n  ${unconfirmed.join('\n  ')}`);
   console.log(`\n${added} promoted, ${refreshed} with new labels. Next: cd kotlin && ./gradlew :repcounter:updateBaseline, then commit fixtures/rep-traces/.`);
 }
 
