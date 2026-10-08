@@ -357,13 +357,33 @@ function finished() {
   return out;
 }
 
-/** The fixture a sitting was promoted to: the fixtures labels file whose `source=` names it. */
-function promotedAs(name) {
+/**
+ * The fixture a sitting was promoted to: the fixtures labels file whose `source=`
+ * names it, holding the same recording. The name alone is not enough — two
+ * sittings in different folders can share a timestamp, and the second would take
+ * over the first's fixture (review, PR #14).
+ */
+function promotedAs(s) {
+  const want = fingerprint(`${s.base}.trace.csv`);
   for (const f of readdirSync(fixtures)) {
     if (!f.endsWith('.labels.csv')) continue;
-    if (readLabels(join(fixtures, f)).meta.source === name) return f.slice(0, -'.labels.csv'.length);
+    if (readLabels(join(fixtures, f)).meta.source !== s.name) continue;
+    const fixture = f.slice(0, -'.labels.csv'.length), trace = fixtureTrace(fixture);
+    if (trace && fingerprint(trace) === want) return fixture;
   }
   return null;
+}
+
+/** A fixture's trace file, gzipped or not; null when it has none. */
+function fixtureTrace(fixture) {
+  return [`${fixture}.trace.csv.gz`, `${fixture}.trace.csv`].map((f) => join(fixtures, f)).find((f) => existsSync(f)) ?? null;
+}
+
+/** A fixture name for a new recording: the sitting's own, numbered when another recording already has it. */
+function freeName(name) {
+  let fixture = name;
+  for (let n = 2; fixtureTrace(fixture) || existsSync(join(fixtures, `${fixture}.labels.csv`)); n++) fixture = `${name}-${n}`;
+  return fixture;
 }
 
 /**
@@ -396,7 +416,7 @@ function sameRecording(base) {
 function promote() {
   let added = 0, refreshed = 0;
   for (const s of finished()) {
-    const fixture = promotedAs(s.name) ?? sameRecording(s.base) ?? s.name;
+    const fixture = promotedAs(s) ?? sameRecording(s.base) ?? freeName(s.name);
     const traceGz = join(fixtures, `${fixture}.trace.csv.gz`), traceCsv = join(fixtures, `${fixture}.trace.csv`);
     const isNew = !existsSync(traceGz) && !existsSync(traceCsv);
     if (isNew) writeFileSync(traceGz, gzipSync(readFileSync(`${s.base}.trace.csv`), { level: 9 }));
@@ -419,7 +439,7 @@ function promote() {
  * still unpromoted and nothing left to check it against (review, PR #14).
  */
 function promotedCurrent(s) {
-  const fixture = promotedAs(s.name);
+  const fixture = promotedAs(s);
   if (!fixture) return false;
   const rows = (path) => JSON.stringify(readLabels(path).reps.map((r) => COLUMNS.map((c) => oneLine(r[c]))));
   return rows(join(fixtures, `${fixture}.labels.csv`)) === rows(`${s.base}.labels.csv`);

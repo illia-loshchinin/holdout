@@ -56,7 +56,7 @@ class ReadyGate(
      * What the plank lacks this frame, whatever the arms do: the knee unreadable,
      * the knees down (where knees are judged), the body out of line. [blocker]
      * names the arms first, so once the arms bend on "1" it says nothing else —
-     * a Hard countdown watches this instead (review, PR #14).
+     * every countdown watches this instead (review, PR #14).
      */
     var plankBlocker: HoldBlocker? = null
         private set
