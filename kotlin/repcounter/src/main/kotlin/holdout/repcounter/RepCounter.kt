@@ -333,7 +333,10 @@ enum class RepStance {
     /** Down on the knees for some of it. */
     KNEES,
 
-    /** The legs were not in the picture enough to say. */
+    /**
+     * Not enough to say: the legs were not in the picture enough, or no plank on
+     * the toes was held through the countdown to measure the push against.
+     */
     NOT_VISIBLE,
 }
 
@@ -522,6 +525,14 @@ class RepCounter(
      * every rep (review, PR #14).
      */
     val plankCalibrated: Boolean get() = heldLegs.size >= MIN_HELD_FRAMES
+
+    /**
+     * Enough of a plank read through the countdown to know where the phone stands
+     * ([heldRatio]), which the hip-rise check needs: without it [hipRiseTooLow] is not
+     * judged, and near-straight cobras count. Where money is staked counting must
+     * not start without it (review, PR #14).
+     */
+    val placementCalibrated: Boolean get() = heldRatios.size >= MIN_HELD_FRAMES
 
     /** The legs on the push fell well under this person's own plank ([RepRules.minLegsShareOfHeld]). Unknown passes. */
     private fun legsDroppedFromPlank(): Boolean {
@@ -809,6 +820,10 @@ class RepCounter(
             unseen -> RepStance.NOT_VISIBLE
             !kneesOffFloor(pushKnees.medianOrNull(), pushLegs.medianOrNull(), rules, descentKnees.medianOrNull()) -> RepStance.KNEES
             !kneesOffFloor(descentKnees.medianOrNull(), null, rules) -> RepStance.KNEES
+            // No plank on the toes held through the countdown — the Daily 25 may start from
+            // the knees — so Hard's own-plank rule cannot be applied: not claimed for the toes
+            // (review, PR #14). Hard never starts without one ([plankCalibrated]).
+            !plankCalibrated -> RepStance.NOT_VISIBLE
             // Hard's own-plank rule too: a second person's knee reps clear the line set on
             // one body, and would be claimed for the toes (PR #14 review).
             legsDroppedFromPlank() -> RepStance.KNEES

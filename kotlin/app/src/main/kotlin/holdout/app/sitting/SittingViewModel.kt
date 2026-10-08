@@ -330,14 +330,15 @@ class SittingViewModel(
                 )
                 _uiState.update { it.withFrame(observation).copy(preflight = report) }
                 record(observation, countingView)
-                // Hard: the counter calibrates on this plank, so the plank must stay one
-                // it can read — knees coming down, a knee it cannot place, or the body
-                // out of line stop the countdown as a moved phone does (review, PR #14).
+                // Money staked — Hard or Easy: the counter calibrates on this plank, so it must
+                // stay one it can read — a knee it cannot place or the body out of line (and on
+                // Hard, knees coming down) stop the countdown as a moved phone does. Easy keeps
+                // its knee stance (review, PR #14).
                 // Arms bending is not checked — people start down on "1" — so the plank is read
                 // whatever the arms do: the gate's own blocker names the arms first and would
                 // hide the rest once they bend. On every Hard countdown recorded the plank
                 // failed for at most 400 ms in a row, under the guard's 500 ms grace.
-                val kneesDown = stakes == Stakes.STAKED &&
+                val kneesDown = stakes.staked &&
                     readyGate.run {
                         onFrame(observation.world, observation.world.timestampMillis, pillsGreen = true, view = countingView, image = observation.imagePose())
                         plankBlocker != null
@@ -431,7 +432,11 @@ class SittingViewModel(
             if (_uiState.value.step != Step.COUNTDOWN) return
             // Hard, and no plank read through the countdown: the legs on each push could
             // not be judged against this person's own, and every rep would pass that check.
-            if (countdownGuard.isFailing || (stakes == Stakes.STAKED && !repCounter.plankCalibrated)) {
+            // Easy (or Hard) with no placement read: the hip rise would not be judged, and
+            // near-straight cobras would count (review, PR #14).
+            val uncalibrated = (stakes == Stakes.STAKED && !repCounter.plankCalibrated) ||
+                (stakes.staked && !repCounter.placementCalibrated)
+            if (countdownGuard.isFailing || uncalibrated) {
                 backToChecks()
                 return
             }

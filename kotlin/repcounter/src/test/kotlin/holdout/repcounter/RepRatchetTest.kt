@@ -37,6 +37,7 @@ class RepRatchetTest {
 
     @Test
     fun `the baseline holds every labelled rep as the counter does today`() {
+        val todayKeys = today.map { it.key }.toSet()
         val stale = today.mapNotNull { r ->
             val was = baseline[r.key]
             when {
@@ -45,6 +46,11 @@ class RepRatchetTest {
                 r.label != was.label -> "relabelled: ${describe(was)} → ${r.label}"
                 else -> null
             }
+        } + baseline.values.filter { it.label == RepLabels.UNLABELLED_COUNT && it.key !in todayKeys }.map {
+            // A count nobody labelled that is no longer made is an improvement: written into
+            // the baseline, or the same count coming back later would match its old row and
+            // pass unseen (review, PR #14).
+            "better: ${describe(it)} → no longer counted"
         }
         assertTrue(
             stale.isEmpty(),

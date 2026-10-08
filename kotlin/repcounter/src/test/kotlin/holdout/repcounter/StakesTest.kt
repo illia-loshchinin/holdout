@@ -598,17 +598,22 @@ class StakesTest {
         assertTrue(gate.onFrame(top(2_000), 2_000, pillsGreen = true, view = CameraView.OBLIQUE, image = knees(2_000)))
     }
 
-    /** The stances of every rep a Daily 25 counter at [view] counts, the knee at [kneeDegrees]. */
-    private fun stances(view: CameraView, kneeDegrees: Float = 178f, hideKnee: Boolean = false): List<RepStance?> {
+    /**
+     * The stances of every rep a Daily 25 counter at [view] counts, the knee at [kneeDegrees],
+     * after a countdown held with the knee at [heldKnee] — on the toes unless said.
+     */
+    private fun stances(view: CameraView, kneeDegrees: Float = 178f, hideKnee: Boolean = false, heldKnee: Float = 178f): List<RepStance?> {
         val counter = RepCounter(view = view, stakes = Stakes.DAILY)
+        Traces.settleAtTop(0, millis = 1_000).forEach { counter.prime(it, if (view == CameraView.OBLIQUE) Traces.angledImage(it.timestampMillis, 175f, kneeDegrees = heldKnee) else null) }
         val out = mutableListOf<RepStance?>()
         for (frame in Traces.set(count = 5)) {
+            val at = frame.copy(timestampMillis = frame.timestampMillis + 1_100)
             val image = if (view == CameraView.OBLIQUE) {
-                Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = kneeDegrees).let { if (hideKnee) withoutKnee(it) else it }
+                Traces.angledImage(at.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = kneeDegrees).let { if (hideKnee) withoutKnee(it) else it }
             } else {
                 null
             }
-            (counter.onFrame(frame, image) as? RepEvent.Counted)?.let { out += it.stance }
+            (counter.onFrame(at, image) as? RepEvent.Counted)?.let { out += it.stance }
         }
         return out
     }
@@ -619,6 +624,9 @@ class StakesTest {
         assertEquals(List(5) { RepStance.KNEES }, stances(CameraView.OBLIQUE, kneeDegrees = 70f), "counted all the same - the Daily 25 allows knees")
         // A knee never seen is not credited in the Daily 25 either since 8 Oct (002 FR-007).
         assertEquals(emptyList(), stances(CameraView.OBLIQUE, kneeDegrees = SHINS_DOWN, hideKnee = true))
+        // Started from the knees: no plank on the toes to hold the push to, so even reps that
+        // pass the absolute knee checks are not claimed for the toes (PR #14 review).
+        assertEquals(List(5) { RepStance.NOT_VISIBLE }, stances(CameraView.OBLIQUE, heldKnee = 70f))
     }
 
     @Test
