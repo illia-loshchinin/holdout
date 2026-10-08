@@ -62,7 +62,7 @@ angled40-right-floor-20,2840997040,floor,wrong,counted
 angled40-right-floor-20,2841000644,floor,wrong,counted
 angled40-right-floor-20,2841010822,floor,wrong,counted
 angled40-right-floor-20,2841026439,knees,right,UP_ON_YOUR_TOES
-angled40-right-floor-20,2841029343,knees,words,GO_LOWER
+angled40-right-floor-20,2841029343,knees,right,not-judged
 angled40-right-mixed-08,2690192161,honest,right,counted
 angled40-right-mixed-08,2690193895,honest,right,counted
 angled40-right-mixed-08,2690195696,honest,right,counted
@@ -83,7 +83,7 @@ angled40-right-mixed-08,2690232112,knees,right,UP_ON_YOUR_TOES
 angled40-right-mixed-08,2690234579,knees,right,UP_ON_YOUR_TOES
 angled40-right-mixed-08,2690237014,knees,right,UP_ON_YOUR_TOES
 angled40-right-mixed-08,2690239515,knees,right,UP_ON_YOUR_TOES
-angled40-right-mixed-08,2690242583,knees,words,GO_LOWER
+angled40-right-mixed-08,2690242583,knees,right,not-judged
 angled40-right-mixed-19,2840597786,honest,wrong,GO_LOWER
 angled40-right-mixed-19,2840601089,honest,wrong,GO_LOWER
 angled40-right-mixed-19,2840607329,honest,right,counted
@@ -126,7 +126,7 @@ angled45-left-floor-start-15,2697671635,floor,words,UP_ON_YOUR_TOES
 angled45-left-floor-start-15,2697675970,knees,words,KEEP_BODY_STRAIGHT
 angled45-left-floor-start-15,2697679104,knees,right,UP_ON_YOUR_TOES
 angled45-left-floor-start-15,2697682072,knees,right,UP_ON_YOUR_TOES
-angled45-left-floor-start-15,2697684640,knees,words,GO_LOWER
+angled45-left-floor-start-15,2697684640,knees,right,not-judged
 angled45-left-mixed-11,2692378633,honest,right,counted
 angled45-left-mixed-11,2692380968,honest,right,counted
 angled45-left-mixed-11,2692383269,honest,right,counted

@@ -198,6 +198,33 @@ class StakesTest {
     }
 
     @Test
+    fun `sit-ups are refused in silence under every stakes - never told to go lower or get up on the toes`() {
+        // 7 Oct, a Hard sitting: sit-ups, knees bent, each refused out loud with "Go lower"
+        // or "Up on your toes" — the face-down rule came after the checks that spoke (reviewer, 8 Oct).
+        fun sitUps(stakes: Stakes, bottom: Float, onTheBack: Boolean): Pair<Int, List<RepHint?>> {
+            val counter = RepCounter(view = CameraView.OBLIQUE, stakes = stakes)
+            val hints = mutableListOf<RepHint?>()
+            for (frame in Traces.set(count = 10, bottom = bottom)) {
+                val image = Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = 60f).let {
+                    if (!onTheBack) return@let it
+                    val (hip, knee) = it.frame.landmarks.let { l -> l[PoseIndex.LEFT_HIP] to l[PoseIndex.LEFT_KNEE] }
+                    moved(it, PoseIndex.LEFT_KNEE, (hip.y - knee.y) * it.height - 100f)
+                }
+                (counter.onFrame(frame, image) as? RepEvent.Discarded)?.let { hints += it.hint }
+            }
+            return counter.total to hints
+        }
+        assertEquals(RepHint.GO_LOWER, sitUps(Stakes.STAKED, bottom = 125f, onTheBack = false).second.first(), "face down, a half rep is told to go lower")
+        for (stakes in Stakes.entries) {
+            for (bottom in listOf(70f, 125f)) {
+                val (count, hints) = sitUps(stakes, bottom, onTheBack = true)
+                assertEquals(0, count, "$stakes, down to $bottom°")
+                assertTrue(hints.all { it == null }, "$stakes, down to $bottom°: nothing to coach, got $hints")
+            }
+        }
+    }
+
+    @Test
     fun `the Daily 25 may start from the knees`() {
         val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.DAILY)
         val top = { t: Long -> Traces.frame(t, elbowDegrees = 175f, bodyLineDegrees = 180f) }

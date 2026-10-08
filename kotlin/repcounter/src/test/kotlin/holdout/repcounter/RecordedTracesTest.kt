@@ -127,7 +127,8 @@ class RecordedTracesTest {
         // 1:59, and 2:07 at the depth line (shoulder 0.317, line 0.32): full, the member says.
         // 2:07 read knee 130°, legs 0.47 on the push and was refused as knees; it came down at 135°.
         assertEquals(2, halves.count { it is RepEvent.Counted }, "the two full ones among them")
-        assertEquals(8, halves.count { it == RepEvent.Discarded(RepHint.GO_LOWER) })
+        // Seven halves; getting up at the end of the set ("unsure") is no push-up and is not told to go lower.
+        assertEquals(7, halves.count { it == RepEvent.Discarded(RepHint.GO_LOWER) })
         assertEquals(0, halves.count { it == RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES) })
         assertEquals(12, counter.total)
     }

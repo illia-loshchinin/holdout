@@ -271,9 +271,12 @@ object Traces {
             return v.first * cos(a) - v.second * sin(a) to v.first * sin(a) + v.second * cos(a)
         }
         val trunk = 0.97 to -0.24
-        val hip = shoulder.first + 330 * trunk.first to shoulder.second + 330 * trunk.second
-        // A sag: the hips drop, so the thigh leaves them pointing up off the trunk's line.
-        val thigh = turn(trunk, -(180.0 - hipDegrees))
+        // A sag: the hips drop, the trunk tilting down to them, and the thigh runs on
+        // to the knee as before — the knee never above the hip in the picture, as on
+        // every rep recorded, cobras and hips on the floor too (8 Oct).
+        val toHip = turn(trunk, 180.0 - hipDegrees)
+        val hip = shoulder.first + 330 * toHip.first to shoulder.second + 330 * toHip.second
+        val thigh = trunk
         val knee = hip.first + 230 * thigh.first to hip.second + 230 * thigh.second
         // The lower leg raised behind the knee by however far the knee bends.
         val shin = turn(thigh, -(180.0 - kneeDegrees))

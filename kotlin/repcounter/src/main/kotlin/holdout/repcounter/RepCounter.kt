@@ -715,10 +715,11 @@ class RepCounter(
                     if (elbow <= rules.bottomTriggerDegrees) {
                         phase = Phase.AT_BOTTOM
                     } else if (elbow >= top) {
-                        // Back at the top without ever reaching the bottom.
+                        // Back at the top without ever reaching the bottom. On the back or
+                        // standing it was no push-up to go lower in: nothing is said.
                         lastCycle = cycleReadout(frame.timestampMillis - cycleStartMillis)
                         return abandonCycle(
-                            if (minElbowInCycle <= rules.descentAttemptDegrees) RepHint.GO_LOWER else null,
+                            if (minElbowInCycle <= rules.descentAttemptDegrees && !notFaceDown()) RepHint.GO_LOWER else null,
                         )
                     }
                 }
@@ -760,6 +761,11 @@ class RepCounter(
                 // being wider — the rule is satisfied by construction, and S2
                 // can move them without weakening it.
                 val verdict = when {
+                    // Not a push-up at all — on the back, or standing: nothing to coach,
+                    // so nothing is said, whatever else the rep got wrong. Sit-ups on
+                    // 7 Oct were each told "Go lower" or "Up on your toes" out loud
+                    // (reviewer, 8 Oct). Unknown passes on to the checks below.
+                    notFaceDown() -> RepEvent.Discarded(null)
                     // Where money is staked, knees never seen on the push are
                     // not knees off the floor: the rep cannot be judged. Nor
                     // can one whose knee spent much of the push out of the
@@ -790,11 +796,6 @@ class RepCounter(
                     !bodyHeld() -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)
                     // The chest first and the hips after: off the floor, or a cobra.
                     hipRiseTooLow() -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)
-                    // Not a push-up at all — on the back, or standing — though the arms
-                    // bent and the body line read straight: nothing to coach, so
-                    // nothing is said. Last of the body checks, so a rep any of them
-                    // refuses keeps its words.
-                    notFaceDown() -> RepEvent.Discarded(null)
                     cycleMillis < rules.minCycleMillis -> RepEvent.Discarded(RepHint.SLOW_DOWN)
                     cycleMillis > rules.maxCycleMillis -> RepEvent.Discarded(null)
                     else -> {
