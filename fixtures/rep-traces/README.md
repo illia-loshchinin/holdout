@@ -141,8 +141,10 @@ t,label,by,flag,hint,note,claude,reply
 ```
 
 - `t` — the trace time of the row the rep's verdict was written on.
-- `label` — `honest`, `half`, `knees`, `floor`, `cobra`, `sag`, `other`, or
-  `unsure` (left out). Only `honest` should count. Knees, floor and cobra
+- `label` — `honest`, `half`, `knees`, `floor`, `cobra`, `sag`, `other`, `none`
+  (no rep on the video at all: the app judged a moment of rest, getting up or
+  getting into position — right when not counted, whatever it said; added
+  8 Oct), or `unsure` (left out). Only `honest` should count. Knees, floor and cobra
   overlap (the knees touch in all three), so the top of the rep decides first:
   kneeling at the top is `knees`, whatever happens at the bottom; on the toes at
   the top but resting on the floor at the bottom (hips or thighs carrying

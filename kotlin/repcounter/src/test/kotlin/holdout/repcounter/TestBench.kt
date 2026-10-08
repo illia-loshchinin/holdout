@@ -49,7 +49,9 @@ data class RepLabels(val meta: Map<String, String>, val reps: List<Rep>) {
          */
         const val UNLABELLED_COUNT = "unlabelled-count"
         val SHOULD_COUNT = setOf("honest", KNEES_DAILY)
-        val CHEATS = listOf("half", "knees", "floor", "cobra", "sag", "other")
+
+        /** `none`: no rep on the video at all — the app judged a moment nobody made a push-up in. */
+        val CHEATS = listOf("half", "knees", "floor", "cobra", "sag", "other", "none")
 
         /**
          * An honest movement the counter cannot see — the legs outside its
