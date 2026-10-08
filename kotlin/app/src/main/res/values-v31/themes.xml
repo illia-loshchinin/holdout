@@ -2,11 +2,12 @@
 <resources>
 
     <!-- Android 12+ splash: black, with the Holdout mark playing once (1000 ms):
-         the crowd forfeits one by one, then the Holdout grows. The platform
-         splash needs no library; below API 31 the plain theme applies. -->
+         the crowd forfeits one by one, the Holdout grows and sends out one green
+         ring, then settles. The platform splash needs no library; below API 31
+         the plain theme applies. -->
     <style name="Theme.Holdout" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowSplashScreenBackground">#000000</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/avd_holdout_splash</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/avd_holdout_splash_wave</item>
         <item name="android:windowSplashScreenAnimationDuration">1000</item>
     </style>
 </resources>

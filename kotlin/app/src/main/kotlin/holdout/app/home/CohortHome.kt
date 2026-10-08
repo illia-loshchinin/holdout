@@ -120,7 +120,7 @@ fun CohortHome(
                 Text("Done — tap to submit", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
                 Body("Your ${c.repsPerDay} are counted on this phone. It only counts once it reaches the chain before the deadline.")
                 timeLeft?.let { Body("${Format.countdown(it)} left.") }
-                PrimaryButton(if (busy) "Waiting for the wallet…" else "Submit day ${stage.dayIndex + 1}", { onSubmit(stage.dayIndex) }, enabled = !busy)
+                PrimaryButton(if (busy) "Waiting for the wallet…" else "Submit day ${stage.dayIndex + 1}", { onSubmit(stage.dayIndex) }, busy = busy)
             }
             else -> {
                 val owed = (c.repsPerDay - banked).coerceAtLeast(0)

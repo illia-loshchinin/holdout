@@ -77,6 +77,6 @@ fun LobbyScreen(
         }
         SecondaryButton("See who's in", onRoster)
         Notice(message, messageIsWarning)
-        if (!locked) SecondaryButton(if (busy) "Waiting for the wallet…" else "Leave — full refund", onLeave, enabled = !busy)
+        if (!locked) SecondaryButton(if (busy) "Waiting for the wallet…" else "Leave — full refund", onLeave, busy = busy)
     }
 }

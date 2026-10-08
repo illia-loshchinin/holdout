@@ -68,6 +68,6 @@ fun FaucetSheet(
         if (claimedToday && outcome == null) {
             Notice("Today's tokens are already claimed. Back in ${Format.countdown(HoldoutDay.secondsLeftIn(now))}.", warning = true)
         }
-        PrimaryButton(if (busy) "Sending…" else "Get test tokens", onClaim, enabled = !busy && !claimedToday)
+        PrimaryButton(if (busy) "Sending…" else "Get test tokens", onClaim, enabled = !claimedToday, busy = busy)
     }
 }
