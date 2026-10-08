@@ -127,33 +127,52 @@ data class BenchRep(
 }
 
 /**
- * The placement ratio held through the countdown (median), as [Preflight]
- * reads it; null with no countdown.
+ * Today's counter as the app hands it over at "go": built for this sitting and
+ * primed on its countdown. Null where today's app builds none — no counting, or
+ * a view other than 45°.
  */
-fun Trace.Recording.heldPlacementRatio(): Float? {
-    val frames = countdownFrames.ifEmpty { return null }
-    val preflight = Preflight(stakes = stakes)
-    val xScale = frames.first().image.let { Aspect.xScale(it.width, it.height) }
-    val ratios = frames.mapNotNull { preflight.placementRatio(it.image.frame, xScale) }.sorted()
-    return ratios.getOrNull(ratios.size / 2)
+fun Trace.Recording.primedCounter(): RepCounter? {
+    if (countingView != CameraView.OBLIQUE) return null
+    return RepCounter(view = CameraView.OBLIQUE, stakes = stakes).also { counter ->
+        for (frame in countdownFrames) counter.prime(frame.world, frame.image)
+    }
 }
 
 /**
- * Whether today's app would start this sitting ([Preflight]). Since 2 Oct a
- * Hard one does not start from in front of about 35° — the placement ratio at
- * or over [RepRules.maxHipRisePlacementRatio]; an Easy one from in front of
- * about 40° ([Stakes.EASY_MAX_PLACEMENT_RATIO]); and since 8 Oct the Daily 25
- * keeps the Easy band, and no sitting is counted head-on at all. Its reps cannot
- * happen on the phone any more, so they are neither scored nor held by the
- * ratchet: from there the body line reads 127–143° on straight bodies (29 Sep),
- * head-on knees and cobras read as honest reps, and no rule should be bent to
- * fit a placement the app refuses.
+ * The placement ratio of the plank held through the countdown, as today's
+ * counter calibrates on it ([RepCounter.calibratedPlacementRatio]); null when
+ * it would not calibrate.
  */
-fun Trace.Recording.startsToday(): Boolean {
-    if (countingView == CameraView.FRONT) return false
+fun Trace.Recording.heldPlacementRatio(): Float? = primedCounter()?.calibratedPlacementRatio
+
+/**
+ * Why today's app would not start this sitting, or null when it would. Since 8 Oct
+ * no sitting is counted but at 45°, and none starts counting without a plank held
+ * through the countdown to read the placement from — on Hard, a plank on the toes
+ * too (SittingViewModel.startCounting). Since 2 Oct a Hard one does not start from
+ * in front of about 35° — the placement ratio at or over
+ * [RepRules.maxHipRisePlacementRatio]; an Easy one, or the Daily 25, from in front
+ * of about 40° ([Stakes.EASY_MAX_PLACEMENT_RATIO]). Its reps cannot happen on the
+ * phone any more, so they are neither scored nor held by the ratchet: from in
+ * front the body line reads 127–143° on straight bodies (29 Sep), head-on knees and
+ * cobras read as honest reps, and no rule should be bent to fit a sitting the app
+ * refuses (review, PR #14).
+ */
+fun Trace.Recording.notStartedBecause(): String? {
+    val counter = primedCounter() ?: return when (countingView) {
+        null -> "never started counting"
+        CameraView.FRONT -> "head-on, where no sitting is counted since 8 Oct"
+        else -> "side-on, where no sitting is counted since 8 Oct"
+    }
+    if (!counter.placementCalibrated) return "no plank held through the countdown to read the placement from, which today's app does not start"
+    if (stakes == Stakes.STAKED && !counter.plankCalibrated) return "no plank on the toes held through the countdown, which a Hard sitting needs to start"
     val frontLine = if (stakes == Stakes.STAKED) RepRules().maxHipRisePlacementRatio else Stakes.EASY_MAX_PLACEMENT_RATIO
-    return heldPlacementRatio()?.let { it < frontLine } ?: true
+    val ratio = counter.calibratedPlacementRatio ?: return null
+    return if (ratio >= frontLine) "$stakes from in front of its band (held ratio %.2f), which today's app does not start".format(ratio) else null
 }
+
+/** Whether today's app would start this sitting ([notStartedBecause]). */
+fun Trace.Recording.startsToday(): Boolean = notStartedBecause() == null
 
 /**
  * Whether the counter read this sitting in today's picture: 4:3, as the video
@@ -167,9 +186,7 @@ fun Trace.Recording.inTodaysPicture(): Boolean = frames.firstOrNull()?.image?.le
 /** Why this sitting is left out of the bench score and the ratchet, or null when it is scored. */
 fun Trace.Recording.notScoredBecause(): String? = when {
     !inTodaysPicture() -> frames.first().image.let { "read in a ${it.width}×${it.height} crop, not today's 4:3 picture" }
-    countingView == CameraView.FRONT -> "head-on, where no sitting is counted since 8 Oct"
-    !startsToday() -> "$stakes from in front of its band (held ratio %.2f), which today's app does not start".format(heldPlacementRatio())
-    else -> null
+    else -> notStartedBecause()
 }
 
 /**

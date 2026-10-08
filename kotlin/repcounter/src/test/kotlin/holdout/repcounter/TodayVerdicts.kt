@@ -15,9 +15,11 @@ import java.time.format.DateTimeFormatter
  * the app gave when the sitting was recorded, so a reviewer sees which reps a
  * change has put right without asking. Sittings with a video, or with labels
  * (a video pruned after promoting): the labelling tool will not take a sitting
- * as finished without a replay (review, PR #14). A sitting today's counter
- * does not count at all — head-on, or never counting — gets a replay with no
- * verdicts, never an old file left from a counter that did (review, PR #14).
+ * as finished without a replay (review, PR #14). A sitting today's app would
+ * not record as it was — the bench's [notScoredBecause]: an old picture, not at
+ * 45°, no plank held through the countdown, in front of its band — gets a replay
+ * with no verdicts and the reason, never verdicts for reps that can no longer
+ * happen, nor an old file left from a counter that judged them (review, PR #14).
  */
 fun main(args: Array<String>) {
     val dir = File(args.firstOrNull() ?: "../phone_traces")
@@ -28,14 +30,13 @@ fun main(args: Array<String>) {
         .filter { trace -> listOf(".mp4", ".labels.csv").any { File(trace.path.removeSuffix(".trace.csv") + it).exists() } }
         .forEach { trace ->
             val recording = runCatching { Trace.parse(trace.readLines()) }.getOrNull() ?: return@forEach
-            val view = recording.countingView
-            // Head-on sittings are not counted any more (since 8 Oct), and one that never
-            // started counting has nothing to judge: no verdict at all, said in the file.
-            val lines = if (view == null || view == CameraView.FRONT) {
+            // The same sittings the bench scores and the ratchet holds: no verdict at all
+            // for one today's app would not record, and why, said in the file.
+            val notScored = recording.notScoredBecause()
+            val counter = recording.primedCounter()
+            val lines = if (notScored != null || counter == null) {
                 emptyList()
             } else {
-                val counter = RepCounter(view = view, stakes = recording.stakes)
-                for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
                 recording.countingFrames.mapNotNull { frame ->
                     when (val event = counter.onFrame(frame.world, frame.image)) {
                         is RepEvent.Counted -> "${frame.world.timestampMillis},counted"
@@ -44,11 +45,7 @@ fun main(args: Array<String>) {
                     }
                 }
             }
-            val skipped = when (view) {
-                null -> listOf("# not counted: the sitting never started counting")
-                CameraView.FRONT -> listOf("# not counted: head-on, where no sitting is counted since 8 Oct")
-                else -> emptyList()
-            }
+            val skipped = listOfNotNull(notScored?.let { "# not counted: $it" })
             File(trace.path.removeSuffix(".trace.csv") + ".today.csv")
                 .writeText((listOf("# holdout-today-verdicts v1", "# replayed=$stamp") + skipped + "t,verdict" + lines).joinToString("\n", postfix = "\n"))
             written++

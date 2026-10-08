@@ -534,6 +534,9 @@ class RepCounter(
      */
     val placementCalibrated: Boolean get() = heldRatios.size >= MIN_HELD_FRAMES
 
+    /** The placement ratio of the plank held through the countdown so far (median), or null before [placementCalibrated]. */
+    val calibratedPlacementRatio: Float? get() = heldRatios.takeIf { it.size >= MIN_HELD_FRAMES }?.sorted()?.let { it[it.size / 2] }
+
     /** The legs on the push fell well under this person's own plank ([RepRules.minLegsShareOfHeld]). Unknown passes. */
     private fun legsDroppedFromPlank(): Boolean {
         if (heldLegs.size < MIN_HELD_FRAMES) return false
