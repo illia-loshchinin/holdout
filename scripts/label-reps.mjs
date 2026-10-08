@@ -205,7 +205,10 @@ function queue() {
     const labels = existsSync(`${abs}.labels.csv`) ? readLabels(`${abs}.labels.csv`).reps : [];
     const byT = new Map(labels.map((r) => [r.t, r]));
     const ends = [...recorded.keys()];
-    const pairing = pairToday(now, ends);
+    // Replay counts pair with recorded reps and with reps already labelled where the
+    // recording had none: a count moved a little by a later counter is the same rep.
+    const anchors = [...new Set([...ends, ...byT.keys()])].sort((a, b) => a - b);
+    const pairing = pairToday(now, anchors);
     for (const [t, was] of recorded) {
       const l = byT.get(t);
       // Once the replay has run, a rep it judged nothing near — nor one rep alone
@@ -218,7 +221,7 @@ function queue() {
       const why = ['Claude answered', "Claude's label: the app disagrees", "Claude's label", 'not labelled'][rank];
       items.push({ base, t, rank, why, label: l?.label ?? '', verdict });
     }
-    for (const t of onlyToday(now, ends)) {
+    for (const t of onlyToday(now, anchors)) {
       const l = byT.get(t);
       const rank = !l ? 3 : l.flag === 'answered' ? 0 : l.by === 'claude' ? 2 : null;
       if (rank === null) continue;
@@ -335,10 +338,15 @@ function finished() {
     // only today — must have a label too, or a half-labelled sitting becomes ground truth.
     const labelled = new Set(reps.map((r) => r.t));
     const ends = [...verdicts(`${base}.trace.csv`).keys()];
-    const unlabelled = [...ends, ...onlyToday(today(base), ends)].filter((t) => !labelled.has(t)).length;
+    const anchors = [...new Set([...ends, ...labelled])].sort((a, b) => a - b);
+    // No replay is not "nothing only today judges": the reps the recording missed were
+    // never looked for, so the sitting is not finished until one is run (review, PR #14).
+    const now = today(base);
+    const unlabelled = [...ends, ...onlyToday(now, anchors)].filter((t) => !labelled.has(t)).length;
+    if (!now) unconfirmed.push(`${name}: today's replay not run — cd kotlin && ./gradlew :repcounter:todayVerdicts`);
     if (byClaude) unconfirmed.push(`${name}: ${byClaude} label(s) set by Claude, not confirmed`);
     if (unlabelled) unconfirmed.push(`${name}: ${unlabelled} rep(s) not labelled`);
-    if (!byClaude && !unlabelled) out.push({ base, name: base.split(sep).pop(), meta });
+    if (now && !byClaude && !unlabelled) out.push({ base, name: base.split(sep).pop(), meta });
   });
   walk(root);
   return out;

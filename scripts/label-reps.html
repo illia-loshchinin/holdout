@@ -351,9 +351,16 @@ const recordedEnds = (trace) => trace.rows.filter((r) => r[1] === 'COUNTING' && 
  * a real rep the recorded counter missed is as much a candidate when today's
  * refuses it, and only a label can say which it was (review, PR #14).
  */
-function onlyToday(trace, today) {
+/**
+ * What a replay count pairs with: the recorded reps, and the reps already labelled
+ * where the recording had none — a count a later counter ends a little sooner or
+ * later is the same labelled movement, not a new one (review, PR #14).
+ */
+const anchorsOf = (trace, labelled) => [...new Set([...recordedEnds(trace), ...labelled])].sort((a, b) => a - b);
+
+function onlyToday(trace, today, labelled = new Set()) {
   if (!today) return new Set();
-  const paired = new Set(pairToday(today, recordedEnds(trace)).values());
+  const paired = new Set(pairToday(today, anchorsOf(trace, labelled)).values());
   return new Set([...today.keys()].filter((k) => !paired.has(k)));
 }
 
@@ -366,7 +373,10 @@ const LABELLED_ONLY = 'labelled-only';
 /** Each judged rep: from the end of the one before (or the start of counting) to its own event — recorded, only today's ([onlyToday]), or only labelled. */
 function repsOf(trace, today, labelled = new Set()) {
   const reps = [];
-  const extra = onlyToday(trace, today);
+  const extra = onlyToday(trace, today, labelled);
+  // A label where the recording had no rep that a replay count still pairs with was a
+  // rep only today's counter judged; one nothing pairs with, a count since dropped.
+  const paired = new Set(pairToday(today, anchorsOf(trace, labelled)).keys());
   const elbowAt = trace.col('elbow');
   let from = null, stretch = [];
   for (const r of trace.rows) {
@@ -374,7 +384,7 @@ function repsOf(trace, today, labelled = new Set()) {
     const t = Number(r[0]);
     if (from === null) from = t;
     stretch.push([t, Number(r[elbowAt])]);
-    const ev = r[r.length - 1] || (extra.has(t) ? NOT_RECORDED : labelled.has(t) ? LABELLED_ONLY : '');
+    const ev = r[r.length - 1] || (extra.has(t) ? NOT_RECORDED : labelled.has(t) ? (paired.has(t) ? NOT_RECORDED : LABELLED_ONLY) : '');
     if (!ev) continue;
     reps.push({ start: from, clipStart: movementStart(stretch, from), end: t, verdict: ev.replace('discarded:', '') });
     from = t;
@@ -475,7 +485,7 @@ async function refreshSitting() {
   if (!S || S.base !== base) return;
   S.labels = parseLabels(labelsText);
   S.today = parseToday(todayText);
-  S.pairing = pairToday(S.today, [...S.recorded]);
+  S.pairing = pairToday(S.today, anchorsOf(S.trace, S.labels.byT.keys()));
   // The candidates follow a replay run again: a rep only the new one judges is listed,
   // and the rep on screen stays on screen (review, PR #14).
   const at = S.reps[current]?.end;
@@ -532,7 +542,7 @@ async function open(base, atT) {
     wasComplete: false,
     today,
     recorded: new Set(ends),
-    pairing: pairToday(today, ends),
+    pairing: pairToday(today, anchorsOf(trace, labels.byT.keys())),
     reps: repsOf(trace, today, new Set(labels.byT.keys())),
     sides: sidesOf(trace),
     startedMs: meta.startedElapsedRealtimeNanos / 1e6,
