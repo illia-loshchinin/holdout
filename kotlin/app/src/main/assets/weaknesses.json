@@ -37,9 +37,9 @@
       "fix": "Covered by the attestation fix; cross-device progress later"
     },
     {
-      "what": "Head-on, sagging hips are not detected; knee push-ups are counted in the Daily 25 by design",
-      "why": "The Daily 25 accepts the phone head-on or at 45° and **counts push-ups from the knees on purpose** — a free habit for building strength. Staked Holdouts accept 45° only and refuse knee push-ups. Head-on the legs and hips point into the lens: on the phone, knee angle, knee and ankle height, hip height, torso angle and body line all read the same for knee push-ups as for honest ones (`fixtures/rep-traces/front-knees-01`), so knees could not be judged there anyway",
-      "fix": "Money is only ever staked at 45°. A lower-body classifier would be needed to judge knees head-on"
+      "what": "Knee push-ups count in the Daily 25 and in Easy Holdouts, by design",
+      "why": "The Daily 25 and Easy Holdouts **count push-ups from the knees on purpose** — a free habit, and a 7-day Holdout, for building strength; only Hard Holdouts refuse them. Every sitting is counted at 45° since 8 Oct, and the Daily 25 is held to the Easy set-up: until then it also accepted the phone head-on, where the legs and hips point into the lens and knee angle, knee and ankle height, hip height, torso angle and body line all read the same for knee push-ups as for honest ones (`fixtures/rep-traces/front-knees-01`), so it counted there what a Holdout refuses",
+      "fix": "Nothing to fix for the knees: the Daily 25 shows how many of the day's reps came from the toes, so a member can see how far they are from Hard"
     },
     {
       "what": "At 45° the body line is checked only coarsely, and the knee rule is 'off the floor'",
@@ -52,9 +52,9 @@
       "fix": "Wear something fitted or roll the trousers up; the knee-on-the-floor image classifier would not depend on the knee landmark"
     },
     {
-      "what": "A cobra is refused at 45°, not proven head-on",
-      "why": "Lying flat and pressing only the chest up, hips on the floor, counted at 45° until the body line was judged on the push back up (honest 157–174°, cobra 120–134°). A cobra done with the body nearly straight, and a rep pushed up from lying on the floor, passed that check; they are refused by how far the hips have risen half-way up the push against the shoulders (honest 0.92–1.06, those 0.63–0.87, line 0.90) — with a margin of 0.02–0.03, measured on two people; in a staked sitting a rep whose rise cannot be read is not credited. From further in front than about 35° that check does not hold, so a staked sitting does not start there. The free Daily 25 does start there, and since it accepts a body line straight to the ankle **or to the knee** (so knee push-ups with the feet raised count), more cobras get through at those spots: 4 of 5 on one recording (`angled-mixed-03`). Accepted for a free set with no stake and no prize. Not caught: a rep let down until the hips rest on the floor and pushed up straight in one piece — no landmark reading tells a hip on the floor from a deep honest bottom (four counted on 4 Oct) — and, on a second person whose head covered the near hand at the bottom, two cobras, because the near wrist was misplaced and every arm reading with it. Head-on no cobra has been recorded",
-      "fix": "Record head-on and wide-45° cobra reps before relying on the Daily 25 there; a hip-rise check that holds from further in front; the knee-on-the-floor image classifier, extended to hips on the floor"
+      "what": "A cobra is refused at 45°, but not in every case",
+      "why": "Lying flat and pressing only the chest up, hips on the floor, counted at 45° until the body line was judged on the push back up (honest 157–174°, cobra 120–134°). A cobra done with the body nearly straight, and a rep pushed up from lying on the floor, passed that check; they are refused by how far the hips have risen half-way up the push against the shoulders (honest 0.92–1.06, those 0.63–0.87, line 0.90) — with a margin of 0.02–0.03, measured on two people; in a staked sitting a rep whose rise cannot be read is not credited. From further in front than about 35° that check does not hold, so no sitting starts there; the Daily 25 and Easy, which accept a body line straight to the ankle **or to the knee** (so knee push-ups with the feet raised count), stop at about 40°. Until 8 Oct the Daily 25 started further in front, and cobras got through there: 4 of 5 on one recording (`angled-mixed-03`). Not caught: a rep let down until the hips rest on the floor and pushed up straight in one piece — no landmark reading tells a hip on the floor from a deep honest bottom (four counted on 4 Oct) — and, on a second person whose head covered the near hand at the bottom, two cobras, because the near wrist was misplaced and every arm reading with it",
+      "fix": "The knee-on-the-floor image classifier, extended to hips on the floor; a wrist reading that holds when the head covers the near hand"
     },
     {
       "what": "No liveness check and no audio anti-spoofing in rep verification",

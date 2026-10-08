@@ -423,11 +423,12 @@ class RepCounter(
     private val bodyLineToKnee = !judgeKnees
 
     /**
-     * Where money is staked — Hard or Easy — the legs must stay in view: a rep
-     * whose knees spent the push out of the picture cannot be judged for the
-     * body line or the hip rise either (H35).
+     * The legs must stay in view, whatever the stakes — the Daily 25 is held to
+     * Easy since 8 Oct (002 FR-007): a rep whose knees spent the push out of
+     * the picture cannot be judged for the body line or the hip rise either (H35).
+     * Every sitting is at 45°; the other views are the synthetic tests' only.
      */
-    private val watchLegs = stakes.staked
+    private val watchLegs = view == CameraView.OBLIQUE
 
     /**
      * At 45° the legs are followed whatever the stakes, so every counted rep

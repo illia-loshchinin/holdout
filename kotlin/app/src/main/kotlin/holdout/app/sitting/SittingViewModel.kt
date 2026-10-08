@@ -62,8 +62,8 @@ class SittingViewModel(
     /** Chain time now, for the day's countdown. Null while the chain is unread. */
     private val chainSecondsNow: () -> Long?,
     /**
-     * The free Daily 25 takes any placement; a staked sitting is side-on or
-     * angled, never head-on, with full push-ups from the toes ([Stakes]). It decides what the
+     * Every sitting is at 45° ([Stakes]); the Daily 25 and Easy count push-ups
+     * from the knees, Hard only from the toes. It decides what the
      * camera check accepts, what the guide asks for and what the counter reads.
      */
     private val stakes: Stakes = Stakes.DAILY,

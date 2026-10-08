@@ -181,18 +181,17 @@ private fun PhonePage(stakes: Stakes, detected: CameraView?) {
             highlighted = detected == CameraView.OBLIQUE,
         )
     }
-    if (stakes.staked) {
-        Text(
-            if (stakes == Stakes.EASY) {
-                "Easy: at 45° only — turned well to the side of you, not in front, not straight beside you."
-            } else {
-                "Staked: at 45° only — not in front, not straight beside you."
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = HoldoutColors.Accent,
-            textAlign = TextAlign.Center,
-        )
-    }
+    Text(
+        when (stakes) {
+            Stakes.STAKED -> "Staked: at 45° only — not in front, not straight beside you."
+            Stakes.EASY -> "Easy: at 45° only — turned well to the side of you, not in front, not straight beside you."
+            // The Daily 25 practises the Easy set-up (002 FR-001).
+            Stakes.DAILY -> "At 45° only, as in a Holdout — turned well to the side of you, not in front, not straight beside you."
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        color = HoldoutColors.Accent,
+        textAlign = TextAlign.Center,
+    )
 }
 
 @Composable
@@ -218,6 +217,7 @@ private fun BodyPage(stakes: Stakes) {
                 add("Body straight from shoulders to knees, and the phone must see your knees: turn a little away from it.")
             } else {
                 add("Body straight from shoulders to heels — or from the knees if you are building up. Both count for the Daily 25.")
+                add("The phone must see your knees: turn your body a little away from it, so the leg nearer the phone shows clearly.")
             }
         },
     )
