@@ -482,13 +482,23 @@ function nextInQueue() {
   return true;
 }
 
+/**
+ * Which open() is the latest: two can overlap (a sitting picked, then another
+ * before the first has loaded), and whichever finished last would take over the
+ * page — edits then written into a sitting other than the one picked (review,
+ * PR #14). An open() that is no longer the latest stops at its next await.
+ */
+let openGen = 0;
+
 async function open(base, atT) {
+  const gen = ++openGen;
   // A save still waiting belongs to the sitting on screen: written before it
   // goes. The queue moves on as soon as a rep is done — a Done or a confirmed
   // label saved 250 ms later, after the next sitting had opened, was written
   // into that one instead and lost.
   if (saveTimer) { clearTimeout(saveTimer); writeNow(); }
   await saving;
+  if (gen !== openGen) return;
   history.replaceState(null, '', mode === 'sitting' ? `?s=${encodeURIComponent(base)}` : location.pathname);
   const [traceText, meta, labelsText, todayText] = await Promise.all([
     fetch(`/files/${base}.trace.csv`).then((r) => r.text()),
@@ -496,6 +506,7 @@ async function open(base, atT) {
     fetch(`/files/${base}.labels.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')),
     fetch(`/files/${base}.today.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : null)),
   ]);
+  if (gen !== openGen) return;
   const trace = parseTrace(traceText);
   const today = parseToday(todayText);
   const labels = parseLabels(labelsText);
@@ -526,6 +537,7 @@ async function open(base, atT) {
   S.wasComplete = S.reps.every((r) => S.labels.byT.get(r.end)?.by === 'reviewer');
   renderList();
   if (S.hasVideo) await new Promise((done) => video.addEventListener('loadedmetadata', done, { once: true }));
+  if (gen !== openGen) return;
   show(current);
 }
 
