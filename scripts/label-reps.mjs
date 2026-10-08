@@ -209,11 +209,16 @@ function queue() {
     // recording had none: a count moved a little by a later counter is the same rep.
     const anchors = [...new Set([...ends, ...byT.keys()])].sort((a, b) => a - b);
     const pairing = pairToday(now, anchors);
-    for (const [t, was] of recorded) {
+    // Every rep with a place in the sitting: each the recording ended, and each labelled
+    // where it ended none — a rep only a replay judged, once labelled, is still a rep
+    // to confirm or to read an answer on (review, PR #14).
+    const labelledOnly = [...byT.keys()].filter((t) => !recorded.has(t));
+    for (const t of [...ends, ...labelledOnly]) {
       const l = byT.get(t);
       // Once the replay has run, a rep it judged nothing near — nor one rep alone
       // inside its stretch (as the page and the bench pair them) — is one today's
       // counter does not see.
+      const was = recorded.get(t) ?? 'not-recorded';
       const verdict = now ? (pairing.has(t) ? now.get(pairing.get(t)) : 'not-judged') : was;
       const wrong = l && l.label !== 'unsure' && shouldCount(l.label, stakes) !== (verdict === 'counted');
       const rank = !l ? 3 : l.flag === 'answered' ? 0 : l.by === 'claude' ? (wrong ? 1 : 2) : null;
