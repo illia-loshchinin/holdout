@@ -170,13 +170,21 @@ function within(byT, ends, t) {
  */
 function onlyToday(byT, ends) {
   if (!byT) return [];
-  const times = [...byT.keys()];
-  const claimed = new Set();
+  const times = [...byT.keys()].sort((a, b) => a - b);
+  // One replay event per recorded rep, as the test bench pairs them: each event, in
+  // order, takes the nearest recorded rep within 400 ms not yet taken. A second count
+  // near the same rep is left over — a count of its own, to be labelled.
+  const claimed = new Set(), paired = new Set();
+  for (const k of times) {
+    const e = ends.filter((x) => !paired.has(x) && Math.abs(x - k) <= 400).sort((a, b) => Math.abs(a - k) - Math.abs(b - k))[0];
+    if (e === undefined) continue;
+    paired.add(e);
+    claimed.add(k);
+  }
   ends.forEach((e, i) => {
-    const close = times.filter((k) => Math.abs(k - e) <= 400);
-    if (close.length) return close.forEach((k) => claimed.add(k));
+    if (paired.has(e)) return;
     const from = i > 0 ? ends[i - 1] : -Infinity;
-    const inside = times.filter((k) => k > from && k <= e + 400 && !ends.some((o) => o !== e && Math.abs(o - k) <= 400));
+    const inside = times.filter((k) => !claimed.has(k) && k > from && k <= e + 400 && !ends.some((o) => o !== e && Math.abs(o - k) <= 400));
     if (inside.length === 1) claimed.add(inside[0]);
   });
   return [...byT].filter(([k, v]) => v === 'counted' && !claimed.has(k)).map(([k]) => k);
@@ -382,11 +390,24 @@ function promote() {
   console.log(`\n${added} promoted, ${refreshed} with new labels. Next: cd kotlin && ./gradlew :repcounter:updateBaseline, then commit fixtures/rep-traces/.`);
 }
 
-/** Videos to delete: the sitting finished more than RETAIN_DAYS ago and already promoted. */
+/**
+ * Whether the fixture this sitting was promoted to holds its labels as they are
+ * now, row for row. A label changed after promoting keeps the date the sitting
+ * was finished; pruned on that date, its video would go with the correction
+ * still unpromoted and nothing left to check it against (review, PR #14).
+ */
+function promotedCurrent(s) {
+  const fixture = promotedAs(s.name);
+  if (!fixture) return false;
+  const rows = (path) => JSON.stringify(readLabels(path).reps.map((r) => COLUMNS.map((c) => oneLine(r[c]))));
+  return rows(join(fixtures, `${fixture}.labels.csv`)) === rows(`${s.base}.labels.csv`);
+}
+
+/** Videos to delete: the sitting finished more than RETAIN_DAYS ago, and promoted with the labels it has now. */
 function dueVideos() {
   const now = Date.now();
   return finished()
-    .filter((s) => existsSync(`${s.base}.mp4`) && promotedAs(s.name) && now - Date.parse(s.meta.reviewed) >= RETAIN_DAYS * DAY)
+    .filter((s) => existsSync(`${s.base}.mp4`) && promotedCurrent(s) && now - Date.parse(s.meta.reviewed) >= RETAIN_DAYS * DAY)
     .map((s) => ({ base: relative(root, s.base).split(sep).join('/'), finished: s.meta.reviewed, mb: Math.round(statSync(`${s.base}.mp4`).size / 1e6) }));
 }
 

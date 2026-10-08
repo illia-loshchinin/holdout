@@ -317,13 +317,21 @@ const NOT_RECORDED = 'not-recorded';
 function onlyToday(trace, today) {
   if (!today) return new Set();
   const ends = trace.rows.filter((r) => r[1] === 'COUNTING' && r[r.length - 1]).map((r) => Number(r[0]));
-  const times = [...today.keys()];
-  const claimed = new Set();
+  const times = [...today.keys()].sort((a, b) => a - b);
+  // One replay event per recorded rep, as the test bench pairs them: each event, in
+  // order, takes the nearest recorded rep within 400 ms not yet taken. A second count
+  // near the same rep is left over — a count of its own, to be labelled.
+  const claimed = new Set(), paired = new Set();
+  for (const k of times) {
+    const e = ends.filter((x) => !paired.has(x) && Math.abs(x - k) <= 400).sort((a, b) => Math.abs(a - k) - Math.abs(b - k))[0];
+    if (e === undefined) continue;
+    paired.add(e);
+    claimed.add(k);
+  }
   ends.forEach((e, i) => {
-    const near = times.filter((k) => Math.abs(k - e) <= 400);
-    if (near.length) { near.forEach((k) => claimed.add(k)); return; }
+    if (paired.has(e)) return;
     const from = i > 0 ? ends[i - 1] : -Infinity;
-    const inside = times.filter((k) => k > from && k <= e + 400 && !ends.some((o) => o !== e && Math.abs(o - k) <= 400));
+    const inside = times.filter((k) => !claimed.has(k) && k > from && k <= e + 400 && !ends.some((o) => o !== e && Math.abs(o - k) <= 400));
     if (inside.length === 1) claimed.add(inside[0]);
   });
   return new Set([...today].filter(([k, v]) => v === 'counted' && !claimed.has(k)).map(([k]) => k));
