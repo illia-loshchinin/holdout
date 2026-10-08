@@ -76,7 +76,6 @@ import holdout.app.ui.theme.Spacing
 import holdout.app.vision.PhoneTilt
 import holdout.app.vision.VisionAnalyzer
 import holdout.repcounter.Angles
-import holdout.repcounter.CameraView
 import holdout.repcounter.Coach
 import holdout.repcounter.ImagePose
 import holdout.repcounter.Lens
@@ -505,10 +504,9 @@ private fun CountingOverlay(state: SittingViewModel.UiState) {
             color = if ((state.analysisFps ?: 99f) < 15f) HoldoutColors.Warning else HoldoutColors.TextTertiary,
         )
         state.readout?.let { r ->
-            val posture = if (r.view == CameraView.FRONT) "torso" else "line"
             Text(
                 "${r.view.name.lowercase()} · ${state.stakes.name.lowercase()} · elbow ${r.elbow.toInt()}° · " +
-                    "$posture ${r.posture.toInt()}° · knee ${r.knee?.toInt()?.let { "$it°" } ?: "—"}",
+                    "line ${r.posture.toInt()}° · knee ${r.knee?.toInt()?.let { "$it°" } ?: "—"}",
                 style = LabelStyle,
                 color = HoldoutColors.TextTertiary,
             )
@@ -630,9 +628,7 @@ private fun PositionOverlay(viewModel: SittingViewModel, mirrored: Boolean) {
                     right = fit.offsetX + (left + 2f * target.halfWidth) * fit.width,
                     bottom = fit.offsetY + target.bottom * fit.height,
                 )
-                val figureView = state.preflight?.view?.takeIf { state.stakes.accepts(it) }
-                    ?: if (box.width >= box.height) CameraView.SIDE else CameraView.FRONT
-                drawPlankFigure(box.deflate(box.minDimension * 0.08f), figureView, HoldoutColors.Accent.copy(alpha = 0.7f))
+                drawPlankFigure(box.deflate(box.minDimension * 0.08f), HoldoutColors.Accent.copy(alpha = 0.7f))
             },
     )
 }

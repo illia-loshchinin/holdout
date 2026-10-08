@@ -57,6 +57,15 @@ class StakesTest {
     }
 
     @Test
+    fun `no counter is measured head-on, whatever the stakes`() {
+        // The second lock on the door the camera check closes (002 FR-006, retired 8 Oct).
+        for (stakes in Stakes.entries) {
+            assertFailsWith<IllegalArgumentException> { RepCounter(view = CameraView.FRONT, stakes = stakes) }
+        }
+        assertNull(ViewReading.of(CameraView.FRONT, Traces.frame(0, 175f, 180f), Traces.angledImage(0, 175f)))
+    }
+
+    @Test
     fun `the guide asks for the stakes' placement before anything else, and never calls the wrong one aligned`() {
         val guide = PositionGuide()
         val floor = FloorView.Horizon(0.35f)

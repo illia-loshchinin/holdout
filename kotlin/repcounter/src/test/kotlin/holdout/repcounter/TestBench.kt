@@ -126,14 +126,21 @@ fun Trace.Recording.heldPlacementRatio(): Float? {
 }
 
 /**
- * Whether today's app would start this sitting. Since 2 Oct a staked one does
- * not start from in front of about 35° — the placement ratio at or over
- * [RepRules.maxHipRisePlacementRatio] ([Preflight]). Its reps cannot happen on
- * the phone any more, so they are neither scored nor held by the ratchet: from
- * there the body line reads 127–143° on straight bodies (29 Sep), and no rule
- * should be bent to fit a placement the app refuses.
+ * Whether today's app would start this sitting ([Preflight]). Since 2 Oct a
+ * Hard one does not start from in front of about 35° — the placement ratio at
+ * or over [RepRules.maxHipRisePlacementRatio]; an Easy one from in front of
+ * about 40° ([Stakes.EASY_MAX_PLACEMENT_RATIO]); and since 8 Oct the Daily 25
+ * keeps the Easy band, and no sitting is counted head-on at all. Its reps cannot
+ * happen on the phone any more, so they are neither scored nor held by the
+ * ratchet: from there the body line reads 127–143° on straight bodies (29 Sep),
+ * head-on knees and cobras read as honest reps, and no rule should be bent to
+ * fit a placement the app refuses.
  */
-fun Trace.Recording.startsToday(): Boolean = stakes != Stakes.STAKED || (heldPlacementRatio()?.let { it < RepRules().maxHipRisePlacementRatio } ?: true)
+fun Trace.Recording.startsToday(): Boolean {
+    if (countingView == CameraView.FRONT) return false
+    val frontLine = if (stakes == Stakes.STAKED) RepRules().maxHipRisePlacementRatio else Stakes.EASY_MAX_PLACEMENT_RATIO
+    return heldPlacementRatio()?.let { it < frontLine } ?: true
+}
 
 /**
  * Whether the counter read this sitting in today's picture: 4:3, as the video
@@ -147,7 +154,8 @@ fun Trace.Recording.inTodaysPicture(): Boolean = frames.firstOrNull()?.image?.le
 /** Why this sitting is left out of the bench score and the ratchet, or null when it is scored. */
 fun Trace.Recording.notScoredBecause(): String? = when {
     !inTodaysPicture() -> frames.first().image.let { "read in a ${it.width}×${it.height} crop, not today's 4:3 picture" }
-    !startsToday() -> "staked from in front of about 35° (held ratio %.2f), which today's app does not start".format(heldPlacementRatio())
+    countingView == CameraView.FRONT -> "head-on, where no sitting is counted since 8 Oct"
+    !startsToday() -> "$stakes from in front of its band (held ratio %.2f), which today's app does not start".format(heldPlacementRatio())
     else -> null
 }
 

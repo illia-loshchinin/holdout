@@ -47,13 +47,18 @@ the first frame of the sitting.
 
 ## `front-honest-01.csv` — the first head-on recording
 
+> **Since 8 Oct no sitting is counted head-on** (spec 002, Session 2026-10-08):
+> the Daily 25 is held to the Easy set-up at 45°. The head-on traces below
+> (`front-*`) stay as the evidence for that, **not as tests**: nothing replays
+> them, the bench lists them as not scored, and the ratchet does not hold them.
+
 Two honest push-ups with the phone on the floor in front of the member, re-run
 through `pose_landmarker_full.task` from a screen recording. Unlike
 `s2-angles.json` it keeps **raw landmarks** (world and image, for the ten joints
 the rule reads), because head-on the angle itself is what had to change: the
 world elbow never read above ~163° or much below 90° here, while the picture
-read 175–179° and ~40°. `FrontViewTest` replays it and must count 2; read the
-old way it counts 0. The header gives the picture size and the column order.
+read 175–179° and ~40°. Until 8 Oct `FrontViewTest` replayed it and counted 2;
+read the old way it counted 0. The header gives the picture size and the column order.
 
 ## What the head-on recordings showed about knees
 
@@ -62,7 +67,7 @@ did knee push-ups at an angle and head-on, and knees-down rocks with the hips
 pushed back. Every landmark signal tried — the knee angle in 3D and in the
 picture, the knees' height above the hands, how far the hips drop against the
 shoulders — overlapped with the honest set. That is why staked sittings are
-at 45° only, while the Daily 25 keeps head-on as well (FR-021a, `Stakes`). The same recordings set the view cut-off: shoulder span against torso length stayed at or under 1.35 at 45° (95th percentile) and never fell below 1.73 head-on (5th), so the cut-off is 1.55 — the old 0.9 called most 45° frames head-on.
+at 45° only — and, since 8 Oct, the Daily 25 too (FR-021a, `Stakes`). The same recordings set the view cut-off: shoulder span against torso length stayed at or under 1.35 at 45° (95th percentile) and never fell below 1.73 head-on (5th), so the cut-off is 1.55 — the old 0.9 called most 45° frames head-on.
 
 At about 45° the picture does show the knee — on the **near** leg; the model
 places the far leg badly. Near-leg knee minimum per knee push-up on that
@@ -278,7 +283,6 @@ set, pick the angle and the phone's side — both are remembered for the next se
 |---|---|---|
 | 45°, 50°, 55° | 10 honest · 5 from the knees · 5 cobra | 10 honest |
 | 40°, 60° | 10 honest | — |
-| head-on | 10 honest, *staked test* switched off (only the Daily 25 accepts head-on) | — |
 | square side-on | hold the plank about 10 s — no sitting accepts side-on, so it never starts: press Stop and label it | — |
 
 If the whole-body pill asks you to turn away or move the phone, do what it says

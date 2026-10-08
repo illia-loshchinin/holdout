@@ -38,6 +38,8 @@ class RecordedTracesTest {
             if (TraceFiles.labels(file).exists()) return@mapNotNull null
             val recording = Trace.parse(TraceFiles.lines(file))
             val expected = recording.expectedReps ?: return@mapNotNull null
+            // A sitting today's app would not start (head-on, or in front of its band) is evidence, not a test.
+            if (!recording.startsToday()) return@mapNotNull null
             val counted = replay(recording)
             if (kotlin.math.abs(counted - expected) <= 1) null else "${file.name}: counted $counted, a person counted $expected"
         }
@@ -236,9 +238,12 @@ class RecordedTracesTest {
         assertEquals(List(5) { RepEvent.Discarded(RepHint.LEGS_IN_VIEW) }, events)
     }
 
+    /** A frame at 45° — world landmarks and the picture of the same instant. */
+    private fun atFortyFive(t: Long, elbowDegrees: Float) = Traces.frame(t, elbowDegrees, 180f) to Traces.angledImage(t, elbowDegrees)
+
     @Test
     fun `where the phone stood is written into the header and read back, and nothing else is accepted`() {
-        val (world, image) = Traces.frontFrame(1_000, elbowDegrees = 120f)
+        val (world, image) = atFortyFive(1_000, elbowDegrees = 120f)
         val text = Trace.header(Stakes.STAKED, image.width, image.height) +
             Trace.row(1_000, "COUNTING", CameraView.OBLIQUE, world, image.frame, null, null)
         val labelled = Trace.parse(Trace.label(text.lines(), 5, mapOf("honest" to 5), "", placement = "50", phoneSide = "right"))
@@ -251,7 +256,7 @@ class RecordedTracesTest {
 
     @Test
     fun `a person's account is written into the header, and a note cannot forge a fact`() {
-        val (world, image) = Traces.frontFrame(1_000, elbowDegrees = 120f)
+        val (world, image) = atFortyFive(1_000, elbowDegrees = 120f)
         val text = Trace.header(Stakes.STAKED, image.width, image.height) +
             Trace.row(1_000, "COUNTING", CameraView.OBLIQUE, world, image.frame, null, null)
         val labelled = Trace.label(
@@ -269,8 +274,8 @@ class RecordedTracesTest {
 
     @Test
     fun `the replay primes with the countdown that led into counting, not an aborted one`() {
-        val (world, image) = Traces.frontFrame(1_000, elbowDegrees = 170f)
-        fun row(t: Long, step: String) = Trace.row(t, step, CameraView.FRONT, world, image.frame, null, null)
+        val (world, image) = atFortyFive(1_000, elbowDegrees = 170f)
+        fun row(t: Long, step: String) = Trace.row(t, step, CameraView.OBLIQUE, world, image.frame, null, null)
         val text = Trace.header(Stakes.DAILY, image.width, image.height) +
             row(1, "PREFLIGHT") + row(2, "COUNTDOWN") + row(3, "COUNTDOWN") + // aborted: back to the checks
             row(4, "PREFLIGHT") + row(5, "COUNTDOWN") + row(6, "COUNTDOWN") + row(7, "COUNTING")
@@ -281,16 +286,16 @@ class RecordedTracesTest {
 
     @Test
     fun `a trace written by the recorder reads back frame for frame`() {
-        val (world, image) = Traces.frontFrame(1_000, elbowDegrees = 120f)
+        val (world, image) = atFortyFive(1_000, elbowDegrees = 120f)
         val text = Trace.header(Stakes.DAILY, image.width, image.height) +
-            Trace.row(1_000, "COUNTING", CameraView.FRONT, world, image.frame, Readout(CameraView.FRONT, 120f, 30f, null), RepEvent.Counted(1, 1_500))
+            Trace.row(1_000, "COUNTING", CameraView.OBLIQUE, world, image.frame, Readout(CameraView.OBLIQUE, 120f, 175f, 178f), RepEvent.Counted(1, 1_500))
         val recording = Trace.parse(text.lines())
         assertEquals(Stakes.DAILY, recording.stakes)
         assertEquals(null, recording.expectedReps)
-        assertEquals(CameraView.FRONT, recording.countingView)
+        assertEquals(CameraView.OBLIQUE, recording.countingView)
         val frame = recording.frames.single()
         assertEquals("counted", frame.event)
-        val reread = Angles.elbowInImage(frame.image)!!
+        val reread = Angles.elbowInImage(frame.image, Side.LEFT)!!
         assertTrue(kotlin.math.abs(reread - 120f) < 0.5f, "the picture survives the round trip: $reread")
     }
 }

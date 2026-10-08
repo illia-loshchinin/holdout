@@ -58,7 +58,7 @@ fun main(args: Array<String>) {
                 val c = counter.lastCycle ?: continue
                 val what = if (event is RepEvent.Counted) "counted" else (event as RepEvent.Discarded).hint?.name ?: "none"
                 lines += "| %.1f | %s | %.0f | %.0f | %s | %s | %s | %s | %s | %.0f%% | %s | %s | %d | %s |".format(
-                    (frame.world.timestampMillis - t0) / 1000f, what, c.top, c.minElbow, f(c.shoulderOverHand ?: c.shoulderHeightShare), f(c.pushKnee), f(c.pushLegsAboveHands), f(c.descentKnee), f(c.descentLegsAboveHands),
+                    (frame.world.timestampMillis - t0) / 1000f, what, c.top, c.minElbow, f(c.shoulderOverHand), f(c.pushKnee), f(c.pushLegsAboveHands), f(c.descentKnee), f(c.descentLegsAboveHands),
                     c.legsUnseenShare * 100, f(c.posture), f(c.pushPosture), c.cycleMillis, f(c.hipRise),
                 )
             }

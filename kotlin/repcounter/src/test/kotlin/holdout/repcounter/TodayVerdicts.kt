@@ -25,6 +25,8 @@ fun main(args: Array<String>) {
         .forEach { trace ->
             val recording = runCatching { Trace.parse(trace.readLines()) }.getOrNull() ?: return@forEach
             val view = recording.countingView ?: return@forEach
+            // Head-on sittings are not counted any more (since 8 Oct): nothing to say about them.
+            if (view == CameraView.FRONT) return@forEach
             val counter = RepCounter(view = view, stakes = recording.stakes)
             for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
             val lines = recording.countingFrames.mapNotNull { frame ->
