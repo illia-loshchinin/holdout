@@ -3,6 +3,7 @@ package holdout.app.names
 import holdout.app.storage.KeptName
 import holdout.app.storage.Store
 import holdout.core.Lookup
+import holdout.core.ScriptedWallets
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +36,11 @@ class SeekerNameRepository(
     private val now: () -> Long = System::currentTimeMillis,
     private val queue: LookupQueue = LookupQueue(),
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    /**
+     * A scripted member's wallet (FR-012): never looked up. Scripted wallets
+     * are devnet-only, deleted for mainnet, and have no Seeker ID.
+     */
+    private val isScripted: (wallet: String) -> Boolean = { it in SCRIPTED },
 ) {
     private val lock = Any()
     private val wake = Channel<Unit>(Channel.CONFLATED)
@@ -53,13 +59,14 @@ class SeekerNameRepository(
      * screen are dropped. Screens pass an empty list when they go away.
      */
     fun showing(wallets: Collection<String>) {
-        val stale = wallets.filterNot(::fresh)
+        val stale = wallets.filterNot { isScripted(it) || fresh(it) }
         synchronized(lock) { queue.showing(stale) }
         wake.trySend(Unit)
     }
 
     /** The connected wallet: checked again now, however fresh its entry (FR-007). */
     fun connected(wallet: String) {
+        if (isScripted(wallet)) return
         synchronized(lock) { queue.connected(wallet) }
         wake.trySend(Unit)
     }
@@ -99,3 +106,6 @@ class SeekerNameRepository(
 
 /** A kept entry younger than this is shown without asking again (FR-007). */
 private const val FRESH_MILLIS = 24 * 60 * 60 * 1_000L
+
+/** The bundled scripted wallets, base58 — the set the roster labels from (FR-043a). */
+private val SCRIPTED: Set<String> by lazy { ScriptedWallets.keys.map { it.base58() }.toSet() }

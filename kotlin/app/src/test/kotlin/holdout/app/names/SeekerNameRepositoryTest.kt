@@ -34,7 +34,7 @@ class SeekerNameRepositoryTest {
     @AfterTest
     fun stop() = scope.cancel()
 
-    private fun repository(answer: suspend (String) -> Lookup) = SeekerNameRepository(
+    private fun repository(isScripted: (String) -> Boolean = { false }, answer: suspend (String) -> Lookup) = SeekerNameRepository(
         nameOf = { wallet ->
             asked += wallet
             answer(wallet)
@@ -43,6 +43,7 @@ class SeekerNameRepositoryTest {
         now = { nowMillis },
         queue = LookupQueue(paceMillis = 0, backOffMillis = 0),
         scope = scope,
+        isScripted = isScripted,
     )
 
     private suspend fun eventually(condition: () -> Boolean) {
@@ -130,6 +131,18 @@ class SeekerNameRepositoryTest {
         eventually { store.seekerName("me") != null }
         delay(200)
         assertEquals(listOf("me"), asked.toList())
+    }
+
+    @Test
+    fun `a scripted wallet is never looked up, on screen or connected`() = runBlocking {
+        val repo = repository(isScripted = { it == "bot" }) { Lookup.Found("$it.skr") }
+        repo.showing(listOf("bot", "a"))
+        repo.connected("bot")
+        eventually { store.seekerName("a") != null }
+        delay(200)
+        assertEquals(listOf("a"), asked.toList())
+        assertNull(store.seekerName("bot"))
+        assertEquals(mapOf("a" to "a.skr"), repo.names.value)
     }
 
     @Test
