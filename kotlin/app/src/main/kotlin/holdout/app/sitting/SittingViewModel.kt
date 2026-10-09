@@ -88,13 +88,13 @@ class SittingViewModel(
      */
     private val timeLeftAt: ((Long) -> Long?)? = null,
     /**
-     * Debug builds: where to write this sitting's trace (`TraceRecorder`).
-     * Null in release builds, where nothing is recorded.
+     * Holdout Lab: what keeps this sitting's trace ([SittingRecorder]). The
+     * member app passes none, and nothing about the sitting is written.
      */
-    traceDir: java.io.File? = null,
+    recorder: SittingRecorder? = null,
 ) : ViewModel() {
 
-    private val trace = traceDir?.let { TraceRecorder(it, stakes) }
+    private val trace = recorder
 
     enum class Step {
         PREFLIGHT,
@@ -159,7 +159,7 @@ class SittingViewModel(
         val coach: Coach? = null,
         /** With the pills green and the hold not filling: the sentence that says why (`HoldBlocker.fix`). */
         val holdFix: String? = null,
-        /** Debug builds: the trace file this sitting is being recorded to. */
+        /** Holdout Lab: the trace file this sitting is being recorded to. */
         val traceName: String? = null,
         /** Debug builds: pose frames analysed per second, over the last few seconds. */
         val analysisFps: Float? = null,
@@ -515,11 +515,11 @@ class SittingViewModel(
         return banking.endSitting()
     }
 
-    /** Debug builds: whether this sitting wrote a trace that can be labelled. */
-    val canLabelTrace: Boolean get() = trace?.file != null
+    /** Holdout Lab: whether this sitting wrote a trace that can be labelled. */
+    val canLabelTrace: Boolean get() = trace?.fileName != null
 
     /**
-     * Debug builds: what the member says they did, written into the trace. The
+     * Holdout Lab: what the tester says they did, written into the trace. The
      * expected count is what the rule should credit: full push-ups, and in the
      * Daily 25 push-ups from the knees as well (FR-021a).
      */
@@ -561,7 +561,7 @@ class SittingViewModel(
             event = event,
         )
         if (_uiState.value.traceName == null) {
-            trace?.file?.name?.let { name -> _uiState.update { it.copy(traceName = name) } }
+            trace?.fileName?.let { name -> _uiState.update { it.copy(traceName = name) } }
         }
     }
 

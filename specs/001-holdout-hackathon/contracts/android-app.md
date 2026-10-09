@@ -21,7 +21,7 @@
 | The configured devnet RPC endpoint | Account reads, Clock sysvar, sending signed transactions |
 | Local MWA wallet app (Android intents / local websocket) | Authorisation and signing |
 
-Nothing else — reminders (FR-068) are scheduled and shown on the device and use no network. Debug builds may save a sitting's camera as video in private storage for rep-recognition testing (constitution X v1.5.0, spec 002 FR-026); the app never sends it anywhere, and release builds contain no recorder. **Camera frames, landmarks and rep traces are never sent anywhere** (FR-022, constitution X); the only rep-derived data leaving the device is the 32-byte `proof_hash` inside `submit_day`. Acceptance criterion 10 is checked by capturing all outbound traffic during a sitting and finding only RPC calls.
+Nothing else — reminders (FR-068) are scheduled and shown on the device and use no network. Only **Holdout Lab**, the separate tester app (`holdout.app.lab`, spec 004), may save a set's camera as video in its private storage for rep-recognition testing (constitution X v2.1.0, spec 002 FR-026); it never sends it anywhere, and has no network permission at all. The member app contains no recorder in any build. **Camera frames, landmarks and rep traces are never sent anywhere** (FR-022, constitution X); the only rep-derived data leaving the device is the 32-byte `proof_hash` inside `submit_day`. Acceptance criterion 10 is checked by capturing all outbound traffic during a sitting and finding only RPC calls.
 
 ## 3. Wallet use (Mobile Wallet Adapter)
 
@@ -44,7 +44,7 @@ Client: `com.solanamobile:mobile-wallet-adapter-clientlib-ktx` 2.2.0, used as in
 | Theme | **A single dark theme** built from the tokens in `docs/holdout_v1_prd.md` §11 — black canvas, Solana-palette accents. No light variant |
 | Dynamic colour | **Disabled.** Material You never recolours the app; brand colours are fixed |
 | Fonts | System Roboto / Roboto Flex for UI, JetBrains Mono (bundled, open licence) for amounts and countdowns. **No licensed brand font ships in the APK** (PRD §11.8) |
-| Camera and walkthrough screens | Designed for black: full-bleed preview or video, with a scrim behind any text |
+| Camera screens | Designed for black: full-bleed preview, with a scrim behind any text |
 
 ## 4. Device storage
 
@@ -54,7 +54,7 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 
 | State (spec §8, data-model) | Screen / variant (PRD §10.1) |
 |---|---|
-| No wallet | Connect wallet — no-wallet variant (ES-0), with "Watch a full cycle (3 min)" opening the walkthrough player |
+| No wallet | Connect wallet — no-wallet variant (ES-0): what a wallet is and how to get one; nothing else is reachable before a wallet (FR-001a, amended 2026-10-09) |
 | Wallet without test SKR or fee SOL | Faucet sheet; used-today and can't-pay-out variants (ES-0a, ES-0b) |
 | Wallet just connected, first run | Tour — three cards, skippable, re-openable (FR-067) |
 | No Holdout running, Daily 25 available | Home — Daily 25 variant, with the Holdouts open to join and what is at stake in each (FR-053) |
@@ -72,8 +72,7 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 | `Claimed` | Cohort detail — claimed |
 | Any running cohort | Roster (FR-062) |
 | **[Phase 2]** League leaderboard | Leaderboards screen (US-10) |
-| About / for judges | Walkthrough player, the published scripted-wallet list, and the known weaknesses (FR-043a, FR-044, constitution XI) |
-| Walkthrough | Walkthrough player, or "recording in progress" (R18), reached from **About / for judges** and from a quiet link on the connect screen. The **only** screen reachable before a wallet is connected (FR-001a); it plays a bundled file, so it needs no network and no wallet |
+| About Holdout | The test network, one line on scripted members, the tour again, and Disconnect wallet. For every member; nothing in it is addressed to judges, and the known weaknesses are in the README only (spec 004, amended 2026-10-09). There is no walkthrough in the app: the full cycle is in the demo video, sent as a link (FR-044) |
 
 `Withdrawn` returns the member to the ladder with a refund confirmation; the cohort-level `Settled` state is shown in cohort detail.
 

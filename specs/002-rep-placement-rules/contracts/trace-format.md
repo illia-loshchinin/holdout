@@ -1,6 +1,6 @@
 # Contract: Sitting trace, v2
 
-Written by debug builds (`kotlin/app` `TraceRecorder`), read by `kotlin/repcounter` `Trace.parse` and `RecordedTracesTest`. Landmark numbers only — never a picture (constitution X). Release builds write nothing.
+Written by Holdout Lab (`kotlin/app/src/lab` `TraceRecorder`; spec 004, amended 2026-10-09 — before that, by debug builds), read by `kotlin/repcounter` `Trace.parse` and `RecordedTracesTest`. Landmark numbers only — never a picture (constitution X). The member app writes nothing, in any build. The format is unchanged by the move.
 
 ## Location
 

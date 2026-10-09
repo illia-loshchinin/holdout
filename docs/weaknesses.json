@@ -1,5 +1,5 @@
 {
-  "$comment": "The known weaknesses and their real fixes (constitution XI). The one source for the README table (scripts/render-weaknesses.mjs) and the About screen (T090, T103). Edit here, then run: node scripts/render-weaknesses.mjs",
+  "$comment": "The known weaknesses and their real fixes (constitution XI). The one source for the README table (scripts/render-weaknesses.mjs, T103); the app shows no weaknesses screen (spec 004 FR-015). Edit here, then run: node scripts/render-weaknesses.mjs",
   "weaknesses": [
     {
       "what": "Devnet with a mock SKR mint",
@@ -22,8 +22,8 @@
       "fix": "Flip the flag on mainnet"
     },
     {
-      "what": "Non-default `day_seconds` for test cohorts — a **short test lobby kept running on devnet** for judges, from which the walkthrough and the demo video are recorded",
-      "why": "Lets a single judge run a whole cycle alone: three 10-minute days, a new cohort every 30 minutes (FR-044a, H36). Only one test league runs at a time, since streaks are written when a cohort is counted and two test leagues of different lengths could count a member's outcomes out of order on the combined test board",
+      "what": "Non-default `day_seconds` for test cohorts — a **short test lobby kept running on devnet**, labelled and open to anyone, from which the demo video is recorded",
+      "why": "Lets a single person run a whole cycle alone: three 10-minute days, a new cohort every 30 minutes (FR-044a, H36). Only one test league runs at a time, since streaks are written when a cohort is counted and two test leagues of different lengths could count a member's outcomes out of order on the combined test board",
       "fix": "Admin-guarded; real cohorts always use 24 hours"
     },
     {
@@ -74,12 +74,12 @@
     {
       "what": "A wallet is required before anything, even the Daily 25",
       "why": "One identity from the first tap; guest mode was considered and dropped",
-      "fix": "The connect screen plays the recorded walkthrough without a wallet, so judges who cannot connect one still see the whole product"
+      "fix": "The connect screen says how to get a wallet; the demo video, sent with the submission, shows the whole product without one"
     },
     {
-      "what": "The full cycle is shown as a recorded walkthrough in the app, for judges",
-      "why": "A judge can't wait 7 days",
-      "fix": "It is a recording of the real app against the real devnet contract, taken from the first judged cohort. Members get a three-card tour instead"
+      "what": "The full cycle is shown in the demo video, not inside the app",
+      "why": "Nobody can wait 7 days to see a settlement; the submission is the app's final state, so it carries no recording or section for judges",
+      "fix": "The video is a recording of the real app against the real devnet contract, on a labelled short test Holdout, which anyone can also join and run in about half an hour"
     },
     {
       "what": "The faucet's fee sponsor key ships inside the app",

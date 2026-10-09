@@ -11,7 +11,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 
-/** Debug-build traces: every sitting keeps its own file. */
+/** Holdout Lab traces: every set keeps its own file. */
 class TraceRecorderTest {
     private val frame = PoseFrame(0, List(PoseIndex.COUNT) { Landmark(0.5f, 0.5f, 0f, 1f) })
 

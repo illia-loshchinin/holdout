@@ -28,7 +28,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             HoldoutTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    HoldoutApp(
+                    // The member app or Holdout Lab, by flavor (spec 004).
+                    AppRoot(
                         sender = sender,
                         modifier = Modifier.padding(innerPadding),
                     )

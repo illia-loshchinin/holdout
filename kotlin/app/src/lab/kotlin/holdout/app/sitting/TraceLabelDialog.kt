@@ -33,7 +33,7 @@ import holdout.app.ui.theme.Spacing
 import holdout.repcounter.Trace
 
 /**
- * Debug builds: what the member actually did in the sitting that just ended,
+ * Holdout Lab: what the tester actually did in the set that just ended,
  * written into its trace so the pulled file is already a test
  * (`holdout.repcounter.Trace.label`). The person's count is the only ground
  * truth there is; the app's own count is shown for comparison, never assumed.

@@ -216,7 +216,13 @@ The app's temporary screen keeps its **Send devnet transaction** button until
 T039–T040 replace it, so the path can be re-run on any phone in a minute:
 
 ```bash
-cd kotlin && ./gradlew :app:installDebug
+cd kotlin && ./gradlew :app:installMemberDebug
+```
+
+Holdout Lab, the tester app that records and labels sets (spec 004), installs beside it:
+
+```bash
+cd kotlin && ./gradlew :app:installLabDebug
 ```
 
 Two things are still worth a glance when a tester phone is in hand: that the

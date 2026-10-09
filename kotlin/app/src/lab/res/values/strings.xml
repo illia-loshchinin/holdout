@@ -1,0 +1,4 @@
+<resources>
+    <!-- Holdout Lab, the tester app (spec 004 FR-001). -->
+    <string name="app_name">Holdout Lab</string>
+</resources>

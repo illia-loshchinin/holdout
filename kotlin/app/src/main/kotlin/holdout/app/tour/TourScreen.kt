@@ -26,8 +26,8 @@ import holdout.repcounter.Stakes
 
 /**
  * The first-run tour (FR-067, T042): three cards, skippable at any card,
- * re-openable from About. Members meet the product here; the recorded
- * walkthrough is for judges (FR-044).
+ * re-openable from About Holdout. Members meet the product here, and anyone
+ * can run the whole cycle on a short test Holdout (FR-044a).
  */
 @Composable
 fun TourScreen(onDone: () -> Unit, modifier: Modifier = Modifier) {
