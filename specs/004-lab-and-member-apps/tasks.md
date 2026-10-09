@@ -177,7 +177,7 @@ description: "Task list for 004 Holdout Lab and the member app"
 - [X] T027 Run quickstart §2 and §3 fully: tests, `ktlintCheck`, both APKs built, both installed side by side.
 - [ ] T028 Run `python scripts/design-book.py check --report-only`; it must show no new raw colours from `LabApp.kt`.
 - [ ] T029 On a tester phone, before installing the new member build, run `bash scripts/pull-traces.sh --package holdout.app` (quickstart §1). **Needs the product owner's phone.**
-- [ ] T030 Update the docs that name variants or the old flows:
+- [X] T030 Update the docs that name variants or the old flows:
   - `specs/001-holdout-hackathon/quickstart.md` and `specs/002-rep-placement-rules/quickstart.md` (`assembleDebug` → `assembleMemberDebug` / `assembleLabDebug`, `testDebugUnitTest` → `testMemberDebugUnitTest`), through `/speckit-plan` on each, since they are spec-kit files;
   - `README.md`: Lab is not part of the clone-and-run steps, but the member build command changes;
   - `docs/holdout_screen_map.md`: drop A2 Walkthrough and X1 "About · for judges", and add "About Holdout".
