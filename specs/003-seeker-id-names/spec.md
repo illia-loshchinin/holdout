@@ -28,6 +28,7 @@ Seeker ID names are recorded on Solana **mainnet**. Holdout runs on **devnet**. 
 - Q: Where is the Roster row's wording changed, given that the repository holds no copy of the design book? → A: In the Holdout design system's claude.ai artifact only; there is nothing in the repository to sync.
 - Q: Are scripted members' wallets ever looked up? → A: Never. They are devnet-only wallets, deleted for mainnet, and have no Seeker ID; they always show their shortened address with their scripted label.
 - Q: What may the names endpoint receive besides the wallet addresses looked up? (FR-009) → A: The reverse-record addresses derived from those wallets' name accounts, which the second read needs; all are public on chain. Never a signature, a transaction or device data.
+- Q: What happens to a name of wide characters (for example CJK) that fits the character budget but not the width of its line? (FR-004) → A: Accepted as a known limit: it is cut at the line's end with "…" and may lose its `.skr` ending; the line keeps its width and never moves.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -84,7 +85,7 @@ Anyone reading the README, a judge included, learns that Seeker ID names are rea
 
 - **A wallet holds several Seeker IDs.** One is shown, chosen by a fixed rule (FR-005), so the same wallet shows the same name on every screen and in every session.
 - **A Seeker ID moves to another wallet** (an owner can move it between their own wallets). The old wallet may keep showing the name until its cached entry is refreshed (FR-007); the name never decides anything, so nothing else is affected.
-- **A very long name.** It is shortened in the middle so the end, `.skr`, always shows (FR-004).
+- **A very long name.** It is shortened in the middle so the end, `.skr`, always shows (FR-004). A name of wide characters too wide for its line is the one exception: it is cut at the line's end and may lose `.skr` (FR-004, known limit).
 - **A name made of unusual characters** (for example letters from another script, or characters that look like others). It is shown as written; it is never used to identify anyone for money or ranking (FR-008).
 - **The mainnet lookup fails, is slow or is refused.** The shortened address shows; no error, spinner or retry button appears (FR-006).
 - **Two different wallets would show the same visible text** (for example after truncation). Rows stay distinct because ordering and "you" come from the wallet, not the name.
@@ -99,7 +100,7 @@ Anyone reading the README, a judge included, learns that Seeker ID names are rea
 - **FR-001** Wherever the app names the **connected wallet**, it shows that wallet's Seeker ID when the wallet holds one, and its shortened address otherwise.
 - **FR-002** Wherever the app identifies **another member** (a Holdout's roster and the league leaderboards, and any later list or line that names a member), it shows that member's Seeker ID when the wallet holds one, and its shortened address otherwise. This amends 001 FR-063, whose rule that no leaderboard shows or ranks any stake, prize or payout amount is unchanged.
 - **FR-003** A Seeker ID is shown in full with its `.skr` ending, in the same typeface and colour the shortened address uses in that place, so a row with a name and a row without one look like the same kind of row. No icon, badge or colour marks a name as verified or an address as missing.
-- **FR-004** A Seeker ID too long for its space is shortened in the middle of the part before `.skr`, keeping its start and the whole `.skr` ending visible.
+- **FR-004** A Seeker ID too long for its space is shortened in the middle of the part before `.skr`, keeping its start and the whole `.skr` ending visible. *Known limit:* a name of wide characters (for example CJK) that fits the character count but is still wider than its line is cut at the line's end with "…", and may lose its `.skr` ending; the line never grows or moves for it.
 - **FR-005** When a wallet holds more than one Seeker ID, the app shows the one that comes first in plain alphabetical order, so the choice is the same on every screen, in every session and on every phone.
 - **FR-006** Looking a name up never delays, blocks or fails a screen. The shortened address shows at once; the name replaces it when found, in the same space. A failed, slow or refused lookup shows nothing but the shortened address: no error, spinner or retry control.
 - **FR-007** Names found are kept on the phone and shown at once, offline included, the next time the same wallet appears. A kept entry, including the finding that a wallet has no Seeker ID, is checked again at most once a day, and the connected wallet's own entry is checked again every time it connects.
