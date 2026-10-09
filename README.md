@@ -4,7 +4,7 @@
 
 Solana Mobile fitness commitment dApp. Built for the CLOCK IN hackathon, submission due 9 Oct 2026.
 
-**Devnet only, mock SKR mint — a test network with a test token.** Nothing here touches mainnet or real value.
+**Devnet only, mock SKR mint — a test network with a test token.** No stake, prize or token touches mainnet or real value; the one mainnet contact is a read of members' public Seeker ID names, for display only (see Known weaknesses).
 
 ## What it is
 
