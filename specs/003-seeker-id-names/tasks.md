@@ -13,10 +13,7 @@ description: "Task list for 003 Seeker ID names"
 
 **Organization**: Grouped by user story (spec: US1 and US2 are P1, US3 is P2) so each can be built and checked on its own.
 
-**Where the spec is newer than the design docs** (spec Clarifications, Session 2026-10-09), these tasks follow the spec:
-
-- **Lazy lookups (FR-012, SC-002).** Only the connected wallet and the rows on screen are looked up. There is no "rest of the list" priority, which overrides data-model §4's priority 2, plan Summary item 3 and quickstart §2's "0 → 1 → 2". `want(wallets, priority)` in contracts §3.3 becomes `showing(wallets)`, defined in T009.
-- **README only (FR-010, US3).** Spec 004 removed About · for judges, and moved the weaknesses source to `docs/weaknesses.json`. That overrides contracts §4's path and quickstart §4 row 7.
+**Lazy lookups**: Only the connected wallet and the rows on screen are ever looked up (spec FR-012, research R11, data-model §4, contracts §3.3 `showing`).
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -60,7 +57,7 @@ description: "Task list for 003 Seeker ID names"
   - It returns `Lookup.Found("alice.skr")`, `Lookup.None` for `result: []`, and `Lookup.Unknown(rateLimited = true)` on HTTP 429.
   - It returns `Lookup.Unknown(rateLimited = false)` on a JSON-RPC error, an `IOException` or a 10 s timeout.
   - The class has no public member other than `nameOf` (checked by reflection, as `StreakStoreTest` checks its API).
-- [ ] T005 [P] Write `kotlin/app/src/test/kotlin/holdout/app/names/LookupQueueTest.kt` (JUnit 4, as the other app tests are). It drives a pure `LookupQueue` with an explicit clock in milliseconds (data-model §4, with FR-012 replacing priority 2):
+- [ ] T005 [P] Write `kotlin/app/src/test/kotlin/holdout/app/names/LookupQueueTest.kt` (JUnit 4, as the other app tests are). It drives a pure `LookupQueue` with an explicit clock in milliseconds (data-model §4, research R11):
   - "at most one owner search per 1,200 ms";
   - the connected wallet is served before any on-screen wallet;
   - `showing(set)` replaces the on-screen set. A pending wallet that is no longer in the set, and is not the connected wallet, is dropped without being searched (FR-012). It is queued again if a later `showing` includes it;
@@ -90,7 +87,7 @@ description: "Task list for 003 Seeker ID names"
   - **Bound:** "at most 5,000 entries". The entry with the oldest `checkedAtMillis` is removed first.
   - **Index:** `allSeekerNames(): Map<String, String>` returns only the entries that have a name.
 - [ ] T009 Implement `kotlin/app/src/main/kotlin/holdout/app/names/LookupQueue.kt` until T005 passes. It is pure, with no Android or coroutine types. It has two priorities, connected and on screen, and nothing else (FR-012).
-- [ ] T010 Implement `kotlin/app/src/main/kotlin/holdout/app/names/SeekerNameRepository.kt` (contracts §3.3 as amended above; depends on T007–T009):
+- [ ] T010 Implement `kotlin/app/src/main/kotlin/holdout/app/names/SeekerNameRepository.kt` (contracts §3.3; depends on T007–T009):
   - **`names: StateFlow<Map<String, String>>`** is seeded from `Store.allSeekerNames()` at construction.
   - **`showing(wallets: Collection<String>)`** sets the on-screen set and returns at once. It queues only wallets with no entry, or whose entry is older than "24 hours". Wallets that left the screen are dropped from the queue (FR-012).
   - **`connected(wallet)`** always queues at the connected priority.
@@ -135,12 +132,12 @@ description: "Task list for 003 Seeker ID names"
 
 **Goal**: Rosters and leaderboards show each member's Seeker ID or shortened address, looked up only for rows on screen. Order and the "you" and scripted markers don't change (FR-002, FR-008, FR-011, FR-012).
 
-**Independent Test**: Quickstart §4 rows 4–6, and the ordering test in T014.
+**Independent Test**: Quickstart §4 rows 4–7, and the ordering test in T014.
 
 - [ ] T014 [P] [US2] Add a test to `kotlin/app/src/test/kotlin/holdout/app/LeaderboardTextTest.kt`: given rows whose wallets do and don't have kept names, the row order, the ranks, the scripted label and the "you" marker are identical to the result with no names at all (FR-008, SC-003). Names are attached only after ordering.
 - [ ] T015 [US2] In `kotlin/app/src/main/kotlin/holdout/app/roster/RosterScreen.kt`:
   - replace `Format.short(address) + if (address == me) " · you" else ""` (≈ line 67) with `MemberIdentity(address, isYou = address == me, budget = 20, …)`. Keep the current colour for standing and forfeited rows;
-  - read the visible wallets from the `LazyColumn`'s `LazyListState.layoutInfo.visibleItemsInfo` through `snapshotFlow`. Call `showing(visible wallets)` each time they change, and `showing(emptyList())` when the screen leaves composition. **Never pass the whole roster** (FR-012);
+  - read the visible wallets from the `LazyColumn`'s `LazyListState.layoutInfo.visibleItemsInfo` through `snapshotFlow`. Call `showing(visible wallets)` each time they change, and `showing(emptyList())` when the screen leaves composition. **Never pass the whole roster** (FR-012, research R11);
   - leave the scripted label and the ordering exactly as they are.
 - [ ] T016 [US2] In `kotlin/app/src/main/kotlin/holdout/app/leaderboard/LeaderboardScreen.kt`, make the same change to the row text in `Line` (≈ line 88):
   - keep `"$place "` in front;
@@ -156,7 +153,7 @@ description: "Task list for 003 Seeker ID names"
 
 **Goal**: One known-weaknesses entry in the README, rendered from its single source (FR-010). No in-app screen.
 
-**Independent Test**: The README's table has the entry, and `node scripts/render-weaknesses.mjs --check` passes.
+**Independent Test**: Quickstart §4 row 8: the README's table has the entry, and `node scripts/render-weaknesses.mjs --check` passes.
 
 - [ ] T017 [US3] Add the contracts §4 entry, verbatim (`what`, `why`, `fix`), to the `weaknesses` array in `docs/weaknesses.json`, after the "Devnet with a mock SKR mint" entry.
 - [ ] T018 [US3] Run `node scripts/render-weaknesses.mjs` from the repository root and commit the regenerated table in `README.md`. Do not edit the README by hand. No app code changes: `AboutScreen.kt` shows no weaknesses since 004.
@@ -172,9 +169,7 @@ description: "Task list for 003 Seeker ID names"
 - [ ] T020 In the Holdout design system artifact (https://claude.ai/artifact/XF5A1KCgH7WY9651C5ZXhs), change the Roster row wording from "by shortened address only" to "by Seeker ID, or shortened address when there is none". **Product owner approval needed:** it edits the shared design system.
 - [ ] T021 Amend 001 FR-063 through `/speckit-clarify` on `specs/001-holdout-hackathon`: leaderboards identify members by Seeker ID or shortened address, with no amounts (spec 003 FR-002).
 - [ ] T022 Amend `specs/001-holdout-hackathon/contracts/android-app.md` §2 (network egress) through `/speckit-plan` on 001: add the names endpoint row from 003 contracts §2.
-- [ ] T023 On a Seeker with a Seeker ID, connected to the devnet member build, run quickstart §4 rows 1–6, then two more checks. Record the results in the PR. **Needs the product owner's device.**
-  - **Lazy loading (FR-012):** open a roster of 30 or more with a cold cache, and scroll to the bottom at once. The rows on screen are named within 15 s (SC-002). The rows you scrolled past stay as addresses until you scroll back.
-  - **README (US3):** the README shows the Seeker ID entry. This replaces quickstart row 7.
+- [ ] T023 On a Seeker with a Seeker ID, connected to the devnet `member` build, run quickstart §4 rows 1–8 and record the results in the PR. Row 7 is the lazy-loading check (FR-012, SC-002), and row 8 is the README entry (US3). **Needs the product owner's device.**
 
 ---
 
@@ -222,8 +217,8 @@ Phases 1–3 (T001–T013): the connected member sees their own Seeker ID. This 
 
 1. Phases 1–2: 004 is merged in, and the lookup and the cache are tested on the JVM. Nothing visible changes.
 2. US1: own identity, checked on the device (quickstart §4 rows 1–3).
-3. US2: rosters and leaderboards, looked up only for rows on screen (rows 4–6 and the lazy check in T023).
-4. US3: the README disclosure. It is small, but constitution XI makes it required before submission.
+3. US2: rosters and leaderboards, looked up only for rows on screen (quickstart §4 rows 4–7).
+4. US3: the README disclosure (row 8). It is small, but constitution XI makes it required before submission.
 5. Polish: the checks, the design system wording and the 001 amendments.
 
 ### Fit with the 13 Oct submission
