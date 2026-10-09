@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/illia-loshchinin/holdout/actions/workflows/ci.yml/badge.svg)](https://github.com/illia-loshchinin/holdout/actions/workflows/ci.yml)
 
-Solana Mobile fitness commitment dApp. Built for the CLOCK IN hackathon, submission due 9 Oct 2026.
+Solana Mobile fitness commitment dApp. Built for the CLOCK IN hackathon, submission due 13 Oct 2026, 01:59 CEST (12 Oct, 23:59 UTC); judging runs 13 Oct – 9 Nov 2026.
 
 **Devnet only, mock SKR mint — a test network with a test token.** No stake, prize or token touches mainnet or real value; the one mainnet contact is a read of members' public Seeker ID names, for display only (see Known weaknesses).
 
