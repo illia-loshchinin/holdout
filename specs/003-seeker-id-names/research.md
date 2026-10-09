@@ -48,7 +48,7 @@ Each decision below resolves a question the plan's Technical Context raised. Pro
 
 ## R4 · How fast the public mainnet RPC answers, and what that means for SC-002
 
-**Decision**: All lookups go through **one paced queue**: at most one owner search every 1.2 seconds (8 per 10 seconds). The queue serves the connected wallet first, then rows on screen, then the rest of the open list. On HTTP 429 it waits 15 seconds before the next search. Reverse records are batched up to 100 per call outside that pace. The mainnet endpoint is a build setting defaulting to `https://api.mainnet-beta.solana.com`, so a keyed endpoint can be used without code changes (R5).
+**Decision**: All lookups go through **one paced queue**: at most one owner search every 1.2 seconds (8 per 10 seconds). The queue serves the connected wallet first, then rows on screen, and nothing else (R11). On HTTP 429 it waits 15 seconds before the next search. Reverse records are batched up to 100 per call outside that pace. The mainnet endpoint is a build setting defaulting to `https://api.mainnet-beta.solana.com`, so a keyed endpoint can be used without code changes (R5).
 
 **Measured on 2026-10-09** from this machine against `api.mainnet-beta.solana.com`:
 
@@ -71,7 +71,9 @@ Each decision below resolves a question the plan's Technical Context raised. Pro
 
 After that, names come from the phone's cache at once (FR-007).
 
-SC-002 asks for every name in a 100-member list within 10 seconds. That **cannot be met on the public node from a cold cache**. It can be met only with a keyed RPC provider, whose key would ship in the APK (a disclosed trust gap, like the faucet sponsor key in 001 R13). **Recommended spec amendment** (through `/speckit-clarify`, before `/speckit-tasks`): SC-002 should say "rows on screen within 10 seconds; a whole 100-member list within 2 minutes the first time, and at once afterwards". This plan is built to that wording. Nothing else in the spec depends on the endpoint.
+SC-002 originally asked for every name in a 100-member list within 10 seconds. That **cannot be met on the public node from a cold cache**. It can be met only with a keyed RPC provider, whose key would ship in the APK (a disclosed trust gap, like the faucet sponsor key in 001 R13). **Recommended spec amendment** (through `/speckit-clarify`, before `/speckit-tasks`): SC-002 should say "rows on screen within 10 seconds; a whole 100-member list within 2 minutes the first time, and at once afterwards". This plan was first built to that wording. Nothing else in the spec depends on the endpoint.
+
+**Outcome** (`/speckit-clarify`, 2026-10-09): even that wording left no room under the 1.2 s pace: about 13 s for a screen and 121 s for 100 members. Names are minor, so the spec now loads them lazily (FR-012, R11), and SC-002 asks only that rows on screen are named within 15 s. The whole-list figures above remain as measurements, not targets.
 
 **Alternatives considered**:
 - **Unpaced parallel searches**: they trip the 429 limit within a second. The node then refuses everything, including the connected wallet's own search.
@@ -131,8 +133,26 @@ Otherwise the wallet counts as having no Seeker ID (FR-006).
   - R3 ordering, R6 validation and R9 truncation.
 - **`app` JVM tests**: the paced queue and cache with a fake reader:
   - pace and priority order, and the 429 back-off;
+  - a row that leaves the screen before its search starts is never searched (R11);
   - the 24-hour re-check, and every connect re-checking the connected wallet;
   - a failure leaves the address.
 - **One manual device check** (quickstart): it uses a Seeker with a Seeker ID connected to the devnet build.
 
 The spike script stays out of the repository. Its numbers are recorded in R4.
+
+## R11 · Lazy lookups: only what is on screen (FR-012, SC-002)
+
+**Decision**: The queue has **two priorities**: the connected wallet, then the wallets on screen.
+- Screens report their visible rows with `showing(wallets)`, read from the `LazyColumn`'s `layoutInfo.visibleItemsInfo` through `snapshotFlow`.
+- Each call **replaces** the on-screen set. A pending wallet that is no longer in it, and is not the connected wallet, is dropped unsearched; it is queued again if it comes back into view.
+- Leaving a screen calls `showing(emptyList())`.
+- Nothing is fetched for rows the member has not scrolled to.
+
+**Rationale**:
+- Names are display only and minor. A background pass over a whole list spends the public node's ~10 searches per 10 s on rows nobody sees, and delays the rows the member is looking at.
+- At one search per 1.2 s, a screen of about 10 rows plus the connected wallet is fully started by 12 s, inside SC-002's 15 s on a normal connection.
+- Dropping rows that scroll away keeps a fast scroll through 1,000 members from queueing 1,000 searches.
+
+**Alternatives considered**:
+- **Prefetching the rest of the list at low priority** (this plan's first version): it fills the cache sooner, but costs requests for rows never seen, and needed a 2-minute whole-list target the pace could not meet with any margin.
+- **Prefetching a page ahead of the scroll**: it is smoother on a slow scroll, but adds tuning for a minor feature. It can be added later without changing the contract, because `showing` can take a wider set.

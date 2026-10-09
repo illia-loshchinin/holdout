@@ -69,7 +69,7 @@ Each `value` is null (no record: not a candidate) or an account whose data after
 | Member | Contract |
 |---|---|
 | `val names: StateFlow<Map<String, String>>` | wallet base58 → chosen name, for every kept entry that has one. Starts from the cache at once |
-| `fun want(wallets: Collection<String>, priority: Priority)` | Queue wallets not fresh in the cache (data-model §2, §4); returns at once |
+| `fun showing(wallets: Collection<String>)` | Replace the on-screen set: queue those not fresh in the cache (data-model §2, §4), and drop pending ones no longer on screen (FR-012). Returns at once. Screens pass only their visible rows, and an empty list when they leave |
 | `fun connected(wallet: String)` | Re-check the connected wallet now at priority 0 (FR-007) |
 
 ### 3.4 Compose
@@ -81,7 +81,7 @@ Each `value` is null (no record: not a candidate) or an account whose data after
 
 ## 4. Weaknesses entry (FR-010)
 
-Added to `kotlin/app/src/main/assets/weaknesses.json` and rendered into the README by `node scripts/render-weaknesses.mjs`:
+Added to `docs/weaknesses.json` (its location since spec 004) and rendered into the README by `node scripts/render-weaknesses.mjs`. The app shows no weaknesses screen:
 
 ```json
 {

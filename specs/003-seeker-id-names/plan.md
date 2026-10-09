@@ -14,12 +14,13 @@ The app reads the names itself from the AllDomains name program on **Solana main
 
 There is no server and no new dependency. The work is client only: a pure lookup module in `kotlin/core` and a paced, cached repository in `kotlin/app`. One shared `MemberIdentity` composable replaces the three `Format.short` call sites. Program and crank are untouched.
 
-The public mainnet node allows about 10 owner searches per 10 seconds (research R4), so lookups are paced and prioritised:
+The public mainnet node allows about 10 owner searches per 10 seconds (research R4), so lookups are paced. They are also lazy (FR-012, research R11): only two kinds of wallet are ever looked up, in this order:
 1. the connected wallet;
-2. rows on screen;
-3. the rest of the list.
+2. rows on screen.
 
-Results are kept on the phone for 24 hours.
+A row that leaves the screen before its search starts is dropped, and nothing is fetched ahead for rows the member has not scrolled to. Results are kept on the phone for 24 hours.
+
+The feature builds on spec 004's layout: the `member` and `lab` app flavours, which both carry it from `src/main`, and the weaknesses source in `docs/weaknesses.json`, shown in the README only.
 
 ## Technical Context
 
@@ -37,32 +38,32 @@ Results are kept on the phone for 24 hours.
 
 **Testing**:
 - **`core`** (JUnit 5): constants, request JSON, record parsing, choice, validation and truncation, against synthetic bytes.
-- **`app`** (JVM unit tests with `kotlinx-coroutines-test`): pacing, priority, back-off, freshness and fallback, with a fake reader.
+- **`app`** (JVM unit tests, run for both flavours): pacing, priority, dropping rows that leave the screen, back-off, freshness and fallback, with a fake reader.
 - **On a device**: one manual check (quickstart).
 
 **Target Platform**: The Android app from 001 (minSdk 26, Seeker first). The names are read from Solana **mainnet**, and everything else stays on devnet.
 
-**Project Type**: The existing mobile app plus its shared Kotlin core. No new module.
+**Project Type**: The existing mobile app, with its `member` and `lab` flavours since spec 004, plus its shared Kotlin core. No new module or flavour-specific code.
 
 **Performance Goals** (research R4, on the public node, cold cache):
-- the connected wallet's name in about 1 s;
-- rows on screen in about 10 s;
-- a 30-member list in about 40 s;
-- a 100-member list in about 2 min.
+- the connected wallet's name in about 1 s (SC-001: within 3 s);
+- a screenful of rows, about 10 plus the connected wallet, all started within 12 s at the pace (SC-002: named within 15 s);
+- rows never on screen: no lookup at all (FR-012).
 
 From the cache, every name shows at once. No screen waits on a lookup.
 
 **Constraints**:
 - **Read-only:** the lookup signs and sends nothing (FR-009).
 - **Pacing:** at most 8 owner searches per 10 s (one every 1.2 s), and a 15 s back-off after HTTP 429.
+- **Lazy:** only the connected wallet and the rows on screen are looked up (FR-012).
 - **Endpoints:** the names endpoint is separate from the devnet endpoint (R5).
 - **Display only:** names never reach ordering, ranking, labels or money (FR-008).
 
 **Scale/Scope**:
-- **Code:** 3 call sites, 1 new composable, 1 core file and 1 app repository file, plus tests, 1 weaknesses entry and 1 design-book wording change.
+- **Code:** 3 call sites, 1 new composable, 1 core file and 1 app repository file, plus tests, 1 weaknesses entry and 1 design-system wording change.
 - **Data:** lists up to 1,000 members (001 FR-011a); the cache holds up to 5,000 entries.
 
-No `NEEDS CLARIFICATION` items remain; all are resolved in [research.md](research.md). There is **one recommended spec amendment**: SC-002's 10-second figure cannot be met from a cold cache on the public node (research R4).
+No `NEEDS CLARIFICATION` items remain; all are resolved in [research.md](research.md). The SC-002 amendment research R4 called for was made through `/speckit-clarify` (spec Clarifications, Session 2026-10-09): names load lazily (FR-012), and rows on screen are named within 15 s.
 
 ## Constitution Check
 
@@ -80,12 +81,12 @@ No `NEEDS CLARIFICATION` items remain; all are resolved in [research.md](researc
 | **VIII. Idempotent automation** | Automation safe twice and paged | PASS | No automation. The lookup is a read and safe to repeat |
 | **IX. Every state has a screen** | Every state visible | PASS | One visible form per state: a name, or the shortened address. Not looked up, failed and none all show the address (FR-006); found shows the name |
 | **X. Camera frames never leave the device** | No camera data off the device | PASS | Only wallet addresses already public on chain are sent, to the names endpoint (contracts §2) |
-| **XI. Weaknesses documented** | Anything outside the stated setup is named | PASS, **action required** | One weaknesses entry for the mainnet read (FR-010, contracts §4), rendered to About and the README. A keyed endpoint, if configured, is named the same way (R4) |
+| **XI. Weaknesses documented** | Anything outside the stated setup is named | PASS, **action required** | One weaknesses entry for the mainnet read (FR-010, contracts §4), in `docs/weaknesses.json` and rendered to the README. Since spec 004 the app shows no weaknesses screen. A keyed endpoint, if configured, is named the same way (R4) |
 | **XII. The build demonstrates itself** | Live, populated, labelled crowd | PASS | Scripted members keep their label (FR-011). The fallback looks deliberate (FR-003), so a crowd of addresses still reads as a crowd |
 | **XIII. Honest language** | No money on boards; honest wording | PASS | No amounts added. Rows show only an identity |
 | **Hackathon constraints: devnet only** | The program and all value on devnet | PASS, **justified** | The program, every transaction and every token stay on devnet. The one mainnet contact is a read of public name records through a read-only client that cannot send (R5). See Complexity Tracking |
 | **Hackathon constraints: leaderboards on chain only** | No server or device figure feeds a ranking | PASS | Rankings are unchanged and computed before names are attached (FR-008) |
-| **Development workflow** | Stack in the plan; spec amended through the skills | PASS, **follow-up** | Amendments go through skills: 001 FR-063 via `/speckit-clarify` on 001; 001 `contracts/android-app.md` §2 egress via `/speckit-plan` on 001; SC-002 wording via `/speckit-clarify` on 003; the design book's Roster row via the artifact, then a sync |
+| **Development workflow** | Stack in the plan; spec amended through the skills | PASS, **follow-up** | Amendments go through skills: 001 FR-063 via `/speckit-clarify` on 001; 001 `contracts/android-app.md` §2 egress via `/speckit-plan` on 001; SC-002 wording via `/speckit-clarify` on 003 (done 2026-10-09); the Roster row wording in the claude.ai design system artifact, which has no local mirror |
 
 **Gate result: PASS.** The only item outside the plain reading of a constraint is the read-only mainnet contact, justified below and disclosed (XI).
 
@@ -97,7 +98,7 @@ No `NEEDS CLARIFICATION` items remain; all are resolved in [research.md](researc
 specs/003-seeker-id-names/
 ├── spec.md
 ├── plan.md               # This file
-├── research.md           # R1–R10: name program, spike timings, pacing, validation
+├── research.md           # R1–R11: name program, spike timings, pacing, validation, lazy lookups
 ├── data-model.md         # Seeker ID, kept name entry, shown identity, lookup queue
 ├── quickstart.md         # Build, test and the on-device check
 ├── contracts/
@@ -117,11 +118,13 @@ kotlin/core/src/main/kotlin/holdout/core/
 └── SeekerNameReader.kt       # NEW — read-only mainnet client: owner search + batched reads (R5)
 
 kotlin/core/src/test/kotlin/holdout/core/
-└── SeekerNamesTest.kt        # NEW — R1 constants, request JSON, parsing, R3/R6/R9
+├── SeekerNamesTest.kt        # NEW — R1 constants, request JSON, parsing, R3/R6/R9
+└── SeekerNameReaderTest.kt   # NEW — the two requests and the Lookup results, with a fake driver
 
 kotlin/app/src/main/kotlin/holdout/app/
 ├── names/
-│   └── SeekerNameRepository.kt   # NEW — paced priority queue, MMKV cache, StateFlow of names
+│   ├── LookupQueue.kt            # NEW — pure two-priority paced queue; drops rows that leave the screen
+│   └── SeekerNameRepository.kt   # NEW — worker over the queue, MMKV cache, StateFlow of names
 ├── storage/Store.kt              # + kept name entries (data-model §2)
 ├── ui/Components.kt              # + Format.identity(...) and MemberIdentity composable (R8)
 ├── roster/RosterScreen.kt        # Format.short → MemberIdentity
@@ -129,10 +132,11 @@ kotlin/app/src/main/kotlin/holdout/app/
 └── HoldoutApp.kt                 # the connected-wallet line → MemberIdentity; repository wiring
 
 kotlin/app/src/test/kotlin/holdout/app/names/
-└── SeekerNameRepositoryTest.kt   # NEW — pace, priority, back-off, freshness, fallback
+├── LookupQueueTest.kt            # NEW — pace, priority, dropping off-screen rows, back-off, SC-002 budget
+└── SeekerNameRepositoryTest.kt   # NEW — freshness, re-check on connect, fallback, no lookup off screen
 
-kotlin/app/build.gradle.kts           # + NAMES_RPC_URL from holdout.namesRpcUrl
-kotlin/app/src/main/assets/weaknesses.json   # + one entry; README re-rendered
+kotlin/app/build.gradle.kts           # + NAMES_RPC_URL from holdout.namesRpcUrl, in defaultConfig (both flavours)
+docs/weaknesses.json                  # + one entry; README re-rendered (spec 004 moved it here)
 ```
 
 **Structure Decision**: The pure, network-free logic goes in `kotlin/core`, next to `Pdas.kt` and `Rpc.kt`, where every rule in this codebase is unit-tested on the JVM. The read-only network client also goes there, beside `Rpc`, so the two drivers sit side by side and a review sees that only one of them can send. The cache, pacing and Compose pieces go in `kotlin/app`, beside the screens that use them. Program, crank and tests under `tests/` are untouched.

@@ -82,9 +82,10 @@ One per app process, owned by `SeekerNameRepository`.
 | Field | Rule |
 |---|---|
 | Pending wallets | A set, so a wallet is never searched twice at once |
-| Priority | 0 = the connected wallet; 1 = rows currently on screen; 2 = the rest of the open list. A wallet keeps its highest priority |
+| Priority | 0 = the connected wallet; 1 = rows currently on screen. There is no other priority: a wallet that is neither is never searched (FR-012). A wallet keeps its highest priority |
+| On-screen set | Replaced on each `showing(wallets)`. A pending priority-1 wallet that is not in the new set is dropped from the queue, unsearched |
 | Pace | At most one owner search per 1,200 ms |
 | Back-off | After HTTP 429 or a timeout, no owner search for 15 s; the wallet goes back to the queue |
 | Reverse reads | Batched up to 100 name accounts and sent as soon as owner searches find any; not paced (R4) |
 
-**States of a wallet's lookup**: not kept → queued → searching → answered (entry written: name or none) | failed (nothing written, re-queued at most twice per session, then left as the address until the next session).
+**States of a wallet's lookup**: not kept → queued → searching → answered (entry written: name or none) | failed (nothing written, re-queued at most twice per session if still on screen or connected, then left as the address until the next session). A queued wallet can also be **dropped** when it leaves the screen before its search starts: nothing is written, and it is queued again if it comes back into view.
