@@ -43,6 +43,6 @@ One per set recorded in Holdout Lab.
 |---|---|---|---|
 | `SittingRecorder` | `record(...)` per analysed frame; `label(expectedReps, done, note, placement, phoneSide)`; `close()`; `val fileName: String?`; `val failed: Boolean` (the trace could not be written) | `TraceRecorder` | none (`null` passed) |
 | `SittingVideoFactory` | `create(context, traceDir): SittingVideo?` (existing) | CameraX `VideoCapture` recorder | returns `null` |
-| `LabSittingTools` | `@Composable labelPrompt(counted, onSave, onSkip)`, `@Composable notSavedNotice(onOk)`, `readouts: Boolean`, `cleanScreen: Boolean`, `recordVideo: Boolean` | label dialog; "not saved" dialog when the trace failed; readouts on; clean screen and video from settings | not passed (`null`): no prompt, no readouts, overlay drawn |
+| `LabSittingTools` | `@Composable labelPrompt(counted, onSave, onSkip)`, `@Composable notSavedNotice(onOk)`, `readouts: (@Composable (UiState) -> Unit)?`, `cleanScreen: Boolean`, `recordVideo: Boolean` | label dialog; "not saved" dialog when the trace failed; `LabReadouts`, or null under clean screen; clean screen and video from settings | not passed (`null`): no prompt, no readouts, overlay drawn |
 
 **Invariant**: with `recorder = null` and `tools = null`, `SittingViewModel` and `SittingScreen` behave exactly as a member sitting does today (FR-016). A unit test checks that nothing is written.

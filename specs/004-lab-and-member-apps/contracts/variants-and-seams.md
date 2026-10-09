@@ -54,7 +54,7 @@ interface SittingRecorder {
 }
 
 class LabSittingTools(
-    val readouts: Boolean,
+    val readouts: (@Composable (state: SittingViewModel.UiState) -> Unit)?,   // LabReadouts, or null under clean screen
     val cleanScreen: Boolean,
     val recordVideo: Boolean,
     val labelPrompt: @Composable (counted: Int, onSave: (done: Map<String, Int>, note: String, placement: String?, phoneSide: String?) -> Unit, onSkip: () -> Unit) -> Unit,
@@ -62,10 +62,11 @@ class LabSittingTools(
 )
 ```
 
-- When a Lab set ends and `recorder.failed` is true, `SittingScreen` shows `notSavedNotice` instead of `labelPrompt`, and the readouts show "rec · not saved" (spec edge case: the phone runs out of space during a Lab set). A set whose trace failed is never labelled.
+- When a Lab set ends and `recorder.failed` is true, `SittingScreen` shows `notSavedNotice` instead of `labelPrompt`, and `LabReadouts` shows "rec · not saved" (spec edge case: the phone runs out of space during a Lab set). A set whose trace failed is never labelled.
 
 - `SittingViewModel(…, recorder: SittingRecorder? = null, …)` replaces `traceDir: File?`.
 - `SittingScreen(…, tools: LabSittingTools? = null, …)` replaces `cleanScreen` and `recordVideo` and every `BuildConfig.DEBUG` check in it.
+- `SittingScreen` calls `tools?.readouts?.invoke(state)` under the count and holds no readout text of its own: the readout UI (`LabReadouts`, in `src/lab`) is never compiled into a member build (FR-010).
 
 ## 4. Build check
 
@@ -74,9 +75,9 @@ class LabSittingTools(
 | | |
 |---|---|
 | **Scans** | `src/main`, `src/member`, `src/debug`, `src/release`, `src/memberDebug`, `src/memberRelease` (`kotlin` and `java` folders) |
-| **Fails on** | any file containing `androidx.camera.video`, `TraceRecorder`, `TraceLabelDialog`, `TestSwitch` or `LabApp` |
+| **Fails on** | any file containing `androidx.camera.video`, `TraceRecorder`, `TraceLabelDialog`, `TestSwitch`, `LabApp`, `LabReadouts`, or the literal `"rec · ` |
 | **Runs before** | every task named `assembleMember*` or `bundleMember*` |
-| **Message** | `Member-app code contains Holdout Lab code: <files>. Only src/lab may record, label or show tester switches (constitution X v2.1.0, spec 004 FR-010).` |
+| **Message** | `Member-app code contains Holdout Lab code: <files>. Only src/lab may record, label, show readouts or show tester switches (constitution X v2.1.0, spec 004 FR-010).` |
 
 ## 5. Holdout Lab screens
 
