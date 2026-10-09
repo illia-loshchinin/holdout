@@ -67,7 +67,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import holdout.app.BuildConfig
 import holdout.app.ui.Reading
 import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.CounterStyle
@@ -100,18 +99,19 @@ fun SittingScreen(
     onFinished: () -> Unit,
     onCancelled: (discarded: Int) -> Unit,
     modifier: Modifier = Modifier,
-    /**
-     * Debug builds: nothing drawn over the camera, for screen recordings that
-     * train the knee classifier — dots and text on the legs would be learnt
-     * instead of the legs. Sounds still play.
-     */
-    cleanScreen: Boolean = false,
     /** The finished screen's button: "Back" for the Daily 25, the submit for a Holdout day. */
     finishLabel: String = "Back",
-    /** Debug builds: record this sitting's camera as video (constitution X, v1.5.0). */
-    recordVideo: Boolean = false,
+    /**
+     * Holdout Lab's additions (spec 004): readouts, clean screen, video and the
+     * label question. The member app passes none.
+     */
+    tools: LabSittingTools? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // Nothing drawn over the camera, for recordings that train the knee
+    // classifier — dots and text on the legs would be learnt instead of the
+    // legs. Sounds still play. Holdout Lab only.
+    val cleanScreen = tools?.cleanScreen == true
     val context = LocalContext.current
 
     var hasCamera by remember {
@@ -158,7 +158,7 @@ fun SittingScreen(
 
     KeepScreenOn()
 
-    /** Debug builds: where to go once the member has labelled the trace. */
+    /** Holdout Lab: where to go once the tester has labelled the trace. */
     var labelThen by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     // Every transition after Start is a sound: the member is on the floor with
@@ -174,7 +174,7 @@ fun SittingScreen(
     ) {
         if (state.step != SittingViewModel.Step.COMPLETE) {
             if (hasCamera) {
-                CameraFeed(viewModel, recordVideo)
+                CameraFeed(viewModel, recordVideo = tools?.recordVideo == true)
                 if (!cleanScreen) {
                     PositionOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
                     SkeletonOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
@@ -208,10 +208,10 @@ fun SittingScreen(
                     // Clean screen: the count up in the corner, out of the way of the body.
                     Unit
                 } else {
-                    CountingOverlay(state)
+                    CountingOverlay(state, readouts = tools?.readouts == true)
                 }
                 SittingViewModel.Step.COMPLETE -> DayComplete(state, finishLabel) {
-                    if (BuildConfig.DEBUG && viewModel.canLabelTrace) labelThen = onFinished else onFinished()
+                    if (tools != null && viewModel.canLabelTrace) labelThen = onFinished else onFinished()
                 }
             }
 
@@ -247,19 +247,21 @@ fun SittingScreen(
             )
         }
 
-        // Debug builds: log what was really done before leaving, so the
+        // Holdout Lab: log what was really done before leaving, so the
         // trace this sitting wrote arrives already labelled.
-        labelThen?.let { leave ->
-            TraceLabelDialog(
-                counted = state.repsCounted,
-                onSave = { done, note, placement, phoneSide ->
+        val prompt = tools?.labelPrompt
+        val leaveAfterLabel = labelThen
+        if (prompt != null && leaveAfterLabel != null) {
+            prompt(
+                state.repsCounted,
+                { done, note, placement, phoneSide ->
                     viewModel.labelTrace(done, note, placement, phoneSide)
                     labelThen = null
-                    leave()
+                    leaveAfterLabel()
                 },
-                onSkip = {
+                {
                     labelThen = null
-                    leave()
+                    leaveAfterLabel()
                 },
             )
         }
@@ -268,7 +270,7 @@ fun SittingScreen(
             TextButton(
                 onClick = {
                     val discarded = viewModel.endSitting()
-                    if (BuildConfig.DEBUG && viewModel.canLabelTrace) {
+                    if (tools != null && viewModel.canLabelTrace) {
                         labelThen = { onCancelled(discarded) }
                     } else {
                         onCancelled(discarded)
@@ -430,7 +432,7 @@ private fun Countdown(onTick: (Int) -> Unit, onDone: () -> Unit) {
  * second; this is what makes that glance land.
  */
 @Composable
-private fun CountingOverlay(state: SittingViewModel.UiState) {
+private fun CountingOverlay(state: SittingViewModel.UiState, readouts: Boolean) {
     val done = state.doneToday
     var previous by remember { mutableStateOf(done) }
     val pulse = remember { Animatable(1f) }
@@ -488,8 +490,8 @@ private fun CountingOverlay(state: SittingViewModel.UiState) {
         )
     }
 
-    // Test builds only: what the counter is reading, to tune it on a real body.
-    if (BuildConfig.DEBUG) {
+    // Holdout Lab only: what the counter is reading, to tune it on a real body.
+    if (readouts) {
         state.traceName?.let {
             Text("rec · $it", style = LabelStyle, color = HoldoutColors.TextTertiary)
         }
@@ -877,8 +879,9 @@ private fun sittingGroup(vararg useCases: androidx.camera.core.UseCase) = androi
 
 /**
  * CameraX preview plus the analyser, bound to this screen's lifecycle — and in
- * a debug build with [recordVideo] on, the camera saved as video beside the
- * sitting's trace (constitution X, v1.5.0).
+ * Holdout Lab with [recordVideo] on, the camera saved as video beside the
+ * sitting's trace (constitution X v2.1.0). The member app's [sittingVideo]
+ * always returns null.
  */
 @Composable
 private fun CameraFeed(viewModel: SittingViewModel, recordVideo: Boolean) {

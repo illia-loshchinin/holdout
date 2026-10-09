@@ -16,10 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,30 +72,6 @@ fun HomeScreen(
     state: HomeState,
     onStart: () -> Unit,
     modifier: Modifier = Modifier,
-    /**
-     * Test builds only: run the next sitting under staked rules — side-on, from
-     * the toes — so recognition can be tuned both ways on a real body. Null
-     * hides the switch, as it is in every release build.
-     */
-    stakedTest: Boolean = false,
-    onStakedTestChange: ((Boolean) -> Unit)? = null,
-    /** Test builds only: start today over from zero. Null hides the button. */
-    onResetToday: (() -> Unit)? = null,
-    /** Test builds only: nothing drawn over the camera, for training recordings. */
-    cleanScreen: Boolean = false,
-    onCleanScreenChange: ((Boolean) -> Unit)? = null,
-    /** Test builds only: record sittings as video (constitution X, v1.5.0). Null hides the switch. */
-    recordVideo: Boolean = false,
-    onRecordVideoChange: ((Boolean) -> Unit)? = null,
-    /**
-     * Test builds only: spike S1's on-device path — a devnet transaction
-     * signed by the connected wallet — kept reachable until T040 turns it into
-     * `WalletRepository` (T012a). Here, not on the connect screen, because it
-     * needs the connected wallet. Null hides it.
-     */
-    onSpikeTransaction: (() -> Unit)? = null,
-    /** What the last spike transaction said: its signature, or why it failed. */
-    spikeMessage: String? = null,
     /**
      * Under the hero: the Holdouts open to join, with what is at stake in each
      * (FR-053, T053), drawn by the shell from chain state.
@@ -160,61 +133,6 @@ fun HomeScreen(
                 color = HoldoutColors.TextSecondary,
                 textAlign = TextAlign.Center,
             )
-        }
-
-        if (onCleanScreenChange != null) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.tight),
-            ) {
-                Switch(
-                    checked = cleanScreen,
-                    onCheckedChange = onCleanScreenChange,
-                    colors = SwitchDefaults.colors(checkedTrackColor = HoldoutColors.Accent),
-                )
-                Text(
-                    text = if (cleanScreen) "TEST · clean screen: no dots or text, for training recordings" else "TEST · clean screen off",
-                    style = LabelStyle,
-                    color = if (cleanScreen) HoldoutColors.Accent else HoldoutColors.TextTertiary,
-                )
-            }
-        }
-
-        onRecordVideoChange?.let { holdout.app.ui.RecordVideoSwitch(recordVideo, it) }
-
-        if (onResetToday != null) {
-            TextButton(onClick = onResetToday) {
-                Text("TEST · reset today to 0", style = LabelStyle, color = HoldoutColors.Warning)
-            }
-        }
-
-        if (onSpikeTransaction != null) {
-            TextButton(onClick = onSpikeTransaction) {
-                Text("TEST · spike S1: send devnet transaction", style = LabelStyle, color = HoldoutColors.TextTertiary)
-            }
-            spikeMessage?.let { Text(it, style = LabelStyle, color = HoldoutColors.TextTertiary) }
-        }
-
-        if (onStakedTestChange != null) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.tight),
-            ) {
-                Switch(
-                    checked = stakedTest,
-                    onCheckedChange = onStakedTestChange,
-                    colors = SwitchDefaults.colors(checkedTrackColor = HoldoutColors.Accent),
-                )
-                Text(
-                    text = if (stakedTest) {
-                        "TEST · staked rules: 45° only, from the toes. Not your Daily 25."
-                    } else {
-                        "TEST · staked rules off"
-                    },
-                    style = LabelStyle,
-                    color = if (stakedTest) HoldoutColors.Accent else HoldoutColors.TextTertiary,
-                )
-            }
         }
 
         Text(

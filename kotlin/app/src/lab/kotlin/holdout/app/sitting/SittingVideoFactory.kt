@@ -20,7 +20,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-/** Debug builds: the camera stream of a sitting, as video (constitution X, v1.5.0). */
+/** Holdout Lab only: the camera stream of a set, as video (constitution X v2.1.0). */
 fun sittingVideo(context: Context, dir: File, stakes: String): SittingVideo? = CameraXSittingVideo(context.applicationContext, dir, stakes)
 
 /**
@@ -29,7 +29,7 @@ fun sittingVideo(context: Context, dir: File, stakes: String): SittingVideo? = C
  * needs. HD — 960×720, the analysis frame's own size (raised from SD on 1 Oct:
  * 480×640 left too little of the legs to label) — and no more, so the encoder
  * does not take frames from pose analysis, which must hold ≥ 15 FPS (research
- * R4; the debug readout shows it while recording). Falls back to SD.
+ * R4; Lab's readout shows it while recording). Falls back to SD.
  */
 private class CameraXSittingVideo(private val context: Context, private val dir: File, private val stakes: String) : SittingVideo {
     private val recorder =

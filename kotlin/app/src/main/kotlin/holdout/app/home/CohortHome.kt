@@ -73,9 +73,6 @@ fun CohortHome(
     /** The faucet: a member whose SOL has run out cannot pay to submit a day. */
     onGetTokens: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Test builds only: record sittings as video (constitution X, v1.5.0). Null hides the switch. */
-    recordVideo: Boolean = false,
-    onRecordVideoChange: ((Boolean) -> Unit)? = null,
     /** The member's other Holdouts — a lobby joined for later, a claim waiting — as cards. */
     otherHoldouts: @Composable () -> Unit = {},
 ) {
@@ -173,8 +170,7 @@ fun CohortHome(
         SecondaryButton("Who's still standing", onRoster)
         TextButton(onClick = onDetail) { Text("Holdout details", color = HoldoutColors.TextSecondary) }
         TextButton(onClick = onGetTokens) { Text("Get test tokens", color = HoldoutColors.TextTertiary) }
-        TextButton(onClick = onAbout) { Text("About · wallet", color = HoldoutColors.TextTertiary) }
+        TextButton(onClick = onAbout) { Text("About Holdout", color = HoldoutColors.TextTertiary) }
         TextButton(onClick = onDaily25) { Text("The Daily 25", color = HoldoutColors.TextTertiary) }
-        onRecordVideoChange?.let { holdout.app.ui.RecordVideoSwitch(recordVideo, it) }
     }
 }

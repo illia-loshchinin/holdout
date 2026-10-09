@@ -1,6 +1,6 @@
 # Holdout — screen map (hackathon build)
 
-**Version:** 1.1 · **Date:** 2026-10-05 · **Scope:** the devnet hackathon build only. Post-hackathon screens are parked in §9.
+**Version:** 1.2 · **Date:** 2026-10-09 (A2 removed, X1 became *About Holdout*, spec 004) · **Scope:** the devnet hackathon build only. Post-hackathon screens are parked in §9.
 
 **Purpose.** One place that lists every screen the app needs, what each one shows, and where a member can go from it. It is the brief for visual design: each card in §5 is one frame (or one set of frames) to draw.
 
@@ -105,7 +105,7 @@ Never *cohort* in anything a member reads, and no names for the lengths: the num
 | **⌂ Today** | T1 or T2: whichever applies today | The one thing to do today. Open Holdouts stay on T1, as the draft draws them | Dot while today's reps are not done |
 | **∿ Crowd** | H4 for the Holdout you're running (or last ran) | The live crowd: still standing, how it thinned, H5 roster. Empty state → the running Holdouts you could watch, then *"Join one to have a crowd"* → ☰ | Dot when people dropped since you last looked |
 | **☰ Holdouts** | H0 My Holdouts | H2 stake (sheet), H3 lobby, H6 forfeit, H7 claim, finished Holdouts | Dot when a claim is waiting |
-| **◯ Me** | W1 | Wallet address, SKR + SOL, the faucet, streak, disconnect, and X1 About · for judges (walkthrough, tour, weaknesses, scripted wallets) | Dot when SKR or SOL is too low to stake or submit |
+| **◯ Me** | W1 | Wallet address, SKR + SOL, the faucet, streak, disconnect, and X1 About Holdout (tour, disconnect, test network) | Dot when SKR or SOL is too low to stake or submit |
 
 > **Assumption to confirm:** the draft's icons are unlabelled. The pulse is read as *Crowd* (PRD §10.1a: "the crowd is the product") and the list as *Holdouts*. If pulse was meant for activity or stats, Crowd folds into ☰ and pulse waits for post-hackathon stats (§9). Either way the icons need text labels for accessibility.
 
@@ -128,7 +128,7 @@ Never *cohort* in anything a member reads, and no names for the lengths: the num
 | "The ladder" | removed (decided 6 Oct): the offers already sit on T1 and H0 |
 | "Who's still standing", "Holdout details" (T2) | ∿ Crowd |
 | "Get test tokens · N SKR held", "Disconnect …" | ◯ Me |
-| "About · for judges", "About · wallet" | ◯ Me → X1 |
+| "About · for judges", "About · wallet" (both now "About Holdout") | ◯ Me → X1 |
 | "How Holdout works" (draft T1 row) | stays on T1 → B1 |
 
 ---
@@ -142,7 +142,6 @@ flowchart TB
     subgraph PRE["Before a wallet"]
         A1["A1 Connect wallet 🎨"]
         A3["A3 No wallet on phone 🎨"]
-        A2["A2 Walkthrough · 3 min 🎨"]
     end
 
     subgraph FIRST["First run"]
@@ -180,15 +179,13 @@ flowchart TB
 
     subgraph ME["◯ Me"]
         W1["W1 Me · wallet + tokens 🎨"]
-        X1["X1 About · for judges 🎨"]
+        X1["X1 About Holdout ✏️"]
     end
 
     N2(["N2 Reminder notification"])
 
     %% before a wallet and first run
     A1 -. "no wallet found" .-> A3
-    A1 -- "For judges" --> A2
-    A3 -- "watch" --> A2
     A3 -- "retry ✍" --> A1
     A1 -- "Connect ✍ · first time" --> B1
     A1 -- "Connect ✍ · tour seen" --> T1
@@ -238,7 +235,6 @@ flowchart TB
 
     %% me
     W1 -- "Disconnect" --> A1
-    X1 -- "Watch a full cycle" --> A2
     X1 -- "Tour again" --> B1
 ```
 
@@ -268,31 +264,21 @@ Each card gives **tier · code status · design status**, why the screen exists,
    - running: `21-DAY · DAY 12` · `running` (green) · **189 / 312** still standing · prize pool `48,200 SKR`
    - open: `7-DAY · STARTS MONDAY` · `open` (accent) · **14** joined so far · at stake `12,500 SKR`
 6. Spacer → **Connect wallet** (primary)
-7. Links: *No wallet yet?* (accent) · *For judges: full cycle, 3 min* (48 %)
+7. Link: *No wallet yet?* (accent)
 
 **Variants to draw:** connecting (*"Waiting for the wallet…"*) · wallet error notice · chain not read yet (live cards as skeletons) · `TEST COHORT` badge on a short test cohort · **no wallet** → A3
 
-**Exits:** Connect → N1 → B1 (first time) or T1 · *No wallet yet?* → A3 · judges link → A2
+**Exits:** Connect → N1 → B1 (first time) or T1 · *No wallet yet?* → A3
 
-#### A2 · Walkthrough — a full cycle
-**MUST · 🟡 Partial** (shows *"Recording in progress"* until the video is bundled) **· 🎨 Drawn** (board *22*; the *recorded* tweak shows the in-progress state) · `WalkthroughScreen` · PRD #13, FR-044
-
-**Job:** a judge can't wait seven days. A 3-minute recording of the real app on the devnet test cohort covers launch, connect, faucet, the Holdouts open to join, stake, lobby, sitting, a completed day, the crowd thinning, a forfeit, settlement and the claim.
-
-**Entered from:** A1 / A3 link (the only screen reachable without a wallet) · ◯ Me → X1
-
-**On screen:** back · `A FULL CYCLE` · video (play/pause, scrubber, chapter ticks for each step above) · caption: *recorded on devnet, on a disclosed short test cohort with compressed days*
-
-**Variants:** not yet bundled · playing · finished (→ **Connect wallet** with no wallet, **Back** otherwise)
-
-**Exits:** back → A1 or X1
+#### ~~A2 · Walkthrough — a full cycle~~ — removed 9 Oct
+The submission is the app's final state, so nothing in it is for judges only (spec 004, constitution v2.1.0). The full cycle is shown in the demo video, sent as a link with the submission, and anyone can run it on a labelled short test Holdout (FR-044a). `WalkthroughScreen` is deleted.
 
 #### A3 · No wallet on this phone
 **MUST · ✅ Built** (a variant of A1) **· 🎨 Drawn** (board *21*) · ES-0
 
-**On screen:** A1's header and live cards, then a card: **You need a Solana wallet** — a wallet holds your keys and signs for you; Holdout never holds them. On a Seeker, Seed Vault Wallet is built in. On other phones, install a Solana wallet that supports Mobile Wallet Adapter, set it to devnet, then come back. · **Connect wallet** (retry) · *Watch a full cycle (3 min)*
+**On screen:** A1's header and live cards, then a card: **You need a Solana wallet** — a wallet holds your keys and signs for you; Holdout never holds them. On a Seeker, Seed Vault Wallet is built in. On other phones, install a Solana wallet that supports Mobile Wallet Adapter, set it to devnet, then come back. · **Connect wallet** (retry)
 
-**Exits:** retry → N1 · watch → A2
+**Exits:** retry → N1
 
 ---
 
@@ -564,7 +550,7 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 3. Card: **You hold** `N SKR` · hairline · *for fees* `0.012 SOL`
 4. Card: *One tap a day gives you X SKR — enough for the largest chip — and devnet SOL for fees if you have none. Test network, test token, nothing here has value.* · **Get test tokens** (primary)
 5. Outcome notice
-6. Rows: **About · for judges →** X1 · **How Holdout works →** B1 · **Disconnect wallet** + *"Switched your wallet's network? Disconnect and connect again."*
+6. Rows: **About Holdout →** X1 · **How Holdout works →** B1 · **Disconnect wallet** + *"Switched your wallet's network? Disconnect and connect again."*
 
 **Faucet variants:** funded (*"Done. The tokens are in your wallet."*) · used today (*"Back in 6h 40m"*, button off) · can't pay out (*"It isn't something you did — it refills automatically"*) · sending…
 
@@ -572,12 +558,14 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 
 **Exits:** Get test tokens → N1 · About → X1 · Disconnect → A1
 
-#### X1 · About · for judges
-**MUST · ✅ Built · 🎨 Drawn** (board *27*) · `about/AboutScreen.kt` · FR-043a, FR-044, constitution XI
+#### X1 · About Holdout
+**MUST · ✅ Built · 🎨 Drawn** (board *27*, to redraw without the judge parts) · `about/AboutScreen.kt` · spec 004 FR-012, FR-013
 
-**On screen:** back · **About Holdout** · *Devnet only, with a mock SKR token* · **Watch a full cycle (3 min)** · **The three-card tour again** · `KNOWN WEAKNESSES · N` — a card each (what · why · *Real fix:* in accent), from `assets/weaknesses.json`, the same source as the README · `SCRIPTED MEMBERS · N WALLETS` + explanation + every address (mono, 48 %) · *NICE:* app version, program ID, source link
+**On screen:** back · **About Holdout** · *Test network, test token* (devnet, mock SKR) · one line on scripted members (*labelled SCRIPTED wherever they appear*) · **The three-card tour again** · **Disconnect wallet** + *"Switched your wallet's network? Disconnect and connect again."* · *NICE:* app version, program ID, source link
 
-**Exits:** watch → A2 · tour → B1 · back → W1
+**Not here any more (9 Oct):** the walkthrough, the known weaknesses (README only, from `docs/weaknesses.json`) and the scripted-wallet list (published in the repository).
+
+**Exits:** tour → B1 · disconnect → A1 · back → W1
 
 ---
 
@@ -608,9 +596,9 @@ Declined always says *nothing was sent and nothing changed*; Failed says devnet 
 
 | ID | Screen | Tier | Code | Design | Tab | Reached from | Goes to |
 |---|---|---|---|---|---|---|---|
-| A1 | Connect wallet | MUST | ✅ | 🎨 | — | launch, W1 | N1, A2, A3 |
-| A2 | Walkthrough | MUST | 🟡 | 🎨 | — | A1, A3, X1 | back |
-| A3 | No wallet | MUST | ✅ | 🎨 | — | A1 | N1, A2 |
+| A1 | Connect wallet | MUST | ✅ | 🎨 | — | launch, W1 | N1, A3 |
+| ~~A2~~ | ~~Walkthrough~~ — removed 9 Oct (spec 004) | — | — | — | — | — | — |
+| A3 | No wallet | MUST | ✅ | 🎨 | — | A1 | N1 |
 | B1 | Tour | MUST | ✅ | 🎨 4 of 4 | — | first connect, T1, X1 | B2 / T1 |
 | B2 | Scripted-member disclosure | SHOULD | 🟡 | 🎨 | — | B1 | T1, X1 |
 | T1 | Today · Daily 25 + open Holdouts | MUST | ✅ | 🎨 | ⌂ | launch, S6, S7 | S1, H2, B1, ☰ nudges |
@@ -632,7 +620,7 @@ Declined always says *nothing was sent and nothing changed*; Failed says devnet 
 | H6 | Forfeit | MUST | ✅ | 🎨 | ☰ | T2 (deadline), H0 | S1, H2 |
 | H7 | Claim | MUST | ✅ | 🎨 | ☰ | H4, H0, T1 nudge | N1, H0 |
 | W1 | Me · wallet + tokens | MUST | 🟡 | 🎨 | ◯ | tab, H2/T2/H7 sheet | N1, X1, A1 |
-| X1 | About · for judges | MUST | ✅ | 🎨 | ◯ | W1 | A2, B1 |
+| X1 | About Holdout | MUST | ✅ | ✏️ | ◯ | W1 | B1, A1 |
 | N1–N5 | System moments | MUST / SHOULD | see §5 N | | — | — | — |
 
 **Count:** 18 MUST screens (16 ✅ in code; all 18 drawn, every §7 mismatch fixed) · 4 SHOULD screens + 2 SHOULD moments · 1 NICE screen + several NICE additions inside cards.
@@ -672,7 +660,7 @@ Still to draw:
 | # | Gap | Tier | Where | Why it matters |
 |---|---|---|---|---|
 | 0 | **Remove the ladder and Human Flag** (decided 6 Oct): `ladder/LadderScreen.kt` and its `Route.Ladder`, the locked Human Flag rung, and the Home and Forfeit buttons that open it (Forfeit's *next 7-day* goes to the stake sheet instead) | MUST | H1 | The screen is out of the design; Forfeit and Home still link to it |
-| 1 | Walkthrough video bundled into A2 | MUST | A2 | Judges' only way through a full cycle (FR-044) |
+| 1 | ~~Walkthrough video bundled into A2~~ — dropped 9 Oct: the demo video goes as a link (spec 004) | — | — | — |
 | 2 | Scripted-member disclosure in first run | SHOULD | B2 | PRD screen #3; today a member can stake without seeing it |
 | 3 | "Dropped since yesterday" line | SHOULD | T2 / N5 | Drawn already; PRD §10.1a calls it the reason to open the app on a quiet day |
 | 4 | Stopped part-way and crash-recovery messages | SHOULD | S7 | ES-1, ES-2 |
@@ -711,5 +699,5 @@ The paths design has to make smooth, with the screens they cross. Times are PRD 
 - **J4 — Change your mind before the start:** `☰ H0` → `H3` → **Leave — full refund** ✍ → `H0`. After the cutoff `H3` is locked.
 - **J5 — Miss a day:** `T2` → *(deadline)* → `H6` → **Today's Daily 25** (`S1…`) or **The next 7-day** (`H2` → J2)
 - **J6 — Finish and get paid:** `T2` (last day) → `∿ H4` *settlement in progress* → *(settled)* → `H7` → **Claim** ✍ → claimed → `☰ H0` *Finished*
-- **J7 — Judge with no wallet that can sign:** `A1` → *For judges* → `A2` → `A1`. Connected: `◯ W1` → `X1` (weaknesses, scripted wallets, `A2`)
+- **J7 — Anyone, a judge included, sees the whole cycle:** the demo video (sent with the submission) · or, connected, `T1` → a short test Holdout → `H2` → its 10-minute days → settlement → `H7` claim, in about half an hour (FR-044a)
 - **J8 — Offline:** `T1` the Daily 25 works with no network. `T2` warns before starting; afterwards **Done — tap to submit** once online, and only before the deadline.

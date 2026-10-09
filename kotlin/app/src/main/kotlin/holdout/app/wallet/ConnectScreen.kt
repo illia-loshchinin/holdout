@@ -9,7 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,11 +38,11 @@ import holdout.core.Derive
  * The promise in two lines, one line each for the Daily 25 and a Holdout, and
  * the Holdouts live right now — still standing and prize pool for the running
  * ones, joined count and **at stake** for the open ones — read from devnet
- * with no wallet. Then the button, and a quiet link for judges: the recorded
- * walkthrough is the only screen reachable before a wallet is connected.
+ * with no wallet. Then the button. Nothing else is reachable before a wallet
+ * is connected (FR-001a, amended 2026-10-09 by spec 004).
  *
- * With no wallet on the phone ([noWallet], ES-0): what a wallet is, how to get
- * one, and the walkthrough, which plays without one.
+ * With no wallet on the phone ([noWallet], ES-0): what a wallet is and how to
+ * get one.
  */
 @Composable
 fun ConnectScreen(
@@ -55,7 +54,6 @@ fun ConnectScreen(
     /** Rosters read so far, by cohort: what a running Holdout's figures are derived from. */
     rosters: Map<com.solana.publickey.SolanaPublicKey, List<holdout.core.MembershipSnapshot>> = emptyMap(),
     onConnect: () -> Unit,
-    onWalkthrough: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -110,20 +108,17 @@ fun ConnectScreen(
         PrimaryButton(if (busy) "Waiting for the wallet…" else "Connect wallet", onConnect, busy = busy)
         Text("TEST NETWORK · TEST TOKEN", style = LabelStyle, color = HoldoutColors.TextTertiary)
         Notice(message, warning = true)
-        TextButton(onClick = onWalkthrough) {
-            Text(if (noWallet) "Watch a full cycle (3 min)" else "For judges: watch a full cycle", color = HoldoutColors.TextTertiary)
-        }
     }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 private fun ConnectPreview() {
-    HoldoutTheme { ConnectScreen(busy = false, message = null, noWallet = false, live = emptyList(), now = null, onConnect = {}, onWalkthrough = {}) }
+    HoldoutTheme { ConnectScreen(busy = false, message = null, noWallet = false, live = emptyList(), now = null, onConnect = {}) }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 private fun NoWalletPreview() {
-    HoldoutTheme { ConnectScreen(busy = false, message = null, noWallet = true, live = emptyList(), now = null, onConnect = {}, onWalkthrough = {}) }
+    HoldoutTheme { ConnectScreen(busy = false, message = null, noWallet = true, live = emptyList(), now = null, onConnect = {}) }
 }

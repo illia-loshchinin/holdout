@@ -15,7 +15,7 @@ import java.util.TimeZone
 
 /**
  * Writes one sitting's landmarks and the counter's decisions to a trace file
- * (`holdout.repcounter.Trace`), **in debug builds only**, into the app's
+ * (`holdout.repcounter.Trace`), **in Holdout Lab only** (spec 004), into the app's
  * private storage. Nothing here leaves the phone on its own: a developer pulls
  * the file with `scripts/pull-traces.sh` over USB.
  *
@@ -23,7 +23,7 @@ import java.util.TimeZone
  * file name's time is the phone's wall clock; it names a file and decides
  * nothing.
  */
-class TraceRecorder(private val dir: File, private val stakes: Stakes) {
+class TraceRecorder(private val dir: File, private val stakes: Stakes) : SittingRecorder {
 
     // Three threads touch one file: frames arrive on MediaPipe's result
     // thread, Stop and leaving close it on the main thread, and labelling
@@ -44,7 +44,9 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) {
     var file: File? = null
         private set
 
-    fun record(
+    override val fileName: String? get() = file?.name
+
+    override fun record(
         timestampMillis: Long,
         step: String,
         view: CameraView?,
@@ -52,8 +54,8 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) {
         image: PoseFrame,
         width: Int,
         height: Int,
-        readout: Readout? = null,
-        event: RepEvent? = null,
+        readout: Readout?,
+        event: RepEvent?,
     ) {
         synchronized(lock) {
             // After close, never again: a camera frame still in flight when the
@@ -116,7 +118,7 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) {
      * (`Trace.label`). Called off the main thread; a failure leaves the trace
      * as it was, unlabelled.
      */
-    fun label(expectedReps: Int, done: Map<String, Int>, note: String, placement: String? = null, phoneSide: String? = null) {
+    override fun label(expectedReps: Int, done: Map<String, Int>, note: String, placement: String?, phoneSide: String?) {
         synchronized(lock) {
             val target = file ?: return
             closeLocked()
@@ -127,7 +129,7 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) {
         }
     }
 
-    fun close() {
+    override fun close() {
         synchronized(lock) { closeLocked() }
     }
 

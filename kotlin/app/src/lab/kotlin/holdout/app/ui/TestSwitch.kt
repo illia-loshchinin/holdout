@@ -11,7 +11,7 @@ import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 
-/** A test-build switch, labelled for what it does when on and when off. Never shown in a release build. */
+/** A Holdout Lab switch, labelled for what it does when on and when off. Never in the member app (spec 004). */
 @Composable
 fun TestSwitch(checked: Boolean, onChange: (Boolean) -> Unit, on: String, off: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
@@ -20,7 +20,7 @@ fun TestSwitch(checked: Boolean, onChange: (Boolean) -> Unit, on: String, off: S
     }
 }
 
-/** Debug builds: the switch that records sittings as video (constitution X, v1.5.0). */
+/** Holdout Lab: the switch that records sets as video (constitution X v2.1.0). */
 @Composable
 fun RecordVideoSwitch(checked: Boolean, onChange: (Boolean) -> Unit) = TestSwitch(
     checked,

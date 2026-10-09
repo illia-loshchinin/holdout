@@ -21,7 +21,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.about.AboutScreen
-import holdout.app.about.WalkthroughScreen
 import holdout.app.chain.Deployment
 import holdout.app.chain.Holdout
 import holdout.app.claim.ClaimScreen
@@ -77,7 +76,6 @@ private sealed interface Route {
     data object Ladder : Route
     data object Faucet : Route
     data object About : Route
-    data object Walkthrough : Route
     data object Tour : Route
     data class Leaderboards(val board: Leaderboard.Board) : Route
     data class Stake(val cohort: SolanaPublicKey) : Route
@@ -107,8 +105,8 @@ private sealed interface Sitting {
  *                                            └─ forfeit · settling · claim · roster · about
  * ```
  *
- * **A wallet comes first, even for the free Daily 25** (FR-001a); only the
- * recorded walkthrough plays before it. Everything the Daily 25 does after
+ * **A wallet comes first, even for the free Daily 25** (FR-001a): before it,
+ * only the connect screen and no-wallet help. Everything the Daily 25 does after
  * that works with no connection at all (FR-024b). Which Holdout screen shows
  * is decided by `Journey.stage` from chain state and chain time.
  */
@@ -243,27 +241,9 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     var route by remember { mutableStateOf<Route>(Route.Home) }
     var sitting by remember { mutableStateOf<Sitting?>(null) }
     var refreshToken by remember { mutableStateOf(0) }
-    var stakedTest by remember { mutableStateOf(false) }
-    var cleanScreen by remember { mutableStateOf(false) }
-    // Test builds only, off until switched on: record sittings as video (constitution X, v1.5.0).
-    var recordVideo by remember { mutableStateOf(BuildConfig.DEBUG && store.recordsVideo()) }
-    val onRecordVideoChange: ((Boolean) -> Unit)? = if (BuildConfig.DEBUG) {
-        { on: Boolean ->
-            store.setRecordsVideo(on)
-            recordVideo = on
-        }
-    } else {
-        null
-    }
-    var beforeWallet by remember { mutableStateOf(false) }
 
     val me = address
     if (me == null) {
-        if (beforeWallet) {
-            BackHandler { beforeWallet = false }
-            WalkthroughScreen(onBack = { beforeWallet = false }, modifier = modifier)
-            return
-        }
         // The live list's running Holdouts show figures derived from their rosters,
         // as every screen behind the wallet does — read here, and kept fresh.
         val liveNow = now?.let { n -> chain.view?.live(n) }.orEmpty()
@@ -295,7 +275,6 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                     connecting = false
                 }
             },
-            onWalkthrough = { beforeWallet = true },
             modifier = modifier,
         )
         return
@@ -361,17 +340,16 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     // ---- a sitting -------------------------------------------------------------
     when (val s = sitting) {
         is Sitting.Daily25 -> {
-            val vm = remember(wallet, s.day, refreshToken, stakedTest) {
+            val vm = remember(wallet, s.day, refreshToken) {
                 SittingViewModel(
                     store = store,
                     streaks = streaks,
                     wallet = wallet,
-                    scope = if (stakedTest) TEST_STAKED_SCOPE else Store.CHALLENGE,
+                    scope = Store.CHALLENGE,
                     dayIndex = s.day,
                     target = DAILY_25,
                     chainSecondsNow = { clock.nowSeconds() },
-                    stakes = if (stakedTest) Stakes.STAKED else Stakes.DAILY,
-                    traceDir = if (BuildConfig.DEBUG) java.io.File(context.filesDir, "traces") else null,
+                    stakes = Stakes.DAILY,
                 )
             }
             DisposableEffect(vm) { onDispose { vm.release() } }
@@ -386,7 +364,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 sitting = null
                 refreshToken += 1
             }
-            SittingScreen(viewModel = vm, cleanScreen = cleanScreen, onFinished = done, onCancelled = { done() }, modifier = modifier, recordVideo = recordVideo)
+            SittingScreen(viewModel = vm, onFinished = done, onCancelled = { done() }, modifier = modifier)
             return
         }
         is Sitting.CohortDay -> {
@@ -410,7 +388,6 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                     // A Holdout day ends at its deadline: no rolling into the next (a missed day is a breach).
                     rollsOver = false,
                     timeLeftAt = { Derive.timeLeftToday(h.cohort, it) },
-                    traceDir = if (BuildConfig.DEBUG) java.io.File(context.filesDir, "traces") else null,
                 )
             }
             DisposableEffect(vm) { onDispose { vm.release() } }
@@ -431,12 +408,10 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             }
             SittingScreen(
                 viewModel = vm,
-                cleanScreen = cleanScreen,
                 onFinished = done,
                 onCancelled = { done() },
                 modifier = modifier,
                 finishLabel = "Submit day ${s.day + 1} to the chain",
-                recordVideo = recordVideo,
             )
             return
         }
@@ -557,7 +532,6 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         }
         Route.About -> {
             AboutScreen(
-                onWalkthrough = { route = Route.Walkthrough },
                 onTour = { route = Route.Tour },
                 onBack = goHome,
                 modifier = modifier,
@@ -570,10 +544,6 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                     }
                 },
             )
-            return
-        }
-        Route.Walkthrough -> {
-            WalkthroughScreen(onBack = { route = Route.About }, modifier = modifier)
             return
         }
         is Route.Leaderboards -> {
@@ -667,8 +637,6 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             onDaily25 = { sitting = Sitting.Daily25(dayIndex) },
             onGetTokens = { route = Route.Faucet },
             modifier = modifier,
-            recordVideo = recordVideo,
-            onRecordVideoChange = onRecordVideoChange,
             otherHoldouts = { ownHoldoutCards(chainNow) },
         )
         return
@@ -695,21 +663,6 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             sitting = Sitting.Daily25(dayIndex)
         },
         modifier = modifier,
-        stakedTest = stakedTest,
-        onStakedTestChange = if (BuildConfig.DEBUG) ({ stakedTest = it }) else null,
-        cleanScreen = cleanScreen,
-        onCleanScreenChange = if (BuildConfig.DEBUG) ({ cleanScreen = it }) else null,
-        recordVideo = recordVideo,
-        onRecordVideoChange = onRecordVideoChange,
-        onResetToday = if (BuildConfig.DEBUG) {
-            {
-                store.clearDay(wallet, Store.CHALLENGE, dayIndex)
-                store.clearDay(wallet, TEST_STAKED_SCOPE, dayIndex)
-                refreshToken += 1
-            }
-        } else {
-            null
-        },
         below = {
             if (chainNow == null || view == null) {
                 if (chain.offline) {
@@ -740,7 +693,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             SecondaryButton("The ladder", { route = Route.Ladder })
             SecondaryButton("Leaderboards", { route = Route.Leaderboards(Leaderboard.Board.EASY_7D) })
             SecondaryButton("Get test tokens · ${Format.skr(view.skr)} held", { route = Route.Faucet })
-            TextButton(onClick = { route = Route.About }) { Text("About · for judges", color = HoldoutColors.TextTertiary) }
+            TextButton(onClick = { route = Route.About }) { Text("About Holdout", color = HoldoutColors.TextTertiary) }
             TextButton(onClick = {
                 scope.launch {
                     holdouts.wallet.disconnect(sender)
@@ -756,9 +709,6 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
 private fun cohortScope(h: Holdout) = "cohort:${h.address.base58()}"
 
 private const val DAILY_25 = 25
-
-/** Where test sittings under staked rules bank, apart from the real Daily 25. */
-private const val TEST_STAKED_SCOPE = "test-staked"
 
 private const val CHAIN_RETRY_MILLIS = 30_000L
 private const val CHAIN_REFRESH_MILLIS = 600_000L
