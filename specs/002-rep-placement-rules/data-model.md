@@ -57,9 +57,9 @@ For the toes meter: whether Hard would have counted a rep the Daily 25 counted �
 
 `setup_hidden:<wallet>:<stakes>` — true once the member ticks "Don't show this again". The guide can still be reopened.
 
-## Trace (debug builds, `app` → file)
+## Trace (Holdout Lab, `app` lab flavor → file)
 
-One per sitting, `files/traces/<time>-<stakes>.trace.csv`. Format: [contracts/trace-format.md](contracts/trace-format.md). Lifecycle: opened when the sitting starts → header flushed at once → rows flushed every 30 frames or on an event → closed on Stop, completion or leaving the screen (never reopened) → optionally labelled. With "record video" on, `<trace>.mp4` and `<trace>.video.json` (recording start on the boot clock) beside it.
+One per Lab set (before 2026-10-09, one per debug-build sitting), `files/traces/<time>-<stakes>.trace.csv` in Holdout Lab's own storage (`holdout.app.lab`). Format: [contracts/trace-format.md](contracts/trace-format.md). Lifecycle: opened when the sitting starts → header flushed at once → rows flushed every 30 frames or on an event → closed on Stop, completion or leaving the screen (never reopened) → optionally labelled. With "record video" on, `<trace>.mp4` and `<trace>.video.json` (recording start on the boot clock) beside it.
 
 ## Trace label
 

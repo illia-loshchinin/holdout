@@ -271,16 +271,17 @@ jobs:
       # opt-in and stays off here — CI does not depend on a public RPC.
       - name: JVM unit tests
         working-directory: kotlin
-        run: ./gradlew --no-daemon :core:test :repcounter:test :crank:test :app:testDebugUnitTest
+        run: ./gradlew --no-daemon :core:test :repcounter:test :crank:test :app:testMemberDebugUnitTest :app:testLabDebugUnitTest
 
-      # Assembling also runs `checkNoAudioPermission` on the merged manifest (FR-022a).
-      - name: Debug APK
+      # Assembling also runs `checkNoAudioPermission` on the merged manifest (FR-022a),
+      # and the member app's check that it carries no Holdout Lab code (spec 004).
+      - name: Debug APKs, the member app and Holdout Lab
         working-directory: kotlin
-        run: ./gradlew --no-daemon :app:assembleDebug
+        run: ./gradlew --no-daemon :app:assembleMemberDebug :app:assembleLabDebug
 
-      # Constitution XI and XIII: the README's weaknesses table is the app's
-      # `weaknesses.json`, and the app's copy carries no gambling words.
-      - name: Weaknesses table matches the app
+      # Constitution XI and XIII: the README's weaknesses table is rendered from
+      # `docs/weaknesses.json`, and the app's copy carries no gambling words.
+      - name: Weaknesses table matches its source
         run: node scripts/render-weaknesses.mjs --check
 
       - name: The app's wording

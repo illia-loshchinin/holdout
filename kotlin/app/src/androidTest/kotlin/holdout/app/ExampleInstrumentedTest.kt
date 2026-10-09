@@ -7,7 +7,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Instrumented test, which will execute on an Android device.
+ * Instrumented test, which will execute on an Android device. Shared by both
+ * apps, so the package it expects follows the flavor (spec 004 research R10).
  *
  * See [testing documentation](http://d.android.com/tools/testing).
  */
@@ -15,8 +16,9 @@ import org.junit.runner.RunWith
 class ExampleInstrumentedTest {
     @Test
     fun useAppContext() {
-        // Context of the app under test.
+        // Context of the app under test: Holdout, or Holdout Lab beside it.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("holdout.app", appContext.packageName)
+        val expected = if (BuildConfig.FLAVOR == "lab") "holdout.app.lab" else "holdout.app"
+        assertEquals(expected, appContext.packageName)
     }
 }

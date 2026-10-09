@@ -175,8 +175,8 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
   - **Scripted wallets** are pre-funded with SOL once by the Operator and pay their own fees, so their claims mint SKR only (R12).
   - **Sizing (revised 2026-09-17 for the live period through 11 November; the stored values are normative in data-model §1.1):**
     - **Worst case per SOL-paying claim ≈ 0.024 SOL:** the 0.02 top-up, plus the profile and SKR token account rent reimbursed to the sponsor for a brand-new wallet.
-    - **Funding deadline:** the vault may be topped up by hand until submission. From 9 October it must last to 11 November with no top-up (FR-042a).
-    - **Amount:** 34 days × 0.72 SOL ≈ **24.5 SOL**, so the vault is funded to **25 SOL by 8 October**.
+    - **Funding deadline:** the vault may be topped up by hand until submission. From 13 October (moved from 9 October, 2026-10-09) it must last to 11 November with no top-up (FR-042a).
+    - **Amount:** 34 days × 0.72 SOL ≈ **24.5 SOL**, so the vault is funded to **25 SOL by 12 October** (was 8 October; the live period is now 30 days, so 25 SOL leaves more margin).
     - **Why 0.72 SOL a day is enough:** at the worst case it is 30 brand-new wallets a day, well above expected judge and community traffic, and one claim funds a wallet for a whole 21-day cycle. Refilling a drained sponsor draws on the same budget, so a griefer must spend the whole day's allowance to stop onboarding for the rest of that day.
 - **Rationale:** meets FR-042a and FR-042b — no server, no public faucet, no manual top-up — within Solana's fee rules. A sponsor key in the APK is a devnet-only trust gap: anyone can extract it, but it holds only a 0.05 SOL float, cannot touch a stake, a pool or a carry-over, cannot be locked out of use because anyone may refill it, and the daily lamport budget bounds what it can cost in a day.
 - **Must be documented** in the README's known weaknesses (constitution XI): "the faucet's fee sponsor key ships in the app; a daily lamport budget caps abuse at one day's faucet allowance, and anyone can refill the sponsor if it is drained."
@@ -230,7 +230,10 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
 - **Rationale:** constitution Hackathon Constraints — flags disable checks, never delete the logic.
 - **Alternatives considered:** omitting the check (violates the flag rule).
 
-## R18 · Recorded walkthrough
+## R18 · Recorded walkthrough — superseded 2026-10-09
+
+**Superseded (spec 004, constitution v2.1.0):** the app carries no walkthrough and no Media3. The submission is judged as the app's final state, so the full cycle is shown in the **demo video, sent as a link with the submission**, recorded from the real app on a cohort of the short test lobby (FR-044, FR-044a). The 9:16 in-app export and the 40 MB budget are dropped. What follows is kept as the record of the earlier decision.
+
 
 - **Decision (revised 2026-09-17):** a screen recording of the real app on the judged devnet program, taken **only from cohort #3**, the first judged 7-day cohort (FR-044). The same footage serves both the in-app walkthrough and the submission's demo video (FR-066).
   - **Two wallets on two devices:** a **finisher** on the Seeker and a **forfeiter** on the second phone. Both join cohort #3 through the release-candidate app before its join cutoff, **28 September 04:00 UTC**.
@@ -277,9 +280,9 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
 
 ## R20 · First-run tour and the design tokens in Compose
 
-- **Decision:** the tour (FR-067) is **three Compose pages in a `HorizontalPager`** inside `kotlin/app/.../tour/`, shown after the first successful connect and re-openable from the About route. A `tour:{wallet}` MMKV record marks it seen (data-model §4). It carries **no video dependency at the freeze**: the short explainer (R18) drops into card 2 when it exists, and the cards stand alone until then.
+- **Decision:** the tour (FR-067) is **three Compose pages in a `HorizontalPager`** inside `kotlin/app/.../tour/`, shown after the first successful connect and re-openable from About Holdout. A `tour:{wallet}` MMKV record marks it seen (data-model §4). It carries **no video dependency at the freeze**: the short explainer (R18) drops into card 2 when it exists, and the cards stand alone until then.
 - **Theme:** PRD §11 tokens are transcribed once into `ui/theme/` — `Color.kt`, `Type.kt`, `Shape.kt`, `Theme.kt` — as a single dark `ColorScheme` with **dynamic colour disabled**. System Roboto for UI; **JetBrains Mono bundled in `res/font/`** for amounts and countdowns. No other font ships.
-- **Rationale:** the tour is the only onboarding a member gets now that the walkthrough is judge-facing (H29), and it must be finished before the app slice ends on 26 September — a pager over three static pages is hours of work, not days. Keeping the tokens in one file makes the design freeze on 20 September enforceable.
+- **Rationale:** the tour is the only onboarding a member gets (H29; there is no in-app walkthrough since 2026-10-09), and it must be finished before the app slice ends on 26 September — a pager over three static pages is hours of work, not days. Keeping the tokens in one file makes the design freeze on 20 September enforceable.
 - **Alternatives considered:** a video-only explainer (nothing to ship at the freeze, since cohort #3 is not filmed until October); an interactive coach-mark overlay on the real screens (more code, and it fights the camera screens); Material You dynamic colour (recolours the brand on every device).
 
 ## R21 · On-device reminders (added 2026-09-27)
