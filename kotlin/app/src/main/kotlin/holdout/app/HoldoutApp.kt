@@ -29,10 +29,9 @@ import holdout.app.cohort.ForfeitScreen
 import holdout.app.faucet.FaucetSheet
 import holdout.app.holdout.HoldoutViewModel
 import holdout.app.home.CohortHome
+import holdout.app.home.HoldoutOffer
 import holdout.app.home.HomeScreen
 import holdout.app.home.HomeState
-import holdout.app.ladder.HoldoutOffer
-import holdout.app.ladder.LadderScreen
 import holdout.app.leaderboard.LeaderboardScreen
 import holdout.app.lobby.LobbyScreen
 import holdout.app.reminders.ReminderScheduler
@@ -73,7 +72,6 @@ import kotlinx.coroutines.launch
 /** Every screen past the connect screen (contracts/android-app §5). Holdouts are named by cohort address. */
 private sealed interface Route {
     data object Home : Route
-    data object Ladder : Route
     data object Faucet : Route
     data object About : Route
     data object Tour : Route
@@ -100,7 +98,7 @@ private sealed interface Sitting {
  *
  * ```
  * connect wallet → (tour, first run) → home ─┬─ the Daily 25 ─→ sitting
- *                                            ├─ ladder → stake → lobby
+ *                                            ├─ a Holdout open to join → stake → lobby
  *                                            ├─ Holdout running → cohort day sitting → submit
  *                                            └─ forfeit · settling · claim · roster · about
  * ```
@@ -489,7 +487,11 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                 stage = stage as? Stage.Forfeited ?: Stage.Forfeited(target.membership?.daysCompleted ?: 0, recorded = false),
                 streak = streaks.read(wallet, dayIndex).current,
                 onDaily25 = goHome,
-                onNextHoldout = { route = Route.Ladder },
+                // The way back is the next 7-day Holdout's stake sheet, straight (screen map §8);
+                // none open to join right now, and the button is not shown.
+                onNextHoldout = chainNow?.let { now -> view?.openToJoin(now) }
+                    ?.firstOrNull { it.cohort.leagueId == LeagueParams.LEAGUE_7D }
+                    ?.let { next -> { route = Route.Stake(next.address) } },
                 onBack = goHome,
                 modifier = modifier,
             )
@@ -500,18 +502,6 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     }
 
     when (routed) {
-        Route.Ladder -> {
-            LadderScreen(
-                open = chainNow?.let { view?.openToJoin(it) }.orEmpty(),
-                qualified = view?.profile?.qualified == true,
-                now = chainNow ?: 0,
-                onDaily25 = goHome,
-                onHoldout = { route = Route.Stake(it.address) },
-                onBack = goHome,
-                modifier = modifier,
-            )
-            return
-        }
         Route.Faucet -> {
             FaucetSheet(
                 skr = view?.skr ?: 0uL,
@@ -690,7 +680,6 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             val open = view.openToJoin(chainNow)
             if (open.isNotEmpty()) SectionLabel("Holdouts open to join")
             open.forEach { h -> HoldoutOffer(h, chainNow, onClick = { route = Route.Stake(h.address) }) }
-            SecondaryButton("The ladder", { route = Route.Ladder })
             SecondaryButton("Leaderboards", { route = Route.Leaderboards(Leaderboard.Board.EASY_7D) })
             SecondaryButton("Get test tokens · ${Format.skr(view.skr)} held", { route = Route.Faucet })
             TextButton(onClick = { route = Route.About }) { Text("About Holdout", color = HoldoutColors.TextTertiary) }

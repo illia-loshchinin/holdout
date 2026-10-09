@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import holdout.app.chain.Holdout
-import holdout.app.ladder.HoldoutOffer
+import holdout.app.home.HoldoutOffer
 import holdout.app.ui.Body
 import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard

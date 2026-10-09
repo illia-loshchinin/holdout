@@ -135,8 +135,8 @@ fun Reading(content: @Composable () -> Unit) {
 }
 
 /**
- * The short test cohort's label (FR-044a), wherever it appears: the ladder,
- * the stake sheet, the lobby, home, the roster and cohort detail.
+ * The short test cohort's label (FR-044a), wherever it appears: the offers
+ * on home, the stake sheet, the lobby, the roster and cohort detail.
  */
 @Composable
 fun TestCohortBadge(dayLengthSeconds: Long, modifier: Modifier = Modifier) {

@@ -659,7 +659,7 @@ Still to draw:
 
 | # | Gap | Tier | Where | Why it matters |
 |---|---|---|---|---|
-| 0 | **Remove the ladder and Human Flag** (decided 6 Oct): `ladder/LadderScreen.kt` and its `Route.Ladder`, the locked Human Flag rung, and the Home and Forfeit buttons that open it (Forfeit's *next 7-day* goes to the stake sheet instead) | MUST | H1 | The screen is out of the design; Forfeit and Home still link to it |
+| 0 | ✅ **Done 9 Oct.** ~~Remove the ladder and Human Flag~~ (decided 6 Oct): `ladder/LadderScreen.kt` and its `Route.Ladder`, the locked Human Flag rung, and the Home and Forfeit buttons that open it (Forfeit's *next 7-day* goes to the stake sheet instead) | MUST | H1 | The screen is out of the design; Forfeit and Home still link to it |
 | 1 | ~~Walkthrough video bundled into A2~~ — dropped 9 Oct: the demo video goes as a link (spec 004) | — | — | — |
 | 2 | Scripted-member disclosure in first run | SHOULD | B2 | PRD screen #3; today a member can stake without seeing it |
 | 3 | "Dropped since yesterday" line | SHOULD | T2 / N5 | Drawn already; PRD §10.1a calls it the reason to open the app on a quiet day |
