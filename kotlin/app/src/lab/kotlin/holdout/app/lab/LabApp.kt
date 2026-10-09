@@ -25,10 +25,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import holdout.app.sitting.LabReadouts
 import holdout.app.sitting.LabSittingTools
 import holdout.app.sitting.SittingScreen
 import holdout.app.sitting.SittingViewModel
 import holdout.app.sitting.TraceLabelDialog
+import holdout.app.sitting.TraceNotSavedDialog
 import holdout.app.sitting.TraceRecorder
 import holdout.app.storage.MmkvStore
 import holdout.app.storage.Store
@@ -103,10 +105,11 @@ fun LabApp(modifier: Modifier = Modifier) {
         modifier = modifier,
         finishLabel = "Back to Lab",
         tools = LabSittingTools(
-            readouts = !settings.cleanScreen,
+            readouts = if (settings.cleanScreen) null else { state -> LabReadouts(state) },
             cleanScreen = settings.cleanScreen,
             recordVideo = settings.recordsVideo,
             labelPrompt = { counted, onSave, onSkip -> TraceLabelDialog(counted, onSave, onSkip) },
+            notSavedNotice = { onOk -> TraceNotSavedDialog(onOk) },
         ),
     )
 }

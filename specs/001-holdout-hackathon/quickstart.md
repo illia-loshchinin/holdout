@@ -249,7 +249,7 @@ java -jar kotlin/crank/build/libs/crank.jar run
 ## 7. App on a device
 
 ```bash
-cd kotlin && ./gradlew :app:installDevnetDebug
+cd kotlin && ./gradlew :app:installMemberDebug
 ```
 
 **Expected:** the app opens on the connect-wallet screen, with the test-network notice.
@@ -278,4 +278,4 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 16 | Faucet from zero, and after a drained sponsor | Device with a brand-new wallet; then empty the sponsor's float with the bundled devnet key and try a second brand-new wallet before and after one `crank run` | One tap funds a full 7-day cycle; second tap the same day refused with the time it returns. With the float empty the claim fails as ES-0b and blames nobody; after the crank's `top_up_sponsor` the next brand-new wallet funds normally, and `crank status` shows the day's spend against `daily_lamport_cap` (AC-16, FR-042b) |
 | 17 | Start position | Device: with the four pills green, hold the top of a push-up; then drop out of it before the countdown ends | Counting starts on the hold alone, with no tap and a spoken countdown; dropping out restarts the hold; banked reps unchanged |
 | 18 | Offline completion | Device in airplane mode | Warning shown; reconnect before deadline + tap submit lands the day (automatic **[Phase 2]**); after deadline, breach |
-| 19 | Submission complete | 7–8 Oct: install the final APK on a Seeker and a plain phone; build from a clean clone on a machine that has never built the project, following only the README; review the demo video and deck (R18) | Both installs run; clean clone builds the app and the program; video ≈ 3 min shows join, sitting, forfeit, settlement and claim from cohort #3; scripted members and the test network disclosed in app, README, video and deck; submitted before 9 Oct 08:59 CEST |
+| 19 | Submission complete | By 12 Oct: install the final member APK on a Seeker and a plain phone; build from a clean clone on a machine that has never built the project, following only the README; review the demo video and deck (R18) | Both installs run; clean clone builds the app and the program; video ≈ 3 min shows join, sitting, forfeit, settlement and claim from a cohort of the short test lobby, labelled on screen as one (AC-19, FR-044); scripted members and the test network disclosed in app, README, video and deck; submitted before 13 Oct 01:59 CEST |

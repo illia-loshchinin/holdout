@@ -32,7 +32,7 @@ bash scripts/pull-traces.sh --package holdout.app
 ./gradlew :app:assembleMemberDebug
 ```
 
-**Expect**: the build fails with the contracts §4 message (SC-002). Remove the line again.
+**Expect**: the build fails with the contracts §4 message (SC-002). Remove the line again. A line containing `LabReadouts` or `"rec · ` fails it the same way.
 
 ## 3. Build both apps and install them side by side
 

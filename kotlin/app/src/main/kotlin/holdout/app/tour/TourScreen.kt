@@ -67,6 +67,7 @@ private val TOUR = listOf(
             "Put SKR on yourself with everyone who starts that Monday: Easy, 7 days, push-ups from the knees count; Hard, 21 days, from your toes.",
             "Miss a day and your stake goes to the prize pool. Finish, and take back your stake plus a share of what the others left.",
             "Leave any time before joining closes, for a full refund.",
+            "Some members are scripted: real wallets under the same rules, labelled SCRIPTED wherever they appear.",
         ),
     ),
     Card(

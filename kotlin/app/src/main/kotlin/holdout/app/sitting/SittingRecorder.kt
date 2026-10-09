@@ -18,6 +18,13 @@ interface SittingRecorder {
     /** The file being written, once the first frame has opened one. */
     val fileName: String?
 
+    /**
+     * True once the record could not be written — storage full, or a write
+     * or flush refused. The set is then missing or cut short, and the tester
+     * is told it was not saved (spec 004, edge cases).
+     */
+    val failed: Boolean
+
     fun record(
         timestampMillis: Long,
         step: String,

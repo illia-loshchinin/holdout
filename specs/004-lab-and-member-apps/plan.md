@@ -112,7 +112,7 @@ kotlin/app/
     │   ├── tour/TourScreen.kt       # comment only
     │   └── sitting/
     │       ├── SittingRecorder.kt   # NEW seam (interface)
-    │       ├── LabSittingTools.kt   # NEW seam (label prompt slot, readouts, clean screen)
+    │       ├── LabSittingTools.kt   # NEW seam (label prompt and readouts slots, clean screen)
     │       ├── SittingVideo.kt      # seam, unchanged
     │       ├── SittingScreen.kt     # − BuildConfig.DEBUG; takes LabSittingTools? = null
     │       └── SittingViewModel.kt  # takes recorder: SittingRecorder? instead of traceDir
@@ -124,11 +124,13 @@ kotlin/app/
     │   ├── kotlin/holdout/app/lab/LabApp.kt                    # NEW: mode chooser, switches, set, label
     │   ├── kotlin/holdout/app/sitting/TraceRecorder.kt         # from src/main
     │   ├── kotlin/holdout/app/sitting/TraceLabelDialog.kt      # from src/main
+    │   ├── kotlin/holdout/app/sitting/LabReadouts.kt           # from SittingScreen's overlay (R4, PR 27 review)
     │   ├── kotlin/holdout/app/sitting/SittingVideoFactory.kt   # from src/debug
     │   ├── kotlin/holdout/app/ui/TestSwitch.kt                 # from src/main
     │   └── res/                                                # app_name "Holdout Lab", lab icon (R8)
     ├── debug/       # keeps only AndroidManifest.xml + network_security_config (R9)
     ├── release/     # emptied (its stub moved to src/member)
+    ├── androidTest/ # shared; checks the flavor's package (R10)
     ├── test/        # seam tests (R10)
     └── testLab/     # Lab mode mapping, per-set scope
 
