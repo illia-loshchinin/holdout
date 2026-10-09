@@ -14,7 +14,7 @@
 
 ### H1. The build is a hackathon submission, not a launch
 
-**Decided:** devnet only, mock SKR mint, feature-frozen **28 September** when the first in-app cohort opens; submission **9 October 2026, 08:59 CEST**. Anything not required by a scenario in the spec is out of scope, and scope grows only by amending the spec. The submission's contents, the judging dates and the live period are in H25.
+**Decided:** devnet only, mock SKR mint, feature-frozen **28 September** when the first in-app cohort opens; submission **13 October 2026, 01:59 CEST** (moved by the organisers from 9 October 08:59 CEST; amended 2026-10-09). Anything not required by a scenario in the spec is out of scope, and scope grows only by amending the spec. The submission's contents, the judging dates and the live period are in H25.
 
 **Why:** the official CLOCK IN rubric has four equal parts:
 - stickiness and product fit with the Seeker community (habits and daily engagement);
@@ -230,7 +230,7 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 **What it shows, and who can watch it (clarified 2026-09-17):** the whole flow in order — launching the app, connecting a wallet, the faucet, the ladder, staking, the lobby, a sitting, a completed day, the crowd thinning, a forfeit, settlement and the claim. It is the **one thing playable before a wallet is connected** (FR-001a), because a judge whose wallet cannot sign on devnet would otherwise see nothing but the connect screen. Storyboard, shot list, recording workflow and beta-test plan: `holdout_demo_video.md`.
 
-**Why:** judges install the app between 10 October and 9 November, and a full staked cycle takes a week, so any live cohort a judge sees must be populated by script regardless. A recording of the real thing shows the complete money loop without asking a judge for 175 push-ups in an hour.
+**Why:** judges install the app between 13 October and 9 November, and a full staked cycle takes a week, so any live cohort a judge sees must be populated by script regardless. A recording of the real thing shows the complete money loop without asking a judge for 175 push-ups in an hour.
 
 **Rejected:**
 1. **A labelled compressed "Demo" cohort on-chain** — real contract, but judges would still have to perform the cycle.
@@ -454,13 +454,13 @@ A fix that would need any of those is not deployed. The authority is named in th
 
 ### H25. The CLOCK IN rules: what is submitted, when judging runs, how long the build stays live
 
-**Decided (clarified 2026-09-17 from the official CLOCK IN rules page):**
-- **Submission, before 9 October 2026 08:59 CEST, no late entries:**
+**Decided (clarified 2026-09-17 from the official CLOCK IN rules page; dates amended 2026-10-09 after the organisers moved them):**
+- **Submission, before 13 October 2026 01:59 CEST (12 October, 23:59 UTC), no late entries:**
   - a functional Android APK that runs on a real device;
   - a GitHub repository someone else can clone and run;
   - a demo video of about three minutes;
   - a pitch deck.
-- **Judging** runs 10 October – 9 November 2026. Winners are announced on 10 or 11 November; the rules page gives both dates.
+- **Judging** runs 13 October – 9 November 2026 (was 10 October). Winners are announced on 10 or 11 November; the rules page gives both dates.
 - **The build stays live with no manual intervention from submission through 11 November 2026:** cohorts, the faucet and the Scheduler.
 - **Distribution:** judges get the signed APK. **Publishing on the Solana dApp Store is not required** for submission. If the app wins, it must be published there within 30 calendar days of the announcement; that listing, and any mainnet launch, are post-hackathon work (L10, L11).
 - **No submission material may mislead:** scripted members, the test network and every README weakness are disclosed in the demo video and pitch deck as well as in the app and README (H16).
