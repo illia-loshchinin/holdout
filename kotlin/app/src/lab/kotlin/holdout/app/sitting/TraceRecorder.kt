@@ -28,6 +28,8 @@ class TraceRecorder(
     private val stakes: Stakes,
     /** How a trace file is opened; a test hands in storage that fails. */
     private val writerFor: (File) -> BufferedWriter = { it.bufferedWriter() },
+    /** How the labelled copy is written before it replaces the trace; a test hands in one that fails. */
+    private val writeLabelled: (File, String) -> Unit = { file, text -> file.writeText(text) },
 ) : SittingRecorder {
 
     // Three threads touch one file: frames arrive on MediaPipe's result
@@ -124,19 +126,27 @@ class TraceRecorder(
 
     /**
      * Writes a person's account of the sitting into the closed trace's header
-     * (`Trace.label`). Called off the main thread; a failure leaves the trace
-     * as it was, unlabelled.
+     * (`Trace.label`). Called off the main thread. The labelled copy is
+     * written beside the trace and moved over it only once whole, so a full
+     * disk leaves the trace as it was, unlabelled, and this returns false.
      */
-    override fun label(expectedReps: Int, done: Map<String, Int>, note: String, placement: String?, phoneSide: String?) {
+    override fun label(expectedReps: Int, done: Map<String, Int>, note: String, placement: String?, phoneSide: String?): Boolean {
         synchronized(lock) {
-            val target = file ?: return
+            val target = file ?: return false
             closeLocked()
             // A cut-short trace is never given ground truth (004 contracts §3).
-            if (failed) return
-            runCatching {
+            if (failed) return false
+            val copy = File(target.path + ".tmp")
+            return runCatching {
                 val labelled = Trace.label(target.readLines(), expectedReps, done, note, placement, phoneSide)
-                target.writeText(labelled.joinToString("\n", postfix = "\n"))
-            }
+                writeLabelled(copy, labelled.joinToString("\n", postfix = "\n"))
+                java.nio.file.Files.move(
+                    copy.toPath(),
+                    target.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                )
+            }.onFailure { copy.delete() }.isSuccess
         }
     }
 

@@ -49,7 +49,9 @@ interface SittingRecorder {
     val fileName: String?
     val failed: Boolean   // true once the trace could not be written: the set is not saved
     fun record(/* the arguments TraceRecorder.record takes today */)
-    fun label(expectedReps: Int, done: Map<String, Int>, note: String, placement: String? = null, phoneSide: String? = null)
+    // true once the label is in the file; written to <name>.tmp and moved over the trace atomically,
+    // so a failure (storage full) leaves the unlabelled trace whole
+    fun label(expectedReps: Int, done: Map<String, Int>, note: String, placement: String? = null, phoneSide: String? = null): Boolean
     fun close()
 }
 
@@ -59,10 +61,14 @@ class LabSittingTools(
     val recordVideo: Boolean,
     val labelPrompt: @Composable (counted: Int, onSave: (done: Map<String, Int>, note: String, placement: String?, phoneSide: String?) -> Unit, onSkip: () -> Unit) -> Unit,
     val notSavedNotice: @Composable (onOk: () -> Unit) -> Unit,
+    val onSetProblem: (what: String) -> Unit,   // a label or video lost after the set screen has gone
 )
+
+fun sittingVideo(context: Context, dir: File, stakes: String, onFailed: (what: String) -> Unit): SittingVideo?   // member: null
 ```
 
 - When a Lab set ends and `recorder.failed` is true, `SittingScreen` shows `notSavedNotice` instead of `labelPrompt`, and `LabReadouts` shows "rec · not saved" (spec edge case: the phone runs out of space during a Lab set). A set whose trace failed is never labelled.
+- **Losses after the set** (same edge case): a label that could not be written (`label` returns false) and a video that did not finalize whole (a CameraX `Finalize` error other than the camera closing, an empty file, or a failed rename) are reported through `onSetProblem`. The video finalizes only after the set screen has gone, so Lab shows these on **Choose** as a dismissible "not saved" card naming what was lost. The trace itself stays on the phone either way.
 
 - `SittingViewModel(…, recorder: SittingRecorder? = null, …)` replaces `traceDir: File?`.
 - `SittingScreen(…, tools: LabSittingTools? = null, …)` replaces `cleanScreen` and `recordVideo` and every `BuildConfig.DEBUG` check in it.
@@ -83,7 +89,7 @@ class LabSittingTools(
 
 | Screen | Shows | Actions |
 |---|---|---|
-| **Choose** | Title "Holdout Lab"; three rows: *Daily 25*, *Easy Holdout · knees allowed · 40–60°*, *Hard Holdout · from the toes · 45°*; the switches *Record video* (consent wording from `RecordVideoSwitch`), *Clean screen*; *Target* (default 25); the count of traces on the phone | Tap a row: start a set |
+| **Choose** | Title "Holdout Lab"; three rows: *Daily 25*, *Easy Holdout · knees allowed · 40–60°*, *Hard Holdout · from the toes · 45°*; the switches *Record video* (consent wording from `RecordVideoSwitch`), *Clean screen*; *Target* (default 25); the count of traces on the phone; a "not saved" card for each label or video the last sets lost, until dismissed | Tap a row: start a set |
 | **Set** | The shared sitting: set-up guide, placement checks, counting; readouts on (unless clean screen) | Stop |
 | **Label** | The existing label dialog (002 FR-025) | Save, or skip; then back to Choose |
 

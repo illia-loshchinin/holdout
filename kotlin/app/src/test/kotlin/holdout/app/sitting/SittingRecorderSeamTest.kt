@@ -26,7 +26,7 @@ class SittingRecorderSeamTest {
     private val frame = PoseFrame(0, List(PoseIndex.COUNT) { Landmark(0.5f, 0.5f, 0f, 1f) })
     private val observation = VisionAnalyzer.Observation(frame, frame, brightness = 0.5f, backgroundMotion = 0f, frameWidth = 720, frameHeight = 1280)
 
-    private class FakeRecorder(override var failed: Boolean = false) : SittingRecorder {
+    private class FakeRecorder(override var failed: Boolean = false, val labelLands: Boolean = true) : SittingRecorder {
         var frames = 0
         var labels = 0
         var closes = 0
@@ -37,9 +37,10 @@ class SittingRecorderSeamTest {
         override fun record(timestampMillis: Long, step: String, view: CameraView?, world: PoseFrame, image: PoseFrame, width: Int, height: Int, readout: Readout?, event: RepEvent?) {
             frames += 1
         }
-        override fun label(expectedReps: Int, done: Map<String, Int>, note: String, placement: String?, phoneSide: String?) {
+        override fun label(expectedReps: Int, done: Map<String, Int>, note: String, placement: String?, phoneSide: String?): Boolean {
             labels += 1
             expected.put(expectedReps)
+            return labelLands
         }
         override fun close() {
             closes += 1
@@ -125,6 +126,19 @@ class SittingRecorderSeamTest {
         assertTrue(vm.traceFailed)
         assertTrue(vm.uiState.value.traceFailed)
         assertFalse(vm.canLabelTrace)
+    }
+
+    @Test
+    fun `given a label the recorder could not write, when the tester saves it, then the loss is reported`() {
+        val recorder = FakeRecorder(labelLands = false)
+        val vm = sitting(recorder)
+        vm.onPoseFrame(observation, backgroundMotion = 0f)
+        vm.endSitting()
+        val lost = java.util.concurrent.LinkedBlockingQueue<String>()
+        vm.labelTrace(mapOf("honest" to 3), "note", onLost = { lost.put(it) })
+        val what = lost.poll(5, java.util.concurrent.TimeUnit.SECONDS)
+        vm.release()
+        assertTrue(what != null && "fake.trace.csv" in what, "the loss names the trace: $what")
     }
 
     @Test

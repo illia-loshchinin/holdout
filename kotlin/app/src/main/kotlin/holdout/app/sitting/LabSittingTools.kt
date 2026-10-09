@@ -26,4 +26,9 @@ class LabSittingTools(
     ) -> Unit,
     /** Tells the tester a set that ended was not saved, because its trace could not be written. */
     val notSavedNotice: @Composable (onOk: () -> Unit) -> Unit,
+    /**
+     * A label or a video lost after the set — the video finalizes once the
+     * screen has gone — for Lab to show on its chooser. Called from any thread.
+     */
+    val onSetProblem: (what: String) -> Unit,
 )

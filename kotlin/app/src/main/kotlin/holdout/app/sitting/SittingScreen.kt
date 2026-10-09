@@ -174,7 +174,7 @@ fun SittingScreen(
     ) {
         if (state.step != SittingViewModel.Step.COMPLETE) {
             if (hasCamera) {
-                CameraFeed(viewModel, recordVideo = tools?.recordVideo == true)
+                CameraFeed(viewModel, recordVideo = tools?.recordVideo == true, onVideoLost = tools?.onSetProblem ?: {})
                 if (!cleanScreen) {
                     PositionOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
                     SkeletonOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
@@ -261,7 +261,7 @@ fun SittingScreen(
                 tools.labelPrompt(
                     state.repsCounted,
                     { done, note, placement, phoneSide ->
-                        viewModel.labelTrace(done, note, placement, phoneSide)
+                        viewModel.labelTrace(done, note, placement, phoneSide, onLost = tools.onSetProblem)
                         labelThen = null
                         leaveAfterLabel()
                     },
@@ -868,10 +868,14 @@ private fun sittingGroup(vararg useCases: androidx.camera.core.UseCase) = androi
  * always returns null.
  */
 @Composable
-private fun CameraFeed(viewModel: SittingViewModel, recordVideo: Boolean) {
+private fun CameraFeed(viewModel: SittingViewModel, recordVideo: Boolean, onVideoLost: (String) -> Unit) {
     val context = LocalContext.current
     val video = remember(recordVideo) {
-        if (recordVideo) sittingVideo(context, java.io.File(context.filesDir, "traces"), viewModel.uiState.value.stakes.name.lowercase()) else null
+        if (recordVideo) {
+            sittingVideo(context, java.io.File(context.filesDir, "traces"), viewModel.uiState.value.stakes.name.lowercase(), onVideoLost)
+        } else {
+            null
+        }
     }
     val lifecycleOwner = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }
