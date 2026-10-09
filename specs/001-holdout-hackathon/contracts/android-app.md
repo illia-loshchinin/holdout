@@ -19,9 +19,10 @@
 | Destination | Purpose |
 |---|---|
 | The configured devnet RPC endpoint | Account reads, Clock sysvar, sending signed transactions |
+| The configured **names** endpoint (Solana mainnet, `holdout.namesRpcUrl`; spec 003) | Seeker ID lookups for display only (001 FR-063): `getProgramAccounts` and `getMultipleAccounts` on public name records, nothing else. Sends wallet addresses already public on chain; never a signature, a transaction or device data. A read-only client that cannot send (003 research R5) |
 | Local MWA wallet app (Android intents / local websocket) | Authorisation and signing |
 
-Nothing else — reminders (FR-068) are scheduled and shown on the device and use no network. Only **Holdout Lab**, the separate tester app (`holdout.app.lab`, spec 004), may save a set's camera as video in its private storage for rep-recognition testing (constitution X v2.1.0, spec 002 FR-026); it never sends it anywhere, and has no network permission at all. The member app contains no recorder in any build. **Camera frames, landmarks and rep traces are never sent anywhere** (FR-022, constitution X); the only rep-derived data leaving the device is the 32-byte `proof_hash` inside `submit_day`. Acceptance criterion 10 is checked by capturing all outbound traffic during a sitting and finding only RPC calls.
+Nothing else: the names endpoint is the app's only contact with mainnet, and it only reads. Reminders (FR-068) are scheduled and shown on the device and use no network. Only **Holdout Lab**, the separate tester app (`holdout.app.lab`, spec 004), may save a set's camera as video in its private storage for rep-recognition testing (constitution X v2.1.0, spec 002 FR-026); it never sends it anywhere, and has no network permission at all. The member app contains no recorder in any build. **Camera frames, landmarks and rep traces are never sent anywhere** (FR-022, constitution X); the only rep-derived data leaving the device is the 32-byte `proof_hash` inside `submit_day`. Acceptance criterion 10 is checked by capturing all outbound traffic during a sitting and finding only RPC calls.
 
 ## 3. Wallet use (Mobile Wallet Adapter)
 

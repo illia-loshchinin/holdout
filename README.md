@@ -4,7 +4,7 @@
 
 Solana Mobile fitness commitment dApp. Built for the CLOCK IN hackathon, submission due 13 Oct 2026, 01:59 CEST (12 Oct, 23:59 UTC); judging runs 13 Oct – 9 Nov 2026.
 
-**Devnet only, mock SKR mint — a test network with a test token.** Nothing here touches mainnet or real value.
+**Devnet only, mock SKR mint — a test network with a test token.** No stake, prize or token touches mainnet or real value; the one mainnet contact is a read of members' public Seeker ID names, for display only (see Known weaknesses).
 
 ## What it is
 
@@ -31,6 +31,7 @@ Named here on purpose (constitution XI). Each has its real fix beside it.
 | What | Why it is like this | Real fix |
 |---|---|---|
 | Devnet with a mock SKR mint | Hackathon build; no real value at stake | Mainnet with real SKR |
+| Seeker ID names are read from Solana mainnet | Seeker IDs (.skr names) exist only on mainnet; the app reads them, for display only, from the public mainnet RPC, while everything else runs on devnet. Members without one, scripted members included, are shown by shortened address | Nothing to fix for display: on mainnet the same lookup reads the same network. A dedicated RPC provider would make first-time lookups of large lists faster |
 | "Stake back" is true in SKR, not in dollars | Everything is SKR-denominated with no oracle in the contract | A known property of SKR-native staking, stated in the app |
 | `ladder_gate_enabled = false` — both leagues open from first launch | Nobody should have to spend a week before reaching the 21-day league; the unlock is still computed and recorded | Flip the flag |
 | `genesis_gate_enabled = false` | Testers have no Seeker | Flip the flag on mainnet |

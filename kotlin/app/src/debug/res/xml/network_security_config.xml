@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Cleartext is allowed to a local validator only: 127.0.0.1 through
-     `adb reverse tcp:8899 tcp:8899` on a phone, 10.0.2.2 from the emulator.
-     Everything else stays HTTPS-only. Debug builds only. -->
+<!-- Debug builds only: cleartext is allowed so a phone can reach a local
+     validator (127.0.0.1 through `adb reverse tcp:8899 tcp:8899`, 10.0.2.2
+     from the emulator). It is set on the base config, not per domain: any
+     <domain-config> makes Android require hostname-aware certificate checks,
+     which Ktor's CIO engine does not do, and every HTTPS request — devnet,
+     the mainnet Seeker ID names — then fails with a CertificateException.
+     Release builds carry no network security config. -->
 <network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">127.0.0.1</domain>
-        <domain includeSubdomains="false">localhost</domain>
-        <domain includeSubdomains="false">10.0.2.2</domain>
-    </domain-config>
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

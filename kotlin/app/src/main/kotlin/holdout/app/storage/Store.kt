@@ -113,7 +113,19 @@ interface Store {
     fun askedForNotifications(): Boolean
     fun setAskedForNotifications()
 
+    /** The last answered Seeker ID lookup for [wallet] (spec 003 data-model §2), or null if none was kept. */
+    fun seekerName(wallet: String): KeptName?
+
+    /** Keeps [kept] for [wallet]. Holds at most [SEEKER_NAMES_MAX] wallets; the oldest check goes first. */
+    fun setSeekerName(wallet: String, kept: KeptName)
+
+    /** Every kept wallet that has a Seeker ID: wallet base58 → name. */
+    fun allSeekerNames(): Map<String, String>
+
     companion object {
+        /** Kept Seeker ID entries at most (research R7): every member a judge could meet, under 0.5 MB. */
+        const val SEEKER_NAMES_MAX = 5_000
+
         /** The scope for the free Daily 25, which belongs to no cohort. */
         const val CHALLENGE = "challenge"
 
@@ -159,6 +171,30 @@ data class StreakRecord(val streak: Int, val day: Long, val longest: Int, val fr
 
 /** A wallet address and the auth token that lets the app reuse its authorisation. */
 data class WalletSession(val address: String, val authToken: String?)
+
+/**
+ * A wallet's last answered Seeker ID lookup (spec 003 data-model §2): its
+ * chosen [name], or null for "checked, has none", and when it was checked on
+ * the phone's wall clock — which decides nothing but when to ask again.
+ */
+data class KeptName(val name: String?, val checkedAtMillis: Long) {
+    /** `<checkedAtMillis>|<name>`, the name empty for none. The time comes first: a name may hold a `|`. */
+    fun encode(): String = "$checkedAtMillis|${name.orEmpty()}"
+
+    companion object {
+        fun decode(value: String): KeptName? {
+            val bar = value.indexOf('|').takeIf { it > 0 } ?: return null
+            val at = value.substring(0, bar).toLongOrNull() ?: return null
+            return KeptName(value.substring(bar + 1).ifEmpty { null }, at)
+        }
+
+        /**
+         * The wallet to forget so [adding] fits under [max]: the one checked
+         * longest ago, or null when there is room or [adding] is already kept.
+         */
+        fun toDrop(kept: Map<String, KeptName>, adding: String, max: Int = Store.SEEKER_NAMES_MAX): String? = if (adding in kept || kept.size < max) null else kept.minByOrNull { it.value.checkedAtMillis }?.key
+    }
+}
 
 /** [day] of [cohort] was sent while the chain could be reached; [lost] if the network has gone since. */
 data class AutoSubmitMark(val cohort: String, val day: Int, val lost: Boolean)
@@ -304,6 +340,20 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         kv.encode("asked_notifications", true)
     }
 
+    override fun seekerName(wallet: String): KeptName? = kv.decodeString("$SEEKER_NAME$wallet")?.let(KeptName::decode)
+
+    override fun setSeekerName(wallet: String, kept: KeptName) {
+        KeptName.toDrop(keptNames(), wallet)?.let { kv.removeValueForKey("$SEEKER_NAME$it") }
+        kv.encode("$SEEKER_NAME$wallet", kept.encode())
+    }
+
+    override fun allSeekerNames(): Map<String, String> = keptNames().mapNotNull { (wallet, kept) -> kept.name?.let { wallet to it } }.toMap()
+
+    private fun keptNames(): Map<String, KeptName> = kv.allKeys().orEmpty()
+        .filter { it.startsWith(SEEKER_NAME) }
+        .mapNotNull { key -> kv.decodeString(key)?.let(KeptName::decode)?.let { key.removePrefix(SEEKER_NAME) to it } }
+        .toMap()
+
     override fun recordsVideo(): Boolean = kv.decodeBool("records_video", false)
 
     override fun setRecordsVideo(on: Boolean) {
@@ -435,4 +485,21 @@ class InMemoryStore : Store {
     override fun setAutoSubmitMark(wallet: String, mark: AutoSubmitMark?) {
         if (mark == null) values.remove("auto_sent:$wallet") else values["auto_sent:$wallet"] = mark
     }
+
+    override fun seekerName(wallet: String): KeptName? = values["$SEEKER_NAME$wallet"] as? KeptName
+
+    override fun setSeekerName(wallet: String, kept: KeptName) {
+        KeptName.toDrop(keptNames(), wallet)?.let { values.remove("$SEEKER_NAME$it") }
+        values["$SEEKER_NAME$wallet"] = kept
+    }
+
+    override fun allSeekerNames(): Map<String, String> = keptNames().mapNotNull { (wallet, kept) -> kept.name?.let { wallet to it } }.toMap()
+
+    private fun keptNames(): Map<String, KeptName> = values
+        .filterKeys { it.startsWith(SEEKER_NAME) }
+        .mapNotNull { (key, value) -> (value as? KeptName)?.let { key.removePrefix(SEEKER_NAME) to it } }
+        .toMap()
 }
+
+/** Key prefix of a kept Seeker ID entry: `seekerName:<wallet base58>` (spec 003 data-model §2). */
+private const val SEEKER_NAME = "seekerName:"

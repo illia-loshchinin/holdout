@@ -2,6 +2,7 @@ package holdout.app
 
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.leaderboard.LeaderboardText
+import holdout.app.ui.Format
 import holdout.core.Leaderboard
 import holdout.core.Leaderboard.Standing
 import org.junit.Assert.assertEquals
@@ -35,6 +36,37 @@ class LeaderboardTextTest {
         assertEquals("You're 1 Holdout away from being ranked", LeaderboardText.standing(Standing.NotRanked(1)))
         assertEquals("You're 2 Holdouts away from being ranked", LeaderboardText.standing(Standing.NotRanked(2)))
         assertEquals("Finish 3 of these Holdouts to be ranked", LeaderboardText.standing(Standing.Absent()))
+    }
+
+    @Test
+    fun `given kept Seeker IDs, when a board is ranked and shown, then order, ranks, scripted labels and you are as without names`() {
+        val wallets = (1..6).map { n -> SolanaPublicKey(ByteArray(32) { (n * 31 + it).toByte() }) }
+        // The last two tie on every figure, so only their addresses order them.
+        val rows = listOf(
+            Leaderboard.Row(wallets[0], 4, 1, 0, 4, 10L, false),
+            Leaderboard.Row(wallets[1], 3, 0, 3, 3, 20L, true),
+            Leaderboard.Row(wallets[2], 1, 1, 0, 1, 30L, false),
+            Leaderboard.Row(wallets[3], 5, 0, 5, 5, 40L, false),
+            Leaderboard.Row(wallets[4], 3, 1, 1, 3, 50L, false),
+            Leaderboard.Row(wallets[5], 3, 1, 1, 3, 50L, false),
+        )
+        val me = wallets[4]
+        // Names that sort opposite to the addresses they belong to.
+        val names = wallets.withIndex().associate { (i, w) -> w.base58() to "${'z' - i}member.skr" }
+
+        fun board(names: Map<String, String>): List<List<String>> {
+            val view = Leaderboard.rank(rows)
+            val lines = view.ranked.mapIndexed { i, r -> "${i + 1}." to r } + view.notRanked.map { "·" to it }
+            return lines.map { (place, r) ->
+                listOf(r.wallet.base58(), place, LeaderboardText.figures(r), (r.wallet == me).toString(), Format.identity(r.wallet.base58(), names[r.wallet.base58()], 20))
+            }
+        }
+
+        val plain = board(emptyMap())
+        val named = board(names)
+        assertEquals(plain.map { it.dropLast(1) }, named.map { it.dropLast(1) })
+        named.forEach { assertEquals(names[it[0]], it.last()) }
+        plain.forEach { assertEquals(Format.short(it[0]), it.last()) }
     }
 
     @Test
