@@ -19,6 +19,12 @@ This feature amends:
 
 Seeker ID names are recorded on Solana **mainnet**. Holdout runs on **devnet**. A wallet's address is the same on both networks, so a member's devnet wallet can be looked up against the mainnet names without the member doing anything. That lookup is a read: it moves no funds, signs nothing and touches no Holdout account.
 
+## Clarifications
+
+### Session 2026-10-09
+
+- Q: How fast must names appear in a long list the first time it is opened, given that the public mainnet node allows about 10 owner searches per 10 seconds (plan research R4)? → A: Rows on screen are named within 10 seconds; a whole 100-member list within 2 minutes the first time; every name immediately on later visits.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - See yourself by your Seeker ID (Priority: P1)
@@ -108,7 +114,7 @@ A judge reading About · for judges, or the README, learns that Seeker ID names 
 ### Measurable Outcomes
 
 - **SC-001** On a Seeker whose wallet holds a Seeker ID, the connected member sees their own name within 3 seconds of connecting on a normal connection, and immediately on every later open, offline included.
-- **SC-002** A roster or leaderboard of 100 members shows every row as quickly as it does without this feature, and every name that exists within 10 seconds on a normal connection; a second visit shows them immediately.
+- **SC-002** A roster or leaderboard of 100 members shows every row as quickly as it does without this feature. The first time it is opened, the names of the rows on screen appear within 10 seconds and every name that exists within 2 minutes, on a normal connection; on later visits every name shows immediately.
 - **SC-003** In 100% of rosters and leaderboards, ordering and the "you" and scripted markers are identical with and without names.
 - **SC-004** With the network cut, or with name lookups made to fail, no screen shows an error, spinner or empty space where an identity belongs: 0 occurrences across Today, roster, leaderboard and the connected-wallet line.
 - **SC-005** A judge who opens About · for judges can tell, from one entry, where names come from and that they are display only.
