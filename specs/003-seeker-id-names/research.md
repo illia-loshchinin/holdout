@@ -110,10 +110,12 @@ Otherwise the wallet counts as having no Seeker ID (FR-006).
 
 ## R8 · How screens show an identity without jumping (FR-003, FR-006)
 
-**Decision**: One shared composable, `MemberIdentity(wallet, …)`, renders `Format.identity(wallet, name)`. It reserves the width of the longer of the two forms (a truncated name fits within it, R9), uses `AmountStyle` (JetBrains Mono, the address style today) in the same colour, and crossfades in 200 ms when the name arrives. Screens call it wherever they call `Format.short` today:
-- `RosterScreen.kt:67`;
-- `LeaderboardScreen.kt:88`;
-- the connected-wallet line at `HoldoutApp.kt:750`.
+**Decision**: One shared composable, `MemberIdentity(wallet, …)`, renders `Format.identity(wallet, name)`, the names coming from `LocalSeekerNames`. It takes the **caller's style and colour**, the ones the shortened address had in that place (FR-003), and crossfades in 200 ms when the name arrives. Its **width is fixed before any name is known**: a layout measures a hidden line of `budget` characters (or takes the space a row gives it with `Modifier.weight(1f)`) and draws whatever it shows inside that width, so a name arriving never moves what is beside it. A name wider than that, which only wide characters (CJK) can be once R9 has cut it to the budget, ends in "…" and may lose `.skr`: an accepted limit (spec FR-004). Screens call it wherever they called `Format.short`:
+- the roster rows (`RosterScreen.kt`);
+- the leaderboard rows (`LeaderboardScreen.kt`);
+- the connected-wallet line in `HoldoutApp.kt`.
+
+**Alternatives considered**: reserving only the longer of the address and the current name, the first version. A name longer than the address widened the line when it arrived, so the Disconnect line re-centred (PR #26 review).
 
 **Rationale**: It is one place to keep FR-003's "looks like the same kind of row" true, and the design book's 200 ms standard motion.
 

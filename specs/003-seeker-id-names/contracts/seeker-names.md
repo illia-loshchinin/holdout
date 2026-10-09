@@ -77,7 +77,9 @@ Each `value` is null (no record: not a candidate) or an account whose data after
 | Member | Contract |
 |---|---|
 | `Format.identity(wallet, name: String?, budget: Int): String` | data-model §3 table, without the "you" marker |
-| `@Composable MemberIdentity(wallet, isYou, budget, modifier)` | Reads the repository; `AmountStyle` in the colour the call site passes; reserves width; 200 ms crossfade (R8); `contentDescription` is the shown identity |
+| `val LocalSeekerNames: CompositionLocal<Map<String, String>>` | Every kept name, provided once by `HoldoutApp` from the repository's `names`; empty in previews and tests |
+| `@Composable MemberIdentity(wallet, isYou, budget, color, modifier, style = AmountStyle)` | Reads `LocalSeekerNames`; the caller's style and colour (FR-003); width fixed from `budget` or the space given, a wider name cut with "…" (R8, FR-004 known limit); 200 ms crossfade; `contentDescription` is the shown identity |
+| `@Composable ReportShownWallets(list, onShowing, walletOf)` | Reports a `LazyColumn`'s visible wallets to `showing` as they change, and an empty list when the app stops or the screen leaves (FR-012) |
 
 ## 4. Weaknesses entry (FR-010)
 

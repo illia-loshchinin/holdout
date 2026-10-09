@@ -126,17 +126,27 @@ kotlin/app/src/main/kotlin/holdout/app/
 │   ├── LookupQueue.kt            # NEW — pure two-priority paced queue; drops rows that leave the screen
 │   └── SeekerNameRepository.kt   # NEW — worker over the queue, MMKV cache, StateFlow of names
 ├── storage/Store.kt              # + kept name entries (data-model §2)
-├── ui/Components.kt              # + Format.identity(...) and MemberIdentity composable (R8)
-├── roster/RosterScreen.kt        # Format.short → MemberIdentity
-├── leaderboard/LeaderboardScreen.kt  # Format.short → MemberIdentity
-└── HoldoutApp.kt                 # the connected-wallet line → MemberIdentity; repository wiring
+├── ui/Components.kt              # + Format.identity(...), LocalSeekerNames and the MemberIdentity composable (R8)
+├── ui/ShownWallets.kt            # NEW — ReportShownWallets: visible rows → showing(), empty when stopped or gone (R11)
+├── roster/RosterScreen.kt        # Format.short → MemberIdentity; rosterRowWallet(key)
+├── leaderboard/LeaderboardScreen.kt  # Format.short → MemberIdentity; leaderboardRowWallet(key) drops the r/n prefix
+├── about/AboutScreen.kt          # the "test network" line names the one mainnet read (FR-009, FR-010)
+├── MainViewModel.kt              # comment only: no value touches mainnet; the names read does
+└── HoldoutApp.kt                 # the connected-wallet line → MemberIdentity; one repository per process, provided
+                                  # through LocalSeekerNames; connected(address) on every change, null on disconnect
+
+kotlin/app/src/debug/res/xml/network_security_config.xml  # cleartext on the base config, never per domain:
+                                  # a <domain-config> makes Ktor CIO fail every HTTPS call in a debug build
 
 kotlin/app/src/test/kotlin/holdout/app/names/
-├── LookupQueueTest.kt            # NEW — pace, priority, dropping off-screen rows, back-off, SC-002 budget
-└── SeekerNameRepositoryTest.kt   # NEW — freshness, re-check on connect, fallback, no lookup off screen
+├── LookupQueueTest.kt            # NEW — pace, priority, dropping off-screen rows, disconnect, back-off, SC-002 budget
+├── SeekerNameRepositoryTest.kt   # NEW — freshness, re-check on connect, fallback, no lookup off screen, scripted, eviction
+├── MemberIdentityTextTest.kt     # NEW — Format.identity, and the debug network config's base-config rule
+└── ShownRowWalletTest.kt         # NEW — row keys → wallets for the roster and the leaderboard
 
 kotlin/app/build.gradle.kts           # + NAMES_RPC_URL from holdout.namesRpcUrl, in defaultConfig (both flavours)
 docs/weaknesses.json                  # + one entry; README re-rendered (spec 004 moved it here)
+README.md                             # the opening "devnet only" line names the one mainnet read
 ```
 
 **Structure Decision**: The pure, network-free logic goes in `kotlin/core`, next to `Pdas.kt` and `Rpc.kt`, where every rule in this codebase is unit-tested on the JVM. The read-only network client also goes there, beside `Rpc`, so the two drivers sit side by side and a review sees that only one of them can send. The cache, pacing and Compose pieces go in `kotlin/app`, beside the screens that use them. Program, crank and tests under `tests/` are untouched.
