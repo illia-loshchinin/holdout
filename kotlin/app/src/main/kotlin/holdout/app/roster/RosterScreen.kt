@@ -52,8 +52,7 @@ fun RosterScreen(
     val c = h.cohort
     val roster = members?.let { Derive.roster(c, it, now, ScriptedWallets.keys) }
     val list = rememberLazyListState()
-    // Member rows are keyed by their wallet; the header rows have no key of their own.
-    ReportShownWallets(list, onShowing) { it as? String }
+    ReportShownWallets(list, onShowing, ::rosterRowWallet)
     LazyColumn(
         state = list,
         modifier = modifier
@@ -95,3 +94,9 @@ fun RosterScreen(
         }
     }
 }
+
+/**
+ * The wallet a roster row names, from its `LazyColumn` key: member rows are
+ * keyed by the wallet's base58, and header rows have no key of their own.
+ */
+internal fun rosterRowWallet(key: Any): String? = key as? String

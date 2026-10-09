@@ -116,6 +116,19 @@ class SeekerNamesTest {
     }
 
     @Test
+    fun `names that differ only in case are chosen the same way every time`() {
+        assertEquals("Alice.skr", SeekerNames.choose(listOf("alice", "Alice")))
+        assertEquals("Alice.skr", SeekerNames.choose(listOf("Alice", "alice")))
+    }
+
+    @Test
+    fun `a record with no text after its header is no name, and bytes after the end are ignored`() {
+        assertNull(SeekerNames.nameFromReverseRecord(ByteArray(200)))
+        assertNull(SeekerNames.nameFromReverseRecord(ByteArray(201)))
+        assertEquals("bob", SeekerNames.nameFromReverseRecord(ByteArray(200) + "bob".encodeToByteArray() + byteArrayOf(0, 0x41, 0x42)))
+    }
+
+    @Test
     fun `the choice is the same whatever order the names arrive in`() {
         val names = listOf("Émile", "emma", "zoë", "😀smile", "Ａwide")
         assertEquals(SeekerNames.choose(names), SeekerNames.choose(names.reversed()))
@@ -129,6 +142,20 @@ class SeekerNamesTest {
     fun `a name within its budget is unchanged`() {
         assertEquals("alice.skr", SeekerNames.fit("alice.skr", 20))
         assertEquals("a".repeat(16) + ".skr", SeekerNames.fit("a".repeat(16) + ".skr", 20))
+    }
+
+    @Test
+    fun `a cut never splits a character made of two UTF-16 units`() {
+        // 30 emoji: each one code point, two UTF-16 units.
+        val name = "😀".repeat(30) + ".skr"
+        val cut = SeekerNames.fit(name, 20)
+        assertEquals(20, cut.codePointCount(0, cut.length))
+        assertEquals("😀".repeat(15) + "….skr", cut)
+    }
+
+    @Test
+    fun `even a tiny budget keeps the skr ending`() {
+        assertEquals("a….skr", SeekerNames.fit("averyveryverylongname.skr", 4))
     }
 
     @Test

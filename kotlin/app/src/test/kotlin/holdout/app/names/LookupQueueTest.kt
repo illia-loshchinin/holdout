@@ -85,6 +85,13 @@ class LookupQueueTest {
     }
 
     @Test
+    fun `connecting another wallet drops the first one's pending search`() {
+        queue.connected("first")
+        queue.connected("second")
+        assertEquals(listOf("second"), drain(10_000).map { it.second })
+    }
+
+    @Test
     fun `a wallet neither connected nor on screen is never handed out`() {
         queue.showing(listOf("a"))
         queue.showing(emptyList())

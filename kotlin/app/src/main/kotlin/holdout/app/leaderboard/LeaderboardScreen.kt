@@ -48,8 +48,7 @@ fun LeaderboardScreen(
     onShowing: (Collection<String>) -> Unit = {},
 ) {
     val list = rememberLazyListState()
-    // Rows are keyed "r" or "n" (ranked, not yet) + the wallet; drop the prefix for the wallet.
-    ReportShownWallets(list, onShowing) { (it as? String)?.takeIf { key -> key.length > 1 }?.drop(1) }
+    ReportShownWallets(list, onShowing, ::leaderboardRowWallet)
     LazyColumn(
         state = list,
         modifier = modifier
@@ -101,6 +100,13 @@ private fun Line(place: String, r: Leaderboard.Row, me: SolanaPublicKey?) {
         Text(LeaderboardText.figures(r), style = LabelStyle, color = HoldoutColors.TextSecondary)
     }
 }
+
+/**
+ * The wallet a leaderboard row names, from its `LazyColumn` key: rows are
+ * keyed "r" (ranked) or "n" (not ranked yet) followed by the wallet's base58;
+ * header rows have no key of their own.
+ */
+internal fun leaderboardRowWallet(key: Any): String? = (key as? String)?.takeIf { it.length > 1 && it[0] in "rn" }?.drop(1)
 
 /** Every word the leaderboard shows, kept pure so it can be tested — never an amount. */
 object LeaderboardText {

@@ -81,6 +81,39 @@ class SeekerNameRepositoryTest {
     }
 
     @Test
+    fun `of the rows on screen, only those not checked within the day are looked up`() = runBlocking {
+        store.setSeekerName("fresh", KeptName("fresh.skr", nowMillis - hour))
+        store.setSeekerName("stale", KeptName(null, nowMillis - 25 * hour))
+        val repo = repository { Lookup.None }
+        repo.showing(listOf("fresh", "stale", "new"))
+        eventually { asked.size >= 2 }
+        delay(200)
+        assertEquals(setOf("stale", "new"), asked.toSet())
+        assertEquals("fresh.skr", repo.names.value["fresh"])
+    }
+
+    @Test
+    fun `a name found after an earlier none is shown`() = runBlocking {
+        store.setSeekerName("w", KeptName(null, nowMillis - 25 * hour))
+        val repo = repository { Lookup.Found("late.skr") }
+        assertNull(repo.names.value["w"])
+        repo.showing(listOf("w"))
+        eventually { repo.names.value["w"] == "late.skr" }
+        assertEquals(KeptName("late.skr", nowMillis), store.seekerName("w"))
+    }
+
+    @Test
+    fun `a wallet the node keeps refusing is tried twice, then left as its address`() = runBlocking {
+        val repo = repository { Lookup.Unknown(rateLimited = true) }
+        repo.showing(listOf("w"))
+        eventually { asked.size >= 2 }
+        delay(300)
+        assertEquals(listOf("w", "w"), asked.toList())
+        assertNull(store.seekerName("w"))
+        assertNull(repo.names.value["w"])
+    }
+
+    @Test
     fun `the connected wallet is checked again however fresh`() = runBlocking {
         store.setSeekerName("me", KeptName("alice.skr", nowMillis - hour))
         val repo = repository { Lookup.Found("alice.skr") }
