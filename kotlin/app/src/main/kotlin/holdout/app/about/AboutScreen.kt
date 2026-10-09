@@ -100,7 +100,7 @@ fun WalkthroughScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         item { TextButton(onClick = onBack) { Text("← Back", color = HoldoutColors.TextSecondary) } }
         item { SectionLabel("A full cycle") }
         item { Text("Recording in progress", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary) }
-        item { Body("The walkthrough is being recorded from the real app on devnet, on a disclosed short test cohort with compressed days. It lands in the build submitted before 9 October.") }
+        item { Body("The walkthrough is being recorded from the real app on devnet, on a disclosed short test cohort with compressed days. It lands in the build submitted by 13 October.") }
     }
 }
 
