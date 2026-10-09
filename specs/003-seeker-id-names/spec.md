@@ -15,7 +15,7 @@ Holdout is built for Solana Mobile's Seeker. Every Seeker owner receives a **See
 This feature amends:
 
 - `specs/001-holdout-hackathon` **FR-063**: leaderboards identify members by shortened wallet address **only**. After this feature they identify a member by Seeker ID when one exists, and by shortened address otherwise. The rest of FR-063 (no stake, prize or payout amount on any leaderboard) is unchanged.
-- The design book's **Roster row** component ("one member of a cohort, by shortened address only"). The design book is a mirror, so the change is made in the design system artifact and then synced.
+- The **Roster row** component of the Holdout design system ("one member of a cohort, by shortened address only"). The design system lives only in its claude.ai artifact, with no copy in the repository, so the change is made in that artifact.
 
 Seeker ID names are recorded on Solana **mainnet**. Holdout runs on **devnet**. A wallet's address is the same on both networks, so a member's devnet wallet can be looked up against the mainnet names without the member doing anything. That lookup is a read: it moves no funds, signs nothing and touches no Holdout account.
 
@@ -25,6 +25,7 @@ Seeker ID names are recorded on Solana **mainnet**. Holdout runs on **devnet**. 
 
 - Q: Where is the Seeker ID note shown, now that the app has no About section for judges (spec 004, constitution v2.1.0)? → A: In the README's known-weaknesses table only; the app shows no weaknesses screen.
 - Q: How fast must names appear in a long list the first time it is opened, given that the public mainnet node allows about 10 owner searches per 10 seconds (plan research R4) and an earlier answer of "10 seconds on screen, 2 minutes for the whole list" leaves no room under that limit? → A: Names are minor, so they load lazily: only the connected wallet and the rows on screen are looked up, rows on screen are named within 15 seconds the first time, rows never scrolled into view are not looked up, and every kept name shows immediately on later visits.
+- Q: Where is the Roster row's wording changed, given that the repository holds no copy of the design book? → A: In the Holdout design system's claude.ai artifact only; there is nothing in the repository to sync.
 
 ## User Scenarios & Testing *(mandatory)*
 
