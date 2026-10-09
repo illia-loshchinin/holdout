@@ -103,10 +103,10 @@ description: "Task list for 003 Seeker ID names"
   - `connected` re-checks a fresh entry;
   - `Unknown` leaves the store untouched and the address shown;
   - a wallet passed to `showing` and then removed by a second `showing`, before the worker reaches it, is never sent to the reader.
-- [X] T013 Add two members to `kotlin/app/src/main/kotlin/holdout/app/ui/Components.kt` (contracts §3.4, research R8, data-model §3): `Format.identity(wallet, name: String?, budget: Int): String` and `@Composable MemberIdentity(wallet: String, isYou: Boolean, budget: Int, color: Color, modifier: Modifier)`.
+- [X] T013 Add two members to `kotlin/app/src/main/kotlin/holdout/app/ui/Components.kt` (contracts §3.4, research R8, data-model §3): `Format.identity(wallet, name: String?, budget: Int): String` `LocalSeekerNames`, and `@Composable MemberIdentity(wallet: String, isYou: Boolean, budget: Int, color: Color, modifier: Modifier, style: TextStyle = AmountStyle)`.
   - **Text:** the name through `SeekerNames.fit`, or `Format.short(wallet)` (unchanged) when there is none. Append ` · you` when `isYou`.
-  - **Style:** `AmountStyle` in the caller's colour.
-  - **Layout:** reserve the width of the longer form, and crossfade 200 ms when a name arrives.
+  - **Style:** the caller's style and colour, the ones the shortened address had in that place (FR-003); `AmountStyle` by default.
+  - **Layout:** the width is fixed before any name is known, from `budget` characters or the space a row gives it (`Modifier.weight(1f)`); whatever shows is drawn inside it, a wider name cut with "…" (FR-004 known limit). Crossfade 200 ms when a name arrives.
   - **Accessibility:** the semantics `contentDescription` is the shown text.
   - **Previews:** one `@Preview` with a name and one with an address.
   - **Design rules:** theme tokens from `kotlin/app/src/main/kotlin/holdout/app/ui/theme/` only; no literal colours, `.sp` or spacing `.dp`.
@@ -169,7 +169,7 @@ description: "Task list for 003 Seeker ID names"
   - `node scripts/render-weaknesses.mjs --check`;
   - `bash scripts/check-wording.sh`.
 - [X] T022 In the Holdout design system artifact (https://claude.ai/artifact/XF5A1KCgH7WY9651C5ZXhs), change the Roster row wording from "by shortened address only" to "by Seeker ID, or shortened address when there is none". **Product owner approval needed:** it edits the shared design system.
-- [ ] T023 On a Seeker with a Seeker ID, connected to the devnet `member` build, run quickstart §4 rows 1–8 and record the results in the PR. Row 7 is the lazy-loading check (FR-012, SC-002), and row 8 is the README entry (US3). **Needs the product owner's device.**
+- [ ] T023 On a Seeker with a Seeker ID, connected to the devnet `member` build, run quickstart §4 rows 1–8 and record the results in the PR. Row 7 is the lazy-loading check (FR-012, SC-002), and row 8 is the README entry (US3). **Needs the product owner's device.** *Deferred to the devnet round (2026-10-09).* On localnet the same day, a Seeker connected as `CkJn…jfWE` showed `illai.skr` on the roster and the Disconnect line (rows 1 and 4), once T030 had fixed HTTPS in debug builds; the rest is held by the unit tests of T032 until then.
 
 ---
 
@@ -189,6 +189,26 @@ description: "Task list for 003 Seeker ID names"
 
 ---
 
+## Phase 8: Follow-up — PR #26 review fixes and the on-device run (2026-10-09, done)
+
+**Goal**: Record what the review of PR #26 and the localnet run on a Seeker changed after T021, so the task list matches the branch.
+
+**Independent Test**: The T021 command list passes; the tests named below fail without their fix.
+
+- [X] T025 [US2] Report no visible rows while the app is stopped (FR-012): `ReportShownWallets` in `kotlin/app/src/main/kotlin/holdout/app/ui/ShownWallets.kt` collects under `repeatOnLifecycle(STARTED)` and reports an empty list on stop or disposal, so no lookup runs for a roster left open in the background (`9685c7a`).
+- [X] T026 [US1] Fix the identity line's width before a name arrives (US1-3) in `kotlin/app/src/main/kotlin/holdout/app/ui/Components.kt`: a custom layout sizes it from the budget or the space given and draws the name inside, so a wider name can no longer resize it (`9685c7a`, `6910234`).
+- [X] T027 [US2] Drop evicted names from the screen (FR-007): `SeekerNameRepository.keep` in `kotlin/app/src/main/kotlin/holdout/app/names/SeekerNameRepository.kt` rebuilds `names` from the store after each answer, so a name the 5,000-entry bound evicts leaves too; tested in `SeekerNameRepositoryTest` (`df5a053`).
+- [X] T028 [US3] Name the one mainnet read wherever the app said nothing touches mainnet (FR-009, FR-010): `kotlin/app/src/main/kotlin/holdout/app/about/AboutScreen.kt`, the opening line of `README.md`, and the comment in `kotlin/app/src/main/kotlin/holdout/app/MainViewModel.kt` (`0a1984d`).
+- [X] T029 [US1] Stop the old wallet's lookup on disconnect (FR-012): `connected(wallet: String?)` in `kotlin/app/src/main/kotlin/holdout/app/names/LookupQueue.kt` and `SeekerNameRepository.kt`, and `HoldoutApp.kt` passes every address change; tested in `LookupQueueTest` and `SeekerNameRepositoryTest` (`9df0679`).
+- [X] T030 [US1] Let debug builds reach HTTPS (found on a Seeker against localnet): `kotlin/app/src/debug/res/xml/network_security_config.xml` sets cleartext on the base config, because any `<domain-config>` makes Ktor CIO fail every HTTPS call; checked by `MemberIdentityTextTest` (`1507142`).
+- [X] T031 [US2] Make the visible-row mapping testable: `rosterRowWallet` in `kotlin/app/src/main/kotlin/holdout/app/roster/RosterScreen.kt` and `leaderboardRowWallet` (drops the `r`/`n` prefix) in `kotlin/app/src/main/kotlin/holdout/app/leaderboard/LeaderboardScreen.kt`; tested in `kotlin/app/src/test/kotlin/holdout/app/names/ShownRowWalletTest.kt` (`0c6b1a3`).
+- [X] T032 [US1] Keep the on-device check as JVM tests (`b01cacc`, `0c6b1a3`):
+  - `kotlin/core/src/test/kotlin/holdout/core/SeekerNameReaderTest.kt` replays mainnet's recorded answers for `CkJn…jfWE` and resolves `illai.skr`;
+  - `kotlin/app/src/test/kotlin/holdout/app/names/MemberIdentityTextTest.kt` covers `Format.identity` and the debug network rule;
+  - `SeekerNamesTest`, `LookupQueueTest` and `SeekerNameRepositoryTest` gain the edge cases (two-unit characters, tiny budgets, case-only names, empty records, switching wallets, stale-only lookups, a name after none, two refusals).
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase dependencies
@@ -202,6 +222,7 @@ description: "Task list for 003 Seeker ID names"
 - **US1 (T014–T015)**: all of Phase 2.
 - **US2 (T016–T018)**: all of Phase 2 and T014 (the repository instance); independent of T015.
 - **US3 (T019–T020)**: T003 only. It can start at any time after that.
+- **Phase 8 (T025–T032)**: done after T021 and T024, from the PR #26 review and the localnet run; T023 still comes last.
 - **Phase 7 (T024)**: after T012 and the US2 screens (T017–T018); before T023, so the device check covers it.
 - **Polish**:
   - T021 after T015–T020.
@@ -246,4 +267,4 @@ Phases 1–3 (T001–T015): the connected member sees their own Seeker ID. This 
 
 ### Fit with the 13 Oct submission
 
-All 23 tasks are client-only and touch no program or crank; three are already done. Lazy loading keeps the queue small: two priorities and no background pass over the list. T003–T021 fit in about half a day. T022 is one wording change in the design system artifact. T023 needs the Seeker. The work runs beside the devnet deploy and doesn't block it.
+All 32 tasks are client-only and touch no program or crank; all but T023, the device check deferred to devnet, are done. Lazy loading keeps the queue small: two priorities and no background pass over the list. T003–T021 fit in about half a day. T022 is one wording change in the design system artifact. T023 needs the Seeker. The work runs beside the devnet deploy and doesn't block it.
