@@ -86,7 +86,7 @@ No `NEEDS CLARIFICATION` items remain; all are resolved in [research.md](researc
 | **XIII. Honest language** | No money on boards; honest wording | PASS | No amounts added. Rows show only an identity |
 | **Hackathon constraints: devnet only** | The program and all value on devnet | PASS, **justified** | The program, every transaction and every token stay on devnet. The one mainnet contact is a read of public name records through a read-only client that cannot send (R5). See Complexity Tracking |
 | **Hackathon constraints: leaderboards on chain only** | No server or device figure feeds a ranking | PASS | Rankings are unchanged and computed before names are attached (FR-008) |
-| **Development workflow** | Stack in the plan; spec amended through the skills | PASS, **follow-up** | Amendments go through skills: 001 FR-063 via `/speckit-clarify` on 001; 001 `contracts/android-app.md` §2 egress via `/speckit-plan` on 001; SC-002 wording via `/speckit-clarify` on 003 (done 2026-10-09); the Roster row wording in the claude.ai design system artifact, which has no local mirror |
+| **Development workflow** | Stack in the plan; spec amended through the skills | PASS, **follow-up** | Amendments went through the skills, all done 2026-10-09: 001 FR-063 and FR-062 via `/speckit-clarify` on 001 (`9973a19`); 001 `contracts/android-app.md` §2 egress via `/speckit-plan` on 001 (`ec25e91`); SC-002 wording via `/speckit-clarify` on 003. The one follow-up is the Roster row wording in the claude.ai design system artifact, which has no local mirror (tasks T022) |
 
 **Gate result: PASS.** The only item outside the plain reading of a constraint is the read-only mainnet contact, justified below and disclosed (XI).
 

@@ -2,7 +2,7 @@
 
 **Feature**: [../spec.md](../spec.md) · **Data model**: [../data-model.md](../data-model.md)
 
-What the app sends, what it accepts back, and the in-code interface the screens use. This amends `specs/001-holdout-hackathon/contracts/android-app.md` §2 (network egress) once that change is made through `/speckit-plan` on 001.
+What the app sends, what it accepts back, and the in-code interface the screens use. It is the source of the names endpoint row in `specs/001-holdout-hackathon/contracts/android-app.md` §2 (network egress), added through `/speckit-plan` on 001 (`ec25e91`).
 
 ## 1. Requests to the names endpoint
 
