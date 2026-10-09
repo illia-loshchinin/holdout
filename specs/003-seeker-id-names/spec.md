@@ -26,6 +26,7 @@ Seeker ID names are recorded on Solana **mainnet**. Holdout runs on **devnet**. 
 - Q: Where is the Seeker ID note shown, now that the app has no About section for judges (spec 004, constitution v2.1.0)? → A: In the README's known-weaknesses table only; the app shows no weaknesses screen.
 - Q: How fast must names appear in a long list the first time it is opened, given that the public mainnet node allows about 10 owner searches per 10 seconds (plan research R4) and an earlier answer of "10 seconds on screen, 2 minutes for the whole list" leaves no room under that limit? → A: Names are minor, so they load lazily: only the connected wallet and the rows on screen are looked up, rows on screen are named within 15 seconds the first time, rows never scrolled into view are not looked up, and every kept name shows immediately on later visits.
 - Q: Where is the Roster row's wording changed, given that the repository holds no copy of the design book? → A: In the Holdout design system's claude.ai artifact only; there is nothing in the repository to sync.
+- Q: Are scripted members' wallets ever looked up? → A: Never. They are devnet-only wallets, deleted for mainnet, and have no Seeker ID; they always show their shortened address with their scripted label.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -86,7 +87,7 @@ Anyone reading the README, a judge included, learns that Seeker ID names are rea
 - **A name made of unusual characters** (for example letters from another script, or characters that look like others). It is shown as written; it is never used to identify anyone for money or ranking (FR-008).
 - **The mainnet lookup fails, is slow or is refused.** The shortened address shows; no error, spinner or retry button appears (FR-006).
 - **Two different wallets would show the same visible text** (for example after truncation). Rows stay distinct because ordering and "you" come from the wallet, not the name.
-- **Scripted members.** Their wallets have no Seeker ID, so they show shortened addresses with their scripted label, exactly as today.
+- **Scripted members.** Their wallets are never looked up (FR-012): they exist only on devnet, are deleted for mainnet and have no Seeker ID, so they show shortened addresses with their scripted label, exactly as today.
 - **The member scrolls fast through a long list.** Rows that leave the screen before their lookup starts are dropped from the queue and show their shortened address; they are looked up if they come back into view (FR-012).
 - **The connected member disconnects and connects another wallet.** The new wallet's own name, or its shortened address, is shown; nothing carries over from the previous wallet.
 
@@ -105,7 +106,7 @@ Anyone reading the README, a judge included, learns that Seeker ID names are rea
 - **FR-009** The lookup only reads public name records. It signs nothing, sends no transaction, needs no permission from the member, and sends nothing but the wallet addresses being looked up. It uses no server of Holdout's own: like every other read in the app, it goes straight from the phone to the network (001 constitution: no server).
 - **FR-010** *(amended 2026-10-09, spec 004)* The README's known-weaknesses table (rendered from its single source) gains one entry saying that Seeker ID names are read from Solana mainnet while the app runs on devnet, that they are for display only, and that members without one are shown by shortened address.
 - **FR-011** Scripted members are labelled exactly as before (001 FR-064), whatever identity their row shows.
-- **FR-012** Names are looked up lazily. Only the connected wallet and the rows currently on screen are looked up, the connected wallet first. A row that leaves the screen before its lookup starts is not looked up, and nothing is fetched ahead for rows the member has not scrolled to.
+- **FR-012** Names are looked up lazily. Only the connected wallet and the rows currently on screen are looked up, the connected wallet first. A row that leaves the screen before its lookup starts is not looked up, and nothing is fetched ahead for rows the member has not scrolled to. Scripted wallets are never looked up.
 
 ### Key Entities
 
