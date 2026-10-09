@@ -179,9 +179,9 @@ const min = (a: bigint, b: bigint): bigint => (a < b ? a : b);
 /** `min(20 % of the cohort's own pool, the league's boost reserve)` (FR-037d). */
 export const boostFor = (ownPool: bigint, boostReserve: bigint): bigint => min((ownPool * 20n) / 100n, boostReserve);
 
-/** `min(10 % of the forfeited stake, the stake finished on)` (FR-037e). */
+/** `min(20 % of the forfeited stake, the stake finished on)` (FR-037e). */
 export const comebackOwedFor = (forfeitedStake: bigint, newStake: bigint): bigint =>
-  min((forfeitedStake * 10n) / 100n, newStake);
+  min((forfeitedStake * 20n) / 100n, newStake);
 
 /** One finisher's refund, scaled pro rata when the reserve funded less than was owed (FR-037e). */
 export const comebackRefund = (entitled: bigint, funded: bigint, owed: bigint): bigint =>
@@ -292,7 +292,7 @@ export const deriveStreak = (
  * start. A counted forfeit opens (or replaces) the record with its stake and
  * missed deadline; a counted finish of a cohort starting after that deadline and
  * no more than 14 of the forfeited cohort's days after it uses the record up and
- * is owed `min(10 % of the forfeited stake, its own stake)`.
+ * is owed `min(20 % of the forfeited stake, its own stake)`.
  */
 export const deriveComeback = (
   memberships: MembershipSnapshot[],

@@ -891,14 +891,14 @@ describe('INV-2 · a forfeit splits five ways (FR-027, H35)', () => {
 /**
  * A member who forfeited cohort A (day 0 missed, counted) and finished cohort B
  * — by default of the same league a week later: inside the 14-day window, so
- * owed 10 % of the forfeited 100 (FR-037e). B is settled; the reserve funded
+ * owed 20 % of the forfeited 100 (FR-037e). B is settled; the reserve funded
  * half of what it owed.
  */
 const comebackWorld = (over: { bStart?: number; bLeague?: number; entitled?: bigint } = {}) => {
   const missed = FIRST_START + DAY - 1;
   const bStart = over.bStart ?? FIRST_START + 7 * DAY;
   const bLeague = over.bLeague ?? 0;
-  const entitled = over.entitled ?? 10n;
+  const entitled = over.entitled ?? 20n;
   const a = cohort({
     address: 'cohort-A',
     settled: true,
@@ -951,7 +951,7 @@ describe('INV-2 · a comeback is earned in the window, in the same league (FR-03
   const check = (w: ReturnType<typeof comebackWorld>) => () =>
     assertInvariants(snapshot({ now: at, cohorts: [w.a, w.b], memberships: [w.lost, w.won], profiles: w.profiles }));
 
-  it('accepts 10 % of the forfeited stake for finishing a later cohort a week on', () => {
+  it('accepts 20 % of the forfeited stake for finishing a later cohort a week on', () => {
     expect(check(comebackWorld())).not.toThrow();
   });
 
@@ -976,7 +976,7 @@ describe('INV-2 · a comeback is earned in the window, in the same league (FR-03
 
 describe('INV-2 · a claim pays the comeback refund, scaled to what was funded', () => {
   const at = FIRST_START + 30 * DAY;
-  // Owed 10, funded 5: the reserve was short, so the refund is 5.
+  // Owed 20, funded 10: the reserve was short, so the refund is 10.
   const w = comebackWorld();
   const prev = snapshot({
     now: at,
@@ -988,22 +988,22 @@ describe('INV-2 · a claim pays the comeback refund, scaled to what was funded',
   const claimed = (paid: bigint, over: Partial<CohortSnapshot> = {}) =>
     snapshot({
       now: at,
-      cohorts: [w.a, { ...w.b, heldStake: 0n, pool: 0n, comebackClaimed: 5n, vaultAmount: 0n, ...over }],
+      cohorts: [w.a, { ...w.b, heldStake: 0n, pool: 0n, comebackClaimed: 10n, vaultAmount: 0n, ...over }],
       memberships: [w.lost, { ...w.won, state: 'Claimed' }],
       profiles: w.profiles,
       walletBalances: { 'wallet-1': paid },
     });
 
   it('accepts stake + share + the pro-rata refund', () => {
-    expect(() => assertInvariants(claimed(185n), prev)).not.toThrow();
+    expect(() => assertInvariants(claimed(190n), prev)).not.toThrow();
   });
 
   it('catches the full entitlement paid out of a short reserve', () => {
-    expectViolation('INV-2', () => assertInvariants(claimed(190n), prev));
+    expectViolation('INV-2', () => assertInvariants(claimed(200n), prev));
   });
 
   it('catches a refund the cohort did not book as claimed', () => {
-    expectViolation('INV-6', () => assertInvariants(claimed(185n, { comebackClaimed: 0n, vaultAmount: 5n }), prev));
+    expectViolation('INV-6', () => assertInvariants(claimed(190n, { comebackClaimed: 0n, vaultAmount: 10n }), prev));
   });
 });
 

@@ -66,7 +66,7 @@ object Settlement {
     const val BOOST_CAP_PERCENT = 20
 
     /** The share of a counted forfeited stake a comeback refunds, in percent (FR-037e). */
-    const val COMEBACK_REFUND_PERCENT = 10
+    const val COMEBACK_REFUND_PERCENT = 20
 
     /** How many of a cohort's days after the missed deadline a comeback cohort may start (FR-037e). */
     const val COMEBACK_WINDOW_DAYS = 14
@@ -108,7 +108,7 @@ object Settlement {
      */
     fun boostFor(ownPool: ULong, boostReserve: ULong): ULong = minOf(percentOf(ownPool, BOOST_CAP_PERCENT), boostReserve)
 
-    /** What a comeback owes a finisher: 10% of the forfeited stake, never more than the stake they finished on (FR-037e). */
+    /** What a comeback owes a finisher: 20% of the forfeited stake, never more than the stake they finished on (FR-037e). */
     fun comebackOwed(forfeitedStake: ULong, newStake: ULong): ULong = minOf(percentOf(forfeitedStake, COMEBACK_REFUND_PERCENT), newStake)
 
     /**

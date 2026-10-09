@@ -60,7 +60,7 @@ pub const DEVELOPER_PERCENT: u128 = 10;
 /// The most a boost may add to a cohort's own pool, in percent (FR-037d).
 pub const BOOST_CAP_PERCENT: u128 = 20;
 /// The share of a counted forfeited stake a comeback refunds, in percent (FR-037e).
-pub const COMEBACK_REFUND_PERCENT: u128 = 10;
+pub const COMEBACK_REFUND_PERCENT: u128 = 20;
 /// How many of the finished cohort's days after the missed deadline a comeback
 /// cohort may start (FR-037e).
 pub const COMEBACK_WINDOW_DAYS: i64 = 14;
@@ -119,7 +119,7 @@ pub fn boost_for(own_pool: u64, boost_reserve: u64) -> u64 {
     percent_of(own_pool, BOOST_CAP_PERCENT).min(boost_reserve)
 }
 
-/// What a comeback owes a finisher: 10% of the forfeited stake, never more than
+/// What a comeback owes a finisher: 20% of the forfeited stake, never more than
 /// the stake they finished on (FR-037e).
 pub fn comeback_owed(forfeited_stake: u64, new_stake: u64) -> u64 {
     percent_of(forfeited_stake, COMEBACK_REFUND_PERCENT).min(new_stake)

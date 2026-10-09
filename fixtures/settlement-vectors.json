@@ -1,5 +1,5 @@
 {
-  "$comment": "Golden settlement vectors — PRD §19 V1–V22, revised 2026-10-05 for the 70/30 forfeit split and no carry-over, and 2026-10-09 for the 70/5/5/10/10 re-split. The contract must reproduce these exactly (constitution VII: these exist as failing tests before the logic). Amounts are whole SKR base units.",
+  "$comment": "Golden settlement vectors — PRD §19 V1–V22, revised 2026-10-05 for the 70/30 forfeit split and no carry-over, and 2026-10-09 for the 70/5/5/10/10 re-split and the 20% comeback refund. The contract must reproduce these exactly (constitution VII: these exist as failing tests before the logic). Amounts are whole SKR base units.",
   "rules": {
     "fee": "fee = floor(forfeited * 30 / 100), taken at forfeit time",
     "pool": "pool = (forfeited - fee) summed over forfeits",
@@ -9,7 +9,7 @@
     "payout": "payout = stake + share_of(stake tier)",
     "forfeit_split": "per forfeited stake s: fee = floor(30% s); boost = floor(5% s); comeback = floor(5% s); developer = floor(10% s); operations = fee - boost - comeback - developer; pool = s - fee (FR-027, H35)",
     "boost": "boost = min(floor(20% of the cohort's own pool), league boost reserve), drawn at finalization before shares (FR-037d)",
-    "comeback": "owed = min(floor(10% of the counted forfeited stake), the new stake); refund = floor(entitled * funded / total owed), funded = min(total owed, comeback reserve) (FR-037e)"
+    "comeback": "owed = min(floor(20% of the counted forfeited stake), the new stake); refund = floor(entitled * funded / total owed), funded = min(total owed, comeback reserve) (FR-037e)"
   },
   "math_vectors": [
     {
@@ -146,11 +146,11 @@
       { "own_pool": 18446744073709551615, "reserve": 18446744073709551615, "boost": 3689348814741910323 }
     ],
     "comeback_owed": [
-      { "forfeited_stake": 100, "new_stake": 100, "owed": 10 },
+      { "forfeited_stake": 100, "new_stake": 100, "owed": 20 },
       { "forfeited_stake": 1000, "new_stake": 25, "owed": 25 },
-      { "forfeited_stake": 9, "new_stake": 100, "owed": 0 },
-      { "forfeited_stake": 25000000, "new_stake": 10000000, "owed": 2500000 },
-      { "forfeited_stake": 18446744073709551615, "new_stake": 18446744073709551615, "owed": 1844674407370955161 }
+      { "forfeited_stake": 9, "new_stake": 100, "owed": 1 },
+      { "forfeited_stake": 25000000, "new_stake": 10000000, "owed": 5000000 },
+      { "forfeited_stake": 18446744073709551615, "new_stake": 18446744073709551615, "owed": 3689348814741910323 }
     ],
     "comeback_refund": [
       { "entitled": 10, "funded": 30, "owed": 30, "refund": 10 },
