@@ -6,7 +6,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -25,8 +24,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextStyle
@@ -208,11 +207,11 @@ val LocalSeekerNames = compositionLocalOf<Map<String, String>> { emptyMap() }
  * by the name (FR-008).
  *
  * The address shows at once and the name crossfades in over 200 ms when it
- * arrives (FR-006). The line reserves the widest a name can be — [budget]
- * characters — from the start, so a name arriving never moves what is beside
- * it (US1-3). In a row, give it the space beside the other text with
- * `Modifier.weight(1f)`: it then fills that space whatever it shows, and a
- * name too long for it ends in "…".
+ * arrives (FR-006). The line's width is fixed before any name is known —
+ * [budget] characters, or the space it is given — and whatever it shows is
+ * drawn inside that width, so a name arriving never moves what is beside it
+ * (US1-3). A name wider than that (wide glyphs, such as CJK) ends in "…". In
+ * a row, give it the space beside the other text with `Modifier.weight(1f)`.
  */
 @Composable
 fun MemberIdentity(
@@ -225,11 +224,19 @@ fun MemberIdentity(
 ) {
     val you = if (isYou) " · you" else ""
     val shown = Format.identity(wallet, LocalSeekerNames.current[wallet], budget) + you
-    Box(modifier.clearAndSetSemantics { contentDescription = shown }) {
-        Text("0".repeat(budget) + you, style = style, color = color, maxLines = 1, softWrap = false, modifier = Modifier.alpha(0f))
-        Crossfade(targetState = shown, animationSpec = tween(durationMillis = 200), label = "member identity") {
-            Text(it, style = style, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
+    Layout(
+        content = {
+            // Measured for its width only, never drawn.
+            Text("0".repeat(budget) + you, style = style, maxLines = 1, softWrap = false)
+            Crossfade(targetState = shown, animationSpec = tween(durationMillis = 200), label = "member identity") {
+                Text(it, style = style, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        },
+        modifier = modifier.clearAndSetSemantics { contentDescription = shown },
+    ) { (reserve, identity), constraints ->
+        val width = reserve.measure(constraints).width
+        val line = identity.measure(constraints.copy(minWidth = 0, maxWidth = width))
+        layout(width, line.height) { line.place(0, 0) }
     }
 }
 
