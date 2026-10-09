@@ -135,7 +135,28 @@ document.querySelectorAll('.ho-ring').forEach(function (el) {
   <p class="ho-body" style="font-size:13px;line-height:18px">Stakes and payouts are in SKR; dollar values are approximate.</p>
 </div>
 <script>
-document.querySelectorAll('.ho-chip').forEach(function (c) { c.addEventListener('click', function () { document.querySelectorAll('.ho-chip').forEach(function (o) { o.setAttribute('aria-checked', o === c ? 'true' : 'false'); }); }); });
+// A radio group: one tab stop on the selected chip; arrows, Home and End move and select (WAI-ARIA radio group).
+(function () {
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.ho-chip'));
+  function select(c, focus) {
+    chips.forEach(function (o) { var on = o === c; o.setAttribute('aria-checked', on ? 'true' : 'false'); o.tabIndex = on ? 0 : -1; });
+    if (focus) c.focus();
+  }
+  chips.forEach(function (c, i) {
+    c.addEventListener('click', function () { select(c, false); });
+    c.addEventListener('keydown', function (e) {
+      var n = chips.length, to = null;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') to = (i + 1) % n;
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') to = (i - 1 + n) % n;
+      else if (e.key === 'Home') to = 0;
+      else if (e.key === 'End') to = n - 1;
+      if (to === null) return;
+      e.preventDefault();
+      select(chips[to], true);
+    });
+  });
+  select(chips.filter(function (c) { return c.getAttribute('aria-checked') === 'true'; })[0] || chips[0], false);
+})();
 </script>
 </section>
 </body></html>

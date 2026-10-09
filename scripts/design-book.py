@@ -99,6 +99,21 @@ def px(v: str) -> float:
     return float(re.sub(r"[a-z%]+$", "", str(v)))
 
 
+def style_block(src, start):
+    """The text from `start` to the close of the first parenthesis opened after it."""
+    open_at = src.find("(", start)
+    if open_at < 0:
+        return ""
+    depth = 0
+    for i in range(open_at, len(src)):
+        if src[i] == "(":
+            depth += 1
+        elif src[i] == ")":
+            depth -= 1
+            if depth == 0:
+                return src[start: i + 1]
+    return src[start:]
+
 def check(report_only: bool) -> int:
     tokens = load_tokens()
     problems, notes = [], []
@@ -147,8 +162,9 @@ def check(report_only: bool) -> int:
             if not m:
                 problems.append(f"type    {s['name']:<18} has no Kotlin style")
                 continue
-            block = type_src[m.end(): m.end() + 600]
-            block = block[: block.find("\n)") if "\n)" in block else len(block)]
+            # The style's own parentheses, matched: a nested `TextStyle(...)` closes with an
+            # indented `),`, and reading past it would borrow the next style's properties.
+            block = style_block(type_src, m.end())
             size = re.search(r"fontSize\s*=\s*([\d.]+)\.sp", block)
             line = re.search(r"lineHeight\s*=\s*([\d.]+)\.sp", block)
             wt = re.search(r"FontWeight\.(\w+)", block)
