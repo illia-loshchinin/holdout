@@ -62,6 +62,7 @@ adb install -r app/build/outputs/apk/lab/debug/app-lab-debug.apk
 | 4 | Do a Hard Holdout set with Clean screen on | Nothing drawn over the camera | FR-007 |
 | 5 | Pull: run the default pull, with no `--package`, so it pulls from `holdout.app.lab` | All sets pulled, size-checked, deleted from the phone | FR-008, US1-5 |
 | 6 | Open them in the labelling page (`node scripts/label-reps.mjs`) | They open like any earlier set | SC-006 |
+| 7 | Fill the phone's storage (or a test that fails the writes), record a set with video on, label it | Back on the chooser, a "not saved" card names the lost label or video; the trace is still on the phone, whole | Edge case: storage full |
 
 ```bash
 bash scripts/pull-traces.sh

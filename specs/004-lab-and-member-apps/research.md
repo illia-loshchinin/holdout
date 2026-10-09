@@ -42,6 +42,8 @@ Every `BuildConfig.DEBUG` check that gates a tester feature is removed:
 - `HoldoutApp.kt` lines 249–252, 374, 413 and 698–706;
 - `SittingScreen.kt` lines 214, 271 and 492.
 
+**Found in review (PR 28, 2026-10-09)**: writing a label rewrote the trace in place, so a full disk could leave it empty, and the error was swallowed; and a video that failed to finalize was only logged. **Decision**: the label goes to `<name>.tmp` and replaces the trace with an atomic move only on success (`label` returns whether it landed); the video factory takes an `onFailed` callback; both reach `LabSittingTools.onSetProblem`, which Lab shows on its chooser, since the video finalizes after the set screen has gone. *Alternative rejected*: holding the label dialog open until the video finalizes. It makes every set wait on the encoder, and a slow finalize would look like a hang.
+
 The member app's Home loses the four tester switches (`HomeScreen.kt`: `stakedTest`, `cleanScreen`, `recordVideo`, `onResetToday`). `TestSwitch.kt` moves to `src/lab`.
 
 **Rationale**: Code in `src/lab` cannot be referenced from `src/main` or `src/member`, because the member variants would not compile. So FR-010 holds structurally, before any check runs.
