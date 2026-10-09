@@ -168,7 +168,7 @@ description: "Task list for 003 Seeker ID names"
   - `./gradlew :core:test :app:testMemberDebugUnitTest :app:testLabDebugUnitTest :app:assembleMemberDebug :app:assembleLabDebug ktlintCheck`;
   - `node scripts/render-weaknesses.mjs --check`;
   - `bash scripts/check-wording.sh`.
-- [ ] T022 In the Holdout design system artifact (https://claude.ai/artifact/XF5A1KCgH7WY9651C5ZXhs), change the Roster row wording from "by shortened address only" to "by Seeker ID, or shortened address when there is none". **Product owner approval needed:** it edits the shared design system.
+- [X] T022 In the Holdout design system artifact (https://claude.ai/artifact/XF5A1KCgH7WY9651C5ZXhs), change the Roster row wording from "by shortened address only" to "by Seeker ID, or shortened address when there is none". **Product owner approval needed:** it edits the shared design system.
 - [ ] T023 On a Seeker with a Seeker ID, connected to the devnet `member` build, run quickstart §4 rows 1–8 and record the results in the PR. Row 7 is the lazy-loading check (FR-012, SC-002), and row 8 is the README entry (US3). **Needs the product owner's device.**
 
 ---
