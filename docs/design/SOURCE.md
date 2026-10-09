@@ -3,8 +3,8 @@
 | | |
 | --- | --- |
 | Artifact | https://claude.ai/code/artifact/f4e92223-6e90-4e26-b194-3e2d69d87d9a (Design System type, "Holdout") |
-| Version | 1791530923-cf8b |
-| Synced | 2026-10-09 |
+| Version | 1791563473-5f67 |
+| Synced | 2026-10-09 (app icon v2) |
 | Components | BankRing, BottomNav, CameraSitting, Card, Countdown, PrimaryButton, QuietAction, RosterRow, SecondaryButton, Sheet, StatBlock, StreakFlame, TierChips |
 
 `docs/design/` mirrors the artifact and is never edited by hand. To refresh it, follow
