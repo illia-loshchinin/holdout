@@ -1,0 +1,19 @@
+<!-- @dsCard group="Inputs" height=168 subtitle="Four stake tiers, one selected" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>TierChips — preview</title></head>
+<body>
+<div class="ho-stage" style="max-width:420px">
+  <div class="ho-chips" role="radiogroup" aria-label="Stake">
+    <button class="ho-chip" role="radio" aria-checked="false"><span class="ho-chip-usd">≈ $10</span><span class="ho-chip-skr">416 SKR</span></button>
+    <button class="ho-chip" role="radio" aria-checked="true"><span class="ho-chip-usd">≈ $25</span><span class="ho-chip-skr">1,040 SKR</span></button>
+    <button class="ho-chip" role="radio" aria-checked="false"><span class="ho-chip-usd">≈ $50</span><span class="ho-chip-skr">2,080 SKR</span></button>
+    <button class="ho-chip" role="radio" aria-checked="false"><span class="ho-chip-usd">≈ $100</span><span class="ho-chip-skr">4,160 SKR</span></button>
+  </div>
+  <p class="ho-body" style="font-size:13px;line-height:18px">Stakes and payouts are in SKR; dollar values are approximate.</p>
+</div>
+<script>
+document.querySelectorAll('.ho-chip').forEach(function (c) { c.addEventListener('click', function () { document.querySelectorAll('.ho-chip').forEach(function (o) { o.setAttribute('aria-checked', o === c ? 'true' : 'false'); }); }); });
+</script>
+</body>
+</html>

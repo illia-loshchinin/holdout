@@ -1,0 +1,31 @@
+<!-- @dsCard group="Numbers" height=232 subtitle="One segment per banked block of 10" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>BankRing — preview</title></head>
+<body>
+<div class="ho-stage"><div class="ho-row" style="justify-content:space-around">
+  <div class="ho-ring" data-banked="1"></div>
+  <div class="ho-ring" data-banked="2"></div>
+  <div class="ho-ring" data-banked="3"></div>
+</div></div>
+<script>
+var NS = 'http://www.w3.org/2000/svg', R = 72, C = 84, GAP = 10, SEGS = [10, 10, 5];
+function arc(a0, a1) { var p = function (a) { var t = (a - 90) * Math.PI / 180; return (C + R * Math.cos(t)).toFixed(2) + ' ' + (C + R * Math.sin(t)).toFixed(2); }; return 'M' + p(a0) + ' A' + R + ' ' + R + ' 0 ' + (a1 - a0 > 180 ? 1 : 0) + ' 1 ' + p(a1); }
+document.querySelectorAll('.ho-ring').forEach(function (el) {
+  var banked = +el.dataset.banked, reps = [10, 20, 25][banked - 1], svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', 168); svg.setAttribute('height', 168); svg.setAttribute('viewBox', '0 0 168 168');
+  var a = 0;
+  SEGS.forEach(function (n, i) {
+    var span = 360 * n / 25, path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', arc(a + GAP / 2, a + span - GAP / 2));
+    path.setAttribute('class', i < banked ? 'ho-ring-seg' : 'ho-ring-track');
+    svg.appendChild(path); a += span;
+  });
+  el.appendChild(svg);
+  var inner = document.createElement('div'); inner.className = 'ho-ring-inner';
+  inner.innerHTML = '<span class="ho-stat-display">' + reps + '</span><span class="ho-caption">' + (reps < 25 ? 'banked' : 'day complete') + '</span>';
+  el.appendChild(inner);
+});
+</script>
+</body>
+</html>
