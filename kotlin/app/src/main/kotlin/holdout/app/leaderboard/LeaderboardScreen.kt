@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.ui.Body
 import holdout.app.ui.Format
+import holdout.app.ui.Reading
 import holdout.app.ui.SectionLabel
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.LabelStyle
@@ -62,7 +63,7 @@ fun LeaderboardScreen(
         }
         item { Body(LeaderboardText.about(board)) }
         when (view) {
-            null -> item { Body("Reading devnet…") }
+            null -> item { Reading { Body("Reading devnet…") } }
             View.Updating -> item { Body(LeaderboardText.UPDATING) }
             is View.Ready -> {
                 if (me != null) item { Text(LeaderboardText.standing(view.standingOf(me)), style = LabelStyle, color = HoldoutColors.Accent) }

@@ -99,6 +99,6 @@ fun ClaimScreen(
             )
         }
         Notice(message, messageIsWarning)
-        if (ready != null) PrimaryButton(if (busy) "Waiting for the wallet…" else "Claim ${Format.skr(ready.amount)}", onClaim, enabled = !busy)
+        if (ready != null) PrimaryButton(if (busy) "Waiting for the wallet…" else "Claim ${Format.skr(ready.amount)}", onClaim, busy = busy)
     }
 }

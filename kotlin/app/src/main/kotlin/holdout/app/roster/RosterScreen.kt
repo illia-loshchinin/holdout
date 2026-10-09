@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import holdout.app.chain.Holdout
 import holdout.app.ui.Body
 import holdout.app.ui.Format
+import holdout.app.ui.Reading
 import holdout.app.ui.SectionLabel
 import holdout.app.ui.TestCohortBadge
 import holdout.app.ui.theme.HoldoutColors
@@ -54,7 +55,7 @@ fun RosterScreen(
         item { Text("${Format.holdoutTitle(c)} · roster", style = MaterialTheme.typography.headlineSmall, color = HoldoutColors.TextPrimary) }
         item { Body("Scripted members are real wallets under the same rules; their days are not camera-verified. They top a Holdout up to its minimum only.") }
         if (roster == null) {
-            item { Body("Reading devnet…") }
+            item { Reading { Body("Reading devnet…") } }
             return@LazyColumn
         }
         val standing = roster.count { it.standing }

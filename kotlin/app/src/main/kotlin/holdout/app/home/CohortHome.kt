@@ -153,7 +153,7 @@ fun CohortHome(
                 if (tap) {
                     PrimaryButton("Submit day ${stage.dayIndex + 1}", { onSubmit(stage.dayIndex) })
                 } else if (!offline) {
-                    PrimaryButton("Waiting for the wallet…", {}, enabled = false)
+                    PrimaryButton("Waiting for the wallet…", {}, busy = true)
                 }
             }
             else -> {

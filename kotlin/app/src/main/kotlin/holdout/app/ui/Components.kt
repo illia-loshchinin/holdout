@@ -6,15 +6,19 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -86,26 +90,48 @@ fun HoldoutCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.
     )
 }
 
+/** [busy]: the action is waiting on the wallet or devnet. The button is disabled and leads with the [HoldoutLoader]. */
 @Composable
-fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, busy: Boolean = false) {
     Button(
         onClick = onClick,
-        enabled = enabled,
+        enabled = enabled && !busy,
         modifier = modifier.fillMaxWidth().height(Spacing.primaryButtonHeight),
         shape = MaterialTheme.shapes.extraLarge,
         colors = ButtonDefaults.buttonColors(containerColor = HoldoutColors.TextPrimary, contentColor = HoldoutColors.OnLight),
-    ) { Text(text, style = MaterialTheme.typography.titleMedium) }
+    ) {
+        if (busy) BusyMark()
+        Text(text, style = MaterialTheme.typography.titleMedium)
+    }
 }
 
 @Composable
-fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, busy: Boolean = false) {
     OutlinedButton(
         onClick = onClick,
-        enabled = enabled,
+        enabled = enabled && !busy,
         modifier = modifier.fillMaxWidth().height(Spacing.primaryButtonHeight),
         shape = MaterialTheme.shapes.extraLarge,
         border = BorderStroke(1.dp, HoldoutColors.Hairline),
-    ) { Text(text, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary) }
+    ) {
+        if (busy) BusyMark()
+        Text(text, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+    }
+}
+
+@Composable
+private fun BusyMark() {
+    HoldoutLoader(contentDescription = null)
+    Spacer(Modifier.width(Spacing.tight))
+}
+
+/** A read from devnet with nothing to show yet: the [HoldoutLoader] beside what is being read. */
+@Composable
+fun Reading(content: @Composable () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        BusyMark()
+        content()
+    }
 }
 
 /**

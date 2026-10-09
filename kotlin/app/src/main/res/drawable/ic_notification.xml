@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The reminder's status-bar icon (FR-068): a plain white ring, as Android
-     tints small icons. Replaced by the real mark with T105. -->
+<!-- The reminder's status-bar icon (FR-068): a 3x3 crowd, the Holdout larger
+     in the middle. One ink, as Android tints small icons. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -8,6 +8,5 @@
     android:viewportHeight="24">
     <path
         android:fillColor="#FFFFFFFF"
-        android:fillType="evenOdd"
-        android:pathData="M12,2a10,10 0,1 0,0.001 0zM12,5a7,7 0,1 1,-0.001 0zM11,7h2v6h-2zM11,15h2v2h-2z" />
+        android:pathData="M3.00,5.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0M10.00,5.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0M17.00,5.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0M3.00,12.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0M8.80,12.00a3.20,3.20 0 1,0 6.40,0a3.20,3.20 0 1,0 -6.40,0M17.00,12.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0M3.00,19.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0M10.00,19.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0M17.00,19.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0" />
 </vector>

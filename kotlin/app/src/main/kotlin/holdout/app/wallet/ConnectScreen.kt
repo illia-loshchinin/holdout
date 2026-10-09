@@ -107,7 +107,7 @@ fun ConnectScreen(
             }
         }
 
-        PrimaryButton(if (busy) "Waiting for the wallet…" else "Connect wallet", onConnect, enabled = !busy)
+        PrimaryButton(if (busy) "Waiting for the wallet…" else "Connect wallet", onConnect, busy = busy)
         Text("TEST NETWORK · TEST TOKEN", style = LabelStyle, color = HoldoutColors.TextTertiary)
         Notice(message, warning = true)
         TextButton(onClick = onWalkthrough) {

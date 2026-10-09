@@ -149,7 +149,8 @@ fun StakeSheet(
         PrimaryButton(
             text = if (busy) "Waiting for the wallet…" else "Stake ${Format.skr(chip)}",
             onClick = { onStake(tier) },
-            enabled = !busy && joinBlocker == null && !short && !noFees,
+            enabled = joinBlocker == null && !short && !noFees,
+            busy = busy,
         )
     }
 }

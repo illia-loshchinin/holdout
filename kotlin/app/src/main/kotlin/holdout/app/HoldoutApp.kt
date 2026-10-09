@@ -50,6 +50,7 @@ import holdout.app.streak.StreakStore
 import holdout.app.tour.TourScreen
 import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
+import holdout.app.ui.Reading
 import holdout.app.ui.SecondaryButton
 import holdout.app.ui.SectionLabel
 import holdout.app.ui.TestCohortBadge
@@ -711,7 +712,11 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
         },
         below = {
             if (chainNow == null || view == null) {
-                SectionLabel(if (chain.offline) "${Deployment.networkName} unreachable — the Daily 25 still works" else "Reading the chain…")
+                if (chain.offline) {
+                    SectionLabel("${Deployment.networkName} unreachable — the Daily 25 still works")
+                } else {
+                    Reading { SectionLabel("Reading the chain…") }
+                }
                 return@HomeScreen
             }
             if (view.config == null) {
