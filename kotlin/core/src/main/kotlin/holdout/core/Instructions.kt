@@ -265,7 +265,7 @@ object Instructions {
      * `record_forfeits()` — permissionless, up to ten pairs in the remaining
      * accounts; pairs not in breach or already forfeited are skipped, so a page
      * may be repeated and re-ordered freely (research R9). Each forfeit splits
-     * 70/10/5/5/10 (FR-027, H35): the pool and the two reserve dues stay in the
+     * 70/5/5/10/10 (FR-027, H35): the pool and the two reserve dues stay in the
      * vault, the developer part goes to [developerDestination] and the
      * operations part to [feeDestination] at once.
      */
