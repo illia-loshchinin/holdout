@@ -11,7 +11,7 @@
  *
  * ## The money since H35
  *
- * A forfeited stake splits 70 / 10 / 5 / 5 / 10 (FR-027): the pool part and the
+ * A forfeited stake splits 70 / 5 / 5 / 10 / 10 (FR-027): the pool part and the
  * two reserve parts (`boost_due`, `comeback_due`) stay in the cohort's vault, the
  * developer and operations parts leave at once. The reserve parts move into the
  * league's reserve vault only when the cohort finalizes (FR-037c, INV-10), after
@@ -165,12 +165,12 @@ export interface ForfeitSplit {
   operations: bigint;
 }
 
-/** Where one forfeited stake goes: 70 / 10 / 5 / 5 / 10, operations taking the rounding (FR-027, H35). */
+/** Where one forfeited stake goes: 70 / 5 / 5 / 10 / 10, operations taking the rounding (FR-027, H35; re-split 2026-10-09). */
 export const forfeitSplit = (stake: bigint): ForfeitSplit => {
   const fee = feeOf(stake);
-  const boost = (stake * 10n) / 100n;
+  const boost = (stake * 5n) / 100n;
   const comeback = (stake * 5n) / 100n;
-  const developer = (stake * 5n) / 100n;
+  const developer = (stake * 10n) / 100n;
   return { pool: stake - fee, boost, comeback, developer, operations: fee - boost - comeback - developer };
 };
 
@@ -187,10 +187,10 @@ export const comebackOwedFor = (forfeitedStake: bigint, newStake: bigint): bigin
 export const comebackRefund = (entitled: bigint, funded: bigint, owed: bigint): bigint =>
   owed === 0n ? 0n : (entitled * funded) / owed;
 
-/** A no-finisher pool: a third (floored) to the developer, the rest to operations (FR-037). */
+/** A no-finisher pool: half (floored) to the developer, the rest to operations (FR-037; was a third until 2026-10-09). */
 export const noFinisherSplit = (pool: bigint): { developer: bigint; operations: bigint } => ({
-  developer: pool / 3n,
-  operations: pool - pool / 3n,
+  developer: pool / 2n,
+  operations: pool - pool / 2n,
 });
 
 /** How many of the forfeited cohort's days after the missed deadline a comeback cohort may start. */
@@ -939,8 +939,8 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
   }
 
   // INV-2 · the fee is the part of a stake that reaches neither the pool nor a
-  // reserve, and it lands in two accounts: the developer's 5 % and the
-  // operations 10 % plus rounding at once, a no-finisher pool split a third /
+  // reserve, and it lands in two accounts: the developer's 10 % and the
+  // operations 10 % plus rounding at once, a no-finisher pool split a half /
   // the rest, and the rounding remainder to operations. Until those accounts
   // are read the snapshot cannot tell a fee that reached its destination from
   // one that reached somebody else's token account: the vault falls by the same

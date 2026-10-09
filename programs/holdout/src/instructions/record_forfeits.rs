@@ -4,7 +4,7 @@
 //! member whose deadline passed with the day incomplete is already out by
 //! `Membership::in_breach`, which every reader computes from chain time alone
 //! (constitution II, AC-2). This only materialises that — splits the stake
-//! 70 / 10 / 5 / 5 / 10 (FR-027, H35): the pool part funds the cohort's pool, the
+//! 70 / 5 / 5 / 10 / 10 (FR-027, H35): the pool part funds the cohort's pool, the
 //! developer and operations parts leave at once, and the two reserve parts wait
 //! in the vault until the cohort finalizes (FR-037c) — and records the outcome
 //! on the profile.

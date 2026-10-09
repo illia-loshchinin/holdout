@@ -332,7 +332,7 @@ object Instructions {
      * `settle_finalize()`. With finishers it draws the boost from the league's
      * reserve vault into the pool, writes the shares, sends the rounding
      * remainder to [feeDestination] and funds the comeback refunds; with none
-     * it sends a third of the pool to [developerDestination] and the rest to
+     * it sends half of the pool to [developerDestination] and the rest to
      * [feeDestination] (FR-037). Either way the cohort's reserve dues then move
      * to the league's reserve vault, which is why the league is writable
      * (FR-037c–e, H35). It needs no other cohort, so no caller can change where

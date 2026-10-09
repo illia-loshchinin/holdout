@@ -61,8 +61,8 @@ skrMint: TAccountSkrMint;
 mintAuthority?: TAccountMintAuthority;
 treasuryWallet: TAccountTreasuryWallet;
 /**
- * The operations destination: the operations part of every forfeit, two
- * thirds of a no-finisher pool and rounding remainders land here, in the
+ * The operations destination: the operations part of every forfeit, half
+ * of a no-finisher pool and rounding remainders land here, in the
  * treasury's own associated token account — the program never holds them.
  */
 feeDestination?: TAccountFeeDestination;
@@ -164,8 +164,8 @@ skrMint: TAccountSkrMint;
 mintAuthority: TAccountMintAuthority;
 treasuryWallet: TAccountTreasuryWallet;
 /**
- * The operations destination: the operations part of every forfeit, two
- * thirds of a no-finisher pool and rounding remainders land here, in the
+ * The operations destination: the operations part of every forfeit, half
+ * of a no-finisher pool and rounding remainders land here, in the
  * treasury's own associated token account — the program never holds them.
  */
 feeDestination: TAccountFeeDestination;
@@ -253,8 +253,8 @@ skrMint: TAccountMetas[4];
 mintAuthority: TAccountMetas[5];
 treasuryWallet: TAccountMetas[6];
 /**
- * The operations destination: the operations part of every forfeit, two
- * thirds of a no-finisher pool and rounding remainders land here, in the
+ * The operations destination: the operations part of every forfeit, half
+ * of a no-finisher pool and rounding remainders land here, in the
  * treasury's own associated token account — the program never holds them.
  */
 feeDestination: TAccountMetas[7];

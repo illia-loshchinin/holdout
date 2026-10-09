@@ -57,10 +57,10 @@ object Settlement {
         return (pool.big() * chip.big() / totalFinisherStake.big()).toULongExact()
     }
 
-    /** Percents of a forfeited stake for each destination of the fee (FR-027, H35); operations takes what the floors leave. */
-    const val BOOST_PERCENT = 10
+    /** Percents of a forfeited stake for each destination of the fee (FR-027, H35; 70 / 5 / 5 / 10 / 10 since 2026-10-09); operations takes what the floors leave. */
+    const val BOOST_PERCENT = 5
     const val COMEBACK_PERCENT = 5
-    const val DEVELOPER_PERCENT = 5
+    const val DEVELOPER_PERCENT = 10
 
     /** The most a boost may add to a cohort's own pool, in percent (FR-037d). */
     const val BOOST_CAP_PERCENT = 20
@@ -91,13 +91,13 @@ object Settlement {
         val paidOutNow: ULong get() = developer + operations
     }
 
-    /** Split one forfeited stake 70 / 10 / 5 / 5 / 10, each part floored (FR-027, H35). */
+    /** Split one forfeited stake 70 / 5 / 5 / 10 / 10, each part floored (FR-027, H35). */
     fun forfeitSplit(forfeitedStake: ULong): ForfeitSplit {
         val fee = feeOf(forfeitedStake)
         val boost = percentOf(forfeitedStake, BOOST_PERCENT)
         val comeback = percentOf(forfeitedStake, COMEBACK_PERCENT)
         val developer = percentOf(forfeitedStake, DEVELOPER_PERCENT)
-        // 10 + 5 + 5 of the stake never exceed 30 of it, so this cannot underflow.
+        // 5 + 5 + 10 of the stake never exceed 30 of it, so this cannot underflow.
         return ForfeitSplit(forfeitedStake - fee, boost, comeback, developer, fee - boost - comeback - developer)
     }
 
@@ -122,12 +122,13 @@ object Settlement {
     }
 
     /**
-     * A cohort nobody finished: its whole pool goes out, a third (floored) to
-     * the developer and the rest to operations (FR-037, H34, H35). Returned as
+     * A cohort nobody finished: its whole pool goes out, half (floored) to the
+     * developer and the rest to operations (FR-037, H34, H35; half each since
+     * 2026-10-09, was a third). Returned as
      * `(developer, operations)`.
      */
     fun noFinisherSplit(pool: ULong): Pair<ULong, ULong> {
-        val developer = pool / 3uL
+        val developer = pool / 2uL
         return developer to pool - developer
     }
 

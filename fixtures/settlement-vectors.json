@@ -1,13 +1,13 @@
 {
-  "$comment": "Golden settlement vectors — PRD §19 V1–V22, revised 2026-10-05 for the 70/30 forfeit split and no carry-over. The contract must reproduce these exactly (constitution VII: these exist as failing tests before the logic). Amounts are whole SKR base units.",
+  "$comment": "Golden settlement vectors — PRD §19 V1–V22, revised 2026-10-05 for the 70/30 forfeit split and no carry-over, and 2026-10-09 for the 70/5/5/10/10 re-split. The contract must reproduce these exactly (constitution VII: these exist as failing tests before the logic). Amounts are whole SKR base units.",
   "rules": {
     "fee": "fee = floor(forfeited * 30 / 100), taken at forfeit time",
     "pool": "pool = (forfeited - fee) summed over forfeits",
     "share_per_tier": "share_t = floor(pool * chip_t / total_finisher_stake) — constant time per tier (research R10)",
     "remainder": "remainder = pool - sum over tiers of (finisher_count_t * share_t); sent to the fee destination at settlement (FR-032a)",
-    "no_finishers": "developer = floor(pool / 3); operations = pool - developer: the whole pool goes out and nothing carries over (FR-037, H34, H35)",
+    "no_finishers": "developer = floor(pool / 2); operations = pool - developer: the whole pool goes out and nothing carries over (FR-037, H34, H35)",
     "payout": "payout = stake + share_of(stake tier)",
-    "forfeit_split": "per forfeited stake s: fee = floor(30% s); boost = floor(10% s); comeback = floor(5% s); developer = floor(5% s); operations = fee - boost - comeback - developer; pool = s - fee (FR-027, H35)",
+    "forfeit_split": "per forfeited stake s: fee = floor(30% s); boost = floor(5% s); comeback = floor(5% s); developer = floor(10% s); operations = fee - boost - comeback - developer; pool = s - fee (FR-027, H35)",
     "boost": "boost = min(floor(20% of the cohort's own pool), league boost reserve), drawn at finalization before shares (FR-037d)",
     "comeback": "owed = min(floor(10% of the counted forfeited stake), the new stake); refund = floor(entitled * funded / total owed), funded = min(total owed, comeback reserve) (FR-037e)"
   },
@@ -60,7 +60,7 @@
       "stakes": { "250": 6 },
       "forfeited_stakes": { "250": 6 },
       "finisher_stakes": {},
-      "expected": { "forfeited": 1500, "fee": 450, "pool": 1050, "total_finisher_stake": 0, "developer": 350, "operations": 700 }
+      "expected": { "forfeited": 1500, "fee": 450, "pool": 1050, "total_finisher_stake": 0, "developer": 525, "operations": 525 }
     },
     {
       "id": "V6",
@@ -69,7 +69,7 @@
       "league": "7-day",
       "pool_override": 1001,
       "finisher_stakes": {},
-      "expected": { "pool": 1001, "total_finisher_stake": 0, "developer": 333, "operations": 668 }
+      "expected": { "pool": 1001, "total_finisher_stake": 0, "developer": 500, "operations": 501 }
     },
     {
       "id": "V9",
@@ -131,11 +131,11 @@
       { "stake": 0, "pool": 0, "boost": 0, "comeback": 0, "developer": 0, "operations": 0 },
       { "stake": 1, "pool": 1, "boost": 0, "comeback": 0, "developer": 0, "operations": 0 },
       { "stake": 9, "pool": 7, "boost": 0, "comeback": 0, "developer": 0, "operations": 2 },
-      { "stake": 19, "pool": 14, "boost": 1, "comeback": 0, "developer": 0, "operations": 4 },
-      { "stake": 100, "pool": 70, "boost": 10, "comeback": 5, "developer": 5, "operations": 10 },
-      { "stake": 1250, "pool": 875, "boost": 125, "comeback": 62, "developer": 62, "operations": 126 },
-      { "stake": 25000000, "pool": 17500000, "boost": 2500000, "comeback": 1250000, "developer": 1250000, "operations": 2500000 },
-      { "stake": 18446744073709551615, "pool": 12912720851596686131, "boost": 1844674407370955161, "comeback": 922337203685477580, "developer": 922337203685477580, "operations": 1844674407370955163 }
+      { "stake": 19, "pool": 14, "boost": 0, "comeback": 0, "developer": 1, "operations": 4 },
+      { "stake": 100, "pool": 70, "boost": 5, "comeback": 5, "developer": 10, "operations": 10 },
+      { "stake": 1250, "pool": 875, "boost": 62, "comeback": 62, "developer": 125, "operations": 126 },
+      { "stake": 25000000, "pool": 17500000, "boost": 1250000, "comeback": 1250000, "developer": 2500000, "operations": 2500000 },
+      { "stake": 18446744073709551615, "pool": 12912720851596686131, "boost": 922337203685477580, "comeback": 922337203685477580, "developer": 1844674407370955161, "operations": 1844674407370955163 }
     ],
     "boost": [
       { "own_pool": 0, "reserve": 500, "boost": 0 },
@@ -162,10 +162,10 @@
     "no_finisher_split": [
       { "pool": 0, "developer": 0, "operations": 0 },
       { "pool": 1, "developer": 0, "operations": 1 },
-      { "pool": 2, "developer": 0, "operations": 2 },
-      { "pool": 1050, "developer": 350, "operations": 700 },
-      { "pool": 1001, "developer": 333, "operations": 668 },
-      { "pool": 18446744073709551615, "developer": 6148914691236517205, "operations": 12297829382473034410 }
+      { "pool": 2, "developer": 1, "operations": 1 },
+      { "pool": 1050, "developer": 525, "operations": 525 },
+      { "pool": 1001, "developer": 500, "operations": 501 },
+      { "pool": 18446744073709551615, "developer": 9223372036854775807, "operations": 9223372036854775808 }
     ]
   }
 }

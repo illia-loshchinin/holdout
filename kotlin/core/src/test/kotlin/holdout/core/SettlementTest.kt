@@ -66,7 +66,7 @@ class SettlementTest {
     }
 
     @Test
-    fun `given every golden pool with no finishers, when it settles, then a third goes to the developer and the rest to operations`() {
+    fun `given every golden pool with no finishers, when it settles, then half goes to the developer and the rest to operations`() {
         reserve("no_finisher_split").forEach { v ->
             val pool = v.u("pool")
             val (developer, operations) = Settlement.noFinisherSplit(pool)
@@ -86,8 +86,8 @@ class SettlementTest {
     }
 
     @Test
-    fun `given a hundred base units, when split, then it is 70 10 5 5 10`() {
-        assertEquals(Settlement.ForfeitSplit(70uL, 10uL, 5uL, 5uL, 10uL), Settlement.forfeitSplit(100uL))
+    fun `given a hundred base units, when split, then it is 70 5 5 10 10`() {
+        assertEquals(Settlement.ForfeitSplit(70uL, 5uL, 5uL, 10uL, 10uL), Settlement.forfeitSplit(100uL))
         // Operations takes what the floors leave: 9 → pool 7, fee 2, every percent part floors to 0.
         assertEquals(Settlement.ForfeitSplit(7uL, 0uL, 0uL, 0uL, 2uL), Settlement.forfeitSplit(9uL))
     }
