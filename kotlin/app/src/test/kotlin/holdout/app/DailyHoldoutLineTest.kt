@@ -28,7 +28,7 @@ class DailyHoldoutLineTest {
     @Test
     fun `given a lost stake whose comeback window covers the next Holdout, then the line names what comes back`() {
         val line = DailyHoldoutLine.of(listOf(open(now + 90_000)), profile(comebackStake = 25uL * skr, from = now - 86_400, until = now + 1_000_000), now)
-        assertEquals("Finish the Easy · 7-day Holdout starting in 1d 1h and up to 2.5 SKR of the stake you lost comes back.", line)
+        assertEquals("Finish the Easy · 7-day Holdout starting in 1d 1h and up to 5 SKR of the stake you lost comes back.", line)
     }
 
     @Test
