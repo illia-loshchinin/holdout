@@ -1,0 +1,16 @@
+# holdout-rep-labels v2
+# trace=front-honest-05.trace.csv
+# offset=0.5
+# reviewed=2026-10-04
+# source=20261002-153727-daily
+t,label,by,flag,hint,note,claude,reply
+2697782976,honest,reviewer,,,,,
+2697785344,honest,reviewer,,,,,
+2697787278,honest,reviewer,,,,,
+2697789079,honest,reviewer,,,,,
+2697790813,honest,reviewer,,,,,
+2697792714,honest,reviewer,,,,,
+2697794481,honest,reviewer,,,,,
+2697796249,honest,reviewer,,,,,
+2697798183,honest,reviewer,,,,,
+2697800083,honest,reviewer,,,,,

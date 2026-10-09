@@ -1,7 +1,6 @@
 package holdout.repcounter
 
 import kotlin.math.acos
-import kotlin.math.asin
 import kotlin.math.hypot
 import kotlin.math.sqrt
 
@@ -13,9 +12,8 @@ import kotlin.math.sqrt
  *              from the knees count, shoulder–hip–knee if that reads
  *              straighter ([bodyLineToKneeInImage], `ViewReading`)
  *
- * On a phone they are read **in the picture**: at 45° on the near side
- * ([nearSide]), head-on the elbow from both arms and the body line replaced
- * by the torso check. The 3D world versions are what the synthetic traces use,
+ * On a phone they are read **in the picture**, at 45°, on the near side
+ * ([nearSide]); head-on is not read (since 8 Oct). The 3D world versions are what the synthetic traces use,
  * and what the app read before two recordings showed the picture is better
  * (`ViewReading`).
  *
@@ -229,6 +227,46 @@ object Angles {
     }
 
     /**
+     * At 45°: how high the near knee stands above the near hip, in lengths of
+     * the near arm. Face down — on the toes or on the knees — the knee is never
+     * above the hip; lying on the back with the knees up it is well above it
+     * ([RepRules.maxKneeAboveHip]). `null` when any of those joints is not
+     * clearly in frame.
+     */
+    fun kneeAboveHipInImage(image: ImagePose, side: Side): Float? {
+        val (s, e, w) = ARM.getValue(side)
+        val (h, k, _) = LEG.getValue(side)
+        val shoulder = image.frame[s]
+        val elbow = image.frame[e]
+        val wrist = image.frame[w]
+        val hip = image.frame[h]
+        val knee = image.frame[k]
+        if (!visible(shoulder, elbow, wrist, hip, knee)) return null
+        val arm = shoulder!!.distanceTo(elbow!!, image) + elbow.distanceTo(wrist!!, image)
+        if (arm <= 0f) return null
+        return (hip!!.y - knee!!.y) * image.height / arm
+    }
+
+    /**
+     * At 45°: how far the near ankle stands below the near hand, in lengths of
+     * the near arm. In a push-up both are on the floor, and the feet, further
+     * from the lens, read a little higher; standing, the ankle is a whole leg
+     * below the hand ([RepRules.maxAnkleBelowHand]). `null` when any of those
+     * joints is not clearly in frame.
+     */
+    fun ankleBelowHandInImage(image: ImagePose, side: Side): Float? {
+        val (s, e, w) = ARM.getValue(side)
+        val ankle = image.frame[LEG.getValue(side).third]
+        val shoulder = image.frame[s]
+        val elbow = image.frame[e]
+        val wrist = image.frame[w]
+        if (!visible(shoulder, elbow, wrist, ankle)) return null
+        val arm = shoulder!!.distanceTo(elbow!!, image) + elbow.distanceTo(wrist!!, image)
+        if (arm <= 0f) return null
+        return (ankle!!.y - wrist.y) * image.height / arm
+    }
+
+    /**
      * Whether the foot on [side] is clearly in the picture: the ankle
      * confidently placed and at least [margin] inside every edge. A foot at
      * the edge flickers in and out of the model's confidence, and a frame
@@ -243,62 +281,6 @@ object Angles {
 
     /** Whether the model found the knee on [side] with confidence, wherever it is. */
     fun kneeSeen(image: ImagePose, side: Side): Boolean = visible(image.frame[LEG.getValue(side).second])
-
-    /**
-     * Head-on: the elbow as the picture shows it, **both arms averaged**, or
-     * `null` when either is not clearly in frame. From the front both arms are
-     * always visible, the elbows flare across the image as they bend, and
-     * averaging halves the error of one.
-     */
-    fun elbowInImage(image: ImagePose): Float? {
-        val left = elbowInImage(image, Side.LEFT) ?: return null
-        val right = elbowInImage(image, Side.RIGHT) ?: return null
-        return (left + right) / 2f
-    }
-
-    /**
-     * Head-on: how steeply the torso rises from hips to shoulders, in degrees
-     * above the horizontal — near 0 lying flat, 30–40 at the top of a push-up,
-     * 65–90 crouching, kneeling up or standing. `null` when the shoulders or
-     * hips are not clearly in frame.
-     *
-     * From 3D world landmarks, whose y axis points down the camera's picture:
-     * with the phone standing on the floor, close enough to gravity to tell a
-     * body down in a plank from one that is upright — all this is asked to do.
-     */
-    fun torsoElevation(frame: PoseFrame): Float? {
-        val ls = frame[PoseIndex.LEFT_SHOULDER]
-        val rs = frame[PoseIndex.RIGHT_SHOULDER]
-        val lh = frame[PoseIndex.LEFT_HIP]
-        val rh = frame[PoseIndex.RIGHT_HIP]
-        if (!visible(ls, rs, lh, rh)) return null
-        val dx = (ls!!.x + rs!!.x - lh!!.x - rh!!.x) / 2f
-        val dy = (ls.y + rs.y - lh.y - rh.y) / 2f
-        val dz = (ls.z + rs.z - lh.z - rh.z) / 2f
-        val length = sqrt(dx * dx + dy * dy + dz * dz)
-        if (length == 0f) return null
-        // y points down, so a shoulder above the hip has a negative dy.
-        return Math.toDegrees(asin((-dy / length).coerceIn(-1f, 1f).toDouble())).toFloat()
-    }
-
-    /**
-     * Head-on: how high the shoulders stand above the hands in the picture, in
-     * pixels — the wrists' height minus the shoulders', both sides averaged.
-     * `null` when a shoulder or wrist is not clearly in frame.
-     *
-     * Head-on the elbow angle in the picture exaggerates the bend: on a real
-     * recording half push-ups read 51–60° at the elbow. How far the shoulders
-     * came down towards the hands did not lie — 0.16–0.19 of their top height
-     * on honest reps, 0.26–0.53 on the half ones.
-     */
-    fun shoulderHeightInImage(image: ImagePose): Float? {
-        val ls = image.frame[PoseIndex.LEFT_SHOULDER]
-        val rs = image.frame[PoseIndex.RIGHT_SHOULDER]
-        val lw = image.frame[PoseIndex.LEFT_WRIST]
-        val rw = image.frame[PoseIndex.RIGHT_WRIST]
-        if (!visible(ls, rs, lw, rw)) return null
-        return ((lw!!.y + rw!!.y) - (ls!!.y + rs!!.y)) / 2f * image.height
-    }
 
     /**
      * At 45°: how high the near knee and ankle stand above the near hand in the

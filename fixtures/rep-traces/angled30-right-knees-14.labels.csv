@@ -1,0 +1,16 @@
+# holdout-rep-labels v2
+# trace=angled30-right-knees-14.trace.csv
+# offset=0.5
+# reviewed=2026-10-04
+# source=20261002-153845-staked
+t,label,by,flag,hint,note,claude,reply
+2697881371,knees,reviewer,,,,,
+2697883872,knees,reviewer,,,,,
+2697886540,knees,reviewer,,,,,
+2697888874,knees,reviewer,,,,,
+2697891175,knees,reviewer,,,,,
+2697895644,knees,reviewer,,,,,
+2697897745,knees,reviewer,,,,,
+2697899746,knees,reviewer,,,,,
+2697901713,knees,reviewer,,,,,
+2697904448,knees,reviewer,,,,,

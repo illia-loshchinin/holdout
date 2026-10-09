@@ -166,33 +166,23 @@ private fun PhonePage(stakes: Stakes, detected: CameraView?) {
         textAlign = TextAlign.Center,
     )
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
-        if (stakes.accepts(CameraView.FRONT)) {
-            Placement(
-                view = CameraView.FRONT,
-                title = "In front",
-                caption = "Head towards the phone, hands ~1.5 m from it.",
-                highlighted = detected == CameraView.FRONT,
-            )
-        }
         Placement(
-            view = CameraView.OBLIQUE,
             title = "At 45°",
             caption = "Ahead of your shoulder, ~1.5 m away, looking at you at 45°.",
             highlighted = detected == CameraView.OBLIQUE,
         )
     }
-    if (stakes.staked) {
-        Text(
-            if (stakes == Stakes.EASY) {
-                "Easy: at 45° only — turned well to the side of you, not in front, not straight beside you."
-            } else {
-                "Staked: at 45° only — not in front, not straight beside you."
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = HoldoutColors.Accent,
-            textAlign = TextAlign.Center,
-        )
-    }
+    Text(
+        when (stakes) {
+            Stakes.STAKED -> "Staked: at 45° only — not in front, not straight beside you."
+            Stakes.EASY -> "Easy: at 45° only — turned well to the side of you, not in front, not straight beside you."
+            // The Daily 25 practises the Easy set-up (002 FR-001).
+            Stakes.DAILY -> "At 45° only, as in a Holdout — turned well to the side of you, not in front, not straight beside you."
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        color = HoldoutColors.Accent,
+        textAlign = TextAlign.Center,
+    )
 }
 
 @Composable
@@ -203,7 +193,7 @@ private fun BodyPage(stakes: Stakes) {
             .height(120.dp),
     ) {
         val box = Rect(size.width * 0.1f, size.height * 0.1f, size.width * 0.9f, size.height * 0.95f)
-        drawPlankFigure(box, CameraView.SIDE, HoldoutColors.Accent)
+        drawPlankFigure(box, HoldoutColors.Accent)
     }
     Bullets(
         buildList {
@@ -211,13 +201,14 @@ private fun BodyPage(stakes: Stakes) {
             add("Your whole body in the picture — head to feet. Move back if it is not.")
             add("Line your body up with the outline on the screen.")
             if (stakes == Stakes.STAKED) {
-                add("On your toes. Push-ups from the knees do not count.")
+                add("On your toes, and stop just above the floor. Push-ups from the knees, or resting on the floor at the bottom, do not count.")
                 add("The phone must see your knees: turn your body a little away from it, so the leg nearer the phone shows clearly.")
             } else if (stakes == Stakes.EASY) {
                 add("From your toes or from your knees — both count in an Easy Holdout.")
                 add("Body straight from shoulders to knees, and the phone must see your knees: turn a little away from it.")
             } else {
                 add("Body straight from shoulders to heels — or from the knees if you are building up. Both count for the Daily 25.")
+                add("The phone must see your knees: turn your body a little away from it, so the leg nearer the phone shows clearly.")
             }
         },
     )
@@ -248,7 +239,7 @@ private fun Bullets(lines: List<String>) {
 }
 
 @Composable
-private fun Placement(view: CameraView, title: String, caption: String, highlighted: Boolean) {
+private fun Placement(title: String, caption: String, highlighted: Boolean) {
     val accent = if (highlighted) HoldoutColors.Success else HoldoutColors.Accent
     Column(
         modifier = Modifier
@@ -272,11 +263,7 @@ private fun Placement(view: CameraView, title: String, caption: String, highligh
                 .fillMaxWidth()
                 .height(120.dp),
         ) {
-            when (view) {
-                CameraView.FRONT -> planFront(accent)
-                CameraView.OBLIQUE -> planAngled(accent)
-                CameraView.SIDE -> planSide(accent)
-            }
+            planAngled(accent)
         }
         Text(
             caption,
@@ -288,55 +275,6 @@ private fun Placement(view: CameraView, title: String, caption: String, highligh
 }
 
 private val BODY = Color(0xFFE8E8E8)
-
-/** Head-on, from above: the phone at the top, the member lying away from it. */
-private fun DrawScope.planFront(accent: Color) {
-    val w = size.width
-    val h = size.height
-    drawPhone(Offset(w / 2f, h * 0.08f), accent, lensDown = true)
-    drawLine(
-        accent.copy(alpha = 0.6f),
-        Offset(w / 2f, h * 0.17f),
-        Offset(w / 2f, h * 0.33f),
-        strokeWidth = 3f,
-        pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f)),
-    )
-    // Head nearest the phone, body stretching away down the frame.
-    val stroke = 6f
-    drawCircle(BODY, radius = w * 0.06f, center = Offset(w / 2f, h * 0.41f))
-    val shoulderY = h * 0.5f
-    drawLine(BODY, Offset(w * 0.34f, shoulderY), Offset(w * 0.66f, shoulderY), stroke, StrokeCap.Round)
-    // Hands on the floor just outside the shoulders.
-    drawCircle(BODY, radius = 5f, center = Offset(w * 0.26f, h * 0.5f))
-    drawCircle(BODY, radius = 5f, center = Offset(w * 0.74f, h * 0.5f))
-    drawLine(BODY, Offset(w / 2f, shoulderY), Offset(w / 2f, h * 0.74f), stroke, StrokeCap.Round)
-    drawLine(BODY, Offset(w / 2f, h * 0.74f), Offset(w * 0.45f, h * 0.97f), stroke, StrokeCap.Round)
-    drawLine(BODY, Offset(w / 2f, h * 0.74f), Offset(w * 0.55f, h * 0.97f), stroke, StrokeCap.Round)
-}
-
-/** Side-on, from above: the member lying across, the phone off to one side at chest level. */
-private fun DrawScope.planSide(accent: Color) {
-    val w = size.width
-    val h = size.height
-    val bodyY = h * 0.28f
-    val stroke = 6f
-    drawCircle(BODY, radius = w * 0.05f, center = Offset(w * 0.1f, bodyY))
-    drawLine(BODY, Offset(w * 0.17f, bodyY), Offset(w * 0.96f, bodyY), stroke, StrokeCap.Round)
-    // Shoulders, and the hands either side of them.
-    drawLine(BODY, Offset(w * 0.22f, bodyY - h * 0.1f), Offset(w * 0.22f, bodyY + h * 0.1f), stroke, StrokeCap.Round)
-    drawCircle(BODY, radius = 5f, center = Offset(w * 0.24f, bodyY - h * 0.15f))
-    drawCircle(BODY, radius = 5f, center = Offset(w * 0.24f, bodyY + h * 0.15f))
-
-    val phone = Offset(w * 0.3f, h * 0.9f)
-    drawLine(
-        accent.copy(alpha = 0.6f),
-        Offset(phone.x, phone.y - h * 0.1f),
-        Offset(phone.x, bodyY + h * 0.2f),
-        strokeWidth = 3f,
-        pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f)),
-    )
-    drawPhone(phone, accent, lensDown = false)
-}
 
 /** At 45°, from above: the member lying across, the phone ahead of and beside the shoulders. */
 private fun DrawScope.planAngled(accent: Color) {
@@ -359,11 +297,11 @@ private fun DrawScope.planAngled(accent: Color) {
         strokeWidth = 3f,
         pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f)),
     )
-    drawPhone(phone, accent, lensDown = false)
+    drawPhone(phone, accent)
 }
 
-/** A phone standing on its edge, seen from above, with its lens facing [lensDown] or up. */
-private fun DrawScope.drawPhone(centre: Offset, accent: Color, lensDown: Boolean) {
+/** A phone standing on its edge, seen from above, its lens facing up the drawing. */
+private fun DrawScope.drawPhone(centre: Offset, accent: Color) {
     val pw = size.width * 0.22f
     val ph = size.height * 0.07f
     drawRoundRect(
@@ -372,42 +310,26 @@ private fun DrawScope.drawPhone(centre: Offset, accent: Color, lensDown: Boolean
         size = Size(pw, ph),
         cornerRadius = CornerRadius(6f, 6f),
     )
-    val lensY = if (lensDown) centre.y + ph / 2f else centre.y - ph / 2f
+    val lensY = centre.y - ph / 2f
     drawCircle(HoldoutColors.Canvas, radius = ph * 0.28f, center = Offset(centre.x, lensY))
 }
 
 /**
  * A body in the top-of-a-push-up position, drawn inside the outline over the
- * camera, so the outline says what goes in it: lying across the frame from the
- * side, foreshortened and facing the lens head-on.
+ * camera, so the outline says what goes in it: lying across the frame, as the
+ * phone at 45° sees the body.
  */
-fun DrawScope.drawPlankFigure(box: Rect, view: CameraView, color: Color) {
+fun DrawScope.drawPlankFigure(box: Rect, color: Color) {
     val w = box.width
     val h = box.height
     fun p(x: Float, y: Float) = Offset(box.left + x * w, box.top + y * h)
     val stroke = (minOf(w, h) * 0.045f).coerceIn(4f, 12f)
     val line = Stroke(width = stroke, cap = StrokeCap.Round)
 
-    when (view) {
-        CameraView.FRONT -> {
-            drawCircle(color, radius = w * 0.1f, center = p(0.5f, 0.2f), style = line)
-            drawLine(color, p(0.22f, 0.38f), p(0.78f, 0.38f), stroke, StrokeCap.Round)
-            // Straight arms down to hands on the floor, a little wider than the shoulders.
-            drawLine(color, p(0.22f, 0.38f), p(0.12f, 0.96f), stroke, StrokeCap.Round)
-            drawLine(color, p(0.78f, 0.38f), p(0.88f, 0.96f), stroke, StrokeCap.Round)
-            // The torso and legs run away from the lens, so they are short.
-            drawLine(color, p(0.5f, 0.38f), p(0.5f, 0.62f), stroke, StrokeCap.Round)
-            drawLine(color, p(0.5f, 0.62f), p(0.44f, 0.76f), stroke, StrokeCap.Round)
-            drawLine(color, p(0.5f, 0.62f), p(0.56f, 0.76f), stroke, StrokeCap.Round)
-        }
-
-        else -> {
-            drawCircle(color, radius = h * 0.13f, center = p(0.08f, 0.3f), style = line)
-            // Shoulder to heel in one straight line, on the toes.
-            drawLine(color, p(0.16f, 0.36f), p(0.95f, 0.88f), stroke, StrokeCap.Round)
-            drawLine(color, p(0.95f, 0.88f), p(0.98f, 0.98f), stroke, StrokeCap.Round)
-            // A straight arm down to the floor.
-            drawLine(color, p(0.18f, 0.37f), p(0.2f, 0.98f), stroke, StrokeCap.Round)
-        }
-    }
+    drawCircle(color, radius = h * 0.13f, center = p(0.08f, 0.3f), style = line)
+    // Shoulder to heel in one straight line, on the toes.
+    drawLine(color, p(0.16f, 0.36f), p(0.95f, 0.88f), stroke, StrokeCap.Round)
+    drawLine(color, p(0.95f, 0.88f), p(0.98f, 0.98f), stroke, StrokeCap.Round)
+    // A straight arm down to the floor.
+    drawLine(color, p(0.18f, 0.37f), p(0.2f, 0.98f), stroke, StrokeCap.Round)
 }

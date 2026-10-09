@@ -1,0 +1,11 @@
+# holdout-rep-labels v2
+# trace=20260929-155215-staked.trace.csv.gz
+# offset=0.5
+# reviewed=2026-10-04
+# source=20260929-155215-staked
+t,label,by,flag,hint,note,claude,reply
+2439476321,honest,reviewer,,,,,
+2439478655,honest,reviewer,,,,,
+2439481056,honest,reviewer,,,,,
+2439484357,honest,reviewer,,,,,
+2439486758,honest,reviewer,,,,,

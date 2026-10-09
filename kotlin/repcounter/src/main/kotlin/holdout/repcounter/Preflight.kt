@@ -135,12 +135,12 @@ class Preflight(
      */
     private val stakedFrontRatio: Float = RepRules().maxHipRisePlacementRatio,
     /**
-     * A staked sitting accepts the side view only, and its camera pill says so
-     * in those words — a member told only "move the phone" would move it and
-     * still be refused ([Stakes]).
+     * Every sitting accepts 45° only, and its camera pill says which way to
+     * turn — a member told only "move the phone" would move it and still be
+     * refused ([Stakes]). The stakes set how far in front 45° ends.
      */
     private val stakes: Stakes = Stakes.DAILY,
-    /** Staked: how far inside the picture the near knee must be to start — the counter's own margin. */
+    /** How far inside the picture the near knee must be to start — the counter's own margin. */
     private val legEdgeMargin: Float = RepRules().legEdgeMargin,
 ) {
 
@@ -154,15 +154,14 @@ class Preflight(
                     input.brightness in minBrightness..maxBrightness,
                 ),
                 wholeBody(input),
-                // One placement per stakes ([Stakes]): head-on for the Daily 25,
-                // 45° when money is on it. Anywhere else, the pill says which.
+                // 45°, whatever the stakes ([Stakes]). Anywhere else, the pill says
+                // which way to turn.
                 PreflightStatus(
                     PreflightCheck.CAMERA_ANGLE,
                     passing = stakes.accepts(view),
                     specificFix = when {
                         view == null -> null
-                        stakes.staked -> stakedCameraFix(view, placementRatio(input.image, xScale), input.imagePose)
-                        else -> stakes.cameraFix
+                        else -> cameraFixFor(view, placementRatio(input.image, xScale), input.imagePose)
                     },
                 ),
                 PreflightStatus(
@@ -175,14 +174,14 @@ class Preflight(
     }
 
     /**
-     * Staked, the phone in the wrong place: which way to turn, when that can be
+     * The phone in the wrong place: which way to turn, when that can be
      * said. A phone a little too far in front, or beside the member, shows one
      * side of the body nearer — the side it stands on — and the body turning a
      * little is the quickest fix: **away** from the phone when it is too far in
      * front, **towards** it when it is beside them. Square head-on neither side
      * is nearer, and only the phone moving will do.
      */
-    private fun stakedCameraFix(view: CameraView, ratio: Float?, pose: ImagePose?): String {
+    private fun cameraFixFor(view: CameraView, ratio: Float?, pose: ImagePose?): String {
         val phoneOn = pose?.let(Angles::nearSide)
         return when {
             view == CameraView.FRONT && ratio != null && ratio < frontRatio -> when (phoneOn) {
@@ -206,11 +205,11 @@ class Preflight(
      * - **the head clearly inside the picture** — the entry is held with the
      *   head in frame. Once counting starts the head is not read at all: a head
      *   that dips out at the bottom of a rep costs nothing;
-     * - **staked: the near knee clear of the edges** by the counter's own
+     * - **the near knee clear of the edges** by the counter's own
      *   margin. A knee out of frame is placed just inside the edge at full
      *   confidence, and a rep read from it is refused ([RepHint.LEGS_IN_VIEW]),
      *   so the sitting does not start that way;
-     * - **staked: the near foot clear of the edges** by [FEET_EDGE_MARGIN], for
+     * - **the near foot clear of the edges** by [FEET_EDGE_MARGIN], for
      *   the same reason: a foot at the edge drops out of frames mid-rep.
      */
     private fun wholeBody(input: PreflightInput): PreflightStatus {
@@ -218,7 +217,7 @@ class Preflight(
         if (!wholeBodyVisible(input.world, input.image)) return failing()
         if (input.image != null && !Angles.headInFrame(input.image)) return failing(HEAD_FIX)
         val pose = input.imagePose
-        if (stakes.staked && pose != null) {
+        if (pose != null) {
             // Two different problems, two different fixes: a knee the model
             // cannot find is hidden behind the body — turning a little away from
             // the phone shows it; one at the picture's edge needs more room.
@@ -294,9 +293,9 @@ class Preflight(
      * phone let knee-down cobras through ([Stakes.EASY_MAX_PLACEMENT_RATIO]).
      */
     private val frontLimit: Float = when (stakes) {
-        Stakes.DAILY -> frontRatio
         Stakes.STAKED -> minOf(frontRatio, stakedFrontRatio)
-        Stakes.EASY -> minOf(frontRatio, stakedFrontRatio, Stakes.EASY_MAX_PLACEMENT_RATIO)
+        // The Daily 25 is an Easy Holdout with nothing staked (002 FR-001).
+        Stakes.EASY, Stakes.DAILY -> minOf(frontRatio, stakedFrontRatio, Stakes.EASY_MAX_PLACEMENT_RATIO)
     }
 
     fun classifyView(frame: PoseFrame?, xScale: Float = 1f): CameraView? {
@@ -359,7 +358,7 @@ class Preflight(
         /** Staked: the fix when the near foot is at the edge. */
         const val FEET_FIX = "Keep your feet in the picture — move the phone further away"
 
-        /** Staked: how far inside the picture the near ankle must be to start. */
+        /** How far inside the picture the near ankle must be to start. */
         const val FEET_EDGE_MARGIN = 0.06f
 
         /** Staked: the fix when the near knee is at or past the edge. */

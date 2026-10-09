@@ -2,26 +2,14 @@ package holdout.repcounter
 
 /**
  * One frame reduced to what the push-up rule reads, **measured the way the
- * camera's placement can actually see it**. There are two placements, one per
- * stakes ([Stakes]):
+ * camera's placement can actually see it**. Every sitting is at 45° ([Stakes]).
  *
- * **Head-on — the Daily 25.** The body points into the lens, and the 3D
- * estimate of everything along the depth axis is poor. Measured on a real
- * head-on recording (`fixtures/rep-traces/front-honest-01.csv`), the world
- * landmarks read the elbow 155–163° at the top and ≈ 87° at the bottom — so
- * nothing counted — while the picture read 175–179° and ≈ 40°. So head-on:
+ * **Head-on is not read at all** (since 8 Oct; 002 FR-006, retired). The body
+ * points into the lens, and the legs and hips with it: knees, a sag, a cobra
+ * and hips on the floor all read like an honest rep there, so the Daily 25
+ * counted what a Holdout refuses. A head-on frame is no reading.
  *
- * - **the elbow is read from the picture**, both arms averaged. The elbows
- *   flare across the image as they bend, and a straight arm is straight in any
- *   projection;
- * - **the body line is not judged** — shoulder, hip and ankle lie in a plane
- *   through the lens, so a sag moves along the line of sight. A coarser check
- *   the camera *can* make takes its place: the torso is down, not upright
- *   ([Angles.torsoElevation]), so arm bends while standing count nothing;
- * - **knee push-ups are not caught.** Stated, not hidden, and the reason money
- *   is never staked on this placement.
- *
- * **At 45° — staked sittings.** The plane the body bends in is turned towards
+ * **At 45°.** The plane the body bends in is turned towards
  * the lens, so a straight arm, body and leg read straight and a bend reads as
  * a bend. Everything is read **in the picture, on the side nearer the lens**
  * ([Angles.nearSide]): the far limbs are hidden behind the body and the model
@@ -57,19 +45,12 @@ internal sealed interface ViewReading {
         val kneeUnreadable: Boolean = false,
         /** Near hip height above the near hand, in arm lengths; null when the hip is not clearly in frame. */
         val hipAboveHand: Float? = null,
+        /** Near knee height above the near hip, in arm lengths; null when not all visible, or the knee is not readable. */
+        val kneeAboveHip: Float? = null,
+        /** Near ankle depth below the near hand, in arm lengths; null when not all visible. */
+        val ankleBelowHand: Float? = null,
     ) : ViewReading {
         override val posture: Float get() = bodyLine
-    }
-
-    /** Head-on: the picture's elbow, whether the torso is down, and how high the shoulders stand over the hands. */
-    data class HeadOn(
-        override val elbow: Float,
-        val torsoElevation: Float,
-        /** Pixels; null when a shoulder or wrist is not clearly in frame. */
-        val shoulderHeight: Float? = null,
-    ) : ViewReading {
-        override val posture: Float get() = torsoElevation
-        override val knee: Float? get() = null
     }
 
     companion object {
@@ -95,11 +76,8 @@ internal sealed interface ViewReading {
          * shoulder–hip–ankle alone: there the legs must be straight behind.
          */
         fun of(view: CameraView, world: PoseFrame, image: ImagePose?, side: Side? = null, bodyLineToKnee: Boolean = false): ViewReading? = when (view) {
-            CameraView.FRONT -> {
-                val elbow = image?.let(Angles::elbowInImage)
-                val torso = Angles.torsoElevation(world)
-                if (elbow == null || torso == null) null else HeadOn(elbow, torso, Angles.shoulderHeightInImage(image))
-            }
+            // Head-on nothing the rule needs can be seen (since 8 Oct, no sitting is counted there).
+            CameraView.FRONT -> null
 
             CameraView.SIDE, CameraView.OBLIQUE -> if (image == null) {
                 val elbow = Angles.elbow(world)
@@ -123,6 +101,8 @@ internal sealed interface ViewReading {
                             Angles.shoulderOverHandInImage(image, side),
                             kneeUnreadable = Angles.kneeCollapsed(image, side),
                             hipAboveHand = Angles.hipAboveHandInImage(image, side),
+                            kneeAboveHip = if (readable) Angles.kneeAboveHipInImage(image, side) else null,
+                            ankleBelowHand = Angles.ankleBelowHandInImage(image, side),
                         )
                     }
                 }
@@ -161,7 +141,6 @@ internal fun kneesSeenOffFloor(knee: Float?, legsAboveHands: Float?, rules: RepR
  * Whether [posture] — already smoothed — is a body in push-up position, by
  * what [view] can measure:
  *
- * - **head-on**, the torso is down rather than upright;
  * - **at 45°**, the body line clears [RepRules.angledBodyLineFloorDegrees] — a
  *   coarse check, because at 45° the picture read honest planks at 152–167°
  *   and the rule's ±10° cannot be held there (a named weakness, README);
@@ -169,7 +148,6 @@ internal fun kneesSeenOffFloor(knee: Float?, legsAboveHands: Float?, rules: RepR
  *   the rule's own ±10°.
  */
 internal fun postureHeld(view: CameraView, reading: ViewReading, posture: Float, rules: RepRules): Boolean = when (reading) {
-    is ViewReading.HeadOn -> posture <= rules.maxTorsoElevationDegrees
     is ViewReading.Angled -> if (view == CameraView.OBLIQUE) {
         posture >= rules.angledBodyLineFloorDegrees
     } else {

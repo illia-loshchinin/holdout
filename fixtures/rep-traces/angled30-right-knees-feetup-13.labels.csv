@@ -1,0 +1,22 @@
+# holdout-rep-labels v2
+# trace=angled30-right-knees-feetup-13.trace.csv
+# offset=0.5
+# reviewed=2026-10-04
+# source=20261002-141446-staked
+t,label,by,flag,hint,note,claude,reply
+2692817924,honest,reviewer,,,,,
+2692821325,half,reviewer,,,,,
+2692823826,honest,reviewer,,,,"Half by the strict depth line (owner, 4 Oct): the shoulder stopped 0.34 arm-lengths over the hand, elbow 66°; the line is 0.32 (0.36 with the elbow at 66° or less), and half push-ups elsewhere read 0.38-0.49. Press 2 to confirm.",
+2692825994,half,reviewer,,,,"Half by the strict depth line (owner, 4 Oct): the shoulder stopped 0.40 arm-lengths over the hand, elbow 71°; the line is 0.32 (0.36 with the elbow at 66° or less), and half push-ups elsewhere read 0.38-0.49. Press 2 to confirm.",
+2692827995,half,reviewer,,,,"Half by the strict depth line (owner, 4 Oct): the shoulder stopped 0.34 arm-lengths over the hand, elbow 67°; the line is 0.32 (0.36 with the elbow at 66° or less), and half push-ups elsewhere read 0.38-0.49. Press 2 to confirm.",
+2692830329,honest,reviewer,,,,,
+2692838599,knees,reviewer,,,,,
+2692840700,knees,reviewer,,,,,
+2692842634,knees,reviewer,,,,,
+2692844735,knees,reviewer,,,,,
+2692846970,knees,reviewer,,,,,
+2692854073,knees,reviewer,,,,,
+2692857074,knees,reviewer,,,,,
+2692859942,knees,reviewer,,,,,
+2692862810,knees,reviewer,,,,,
+2692866611,knees,reviewer,,,,,

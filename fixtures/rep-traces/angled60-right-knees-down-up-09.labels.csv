@@ -1,0 +1,25 @@
+# holdout-rep-labels v2
+# trace=angled60-right-knees-down-up-09.trace.csv
+# offset=0.5
+# reviewed=2026-10-04
+# source=20261002-132802-staked
+t,label,by,flag,hint,note,claude,reply
+2690052211,honest,reviewer,,,,,
+2690054045,honest,reviewer,,,,,
+2690055746,honest,reviewer,,,,,
+2690057647,honest,reviewer,,,,,
+2690059448,honest,reviewer,,,,,
+2690062349,knees,reviewer,,,,,
+2690064483,knees,reviewer,,,,,
+2690066417,knees,reviewer,,,,,
+2690068351,knees,reviewer,,,,,
+2690070352,knees,reviewer,,,,,
+2690075621,knees,reviewer,,,,,
+2690080323,knees,reviewer,,,,,
+2690083658,knees,reviewer,,,,,
+2690086893,knees,reviewer,,,,,
+2690090461,knees,reviewer,,,,,
+2690105234,knees,reviewer,,,,,
+2690108435,knees,reviewer,,,,,
+2690124008,unsure,reviewer,,,video cropped without rep,,"Not a push-up, and not counted. On the video you sit up and crouch in front of the phone at the end of the set; the app was still counting and today refused it with ""Go lower"". Nothing in the counter changed: no reading I tried (torso angle, view) separates such moments from a real rep reliably yet, so they stay refused with words meant for a rep. The clip now runs 2:03.6–2:06.1 (it used to start at 1:50.5). ""other"" is the label for a moment that is not a push-up."
+2690125176,unsure,reviewer,answered,,no rep in that crop,,"Not a push-up, and not counted. On the video you sit up and crouch in front of the phone at the end of the set; the app was still counting and today refused it with ""Go lower"". Nothing in the counter changed: no reading I tried (torso angle, view) separates such moments from a real rep reliably yet, so they stay refused with words meant for a rep. The clip now runs 2:05.3–2:07.3 (it used to start at 2:06.1). ""other"" is the label for a moment that is not a push-up."

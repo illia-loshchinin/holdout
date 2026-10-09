@@ -61,8 +61,8 @@ class SittingViewModel(
     /** Chain time now, for the day's countdown. Null while the chain is unread. */
     private val chainSecondsNow: () -> Long?,
     /**
-     * The free Daily 25 takes any placement; a staked sitting is side-on or
-     * angled, never head-on, with full push-ups from the toes ([Stakes]). It decides what the
+     * Every sitting is at 45° ([Stakes]); the Daily 25 and Easy count push-ups
+     * from the knees, Hard only from the toes. It decides what the
      * camera check accepts, what the guide asks for and what the counter reads.
      */
     private val stakes: Stakes = Stakes.DAILY,
@@ -330,7 +330,20 @@ class SittingViewModel(
                 )
                 _uiState.update { it.withFrame(observation).copy(preflight = report) }
                 record(observation, countingView)
-                val holds = report.canStart && report.view == countingView
+                // Every stakes: the counter calibrates on this plank, so it must stay one it
+                // can read — a frame it cannot read, a knee it cannot place or the body out of line (and on Hard, knees
+                // coming down) stop the countdown as a moved phone does. Easy and the Daily 25
+                // keep their knee stance (review, PR #14).
+                // Arms bending is not checked — people start down on "1" — so the plank is read
+                // whatever the arms do: the gate's own blocker names the arms first and would
+                // hide the rest once they bend. On every 45° countdown recorded the plank failed
+                // for at most 400 ms in a row, under the guard's 500 ms grace, under each
+                // stakes' rules.
+                val plankBroken = readyGate.run {
+                    onFrame(observation.world, observation.world.timestampMillis, pillsGreen = true, view = countingView, image = observation.imagePose())
+                    plankBlocker != null
+                }
+                val holds = report.canStart && report.view == countingView && !plankBroken
                 synchronized(countdownLock) {
                     // The timer may have ended the countdown on the main
                     // thread while this frame was being read.
@@ -348,19 +361,15 @@ class SittingViewModel(
                 record(observation, countingView, repCounter.readout, event)
                 when (event) {
                     is RepEvent.Counted -> {
-                        lastRefusal = null
                         _uiState.update { it.copy(repsCounted = repCounter.total) }
                         onVerifiedRep(event.stance)
                     }
                     is RepEvent.Discarded -> {
                         _uiState.update { it.copy(hint = event.hint?.message) }
-                        // Face-down, the member cannot read the screen: the same
-                        // failure twice in a row is said out loud.
-                        val hint = event.hint
-                        // Knees out of the picture is said at once: every rep fails the
-                        // same way until the phone or the member moves.
-                        if (hint != null && (hint == lastRefusal || hint == holdout.repcounter.RepHint.LEGS_IN_VIEW)) _cues.tryEmit(Cue.Say(hint.message))
-                        lastRefusal = hint
+                        // Face-down, the member cannot read the screen: every refused
+                        // rep's reason is said out loud, at once (owner, 2026-10-04 —
+                        // it was the second time in a row). A new one cuts the last off.
+                        event.hint?.let { _cues.tryEmit(Cue.Say(it.message)) }
                     }
                     null -> Unit
                 }
@@ -421,7 +430,14 @@ class SittingViewModel(
             // decide whether counting may begin. An abort that already happened,
             // or a check failing at this very moment, wins over the timer.
             if (_uiState.value.step != Step.COUNTDOWN) return
-            if (countdownGuard.isFailing) {
+            // Hard, and no plank read through the countdown: the legs on each push could
+            // not be judged against this person's own, and every rep would pass that check.
+            // Any stakes with no placement read: the hip rise would not be judged, and
+            // near-straight cobras would count — the Daily 25 too, which keeps Easy's
+            // checks (review, PR #14).
+            val uncalibrated = (stakes == Stakes.STAKED && !repCounter.plankCalibrated) ||
+                !repCounter.placementCalibrated
+            if (countdownGuard.isFailing || uncalibrated) {
                 backToChecks()
                 return
             }
@@ -568,9 +584,6 @@ class SittingViewModel(
 
     /** Whether the camera is recording this sitting as video (debug builds). */
     fun onRecordingVideo(on: Boolean) = _uiState.update { it.copy(recordingVideo = on) }
-
-    /** The last refused rep's reason, to say it aloud if the next rep fails the same way. */
-    private var lastRefusal: holdout.repcounter.RepHint? = null
 
     private var coachSince: Pair<Coach, Long>? = null
     private var spoken: Pair<Coach, Long>? = null

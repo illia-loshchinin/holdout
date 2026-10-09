@@ -1,0 +1,31 @@
+# holdout-rep-labels v2
+# trace=angled40-right-floor-20.trace.csv
+# source=20261004-072333-staked
+# person=p1
+# clothing=shirtless, dark shorts
+# offset=0.5
+# reviewed=2026-10-04
+t,label,by,flag,hint,note,claude,reply
+2840945651,honest,reviewer,,,,0:31 checked on video,
+2840947319,honest,reviewer,,,,0:31 checked on video,
+2840948921,honest,reviewer,,,,0:31 checked on video,
+2840950589,honest,reviewer,,,,0:31 checked on video,
+2840952158,honest,reviewer,,,,0:31 checked on video,
+2840954060,honest,reviewer,,,,0:31 checked on video,
+2840955628,honest,reviewer,,,,0:31 checked on video,
+2840957163,honest,reviewer,,,,0:31 checked on video,
+2840958965,honest,reviewer,,,,0:31 checked on video,
+2840960901,honest,reviewer,,,,0:31 checked on video,
+2840966907,knees,reviewer,,,,0:39 checked on video; the rest from the trace,
+2840968943,knees,reviewer,,,,0:39 checked on video; the rest from the trace,
+2840970678,knees,reviewer,,,,0:39 checked on video; the rest from the trace,
+2840976918,knees,reviewer,,,,0:39 checked on video; the rest from the trace,
+2840979321,knees,reviewer,,,,0:39 checked on video; the rest from the trace,
+2840981290,knees,reviewer,,,,refused Go lower; from the trace,
+2840991201,floor,reviewer,,,,hips resting on the carpet — checked on video,
+2840994137,floor,reviewer,,,,hips resting on the carpet — checked on video,
+2840997040,floor,reviewer,,,,hips resting on the carpet — checked on video,
+2841000644,floor,reviewer,,,,hips resting on the carpet — checked on video,
+2841010822,floor,reviewer,,,,hips resting on the carpet — checked on video,
+2841026439,knees,reviewer,,,,from the trace,
+2841029343,knees,reviewer,,,,end of the set,

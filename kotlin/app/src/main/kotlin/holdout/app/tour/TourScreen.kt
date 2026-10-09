@@ -72,7 +72,7 @@ private val TOUR = listOf(
     Card(
         "How reps are counted",
         listOf(
-            "The Daily 25: the phone in front of you or at 45°. Push-ups from the knees are welcome — at 45° it tells you how many came from your toes.",
+            "The Daily 25: the phone at 45°, as in a Holdout. Push-ups from the knees are welcome — it tells you how many came from your toes.",
             "Easy Holdouts: the phone at 45°, push-ups from the knees count.",
             Stakes.STAKED_RULE.replace("Staked Holdouts", "Hard Holdouts"),
             "The camera never leaves the phone — no video, no landmarks, nothing uploaded.",

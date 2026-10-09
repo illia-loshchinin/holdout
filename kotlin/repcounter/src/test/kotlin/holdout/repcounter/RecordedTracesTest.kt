@@ -19,7 +19,7 @@ class RecordedTracesTest {
 
     private fun traces(): List<File> {
         val dir = File(System.getProperty("holdout.repTraces") ?: "../../fixtures/rep-traces")
-        return dir.listFiles { f -> f.name.endsWith(".trace.csv") }?.sortedBy { it.name }.orEmpty()
+        return dir.listFiles { f -> TraceFiles.isTrace(f) }?.sortedBy { it.name }.orEmpty()
     }
 
     private fun replay(recording: Trace.Recording): Int {
@@ -34,8 +34,12 @@ class RecordedTracesTest {
     @Test
     fun `every counted recording replays within one rep of the human count`() {
         val misses = traces().mapNotNull { file ->
-            val recording = Trace.parse(file.readLines())
+            // A labelled recording is held rep by rep by the ratchet (RepRatchetTest), not by its total.
+            if (TraceFiles.labels(file).exists()) return@mapNotNull null
+            val recording = Trace.parse(TraceFiles.lines(file))
             val expected = recording.expectedReps ?: return@mapNotNull null
+            // A sitting today's app would not start (head-on, or in front of its band) is evidence, not a test.
+            if (!recording.startsToday()) return@mapNotNull null
             val counted = replay(recording)
             if (kotlin.math.abs(counted - expected) <= 1) null else "${file.name}: counted $counted, a person counted $expected"
         }
@@ -123,9 +127,46 @@ class RecordedTracesTest {
         // 1:59, and 2:07 at the depth line (shoulder 0.317, line 0.32): full, the member says.
         // 2:07 read knee 130°, legs 0.47 on the push and was refused as knees; it came down at 135°.
         assertEquals(2, halves.count { it is RepEvent.Counted }, "the two full ones among them")
-        assertEquals(8, halves.count { it == RepEvent.Discarded(RepHint.GO_LOWER) })
+        // Seven halves; getting up at the end of the set ("unsure") is no push-up and is not told to go lower.
+        assertEquals(7, halves.count { it == RepEvent.Discarded(RepHint.GO_LOWER) })
         assertEquals(0, halves.count { it == RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES) })
         assertEquals(12, counter.total)
+    }
+
+    @Test
+    fun `a second person's knee push-ups are refused against his own plank`() {
+        // 4 Oct, a second person at about 40°: his knee reps read the legs at 0.42–0.44 over
+        // the hands — over the 0.41 line, set on one body — and two had counted. His own
+        // plank held 0.70; those reps read 0.60–0.63 of it, honest reps everywhere 0.70 or more.
+        val recording = Trace.parse(traces().single { it.name == "angled40-right-mixed-19.trace.csv" }.readLines())
+        val counter = RepCounter(view = recording.countingView!!, stakes = recording.stakes)
+        for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
+        val events = recording.countingFrames.mapNotNull { counter.onFrame(it.world, it.image) }
+        assertEquals(List(10) { true }, events.subList(2, 12).map { it is RepEvent.Counted }, "the ten full reps")
+        assertEquals(List(5) { true }, events.subList(12, 17).map { it is RepEvent.Discarded }, "the five from the knees, 3:58–4:25")
+        assertEquals(12, counter.total, "two of the three cobras still count: a named weakness")
+    }
+
+    @Test
+    fun `the same knee push-ups count in a Daily 25, and the toes meter does not claim them for the toes`() {
+        // The Daily 25 counts knee reps by design, but tags each with whether Hard would
+        // have: against this person's own plank on the toes, these are knees (PR #14 review).
+        val recording = Trace.parse(traces().single { it.name == "angled40-right-mixed-19.trace.csv" }.readLines())
+        fun timed(stakes: Stakes): Map<Long, RepEvent> {
+            val counter = RepCounter(view = recording.countingView!!, stakes = stakes)
+            for (frame in recording.countdownFrames) counter.prime(frame.world, frame.image)
+            return recording.countingFrames.mapNotNull { f -> counter.onFrame(f.world, f.image)?.let { f.timestampMillis to it } }.toMap()
+        }
+        val hard = timed(Stakes.STAKED)
+        val daily = timed(Stakes.DAILY)
+        // Every rep Hard refuses as knees down that the Daily 25 counts is tagged as knees.
+        val kneesDown = hard.filterValues { it == RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES) }.keys
+        val countedDaily = kneesDown.mapNotNull { daily[it] as? RepEvent.Counted }
+        assertTrue(countedDaily.size >= 4, "the knee reps count in a Daily 25: ${kneesDown.map { daily[it] }}")
+        assertEquals(List(countedDaily.size) { RepStance.KNEES }, countedDaily.map { it.stance })
+        // And every rep Hard counts is on the toes.
+        val countedHard = hard.filterValues { it is RepEvent.Counted }.keys
+        assertTrue(countedHard.all { (daily[it] as? RepEvent.Counted)?.stance == RepStance.TOES }, "Hard's reps are toes reps")
     }
 
     @Test
@@ -220,9 +261,12 @@ class RecordedTracesTest {
         assertEquals(List(5) { RepEvent.Discarded(RepHint.LEGS_IN_VIEW) }, events)
     }
 
+    /** A frame at 45° — world landmarks and the picture of the same instant. */
+    private fun atFortyFive(t: Long, elbowDegrees: Float) = Traces.frame(t, elbowDegrees, 180f) to Traces.angledImage(t, elbowDegrees)
+
     @Test
     fun `where the phone stood is written into the header and read back, and nothing else is accepted`() {
-        val (world, image) = Traces.frontFrame(1_000, elbowDegrees = 120f)
+        val (world, image) = atFortyFive(1_000, elbowDegrees = 120f)
         val text = Trace.header(Stakes.STAKED, image.width, image.height) +
             Trace.row(1_000, "COUNTING", CameraView.OBLIQUE, world, image.frame, null, null)
         val labelled = Trace.parse(Trace.label(text.lines(), 5, mapOf("honest" to 5), "", placement = "50", phoneSide = "right"))
@@ -235,7 +279,7 @@ class RecordedTracesTest {
 
     @Test
     fun `a person's account is written into the header, and a note cannot forge a fact`() {
-        val (world, image) = Traces.frontFrame(1_000, elbowDegrees = 120f)
+        val (world, image) = atFortyFive(1_000, elbowDegrees = 120f)
         val text = Trace.header(Stakes.STAKED, image.width, image.height) +
             Trace.row(1_000, "COUNTING", CameraView.OBLIQUE, world, image.frame, null, null)
         val labelled = Trace.label(
@@ -253,8 +297,8 @@ class RecordedTracesTest {
 
     @Test
     fun `the replay primes with the countdown that led into counting, not an aborted one`() {
-        val (world, image) = Traces.frontFrame(1_000, elbowDegrees = 170f)
-        fun row(t: Long, step: String) = Trace.row(t, step, CameraView.FRONT, world, image.frame, null, null)
+        val (world, image) = atFortyFive(1_000, elbowDegrees = 170f)
+        fun row(t: Long, step: String) = Trace.row(t, step, CameraView.OBLIQUE, world, image.frame, null, null)
         val text = Trace.header(Stakes.DAILY, image.width, image.height) +
             row(1, "PREFLIGHT") + row(2, "COUNTDOWN") + row(3, "COUNTDOWN") + // aborted: back to the checks
             row(4, "PREFLIGHT") + row(5, "COUNTDOWN") + row(6, "COUNTDOWN") + row(7, "COUNTING")
@@ -265,16 +309,16 @@ class RecordedTracesTest {
 
     @Test
     fun `a trace written by the recorder reads back frame for frame`() {
-        val (world, image) = Traces.frontFrame(1_000, elbowDegrees = 120f)
+        val (world, image) = atFortyFive(1_000, elbowDegrees = 120f)
         val text = Trace.header(Stakes.DAILY, image.width, image.height) +
-            Trace.row(1_000, "COUNTING", CameraView.FRONT, world, image.frame, Readout(CameraView.FRONT, 120f, 30f, null), RepEvent.Counted(1, 1_500))
+            Trace.row(1_000, "COUNTING", CameraView.OBLIQUE, world, image.frame, Readout(CameraView.OBLIQUE, 120f, 175f, 178f), RepEvent.Counted(1, 1_500))
         val recording = Trace.parse(text.lines())
         assertEquals(Stakes.DAILY, recording.stakes)
         assertEquals(null, recording.expectedReps)
-        assertEquals(CameraView.FRONT, recording.countingView)
+        assertEquals(CameraView.OBLIQUE, recording.countingView)
         val frame = recording.frames.single()
         assertEquals("counted", frame.event)
-        val reread = Angles.elbowInImage(frame.image)!!
+        val reread = Angles.elbowInImage(frame.image, Side.LEFT)!!
         assertTrue(kotlin.math.abs(reread - 120f) < 0.5f, "the picture survives the round trip: $reread")
     }
 }

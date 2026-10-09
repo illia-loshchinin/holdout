@@ -32,8 +32,44 @@ tasks.register<JavaExec>("replayTraces") {
     classpath = sourceSets["test"].runtimeClasspath
     mainClass.set("holdout.repcounter.ReplayReportKt")
     args(
-        providers.gradleProperty("traces").getOrElse(rootProject.file("../phone_traces").absolutePath),
+        rootProject.file(providers.gradleProperty("traces").getOrElse("../phone_traces")).absolutePath,
         // -Pdetail: every cycle's verdict and what it was judged on.
         if (providers.gradleProperty("detail").isPresent) "detail" else "summary",
+    )
+}
+
+// Today's verdict on every rep of every sitting with a video, written beside
+// the trace as <sitting>.today.csv for the labelling page to show.
+tasks.register<JavaExec>("todayVerdicts") {
+    description = "Replays every sitting with a video through today's counter and writes each rep's verdict beside it."
+    group = "verification"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("holdout.repcounter.TodayVerdictsKt")
+    args(rootProject.file(providers.gradleProperty("traces").getOrElse("../phone_traces")).absolutePath)
+}
+
+// The ratchet's baseline (RepRatchetTest): how the counter does on every
+// labelled fixture rep, written again once a change has made reps better.
+tasks.register<JavaExec>("updateBaseline") {
+    description = "Writes fixtures/rep-traces/baseline.csv: today's counter on every labelled fixture rep."
+    group = "verification"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("holdout.repcounter.RatchetKt")
+    args(rootProject.file("../fixtures/rep-traces").absolutePath)
+}
+
+// The test bench: every sitting with a labels file (scripts/label-reps.mjs),
+// replayed and scored rep by rep against what a person saw on the video.
+// `-Ptraces=<dir>` (relative to kotlin/) to point it elsewhere than
+// fixtures/rep-traces/; `-Pgate`
+// to fail when honest reps count under 98 % or any cheat over 2 %.
+tasks.register<JavaExec>("testBench") {
+    description = "Scores the counter rep by rep against video-labelled sittings, by label, person and sitting."
+    group = "verification"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("holdout.repcounter.TestBenchKt")
+    args(
+        rootProject.file(providers.gradleProperty("traces").getOrElse("../fixtures/rep-traces")).absolutePath,
+        if (providers.gradleProperty("gate").isPresent) "gate" else "report",
     )
 }

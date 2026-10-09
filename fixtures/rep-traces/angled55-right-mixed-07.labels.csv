@@ -1,0 +1,33 @@
+# holdout-rep-labels v2
+# trace=angled55-right-mixed-07.trace.csv
+# offset=0.5
+# reviewed=2026-10-04
+# source=20261002-132240-staked
+t,label,by,flag,hint,note,claude,reply
+2689708332,honest,reviewer,,,,,
+2689709932,honest,reviewer,,,,,
+2689711733,honest,reviewer,,,,,
+2689713634,honest,reviewer,,,,,
+2689715402,honest,reviewer,,,,,
+2689717302,honest,reviewer,,,,,
+2689719170,honest,reviewer,,,,,
+2689721237,honest,reviewer,,,,,
+2689723271,honest,reviewer,,,,,
+2689725439,honest,reviewer,,,,,
+2689729207,half,reviewer,,,,,
+2689732042,half,reviewer,,,,,
+2689734576,half,reviewer,,,,,
+2689736877,half,reviewer,,,,,
+2689739378,half,reviewer,,,,,
+2689742746,half,reviewer,,,,,
+2689745814,half,reviewer,,,,,
+2689748949,half,reviewer,,,,,
+2689751383,half,reviewer,,,,,
+2689754351,half,reviewer,,,,,
+2689758020,half,reviewer,,,,,
+2689760087,half,reviewer,,,,,
+2689762955,half,reviewer,,,,,
+2689765156,half,reviewer,,,,,
+2689767524,half,reviewer,,,,,
+2689770291,honest,reviewer,,,,,
+2689773526,unsure,reviewer,answered,,"hard to say, wrongy cropped rep",,"Not a push-up, and not counted. On the video you walk to the phone at the end of the set; the app was still counting and today refused it with ""Keep your legs in the picture"". Nothing in the counter changed: no reading I tried (torso angle, view) separates such moments from a real rep reliably yet, so they stay refused with words meant for a rep. The clip now runs 1:36.1–1:38.2 (it used to start at 1:35.0). ""other"" is the label for a moment that is not a push-up."

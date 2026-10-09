@@ -70,14 +70,6 @@ data class RepRules(
      */
     val descentAttemptDegrees: Float = 140f,
     /**
-     * Head-on only: the steepest the torso may rise from hips to shoulders and
-     * still be a body down in push-up position. It stands in for the body line,
-     * which a front camera cannot see (`ViewReading`). Measured on
-     * `front-honest-01`: 0–41° through every rep, 65–87° crouching and standing
-     * up. Provisional, like the triggers, until S2 has more than one recording.
-     */
-    val maxTorsoElevationDegrees: Float = 55f,
-    /**
      * Knees off the floor, staked sittings, judged on the **push back up**
      * (the same window as the cobra check — over the whole rep the flat bottom
      * hides a bent knee). Either signal below its line means knees down:
@@ -112,6 +104,17 @@ data class RepRules(
      */
     val bentKneeDegrees: Float = 135f,
     val minLegsAboveHandsBentKnee: Float = 0.48f,
+    /**
+     * Staked: the legs on the push, against the same person's legs held in the
+     * plank through the countdown — at least this share. The lines above are
+     * one body's: on 4 Oct a second person's knee push-ups read the legs at
+     * 0.42–0.44, over [minLegsAboveHands], because his honest reps stand at
+     * 0.51–0.79. Against his own plank (0.70) those knee reps read 0.60–0.63;
+     * honest reps on every recording read 0.70–1.13 of their plank. An extra
+     * check, not a replacement: kneeling with the feet raised keeps the
+     * share high (0.74–1.19), and the lines above catch it.
+     */
+    val minLegsShareOfHeld: Float = 0.66f,
     /**
      * The bent-knee line judges the push alone, where a leg a little bent on
      * the toes reads like kneeling with the feet raised: on 3 Oct a full rep
@@ -148,8 +151,8 @@ data class RepRules(
      * Judged only inside [maxHipRisePlacementRatio]: from further in front the
      * hips sit behind the shoulders in the picture and the reading drops —
      * honest reps recorded there read down to 0.84. A staked sitting cannot
-     * start from there (`Preflight.stakedFrontRatio`, the same line), so this
-     * exempts only the Daily 25 and recordings older than the line.
+     * start from there (`Preflight.stakedFrontRatio`, the same line), nor since
+     * 8 Oct a Daily 25, so this exempts only recordings older than the line.
      */
     val minHipRise: Float = 0.90f,
     /** The placement ratio (`Preflight.placementRatio`, held through the countdown) under which [minHipRise] is judged: about 35° and further round to the side. */
@@ -169,18 +172,6 @@ data class RepRules(
      * refused with [RepHint.LEGS_IN_VIEW]. Calibrated on the phone's traces.
      */
     val maxLegsUnseenShare: Float = 0.25f,
-    /**
-     * Head-on depth: at the bottom the shoulders must come down to within this
-     * share of their height above the hands at the top. The elbow angle alone
-     * over-reads the bend head-on; on the phone honest reps reached 0.16–0.19
-     * and half reps stopped at 0.26–0.53.
-     *
-     * 0.285 since 2 Oct (was 0.25): on the 4:3 picture a Daily 25 set of
-     * fifteen read 0.22–0.30 throughout, and the old line refused seven of
-     * them (`front-honest-knees-04`). The price is the deepest of the recorded
-     * half reps (0.26, one of fifteen), in a sitting no money rides on.
-     */
-    val maxShoulderHeightAtBottom: Float = 0.285f,
     /**
      * Depth at 45°: at the bottom the near shoulder must come down to within
      * this many arm-lengths of the near hand. On the phone honest reps reached
@@ -214,6 +205,21 @@ data class RepRules(
      * and 120–134° on cobra reps.
      */
     val angledPushBodyLineFloorDegrees: Float = 145f,
+    /**
+     * At 45°, every sitting: **face down, hands on the floor.** The body line
+     * cannot say it — lying on the back with the knees up, and standing, both
+     * read near straight — and on 7 Oct a Daily 25 at 45° counted sixteen
+     * crunches and two kettlebell stands among seven push-ups. Medians over the
+     * rep, in arm lengths:
+     *
+     * - the near knee above the hip: every labelled push-up, on the toes or
+     *   the knees, −0.59 to 0.02 (one rep labelled unsure 0.14); crunches
+     *   0.51–0.81;
+     * - the near ankle below the hand: push-ups −0.38 to 0.04 (unsure up to
+     *   0.34); standing 1.87–1.94, crunches with the arms up 0.28–0.76.
+     */
+    val maxKneeAboveHip: Float = 0.3f,
+    val maxAnkleBelowHand: Float = 0.6f,
 ) {
     init {
         require(topTriggerDegrees >= topDegrees) {
@@ -264,6 +270,16 @@ enum class RepHint(val message: String) {
      * the floor.
      */
     LEGS_IN_VIEW("Keep your legs in the picture"),
+
+    /**
+     * Staked only: the body rested on the floor at the bottom — hips or thighs
+     * carrying weight on it, then pushed back up (owner, 2026-10-04: resting,
+     * not a chest brushing the floor). **Not said yet**: no landmark reading
+     * tells a hip resting on the floor from a deep honest bottom
+     * (`angled40-right-floor-20`), so nothing refuses with it until the
+     * knee-on-the-floor image classifier also judges the hips.
+     */
+    HIPS_OFF_FLOOR("Hips off the floor"),
 }
 
 /**
@@ -274,9 +290,9 @@ enum class RepHint(val message: String) {
 data class Readout(
     val view: CameraView,
     val elbow: Float,
-    /** At 45°: the near side's body line — to the ankle on Hard, the straighter of ankle and knee where knees count. Head-on: the torso's rise above horizontal. */
+    /** At 45°: the near side's body line — to the ankle on Hard, the straighter of ankle and knee where knees count. */
     val posture: Float,
-    /** Near leg at 45°; null head-on, or when the leg is not clearly in frame. */
+    /** Near leg at 45°; null when the leg is not clearly in frame. */
     val knee: Float?,
 )
 
@@ -289,8 +305,6 @@ data class CycleReadout(
     val minElbow: Float,
     /** At 45°: the nearest the shoulder came to the hand, in arm lengths. */
     val shoulderOverHand: Float?,
-    /** Head-on: the lowest the shoulders came, as a share of their height over the hands at the top. */
-    val shoulderHeightShare: Float?,
     val pushKnee: Float?,
     val pushLegsAboveHands: Float?,
     /** At 45°: how far the hips had risen half-way up the push, against the shoulders ([RepRules.minHipRise]). */
@@ -301,6 +315,10 @@ data class CycleReadout(
     val posture: Float?,
     val pushPosture: Float?,
     val cycleMillis: Long,
+    /** The plank held through the countdown that the push is measured against ([RepRules.minLegsShareOfHeld]); null with none. */
+    val heldLegsAboveHands: Float? = null,
+    /** The placement ratio held through the countdown ([RepRules.maxHipRisePlacementRatio]); null with none. */
+    val heldPlacementRatio: Float? = null,
 )
 
 /**
@@ -315,7 +333,10 @@ enum class RepStance {
     /** Down on the knees for some of it. */
     KNEES,
 
-    /** The legs were not in the picture enough to say. */
+    /**
+     * Not enough to say: the legs were not in the picture enough, or no plank on
+     * the toes was held through the countdown to measure the push against.
+     */
     NOT_VISIBLE,
 }
 
@@ -355,9 +376,11 @@ class RepCounter(
     stakes: Stakes = Stakes.DAILY,
 ) {
     init {
-        // Pre-flight already refuses to start a staked sitting anywhere but at
-        // 45°. This is the second lock on the same door: a staked counter
-        // measured from a view that cannot see the knees must not exist.
+        // Pre-flight already refuses to start a sitting anywhere but at 45°. This
+        // is the second lock on the same door: no counter is measured head-on,
+        // which cannot see the knees, a sag or a cobra (002 FR-006, retired 8 Oct).
+        // Side-on is the synthetic traces' state-machine view only.
+        require(view != CameraView.FRONT) { "no sitting is counted from the $view view" }
         require(!stakes.staked || stakes.accepts(view)) { "$stakes sittings cannot be counted from the $view view" }
     }
 
@@ -383,11 +406,12 @@ class RepCounter(
     private val bodyLineToKnee = !judgeKnees
 
     /**
-     * Where money is staked — Hard or Easy — the legs must stay in view: a rep
-     * whose knees spent the push out of the picture cannot be judged for the
-     * body line or the hip rise either (H35).
+     * The legs must stay in view, whatever the stakes — the Daily 25 is held to
+     * Easy since 8 Oct (002 FR-007): a rep whose knees spent the push out of
+     * the picture cannot be judged for the body line or the hip rise either (H35).
+     * Every sitting is at 45°; the other views are the synthetic tests' only.
      */
-    private val watchLegs = stakes.staked
+    private val watchLegs = view == CameraView.OBLIQUE
 
     /**
      * At 45° the legs are followed whatever the stakes, so every counted rep
@@ -421,7 +445,7 @@ class RepCounter(
     private val sideVotes = IntArray(2)
 
     private fun nearSideFor(image: ImagePose?): Side? {
-        if (image == null || view == CameraView.FRONT) return null
+        if (image == null) return null
         val seen = Angles.nearSide(image) ?: return null
         sideVotes[seen.ordinal]++
         return if (sideVotes[Side.LEFT.ordinal] >= sideVotes[Side.RIGHT.ordinal]) Side.LEFT else Side.RIGHT
@@ -436,6 +460,10 @@ class RepCounter(
     private var bodyLineHeld = true
     private val cycleKnees = mutableListOf<Float>()
     private val cyclePostures = mutableListOf<Float>()
+
+    /** At 45°, over the whole rep: knee above hip and ankle below hand ([RepRules.maxKneeAboveHip]). */
+    private val cycleKneeAboveHip = mutableListOf<Float>()
+    private val cycleAnkleBelowHand = mutableListOf<Float>()
 
     /** The body line while pushing back up — after the bottom, elbow past [PUSH_FROM_ELBOW]. */
     private val pushPostures = mutableListOf<Float>()
@@ -455,14 +483,67 @@ class RepCounter(
     /** The placement ratio held through the countdown; null with no countdown, and then [RepRules.minHipRise] is not judged. */
     private val placement = Preflight()
     private val heldRatios = mutableListOf<Float>()
+
+    /**
+     * Legs above hands through the countdown with the arms straight and the knees
+     * seen off the floor: this person's plank on the toes ([RepRules.minLegsShareOfHeld]).
+     * Where knees count, a member may hold the countdown from the knees; no
+     * reference is taken from that, so a knee rep cannot match a kneeling plank.
+     */
+    private val heldLegs = mutableListOf<Float>()
     private var heldRatio: Float? = null
 
     private fun hipRiseTooLow(): Boolean {
         if (view != CameraView.OBLIQUE) return false
         val ratio = heldRatio ?: return false
         if (ratio >= rules.maxHipRisePlacementRatio) return false
-        return hipRise()?.let { it < rules.minHipRise } == true
+        // A rise that could not be read is not a body that came up as one piece, as a
+        // knee never seen is not off the floor. On every recording only one counted rep
+        // had none: a cobra (4 Oct). The rule is Easy's as much as Hard's, and the Daily 25
+        // is an Easy Holdout with nothing staked, so none lets an unknown pass (review, PR #14).
+        return hipRise()?.let { it < rules.minHipRise } ?: true
     }
+
+    /**
+     * A countdown frame fit to calibrate from: the ready gate's own checks
+     * (`ReadyGate.blockerOf`) — where money is staked, knees readable and seen
+     * off the floor; the body in one line.
+     */
+    private fun readyPlank(reading: ViewReading, posture: Float): Boolean {
+        val angled = reading as? ViewReading.Angled
+        if (judgeKnees && (angled?.kneeUnreadable == true || !kneesSeenOffFloor(reading.knee, angled?.legsAboveHands, rules))) return false
+        return postureHeld(view, reading, posture, rules)
+    }
+
+    /**
+     * Enough of a plank on the toes, read through the countdown, for the legs on
+     * each push to be judged against it ([RepRules.minLegsShareOfHeld]). Where
+     * knees are judged, counting must not start without it: the check would pass
+     * every rep (review, PR #14).
+     */
+    val plankCalibrated: Boolean get() = heldLegs.size >= MIN_HELD_FRAMES
+
+    /**
+     * Enough of a plank read through the countdown to know where the phone stands
+     * ([heldRatio]), which the hip-rise check needs: without it [hipRiseTooLow] is not
+     * judged, and near-straight cobras count. No sitting starts counting without it,
+     * the Daily 25 included (review, PR #14).
+     */
+    val placementCalibrated: Boolean get() = heldRatios.size >= MIN_HELD_FRAMES
+
+    /** The placement ratio of the plank held through the countdown so far (median), or null before [placementCalibrated]. */
+    val calibratedPlacementRatio: Float? get() = heldRatios.takeIf { it.size >= MIN_HELD_FRAMES }?.sorted()?.let { it[it.size / 2] }
+
+    /** The legs on the push fell well under this person's own plank ([RepRules.minLegsShareOfHeld]). Unknown passes. */
+    private fun legsDroppedFromPlank(): Boolean {
+        if (heldLegs.size < MIN_HELD_FRAMES) return false
+        val held = heldLegs.medianOrNull()?.takeIf { it > 0f } ?: return false
+        return pushLegs.medianOrNull()?.let { it / held < rules.minLegsShareOfHeld } == true
+    }
+
+    /** Lying on the back, or standing: not a body in push-up position at all ([RepRules.maxKneeAboveHip]). Unknown passes. */
+    private fun notFaceDown(): Boolean = cycleKneeAboveHip.medianOrNull()?.let { it > rules.maxKneeAboveHip } == true ||
+        cycleAnkleBelowHand.medianOrNull()?.let { it > rules.maxAnkleBelowHand } == true
 
     private fun hipRise(): Float? {
         val hipAtTop = topHips.medianOrNull()?.takeIf { it > 0f } ?: return null
@@ -492,9 +573,7 @@ class RepCounter(
     /** Push frames, and those whose near knee was unseen or at the picture's edge (staked). */
     private var pushFrames = 0
     private var pushLegsUnseen = 0
-    private var minShoulderHeightInCycle = Float.MAX_VALUE
     private var minShoulderOverHandInCycle = Float.MAX_VALUE
-    private var topShoulderHeight: Float? = null
 
     val total: Int get() = count
 
@@ -538,7 +617,6 @@ class RepCounter(
         top = top,
         minElbow = minElbowInCycle,
         shoulderOverHand = minShoulderOverHandInCycle.takeIf { it != Float.MAX_VALUE },
-        shoulderHeightShare = topShoulderHeight?.takeIf { it > 0f && minShoulderHeightInCycle != Float.MAX_VALUE }?.let { minShoulderHeightInCycle / it },
         pushKnee = pushKnees.medianOrNull(),
         pushLegsAboveHands = pushLegs.medianOrNull(),
         hipRise = hipRise(),
@@ -548,6 +626,8 @@ class RepCounter(
         posture = cyclePostures.medianOrNull(),
         pushPosture = pushPostures.medianOrNull(),
         cycleMillis = cycleMillis,
+        heldLegsAboveHands = heldLegs.takeIf { it.size >= MIN_HELD_FRAMES }?.medianOrNull(),
+        heldPlacementRatio = heldRatio,
     )
 
     fun onFrame(frame: PoseFrame, image: ImagePose? = null): RepEvent? {
@@ -574,12 +654,18 @@ class RepCounter(
         val elbow = elbowFilter.filter(reading.elbow, frame.timestampMillis)
         val posture = postureFilter.filter(reading.posture, frame.timestampMillis)
         val knee = reading.knee?.let { kneeFilter.filter(it, frame.timestampMillis) }
-        if (priming && image != null && elbow >= rules.obliqueTopDegrees) {
+        // The plank this sitting is measured against is only one the ready gate
+        // would accept: on the toes, the body in one line. A member who kneels
+        // through the countdown must not set a kneeling reference that their
+        // knee reps then match (review, 4 Oct).
+        if (priming && image != null && elbow >= rules.obliqueTopDegrees && readyPlank(reading, posture)) {
             placement.placementRatio(image.frame, Aspect.xScale(image.width, image.height))?.let { heldRatios += it }
+            (reading as? ViewReading.Angled)?.let { angled ->
+                if (kneesSeenOffFloor(angled.knee, angled.legsAboveHands, rules)) angled.legsAboveHands?.let { heldLegs += it }
+            }
         }
         calibrateTop(elbow)
         val straight = postureHeld(view, reading, posture, rules)
-        val shoulderHeight = (reading as? ViewReading.HeadOn)?.shoulderHeight
         (reading as? ViewReading.Angled)?.shoulderOverHand?.let {
             if (cycleStartMillis != 0L && it < minShoulderOverHandInCycle) minShoulderOverHandInCycle = it
         }
@@ -600,11 +686,6 @@ class RepCounter(
                 }
             }
         }
-        // The shoulders' height over the hands at the top — the reference the
-        // head-on depth check is a share of. Tracked while the arms are straight.
-        if (elbow >= top && shoulderHeight != null) {
-            topShoulderHeight = topShoulderHeight?.let { it * 0.9f + shoulderHeight * 0.1f } ?: shoulderHeight
-        }
 
         return when (phase) {
             Phase.AWAITING_TOP -> {
@@ -621,7 +702,7 @@ class RepCounter(
                     startCycle(frame.timestampMillis)
                 }
                 if (cycleStartMillis != 0L) {
-                    observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight)
+                    observe(frame.timestampMillis, elbow, straight, posture, knee, reading as? ViewReading.Angled)
                     if (followLegs && elbow >= PUSH_FROM_ELBOW) {
                         descentFrames++
                         if (knee != null && image != null && side != null && Angles.kneeClearOfEdge(image, side, rules.legEdgeMargin)) {
@@ -634,10 +715,11 @@ class RepCounter(
                     if (elbow <= rules.bottomTriggerDegrees) {
                         phase = Phase.AT_BOTTOM
                     } else if (elbow >= top) {
-                        // Back at the top without ever reaching the bottom.
+                        // Back at the top without ever reaching the bottom. On the back or
+                        // standing it was no push-up to go lower in: nothing is said.
                         lastCycle = cycleReadout(frame.timestampMillis - cycleStartMillis)
                         return abandonCycle(
-                            if (minElbowInCycle <= rules.descentAttemptDegrees) RepHint.GO_LOWER else null,
+                            if (minElbowInCycle <= rules.descentAttemptDegrees && !notFaceDown()) RepHint.GO_LOWER else null,
                         )
                     }
                 }
@@ -645,7 +727,7 @@ class RepCounter(
             }
 
             Phase.AT_BOTTOM -> {
-                observe(frame.timestampMillis, elbow, straight, posture, knee, shoulderHeight)
+                observe(frame.timestampMillis, elbow, straight, posture, knee, reading as? ViewReading.Angled)
                 if (elbow >= PUSH_FROM_ELBOW) {
                     pushPostures += posture
                     // A knee at the edge of the picture is the model's guess, not
@@ -679,6 +761,11 @@ class RepCounter(
                 // being wider — the rule is satisfied by construction, and S2
                 // can move them without weakening it.
                 val verdict = when {
+                    // Not a push-up at all — on the back, or standing: nothing to coach,
+                    // so nothing is said, whatever else the rep got wrong. Sit-ups on
+                    // 7 Oct were each told "Go lower" or "Up on your toes" out loud
+                    // (reviewer, 8 Oct). Unknown passes on to the checks below.
+                    notFaceDown() -> RepEvent.Discarded(null)
                     // Where money is staked, knees never seen on the push are
                     // not knees off the floor: the rep cannot be judged. Nor
                     // can one whose knee spent much of the push out of the
@@ -695,7 +782,7 @@ class RepCounter(
                     // on 3 Oct four were told "Knees off the floor". No knee
                     // push-up recorded has stopped short. A rep failing both
                     // is refused either way; only the words change.
-                    tooShallowHeadOn() || tooShallowAngled() -> RepEvent.Discarded(RepHint.GO_LOWER)
+                    tooShallowAngled() -> RepEvent.Discarded(RepHint.GO_LOWER)
                     // Knees before the body line: a push-up from the knees is a
                     // different exercise, and "keep your body straight" would
                     // not say so.
@@ -704,6 +791,8 @@ class RepCounter(
                     // Down from the knees, up on the toes: half of it was on the floor.
                     judgeKnees && !kneesOffFloor(descentKnees.medianOrNull(), null, rules) ->
                         RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
+                    // Legs well under this person's own plank: knees down, whatever the body.
+                    judgeKnees && legsDroppedFromPlank() -> RepEvent.Discarded(RepHint.UP_ON_YOUR_TOES)
                     !bodyHeld() -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)
                     // The chest first and the hips after: off the floor, or a cobra.
                     hipRiseTooLow() -> RepEvent.Discarded(RepHint.KEEP_BODY_STRAIGHT)
@@ -732,6 +821,13 @@ class RepCounter(
             unseen -> RepStance.NOT_VISIBLE
             !kneesOffFloor(pushKnees.medianOrNull(), pushLegs.medianOrNull(), rules, descentKnees.medianOrNull()) -> RepStance.KNEES
             !kneesOffFloor(descentKnees.medianOrNull(), null, rules) -> RepStance.KNEES
+            // No plank on the toes held through the countdown — the Daily 25 may start from
+            // the knees — so Hard's own-plank rule cannot be applied: not claimed for the toes
+            // (review, PR #14). Hard never starts without one ([plankCalibrated]).
+            !plankCalibrated -> RepStance.NOT_VISIBLE
+            // Hard's own-plank rule too: a second person's knee reps clear the line set on
+            // one body, and would be claimed for the toes (PR #14 review).
+            legsDroppedFromPlank() -> RepStance.KNEES
             else -> RepStance.TOES
         }
     }
@@ -779,7 +875,7 @@ class RepCounter(
         straight: Boolean,
         posture: Float,
         knee: Float?,
-        shoulderHeight: Float?,
+        angled: ViewReading.Angled?,
     ) {
         // Until the arms have really started down, the rep's clock keeps
         // restarting: resting at the top with the elbow wobbling around the
@@ -791,15 +887,8 @@ class RepCounter(
         if (!straight) bodyLineHeld = false
         cyclePostures += posture
         knee?.let { cycleKnees += it }
-        if (shoulderHeight != null && shoulderHeight < minShoulderHeightInCycle) minShoulderHeightInCycle = shoulderHeight
-    }
-
-    /** Head-on only: the shoulders never came down far enough towards the hands. */
-    private fun tooShallowHeadOn(): Boolean {
-        if (view != CameraView.FRONT) return false
-        val top = topShoulderHeight ?: return false
-        if (minShoulderHeightInCycle == Float.MAX_VALUE || top <= 0f) return false
-        return minShoulderHeightInCycle / top > rules.maxShoulderHeightAtBottom
+        angled?.kneeAboveHip?.let { cycleKneeAboveHip += it }
+        angled?.ankleBelowHand?.let { cycleAnkleBelowHand += it }
     }
 
     /** At 45°: the near shoulder never came down close enough to the hand. */
@@ -850,6 +939,8 @@ class RepCounter(
         bodyLineHeld = true
         cycleKnees.clear()
         cyclePostures.clear()
+        cycleKneeAboveHip.clear()
+        cycleAnkleBelowHand.clear()
         pushPostures.clear()
         pushKnees.clear()
         pushLegs.clear()
@@ -863,7 +954,6 @@ class RepCounter(
         descentKneeUnseen = 0
         pushFrames = 0
         pushLegsUnseen = 0
-        minShoulderHeightInCycle = Float.MAX_VALUE
         minShoulderOverHandInCycle = Float.MAX_VALUE
     }
 }

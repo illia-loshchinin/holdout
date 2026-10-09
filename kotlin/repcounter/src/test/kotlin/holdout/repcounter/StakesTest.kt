@@ -25,7 +25,7 @@ class StakesTest {
     )
 
     private val sideOn = input(shoulderSpan = 0.05f)
-    private val atFortyFive = input(shoulderSpan = 0.4f)
+    private val atFortyFive = input(shoulderSpan = 0.3f)
     private val headOn = input(shoulderSpan = 0.7f)
 
     @Test
@@ -45,12 +45,24 @@ class StakesTest {
     }
 
     @Test
-    fun `the Daily 25 starts head-on or at 45 degrees, never square side-on`() {
-        assertTrue(Preflight(stakes = Stakes.DAILY).evaluate(headOn).canStart)
+    fun `the Daily 25 starts at 45 degrees only, as an Easy Holdout does`() {
+        // 8 Oct (002 FR-001): head-on is dropped — the Daily 25 is where a Holdout's set-up is practised.
         assertTrue(Preflight(stakes = Stakes.DAILY).evaluate(atFortyFive).canStart)
-        val sideReport = Preflight(stakes = Stakes.DAILY).evaluate(sideOn)
-        assertFalse(sideReport.canStart)
-        assertEquals(listOf(Stakes.DAILY.cameraFix), sideReport.fixes)
+        for (frame in listOf(headOn, sideOn)) {
+            val report = Preflight(stakes = Stakes.DAILY).evaluate(frame)
+            assertFalse(report.canStart, "${report.view} must not start the Daily 25")
+            assertEquals(listOf(Stakes.DAILY.cameraFix), report.fixes)
+        }
+        assertEquals(Stakes.EASY.allowedViews, Stakes.DAILY.allowedViews)
+    }
+
+    @Test
+    fun `no counter is measured head-on, whatever the stakes`() {
+        // The second lock on the door the camera check closes (002 FR-006, retired 8 Oct).
+        for (stakes in Stakes.entries) {
+            assertFailsWith<IllegalArgumentException> { RepCounter(view = CameraView.FRONT, stakes = stakes) }
+        }
+        assertNull(ViewReading.of(CameraView.FRONT, Traces.frame(0, 175f, 180f), Traces.angledImage(0, 175f)))
     }
 
     @Test
@@ -152,6 +164,66 @@ class StakesTest {
         assertEquals(0, angledSet(kneeDegrees = 70f).first, "money is only staked on full push-ups")
     }
 
+    /** [image] with [joint] moved [pixels] down the picture (up when negative). The drawn arm is 170 px long. */
+    private fun moved(image: ImagePose, joint: Int, pixels: Float): ImagePose {
+        val landmarks = image.frame.landmarks.toMutableList()
+        landmarks[joint] = landmarks[joint].copy(y = landmarks[joint].y + pixels / image.height)
+        return image.copy(frame = image.frame.copy(landmarks = landmarks))
+    }
+
+    private fun dailySet(picture: (ImagePose) -> ImagePose): Pair<Int, List<RepHint?>> {
+        val daily = RepCounter(view = CameraView.OBLIQUE, stakes = Stakes.DAILY)
+        val hints = mutableListOf<RepHint?>()
+        for (frame in Traces.set(count = 10)) {
+            val image = picture(Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!))
+            (daily.onFrame(frame, image) as? RepEvent.Discarded)?.let { hints += it.hint }
+        }
+        return daily.total to hints
+    }
+
+    @Test
+    fun `the Daily 25 counts nothing done on the back or standing up - in silence`() {
+        // 7 Oct: crunches with the knees up, and a kettlebell held standing, counted
+        // among push-ups — the arms bent and straightened, the body line read straight.
+        assertEquals(10, dailySet { it }.first, "the same arms, face down: ten push-ups")
+        val onTheBack = dailySet {
+            val (hip, knee) = it.frame.landmarks.let { l -> l[PoseIndex.LEFT_HIP] to l[PoseIndex.LEFT_KNEE] }
+            moved(it, PoseIndex.LEFT_KNEE, (hip.y - knee.y) * it.height - 100f)
+        }
+        assertEquals(0, onTheBack.first, "the knee above the hip: lying on the back")
+        assertTrue(onTheBack.second.all { it == null }, "nothing to coach: ${onTheBack.second}")
+        val standing = dailySet { moved(it, PoseIndex.LEFT_ANKLE, 300f) }
+        assertEquals(0, standing.first, "the ankle a whole leg below the hand: standing")
+        assertTrue(standing.second.all { it == null }, "nothing to coach: ${standing.second}")
+    }
+
+    @Test
+    fun `sit-ups are refused in silence under every stakes - never told to go lower or get up on the toes`() {
+        // 7 Oct, a Hard sitting: sit-ups, knees bent, each refused out loud with "Go lower"
+        // or "Up on your toes" — the face-down rule came after the checks that spoke (reviewer, 8 Oct).
+        fun sitUps(stakes: Stakes, bottom: Float, onTheBack: Boolean): Pair<Int, List<RepHint?>> {
+            val counter = RepCounter(view = CameraView.OBLIQUE, stakes = stakes)
+            val hints = mutableListOf<RepHint?>()
+            for (frame in Traces.set(count = 10, bottom = bottom)) {
+                val image = Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = 60f).let {
+                    if (!onTheBack) return@let it
+                    val (hip, knee) = it.frame.landmarks.let { l -> l[PoseIndex.LEFT_HIP] to l[PoseIndex.LEFT_KNEE] }
+                    moved(it, PoseIndex.LEFT_KNEE, (hip.y - knee.y) * it.height - 100f)
+                }
+                (counter.onFrame(frame, image) as? RepEvent.Discarded)?.let { hints += it.hint }
+            }
+            return counter.total to hints
+        }
+        assertEquals(RepHint.GO_LOWER, sitUps(Stakes.STAKED, bottom = 125f, onTheBack = false).second.first(), "face down, a half rep is told to go lower")
+        for (stakes in Stakes.entries) {
+            for (bottom in listOf(70f, 125f)) {
+                val (count, hints) = sitUps(stakes, bottom, onTheBack = true)
+                assertEquals(0, count, "$stakes, down to $bottom°")
+                assertTrue(hints.all { it == null }, "$stakes, down to $bottom°: nothing to coach, got $hints")
+            }
+        }
+    }
+
     @Test
     fun `the Daily 25 may start from the knees`() {
         val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.DAILY)
@@ -213,17 +285,17 @@ class StakesTest {
 
     @Test
     fun `a staked push with no knee in the picture is not credited - the knees were never seen`() {
-        for ((stakes, expected) in listOf(Stakes.STAKED to 0, Stakes.DAILY to 10)) {
+        for (stakes in Stakes.entries) {
             val counter = RepCounter(view = CameraView.OBLIQUE, stakes = stakes)
             val hints = mutableListOf<RepHint?>()
             for (frame in Traces.set(count = 10)) {
-                // From the knees, shins down. With no knee to end the body line at, the
-                // Daily 25 reads it to the ankle, as it did before the knee line.
+                // From the knees, shins down, the knee never seen.
                 val image = withoutKnee(Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = SHINS_DOWN))
                 (counter.onFrame(frame, image) as? RepEvent.Discarded)?.let { hints += it.hint }
             }
-            assertEquals(expected, counter.total, "$stakes")
-            if (stakes == Stakes.STAKED) assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.LEGS_IN_VIEW }, "got $hints")
+            // Every sitting since 8 Oct: the Daily 25 keeps the legs in view as Easy does (002 FR-007).
+            assertEquals(0, counter.total, "$stakes")
+            assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.LEGS_IN_VIEW }, "$stakes: got $hints")
         }
     }
 
@@ -235,7 +307,7 @@ class StakesTest {
             for (i in listOf(PoseIndex.LEFT_KNEE, PoseIndex.LEFT_ANKLE)) landmarks[i] = landmarks[i].copy(presence = 0f)
             return image.copy(frame = image.frame.copy(landmarks = landmarks))
         }
-        for ((stakes, expected) in listOf(Stakes.STAKED to 0, Stakes.DAILY to 10)) {
+        for (stakes in Stakes.entries) {
             val counter = RepCounter(view = CameraView.OBLIQUE, stakes = stakes)
             val hints = mutableListOf<RepHint?>()
             var previous = 180f
@@ -247,14 +319,15 @@ class StakesTest {
                 val image = Traces.angledImage(frame.timestampMillis, elbow)
                 (counter.onFrame(frame, if (rising) withoutLeg(image) else image) as? RepEvent.Discarded)?.let { hints += it.hint }
             }
-            assertEquals(expected, counter.total, "$stakes")
-            if (stakes == Stakes.STAKED) assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.LEGS_IN_VIEW }, "got $hints")
+            // Every sitting since 8 Oct: the Daily 25 keeps the legs in view as Easy does (002 FR-007).
+            assertEquals(0, counter.total, "$stakes")
+            assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.LEGS_IN_VIEW }, "$stakes: got $hints")
         }
     }
 
     @Test
     fun `a knee hidden on the way down is not credited, though the push shows it`() {
-        for ((stakes, expected) in listOf(Stakes.STAKED to 0, Stakes.DAILY to 10)) {
+        for (stakes in Stakes.entries) {
             val counter = RepCounter(view = CameraView.OBLIQUE, stakes = stakes)
             val hints = mutableListOf<RepHint?>()
             var previous = 180f
@@ -266,9 +339,36 @@ class StakesTest {
                 val image = Traces.angledImage(frame.timestampMillis, elbow)
                 (counter.onFrame(frame, if (lowering) withoutKnee(image) else image) as? RepEvent.Discarded)?.let { hints += it.hint }
             }
-            assertEquals(expected, counter.total, "$stakes")
-            if (stakes == Stakes.STAKED) assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.LEGS_IN_VIEW }, "got $hints")
+            // Every sitting since 8 Oct: the Daily 25 keeps the legs in view as Easy does (002 FR-007).
+            assertEquals(0, counter.total, "$stakes")
+            assertTrue(hints.isNotEmpty() && hints.all { it == RepHint.LEGS_IN_VIEW }, "$stakes: got $hints")
         }
+    }
+
+    @Test
+    fun `the plank is read whatever the arms do - a Hard countdown stops on knees down once the arms bend`() {
+        // The gate's own blocker names the arms first; a member who starts down on "1" and
+        // drops the knees would otherwise show only ARMS, and the countdown run on (PR #14 review).
+        val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.STAKED)
+        fun at(elbow: Float, knee: Float): Pair<HoldBlocker?, HoldBlocker?> {
+            gate.onFrame(Traces.frame(0, elbowDegrees = elbow, bodyLineDegrees = 180f), 0, pillsGreen = true, view = CameraView.OBLIQUE, image = Traces.angledImage(0, elbow, kneeDegrees = knee))
+            return gate.blocker to gate.plankBlocker
+        }
+        assertEquals(HoldBlocker.ARMS to HoldBlocker.KNEES, at(elbow = 120f, knee = 70f))
+        assertEquals(HoldBlocker.ARMS to null, at(elbow = 120f, knee = 178f), "going down on the toes: the plank holds")
+        assertEquals(null to null, at(elbow = 175f, knee = 178f))
+    }
+
+    @Test
+    fun `a frame the model cannot read is no plank to the countdown, though the ready hold waits it out`() {
+        // Kept from the frame before, the countdown would hold on any number of them (PR #14 review).
+        val gate = ReadyGate(holdMillis = 1_000, stakes = Stakes.STAKED)
+        gate.onFrame(Traces.frame(0, elbowDegrees = 175f, bodyLineDegrees = 180f), 0, pillsGreen = true, view = CameraView.OBLIQUE, image = Traces.angledImage(0, 175f))
+        assertEquals(null, gate.plankBlocker)
+        val progress = gate.progress
+        gate.onFrame(Traces.blind(33), 33, pillsGreen = true, view = CameraView.OBLIQUE, image = ImagePose(Traces.blind(33), Traces.IMAGE_WIDTH, Traces.IMAGE_HEIGHT))
+        assertEquals(HoldBlocker.UNREADABLE, gate.plankBlocker)
+        assertEquals(progress, gate.progress, "the hold neither fills nor breaks")
     }
 
     @Test
@@ -322,11 +422,17 @@ class StakesTest {
     @Test
     fun `a frame where the near arm is lost is skipped, not read from the far side`() {
         val counter = RepCounter(view = CameraView.OBLIQUE, stakes = Stakes.DAILY)
+        val verdicts = mutableListOf<RepEvent>()
         Traces.set(count = 10).forEachIndexed { i, frame ->
             val image = Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!)
-            counter.onFrame(frame, if (i > 10 && i % 4 == 0) nearArmLost(image) else image)
+            counter.onFrame(frame, if (i > 10 && i % 4 == 0) nearArmLost(image) else image)?.let { verdicts += it }
         }
-        assertEquals(10, counter.total)
+        // Read from the far side, its arm guessed straight mid-descent would cut reps short
+        // ("Go lower"). Skipped, every rep reaches the bottom and is judged. A skipped frame is
+        // also one the legs were not seen in, and on these coarse synthetic reps — three frames
+        // to a push — that is over the quarter every sitting allows since 8 Oct (002 FR-007).
+        assertEquals(10, verdicts.size)
+        assertTrue(verdicts.none { it is RepEvent.Discarded && it.hint == RepHint.GO_LOWER }, "got $verdicts")
     }
 
     /** Five reps topping out at [repTop], after a countdown held at [held] (or none). */
@@ -387,6 +493,28 @@ class StakesTest {
             if (i < firstRepDone) assertEquals(null, counter.prime(frame, image)) else counter.onFrame(frame, image)
         }
         assertEquals(1, counter.total)
+    }
+
+    /** What a staked sitting calibrated on, after a countdown held with the knee at [countdownKnee] and one rep. */
+    private fun calibratedAfterCountdown(countdownKnee: Float): CycleReadout? {
+        val counter = RepCounter(view = CameraView.OBLIQUE, stakes = Stakes.STAKED)
+        Traces.settleAtTop(0, millis = 1_000, elbow = 170f).forEach { counter.prime(it, Traces.angledImage(it.timestampMillis, 170f, kneeDegrees = countdownKnee)) }
+        Traces.set(count = 1, top = 170f).forEach { frame ->
+            val at = frame.copy(timestampMillis = frame.timestampMillis + 1_100)
+            counter.onFrame(at, Traces.angledImage(at.timestampMillis, Angles.elbow(frame)!!))
+        }
+        return counter.lastCycle
+    }
+
+    @Test
+    fun `given a staked countdown held on the knees, when counting starts, then it has set no plank to measure reps against`() {
+        // On the toes the countdown is this person's plank.
+        val toes = calibratedAfterCountdown(countdownKnee = 178f)
+        assertTrue(toes?.heldLegsAboveHands != null, "on the toes")
+        // Kneeling through it must not set a kneeling reference that knee reps then match (review on #14).
+        val kneeling = calibratedAfterCountdown(countdownKnee = 80f)
+        assertNull(kneeling?.heldLegsAboveHands)
+        assertNull(kneeling?.heldPlacementRatio)
     }
 
     @Test
@@ -509,17 +637,22 @@ class StakesTest {
         assertTrue(gate.onFrame(top(2_000), 2_000, pillsGreen = true, view = CameraView.OBLIQUE, image = knees(2_000)))
     }
 
-    /** The stances of every rep a Daily 25 counter at [view] counts, the knee at [kneeDegrees]. */
-    private fun stances(view: CameraView, kneeDegrees: Float = 178f, hideKnee: Boolean = false): List<RepStance?> {
+    /**
+     * The stances of every rep a Daily 25 counter at [view] counts, the knee at [kneeDegrees],
+     * after a countdown held with the knee at [heldKnee] — on the toes unless said.
+     */
+    private fun stances(view: CameraView, kneeDegrees: Float = 178f, hideKnee: Boolean = false, heldKnee: Float = 178f): List<RepStance?> {
         val counter = RepCounter(view = view, stakes = Stakes.DAILY)
+        Traces.settleAtTop(0, millis = 1_000).forEach { counter.prime(it, if (view == CameraView.OBLIQUE) Traces.angledImage(it.timestampMillis, 175f, kneeDegrees = heldKnee) else null) }
         val out = mutableListOf<RepStance?>()
         for (frame in Traces.set(count = 5)) {
+            val at = frame.copy(timestampMillis = frame.timestampMillis + 1_100)
             val image = if (view == CameraView.OBLIQUE) {
-                Traces.angledImage(frame.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = kneeDegrees).let { if (hideKnee) withoutKnee(it) else it }
+                Traces.angledImage(at.timestampMillis, Angles.elbow(frame)!!, kneeDegrees = kneeDegrees).let { if (hideKnee) withoutKnee(it) else it }
             } else {
                 null
             }
-            (counter.onFrame(frame, image) as? RepEvent.Counted)?.let { out += it.stance }
+            (counter.onFrame(at, image) as? RepEvent.Counted)?.let { out += it.stance }
         }
         return out
     }
@@ -528,7 +661,11 @@ class StakesTest {
     fun `given a Daily 25 at 45 degrees, when reps are counted, then each says whether Hard would have counted it`() {
         assertEquals(List(5) { RepStance.TOES }, stances(CameraView.OBLIQUE))
         assertEquals(List(5) { RepStance.KNEES }, stances(CameraView.OBLIQUE, kneeDegrees = 70f), "counted all the same - the Daily 25 allows knees")
-        assertEquals(List(5) { RepStance.NOT_VISIBLE }, stances(CameraView.OBLIQUE, kneeDegrees = SHINS_DOWN, hideKnee = true))
+        // A knee never seen is not credited in the Daily 25 either since 8 Oct (002 FR-007).
+        assertEquals(emptyList(), stances(CameraView.OBLIQUE, kneeDegrees = SHINS_DOWN, hideKnee = true))
+        // Started from the knees: no plank on the toes to hold the push to, so even reps that
+        // pass the absolute knee checks are not claimed for the toes (PR #14 review).
+        assertEquals(List(5) { RepStance.NOT_VISIBLE }, stances(CameraView.OBLIQUE, heldKnee = 70f))
     }
 
     @Test
@@ -553,6 +690,7 @@ class StakesTest {
         val rule = Stakes.STAKED_RULE.lowercase()
         assertTrue("45" in rule && "not in front" in rule, "the placement")
         assertTrue("toes" in rule && "knees" in rule, "the knees")
+        assertTrue("resting on the floor" in rule, "the floor: a rep resting on it does not count")
     }
 
     private companion object {

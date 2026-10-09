@@ -1,0 +1,8 @@
+# holdout-rep-labels v2
+# trace=angled50-right-mixed-05.trace.csv
+# offset=0.5
+# reviewed=2026-10-04
+# source=20261001-173958-staked
+t,label,by,flag,hint,note,claude,reply
+2618836663,knees,reviewer,,,,"Not honest: this recorded rep is the old app's 17 s cut over the cheat block (1:45-2:02 on video: kneeling planks, hips on the floor chest up, lying flat) - its 160° top missed the honest reps. Today's counter cuts that stretch into separate reps and refuses them all; the ten honest reps before it all count. At the top the knees are down, so knees; press 3 to confirm, or 5 if you see cobras.",
+2618838597,unsure,reviewer,answered,,"can't say, cropped wrongly",,"Not a push-up, and not counted. On the video you stand up and walk towards the phone at the end of the set; the app was still counting and today refused it with ""Go lower"" (today the counter cuts this stretch a little differently; this is its nearest rep, 0.8 s away). Nothing in the counter changed: no reading I tried (torso angle, view) separates such moments from a real rep reliably yet, so they stay refused with words meant for a rep. The clip now runs 2:01.6–2:04.5 (it used to start at 2:02.6). ""other"" is the label for a moment that is not a push-up."

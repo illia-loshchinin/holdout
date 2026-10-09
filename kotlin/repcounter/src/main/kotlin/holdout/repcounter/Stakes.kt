@@ -5,15 +5,18 @@ package holdout.repcounter
  *
  * | | placements | what is verified |
  * |---|---|---|
- * | [DAILY] — the free Daily 25 | **head-on or at 45°** | depth, lockout, tempo, torso down / no hip fold. **Push-ups from the knees count** — a free habit for building strength |
- * | [STAKED] — a **Hard** Holdout (form 0, 21-day) | **at 45° only** | all of that, and **knees off the floor** |
- * | [EASY] — an **Easy** Holdout (form 1, 7-day; H35) | **at 45°, and no more frontal than about 40°** | everything Hard checks — the legs and knees in view, the body line, the hip rise — **except** knees off the floor: push-ups from the knees count |
+ * | [STAKED] — a **Hard** Holdout (form 0, 21-day) | **at 45° only** | depth, lockout, tempo, the body line, the hip rise, the legs and knees in view, face down, and **knees off the floor** |
+ * | [EASY] — an **Easy** Holdout (form 1, 7-day; H35) | **at 45°, and no more frontal than about 40°** | everything Hard checks **except** knees off the floor: push-ups from the knees count |
+ * | [DAILY] — the free Daily 25 | **as Easy** | **as Easy**: an Easy Holdout with nothing staked |
  *
- * Knee push-ups are a choice for the Daily 25, not a limitation it lives with:
- * members building up to full push-ups keep their habit. Staked sittings are
- * where they are refused, and 45° is the placement that can see them — head-on
- * the legs point into the lens, and on the phone every leg measure read the
- * same for knee push-ups as for honest ones (`fixtures/rep-traces/README.md`). At 45° the plane the body bends in is turned towards the
+ * The Daily 25 is where members practise for a Holdout, so since 8 Oct it is
+ * held to the Easy set-up (002 FR-001, FR-007): head-on it had counted what a
+ * Holdout refuses, knees, sags and cobras unseen. Knee push-ups are a choice
+ * for the Daily 25 and Easy, not a limitation they live with: members building
+ * up to full push-ups keep their habit. Hard is where they are refused, and
+ * 45° is the placement that can see them — head-on the legs point into the
+ * lens, and on the phone every leg measure read the same for knee push-ups as
+ * for honest ones (`fixtures/rep-traces/README.md`). At 45° the plane the body bends in is turned towards the
  * lens, so a bent knee reads bent, and it needs less floor than square side-on,
  * which is offered to nobody: a body lying across a portrait frame puts the
  * phone about 2 m away.
@@ -28,28 +31,25 @@ enum class Stakes {
     EASY,
     ;
 
-    /** Money is on it: 45° only, the legs and knees kept in view (FR-021a). */
+    /**
+     * Money is on it: a rule sentence read before staking (FR-021a). The set-up
+     * and the checks no longer depend on it — the Daily 25 is held to Easy's.
+     */
     val staked: Boolean get() = this != DAILY
 
     /** Knees must be off the floor: Hard only. Easy and the Daily 25 count push-ups from the knees. */
     val judgesKnees: Boolean get() = this == STAKED
 
-    /** The views a sitting at these stakes may be measured from. */
+    /** The views a sitting at these stakes may be measured from: 45°, whatever the stakes (002 FR-001, FR-002). */
     val allowedViews: Set<CameraView>
-        get() = when (this) {
-            DAILY -> setOf(CameraView.FRONT, CameraView.OBLIQUE)
-            STAKED, EASY -> setOf(CameraView.OBLIQUE)
-        }
+        get() = setOf(CameraView.OBLIQUE)
 
     /** Whether a sitting at these stakes may be measured from [view]. */
     fun accepts(view: CameraView?): Boolean = view in allowedViews
 
-    /** What the camera check says when the phone is anywhere else. */
+    /** What the camera check says when the phone is anywhere else (002 FR-004). */
     val cameraFix: String
-        get() = when (this) {
-            DAILY -> "Put the phone in front of you, or at 45°"
-            STAKED, EASY -> "Turn the phone to 45°"
-        }
+        get() = "Turn the phone to 45°"
 
     companion object {
         /**
@@ -61,7 +61,8 @@ enum class Stakes {
         const val STAKED_RULE =
             "Staked Holdouts are counted at 45°: stand the phone on the floor ahead of your shoulder, " +
                 "turned to look at you at about 45° — not in front, not straight beside you — " +
-                "and do full push-ups from your toes. Push-ups from the knees do not count."
+                "and do full push-ups from your toes. Push-ups from the knees, or with the hips resting on the floor " +
+                "at the bottom, do not count."
 
         /** The Easy rule, read on the join screen of a 7-day Holdout (H35). */
         const val EASY_RULE =

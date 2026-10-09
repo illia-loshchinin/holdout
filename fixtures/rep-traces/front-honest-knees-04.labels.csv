@@ -1,0 +1,23 @@
+# holdout-rep-labels v2
+# trace=front-honest-knees-04.trace.csv
+# person=p1
+# clothing=in underwear only, man
+# offset=0.5
+# reviewed=2026-10-04
+# source=20261002-141119-daily
+t,label,by,flag,hint,note,claude,reply
+2692607166,honest,reviewer,,,,,
+2692608833,honest,reviewer,,,,,
+2692610767,honest,reviewer,,,,,
+2692612868,honest,reviewer,,,,,
+2692614602,honest,reviewer,,,,,
+2692616336,honest,reviewer,,,,,
+2692618104,honest,reviewer,,,,,
+2692619871,honest,reviewer,,,,,
+2692621672,honest,reviewer,,,,,
+2692623539,honest,reviewer,,,,,
+2692628041,knees,reviewer,,UP_ON_YOUR_TOES,obiouse knees,,"Both are knee push-ups in a Daily 25 sitting. The Daily 25 counts push-ups from the knees by design, which you confirmed today (choice a), so counting them is right, and the app does not say ""Knees off the floor"" there. Today's counter counts both. At 0:32 the app said ""Go lower"" when it was recorded. Head-on, the shoulders came down to 0.26 of their top height, and the line was 0.25 then. This set is what moved the line to 0.285 in fd9b116 (2 Oct, about ten minutes later; it is the fixture front-honest-knees-04), and the rep has counted since. Refusing knee push-ups head-on would not be a switch. Head-on the pose model does place the knees, but the counter does not judge them there on purpose. Head-on, knee angle, knee and ankle height, hip height, torso angle and body line all read the same for a push-up from the knees as for an honest one. Only hip width against shoulder width came apart in that recording (front-knees-01), and by 0.01, in one session. As the code stands, turning knee judging on head-on would refuse every rep, honest ones too, as ""Keep your legs in the picture"". At 45° the Daily 25 does not judge knees either; only staked sittings do. Catching knees in the Daily 25 would therefore need two things: a change to the Daily rule so that 45° Daily sittings get the staked knee checks, with head-on Daily sittings still unable to be judged; or an image check of the knees, which does not exist yet."
+2692630242,knees,reviewer,,,obiouse knees - is OK for that mode,,"Both are knee push-ups in a Daily 25 sitting. The Daily 25 counts push-ups from the knees by design, which you confirmed today (choice a), so counting them is right, and the app does not say ""Knees off the floor"" there. Today's counter counts both. At 0:32 the app said ""Go lower"" when it was recorded. Head-on, the shoulders came down to 0.26 of their top height, and the line was 0.25 then. This set is what moved the line to 0.285 in fd9b116 (2 Oct, about ten minutes later; it is the fixture front-honest-knees-04), and the rep has counted since. Refusing knee push-ups head-on would not be a switch. Head-on the pose model does place the knees, but the counter does not judge them there on purpose. Head-on, knee angle, knee and ankle height, hip height, torso angle and body line all read the same for a push-up from the knees as for an honest one. Only hip width against shoulder width came apart in that recording (front-knees-01), and by 0.01, in one session. As the code stands, turning knee judging on head-on would refuse every rep, honest ones too, as ""Keep your legs in the picture"". At 45° the Daily 25 does not judge knees either; only staked sittings do. Catching knees in the Daily 25 would therefore need two things: a change to the Daily rule so that 45° Daily sittings get the staked knee checks, with head-on Daily sittings still unable to be judged; or an image check of the knees, which does not exist yet."
+2692632210,knees,reviewer,,,,,
+2692634277,knees,reviewer,,,,,
+2692636311,knees,reviewer,,,,,

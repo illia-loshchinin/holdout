@@ -1,0 +1,18 @@
+# holdout-rep-labels v2
+# trace=20260929-163059-staked.trace.csv.gz
+# offset=0.5
+# reviewed=2026-10-04
+# source=20260929-163059-staked
+t,label,by,flag,hint,note,claude,reply
+2441786288,honest,reviewer,,,,,
+2441788456,honest,reviewer,,,,,
+2441805229,honest,reviewer,,,,,
+2441809698,honest,reviewer,,,,,
+2441825905,honest,reviewer,,,,,
+2441830440,unsure,reviewer,,,"hard to say, wrongly cropped",,"Not a push-up, and not counted. On the video you crawl up to the phone in the middle of the set (you go back and do honest reps at 1:07); the app was still counting and today refused it with ""Go lower"". Nothing in the counter changed: no reading I tried (torso angle, view) separates such moments from a real rep reliably yet, so they stay refused with words meant for a rep. The clip now runs 0:52.7–0:56.4 (it used to start at 0:51.9). ""other"" is the label for a moment that is not a push-up."
+2441835409,unsure,reviewer,,,wrongly cropped video,,"Not a push-up, and not counted. On the video you crawl up to the phone in the middle of the set (you go back and do honest reps at 1:07); the app was still counting and today refused it with ""Knees off the floor"" (today the counter cuts this stretch a little differently; this is its nearest rep, 0.8 s away). Nothing in the counter changed: no reading I tried (torso angle, view) separates such moments from a real rep reliably yet, so they stay refused with words meant for a rep. The clip now runs 0:55.4–1:01.4 (it used to start at 0:56.4). ""other"" is the label for a moment that is not a push-up."
+2441841345,honest,reviewer,,,,,
+2441848348,unsure,reviewer,,,"wrong cropped, no rep here",,"Not a push-up, and not counted. On the video you go to the phone a second time in the middle of the set (honest reps follow at 1:21 and 1:24); the app was still counting and today refused it with ""Go lower"". Nothing in the counter changed: no reading I tried (torso angle, view) separates such moments from a real rep reliably yet, so they stay refused with words meant for a rep. The clip now runs 1:10.4–1:14.3 (it used to start at 1:07.3). ""other"" is the label for a moment that is not a push-up."
+2441850449,unsure,reviewer,,,no rep here,,"Not a push-up, and not counted. On the video you go to the phone a second time in the middle of the set (honest reps follow at 1:21 and 1:24); the app was still counting and today refused it with ""Keep your legs in the picture"". Nothing in the counter changed: no reading I tried (torso angle, view) separates such moments from a real rep reliably yet, so they stay refused with words meant for a rep. The clip now runs 1:13.6–1:16.4 (it used to start at 1:14.3). ""other"" is the label for a moment that is not a push-up."
+2441855551,honest,reviewer,,,,,
+2441858185,honest,reviewer,,,,,

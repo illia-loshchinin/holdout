@@ -52,6 +52,15 @@ class ReadyGate(
     var blocker: HoldBlocker? = null
         private set
 
+    /**
+     * What the plank lacks this frame, whatever the arms do: the knee unreadable,
+     * the knees down (where knees are judged), the body out of line. [blocker]
+     * names the arms first, so once the arms bend on "1" it says nothing else —
+     * every countdown watches this instead (review, PR #14).
+     */
+    var plankBlocker: HoldBlocker? = null
+        private set
+
     /** How far through the hold, 0..1 — for a progress ring on the screen. */
     var progress: Float = 0f
         private set
@@ -77,14 +86,22 @@ class ReadyGate(
         if (!pillsGreen) {
             reset()
             blocker = null
+            plankBlocker = null
             return false
         }
 
         val measuredFrom = view ?: CameraView.SIDE
         // The same body line the counter will judge: straight to the knee will do where push-ups from the knees count.
-        val reading = ViewReading.of(measuredFrom, frame, image, bodyLineToKnee = !stakes.judgesKnees) ?: return false
+        val reading = ViewReading.of(measuredFrom, frame, image, bodyLineToKnee = !stakes.judgesKnees) ?: run {
+            // The hold neither fills nor breaks on a frame the model could not read, but the
+            // countdown's plank is not one the counter can read either: under the guard's
+            // grace a glitch passes, a run of them does not (review, PR #14).
+            plankBlocker = HoldBlocker.UNREADABLE
+            return false
+        }
 
         blocker = blockerOf(measuredFrom, reading, rulesFor(view))
+        plankBlocker = blockerOf(measuredFrom, reading, rulesFor(view), armsToo = false)
         if (blocker != null) {
             reset()
             return false
@@ -107,11 +124,11 @@ class ReadyGate(
     //
     // One thing at a time, in the order a body gets into position: arms, then
     // knees, then the line of the body.
-    private fun blockerOf(view: CameraView, reading: ViewReading, rules: RepRules): HoldBlocker? {
+    private fun blockerOf(view: CameraView, reading: ViewReading, rules: RepRules, armsToo: Boolean = true): HoldBlocker? {
         val angled = reading as? ViewReading.Angled
         return when {
-            reading.elbow < (if (view == CameraView.OBLIQUE) rules.obliqueTopDegrees else rules.topTriggerDegrees) -> HoldBlocker.ARMS
-            stakes.staked && angled?.kneeUnreadable == true -> HoldBlocker.KNEES_UNREADABLE
+            armsToo && reading.elbow < (if (view == CameraView.OBLIQUE) rules.obliqueTopDegrees else rules.topTriggerDegrees) -> HoldBlocker.ARMS
+            angled?.kneeUnreadable == true -> HoldBlocker.KNEES_UNREADABLE
             stakes.judgesKnees && !kneesSeenOffFloor(reading.knee, angled?.legsAboveHands, rules) -> HoldBlocker.KNEES
             !postureHeld(view, reading, reading.posture, rules) -> HoldBlocker.BODY
             else -> null
@@ -127,4 +144,7 @@ enum class HoldBlocker(val fix: String) {
     /** The model cannot place the knee — loose trousers — so nothing about it can be judged ([Angles.kneeReadable]). */
     KNEES_UNREADABLE("The phone cannot make out your knees. Loose trousers hide them: wear something fitted, or roll them up"),
     BODY("Bring your body into one line from shoulders to feet"),
+
+    /** The frame could not be read at all. Only [ReadyGate.plankBlocker] says it: the ready hold waits it out. */
+    UNREADABLE("Stay in the picture: the phone cannot read your position"),
 }

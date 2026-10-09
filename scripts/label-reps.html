@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rep labels</title>
+<style>
+  :root { --bg:#14161a; --panel:#1d2026; --line:#2c3038; --text:#e8eaee; --dim:#9aa1ad; --accent:#6cb6ff; --ok:#5ccf8a; --bad:#ff6b6b; --warn:#f2c14e; }
+  * { box-sizing: border-box; }
+  html { height:100%; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui, sans-serif; display:grid; grid-template-columns: 300px 1fr; grid-template-rows: 100vh; height:100vh; overflow:hidden; }
+  aside { border-right:1px solid var(--line); overflow:auto; display:flex; flex-direction:column; height:100vh; min-height:0; }
+  aside h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:12px 12px 6px; }
+  select, input, textarea, button { font:inherit; color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:6px; }
+  select { margin:0 12px; padding:6px; }
+  #reps { list-style:none; margin:0; padding:0 0 12px; }
+  #reps li { display:grid; grid-template-columns: 28px 48px 1fr auto auto; gap:6px; padding:5px 12px; cursor:pointer; border-left:3px solid transparent; }
+  #reps li:hover { background:var(--panel); }
+  #reps li.on { background:var(--panel); border-left-color:var(--accent); }
+  #reps .n, #reps .tm { color:var(--dim); font-variant-numeric:tabular-nums; }
+  .verdict { color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tag { font-size:12px; padding:0 6px; border-radius:10px; background:var(--line); }
+  .tag.miss { background:var(--bad); color:#1a0000; }
+  .tag.match { background:var(--ok); color:#002010; }
+  .tag.words { background:var(--warn); color:#2a1d00; }
+  main { display:grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width:0; height:100vh; min-height:0; }
+  header { padding:10px 16px; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  header .facts { color:var(--dim); flex:1 1 200px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  header { flex-wrap:nowrap; }
+  #stage { position:relative; background:#000; min-height:0; }
+  video, #overlay { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+  #overlay { pointer-events:none; }
+  footer { padding:10px 16px; border-top:1px solid var(--line); display:grid; gap:8px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .labels button { padding:6px 10px; cursor:pointer; }
+  .labels button.on { background:var(--accent); color:#001428; border-color:var(--accent); }
+  .labels kbd { color:var(--dim); margin-right:4px; }
+  .labels button.on kbd { color:#001428; }
+  input[type=text] { padding:5px 8px; min-width:160px; }
+  #note { flex:1; min-width:240px; }
+  .muted { color:var(--dim); }
+  #status { margin-left:auto; color:var(--dim); }
+  .flag { color:var(--warn); }
+  .by-claude { color:var(--dim); font-size:11px; margin-left:3px; }
+  #claudeNote { color:var(--dim); font-style:italic; }
+  #flagLabel { display:flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid var(--line); border-radius:6px; cursor:pointer; white-space:nowrap; }
+  #flagLabel:has(input:checked) { background:var(--warn); color:#2a1d00; border-color:var(--warn); }
+  #finished { display:flex; align-items:center; gap:6px; padding:4px 10px; border:1px solid var(--line); border-radius:6px; cursor:pointer; white-space:nowrap; }
+  #finished:has(input:checked) { border-color:var(--ok); color:var(--ok); }
+  #pruneBanner { margin:12px 12px 0; padding:8px 10px; border:1px solid var(--warn); border-radius:6px; color:var(--warn); font-size:13px; }
+  #pruneBanner button { margin-top:6px; padding:4px 8px; cursor:pointer; }
+  .tabs { display:flex; gap:6px; margin:12px 12px 0; }
+  .tabs button { flex:1; padding:6px; cursor:pointer; }
+  .tabs button.on { background:var(--accent); color:#001428; border-color:var(--accent); }
+  #queue { list-style:none; margin:0; padding:0 0 12px; }
+  #queue li { padding:5px 12px; cursor:pointer; border-left:3px solid transparent; display:grid; grid-template-columns: 1fr auto; gap:2px 6px; }
+  #queue li:hover { background:var(--panel); }
+  #queue li.on { background:var(--panel); border-left-color:var(--accent); }
+  #queue .where { color:var(--dim); font-size:12px; }
+  #queue .why { font-size:12px; color:var(--warn); grid-column: 1 / -1; }
+  #queue .why.r2, #queue .why.r3 { color:var(--dim); }
+  .was { color:var(--dim); font-size:11px; }
+  #reply { border-left:3px solid var(--accent); padding:4px 10px; background:var(--panel); border-radius:4px; flex:1; }
+  #reply:empty { display:none; }
+  #doneBtn { padding:5px 10px; cursor:pointer; }
+  #factsPanel { color:var(--dim); font-size:13px; border-left:3px solid var(--line); padding-left:8px; }
+  .agree { font-weight:600; padding:1px 8px; border-radius:10px; }
+  .agree.ok { background:var(--ok); color:#002010; }
+  .agree.bad { background:var(--bad); color:#1a0000; }
+  .agree.words { background:var(--warn); color:#2a1d00; }
+</style>
+</head>
+<body>
+<aside>
+  <div id="pruneBanner" hidden></div>
+  <div class="tabs"><button id="tabQueue" class="on">Needs you</button><button id="tabSitting">Sitting</button></div>
+  <div id="queuePane">
+    <h2 id="queueTitle">Needs you</h2>
+    <ul id="queue"></ul>
+  </div>
+  <div id="sittingPane" hidden>
+    <h2>Sitting</h2>
+    <select id="sitting"></select>
+    <h2 id="repsTitle">Reps</h2>
+    <ul id="reps"></ul>
+  </div>
+</aside>
+<main>
+  <header>
+    <strong id="title">—</strong>
+    <span class="facts" id="facts"></span>
+    <label id="finished" title="Every rep labelled: the labels are final, and the sitting can become a test fixture"><input id="reviewed" type="checkbox"> <span>Sitting finished — all reps labelled</span></label>
+    <span id="status"></span>
+  </header>
+  <div id="stage">
+    <video id="video" muted playsinline preload="auto"></video>
+    <canvas id="overlay"></canvas>
+  </div>
+  <footer>
+    <div class="row"><span id="factsPanel"></span></div>
+    <div class="row">
+      <span id="repInfo" class="muted">Pick a sitting.</span>
+    </div>
+    <div class="row labels" id="labelButtons"></div>
+    <div class="row">
+      <label id="flagLabel" title="Only reps ticked here are taken for analysis and fixing (f)"><input id="flag" type="checkbox"> ⚑ Review &amp; fix <kbd>f</kbd></label>
+      <input id="note" type="text" placeholder="Your note on this rep (n) — for a ticked rep: what is wrong, what you expect">
+    </div>
+    <div class="row">
+      <span id="reply"></span>
+      <button id="doneBtn" hidden title="You have read Claude's answer: close it (d)">Done <kbd>d</kbd></button>
+    </div>
+    <div class="row">
+      <label>Should say <select id="hint" title="The words you would want the app to refuse this rep with (h)"></select></label>
+      <span id="claudeNote"></span>
+    </div>
+    <div class="row">
+      <label>Person <input id="person" type="text" placeholder="a pseudonym, e.g. p1"></label>
+      <label>Clothing <input id="clothing" type="text" placeholder="fitted / loose trousers / T-shirt…"></label>
+      <label>Trace lag, s <input id="offset" type="text" size="4"></label>
+      <span class="muted">1–9, 0 label · Enter done, next · ← → rep · space pause · s slow · o skeleton · f review &amp; fix · h should say · d done</span>
+    </div>
+  </footer>
+</main>
+<script>
+// What a rep was, as a person saw it on the video. Only `honest` should count.
+// Knees, floor and cobra overlap — the knees touch in all three — so: look at
+// the TOP of the rep first, then the bottom.
+const LABELS = [
+  ['1', 'honest', 'On the toes at the top; at the bottom off the floor and deep enough'],
+  ['2', 'half', 'On the toes at the top; at the bottom off the floor but not deep enough'],
+  ['3', 'knees', 'At the top the knees are on the floor (a kneeling plank) — whatever happens at the bottom'],
+  ['4', 'floor', 'On the toes at the top, but at the bottom the body rested on the floor (hips or thighs carrying weight)'],
+  ['5', 'cobra', 'The hips never left the floor: only the chest and arms came up'],
+  ['6', 'sag', 'Hips sagging or piked'],
+  ['7', 'other', 'Anything else that is not a push-up'],
+  ['8', 'unseen', 'Honest, but the counter could not see it: the knees or feet outside its picture (the shaded edges). Right when refused "Keep your legs in the picture"'],
+  ['9', 'none', 'No rep on the video: the app judged a moment where no push-up was made (resting, getting up, getting into position). Right when not counted, whatever it said'],
+  ['0', 'unsure', 'Cannot tell from the video: left out of the test bench'],
+];
+// The words the app can refuse a rep with (RepHint), for "Should say".
+const HINTS = {
+  GO_LOWER: 'Go lower',
+  UP_ON_YOUR_TOES: 'Knees off the floor',
+  HIPS_OFF_FLOOR: 'Hips off the floor',
+  KEEP_BODY_STRAIGHT: 'Keep your body straight',
+  SLOW_DOWN: 'Slow down',
+  LEGS_IN_VIEW: 'Keep your legs in the picture',
+};
+const said = (verdict) => (verdict === 'counted' ? 'counted' : verdict === 'not-judged' ? 'no rep seen' : verdict === 'not-recorded' ? 'not recorded' : verdict === 'labelled-only' ? 'labelled earlier' : HINTS[verdict] ?? verdict);
+const $ = (id) => document.getElementById(id);
+const video = $('video'), overlay = $('overlay');
+
+/**
+ * The video, or — once it is deleted, 30 days after the sitting was finished —
+ * a clock of its own, so the skeleton still plays where the video was.
+ */
+const clock = { t: 0, paused: true, rate: 1, at: 0 };
+const player = {
+  get hasVideo() { return S?.hasVideo !== false; },
+  get time() {
+    if (this.hasVideo) return video.currentTime;
+    if (!clock.paused) { const n = performance.now(); clock.t += ((n - clock.at) / 1000) * clock.rate; clock.at = n; }
+    return clock.t;
+  },
+  set time(t) { if (this.hasVideo) video.currentTime = t; else { clock.t = t; clock.at = performance.now(); } },
+  get paused() { return this.hasVideo ? video.paused : clock.paused; },
+  play() { if (this.hasVideo) return video.play().catch(() => {}); clock.paused = false; clock.at = performance.now(); },
+  pause() { if (this.hasVideo) return video.pause(); this.time; clock.paused = true; },
+  set rate(r) { video.playbackRate = r; clock.rate = r; },
+  get width() { return this.hasVideo ? video.videoWidth : Number(S?.trace.facts.width ?? 720); },
+  get height() { return this.hasVideo ? video.videoHeight : Number(S?.trace.facts.height ?? 960); },
+};
+let SITTINGS = [];
+let S = null;          // the sitting on screen
+let current = 0;       // rep index
+let slow = false, skeleton = true, saveTimer = null;
+let saving = Promise.resolve();   // the last save: a refresh from disk waits for it
+let Q = [];            // "Needs you": [{ base, t, rank, why, label, verdict }]
+let mode = 'queue';    // 'queue' or 'sitting'
+let qAt = -1;          // the queue item on screen
+
+$('hint').innerHTML = '<option value="">— no preference</option>' + Object.entries(HINTS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+for (const [key, name, hint] of LABELS) {
+  const b = document.createElement('button');
+  b.innerHTML = `<kbd>${key}</kbd>${name}`;
+  b.title = hint;
+  b.dataset.label = name;
+  b.onclick = () => setLabel(name);
+  $('labelButtons').append(b);
+}
+
+function parseTrace(text) {
+  const lines = text.split(/\r?\n/);
+  const facts = {}, comments = [];
+  for (const l of lines.filter((l) => l.startsWith('#'))) {
+    comments.push(l.slice(1).trim());
+    for (const m of l.matchAll(/(\w+)=(\S+)/g)) facts[m[1]] = m[2];
+  }
+  const note = (lines.find((l) => l.startsWith('# note=')) ?? '').slice('# note='.length);
+  const head = lines.find((l) => l.startsWith('t,')).split(',');
+  const col = (n) => head.indexOf(n);
+  const rows = lines.filter((l) => /^\d/.test(l)).map((l) => l.split(','));
+  return { facts, note, head, col, rows };
+}
+
+/** One CSV line into fields: quoted fields may hold commas and doubled quotes. */
+function csvSplit(line) {
+  const out = [];
+  let cur = '', quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quoted) {
+      if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') quoted = false; else cur += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ',') { out.push(cur); cur = ''; } else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+const csvField = (v) => (/[",]/.test(v ?? '') ? `"${v.replace(/"/g, '""')}"` : (v ?? ''));
+const oneLine = (v) => (v ?? '').replace(/[\r\n]+/g, ' ').trim();
+
+/**
+ * A labels file: `# key=value` lines, then `t,label,by,flag,hint,note,claude,reply`.
+ * `by` is who set the label (reviewer or claude); `flag` is `check` when the
+ * reviewer ticked "Review & fix" and `answered` once Claude has replied in
+ * `reply`; `hint` is the words the reviewer wants; `note` is the reviewer's,
+ * `claude` is Claude's and shown read-only.
+ * A v1 file (`t,label,note`) reads as the reviewer's labels and notes.
+ */
+function parseLabels(text) {
+  const meta = {}, byT = new Map();
+  let cols = null;
+  for (const l of text.split(/\r?\n/)) {
+    const m = /^#\s*(\w+)=(.*)$/.exec(l);
+    if (m) { meta[m[1]] = m[2].trim(); continue; }
+    if (l.startsWith('t,')) { cols = csvSplit(l); continue; }
+    if (!/^\d/.test(l)) continue;
+    if (!cols || cols.length === 3) {
+      const [t, label, ...note] = l.split(',');
+      byT.set(Number(t), { label, by: 'reviewer', flag: '', hint: '', note: note.join(','), claude: '', reply: '' });
+      continue;
+    }
+    const f = csvSplit(l), get = (n) => f[cols.indexOf(n)] ?? '';
+    byT.set(Number(get('t')), { label: get('label'), by: get('by') || 'reviewer', flag: get('flag'), hint: get('hint'), note: get('note'), claude: get('claude'), reply: get('reply') });
+  }
+  return { meta, byT };
+}
+
+/**
+ * The side the counter reads, per row, as RepCounter.nearSideFor picks it: in
+ * each frame the side whose arm and leg (joints with presence 0.6 or more) are
+ * longer in the picture gets a vote, and from the countdown that led into
+ * counting on, the side with the most votes so far is the one read.
+ */
+function sidesOf(trace) {
+  const { rows, col, facts } = trace;
+  const W = Number(facts.width ?? 720), H = Number(facts.height ?? 960);
+  const chains = { L: [[11, 13, 15], [23, 25, 27]], R: [[12, 14, 16], [24, 26, 28]] };
+  const P = (r, i) => [Number(r[col(`i${i}x`)]) * W, Number(r[col(`i${i}y`)]) * H, Number(r[col(`i${i}p`)])];
+  const length = (r, side) => chains[side].reduce((total, [a, b, c]) => {
+    const A = P(r, a), B = P(r, b), C = P(r, c);
+    if (A[2] < 0.6 || B[2] < 0.6 || C[2] < 0.6) return total;
+    return total + Math.hypot(A[0] - B[0], A[1] - B[1]) + Math.hypot(B[0] - C[0], B[1] - C[1]);
+  }, 0);
+  const firstCounting = rows.findIndex((r) => r[1] === 'COUNTING');
+  let from = firstCounting;
+  while (from > 0 && rows[from - 1][1] === 'COUNTDOWN') from--;
+  const votes = { L: 0, R: 0 };
+  return rows.map((r, i) => {
+    const l = length(r, 'L'), rr = length(r, 'R');
+    const seen = l === 0 && rr === 0 ? null : l >= rr ? 'L' : 'R';
+    if (firstCounting < 0 || i < from) return seen;
+    if (seen) votes[seen]++;
+    return votes.L >= votes.R ? 'L' : 'R';
+  });
+}
+
+/** `<sitting>.today.csv`: today's counter's verdict per trace time (todayVerdicts). */
+/** Today's verdicts by trace time, or null when the replay has not run (no file): an empty file is a replay that judged nothing. */
+function parseToday(text) {
+  if (text === null) return null;
+  const byT = new Map();
+  for (const l of text.split(/\r?\n/)) if (/^\d/.test(l)) { const [t, v] = l.split(','); byT.set(Number(t), v); }
+  return byT;
+}
+/**
+ * The verdict today on the rep that ended at [t]: the replay's nearest, within
+ * 400 ms; else the one replayed rep that ends inside this rep's stretch (after
+ * the rep before it) and on no other recorded rep — the same movement, ended a
+ * little sooner by a counter whose top has moved. NOT_JUDGED when the replay
+ * has run and there is none, or several: today's counter does not see this rep
+ * as one. Undefined when the replay has not run. The test bench pairs the same.
+ */
+const NOT_JUDGED = 'not-judged';
+function todayAt(t) {
+  if (!S?.today) return undefined;
+  const k = S.pairing.get(t);
+  if (k !== undefined) return S.today.get(k);
+  // A rep only today's counter counts is judged by that count itself.
+  if (!S.recorded.has(t) && S.today.has(t)) return S.today.get(t);
+  return NOT_JUDGED;
+}
+/** What judges a rep now: today's verdict when the replay has been run, else the recorded one. */
+const verdictOf = (r) => todayAt(r.end) ?? r.verdict;
+
+/**
+ * Reps today's counter judges — counts or refuses — where the recording ended
+ * none: no recorded rep is paired with them ([pairToday]). The recorded counter
+ * missed a movement there, or today's sees one too many, so until now nobody
+ * could label it. Each is listed as a rep of its own (review, PR #14).
+ */
+const NOT_RECORDED = 'not-recorded';
+/**
+ * Which replay count judges each recorded rep — one count per rep, as the test
+ * bench pairs them: each count, in order, takes the nearest recorded rep within
+ * 400 ms not yet taken; a rep still without one takes the one count left inside
+ * its stretch (after the rep before it, on no other rep), when there is exactly
+ * one. Recorded reps can end 200 ms apart, so a count is never given to two.
+ * Map: recorded rep's end → the replay count's time.
+ */
+function pairToday(today, ends) {
+  const pairs = new Map();
+  if (!today) return pairs;
+  const times = [...today.keys()].sort((a, b) => a - b);
+  const taken = new Set();
+  for (const k of times) {
+    const e = ends.filter((x) => !pairs.has(x) && Math.abs(x - k) <= 400).sort((a, b) => Math.abs(a - k) - Math.abs(b - k))[0];
+    if (e === undefined) continue;
+    pairs.set(e, k);
+    taken.add(k);
+  }
+  ends.forEach((e, i) => {
+    if (pairs.has(e)) return;
+    const from = i > 0 ? ends[i - 1] : -Infinity;
+    const inside = times.filter((k) => !taken.has(k) && k > from && k <= e + 400 && !ends.some((o) => o !== e && Math.abs(o - k) <= 400));
+    if (inside.length === 1) {
+      pairs.set(e, inside[0]);
+      taken.add(inside[0]);
+    }
+  });
+  return pairs;
+}
+
+/** The trace times the recording ended a rep at. */
+const recordedEnds = (trace) => trace.rows.filter((r) => r[1] === 'COUNTING' && r[r.length - 1]).map((r) => Number(r[0]));
+
+/**
+ * Reps today's replay judges where the recording ended none — counted or refused:
+ * a real rep the recorded counter missed is as much a candidate when today's
+ * refuses it, and only a label can say which it was (review, PR #14).
+ */
+/**
+ * What a replay count pairs with: the recorded reps, and the reps already labelled
+ * where the recording had none — a count a later counter ends a little sooner or
+ * later is the same labelled movement, not a new one (review, PR #14).
+ */
+const anchorsOf = (trace, labelled) => [...new Set([...recordedEnds(trace), ...labelled])].sort((a, b) => a - b);
+
+function onlyToday(trace, today, labelled = new Set()) {
+  if (!today) return new Set();
+  const paired = new Set(pairToday(today, anchorsOf(trace, labelled)).values());
+  return new Set([...today.keys()].filter((k) => !paired.has(k)));
+}
+
+/**
+ * A labelled rep no candidate stands at any more — a count the counter has since
+ * stopped making. Listed, so its label is seen, and kept in the file (review, PR #14).
+ */
+const LABELLED_ONLY = 'labelled-only';
+
+/** Each judged rep: from the end of the one before (or the start of counting) to its own event — recorded, only today's ([onlyToday]), or only labelled. */
+function repsOf(trace, today, labelled = new Set()) {
+  const reps = [];
+  const extra = onlyToday(trace, today, labelled);
+  // A label where the recording had no rep that a replay count still pairs with was a
+  // rep only today's counter judged; one nothing pairs with, a count since dropped.
+  const paired = new Set(pairToday(today, anchorsOf(trace, labelled)).keys());
+  const elbowAt = trace.col('elbow');
+  let from = null, stretch = [];
+  for (const r of trace.rows) {
+    if (r[1] !== 'COUNTING') continue;
+    const t = Number(r[0]);
+    if (from === null) from = t;
+    stretch.push([t, Number(r[elbowAt])]);
+    const ev = r[r.length - 1] || (extra.has(t) ? NOT_RECORDED : labelled.has(t) ? (paired.has(t) ? NOT_RECORDED : LABELLED_ONLY) : '');
+    if (!ev) continue;
+    reps.push({ start: from, clipStart: movementStart(stretch, from), end: t, verdict: ev.replace('discarded:', '') });
+    from = t;
+    stretch = [];
+  }
+  return reps;
+}
+
+/**
+ * Where the clip of a rep starts: 1.5 s before the last moment, ahead of its
+ * deepest point, that the arms were (nearly) as straight as they got since the
+ * rep before — but never more than 1 s back into that rep. The stretch since
+ * the rep before can hold seconds of rest, or of getting up, and a clip that
+ * started there showed "no rep" (4 Oct).
+ */
+function movementStart(window, from) {
+  const seen = window.filter(([, e]) => Number.isFinite(e));
+  if (seen.length < 3) return from - 1000;
+  let bottom = 0;
+  seen.forEach(([, e], i) => { if (e < seen[bottom][1]) bottom = i; });
+  const straight = Math.max(...seen.slice(0, bottom + 1).map(([, e]) => e)) - 8;
+  for (let i = bottom; i >= 0; i--) if (seen[i][1] >= straight) return Math.max(from - 1000, seen[i][0] - 1500);
+  return from - 1000;
+}
+
+async function loadSittings() {
+  const list = SITTINGS = await (await fetch('/api/sittings')).json();
+  loadPrune();
+  const sel = $('sitting');
+  sel.innerHTML = list.map((s) => `<option value="${s.base}">${s.base}${s.labels ? ` · ${s.labels} labelled` : ''}${s.video ? '' : ' · skeleton only'}</option>`).join('');
+  if (!list.length) { $('repInfo').textContent = 'No sitting with a video here: pull one with scripts/pull-traces.sh.'; return; }
+  sel.onchange = () => open(sel.value);
+  const wanted = new URLSearchParams(location.search).get('s');
+  await loadQueue();
+  if (wanted && list.some((s) => s.base === wanted)) { setMode('sitting'); sel.value = wanted; return open(wanted); }
+  if (Q.length) return goQueue(0);
+  setMode('sitting');
+  sel.value = list[0].base;
+  open(sel.value);
+}
+
+async function loadQueue() {
+  Q = await (await fetch('/api/queue', { cache: 'no-store' })).json();
+  renderQueue();
+}
+
+const short = (base) => base.split('/').pop().replace(/-staked|-daily/, '');
+
+function renderQueue() {
+  const left = Q.length;
+  $('tabQueue').textContent = `Needs you (${left})`;
+  $('queueTitle').textContent = left ? `${left} to look at · a digit labels · Enter: done, next` : 'Nothing needs you';
+  $('queue').innerHTML = Q.slice(0, 300).map((q, i) => `<li class="${i === qAt ? 'on' : ''}" data-i="${i}"><span>${short(q.base)}</span><span class="where">${q.label || '·'} · app: ${said(q.verdict)}</span><span class="why r${q.rank}">${q.why}</span></li>`).join('');
+  for (const li of $('queue').children) li.onclick = () => goQueue(Number(li.dataset.i));
+  $('queue').children[qAt]?.scrollIntoView({ block: 'nearest' });
+}
+
+function setMode(m) {
+  mode = m;
+  $('tabQueue').classList.toggle('on', m === 'queue');
+  $('tabSitting').classList.toggle('on', m === 'sitting');
+  $('queuePane').hidden = m !== 'queue';
+  $('sittingPane').hidden = m !== 'sitting';
+}
+$('tabQueue').onclick = async () => { setMode('queue'); await refreshSitting(); await loadQueue(); goQueue(Math.max(0, Math.min(qAt, Q.length - 1))); };
+$('tabSitting').onclick = () => { setMode('sitting'); if (S) $('sitting').value = S.base; };
+
+/** Shows queue item [i]: its sitting opened if another is on screen, at its rep. */
+async function goQueue(i) {
+  if (!Q.length) { qAt = -1; renderQueue(); return; }
+  qAt = Math.max(0, Math.min(Q.length - 1, i));
+  const q = Q[qAt];
+  renderQueue();
+  if (S?.base !== q.base) await open(q.base, q.t);
+  else {
+    // A rep the queue knows and the page does not yet: today's verdicts changed since it opened.
+    if (!S.reps.some((r) => r.end === q.t)) await refreshSitting();
+    show(S.reps.findIndex((r) => r.end === q.t));
+  }
+}
+
+/**
+ * The sitting's labels and today's verdicts read again from disk: Claude writes
+ * answers into the same file (`--reply`) while the page is open.
+ */
+async function refreshSitting() {
+  if (!S) return;
+  // The sitting this read is for: another may be open by the time it returns.
+  const base = S.base;
+  // A save still to run, or running, would be read back half-written: wait for it.
+  writeNow();
+  await saving;
+  const [labelsText, todayText] = await Promise.all([
+    fetch(`/files/${base}.labels.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')),
+    fetch(`/files/${base}.today.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : null)),
+  ]);
+  // Put into another sitting, these labels would be saved over that one's file.
+  if (!S || S.base !== base) return;
+  S.labels = parseLabels(labelsText);
+  S.today = parseToday(todayText);
+  S.pairing = pairToday(S.today, anchorsOf(S.trace, S.labels.byT.keys()));
+  // The candidates follow a replay run again: a rep only the new one judges is listed,
+  // and the rep on screen stays on screen (review, PR #14).
+  const at = S.reps[current]?.end;
+  S.reps = repsOf(S.trace, S.today, new Set(S.labels.byT.keys()));
+  current = Math.max(0, S.reps.findIndex((r) => r.end === at));
+  $('reviewed').checked = Boolean(S.labels.meta.reviewed);
+  renderList();
+  show(current, false);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshSitting(); });
+
+/** After acting on the rep on screen: off the queue, and on to the next item. */
+function nextInQueue() {
+  if (mode !== 'queue' || qAt < 0) return false;
+  const r = S.reps[current];
+  const at = Q.findIndex((q) => q.base === S.base && q.t === r.end);
+  if (at >= 0) Q.splice(at, 1);
+  goQueue(at >= 0 ? at : qAt);
+  return true;
+}
+
+/**
+ * Which open() is the latest: two can overlap (a sitting picked, then another
+ * before the first has loaded), and whichever finished last would take over the
+ * page — edits then written into a sitting other than the one picked (review,
+ * PR #14). An open() that is no longer the latest stops at its next await.
+ */
+let openGen = 0;
+
+async function open(base, atT) {
+  const gen = ++openGen;
+  // A save still waiting belongs to the sitting on screen: written before it
+  // goes. The queue moves on as soon as a rep is done — a Done or a confirmed
+  // label saved 250 ms later, after the next sitting had opened, was written
+  // into that one instead and lost.
+  writeNow();
+  await saving;
+  if (gen !== openGen) return;
+  history.replaceState(null, '', mode === 'sitting' ? `?s=${encodeURIComponent(base)}` : location.pathname);
+  const [traceText, meta, labelsText, todayText] = await Promise.all([
+    fetch(`/files/${base}.trace.csv`).then((r) => r.text()),
+    fetch(`/files/${base}.video.json`).then((r) => r.json()),
+    fetch(`/files/${base}.labels.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')),
+    fetch(`/files/${base}.today.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : null)),
+  ]);
+  if (gen !== openGen) return;
+  const trace = parseTrace(traceText);
+  const today = parseToday(todayText);
+  const labels = parseLabels(labelsText);
+  const ends = recordedEnds(trace);
+  S = {
+    base, trace, labels,
+    hasVideo: SITTINGS.find((s) => s.base === base)?.video !== false,
+    wasComplete: false,
+    today,
+    recorded: new Set(ends),
+    pairing: pairToday(today, anchorsOf(trace, labels.byT.keys())),
+    reps: repsOf(trace, today, new Set(labels.byT.keys())),
+    sides: sidesOf(trace),
+    startedMs: meta.startedElapsedRealtimeNanos / 1e6,
+    // The trace runs about half a second behind the video on the Seeker.
+    offset: Number(labels.meta.offset ?? 0.5),
+  };
+  $('title').textContent = base.split('/').pop();
+  $('factsPanel').textContent = $('facts').title = $('facts').textContent = [trace.facts.stakes, trace.facts.placement && `${trace.facts.placement}° ${trace.facts.phoneSide ?? ''}`, trace.facts.expectedReps && `person counted ${trace.facts.expectedReps}`, trace.note].filter(Boolean).join(' · ');
+  $('person').value = labels.meta.person ?? '';
+  $('clothing').value = labels.meta.clothing ?? '';
+  $('offset').value = S.offset;
+  $('reviewed').checked = Boolean(labels.meta.reviewed);
+  if (S.hasVideo) video.src = `/files/${base}.mp4`;
+  else { video.removeAttribute('src'); video.load(); $('facts').textContent += ' · video deleted: the skeleton plays alone'; }
+  current = atT !== undefined ? S.reps.findIndex((r) => r.end === atT) : S.reps.findIndex((r) => !S.labels.byT.has(r.end));
+  if (current < 0) current = 0;
+  S.wasComplete = S.reps.every((r) => S.labels.byT.get(r.end)?.by === 'reviewer');
+  renderList();
+  if (S.hasVideo) await new Promise((done) => video.addEventListener('loadedmetadata', done, { once: true }));
+  if (gen !== openGen) return;
+  show(current);
+}
+
+const vt = (t) => (t - S.startedMs) / 1000 - S.offset;
+const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+function renderList() {
+  const done = S.reps.filter((r) => S.labels.byT.has(r.end));
+  const agree = done.filter((r) => verdictMatches(r) === true).length;
+  const flagged = done.filter((r) => S.labels.byT.get(r.end).flag === 'check').length;
+  $('repsTitle').textContent = `Reps · ${done.length}/${S.reps.length} labelled · app agrees on ${agree}${flagged ? ` · ⚑ ${flagged}` : ''}`;
+  $('reps').innerHTML = S.reps.map((r, i) => {
+    const l = S.labels.byT.get(r.end);
+    const q = verdictQuality(r);
+    const cls = { ok: 'match', words: 'words', bad: 'miss' }[q] ?? '';
+    const marks = `${l?.flag === 'check' ? '<span class="flag" title="ticked for review and fixing">⚑</span>' : ''}${l?.flag === 'answered' ? '<span class="flag" title="Claude answered">✉</span>' : ''}${l?.by === 'claude' ? '<span class="by-claude" title="set by Claude; press its key to confirm">C</span>' : ''}`;
+    const now = todayAt(r.end), changed = now !== undefined && now !== r.verdict;
+    const allowed = l?.label === 'knees' && kneesCount() && verdictOf(r) === 'counted' ? ' <span class="was">knees allowed</span>' : '';
+    const v = `${said(verdictOf(r))}${allowed}${changed ? ` <span class="was" title="when recorded">was ${said(r.verdict)}</span>` : ''}`;
+    return `<li class="${i === current ? 'on' : ''}" data-i="${i}"><span class="n">${i + 1}</span><span class="tm">${mmss(vt(r.end))}</span><span class="verdict">${v}</span><span class="tag ${cls}">${l ? l.label : '·'}</span><span>${marks}</span></li>`;
+  }).join('');
+  for (const li of $('reps').children) li.onclick = () => show(Number(li.dataset.i));
+}
+
+/** What should count: an honest rep — and where knees are not judged (the Daily 25, an Easy Holdout), one from the knees. */
+const kneesCount = () => ['DAILY', 'EASY'].includes(S?.trace.facts.stakes);
+const shouldCount = (label) => label === 'honest' || (label === 'knees' && kneesCount());
+
+/** Whether the app's verdict agrees with the label: undefined when unlabelled or unsure. */
+function verdictMatches(r) {
+  const l = S.labels.byT.get(r.end);
+  if (!l || l.label === 'unsure') return undefined;
+  return shouldCount(l.label) === (verdictOf(r) === 'counted');
+}
+
+/** The words a refusal of this label should use: the reviewer's "Should say", else the label's own. `other` takes any. */
+const LABEL_WORDS = { half: 'GO_LOWER', knees: 'UP_ON_YOUR_TOES', floor: 'HIPS_OFF_FLOOR', cobra: 'KEEP_BODY_STRAIGHT', sag: 'KEEP_BODY_STRAIGHT', unseen: 'LEGS_IN_VIEW' };
+const expectedWords = (l) => l.hint || LABEL_WORDS[l.label] || '';
+
+/**
+ * 'ok' — the right outcome, and a refusal in the expected words; 'words' — refused
+ * as it should be, but with other words; 'bad' — the wrong outcome; undefined —
+ * no label, or unsure.
+ */
+function verdictQuality(r) {
+  const ok = verdictMatches(r);
+  if (ok === undefined) return undefined;
+  if (!ok) return 'bad';
+  const l = S.labels.byT.get(r.end), v = verdictOf(r), want = expectedWords(l);
+  // A rep not seen at all says nothing, and counts nothing — right for a cheat.
+  return v !== 'counted' && v !== NOT_JUDGED && want && v !== want ? 'words' : 'ok';
+}
+
+function show(i, replay = true) {
+  if (!S || !S.reps.length) return;
+  current = Math.max(0, Math.min(S.reps.length - 1, i));
+  const r = S.reps[current];
+  const l = S.labels.byT.get(r.end);
+  $('note').value = l?.note ?? '';
+  $('claudeNote').textContent = l?.claude ? `Claude: ${l.claude}` : '';
+  $('flag').checked = l?.flag === 'check';
+  $('reply').textContent = l?.reply ? `Claude's answer: ${l.reply}` : '';
+  $('doneBtn').hidden = l?.flag !== 'answered';
+  $('hint').value = l?.hint ?? '';
+  for (const b of $('labelButtons').children) b.classList.toggle('on', b.dataset.label === l?.label);
+  const byText = l ? (l.by === 'claude' ? ' · label set by Claude — press its key to confirm' : ' · label yours') : '';
+  const kneesAllowed = l?.label === 'knees' && kneesCount();
+  const words = (v) => (v === 'counted' ? (kneesAllowed ? 'counted (knees allowed here)' : 'counted') : `refused — "${said(v)}"`);
+  const now = todayAt(r.end);
+  const verdictText = now === undefined ? `the app: <strong>${words(r.verdict)}</strong>`
+    : now === r.verdict ? `the app, recorded and today: <strong>${words(now)}</strong>`
+      : `today: <strong>${words(now)}</strong> <span class="muted">(when recorded: ${words(r.verdict)})</span>`;
+  const sitting = mode === 'queue' ? `${short(S.base)} · ` : '';
+  // Against the label on screen: did the app get this rep right?
+  const q = verdictQuality(r);
+  const want = l ? expectedWords(l) : '';
+  const agree = {
+    ok: ' <span class="agree ok">✓ the app agrees</span>',
+    words: ` <span class="agree words" title="${l?.hint ? 'your Should say' : `what a ${l?.label} rep should hear`}">~ refused, but should say "${said(want)}"</span>`,
+    bad: ' <span class="agree bad">✗ the app is wrong here</span>',
+  }[q] ?? '';
+  $('repInfo').innerHTML = `${sitting}Rep <strong>${current + 1}</strong> of ${S.reps.length} · ${mmss(vt(r.clipStart))}–${mmss(vt(r.end))} · ${verdictText}${agree}${byText}`;
+  renderList();
+  $('reps').children[current]?.scrollIntoView({ block: 'nearest' });
+  if (!replay) return;
+  player.rate = slow ? 0.5 : 1;
+  player.time = Math.max(0, vt(r.clipStart) - 0.3);
+  player.play();
+}
+
+// The rep plays as a loop: its own stretch of video, a little either side.
+function loop() {
+  if (S && S.reps.length && !player.paused) {
+    const r = S.reps[current];
+    const now = player.time;
+    if (now > vt(r.end) + 0.4 || now < vt(r.clipStart) - 0.6) player.time = Math.max(0, vt(r.clipStart) - 0.3);
+  }
+  watchdog();
+  drawSkeleton();
+  requestAnimationFrame(loop);
+}
+
+/**
+ * The video stopped while the skeleton went on: playing but not advancing for
+ * two seconds, or an error. It is loaded again at the same moment.
+ */
+let lastTime = -1, stuckSince = 0;
+function watchdog() {
+  if (!S || !player.hasVideo || video.paused || video.seeking) { stuckSince = 0; lastTime = video.currentTime; return; }
+  const now = performance.now();
+  if (video.currentTime !== lastTime) { lastTime = video.currentTime; stuckSince = now; return; }
+  if (!stuckSince) stuckSince = now;
+  if (now - stuckSince > 2000) { stuckSince = now; reloadVideo(); }
+}
+function reloadVideo() {
+  if (!S || !player.hasVideo) return;
+  const at = video.currentTime;
+  video.src = `/files/${S.base}.mp4?r=${Math.floor(performance.now())}`;
+  video.addEventListener('loadedmetadata', () => { video.currentTime = at; video.play().catch(() => {}); }, { once: true });
+}
+video.addEventListener('error', () => { if (player.hasVideo) setTimeout(reloadVideo, 500); });
+// Back to the front: the picture may have been dropped while hidden — make it draw again.
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S && player.hasVideo) video.currentTime = video.currentTime; });
+
+/** The trace's picture landmarks at this moment of the video, drawn where the video is drawn. */
+function drawSkeleton() {
+  const ctx = overlay.getContext('2d');
+  const w = overlay.clientWidth, h = overlay.clientHeight;
+  if (overlay.width !== w || overlay.height !== h) { overlay.width = w; overlay.height = h; }
+  ctx.clearRect(0, 0, w, h);
+  if (!S || !player.width) return;
+  const scale = Math.min(w / player.width, h / player.height);
+  const dw = player.width * scale, dh = player.height * scale, ox = (w - dw) / 2, oy = (h - dh) / 2;
+  // The counter's picture: the video cut to the trace's shape, centred. On the
+  // 29 Sep build the video kept the sensor's 3:4 and the counter read a 9:16
+  // crop of it — knees in the video were outside what it saw.
+  const tw = Number(S.trace.facts.width) || player.width, th = Number(S.trace.facts.height) || player.height;
+  const cw = Math.min(dw, dh * tw / th), ch = Math.min(dh, dw * th / tw);
+  const cx = ox + (dw - cw) / 2, cy = oy + (dh - ch) / 2;
+  if (dw - cw > 2 || dh - ch > 2) {
+    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    ctx.fillRect(ox, oy, cx - ox, dh); ctx.fillRect(cx + cw, oy, ox + dw - cx - cw, dh);
+    ctx.fillRect(cx, oy, cw, cy - oy); ctx.fillRect(cx, cy + ch, cw, oy + dh - cy - ch);
+    ctx.strokeStyle = 'rgba(255,200,80,.8)'; ctx.lineWidth = 1; ctx.setLineDash([6, 4]);
+    ctx.strokeRect(cx + 0.5, cy + 0.5, cw - 1, ch - 1); ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,200,80,.9)'; ctx.font = '12px system-ui, sans-serif';
+    ctx.fillText('the counter sees inside the dashed line', cx + 6, cy + 16);
+  }
+  if (!skeleton) return;
+  const { rows, col } = S.trace;
+  const want = S.startedMs + (player.time + S.offset) * 1000;
+  let lo = 0, hi = rows.length - 1;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (Number(rows[m][0]) < want) lo = m + 1; else hi = m; }
+  const row = rows[lo];
+  if (!row || Math.abs(Number(row[0]) - want) > 150) return;
+  const P = (i) => [cx + Number(row[col(`i${i}x`)]) * cw, cy + Number(row[col(`i${i}y`)]) * ch, Number(row[col(`i${i}p`)])];
+  // Bold: the side the counter reads (sidesOf). Faint: the other, which it ignores.
+  const right = [12, 14, 16, 24, 26, 28], left = [11, 13, 15, 23, 25, 27];
+  const near = S.sides[lo] === 'L' ? left : right, far = near === right ? left : right;
+  const chain = (ids, color, width) => {
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath();
+    ids.forEach((i, k) => { const [x, y] = P(i); if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+    ctx.stroke();
+    ctx.fillStyle = color;
+    for (const i of ids) { const [x, y] = P(i); ctx.beginPath(); ctx.arc(x, y, width + 1.5, 0, 7); ctx.fill(); }
+  };
+  chain([far[0], far[1], far[2]], 'rgba(108,182,255,.35)', 2);
+  chain([far[0], far[3], far[4], far[5]], 'rgba(255,120,200,.35)', 2);
+  chain([near[0], near[1], near[2]], '#6cb6ff', 3);
+  chain([near[0], near[3], near[4], near[5]], '#ff78c8', 3);
+}
+
+/** The current rep's entry, made (as `unsure`) when there is none yet. */
+function entry() {
+  const r = S.reps[current];
+  if (!S.labels.byT.has(r.end)) S.labels.byT.set(r.end, { label: 'unsure', by: 'reviewer', flag: '', hint: '', note: '', claude: '', reply: '' });
+  return S.labels.byT.get(r.end);
+}
+
+function setLabel(name) {
+  if (!S) return;
+  const e = entry();
+  // Pressed by the reviewer, the label is theirs — a label of Claude's pressed again is confirmed.
+  Object.assign(e, { label: name, by: 'reviewer', note: oneLine($('note').value) });
+  save();
+  // Stays on the rep: "Review & fix", "Should say" and a note may follow. Enter moves on.
+  show(current, false);
+}
+
+/**
+ * Enter: done with this rep — the label on screen is right (Claude's becomes the
+ * reviewer's) — and on to the next: the next in the queue, or in a sitting the
+ * next rep without a label. A rep with no label yet stays.
+ */
+function confirmLabel() {
+  if (!S) return;
+  const l = S.labels.byT.get(S.reps[current].end);
+  if (!l) return;
+  if (l.by !== 'reviewer') { l.by = 'reviewer'; save(); }
+  if (nextInQueue()) return;
+  const next = S.reps.findIndex((x, i) => i > current && !S.labels.byT.has(x.end));
+  show(next >= 0 ? next : current + 1);
+}
+
+/** d: Claude's answer read — the rep leaves the queue; tick it again to reopen. */
+function doneWithAnswer() {
+  if (!S) return;
+  const l = S.labels.byT.get(S.reps[current].end);
+  if (l?.flag !== 'answered') return;
+  l.flag = '';
+  save();
+  if (!nextInQueue()) show(current);
+}
+
+function toggleFlag() {
+  if (!S) return;
+  const e = entry();
+  e.flag = e.flag === 'check' ? '' : 'check';
+  e.note = oneLine($('note').value);
+  save();
+  show(current);
+  if (e.flag && !e.note) $('note').focus();
+}
+
+/**
+ * The save waiting to run: the sitting it was made in, its labels and the form
+ * as they stood then. Taken when the edit is made, not when the write runs —
+ * an edit to the sitting still on screen while the next one loads was written
+ * into that next one once it took over the page, and lost (review, PR #14).
+ */
+let pendingSave = null;
+
+function save() {
+  if (!S) return;
+  // An edit to another sitting still waiting goes now, not dropped for this one.
+  if (pendingSave && pendingSave.sitting !== S) writeNow();
+  clearTimeout(saveTimer);
+  // Every rep labelled, none waiting for the reviewer's confirmation: the sitting
+  // is finished — ticked once, as it becomes so; the reviewer can untick it.
+  const complete = S.reps.every((r) => { const l = S.labels.byT.get(r.end); return l && l.by === 'reviewer'; });
+  if (complete && !S.wasComplete && !$('reviewed').checked) $('reviewed').checked = true;
+  S.wasComplete = complete;
+  pendingSave = {
+    sitting: S,
+    labels: S.labels,
+    person: oneLine($('person').value),
+    clothing: oneLine($('clothing').value),
+    reviewed: $('reviewed').checked,
+  };
+  saveTimer = setTimeout(writeNow, 250);
+}
+
+/** Saves run one after another, so a refresh can wait for the last. */
+function writeNow() {
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  const job = pendingSave;
+  pendingSave = null;
+  if (job) saving = saving.then(() => write(job), () => write(job));
+  return saving;
+}
+
+async function write({ sitting, labels, person, clothing, reviewed }) {
+  {
+    // Claude may have answered since the page read the file: an answer on disk
+    // the page has not seen is kept, and with it the rep's "answered".
+    const disk = parseLabels(await fetch(`/files/${sitting.base}.labels.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')));
+    for (const [t, d] of disk.byT) {
+      const l = labels.byT.get(t);
+      if (!l || !d.reply || d.reply === l.reply) continue;
+      l.reply = d.reply;
+      if (l.flag === 'check' || l.flag === '') l.flag = d.flag;
+    }
+    // Every header line the file had is kept; these are the page's own.
+    const meta = {
+      ...labels.meta,
+      trace: `${sitting.base.split('/').pop()}.trace.csv`,
+      person,
+      clothing,
+      offset: sitting.offset,
+      reviewed: reviewed ? (labels.meta.reviewed || new Date().toISOString().slice(0, 10)) : '',
+    };
+    delete meta.holdout;
+    labels.meta = meta;
+    const lines = ['# holdout-rep-labels v2', ...Object.entries(meta).filter(([, v]) => v !== '' && v !== undefined).map(([k, v]) => `# ${k}=${v}`), 't,label,by,flag,hint,note,claude,reply'];
+    // Every label row, in time order — one whose rep is no longer a candidate too: a count
+    // the counter stopped making is still the evidence that it once made it.
+    for (const t of [...labels.byT.keys()].sort((a, b) => a - b)) {
+      const l = labels.byT.get(t);
+      lines.push([t, l.label, l.by, l.flag, l.hint ?? '', oneLine(l.note), oneLine(l.claude), oneLine(l.reply)].map((v) => csvField(String(v ?? ''))).join(','));
+    }
+    const res = await fetch(`/files/${sitting.base}.labels.csv`, { method: 'PUT', body: lines.join('\n') + '\n' });
+    $('status').textContent = res.ok ? `saved ${new Date().toLocaleTimeString()}` : `NOT saved (${res.status})`;
+  }
+}
+
+$('note').addEventListener('input', () => {
+  const r = S?.reps[current];
+  const l = r && S.labels.byT.get(r.end);
+  if (l) { l.note = oneLine($('note').value); save(); }
+});
+for (const id of ['person', 'clothing']) $(id).addEventListener('input', save);
+$('reviewed').addEventListener('change', save);
+$('hint').addEventListener('change', () => { if (!S) return; entry().hint = $('hint').value; save(); renderList(); $('hint').blur(); });
+$('flag').addEventListener('change', () => { if (S && (entry().flag === 'check') !== $('flag').checked) toggleFlag(); $('flag').blur(); });
+$('doneBtn').addEventListener('click', doneWithAnswer);
+$('offset').addEventListener('change', () => { const v = Number($('offset').value); if (S && Number.isFinite(v)) { S.offset = v; save(); show(current); } });
+
+document.addEventListener('keydown', (e) => {
+  if ((e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') || e.target.tagName === 'SELECT') { if (e.key === 'Escape' || e.key === 'Enter') e.target.blur(); return; }
+  const label = LABELS.find(([k]) => k === e.key);
+  if (label) return setLabel(label[1]);
+  if (e.key === 'Enter') { e.preventDefault(); return confirmLabel(); }
+  if (e.key === 'd') return doneWithAnswer();
+  if (e.key === 'ArrowRight') return show(current + 1);
+  if (e.key === 'ArrowLeft') return show(current - 1);
+  if (e.key === ' ') { e.preventDefault(); return player.paused ? player.play() : player.pause(); }
+  if (e.key === 's') { slow = !slow; player.rate = slow ? 0.5 : 1; return; }
+  if (e.key === 'o') { skeleton = !skeleton; return; }
+  if (e.key === 'f') return toggleFlag();
+  if (e.key === 'h') { e.preventDefault(); $('hint').focus(); return; }
+  if (e.key === 'n') { e.preventDefault(); $('note').focus(); }
+});
+
+/** Videos due for deletion: finished 30+ days ago and promoted. Deleted only on the reviewer's "yes". */
+async function loadPrune() {
+  const due = await (await fetch('/api/prune', { cache: 'no-store' })).json();
+  const b = $('pruneBanner');
+  b.hidden = !due.length;
+  if (!due.length) return;
+  const mb = due.reduce((n, v) => n + v.mb, 0);
+  b.innerHTML = `${due.length} video${due.length > 1 ? 's' : ''} (${mb} MB) from sittings finished 30+ days ago, already saved as numbers in the repository.<br><button id="pruneBtn">Review and delete…</button>`;
+  $('pruneBtn').onclick = async () => {
+    const list = due.map((v) => `${v.base} — finished ${v.finished}, ${v.mb} MB`).join('\n');
+    if (!confirm(`Delete these videos? Their traces and labels stay; the skeleton still plays.\n\n${list}`)) return;
+    // A header a cross-site form cannot send: without it the server deletes nothing.
+    await fetch('/api/prune', { method: 'POST', headers: { 'X-Label-Reps': 'prune' } });
+    location.reload();
+  };
+}
+
+loadSittings();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

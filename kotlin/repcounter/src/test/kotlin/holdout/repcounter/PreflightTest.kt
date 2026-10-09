@@ -14,8 +14,9 @@ class PreflightTest {
         brightness: Float = 0.5f,
         backgroundMotion: Float = 0.0f,
         world: PoseFrame? = Traces.frame(0, elbowDegrees = 175f, bodyLineDegrees = 180f),
-        // Head-on: the Daily 25's placement, which `Preflight()` checks for.
-        image: PoseFrame? = Traces.imageFrame(shoulderSpan = 0.7f),
+        // 45°, inside the Easy band (ratio about 0.75): the Daily 25's placement,
+        // which `Preflight()` checks for, as every sitting's since 8 Oct.
+        image: PoseFrame? = Traces.imageFrame(shoulderSpan = 0.3f),
     ) = PreflightInput(brightness, backgroundMotion, world, image)
 
     @Test
@@ -87,7 +88,7 @@ class PreflightTest {
     fun `a joint the model places outside the picture is not in view, however sure it is`() {
         // MediaPipe extrapolates a cropped ankle with high presence; only its
         // position in the picture says it is not there.
-        val image = Traces.imageFrame(shoulderSpan = 0.7f)
+        val image = Traces.imageFrame(shoulderSpan = 0.3f)
         val cropped = PoseFrame(
             image.timestampMillis,
             image.landmarks.mapIndexed { i, l -> if (i == PoseIndex.LEFT_ANKLE) l.copy(y = 1.08f) else l },
@@ -100,26 +101,33 @@ class PreflightTest {
     @Test
     fun `every placement is named`() {
         assertEquals(CameraView.SIDE, preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.05f))).view)
-        assertEquals(CameraView.OBLIQUE, preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.4f))).view)
+        assertEquals(CameraView.OBLIQUE, preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.3f))).view)
+        // About 30°: in front of the Easy band the Daily 25 is held to.
+        assertEquals(CameraView.FRONT, preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.4f))).view)
         assertEquals(CameraView.FRONT, preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.7f))).view)
     }
 
     @Test
-    fun `45 degrees is not mistaken for head-on`() {
-        // The bug the 1.55 cut-off fixed: at 45° the shoulder span against the
-        // torso reached 1.35 on a real recording, and the old 0.9 called most
-        // of those frames head-on — refusing a correctly placed phone.
-        val atFortyFive = Traces.imageFrame(shoulderSpan = 0.4f * 1.35f)
-        assertEquals(CameraView.OBLIQUE, preflight.evaluate(good(image = atFortyFive)).view)
+    fun `45 degrees on the phone starts every sitting`() {
+        // Sets filmed at 40–60° on the phone held the ratio at 0.37–0.87; the
+        // front line is 0.90 for Easy and the Daily 25, 1.1 for Hard.
+        for (ratio in listOf(0.37f, 0.87f)) {
+            for (stakes in Stakes.entries) {
+                val atFortyFive = Traces.imageFrame(shoulderSpan = 0.4f * ratio)
+                assertEquals(CameraView.OBLIQUE, Preflight(stakes = stakes).evaluate(good(image = atFortyFive)).view, "$stakes at ratio $ratio")
+            }
+        }
     }
 
     @Test
-    fun `the Daily 25 starts head-on or at 45 degrees, and square side-on says where the phone goes`() {
+    fun `the Daily 25 starts at 45 degrees only, and anywhere else says to turn the phone`() {
+        // 8 Oct (002 FR-001): head-on is dropped; the Daily 25 is held to the Easy band.
         assertTrue(preflight.evaluate(good()).canStart)
-        assertTrue(preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.4f))).canStart)
-        val report = preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = 0.05f)))
-        assertFalse(report.canStart)
-        assertEquals(listOf(Stakes.DAILY.cameraFix), report.fixes)
+        for (span in listOf(0.05f, 0.4f, 0.7f)) {
+            val report = preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = span)))
+            assertFalse(report.canStart, "shoulder span $span")
+            assertEquals(listOf("Turn the phone to 45°"), report.fixes, "shoulder span $span")
+        }
     }
 
     @Test
@@ -182,7 +190,7 @@ class PreflightTest {
     }
 
     @Test
-    fun `a staked sitting starts only with the near knee clear of the picture's edges`() {
+    fun `a sitting starts only with the near knee clear of the picture's edges`() {
         val staked = Preflight(stakes = Stakes.STAKED)
         fun pose(kneeX: Float): ImagePose {
             val base = Traces.angledImage(0, elbowDegrees = 175f)
@@ -207,12 +215,14 @@ class PreflightTest {
         }
         // This synthetic body shows its left side to the lens: the phone is on its left, so it turns right.
         assertEquals(Preflight.KNEES_TURN_RIGHT_FIX, wholeBody(staked.evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), hidden.frame, hidden))).fix)
-        // The Daily 25 does not judge knees, so it does not ask for them.
-        assertTrue(wholeBody(Preflight().evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), pose(0.05f).frame, pose(0.05f)))).passing)
+        // The Daily 25 and Easy count push-ups from the knees, but still need the knee seen (002 FR-007).
+        for (stakes in listOf(Stakes.DAILY, Stakes.EASY)) {
+            assertEquals(Preflight.KNEES_FIX, wholeBody(Preflight(stakes = stakes).evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), pose(0.05f).frame, pose(0.05f)))).fix, "$stakes")
+        }
     }
 
     @Test
-    fun `a staked sitting starts only with the near foot clear of the picture's edges`() {
+    fun `a sitting starts only with the near foot clear of the picture's edges`() {
         val staked = Preflight(stakes = Stakes.STAKED)
         fun pose(ankleX: Float): ImagePose {
             val base = Traces.angledImage(0, elbowDegrees = 175f)
@@ -231,7 +241,7 @@ class PreflightTest {
         val atTheEdge = wholeBody(report(staked, 0.97f))
         assertFalse(atTheEdge.passing)
         assertEquals(Preflight.FEET_FIX, atTheEdge.fix)
-        assertTrue(wholeBody(report(Preflight(), 0.97f)).passing, "the Daily 25 does not judge the legs")
+        assertEquals(Preflight.FEET_FIX, wholeBody(report(Preflight(), 0.97f)).fix, "the Daily 25 is held to the same set-up")
     }
 
     @Test
@@ -240,9 +250,9 @@ class PreflightTest {
         fun report(image: PoseFrame) = staked.evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), image, ImagePose(image, 720, 1280)))
         fun cameraFix(report: PreflightReport) = report.statuses.single { it.check == PreflightCheck.CAMERA_ANGLE }.fix
 
-        // Ratio 1.25 — about 30° on the floor: the Daily 25 counts from there, a staked sitting does not start.
+        // Ratio 1.25 — about 30° on the floor: no sitting starts there (the Daily 25 did until 8 Oct).
         val tooFarInFront = Traces.imageFrame(shoulderSpan = 0.5f)
-        assertEquals(CameraView.OBLIQUE, preflight.evaluate(good(image = tooFarInFront)).view)
+        assertEquals(CameraView.FRONT, preflight.evaluate(good(image = tooFarInFront)).view)
         val refused = report(tooFarInFront)
         assertEquals(CameraView.FRONT, refused.view)
         assertFalse(refused.canStart)
