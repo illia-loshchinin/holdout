@@ -326,3 +326,15 @@
 3. **Demo integrity** = Phase 11, which must be live before judging starts because judging depends on it.
 4. **Phase 2 of the spec** = Phase 12 here, cut without regret if 26–27 September is tight — each item has a Phase 1 stand-in, and each cut is logged in the decision record.
 5. **Phase 13** is filming, writing and the submission.
+
+---
+
+## Phase 14: Convergence
+
+- [ ] T115 CRITICAL: Add a release signing config for `memberRelease` in `kotlin/app/build.gradle.kts`, read from a keystore and passwords outside the repository (Gradle properties `holdout.keystore`, `holdout.keystorePassword`, `holdout.keyAlias`, `holdout.keyPassword`), so `assembleMemberRelease` produces a signed `app-member-release.apk`. Document the keystore's creation and backup in `docs/holdout_setup_runbook.md`. Per Constitution Hackathon Constraints (signed APK), FR-066 and AC-19 (missing)
+- [ ] T116 Cut **only** the 16:9 three-minute demo video from the short-test-lobby footage, hosted for a link in the submission form. Neither the 9:16 in-app export nor the tour's explainer is made, and the final APK (`memberRelease`, signed) carries no video. Check that every §3 screen appears in the video. Supersedes the walkthrough parts of T107 and T108. Per FR-044 and FR-066 (contradicts)
+- [ ] T117 Submit the signed APK, the repository, the demo-video link and the pitch deck before **13 October 2026, 01:59 CEST** (target 12 October, 20:00 CEST). Before submitting, log every cut Phase 2 item in `docs/holdout_decisions.md`. Supersedes T109's 8 October date. Per FR-066 (partial)
+- [ ] T118 Fund the faucet vault to 25 SOL by **12 October** (`crank init --fund-faucet 25`, or a top-up) and check with `crank status`. Supersedes T010's 8 October date. Per FR-042a and plan R13 (partial)
+- [ ] T119 Rewrite `docs/holdout_demo_video.md` for the demo video sent as a link: no in-app walkthrough or 9:16 export; due 13 October, 01:59 CEST. Fix README line 63's description of it. Per FR-044 and FR-066 (contradicts)
+- [ ] T120 Monitor the live period from submission, **13 October – 11 November**, from `crank status`, as T110 describes. Supersedes T110's 9 October start. Per FR-043 and Constitution XII (partial)
+- [ ] T121 Confirm T105 against the code: the app icon, monochrome layer, status icon, splash wave and loader from PR #23 (`res/drawable/`, `res/values-v31/themes.xml`, `ui/HoldoutLoader.kt`) against PRD §11.8. If they match, tick T105; if the wordmark is missing, add it. Per PRD §11.8 and T105 (partial)
