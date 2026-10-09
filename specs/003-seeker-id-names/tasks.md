@@ -25,10 +25,12 @@ description: "Task list for 003 Seeker ID names"
 
 ## Phase 1: Setup
 
-**Purpose**: The code base this feature builds on, and the one build setting it needs
+**Purpose**: The code base this feature builds on, the 001 amendments that bring it into scope (constitution Governance), and the one build setting it needs
 
-- [ ] T001 Bring spec 004 into this branch. Once 004's pull request has landed, merge `001-holdout-hackathon` into `003-seeker-id-names`; until then, merge `004-lab-and-member-apps`. Afterwards these paths exist: `docs/weaknesses.json`, the `member` and `lab` product flavours in `kotlin/app/build.gradle.kts`, and the slimmed `kotlin/app/src/main/kotlin/holdout/app/about/AboutScreen.kt`. Every later task assumes them.
-- [ ] T002 Add `buildConfigField("String", "NAMES_RPC_URL", …)` beside `RPC_URL` in `defaultConfig` of `kotlin/app/build.gradle.kts`, so both flavours get it. It reads the Gradle property `holdout.namesRpcUrl` and defaults to `https://api.mainnet-beta.solana.com` (research R5, contracts §1). Its code comment says it is used only for read-only Seeker ID lookups.
+- [x] T001 Bring spec 004 into this branch: `origin/004-lab-and-member-apps` (`f10ba1e`) is merged into `003-seeker-id-names` as `0b55419`. These paths now exist: `docs/weaknesses.json`, the `member` and `lab` product flavours in `kotlin/app/build.gradle.kts`, and the slimmed `kotlin/app/src/main/kotlin/holdout/app/about/AboutScreen.kt`. Every later task assumes them. Once 004's pull request lands on `001-holdout-hackathon`, merge that base branch in again before opening 003's pull request.
+- [x] T002 Amend 001 FR-063, and FR-062 for rosters, through `/speckit-clarify` on `specs/001-holdout-hackathon`: leaderboards and rosters identify members by Seeker ID or shortened address, for display only and with no amounts (spec 003 FR-002, FR-008). Done in `9973a19` (001 Clarifications, Session 2026-10-09). It comes before any code because the constitution's Governance puts out of scope anything 001's spec does not require.
+- [ ] T003 Amend `specs/001-holdout-hackathon/contracts/android-app.md` §2 (network egress) through `/speckit-plan` on 001: add the names endpoint row from 003 contracts §2. Do this before T004, so 001's egress contract names the mainnet read before any code makes it.
+- [ ] T004 Add `buildConfigField("String", "NAMES_RPC_URL", …)` beside `RPC_URL` in `defaultConfig` of `kotlin/app/build.gradle.kts`, so both flavours get it. It reads the Gradle property `holdout.namesRpcUrl` and defaults to `https://api.mainnet-beta.solana.com` (research R5, contracts §1). Its code comment says it is used only for read-only Seeker ID lookups.
 
 ---
 
@@ -36,9 +38,9 @@ description: "Task list for 003 Seeker ID names"
 
 **Purpose**: The lookup, the cache and the shared identity line. No screen changes until this phase is done.
 
-### Tests first (must fail before T006–T011)
+### Tests first (must fail before T008–T013)
 
-- [ ] T003 [P] Write `kotlin/core/src/test/kotlin/holdout/core/SeekerNamesTest.kt` (JUnit 5), covering:
+- [ ] T005 [P] Write `kotlin/core/src/test/kotlin/holdout/core/SeekerNamesTest.kt` (JUnit 5), covering:
   - **Constants:** derive them from first principles and compare with the research R1 table.
     - The origin is `3mX9b4AZaQehNoQGfckVcmgmA6bkBoFcbLj9RMmMyNcU`, the PDA `[sha256("ALT Name Service"+"ANS"), 0³², 0³²]` under `ALTNSZ46uaAUU7XUV6awvdorLGqAsPwa9shm7h4uP2FK`.
     - The `.skr` parent is `F3A8kuikEiu6k2399oSJ1PWfcJYDHqpwoQ2e8psSDNuF`.
@@ -52,12 +54,12 @@ description: "Task list for 003 Seeker ID names"
     - does not already end in `.skr`.
   - **Choice:** `choose(listOf("zed","Alice","bob"))` = `"Alice.skr"`, by code-point order of the lower-cased text (R3); an empty list gives null.
   - **Truncation:** `fit(name, budget)` returns a name within budget unchanged. Otherwise it keeps the first `budget − 5` characters of the label, then `…`, then `.skr`, for budgets 20 and 28 (R9).
-- [ ] T004 [P] Write `kotlin/core/src/test/kotlin/holdout/core/SeekerNameReaderTest.kt` with a scripted `FakeHttp : HttpNetworkDriver`, as `RpcTest.kt` does. Cases:
+- [ ] T006 [P] Write `kotlin/core/src/test/kotlin/holdout/core/SeekerNameReaderTest.kt` with a scripted `FakeHttp : HttpNetworkDriver`, as `RpcTest.kt` does. Cases:
   - `nameOf(wallet)` sends `getProgramAccounts` with the contracts §1.1 body, then one `getMultipleAccounts` of the reverse-record addresses.
   - It returns `Lookup.Found("alice.skr")`, `Lookup.None` for `result: []`, and `Lookup.Unknown(rateLimited = true)` on HTTP 429.
   - It returns `Lookup.Unknown(rateLimited = false)` on a JSON-RPC error, an `IOException` or a 10 s timeout.
   - The class has no public member other than `nameOf` (checked by reflection, as `StreakStoreTest` checks its API).
-- [ ] T005 [P] Write `kotlin/app/src/test/kotlin/holdout/app/names/LookupQueueTest.kt` (JUnit 4, as the other app tests are). It drives a pure `LookupQueue` with an explicit clock in milliseconds (data-model §4, research R11):
+- [ ] T007 [P] Write `kotlin/app/src/test/kotlin/holdout/app/names/LookupQueueTest.kt` (JUnit 4, as the other app tests are). It drives a pure `LookupQueue` with an explicit clock in milliseconds (data-model §4, research R11):
   - "at most one owner search per 1,200 ms";
   - the connected wallet is served before any on-screen wallet;
   - `showing(set)` replaces the on-screen set. A pending wallet that is no longer in the set, and is not the connected wallet, is dropped without being searched (FR-012). It is queued again if a later `showing` includes it;
@@ -69,25 +71,25 @@ description: "Task list for 003 Seeker ID names"
 
 ### Implementation
 
-- [ ] T006 [P] Implement `kotlin/core/src/main/kotlin/holdout/core/SeekerNames.kt` until T003 passes:
+- [ ] T008 [P] Implement `kotlin/core/src/main/kotlin/holdout/core/SeekerNames.kt` until T005 passes:
   - the constants `ANS_PROGRAM`, `TLD_HOUSE_PROGRAM`, `SKR_PARENT` and `SKR_TLD_HOUSE`;
   - `ownerSearchParams`, `reverseRecordAddress`, `nameFromReverseRecord`, `choose` and `fit` (contracts §3.1);
   - SHA-256 via `java.security.MessageDigest`, and PDAs via `ProgramDerivedAddress.find`, as `Pdas.kt` does.
 
   Its KDoc names the source (`@onsol/tldparser` 1.2.1) and the 2026-10-09 mainnet spike (research R1, R2).
-- [ ] T007 Implement `kotlin/core/src/main/kotlin/holdout/core/SeekerNameReader.kt` until T004 passes (depends on T006):
+- [ ] T009 Implement `kotlin/core/src/main/kotlin/holdout/core/SeekerNameReader.kt` until T006 passes (depends on T008):
   - a read-only client over its own `Rpc20Driver(endpoint, KtorNetworkDriver())`;
   - one public `suspend fun nameOf(wallet): Lookup`;
   - reverse reads batched "up to 100" per `getMultipleAccounts`;
   - a 10 s timeout.
 
   Its KDoc states that it can neither sign nor send, and why it is not an `Rpc` (research R5). Leave `Rpc.kt` unchanged.
-- [ ] T008 Add kept name entries to the `Store` interface in `kotlin/app/src/main/kotlin/holdout/app/storage/Store.kt`, in both implementations: `MmkvStore` and `InMemoryStore` (for tests).
+- [ ] T010 Add kept name entries to the `Store` interface in `kotlin/app/src/main/kotlin/holdout/app/storage/Store.kt`, in both implementations: `MmkvStore` and `InMemoryStore` (for tests).
   - **Accessors:** `seekerName(wallet): KeptName?` and `setSeekerName(wallet, KeptName)`. `KeptName(name: String?, checkedAtMillis: Long)` is stored under the key `seekerName:<wallet base58>` (data-model §2).
   - **Bound:** "at most 5,000 entries". The entry with the oldest `checkedAtMillis` is removed first.
   - **Index:** `allSeekerNames(): Map<String, String>` returns only the entries that have a name.
-- [ ] T009 Implement `kotlin/app/src/main/kotlin/holdout/app/names/LookupQueue.kt` until T005 passes. It is pure, with no Android or coroutine types. It has two priorities, connected and on screen, and nothing else (FR-012).
-- [ ] T010 Implement `kotlin/app/src/main/kotlin/holdout/app/names/SeekerNameRepository.kt` (contracts §3.3; depends on T007–T009):
+- [ ] T011 Implement `kotlin/app/src/main/kotlin/holdout/app/names/LookupQueue.kt` until T007 passes. It is pure, with no Android or coroutine types. It has two priorities, connected and on screen, and nothing else (FR-012).
+- [ ] T012 Implement `kotlin/app/src/main/kotlin/holdout/app/names/SeekerNameRepository.kt` (contracts §3.3; depends on T009–T011):
   - **`names: StateFlow<Map<String, String>>`** is seeded from `Store.allSeekerNames()` at construction.
   - **`showing(wallets: Collection<String>)`** sets the on-screen set and returns at once. It queues only wallets with no entry, or whose entry is older than "24 hours". Wallets that left the screen are dropped from the queue (FR-012).
   - **`connected(wallet)`** always queues at the connected priority.
@@ -101,7 +103,7 @@ description: "Task list for 003 Seeker ID names"
   - `connected` re-checks a fresh entry;
   - `Unknown` leaves the store untouched and the address shown;
   - a wallet passed to `showing` and then removed by a second `showing`, before the worker reaches it, is never sent to the reader.
-- [ ] T011 Add two members to `kotlin/app/src/main/kotlin/holdout/app/ui/Components.kt` (contracts §3.4, research R8, data-model §3): `Format.identity(wallet, name: String?, budget: Int): String` and `@Composable MemberIdentity(wallet: String, isYou: Boolean, budget: Int, color: Color, modifier: Modifier)`.
+- [ ] T013 Add two members to `kotlin/app/src/main/kotlin/holdout/app/ui/Components.kt` (contracts §3.4, research R8, data-model §3): `Format.identity(wallet, name: String?, budget: Int): String` and `@Composable MemberIdentity(wallet: String, isYou: Boolean, budget: Int, color: Color, modifier: Modifier)`.
   - **Text:** the name through `SeekerNames.fit`, or `Format.short(wallet)` (unchanged) when there is none. Append ` · you` when `isYou`.
   - **Style:** `AmountStyle` in the caller's colour.
   - **Layout:** reserve the width of the longer form, and crossfade 200 ms when a name arrives.
@@ -119,10 +121,10 @@ description: "Task list for 003 Seeker ID names"
 
 **Independent Test**: Quickstart §4 rows 1–3: connect a wallet with a Seeker ID, then reopen offline, then connect one without.
 
-- [ ] T012 [US1] Wire up the repository in `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt`:
-  - in `HoldoutApp`, create one `SeekerNameRepository` with `remember`, beside `val store` (≈ line 116). Give it `SeekerNameReader(BuildConfig.NAMES_RPC_URL)` and that `store`;
+- [ ] T014 [US1] Wire up the repository in `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt`:
+  - in `HoldoutApp`, create one `SeekerNameRepository` with `remember`, beside `val store` (≈ line 114). Give it `SeekerNameReader(BuildConfig.NAMES_RPC_URL)` and that `store`;
   - call `connected(wallet)` whenever `address` becomes non-null: after `holdouts.wallet.connect(sender)` succeeds, and for `holdouts.wallet.restored` at start. Use a `LaunchedEffect(address)`.
-- [ ] T013 [US1] Replace `Text("Disconnect ${Format.short(wallet)}", …)` in `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt` (≈ line 703) with the word "Disconnect" followed by `MemberIdentity(wallet, isYou = false, budget = 28, color = HoldoutColors.TextTertiary)`. The tap target, its size and its colour stay as they are.
+- [ ] T015 [US1] Replace `Text("Disconnect ${Format.short(wallet)}", …)` in `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt` (≈ line 692) with the word "Disconnect" followed by `MemberIdentity(wallet, isYou = false, budget = 28, color = HoldoutColors.TextTertiary)`. The tap target, its size and its colour stay as they are.
 
 **Checkpoint**: US1 works on a device (quickstart §4 rows 1–3); rosters and leaderboards still show addresses.
 
@@ -132,17 +134,17 @@ description: "Task list for 003 Seeker ID names"
 
 **Goal**: Rosters and leaderboards show each member's Seeker ID or shortened address, looked up only for rows on screen. Order and the "you" and scripted markers don't change (FR-002, FR-008, FR-011, FR-012).
 
-**Independent Test**: Quickstart §4 rows 4–7, and the ordering test in T014.
+**Independent Test**: Quickstart §4 rows 4–7, and the ordering test in T016.
 
-- [ ] T014 [P] [US2] Add a test to `kotlin/app/src/test/kotlin/holdout/app/LeaderboardTextTest.kt`: given rows whose wallets do and don't have kept names, the row order, the ranks, the scripted label and the "you" marker are identical to the result with no names at all (FR-008, SC-003). Names are attached only after ordering.
-- [ ] T015 [US2] In `kotlin/app/src/main/kotlin/holdout/app/roster/RosterScreen.kt`:
+- [ ] T016 [P] [US2] Add a test to `kotlin/app/src/test/kotlin/holdout/app/LeaderboardTextTest.kt`: given rows whose wallets do and don't have kept names, the row order, the ranks, the scripted label and the "you" marker are identical to the result with no names at all (FR-008, SC-003). Names are attached only after ordering.
+- [ ] T017 [US2] In `kotlin/app/src/main/kotlin/holdout/app/roster/RosterScreen.kt`:
   - replace `Format.short(address) + if (address == me) " · you" else ""` (≈ line 67) with `MemberIdentity(address, isYou = address == me, budget = 20, …)`. Keep the current colour for standing and forfeited rows;
-  - read the visible wallets from the `LazyColumn`'s `LazyListState.layoutInfo.visibleItemsInfo` through `snapshotFlow`. Call `showing(visible wallets)` each time they change, and `showing(emptyList())` when the screen leaves composition. **Never pass the whole roster** (FR-012, research R11);
+  - give the `LazyColumn` `state = rememberLazyListState()`, because it has none today. Read the visible wallets from that state's `layoutInfo.visibleItemsInfo` through `snapshotFlow`, keeping only keys that are a `String`. Member rows are already keyed by the wallet's base58 (`items(roster, key = { it.member.wallet.base58() })`), and the header items have no key of their own. Call `showing(visible wallets)` each time they change, and `showing(emptyList())` when the screen leaves composition. **Never pass the whole roster** (FR-012, research R11);
   - leave the scripted label and the ordering exactly as they are.
-- [ ] T016 [US2] In `kotlin/app/src/main/kotlin/holdout/app/leaderboard/LeaderboardScreen.kt`, make the same change to the row text in `Line` (≈ line 88):
+- [ ] T018 [US2] In `kotlin/app/src/main/kotlin/holdout/app/leaderboard/LeaderboardScreen.kt`, make the same change to the row text in `Line` (≈ line 88):
   - keep `"$place "` in front;
   - show `MemberIdentity(address, isYou = r.wallet == me, budget = 20, …)`;
-  - report visible wallets the same way as T015;
+  - report visible wallets the same way as T017, with its own `rememberLazyListState()` passed as the `LazyColumn`'s `state`. Its rows are keyed `"r" + wallet` (ranked, ≈ line 72) and `"n" + wallet` (not ranked, ≈ line 75), so drop each key's first character before passing it to `showing`;
   - keep no amounts on the board (constitution XIII).
 
 **Checkpoint**: US1 and US2 both work; a crowd with no Seeker IDs looks exactly as before.
@@ -155,20 +157,18 @@ description: "Task list for 003 Seeker ID names"
 
 **Independent Test**: Quickstart §4 row 8: the README's table has the entry, and `node scripts/render-weaknesses.mjs --check` passes.
 
-- [ ] T017 [US3] Add the contracts §4 entry, verbatim (`what`, `why`, `fix`), to the `weaknesses` array in `docs/weaknesses.json`, after the "Devnet with a mock SKR mint" entry.
-- [ ] T018 [US3] Run `node scripts/render-weaknesses.mjs` from the repository root and commit the regenerated table in `README.md`. Do not edit the README by hand. No app code changes: `AboutScreen.kt` shows no weaknesses since 004.
+- [ ] T019 [US3] Add the contracts §4 entry, verbatim (`what`, `why`, `fix`), to the `weaknesses` array in `docs/weaknesses.json`, after the "Devnet with a mock SKR mint" entry.
+- [ ] T020 [US3] Run `node scripts/render-weaknesses.mjs` from the repository root and commit the regenerated table in `README.md`. Do not edit the README by hand. No app code changes: `AboutScreen.kt` shows no weaknesses since 004.
 
 ---
 
 ## Phase 6: Polish and cross-cutting
 
-- [ ] T019 Run the quickstart §2–§3 checks for both flavours, and fix what they report:
+- [ ] T021 Run the quickstart §2–§3 checks for both flavours, and fix what they report:
   - `./gradlew :core:test :app:testMemberDebugUnitTest :app:testLabDebugUnitTest :app:assembleMemberDebug :app:assembleLabDebug ktlintCheck`;
   - `node scripts/render-weaknesses.mjs --check`;
   - `bash scripts/check-wording.sh`.
-- [ ] T020 In the Holdout design system artifact (https://claude.ai/artifact/XF5A1KCgH7WY9651C5ZXhs), change the Roster row wording from "by shortened address only" to "by Seeker ID, or shortened address when there is none". **Product owner approval needed:** it edits the shared design system.
-- [ ] T021 Amend 001 FR-063 through `/speckit-clarify` on `specs/001-holdout-hackathon`: leaderboards identify members by Seeker ID or shortened address, with no amounts (spec 003 FR-002).
-- [ ] T022 Amend `specs/001-holdout-hackathon/contracts/android-app.md` §2 (network egress) through `/speckit-plan` on 001: add the names endpoint row from 003 contracts §2.
+- [ ] T022 In the Holdout design system artifact (https://claude.ai/artifact/XF5A1KCgH7WY9651C5ZXhs), change the Roster row wording from "by shortened address only" to "by Seeker ID, or shortened address when there is none". **Product owner approval needed:** it edits the shared design system.
 - [ ] T023 On a Seeker with a Seeker ID, connected to the devnet `member` build, run quickstart §4 rows 1–8 and record the results in the PR. Row 7 is the lazy-loading check (FR-012, SC-002), and row 8 is the README entry (US3). **Needs the product owner's device.**
 
 ---
@@ -177,14 +177,19 @@ description: "Task list for 003 Seeker ID names"
 
 ### Phase dependencies
 
-- **Setup**: T001 first. T002 after T001, because it edits the flavoured `build.gradle.kts`.
-- **Foundational (T003–T011)**: after T001.
-  - The tests come before their implementations: T003→T006, T004→T007, T005→T009.
-  - T007 needs T006. T010 needs T002 (the endpoint), T007, T008 and T009. T011 needs T006 (for `fit`) and T010 (for the flow).
-- **US1 (T012–T013)**: all of Phase 2.
-- **US2 (T014–T016)**: all of Phase 2 and T012 (the repository instance); independent of T013.
-- **US3 (T017–T018)**: T001 only (for `docs/weaknesses.json`). It can start at any time after that.
-- **Polish**: T019 after T013–T018. T020–T022 are documentation through their own processes and can run at any time. T023 comes last.
+- **Setup**:
+  - T001 and T002 are done.
+  - T003 comes next, before any code (constitution Governance), and T004 follows it, because it edits the flavoured `build.gradle.kts`.
+- **Foundational (T005–T013)**: after T003.
+  - The tests come before their implementations: T005→T008, T006→T009, T007→T011.
+  - T009 needs T008. T012 needs T004 (the endpoint), T009, T010 and T011. T013 needs T008 (for `fit`) and T012 (for the flow).
+- **US1 (T014–T015)**: all of Phase 2.
+- **US2 (T016–T018)**: all of Phase 2 and T014 (the repository instance); independent of T015.
+- **US3 (T019–T020)**: T003 only. It can start at any time after that.
+- **Polish**:
+  - T021 after T015–T020.
+  - T022 is a design-system edit and can run at any time.
+  - T023 comes last.
 
 ### Within each story
 
@@ -192,35 +197,36 @@ The tests are written first and fail, then the implementation makes them pass. S
 
 ## Parallel Opportunities
 
-- **Tests:** T003, T004 and T005 are three new test files with no shared code.
-- **Implementation:** T006 (core) and T008 (Store) touch different modules.
-- **Screens:** T014 can run beside T015/T016, since it is a test file and they are screen files. T015 and T016 are different files, so both can run once T012 is done.
-- **Text and docs:** T017–T018 and T020–T022 at any time after T001, beside the code.
+- **Tests:** T005, T006 and T007 are three new test files with no shared code.
+- **Implementation:** T008 (core) and T010 (Store) touch different modules.
+- **Screens:** T016 can run beside T017/T018, since it is a test file and they are screen files. T017 and T018 are different files, so both can run once T014 is done.
+- **Text and docs:** T019–T020 and T022 at any time after T003, beside the code.
 
 ```text
-# After T001–T002, three people:
-A: T003 → T006 → T007
-B: T005 → T009
-C: T008, T017 → T018
-then together: T010 → T011
-# After T012:
-A: T015    B: T016    C: T014
+# After T003–T004, three people:
+A: T005 → T008 → T009
+B: T007 → T011
+C: T010, T019 → T020
+then together: T012 → T013
+# After T014:
+A: T017    B: T018    C: T016
 ```
 
 ## Implementation Strategy
 
 ### MVP: User Story 1
 
-Phases 1–3 (T001–T013): the connected member sees their own Seeker ID. This proves the mainnet read, pacing and cache on a real Seeker with one row, and it can ship alone. Rosters keep addresses until US2 lands.
+Phases 1–3 (T001–T015): the connected member sees their own Seeker ID. This proves the mainnet read, pacing and cache on a real Seeker with one row, and it can ship alone. Rosters keep addresses until US2 lands.
 
 ### Incremental delivery
 
-1. Phases 1–2: 004 is merged in, and the lookup and the cache are tested on the JVM. Nothing visible changes.
-2. US1: own identity, checked on the device (quickstart §4 rows 1–3).
-3. US2: rosters and leaderboards, looked up only for rows on screen (quickstart §4 rows 4–7).
-4. US3: the README disclosure (row 8). It is small, but constitution XI makes it required before submission.
-5. Polish: the checks, the design system wording and the 001 amendments.
+1. Phase 1: 004 is merged in (done), 001 is amended (FR-063 done, egress open), and the endpoint setting is added.
+2. Phase 2: the lookup and the cache are tested on the JVM. Nothing visible changes.
+3. US1: own identity, checked on the device (quickstart §4 rows 1–3).
+4. US2: rosters and leaderboards, looked up only for rows on screen (quickstart §4 rows 4–7).
+5. US3: the README disclosure (row 8). It is small, but constitution XI makes it required before submission.
+6. Polish: the checks, the design system wording and the device run.
 
 ### Fit with the 13 Oct submission
 
-All 23 tasks are client-only and touch no program or crank. Lazy loading makes the queue smaller than before: two priorities and no background pass over the list. T001–T019 fit in about half a day once 004 is merged. T020–T022 are documentation through their own processes. T023 needs the Seeker. The work runs beside the devnet deploy and doesn't block it.
+All 23 tasks are client-only and touch no program or crank; two are already done. Lazy loading keeps the queue small: two priorities and no background pass over the list. T003–T021 fit in about half a day. T022 is one wording change in the design system artifact. T023 needs the Seeker. The work runs beside the devnet deploy and doesn't block it.
