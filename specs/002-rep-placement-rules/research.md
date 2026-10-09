@@ -44,7 +44,7 @@ Every number here was measured on a Solana Seeker, from traces the app recorded 
 
 ## D8. Traces as the test suite
 
-- **Decision**: Debug builds write a CSV per sitting (contract: [trace-format.md](contracts/trace-format.md)); at Stop the member logs what they did; committed traces replay in `RecordedTracesTest` and must count within one rep.
+- **Decision**: Holdout Lab writes a CSV per set (debug builds did until 2026-10-09, spec 004; contract: [trace-format.md](contracts/trace-format.md)); at Stop the tester logs what they did; committed traces replay in `RecordedTracesTest` and must count within one rep.
 - **Rationale**: Thresholds tuned by eye drift; a labelled trace turns each phone session into a regression test.
 - **Alternatives considered**: Screen recordings re-run on the desktop — slower, and not the phone's own model output.
 
