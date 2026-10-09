@@ -29,7 +29,7 @@ description: "Task list for 003 Seeker ID names"
 
 - [x] T001 Bring spec 004 into this branch: `origin/004-lab-and-member-apps` (`f10ba1e`) is merged into `003-seeker-id-names` as `0b55419`. These paths now exist: `docs/weaknesses.json`, the `member` and `lab` product flavours in `kotlin/app/build.gradle.kts`, and the slimmed `kotlin/app/src/main/kotlin/holdout/app/about/AboutScreen.kt`. Every later task assumes them. Once 004's pull request lands on `001-holdout-hackathon`, merge that base branch in again before opening 003's pull request.
 - [x] T002 Amend 001 FR-063, and FR-062 for rosters, through `/speckit-clarify` on `specs/001-holdout-hackathon`: leaderboards and rosters identify members by Seeker ID or shortened address, for display only and with no amounts (spec 003 FR-002, FR-008). Done in `9973a19` (001 Clarifications, Session 2026-10-09). It comes before any code because the constitution's Governance puts out of scope anything 001's spec does not require.
-- [ ] T003 Amend `specs/001-holdout-hackathon/contracts/android-app.md` §2 (network egress) through `/speckit-plan` on 001: add the names endpoint row from 003 contracts §2. Do this before T004, so 001's egress contract names the mainnet read before any code makes it.
+- [x] T003 Amend `specs/001-holdout-hackathon/contracts/android-app.md` §2 (network egress) through `/speckit-plan` on 001: add the names endpoint row from 003 contracts §2. Done in `ec25e91`, before T004, so 001's egress contract names the mainnet read before any code makes it.
 - [ ] T004 Add `buildConfigField("String", "NAMES_RPC_URL", …)` beside `RPC_URL` in `defaultConfig` of `kotlin/app/build.gradle.kts`, so both flavours get it. It reads the Gradle property `holdout.namesRpcUrl` and defaults to `https://api.mainnet-beta.solana.com` (research R5, contracts §1). Its code comment says it is used only for read-only Seeker ID lookups.
 
 ---
@@ -178,8 +178,8 @@ description: "Task list for 003 Seeker ID names"
 ### Phase dependencies
 
 - **Setup**:
-  - T001 and T002 are done.
-  - T003 comes next, before any code (constitution Governance), and T004 follows it, because it edits the flavoured `build.gradle.kts`.
+  - T001, T002 and T003 are done, so 001 covers the feature before any code (constitution Governance).
+  - T004 comes next; it edits the flavoured `build.gradle.kts`.
 - **Foundational (T005–T013)**: after T003.
   - The tests come before their implementations: T005→T008, T006→T009, T007→T011.
   - T009 needs T008. T012 needs T004 (the endpoint), T009, T010 and T011. T013 needs T008 (for `fit`) and T012 (for the flow).
@@ -220,7 +220,7 @@ Phases 1–3 (T001–T015): the connected member sees their own Seeker ID. This 
 
 ### Incremental delivery
 
-1. Phase 1: 004 is merged in (done), 001 is amended (FR-063 done, egress open), and the endpoint setting is added.
+1. Phase 1: 004 is merged in and 001 is amended (both done), then the endpoint setting is added.
 2. Phase 2: the lookup and the cache are tested on the JVM. Nothing visible changes.
 3. US1: own identity, checked on the device (quickstart §4 rows 1–3).
 4. US2: rosters and leaderboards, looked up only for rows on screen (quickstart §4 rows 4–7).
@@ -229,4 +229,4 @@ Phases 1–3 (T001–T015): the connected member sees their own Seeker ID. This 
 
 ### Fit with the 13 Oct submission
 
-All 23 tasks are client-only and touch no program or crank; two are already done. Lazy loading keeps the queue small: two priorities and no background pass over the list. T003–T021 fit in about half a day. T022 is one wording change in the design system artifact. T023 needs the Seeker. The work runs beside the devnet deploy and doesn't block it.
+All 23 tasks are client-only and touch no program or crank; three are already done. Lazy loading keeps the queue small: two priorities and no background pass over the list. T003–T021 fit in about half a day. T022 is one wording change in the design system artifact. T023 needs the Seeker. The work runs beside the devnet deploy and doesn't block it.
