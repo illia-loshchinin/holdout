@@ -92,9 +92,9 @@ private fun Line(place: String, r: Leaderboard.Row, me: SolanaPublicKey?) {
     val address = r.wallet.base58()
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Row {
+            Row(Modifier.weight(1f)) {
                 Text("$place ", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextPrimary)
-                MemberIdentity(address, isYou = r.wallet == me, budget = 20, color = HoldoutColors.TextPrimary, style = MaterialTheme.typography.bodyLarge)
+                MemberIdentity(address, isYou = r.wallet == me, budget = 20, color = HoldoutColors.TextPrimary, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
             }
             Text(LeaderboardText.rate(r), style = LabelStyle, color = HoldoutColors.Success)
         }

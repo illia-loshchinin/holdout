@@ -80,6 +80,7 @@ fun RosterScreen(
                     isYou = address == me,
                     budget = 20,
                     color = if (entry.standing) HoldoutColors.TextPrimary else HoldoutColors.TextTertiary,
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Text(

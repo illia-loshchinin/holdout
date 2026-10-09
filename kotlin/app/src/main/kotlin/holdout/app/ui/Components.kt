@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import holdout.app.ui.theme.AmountStyle
@@ -207,8 +208,11 @@ val LocalSeekerNames = compositionLocalOf<Map<String, String>> { emptyMap() }
  * by the name (FR-008).
  *
  * The address shows at once and the name crossfades in over 200 ms when it
- * arrives (FR-006). The line keeps the address's width underneath, so a row
- * never shrinks while a name loads.
+ * arrives (FR-006). The line reserves the widest a name can be — [budget]
+ * characters — from the start, so a name arriving never moves what is beside
+ * it (US1-3). In a row, give it the space beside the other text with
+ * `Modifier.weight(1f)`: it then fills that space whatever it shows, and a
+ * name too long for it ends in "…".
  */
 @Composable
 fun MemberIdentity(
@@ -222,9 +226,9 @@ fun MemberIdentity(
     val you = if (isYou) " · you" else ""
     val shown = Format.identity(wallet, LocalSeekerNames.current[wallet], budget) + you
     Box(modifier.clearAndSetSemantics { contentDescription = shown }) {
-        Text(Format.short(wallet) + you, style = style, color = color, maxLines = 1, modifier = Modifier.alpha(0f))
+        Text("0".repeat(budget) + you, style = style, color = color, maxLines = 1, softWrap = false, modifier = Modifier.alpha(0f))
         Crossfade(targetState = shown, animationSpec = tween(durationMillis = 200), label = "member identity") {
-            Text(it, style = style, color = color, maxLines = 1)
+            Text(it, style = style, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
