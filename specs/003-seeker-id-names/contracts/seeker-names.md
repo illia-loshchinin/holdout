@@ -69,8 +69,8 @@ Each `value` is null (no record: not a candidate) or an account whose data after
 | Member | Contract |
 |---|---|
 | `val names: StateFlow<Map<String, String>>` | wallet base58 → chosen name, for every kept entry that has one. Starts from the cache at once |
-| `fun showing(wallets: Collection<String>)` | Replace the on-screen set: queue those not fresh in the cache (data-model §2, §4), and drop pending ones no longer on screen (FR-012). Returns at once. Screens pass only their visible rows, and an empty list when they leave |
-| `fun connected(wallet: String)` | Re-check the connected wallet now at priority 0 (FR-007) |
+| `fun showing(wallets: Collection<String>)` | Replace the on-screen set: queue those not fresh in the cache (data-model §2, §4), and drop pending ones no longer on screen (FR-012). Scripted wallets are skipped. Returns at once. Screens pass only their visible rows, and an empty list when they leave |
+| `fun connected(wallet: String?)` | Re-check the connected wallet now at priority 0 (FR-007). Null on disconnect: the wallet that was connected is dropped unsearched unless it is a row on screen (FR-012). A scripted wallet is never queued (FR-012) |
 
 ### 3.4 Compose
 

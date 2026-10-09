@@ -60,8 +60,8 @@ node scripts/render-weaknesses.mjs --check
 | 3 | Disconnect, connect the wallet **without** a Seeker ID | The shortened address shows; no message, spinner or error | US1-2, FR-006 |
 | 4 | Open a running Holdout's roster with scripted members and at least one member with a Seeker ID | That member shows `name.skr`; scripted rows show addresses with their scripted label; order is as before; your row ends with "· you" | US2-1, US2-3, FR-011 |
 | 5 | Open the league leaderboard | Same identities; the ranking is unchanged and shows no amounts | US2-2, FR-008, SC-003 |
-| 6 | With airplane mode on and the cache cleared (Settings → Apps → Holdout → Clear storage, then reconnect over Wi-Fi and turn it off again), open the roster | Every row shows its shortened address; no error anywhere | SC-004 |
-| 7 | With the cache cleared as in row 6 but online, open a roster of 30 or more and scroll straight to the bottom | The rows on screen are named within 15 s; the rows you passed stay as addresses until you scroll back to them | FR-012, SC-002 |
+| 6 | Install a build whose names endpoint refuses every lookup (`cd kotlin && ./gradlew :app:installMemberDebug -Pholdout.namesRpcUrl=http://127.0.0.1:9`: nothing listens there). Clear storage (Settings → Apps → Holdout → Clear storage), reconnect online and open the roster | Every row, yours included, shows its shortened address; no error, spinner or retry anywhere. Lookups fail rather than racing a network switch, so the result is the same every run | SC-004, FR-006 |
+| 7 | Reinstall the normal build (`./gradlew :app:installMemberDebug`), clear storage, reconnect, open a roster of 30 or more and scroll straight to the bottom | The rows on screen are named within 15 s; the rows you passed stay as addresses until you scroll back to them | FR-012, SC-002 |
 | 8 | Open the README on GitHub | The known-weaknesses table has the Seeker ID entry | US3, SC-005 |
 
 ## 5. Optional: watch the requests

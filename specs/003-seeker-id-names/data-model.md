@@ -82,7 +82,7 @@ One per app process, owned by `SeekerNameRepository`.
 | Field | Rule |
 |---|---|
 | Pending wallets | A set, so a wallet is never searched twice at once |
-| Priority | 0 = the connected wallet; 1 = rows currently on screen. There is no other priority: a wallet that is neither is never searched (FR-012). A wallet keeps its highest priority |
+| Priority | 0 = the connected wallet, none after a disconnect; 1 = rows currently on screen. Scripted wallets are never queued (FR-012). There is no other priority: a wallet that is neither is never searched (FR-012). A wallet keeps its highest priority |
 | On-screen set | Replaced on each `showing(wallets)`. A pending priority-1 wallet that is not in the new set is dropped from the queue, unsearched |
 | Pace | At most one owner search per 1,200 ms |
 | Back-off | After HTTP 429 or a timeout, no owner search for 15 s; the wallet goes back to the queue |
