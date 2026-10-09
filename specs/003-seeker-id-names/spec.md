@@ -23,6 +23,7 @@ Seeker ID names are recorded on Solana **mainnet**. Holdout runs on **devnet**. 
 
 ### Session 2026-10-09
 
+- Q: Where is the Seeker ID note shown, now that the app has no About section for judges (spec 004, constitution v2.1.0)? → A: In the README's known-weaknesses table only; the app shows no weaknesses screen.
 - Q: How fast must names appear in a long list the first time it is opened, given that the public mainnet node allows about 10 owner searches per 10 seconds (plan research R4)? → A: Rows on screen are named within 10 seconds; a whole 100-member list within 2 minutes the first time; every name immediately on later visits.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -61,18 +62,18 @@ On a Holdout's roster and on the league leaderboards, each member is shown by th
 
 ---
 
-### User Story 3 - Judges are told where names come from (Priority: P2)
+### User Story 3 - The README says where names come from (Priority: P2)
 
-A judge reading About · for judges, or the README, learns that Seeker ID names are read from Solana mainnet while everything else runs on devnet, that names are display only, and what happens when a member has none.
+Anyone reading the README, a judge included, learns that Seeker ID names are read from Solana mainnet while everything else runs on devnet, that names are display only, and what happens when a member has none.
 
 **Why this priority**: Constitution XI: anything that reaches outside the stated devnet setup is named, with its limits, before a judge finds it.
 
-**Independent Test**: The known-weaknesses list shown in About and in the README contains one entry for Seeker ID names, and the two say the same thing.
+**Independent Test**: The README's known-weaknesses table contains one entry for Seeker ID names, rendered from the same source as every other entry.
 
 **Acceptance Scenarios**:
 
-1. **Given** a judge opens About · for judges, **When** they read the known weaknesses, **Then** one entry says that Seeker ID names are read from mainnet, are for display only, and fall back to the shortened address.
-2. **Given** the README's weaknesses table, **When** it is compared with the About entry, **Then** they match word for word.
+1. **Given** a reader opens the README's known weaknesses, **When** they read the table, **Then** one entry says that Seeker ID names are read from mainnet, are for display only, and fall back to the shortened address.
+2. **Given** the weaknesses source and the README table, **When** the table is rendered again, **Then** the entry is unchanged: the README is never edited by hand.
 
 ---
 
@@ -100,7 +101,7 @@ A judge reading About · for judges, or the README, learns that Seeker ID names 
 - **FR-007** Names found are kept on the phone and shown at once, offline included, the next time the same wallet appears. A kept entry, including the finding that a wallet has no Seeker ID, is checked again at most once a day, and the connected wallet's own entry is checked again every time it connects.
 - **FR-008** Names are for display only. No ranking, ordering, eligibility, payout, stake, streak, label or any other decision uses a name. Everything that identified a member before this feature still identifies them by wallet, the "you" marker and the scripted label included.
 - **FR-009** The lookup only reads public name records. It signs nothing, sends no transaction, needs no permission from the member, and sends nothing but the wallet addresses being looked up. It uses no server of Holdout's own: like every other read in the app, it goes straight from the phone to the network (001 constitution: no server).
-- **FR-010** The known-weaknesses list (shown in About · for judges and rendered into the README from the same source) gains one entry saying that Seeker ID names are read from Solana mainnet while the app runs on devnet, that they are for display only, and that members without one are shown by shortened address.
+- **FR-010** *(amended 2026-10-09, spec 004)* The README's known-weaknesses table (rendered from its single source) gains one entry saying that Seeker ID names are read from Solana mainnet while the app runs on devnet, that they are for display only, and that members without one are shown by shortened address.
 - **FR-011** Scripted members are labelled exactly as before (001 FR-064), whatever identity their row shows.
 
 ### Key Entities
@@ -117,7 +118,7 @@ A judge reading About · for judges, or the README, learns that Seeker ID names 
 - **SC-002** A roster or leaderboard of 100 members shows every row as quickly as it does without this feature. The first time it is opened, the names of the rows on screen appear within 10 seconds and every name that exists within 2 minutes, on a normal connection; on later visits every name shows immediately.
 - **SC-003** In 100% of rosters and leaderboards, ordering and the "you" and scripted markers are identical with and without names.
 - **SC-004** With the network cut, or with name lookups made to fail, no screen shows an error, spinner or empty space where an identity belongs: 0 occurrences across Today, roster, leaderboard and the connected-wallet line.
-- **SC-005** A judge who opens About · for judges can tell, from one entry, where names come from and that they are display only.
+- **SC-005** A reader of the README can tell, from one entry, where names come from and that they are display only.
 
 ## Assumptions
 
