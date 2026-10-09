@@ -32,12 +32,16 @@ class LookupQueue(
     private var lastStart: Long? = null
     private var backOffUntil = Long.MIN_VALUE
 
-    /** [wallet] is the connected wallet: it is searched before anything on screen. */
-    fun connected(wallet: String) {
+    /**
+     * [wallet] is the connected wallet, searched before anything on screen;
+     * null when none is. The wallet it replaces is dropped unsearched unless
+     * it is a row on screen (FR-012).
+     */
+    fun connected(wallet: String?) {
         val previous = connected
         connected = wallet
         if (previous != null && previous != wallet && previous !in onScreen) pending -= previous
-        want(wallet)
+        wallet?.let(::want)
     }
 
     /**

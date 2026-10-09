@@ -134,6 +134,27 @@ class SeekerNameRepositoryTest {
     }
 
     @Test
+    fun `a wallet disconnected while its lookup waits is never looked up`() = runBlocking {
+        val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val repo = repository { wallet ->
+            if (wallet == "a") {
+                started.complete(Unit)
+                release.await()
+            }
+            Lookup.None
+        }
+        repo.showing(listOf("a"))
+        started.await()
+        repo.connected("me")
+        repo.connected(null)
+        release.complete(Unit)
+        eventually { store.seekerName("a") != null }
+        delay(200)
+        assertEquals(listOf("a"), asked.toList())
+    }
+
+    @Test
     fun `a scripted wallet is never looked up, on screen or connected`() = runBlocking {
         val repo = repository(isScripted = { it == "bot" }) { Lookup.Found("$it.skr") }
         repo.showing(listOf("bot", "a"))

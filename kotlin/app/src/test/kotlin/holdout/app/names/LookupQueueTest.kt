@@ -64,6 +64,27 @@ class LookupQueueTest {
     }
 
     @Test
+    fun `a wallet disconnected before its search starts is dropped`() {
+        queue.connected("me")
+        queue.connected(null)
+        assertNull(queue.next(0))
+    }
+
+    @Test
+    fun `a disconnected wallet whose search failed is not searched again, unless it is on screen`() {
+        queue.connected("me")
+        assertEquals("me", queue.next(0))
+        queue.connected(null)
+        queue.failed("me", 0)
+        assertTrue(drain(60_000).isEmpty())
+
+        queue.showing(listOf("row"))
+        queue.connected("row")
+        queue.connected(null)
+        assertEquals(listOf("row"), drain(60_000).map { it.second })
+    }
+
+    @Test
     fun `a wallet neither connected nor on screen is never handed out`() {
         queue.showing(listOf("a"))
         queue.showing(emptyList())

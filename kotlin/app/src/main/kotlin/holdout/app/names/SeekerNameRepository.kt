@@ -63,10 +63,13 @@ class SeekerNameRepository(
         wake.trySend(Unit)
     }
 
-    /** The connected wallet: checked again now, however fresh its entry (FR-007). */
-    fun connected(wallet: String) {
-        if (isScripted(wallet)) return
-        synchronized(lock) { queue.connected(wallet) }
+    /**
+     * The connected wallet: checked again now, however fresh its entry
+     * (FR-007). Null on disconnect, so the wallet that was connected is no
+     * longer looked up unless it is a row on screen (FR-012).
+     */
+    fun connected(wallet: String?) {
+        synchronized(lock) { queue.connected(wallet?.takeUnless(isScripted)) }
         wake.trySend(Unit)
     }
 

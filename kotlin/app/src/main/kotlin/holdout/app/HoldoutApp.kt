@@ -166,8 +166,8 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     // restart does not ask again (contracts/android-app §3).
     var address by remember { mutableStateOf(holdouts.wallet.restored) }
     // The connected wallet's own Seeker ID is checked again on every connect,
-    // a restored session included (spec 003 FR-007).
-    LaunchedEffect(address) { address?.let { seekerNames.connected(it.base58()) } }
+    // a restored session included (spec 003 FR-007); a disconnect stops it.
+    LaunchedEffect(address) { seekerNames.connected(address?.base58()) }
     var connecting by remember { mutableStateOf(false) }
     var connectMessage by remember { mutableStateOf<String?>(null) }
     var noWallet by remember { mutableStateOf(false) }
