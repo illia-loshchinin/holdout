@@ -25,7 +25,7 @@ class SittingRecorderSeamTest {
     private val frame = PoseFrame(0, List(PoseIndex.COUNT) { Landmark(0.5f, 0.5f, 0f, 1f) })
     private val observation = VisionAnalyzer.Observation(frame, frame, brightness = 0.5f, backgroundMotion = 0f, frameWidth = 720, frameHeight = 1280)
 
-    private class FakeRecorder : SittingRecorder {
+    private class FakeRecorder(override var failed: Boolean = false) : SittingRecorder {
         var frames = 0
         var labels = 0
         var closes = 0
@@ -64,6 +64,20 @@ class SittingRecorderSeamTest {
         assertTrue(vm.canLabelTrace)
         vm.endSitting()
         assertTrue(recorder.closes >= 1)
+    }
+
+    @Test
+    fun `given a recorder that failed to write, when the set ends, then the sitting says it was not saved and asks for no label`() {
+        val recorder = FakeRecorder()
+        val vm = sitting(recorder)
+        vm.onPoseFrame(observation, backgroundMotion = 0f)
+        assertFalse(vm.traceFailed)
+        recorder.failed = true
+        vm.onPoseFrame(observation, backgroundMotion = 0f)
+        vm.endSitting()
+        assertTrue(vm.traceFailed)
+        assertTrue(vm.uiState.value.traceFailed)
+        assertFalse(vm.canLabelTrace)
     }
 
     @Test

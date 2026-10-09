@@ -152,6 +152,42 @@ private fun Choices(options: List<String>, selected: String?, label: (String) ->
     }
 }
 
+/**
+ * Holdout Lab: the set that just ended was not saved, because its trace could
+ * not be written — storage full, or a write refused. Shown instead of
+ * [TraceLabelDialog], so nobody labels a set the team will never receive.
+ */
+@Composable
+fun TraceNotSavedDialog(onOk: () -> Unit) {
+    Dialog(onDismissRequest = onOk, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.screenGutter)
+                .background(HoldoutColors.Surface1, RoundedCornerShape(24.dp))
+                .padding(Spacing.cardPadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Spacing.tight),
+        ) {
+            Text("This set was not saved", style = MaterialTheme.typography.titleLarge, color = HoldoutColors.Warning)
+            Text(
+                "Its trace could not be written to the phone, so it is missing or cut short and will not reach the team. Free up space and record it again.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = HoldoutColors.TextSecondary,
+                textAlign = TextAlign.Center,
+            )
+            Button(
+                onClick = onOk,
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = HoldoutColors.TextPrimary,
+                    contentColor = HoldoutColors.OnLight,
+                ),
+            ) { Text("OK", style = MaterialTheme.typography.titleMedium) }
+        }
+    }
+}
+
 /** The last placement saved, for the next sitting's dialog — this process only. */
 private var lastPlacement: String? = null
 private var lastPhoneSide: String? = null

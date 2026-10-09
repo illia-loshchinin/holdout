@@ -29,6 +29,7 @@ import holdout.app.sitting.LabSittingTools
 import holdout.app.sitting.SittingScreen
 import holdout.app.sitting.SittingViewModel
 import holdout.app.sitting.TraceLabelDialog
+import holdout.app.sitting.TraceNotSavedDialog
 import holdout.app.sitting.TraceRecorder
 import holdout.app.storage.MmkvStore
 import holdout.app.storage.Store
@@ -107,6 +108,7 @@ fun LabApp(modifier: Modifier = Modifier) {
             cleanScreen = settings.cleanScreen,
             recordVideo = settings.recordsVideo,
             labelPrompt = { counted, onSave, onSkip -> TraceLabelDialog(counted, onSave, onSkip) },
+            notSavedNotice = { onOk -> TraceNotSavedDialog(onOk) },
         ),
     )
 }

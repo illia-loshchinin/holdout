@@ -211,7 +211,7 @@ fun SittingScreen(
                     CountingOverlay(state, readouts = tools?.readouts == true)
                 }
                 SittingViewModel.Step.COMPLETE -> DayComplete(state, finishLabel) {
-                    if (tools != null && viewModel.canLabelTrace) labelThen = onFinished else onFinished()
+                    if (tools != null && (viewModel.canLabelTrace || viewModel.traceFailed)) labelThen = onFinished else onFinished()
                 }
             }
 
@@ -248,29 +248,36 @@ fun SittingScreen(
         }
 
         // Holdout Lab: log what was really done before leaving, so the
-        // trace this sitting wrote arrives already labelled.
-        val prompt = tools?.labelPrompt
+        // trace this sitting wrote arrives already labelled — or, when the
+        // trace could not be written, say the set was not saved instead.
         val leaveAfterLabel = labelThen
-        if (prompt != null && leaveAfterLabel != null) {
-            prompt(
-                state.repsCounted,
-                { done, note, placement, phoneSide ->
-                    viewModel.labelTrace(done, note, placement, phoneSide)
+        if (tools != null && leaveAfterLabel != null) {
+            if (viewModel.traceFailed) {
+                tools.notSavedNotice {
                     labelThen = null
                     leaveAfterLabel()
-                },
-                {
-                    labelThen = null
-                    leaveAfterLabel()
-                },
-            )
+                }
+            } else {
+                tools.labelPrompt(
+                    state.repsCounted,
+                    { done, note, placement, phoneSide ->
+                        viewModel.labelTrace(done, note, placement, phoneSide)
+                        labelThen = null
+                        leaveAfterLabel()
+                    },
+                    {
+                        labelThen = null
+                        leaveAfterLabel()
+                    },
+                )
+            }
         }
 
         if (state.step != SittingViewModel.Step.COMPLETE) {
             TextButton(
                 onClick = {
                     val discarded = viewModel.endSitting()
-                    if (tools != null && viewModel.canLabelTrace) {
+                    if (tools != null && (viewModel.canLabelTrace || viewModel.traceFailed)) {
                         labelThen = { onCancelled(discarded) }
                     } else {
                         onCancelled(discarded)
@@ -492,8 +499,12 @@ private fun CountingOverlay(state: SittingViewModel.UiState, readouts: Boolean) 
 
     // Holdout Lab only: what the counter is reading, to tune it on a real body.
     if (readouts) {
-        state.traceName?.let {
-            Text("rec · $it", style = LabelStyle, color = HoldoutColors.TextTertiary)
+        if (state.traceFailed) {
+            Text("rec · not saved", style = LabelStyle, color = HoldoutColors.Warning)
+        } else {
+            state.traceName?.let {
+                Text("rec · $it", style = LabelStyle, color = HoldoutColors.TextTertiary)
+            }
         }
         // Pose analysis must hold ≥ 15 FPS (research R4) — watched most while video records.
         Text(

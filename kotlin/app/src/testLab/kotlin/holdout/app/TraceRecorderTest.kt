@@ -6,10 +6,13 @@ import holdout.repcounter.PoseFrame
 import holdout.repcounter.PoseIndex
 import holdout.repcounter.Stakes
 import holdout.repcounter.Trace
+import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 /** Holdout Lab traces: every set keeps its own file. */
 class TraceRecorderTest {
@@ -38,5 +41,15 @@ class TraceRecorderTest {
         recorder.close()
         recorder.record(2, "COUNTING", null, frame, frame, 720, 1280)
         assertEquals(1, Trace.parse(recorder.file!!.readLines()).frames.size)
+    }
+
+    @Test
+    fun `a trace that cannot be written says so`() {
+        // A file where the trace folder should be: nothing can be written under it.
+        val blocked = Files.createTempFile("traces", "").toFile()
+        val recorder = TraceRecorder(File(blocked, "traces"), Stakes.DAILY)
+        assertFalse(recorder.failed)
+        recorder.record(1, "COUNTING", null, frame, frame, 720, 1280)
+        assertTrue(recorder.failed)
     }
 }

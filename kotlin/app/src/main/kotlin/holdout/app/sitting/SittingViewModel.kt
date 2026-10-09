@@ -161,6 +161,8 @@ class SittingViewModel(
         val holdFix: String? = null,
         /** Holdout Lab: the trace file this sitting is being recorded to. */
         val traceName: String? = null,
+        /** Holdout Lab: the trace could not be written, so this set is not saved. */
+        val traceFailed: Boolean = false,
         /** Debug builds: pose frames analysed per second, over the last few seconds. */
         val analysisFps: Float? = null,
         /** Debug builds: true while the camera records video, false if asked for and it could not start, null if not asked. */
@@ -515,8 +517,11 @@ class SittingViewModel(
         return banking.endSitting()
     }
 
+    /** Holdout Lab: whether this sitting's trace could not be written, so the set is not saved. */
+    val traceFailed: Boolean get() = trace?.failed == true
+
     /** Holdout Lab: whether this sitting wrote a trace that can be labelled. */
-    val canLabelTrace: Boolean get() = trace?.fileName != null
+    val canLabelTrace: Boolean get() = trace?.fileName != null && !traceFailed
 
     /**
      * Holdout Lab: what the tester says they did, written into the trace. The
@@ -562,6 +567,9 @@ class SittingViewModel(
         )
         if (_uiState.value.traceName == null) {
             trace?.fileName?.let { name -> _uiState.update { it.copy(traceName = name) } }
+        }
+        if (traceFailed && !_uiState.value.traceFailed) {
+            _uiState.update { it.copy(traceFailed = true) }
         }
     }
 

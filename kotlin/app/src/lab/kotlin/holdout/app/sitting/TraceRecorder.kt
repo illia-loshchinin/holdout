@@ -32,8 +32,12 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) : Sitting
     private val lock = Any()
 
     private var writer: BufferedWriter? = null
-    private var failed = false
     private var closed = false
+
+    /** Set under [lock] on the pose-result thread, read on the main thread without it. */
+    @Volatile
+    override var failed = false
+        private set
     private var rowsSinceFlush = 0
 
     /**
@@ -87,8 +91,8 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) : Sitting
                 rowsSinceFlush = 0
             }
         }.onFailure {
-            // A trace is a debugging aid; failing to write one must never
-            // disturb the sitting it is recording.
+            // Failing to write a trace must never disturb the sitting it is
+            // recording; the sitting reads [failed] and tells the tester.
             failed = true
             closeLocked()
         }

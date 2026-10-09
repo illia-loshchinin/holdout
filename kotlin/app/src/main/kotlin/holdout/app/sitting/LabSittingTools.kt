@@ -23,4 +23,6 @@ class LabSittingTools(
         onSave: (done: Map<String, Int>, note: String, placement: String?, phoneSide: String?) -> Unit,
         onSkip: () -> Unit,
     ) -> Unit,
+    /** Tells the tester a set that ended was not saved, because its trace could not be written. */
+    val notSavedNotice: @Composable (onOk: () -> Unit) -> Unit,
 )
