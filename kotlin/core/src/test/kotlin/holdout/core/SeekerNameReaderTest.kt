@@ -142,6 +142,32 @@ class SeekerNameReaderTest {
         assertEquals(Lookup.Unknown(rateLimited = false), readerWith(failingRead).nameOf(wallet))
     }
 
+    /**
+     * Mainnet's own answers for a real Seeker, recorded on 2026-10-09: the
+     * wallet `CkJn…jfWE` owns one `.skr` name account, whose reverse record
+     * (derived here, and asked for by address) holds "illai".
+     */
+    @Test
+    fun `the recorded mainnet answers for a real Seeker resolve to its name`() = runBlocking {
+        val seeker = SolanaPublicKey.from("CkJn1a53c1ZXe5XLZ38ZgsPa1WX28PUiMWHqtJayjfWE")
+        val http = FakeHttp { method, _ ->
+            when (method) {
+                "getProgramAccounts" -> ok(
+                    """[{"pubkey":"3exaN8mJ3m3sBWWgg2zXWTX2RABUSWZwge6fLApxDdJt","account":{"lamports":2282880,"data":["","base64"],"owner":"ALTNSZ46uaAUU7XUV6awvdorLGqAsPwa9shm7h4uP2FK","executable":false,"rentEpoch":18446744073709551615,"space":200}}]""",
+                )
+                else -> ok(
+                    """{"context":{"apiVersion":"4.3.0","slot":454943087},"value":[{"data":["REhYLA+nZ/MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADLNyGaxO//RCF0Rl1kGc3U+b+1pe+kjdy1basUzfH67Ms3IZrE7/9EIXRGXWQZzdT5v7Wl76SN3LVtqxTN8frsAAAAAAAAAADWivmgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABpbGxhaQ==","base64"],"executable":false,"lamports":2317680,"owner":"ALTNSZ46uaAUU7XUV6awvdorLGqAsPwa9shm7h4uP2FK","rentEpoch":18446744073709551615,"space":205}]}""",
+                )
+            }
+        }
+        assertEquals(Lookup.Found("illai.skr"), readerWith(http).nameOf(seeker))
+        val read = Json.parseToJsonElement(http.sent[1]).jsonObject
+        assertEquals(
+            listOf("5CrGdLbhr5vTS6mKmpRot2pf3VcqTyvfodSqgSHhyxrh"),
+            read.getValue("params").jsonArray[0].jsonArray.map { it.jsonPrimitive.content },
+        )
+    }
+
     @Test
     fun `the reader can only look names up`() {
         val public = SeekerNameReader::class.java.declaredMethods
