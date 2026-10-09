@@ -13,7 +13,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -100,7 +99,9 @@ class SeekerNameRepository(
     private fun keep(wallet: String, entry: KeptName) {
         store.setSeekerName(wallet, entry)
         synchronized(lock) { queue.answered(wallet) }
-        kept.update { if (entry.name == null) it - wallet else it + (wallet to entry.name) }
+        // From the store, not just this wallet: a full store drops its oldest
+        // entry to make room, and that name must leave the screen too.
+        kept.value = store.allSeekerNames()
     }
 }
 

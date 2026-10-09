@@ -146,6 +146,18 @@ class SeekerNameRepositoryTest {
     }
 
     @Test
+    fun `a name dropped from the full phone store is dropped from the names shown too`() = runBlocking {
+        store.setSeekerName("oldest", KeptName("old.skr", 0))
+        (1 until Store.SEEKER_NAMES_MAX).forEach { store.setSeekerName("w$it", KeptName(null, nowMillis - it)) }
+        val repo = repository { Lookup.Found("new.skr") }
+        assertEquals("old.skr", repo.names.value["oldest"])
+        repo.showing(listOf("newcomer"))
+        eventually { repo.names.value["newcomer"] == "new.skr" }
+        assertNull(store.seekerName("oldest"))
+        assertNull(repo.names.value["oldest"])
+    }
+
+    @Test
     fun `the phone keeps at most 5000 entries, dropping the oldest check`() {
         val small = mapOf("a" to KeptName("a.skr", 3), "b" to KeptName(null, 1), "c" to KeptName("c.skr", 2))
         assertEquals("b", KeptName.toDrop(small, "d", max = 3))
