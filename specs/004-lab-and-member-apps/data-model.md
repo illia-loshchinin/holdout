@@ -10,8 +10,8 @@ Nothing here is on chain. §1 describes builds, §2 Lab's on-phone data, §3 the
 |---|---|---|---|---|---|---|
 | `memberDebug` | member | debug | `holdout.app` | Holdout | none (FR-010) | Team development only |
 | `memberRelease` | member | release | `holdout.app` | Holdout | none | Members; **the submitted APK** |
-| `labDebug` | lab | debug | `holdout.app.lab` | Holdout Lab | all | Team phones over USB |
-| `labRelease` | lab | release | `holdout.app.lab` | Holdout Lab | all | Consenting testers, direct install (FR-009) |
+| `labDebug` | lab | debug | `holdout.app.lab` | Holdout Lab | all | **The tester build**: the team's and consenting testers' phones, by direct install (FR-009). Debuggable, which `pull-traces.sh` needs (`adb run-as`) |
+| `labRelease` | lab | release | `holdout.app.lab` | Holdout Lab | all | Built and checked only; **not distributed**: a release app is not debuggable, so its sets could not be pulled |
 
 **Rules**:
 - A `member*` variant compiles only `src/main`, `src/member`, its build-type folder (`src/debug` or `src/release`) and its variant folder.

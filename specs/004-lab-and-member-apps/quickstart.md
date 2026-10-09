@@ -40,15 +40,17 @@ bash scripts/pull-traces.sh --package holdout.app
 ./gradlew :app:assembleMemberRelease :app:assembleLabDebug
 ```
 
+The release build is unsigned until the submission signing key is set up (001 quickstart). For this check, install `memberDebug`, which has the same screens and no tester code:
+
 ```bash
-adb install -r app/build/outputs/apk/member/release/app-member-release.apk
+adb install -r app/build/outputs/apk/member/debug/app-member-debug.apk
 ```
 
 ```bash
 adb install -r app/build/outputs/apk/lab/debug/app-lab-debug.apk
 ```
 
-**Expect**: two icons, "Holdout" and "Holdout Lab", told apart at a glance (FR-001).
+**Expect**: two icons, "Holdout" and "Holdout Lab", told apart at a glance (FR-001). Testers always get `labDebug`; `labRelease` is never installed on a tester's phone, because its sets could not be pulled (data-model §1).
 
 ## 4. Holdout Lab on a phone (about 10 minutes)
 
@@ -65,7 +67,7 @@ adb install -r app/build/outputs/apk/lab/debug/app-lab-debug.apk
 bash scripts/pull-traces.sh
 ```
 
-## 5. The member app (release build), about 10 minutes
+## 5. The member app (`memberDebug`, or `memberRelease` once signed), about 10 minutes
 
 | # | Do | Expect | Covers |
 |---|---|---|---|

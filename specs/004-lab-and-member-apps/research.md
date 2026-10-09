@@ -13,7 +13,7 @@ Each decision rests on how the code is today, read at `004-lab-and-member-apps` 
 | Flavor | `applicationId` | Launcher name | Ships to |
 |---|---|---|---|
 | `member` | `holdout.app` (unchanged) | Holdout | Members; the submitted APK is `memberRelease` |
-| `lab` | `holdout.app.lab` (`applicationIdSuffix = ".lab"`) | Holdout Lab | Team and consenting testers, by direct install |
+| `lab` | `holdout.app.lab` (`applicationIdSuffix = ".lab"`) | Holdout Lab | Team and consenting testers, by direct install of **`labDebug`** (R7) |
 
 Build types stay `debug` and `release`, which gives four variants: `memberDebug`, `memberRelease`, `labDebug` and `labRelease`. Shared code stays in `src/main`. Lab-only code goes in `src/lab`, and the member's stand-ins in `src/member`.
 
@@ -67,6 +67,8 @@ The member app's Home loses the four tester switches (`HomeScreen.kt`: `stakedTe
 
 **Rationale**: Every piece already exists and runs without chain time, because the Daily 25 works offline. Lab adds a chooser screen, about 150 lines.
 
+**Found in implementation (2026-10-09)**: Lab's own `src/lab/AndroidManifest.xml` removes `INTERNET` and `ACCESS_NETWORK_STATE` from the merged manifest (`tools:node="remove"`). So "no network" (FR-002) is enforced by Android, not only by Lab's code; the member app's merged manifest keeps `INTERNET`. Checked on both merged manifests.
+
 **Alternatives considered**: reusing `HoldoutApp` with the wallet step skipped. It would drag chain, faucet and stake code into Lab and keep the two flows tangled.
 
 ## R4 · The build check (FR-010, constitution X v2.1.0)
@@ -78,6 +80,13 @@ The member app's Home loses the four tester switches (`HomeScreen.kt`: `stakedTe
 - `debugImplementation(libs.androidx.camera.video)` becomes `labImplementation(...)`.
 
 **Rationale**: R2 already makes such references fail to compile. The scan is the constitution's required build check and a backstop for the one library the member app can still see transitively (`camera-video`, through `camera-view`).
+
+**Found in implementation (2026-10-09)**: searching each APK's compiled code:
+- `memberRelease` contains no Lab class and no `camera/video/Recorder`: R8 drops the unused library.
+- `memberDebug` contains no Lab class, but still holds the `camera-video` *library* classes that `camera-view` brings in. No member code references them, and debug builds aren't minified.
+- `labDebug` contains `LabApp`, `TraceRecorder`, `TraceLabelDialog`, `TestSwitch` and the recorder.
+
+Constitution X forbids the recorder, which is code that records, and the check enforces that. A library nothing calls is not a recorder. Removing it from `memberDebug` would mean excluding it from `camera-view`'s dependencies, which breaks `PreviewView`.
 
 ## R5 · Judge-only parts, and what stays as a plain About
 
@@ -112,10 +121,17 @@ The member app's Home loses the four tester switches (`HomeScreen.kt`: `stakedTe
 
 **Rationale**: It is a README source now, not an app asset, and keeping it in `assets` would ship an unused file in the APK. Spec 003's weaknesses entry (contracts §4) is added at the new path.
 
+**Found in implementation (2026-10-09)**: three rows described the removed parts, so they were corrected and the README table re-rendered (constitution XI: the README must stay true):
+- the short test lobby row: "for judges, from which the walkthrough … are recorded" → "labelled and open to anyone, from which the demo video is recorded";
+- the wallet-first row's fix: "the connect screen plays the recorded walkthrough" → "says how to get a wallet; the demo video shows the whole product";
+- "The full cycle is shown as a recorded walkthrough in the app, for judges" → "The full cycle is shown in the demo video, not inside the app".
+
+`scripts/check-wording.sh` now scans `src/main`, `src/member` and `docs/weaknesses.json`.
+
 ## R7 · Pulling Lab sets
 
 **Decision**:
-- `scripts/pull-traces.sh` reads from **`holdout.app.lab`** by default (`run-as holdout.app.lab`, same `files/traces` path and file names).
+- `scripts/pull-traces.sh` reads from **`holdout.app.lab`** by default (`run-as holdout.app.lab`, same `files/traces` path and file names). `run-as` works only on a debuggable app, so **testers get `labDebug`**, and `labRelease` is not distributed (data-model §1).
 - A `--package holdout.app` option drains traces and videos left in the member app by debug builds made before the split. It is run once per tester phone before the member app is updated.
 - `scripts/label-reps.mjs` reads the pulled files, not the phone, so it needs no change.
 

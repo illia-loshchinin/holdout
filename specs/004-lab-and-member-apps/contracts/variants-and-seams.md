@@ -21,7 +21,8 @@ Commands from `kotlin/`:
 |---|---|
 | `./gradlew :app:assembleMemberRelease` | The submitted APK |
 | `./gradlew :app:assembleMemberDebug` | Member app for development |
-| `./gradlew :app:assembleLabDebug` / `assembleLabRelease` | Holdout Lab |
+| `./gradlew :app:assembleLabDebug` | Holdout Lab, the build testers install (debuggable, so `pull-traces.sh` can read it) |
+| `./gradlew :app:assembleLabRelease` | Holdout Lab release: built and checked, not distributed |
 | `./gradlew :app:checkMemberHasNoLabCode` | The check alone (§4) |
 
 Every existing command that named a variant changes: `assembleDebug` → `assembleMemberDebug`, `assembleRelease` → `assembleMemberRelease`, `testDebugUnitTest` → `testMemberDebugUnitTest`. That covers the README, quickstarts and CI workflows (tasks list each file).

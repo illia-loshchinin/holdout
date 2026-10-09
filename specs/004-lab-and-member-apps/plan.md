@@ -29,6 +29,8 @@ Shared code (camera, vision, `repcounter`, the sitting screen, banking, theme) s
 
 **Storage**: Per app, by `applicationId`: each app has its own MMKV and `files/traces`. Lab writes traces (002 data-model) and optional videos. The member app writes no traces.
 
+**Distribution**: testers get `labDebug`, which is debuggable so `pull-traces.sh` can read it; `labRelease` is built but not distributed. Members and judges get `memberRelease` (data-model §1, research R7).
+
 **Testing**:
 - JUnit 4 app tests (`src/test`, plus `src/testLab` for Lab-only code);
 - `:repcounter` `RecordedTracesTest` for SC-003;
