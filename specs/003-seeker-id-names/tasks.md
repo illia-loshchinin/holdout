@@ -179,7 +179,7 @@ description: "Task list for 003 Seeker ID names"
 
 **Independent Test**: The repository test below; on a device, a roster of scripted members sends no names request for them (quickstart §5).
 
-- [ ] T024 [US2] In `kotlin/app/src/main/kotlin/holdout/app/names/SeekerNameRepository.kt`, never look up a scripted wallet. Write the test first.
+- [X] T024 [US2] In `kotlin/app/src/main/kotlin/holdout/app/names/SeekerNameRepository.kt`, never look up a scripted wallet. Write the test first.
   - **Test:** add a test to `kotlin/app/src/test/kotlin/holdout/app/names/SeekerNameRepositoryTest.kt`, built with an `isScripted` that marks `"bot"`, and run it to fail first:
     - `showing(listOf("bot", "a"))` sends only `"a"` to the reader;
     - `connected("bot")` sends nothing;
