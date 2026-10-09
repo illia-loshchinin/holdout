@@ -173,6 +173,22 @@ description: "Task list for 003 Seeker ID names"
 
 ---
 
+## Phase 7: Follow-up — scripted wallets are never looked up (FR-012, 2026-10-09)
+
+**Goal**: No Seeker ID lookup is ever made for a scripted wallet (spec Clarifications, Session 2026-10-09). Scripted wallets are devnet-only, deleted for mainnet, and have no Seeker ID.
+
+**Independent Test**: The repository test below; on a device, a roster of scripted members sends no names request for them (quickstart §5).
+
+- [ ] T024 [US2] In `kotlin/app/src/main/kotlin/holdout/app/names/SeekerNameRepository.kt`, never look up a scripted wallet. Write the test first.
+  - **Test:** add a test to `kotlin/app/src/test/kotlin/holdout/app/names/SeekerNameRepositoryTest.kt`, built with an `isScripted` that marks `"bot"`, and run it to fail first:
+    - `showing(listOf("bot", "a"))` sends only `"a"` to the reader;
+    - `connected("bot")` sends nothing;
+    - `"bot"` gets no kept entry, and `names` never holds it.
+  - **Code:** add a constructor parameter `isScripted: (wallet: String) -> Boolean`, defaulting to membership of `ScriptedWallets.keys` (`holdout.core.ScriptedWallets`, base58; the roster's labels use the same set). Drop scripted wallets in `showing` before the freshness filter, and ignore them in `connected`. The queue (`LookupQueue`) is unchanged.
+  - **Checks:** the T021 command list passes.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase dependencies
@@ -186,6 +202,7 @@ description: "Task list for 003 Seeker ID names"
 - **US1 (T014–T015)**: all of Phase 2.
 - **US2 (T016–T018)**: all of Phase 2 and T014 (the repository instance); independent of T015.
 - **US3 (T019–T020)**: T003 only. It can start at any time after that.
+- **Phase 7 (T024)**: after T012 and the US2 screens (T017–T018); before T023, so the device check covers it.
 - **Polish**:
   - T021 after T015–T020.
   - T022 is a design-system edit and can run at any time.
