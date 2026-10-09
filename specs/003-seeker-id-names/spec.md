@@ -24,7 +24,7 @@ Seeker ID names are recorded on Solana **mainnet**. Holdout runs on **devnet**. 
 ### Session 2026-10-09
 
 - Q: Where is the Seeker ID note shown, now that the app has no About section for judges (spec 004, constitution v2.1.0)? → A: In the README's known-weaknesses table only; the app shows no weaknesses screen.
-- Q: How fast must names appear in a long list the first time it is opened, given that the public mainnet node allows about 10 owner searches per 10 seconds (plan research R4)? → A: Rows on screen are named within 10 seconds; a whole 100-member list within 2 minutes the first time; every name immediately on later visits.
+- Q: How fast must names appear in a long list the first time it is opened, given that the public mainnet node allows about 10 owner searches per 10 seconds (plan research R4) and an earlier answer of "10 seconds on screen, 2 minutes for the whole list" leaves no room under that limit? → A: Names are minor, so they load lazily: only the connected wallet and the rows on screen are looked up, rows on screen are named within 15 seconds the first time, rows never scrolled into view are not looked up, and every kept name shows immediately on later visits.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -58,7 +58,7 @@ On a Holdout's roster and on the league leaderboards, each member is shown by th
 1. **Given** a roster whose members include `alice.skr`, a member with no Seeker ID and a scripted member, **When** the roster opens, **Then** Alice's row shows `alice.skr`, the second row shows a shortened address, and the scripted row keeps its scripted label and mark.
 2. **Given** the same members, **When** the roster or leaderboard is sorted, **Then** the order is identical to the order without names: names never affect ranking or ordering.
 3. **Given** the connected member appears in a roster or on a leaderboard, **When** their row is shown, **Then** it shows their identity followed by "you".
-4. **Given** a roster of 1,000 members, **When** it opens, **Then** rows appear as fast as they do today and names fill in as they are found, never holding a row back.
+4. **Given** a roster of 1,000 members, **When** it opens, **Then** rows appear as fast as they do today, names fill in for the rows on screen as they are found, never holding a row back, and rows the member never scrolls to are not looked up.
 
 ---
 
@@ -86,6 +86,7 @@ Anyone reading the README, a judge included, learns that Seeker ID names are rea
 - **The mainnet lookup fails, is slow or is refused.** The shortened address shows; no error, spinner or retry button appears (FR-006).
 - **Two different wallets would show the same visible text** (for example after truncation). Rows stay distinct because ordering and "you" come from the wallet, not the name.
 - **Scripted members.** Their wallets have no Seeker ID, so they show shortened addresses with their scripted label, exactly as today.
+- **The member scrolls fast through a long list.** Rows that leave the screen before their lookup starts are dropped from the queue and show their shortened address; they are looked up if they come back into view (FR-012).
 - **The connected member disconnects and connects another wallet.** The new wallet's own name, or its shortened address, is shown; nothing carries over from the previous wallet.
 
 ## Requirements *(mandatory)*
@@ -103,6 +104,7 @@ Anyone reading the README, a judge included, learns that Seeker ID names are rea
 - **FR-009** The lookup only reads public name records. It signs nothing, sends no transaction, needs no permission from the member, and sends nothing but the wallet addresses being looked up. It uses no server of Holdout's own: like every other read in the app, it goes straight from the phone to the network (001 constitution: no server).
 - **FR-010** *(amended 2026-10-09, spec 004)* The README's known-weaknesses table (rendered from its single source) gains one entry saying that Seeker ID names are read from Solana mainnet while the app runs on devnet, that they are for display only, and that members without one are shown by shortened address.
 - **FR-011** Scripted members are labelled exactly as before (001 FR-064), whatever identity their row shows.
+- **FR-012** Names are looked up lazily. Only the connected wallet and the rows currently on screen are looked up, the connected wallet first. A row that leaves the screen before its lookup starts is not looked up, and nothing is fetched ahead for rows the member has not scrolled to.
 
 ### Key Entities
 
@@ -115,7 +117,7 @@ Anyone reading the README, a judge included, learns that Seeker ID names are rea
 ### Measurable Outcomes
 
 - **SC-001** On a Seeker whose wallet holds a Seeker ID, the connected member sees their own name within 3 seconds of connecting on a normal connection, and immediately on every later open, offline included.
-- **SC-002** A roster or leaderboard of 100 members shows every row as quickly as it does without this feature. The first time it is opened, the names of the rows on screen appear within 10 seconds and every name that exists within 2 minutes, on a normal connection; on later visits every name shows immediately.
+- **SC-002** A roster or leaderboard of 100 members shows every row as quickly as it does without this feature. The first time it is opened, the names of the rows on screen appear within 15 seconds on a normal connection, and no lookup is made for a row that has not been on screen; on later visits every kept name shows immediately.
 - **SC-003** In 100% of rosters and leaderboards, ordering and the "you" and scripted markers are identical with and without names.
 - **SC-004** With the network cut, or with name lookups made to fail, no screen shows an error, spinner or empty space where an identity belongs: 0 occurrences across Today, roster, leaderboard and the connected-wallet line.
 - **SC-005** A reader of the README can tell, from one entry, where names come from and that they are display only.
