@@ -59,11 +59,29 @@ class TraceRecorderTest {
     @Test
     fun `a trace whose last rows cannot be flushed on close says so`() {
         val dir = Files.createTempDirectory("traces").toFile()
-        val recorder = TraceRecorder(dir, Stakes.DAILY) { file -> BufferedWriter(FailsOnClose(file)) }
+        val recorder = TraceRecorder(dir, Stakes.DAILY, writerFor = { file -> BufferedWriter(FailsOnClose(file)) })
         recorder.record(1, "COUNTING", null, frame, frame, 720, 1280)
         assertFalse(recorder.failed)
         recorder.close()
         assertTrue(recorder.failed)
+    }
+
+    @Test
+    fun `a label lands whole, or the trace stays as it was`() {
+        val dir = Files.createTempDirectory("traces").toFile()
+        val good = TraceRecorder(dir, Stakes.DAILY)
+        good.record(1, "COUNTING", null, frame, frame, 720, 1280)
+        assertTrue(good.label(3, mapOf("honest" to 3), "note", null, null))
+        assertEquals(3, Trace.parse(good.file!!.readLines()).expectedReps)
+
+        // Storage fills while the labelled copy is written.
+        val full = TraceRecorder(dir, Stakes.EASY, writeLabelled = { _, _ -> throw IOException("no space left on device") })
+        full.record(1, "COUNTING", null, frame, frame, 720, 1280)
+        full.close()
+        val before = full.file!!.readText()
+        assertFalse(full.label(3, mapOf("honest" to 3), "note", null, null))
+        assertEquals(before, full.file!!.readText(), "the unlabelled trace is untouched")
+        assertTrue(dir.listFiles()!!.none { it.name.endsWith(".tmp") }, "no half-written copy is left")
     }
 
     /** Storage that fills between the last flush and the close. */

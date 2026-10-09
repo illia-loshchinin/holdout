@@ -21,7 +21,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 /** Holdout Lab only: the camera stream of a set, as video (constitution X v2.1.0). */
-fun sittingVideo(context: Context, dir: File, stakes: String): SittingVideo? = CameraXSittingVideo(context.applicationContext, dir, stakes)
+fun sittingVideo(context: Context, dir: File, stakes: String, onFailed: (String) -> Unit): SittingVideo? = CameraXSittingVideo(context.applicationContext, dir, stakes, onFailed)
 
 /**
  * CameraX `VideoCapture` bound beside the preview and the analysis: the raw
@@ -31,7 +31,13 @@ fun sittingVideo(context: Context, dir: File, stakes: String): SittingVideo? = C
  * does not take frames from pose analysis, which must hold ≥ 15 FPS (research
  * R4; Lab's readout shows it while recording). Falls back to SD.
  */
-private class CameraXSittingVideo(private val context: Context, private val dir: File, private val stakes: String) : SittingVideo {
+private class CameraXSittingVideo(
+    private val context: Context,
+    private val dir: File,
+    private val stakes: String,
+    /** Told on the main thread when the video did not finalize whole. */
+    private val onFailed: (String) -> Unit,
+) : SittingVideo {
     private val recorder =
         Recorder
             .Builder()
@@ -76,15 +82,27 @@ private class CameraXSittingVideo(private val context: Context, private val dir:
         recording = null
     }
 
-    /** Renames the finished file after the trace and writes when it started. */
+    /**
+     * Renames the finished file after the trace and writes when it started.
+     * A video that did not finalize whole is reported, so Lab can say so
+     * (spec 004 edge case: storage full). The camera closing as the set ends
+     * (`ERROR_SOURCE_INACTIVE`) still leaves a whole file and is not a loss.
+     */
     private fun finish(out: File, event: VideoRecordEvent.Finalize) {
+        val base = finalName ?: out.name.removeSuffix(".recording.mp4")
         if (event.hasError() && event.error != VideoRecordEvent.Finalize.ERROR_SOURCE_INACTIVE) {
             Log.w(TAG, "recording ended with error ${event.error}", event.cause)
+            onFailed("The video of $base was not saved whole (recorder error ${event.error}); the phone may be out of space.")
         }
-        if (!out.exists() || out.length() == 0L) return
-        val base = finalName ?: out.name.removeSuffix(".recording.mp4")
+        if (!out.exists() || out.length() == 0L) {
+            if (!event.hasError()) onFailed("The video of $base is empty, so it was not saved.")
+            return
+        }
         val video = File(dir, "$base.mp4").let { if (it.exists()) File(dir, "$base-${System.currentTimeMillis()}.mp4") else it }
-        if (!out.renameTo(video)) return
+        if (!out.renameTo(video)) {
+            onFailed("The video of $base could not be named after its trace; it is on the phone as ${out.name}.")
+            return
+        }
         runCatching {
             File(dir, video.name.removeSuffix(".mp4") + ".video.json").writeText(
                 """{"video":"${video.name}","trace":${finalName?.let { "\"$it.trace.csv\"" } ?: "null"},""" +

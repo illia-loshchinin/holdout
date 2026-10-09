@@ -37,8 +37,11 @@ interface SittingRecorder {
         event: RepEvent? = null,
     )
 
-    /** A person's account of the set, written into its closed record (002 FR-025). */
-    fun label(expectedReps: Int, done: Map<String, Int>, note: String, placement: String? = null, phoneSide: String? = null)
+    /**
+     * A person's account of the set, written into its closed record (002 FR-025).
+     * True once it is in the file; false leaves the record unlabelled and whole.
+     */
+    fun label(expectedReps: Int, done: Map<String, Int>, note: String, placement: String? = null, phoneSide: String? = null): Boolean
 
     fun close()
 }

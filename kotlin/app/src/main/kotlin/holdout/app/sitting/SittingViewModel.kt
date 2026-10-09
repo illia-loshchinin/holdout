@@ -546,10 +546,21 @@ class SittingViewModel(
      * wherever knees are not judged — the Daily 25 and an Easy Holdout —
      * push-ups from the knees as well (FR-021a, `Stakes.judgesKnees`).
      */
-    fun labelTrace(done: Map<String, Int>, note: String, placement: String? = null, phoneSide: String? = null) {
+    fun labelTrace(
+        done: Map<String, Int>,
+        note: String,
+        placement: String? = null,
+        phoneSide: String? = null,
+        /** Told, from the labelling thread, when the label could not be written. */
+        onLost: (what: String) -> Unit = {},
+    ) {
         val recorder = trace ?: return
         val expected = (done["honest"] ?: 0) + if (stakes.judgesKnees) 0 else done["knees"] ?: 0
-        Thread { recorder.label(expected, done, note, placement, phoneSide) }.start()
+        Thread {
+            if (!recorder.label(expected, done, note, placement, phoneSide)) {
+                onLost("The label of ${recorder.fileName ?: "the last set"} was not saved, so its trace is unlabelled.")
+            }
+        }.start()
     }
 
     override fun onCleared() {
