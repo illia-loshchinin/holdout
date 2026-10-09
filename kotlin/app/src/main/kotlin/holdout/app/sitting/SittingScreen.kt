@@ -208,7 +208,7 @@ fun SittingScreen(
                     // Clean screen: the count up in the corner, out of the way of the body.
                     Unit
                 } else {
-                    CountingOverlay(state, readouts = tools?.readouts == true)
+                    CountingOverlay(state, readouts = tools?.readouts)
                 }
                 SittingViewModel.Step.COMPLETE -> DayComplete(state, finishLabel) {
                     if (tools != null && viewModel.labEnding != null) labelThen = onFinished else onFinished()
@@ -439,7 +439,7 @@ private fun Countdown(onTick: (Int) -> Unit, onDone: () -> Unit) {
  * second; this is what makes that glance land.
  */
 @Composable
-private fun CountingOverlay(state: SittingViewModel.UiState, readouts: Boolean) {
+private fun CountingOverlay(state: SittingViewModel.UiState, readouts: (@Composable (SittingViewModel.UiState) -> Unit)?) {
     val done = state.doneToday
     var previous by remember { mutableStateOf(done) }
     val pulse = remember { Animatable(1f) }
@@ -497,35 +497,8 @@ private fun CountingOverlay(state: SittingViewModel.UiState, readouts: Boolean) 
         )
     }
 
-    // Holdout Lab only: what the counter is reading, to tune it on a real body.
-    if (readouts) {
-        if (state.traceFailed) {
-            Text("rec · not saved", style = LabelStyle, color = HoldoutColors.Warning)
-        } else {
-            state.traceName?.let {
-                Text("rec · $it", style = LabelStyle, color = HoldoutColors.TextTertiary)
-            }
-        }
-        // Pose analysis must hold ≥ 15 FPS (research R4) — watched most while video records.
-        Text(
-            "analysis ${state.analysisFps?.let { "%.0f".format(it) } ?: "—"} fps" +
-                when (state.recordingVideo) {
-                    true -> " · video on"
-                    false -> " · video could not start"
-                    null -> ""
-                },
-            style = LabelStyle,
-            color = if ((state.analysisFps ?: 99f) < 15f) HoldoutColors.Warning else HoldoutColors.TextTertiary,
-        )
-        state.readout?.let { r ->
-            Text(
-                "${r.view.name.lowercase()} · ${state.stakes.name.lowercase()} · elbow ${r.elbow.toInt()}° · " +
-                    "line ${r.posture.toInt()}° · knee ${r.knee?.toInt()?.let { "$it°" } ?: "—"}",
-                style = LabelStyle,
-                color = HoldoutColors.TextTertiary,
-            )
-        }
-    }
+    // Holdout Lab only: its readouts, drawn by src/lab code (spec 004 FR-010).
+    readouts?.invoke(state)
 }
 
 /** Time to a Holdout day's deadline, in the warning colour for its last minutes (FR-047); nothing for the Daily 25. */

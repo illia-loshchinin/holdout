@@ -7,12 +7,13 @@ import androidx.compose.runtime.Composable
  * passes none to [SittingScreen], which then shows a member's sitting and
  * nothing else: no readouts, no label question, no video.
  *
- * Only plain values and a composable slot cross this seam, so the label form
- * and the video recorder stay in `src/lab`, where member code cannot reach them.
+ * Only plain values and composable slots cross this seam, so the label form,
+ * the readouts and the video recorder stay in `src/lab`, where member code
+ * cannot reach them.
  */
 class LabSittingTools(
-    /** What the counter is reading, on screen during the set. */
-    val readouts: Boolean,
+    /** What the counter is reading, drawn under the count during the set; null under clean screen. */
+    val readouts: (@Composable (state: SittingViewModel.UiState) -> Unit)?,
     /** Nothing drawn over the camera, for recordings that train the knee classifier. */
     val cleanScreen: Boolean,
     /** Save the camera as video beside the trace (constitution X v2.1.0). */

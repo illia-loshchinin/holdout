@@ -259,14 +259,22 @@ abstract class CheckMemberHasNoLabCode : DefaultTask() {
 
     @TaskAction
     fun check() {
-        val forbidden = listOf("androidx.camera.video", "TraceRecorder", "TraceLabelDialog", "TestSwitch", "LabApp")
+        val forbidden = listOf(
+            "androidx.camera.video",
+            "TraceRecorder",
+            "TraceLabelDialog",
+            "TestSwitch",
+            "LabApp",
+            "LabReadouts",
+            "\"rec · ",
+        )
         val offenders = memberSources.asFileTree
             .filter { it.extension in setOf("kt", "java") && forbidden.any { word -> word in it.readText() } }
             .files
         if (offenders.isNotEmpty()) {
             throw GradleException(
-                "Member-app code contains Holdout Lab code: $offenders. Only src/lab may record, label or show " +
-                    "tester switches (constitution X v2.1.0, spec 004 FR-010).",
+                "Member-app code contains Holdout Lab code: $offenders. Only src/lab may record, label, show " +
+                    "readouts or show tester switches (constitution X v2.1.0, spec 004 FR-010).",
             )
         }
     }
