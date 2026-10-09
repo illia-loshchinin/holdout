@@ -174,7 +174,7 @@ fun SittingScreen(
     ) {
         if (state.step != SittingViewModel.Step.COMPLETE) {
             if (hasCamera) {
-                CameraFeed(viewModel, recordVideo = tools?.recordVideo == true)
+                CameraFeed(viewModel, recordVideo = tools?.recordVideo == true, onVideoLost = tools?.onSetProblem ?: {})
                 if (!cleanScreen) {
                     PositionOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
                     SkeletonOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
@@ -208,10 +208,10 @@ fun SittingScreen(
                     // Clean screen: the count up in the corner, out of the way of the body.
                     Unit
                 } else {
-                    CountingOverlay(state, readouts = tools?.readouts == true)
+                    CountingOverlay(state, readouts = tools?.readouts)
                 }
                 SittingViewModel.Step.COMPLETE -> DayComplete(state, finishLabel) {
-                    if (tools != null && viewModel.canLabelTrace) labelThen = onFinished else onFinished()
+                    if (tools != null && viewModel.labEnding != null) labelThen = onFinished else onFinished()
                 }
             }
 
@@ -248,29 +248,36 @@ fun SittingScreen(
         }
 
         // Holdout Lab: log what was really done before leaving, so the
-        // trace this sitting wrote arrives already labelled.
-        val prompt = tools?.labelPrompt
+        // trace this sitting wrote arrives already labelled — or, when there
+        // is no whole trace to label, say the set was not saved instead.
         val leaveAfterLabel = labelThen
-        if (prompt != null && leaveAfterLabel != null) {
-            prompt(
-                state.repsCounted,
-                { done, note, placement, phoneSide ->
-                    viewModel.labelTrace(done, note, placement, phoneSide)
+        if (tools != null && leaveAfterLabel != null) {
+            if (viewModel.labEnding != SittingViewModel.LabEnding.LABEL) {
+                tools.notSavedNotice {
                     labelThen = null
                     leaveAfterLabel()
-                },
-                {
-                    labelThen = null
-                    leaveAfterLabel()
-                },
-            )
+                }
+            } else {
+                tools.labelPrompt(
+                    state.repsCounted,
+                    { done, note, placement, phoneSide ->
+                        viewModel.labelTrace(done, note, placement, phoneSide, onLost = tools.onSetProblem)
+                        labelThen = null
+                        leaveAfterLabel()
+                    },
+                    {
+                        labelThen = null
+                        leaveAfterLabel()
+                    },
+                )
+            }
         }
 
         if (state.step != SittingViewModel.Step.COMPLETE) {
             TextButton(
                 onClick = {
                     val discarded = viewModel.endSitting()
-                    if (tools != null && viewModel.canLabelTrace) {
+                    if (tools != null && viewModel.labEnding != null) {
                         labelThen = { onCancelled(discarded) }
                     } else {
                         onCancelled(discarded)
@@ -432,7 +439,7 @@ private fun Countdown(onTick: (Int) -> Unit, onDone: () -> Unit) {
  * second; this is what makes that glance land.
  */
 @Composable
-private fun CountingOverlay(state: SittingViewModel.UiState, readouts: Boolean) {
+private fun CountingOverlay(state: SittingViewModel.UiState, readouts: (@Composable (SittingViewModel.UiState) -> Unit)?) {
     val done = state.doneToday
     var previous by remember { mutableStateOf(done) }
     val pulse = remember { Animatable(1f) }
@@ -490,31 +497,8 @@ private fun CountingOverlay(state: SittingViewModel.UiState, readouts: Boolean) 
         )
     }
 
-    // Holdout Lab only: what the counter is reading, to tune it on a real body.
-    if (readouts) {
-        state.traceName?.let {
-            Text("rec · $it", style = LabelStyle, color = HoldoutColors.TextTertiary)
-        }
-        // Pose analysis must hold ≥ 15 FPS (research R4) — watched most while video records.
-        Text(
-            "analysis ${state.analysisFps?.let { "%.0f".format(it) } ?: "—"} fps" +
-                when (state.recordingVideo) {
-                    true -> " · video on"
-                    false -> " · video could not start"
-                    null -> ""
-                },
-            style = LabelStyle,
-            color = if ((state.analysisFps ?: 99f) < 15f) HoldoutColors.Warning else HoldoutColors.TextTertiary,
-        )
-        state.readout?.let { r ->
-            Text(
-                "${r.view.name.lowercase()} · ${state.stakes.name.lowercase()} · elbow ${r.elbow.toInt()}° · " +
-                    "line ${r.posture.toInt()}° · knee ${r.knee?.toInt()?.let { "$it°" } ?: "—"}",
-                style = LabelStyle,
-                color = HoldoutColors.TextTertiary,
-            )
-        }
-    }
+    // Holdout Lab only: its readouts, drawn by src/lab code (spec 004 FR-010).
+    readouts?.invoke(state)
 }
 
 /** Time to a Holdout day's deadline, in the warning colour for its last minutes (FR-047); nothing for the Daily 25. */
@@ -884,10 +868,14 @@ private fun sittingGroup(vararg useCases: androidx.camera.core.UseCase) = androi
  * always returns null.
  */
 @Composable
-private fun CameraFeed(viewModel: SittingViewModel, recordVideo: Boolean) {
+private fun CameraFeed(viewModel: SittingViewModel, recordVideo: Boolean, onVideoLost: (String) -> Unit) {
     val context = LocalContext.current
     val video = remember(recordVideo) {
-        if (recordVideo) sittingVideo(context, java.io.File(context.filesDir, "traces"), viewModel.uiState.value.stakes.name.lowercase()) else null
+        if (recordVideo) {
+            sittingVideo(context, java.io.File(context.filesDir, "traces"), viewModel.uiState.value.stakes.name.lowercase(), onVideoLost)
+        } else {
+            null
+        }
     }
     val lifecycleOwner = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }

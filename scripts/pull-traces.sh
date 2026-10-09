@@ -12,8 +12,9 @@
 #
 # Set videos (Holdout Lab with "record video" on; constitution X v2.1.0)
 # come too - `<trace>.mp4` beside its trace, with a `.video.json` saying when
-# recording started - and are then DELETED from the phone once the copy here
-# is complete: a recording lives on the phone only until it is pulled. Videos
+# recording started. Every file, trace or video, is DELETED from the phone
+# once its copy here is complete and the sizes match: a set lives on the
+# phone only until it is pulled. Pull with no set running in Lab. Videos
 # are of people who agreed in writing to be filmed; anyone else's is deleted
 # unused. phone_traces/ is git-ignored - never commit a video.
 #
@@ -47,11 +48,9 @@ if [ -z "$traces" ] && [ -z "$videos" ]; then
   exit 0
 fi
 
-for f in $traces; do
-  adb exec-out run-as "$package" cat "files/traces/$f" > "$dest/$f"
-done
-
-for f in $videos; do
+# Every set is copied, checked against the phone's size, and only then
+# deleted from the phone (spec 004 data-model: pulled sets leave the phone).
+for f in $traces $videos; do
   adb exec-out run-as "$package" cat "files/traces/$f" > "$dest/$f"
   phone=$(adb exec-out run-as "$package" sh -c "wc -c < 'files/traces/$f'" | tr -d '\r ')
   here=$(wc -c < "$dest/$f" | tr -d ' ')

@@ -1,5 +1,7 @@
 package holdout.app.lab
 
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -25,10 +28,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import holdout.app.sitting.LabReadouts
 import holdout.app.sitting.LabSittingTools
 import holdout.app.sitting.SittingScreen
 import holdout.app.sitting.SittingViewModel
 import holdout.app.sitting.TraceLabelDialog
+import holdout.app.sitting.TraceNotSavedDialog
 import holdout.app.sitting.TraceRecorder
 import holdout.app.storage.MmkvStore
 import holdout.app.storage.Store
@@ -73,10 +78,22 @@ fun LabApp(modifier: Modifier = Modifier) {
     val settings = remember { LabSettings(MmkvLabPrefs()) }
     val traces = remember { File(context.filesDir, "traces") }
     var set by remember { mutableStateOf<LabSet?>(null) }
+    // Labels and videos lost after a set: the video finalizes once the set
+    // screen has gone, so the chooser is where the tester can be told.
+    val lost = remember { mutableStateListOf<String>() }
+    val main = remember { Handler(Looper.getMainLooper()) }
+    val onSetProblem: (String) -> Unit = { what -> main.post { lost.add(what) } }
 
     val current = set
     if (current == null) {
-        LabChooser(settings, traces, onStart = { mode -> set = LabSet(mode, System.currentTimeMillis(), settings.target) }, modifier = modifier)
+        LabChooser(
+            settings,
+            traces,
+            lost = lost,
+            onDismiss = { lost.remove(it) },
+            onStart = { mode -> set = LabSet(mode, System.currentTimeMillis(), settings.target) },
+            modifier = modifier,
+        )
         return
     }
 
@@ -103,10 +120,12 @@ fun LabApp(modifier: Modifier = Modifier) {
         modifier = modifier,
         finishLabel = "Back to Lab",
         tools = LabSittingTools(
-            readouts = !settings.cleanScreen,
+            readouts = if (settings.cleanScreen) null else { state -> LabReadouts(state) },
             cleanScreen = settings.cleanScreen,
             recordVideo = settings.recordsVideo,
             labelPrompt = { counted, onSave, onSkip -> TraceLabelDialog(counted, onSave, onSkip) },
+            notSavedNotice = { onOk -> TraceNotSavedDialog(onOk) },
+            onSetProblem = onSetProblem,
         ),
     )
 }
@@ -117,7 +136,14 @@ private data class LabSet(val mode: LabMode, val startMillis: Long, val target: 
 private const val LAB_WALLET = "lab"
 
 @Composable
-private fun LabChooser(settings: LabSettings, traces: File, onStart: (LabMode) -> Unit, modifier: Modifier = Modifier) {
+private fun LabChooser(
+    settings: LabSettings,
+    traces: File,
+    lost: List<String>,
+    onDismiss: (String) -> Unit,
+    onStart: (LabMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var recordsVideo by remember { mutableStateOf(settings.recordsVideo) }
     var cleanScreen by remember { mutableStateOf(settings.cleanScreen) }
     var target by remember { mutableIntStateOf(settings.target) }
@@ -133,6 +159,17 @@ private fun LabChooser(settings: LabSettings, traces: File, onStart: (LabMode) -
     ) {
         Text("Holdout Lab", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
         Body("Record and label sets to tune rep counting. No wallet and no network: nothing here is staked or sent.")
+
+        lost.forEach { what ->
+            HoldoutCard {
+                Text("Not saved", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Warning)
+                Body(what)
+                TextButton(
+                    onClick = { onDismiss(what) },
+                    modifier = Modifier.sizeIn(minHeight = Spacing.touchTarget),
+                ) { Text("OK", color = HoldoutColors.Accent) }
+            }
+        }
 
         SectionLabel("Count as")
         LabMode.entries.forEach { mode ->

@@ -34,9 +34,15 @@ This feature amends:
 | 001 FR-044, FR-066, AC-19 | A recorded walkthrough inside the app | The full cycle is shown in the demo video, sent as a link with the submission |
 | 001 FR-044a | A short test lobby "kept running for judges" | A short test lobby kept running, labelled, open to anyone |
 | 002 FR-023, FR-025, FR-026 | Traces, labelling and video in debug builds | In Holdout Lab |
-| 003 FR-010 | The Seeker ID note shown in About and the README | In the README only |
+| 003 FR-010 (on branch `003-seeker-id-names`) | The Seeker ID note shown in About and the README | In the README only |
 
-The constitution changes through `/speckit-constitution`; 001, 002 and 003 change through `/speckit-clarify` on each.
+The constitution changes through `/speckit-constitution`; 001, 002 and 003 change through `/speckit-clarify` on each. Spec 003 is not on this branch: it lives on `003-seeker-id-names`, and its FR-010 amendment was made there (`5a2ad5b`). Nothing in this spec depends on it.
+
+## Clarifications
+
+### Session 2026-10-09
+
+- Q: Where is spec 003, whose FR-010 this spec amends, given that it is not on this branch? (FR-015) → A: On its own branch, `003-seeker-id-names`, where the amendment is already made (`5a2ad5b`). FR-015 stands on its own here: this spec needs nothing from 003 to be built or checked.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -155,7 +161,7 @@ The team finds a counting mistake in a Lab set and fixes it. The next build of e
   - the SCRIPTED label on every scripted member;
   - the TEST COHORT label, with its day length, on every short test Holdout.
 - **FR-014** The member app keeps the short test lobby: short test Holdouts open continuously, offered beside the 7-day and 21-day Holdouts to anyone, labelled as short test Holdouts and described without reference to judges (amends 001 FR-044a's wording only; its rules are unchanged).
-- **FR-015** Known weaknesses are documented in the README only. The member app has no weaknesses screen (amends 003 FR-010; constitution XI requires the README only).
+- **FR-015** Known weaknesses are documented in the README only, and the member app has no weaknesses screen (constitution XI requires the README only). Spec 003, on its own branch, makes the matching change to its FR-010.
 - **FR-016** Nothing a member uses changes beyond FR-010 and FR-012: every other screen, rule and transaction stays as it is.
 
 ### Key Entities

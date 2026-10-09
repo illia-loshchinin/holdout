@@ -9,4 +9,4 @@ import java.io.File
  * video library — `checkMemberHasNoLabCode` fails the build if it does.
  */
 @Suppress("UNUSED_PARAMETER")
-fun sittingVideo(context: Context, dir: File, stakes: String): SittingVideo? = null
+fun sittingVideo(context: Context, dir: File, stakes: String, onFailed: (String) -> Unit): SittingVideo? = null

@@ -161,6 +161,8 @@ class SittingViewModel(
         val holdFix: String? = null,
         /** Holdout Lab: the trace file this sitting is being recorded to. */
         val traceName: String? = null,
+        /** Holdout Lab: the trace could not be written, so this set is not saved. */
+        val traceFailed: Boolean = false,
         /** Debug builds: pose frames analysed per second, over the last few seconds. */
         val analysisFps: Float? = null,
         /** Debug builds: true while the camera records video, false if asked for and it could not start, null if not asked. */
@@ -515,18 +517,50 @@ class SittingViewModel(
         return banking.endSitting()
     }
 
+    /** Holdout Lab: whether this sitting's trace could not be written, so the set is not saved. */
+    val traceFailed: Boolean get() = trace?.failed == true
+
     /** Holdout Lab: whether this sitting wrote a trace that can be labelled. */
-    val canLabelTrace: Boolean get() = trace?.fileName != null
+    val canLabelTrace: Boolean get() = trace?.fileName != null && !traceFailed
+
+    /** Holdout Lab: what a set's end asks of the tester. */
+    enum class LabEnding {
+        /** The trace was written: say what was really done (002 FR-025). */
+        LABEL,
+
+        /** No trace, or a cut-short one — writing failed, or no frame ever reached it. */
+        NOT_SAVED,
+    }
+
+    /** Holdout Lab: how this set ends for the tester; null in the member app, which records nothing. */
+    val labEnding: LabEnding?
+        get() = when {
+            trace == null -> null
+            canLabelTrace -> LabEnding.LABEL
+            else -> LabEnding.NOT_SAVED
+        }
 
     /**
      * Holdout Lab: what the tester says they did, written into the trace. The
-     * expected count is what the rule should credit: full push-ups, and in the
-     * Daily 25 push-ups from the knees as well (FR-021a).
+     * expected count is what the rule should credit: full push-ups, and
+     * wherever knees are not judged — the Daily 25 and an Easy Holdout —
+     * push-ups from the knees as well (FR-021a, `Stakes.judgesKnees`).
      */
-    fun labelTrace(done: Map<String, Int>, note: String, placement: String? = null, phoneSide: String? = null) {
+    fun labelTrace(
+        done: Map<String, Int>,
+        note: String,
+        placement: String? = null,
+        phoneSide: String? = null,
+        /** Told, from the labelling thread, when the label could not be written. */
+        onLost: (what: String) -> Unit = {},
+    ) {
         val recorder = trace ?: return
-        val expected = (done["honest"] ?: 0) + if (stakes == Stakes.DAILY) done["knees"] ?: 0 else 0
-        Thread { recorder.label(expected, done, note, placement, phoneSide) }.start()
+        val expected = (done["honest"] ?: 0) + if (stakes.judgesKnees) 0 else done["knees"] ?: 0
+        Thread {
+            if (!recorder.label(expected, done, note, placement, phoneSide)) {
+                onLost("The label of ${recorder.fileName ?: "the last set"} was not saved, so its trace is unlabelled.")
+            }
+        }.start()
     }
 
     override fun onCleared() {
@@ -562,6 +596,9 @@ class SittingViewModel(
         )
         if (_uiState.value.traceName == null) {
             trace?.fileName?.let { name -> _uiState.update { it.copy(traceName = name) } }
+        }
+        if (traceFailed && !_uiState.value.traceFailed) {
+            _uiState.update { it.copy(traceFailed = true) }
         }
     }
 

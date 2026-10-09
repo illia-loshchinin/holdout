@@ -36,11 +36,13 @@ Build types stay `debug` and `release`, which gives four variants: `memberDebug`
 |---|---|---|---|
 | `SittingRecorder`: `record(frame…)`, `close()`, `label(…)`, `fileName` | `SittingViewModel` (today it builds `TraceRecorder` itself, line 97) | `TraceRecorder` (moved from `src/main` to `src/lab`) | nothing; the view model gets `null` |
 | `SittingVideoFactory` (exists): `create(context, traceDir): SittingVideo?` | `SittingScreen` | the CameraX recorder (moved from `src/debug` to `src/lab`) | returns `null` (moved from `src/release` to `src/member`) |
-| `LabSittingTools`: a slot for the label prompt after a set, the readouts overlay and clean screen | `SittingScreen` | `TraceLabelDialog` (moved to `src/lab`) and the readouts | absent; `SittingScreen`'s defaults draw nothing extra |
+| `LabSittingTools`: slots for the label prompt after a set and for the readouts, plus clean screen | `SittingScreen` | `TraceLabelDialog` and `LabReadouts` (both in `src/lab`) | absent; `SittingScreen`'s defaults draw nothing extra |
 
 Every `BuildConfig.DEBUG` check that gates a tester feature is removed:
 - `HoldoutApp.kt` lines 249–252, 374, 413 and 698–706;
 - `SittingScreen.kt` lines 214, 271 and 492.
+
+**Found in review (PR 28, 2026-10-09)**: writing a label rewrote the trace in place, so a full disk could leave it empty, and the error was swallowed; and a video that failed to finalize was only logged. **Decision**: the label goes to `<name>.tmp` and replaces the trace with an atomic move only on success (`label` returns whether it landed); the video factory takes an `onFailed` callback; both reach `LabSittingTools.onSetProblem`, which Lab shows on its chooser, since the video finalizes after the set screen has gone. *Alternative rejected*: holding the label dialog open until the video finalizes. It makes every set wait on the encoder, and a slow finalize would look like a hang.
 
 The member app's Home loses the four tester switches (`HomeScreen.kt`: `stakedTest`, `cleanScreen`, `recordVideo`, `onResetToday`). `TestSwitch.kt` moves to `src/lab`.
 
@@ -75,7 +77,7 @@ The member app's Home loses the four tester switches (`HomeScreen.kt`: `stakedTe
 
 **Decision**:
 - Rename `CheckReleaseHasNoRecorder` (`app/build.gradle.kts` lines 239–257) to **`CheckMemberHasNoLabCode`**. It scans the sources the member variants compile: `src/main`, `src/member`, `src/debug`, `src/release`, `src/memberDebug` and `src/memberRelease`, in `kotlin` and `java`.
-- It fails on any of: `androidx.camera.video`, `TraceRecorder`, `TraceLabelDialog`, `TestSwitch`, `LabApp`.
+- It fails on any of: `androidx.camera.video`, `TraceRecorder`, `TraceLabelDialog`, `TestSwitch`, `LabApp`, `LabReadouts`, or the literal `"rec · ` that opens every readout line.
 - It runs before every `assembleMember*` and `bundleMember*` task, debug and release alike.
 - `debugImplementation(libs.androidx.camera.video)` becomes `labImplementation(...)`.
 
@@ -85,6 +87,8 @@ The member app's Home loses the four tester switches (`HomeScreen.kt`: `stakedTe
 - `memberRelease` contains no Lab class and no `camera/video/Recorder`: R8 drops the unused library.
 - `memberDebug` contains no Lab class, but still holds the `camera-video` *library* classes that `camera-view` brings in. No member code references them, and debug builds aren't minified.
 - `labDebug` contains `LabApp`, `TraceRecorder`, `TraceLabelDialog`, `TestSwitch` and the recorder.
+
+**Found in review (PR 27, 2026-10-09)**: the readouts were drawn by `SittingScreen` in `src/main` behind `readouts: Boolean`, so their text ("rec · …", "analysis … fps", the angle line) was compiled into `memberDebug`, and the check passed because none of its words matched. FR-010 bans the readouts from every member build, not only from what a member sees. **Decision**: `LabSittingTools.readouts` becomes a composable slot, `(@Composable (SittingViewModel.UiState) -> Unit)?`, null under clean screen; the readout UI moves to `src/lab` as `LabReadouts`; the check gains `LabReadouts` and `"rec · `. The values the readouts show (`traceName`, `traceFailed`, `analysisFps`, `recordingVideo`, `readout`) stay in `UiState`: they are the counter's state, not a tester feature, and draw nothing by themselves. *Alternative rejected*: scanning the compiled member APK for strings. It is slower, needs an assembled APK before the check can run, and the source rule already holds once the UI has moved.
 
 Constitution X forbids the recorder, which is code that records, and the check enforces that. A library nothing calls is not a recorder. Removing it from `memberDebug` would mean excluding it from `camera-view`'s dependencies, which breaks `PreviewView`.
 
@@ -163,6 +167,7 @@ They gain nothing else.
   - Lab's per-set scope is unique for each new set;
   - `SittingViewModel` with a fake `SittingRecorder` records, labels and closes, as today's trace behaviour;
   - `SittingViewModel` with `null` writes nothing.
+- **Instrumented test** (`src/androidTest`, shared by both flavors): the package it checks follows the flavor, `holdout.app` for `member` and `holdout.app.lab` for `lab` (from `BuildConfig.FLAVOR`), so `connectedLabDebugAndroidTest` and `connectedMemberDebugAndroidTest` both run (PR 27 review).
 - **The build check, proven both ways:**
   - `./gradlew :app:checkMemberHasNoLabCode` passes on the tree;
   - a scratch file importing `androidx.camera.video` in `src/main` makes `assembleMemberDebug` fail (quickstart). It is reverted afterwards.

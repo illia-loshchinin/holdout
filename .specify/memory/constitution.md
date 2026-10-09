@@ -81,4 +81,4 @@ Those cohorts MAY be populated by scripted members, and only on these terms: the
 
 This constitution supersedes other practice in this repository. Anything not required by a scenario in `specs/001-holdout-hackathon/spec.md` is out of scope; additions are made by amending the spec, not by writing code. Amendments are recorded here with a version bump and a line in `docs/holdout_decisions.md`. The deadline is what makes scope discipline load-bearing rather than decorative.
 
-**Version**: 2.1.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-10-09
+**Version**: 2.1.1 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-10-09
