@@ -525,12 +525,13 @@ class SittingViewModel(
 
     /**
      * Holdout Lab: what the tester says they did, written into the trace. The
-     * expected count is what the rule should credit: full push-ups, and in the
-     * Daily 25 push-ups from the knees as well (FR-021a).
+     * expected count is what the rule should credit: full push-ups, and
+     * wherever knees are not judged — the Daily 25 and an Easy Holdout —
+     * push-ups from the knees as well (FR-021a, `Stakes.judgesKnees`).
      */
     fun labelTrace(done: Map<String, Int>, note: String, placement: String? = null, phoneSide: String? = null) {
         val recorder = trace ?: return
-        val expected = (done["honest"] ?: 0) + if (stakes == Stakes.DAILY) done["knees"] ?: 0 else 0
+        val expected = (done["honest"] ?: 0) + if (stakes.judgesKnees) 0 else done["knees"] ?: 0
         Thread { recorder.label(expected, done, note, placement, phoneSide) }.start()
     }
 

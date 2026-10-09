@@ -10,6 +10,7 @@ import holdout.repcounter.PoseFrame
 import holdout.repcounter.PoseIndex
 import holdout.repcounter.Readout
 import holdout.repcounter.RepEvent
+import holdout.repcounter.Stakes
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,30 +30,51 @@ class SittingRecorderSeamTest {
         var frames = 0
         var labels = 0
         var closes = 0
+
+        /** The expected count of the last label; labelling runs on its own thread. */
+        val expected = java.util.concurrent.LinkedBlockingQueue<Int>()
         override val fileName: String? get() = if (frames > 0) "fake.trace.csv" else null
         override fun record(timestampMillis: Long, step: String, view: CameraView?, world: PoseFrame, image: PoseFrame, width: Int, height: Int, readout: Readout?, event: RepEvent?) {
             frames += 1
         }
         override fun label(expectedReps: Int, done: Map<String, Int>, note: String, placement: String?, phoneSide: String?) {
             labels += 1
+            expected.put(expectedReps)
         }
         override fun close() {
             closes += 1
         }
     }
 
-    private fun sitting(recorder: SittingRecorder?) = InMemoryStore().let { store ->
+    private fun sitting(recorder: SittingRecorder?, stakes: Stakes = Stakes.DAILY) = InMemoryStore().let { store ->
         SittingViewModel(
             store = store,
             streaks = StreakStore(store),
             wallet = "lab",
-            scope = "lab:DAILY:1",
+            scope = "lab:${stakes.name}:1",
             dayIndex = Store.UNKNOWN_DAY,
             target = 25,
             chainSecondsNow = { null },
             rollsOver = false,
+            stakes = stakes,
             recorder = recorder,
         )
+    }
+
+    private fun expectedFor(stakes: Stakes): Int {
+        val recorder = FakeRecorder()
+        val vm = sitting(recorder, stakes)
+        vm.onPoseFrame(observation, backgroundMotion = 0f)
+        vm.endSitting()
+        vm.labelTrace(mapOf("honest" to 5, "knees" to 3, "half" to 2), "note")
+        return recorder.expected.poll(5, java.util.concurrent.TimeUnit.SECONDS)!!
+    }
+
+    @Test
+    fun `given a labelled set, then push-ups from the knees are expected wherever knees are not judged`() {
+        assertEquals(8, expectedFor(Stakes.DAILY))
+        assertEquals(8, expectedFor(Stakes.EASY))
+        assertEquals(5, expectedFor(Stakes.STAKED))
     }
 
     @Test
