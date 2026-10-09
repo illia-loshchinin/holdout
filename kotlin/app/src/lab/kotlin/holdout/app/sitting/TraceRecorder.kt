@@ -23,7 +23,12 @@ import java.util.TimeZone
  * file name's time is the phone's wall clock; it names a file and decides
  * nothing.
  */
-class TraceRecorder(private val dir: File, private val stakes: Stakes) : SittingRecorder {
+class TraceRecorder(
+    private val dir: File,
+    private val stakes: Stakes,
+    /** How a trace file is opened; a test hands in storage that fails. */
+    private val writerFor: (File) -> BufferedWriter = { it.bufferedWriter() },
+) : SittingRecorder {
 
     // Three threads touch one file: frames arrive on MediaPipe's result
     // thread, Stop and leaving close it on the main thread, and labelling
@@ -108,7 +113,7 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) : Sitting
             .map { n -> File(dir, if (n == 0) "$base.trace.csv" else "$base-$n.trace.csv") }
             .first { !it.exists() }
         file = target
-        return target.bufferedWriter().also {
+        return writerFor(target).also {
             it.write(Trace.header(stakes, width, height))
             // The header straight to storage: a sitting that ends before the
             // first flush still leaves a readable file, not an empty one.
@@ -126,6 +131,8 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) : Sitting
         synchronized(lock) {
             val target = file ?: return
             closeLocked()
+            // A cut-short trace is never given ground truth (004 contracts §3).
+            if (failed) return
             runCatching {
                 val labelled = Trace.label(target.readLines(), expectedReps, done, note, placement, phoneSide)
                 target.writeText(labelled.joinToString("\n", postfix = "\n"))
@@ -139,7 +146,9 @@ class TraceRecorder(private val dir: File, private val stakes: Stakes) : Sitting
 
     private fun closeLocked() {
         closed = true
-        runCatching { writer?.close() }
+        // Closing flushes the rows written since the last flush. If that
+        // fails — storage filled meanwhile — the trace is cut short.
+        writer?.let { out -> runCatching { out.close() }.onFailure { failed = true } }
         writer = null
     }
 

@@ -211,7 +211,7 @@ fun SittingScreen(
                     CountingOverlay(state, readouts = tools?.readouts == true)
                 }
                 SittingViewModel.Step.COMPLETE -> DayComplete(state, finishLabel) {
-                    if (tools != null && (viewModel.canLabelTrace || viewModel.traceFailed)) labelThen = onFinished else onFinished()
+                    if (tools != null && viewModel.labEnding != null) labelThen = onFinished else onFinished()
                 }
             }
 
@@ -248,11 +248,11 @@ fun SittingScreen(
         }
 
         // Holdout Lab: log what was really done before leaving, so the
-        // trace this sitting wrote arrives already labelled — or, when the
-        // trace could not be written, say the set was not saved instead.
+        // trace this sitting wrote arrives already labelled — or, when there
+        // is no whole trace to label, say the set was not saved instead.
         val leaveAfterLabel = labelThen
         if (tools != null && leaveAfterLabel != null) {
-            if (viewModel.traceFailed) {
+            if (viewModel.labEnding != SittingViewModel.LabEnding.LABEL) {
                 tools.notSavedNotice {
                     labelThen = null
                     leaveAfterLabel()
@@ -277,7 +277,7 @@ fun SittingScreen(
             TextButton(
                 onClick = {
                     val discarded = viewModel.endSitting()
-                    if (tools != null && (viewModel.canLabelTrace || viewModel.traceFailed)) {
+                    if (tools != null && viewModel.labEnding != null) {
                         labelThen = { onCancelled(discarded) }
                     } else {
                         onCancelled(discarded)

@@ -71,6 +71,31 @@ class SittingRecorderSeamTest {
     }
 
     @Test
+    fun `given a Lab set, when it ends, then it is labelled if its trace was written and reported not saved otherwise`() {
+        val written = sitting(FakeRecorder())
+        written.onPoseFrame(observation, backgroundMotion = 0f)
+        written.endSitting()
+        assertEquals(SittingViewModel.LabEnding.LABEL, written.labEnding)
+
+        // Stopped before the first frame: the camera never started, or the tester stopped at once.
+        val empty = sitting(FakeRecorder())
+        empty.endSitting()
+        assertEquals(SittingViewModel.LabEnding.NOT_SAVED, empty.labEnding)
+
+        val failing = FakeRecorder()
+        val failed = sitting(failing)
+        failed.onPoseFrame(observation, backgroundMotion = 0f)
+        failing.failed = true
+        failed.endSitting()
+        assertEquals(SittingViewModel.LabEnding.NOT_SAVED, failed.labEnding)
+
+        // A member's sitting has no recorder and no Lab ending.
+        val member = sitting(recorder = null)
+        member.endSitting()
+        assertEquals(null, member.labEnding)
+    }
+
+    @Test
     fun `given a labelled set, then push-ups from the knees are expected wherever knees are not judged`() {
         assertEquals(8, expectedFor(Stakes.DAILY))
         assertEquals(8, expectedFor(Stakes.EASY))

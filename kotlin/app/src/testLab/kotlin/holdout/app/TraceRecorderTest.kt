@@ -6,7 +6,10 @@ import holdout.repcounter.PoseFrame
 import holdout.repcounter.PoseIndex
 import holdout.repcounter.Stakes
 import holdout.repcounter.Trace
+import java.io.BufferedWriter
 import java.io.File
+import java.io.FileWriter
+import java.io.IOException
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -51,5 +54,20 @@ class TraceRecorderTest {
         assertFalse(recorder.failed)
         recorder.record(1, "COUNTING", null, frame, frame, 720, 1280)
         assertTrue(recorder.failed)
+    }
+
+    @Test
+    fun `a trace whose last rows cannot be flushed on close says so`() {
+        val dir = Files.createTempDirectory("traces").toFile()
+        val recorder = TraceRecorder(dir, Stakes.DAILY) { file -> BufferedWriter(FailsOnClose(file)) }
+        recorder.record(1, "COUNTING", null, frame, frame, 720, 1280)
+        assertFalse(recorder.failed)
+        recorder.close()
+        assertTrue(recorder.failed)
+    }
+
+    /** Storage that fills between the last flush and the close. */
+    private class FailsOnClose(file: File) : FileWriter(file) {
+        override fun close() = throw IOException("no space left on device")
     }
 }

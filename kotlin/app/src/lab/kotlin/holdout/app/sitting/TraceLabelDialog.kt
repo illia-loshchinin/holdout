@@ -153,8 +153,9 @@ private fun Choices(options: List<String>, selected: String?, label: (String) ->
 }
 
 /**
- * Holdout Lab: the set that just ended was not saved, because its trace could
- * not be written — storage full, or a write refused. Shown instead of
+ * Holdout Lab: the set that just ended was not saved — its trace could not be
+ * written (storage full, a write refused) or no frame ever reached it (the
+ * camera never started, or Stop came first). Shown instead of
  * [TraceLabelDialog], so nobody labels a set the team will never receive.
  */
 @Composable
@@ -171,7 +172,7 @@ fun TraceNotSavedDialog(onOk: () -> Unit) {
         ) {
             Text("This set was not saved", style = MaterialTheme.typography.titleLarge, color = HoldoutColors.Warning)
             Text(
-                "Its trace could not be written to the phone, so it is missing or cut short and will not reach the team. Free up space and record it again.",
+                "No whole trace of it is on the phone — none was written, or it was cut short — so it will not reach the team. Check that the camera starts and the phone has space, then record it again.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = HoldoutColors.TextSecondary,
                 textAlign = TextAlign.Center,

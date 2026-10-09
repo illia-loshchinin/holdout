@@ -523,6 +523,23 @@ class SittingViewModel(
     /** Holdout Lab: whether this sitting wrote a trace that can be labelled. */
     val canLabelTrace: Boolean get() = trace?.fileName != null && !traceFailed
 
+    /** Holdout Lab: what a set's end asks of the tester. */
+    enum class LabEnding {
+        /** The trace was written: say what was really done (002 FR-025). */
+        LABEL,
+
+        /** No trace, or a cut-short one — writing failed, or no frame ever reached it. */
+        NOT_SAVED,
+    }
+
+    /** Holdout Lab: how this set ends for the tester; null in the member app, which records nothing. */
+    val labEnding: LabEnding?
+        get() = when {
+            trace == null -> null
+            canLabelTrace -> LabEnding.LABEL
+            else -> LabEnding.NOT_SAVED
+        }
+
     /**
      * Holdout Lab: what the tester says they did, written into the trace. The
      * expected count is what the rule should credit: full push-ups, and
