@@ -96,6 +96,12 @@ android {
         buildConfigField("String", "RPC_URL", "\"${providers.gradleProperty("holdout.rpcUrl").getOrElse("https://api.devnet.solana.com")}\"")
         buildConfigField("String", "PROGRAM_ID", "\"${providers.gradleProperty("holdout.programId").getOrElse("Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4")}\"")
 
+        // Seeker ID names (spec 003): the one mainnet endpoint, used only by
+        // the read-only SeekerNameReader to look up .skr names for display —
+        // it can neither sign nor send (research R5). A keyed provider can be
+        // set with -Pholdout.namesRpcUrl=... (research R4).
+        buildConfigField("String", "NAMES_RPC_URL", "\"${providers.gradleProperty("holdout.namesRpcUrl").getOrElse("https://api.mainnet-beta.solana.com")}\"")
+
         // The faucet's fee sponsor (research R13): its secret SHIPS IN THE APK by
         // design — a README known weakness, bounded on-chain by a 0.05 SOL float,
         // a daily lamport budget and a permissionless refill. It is read at build

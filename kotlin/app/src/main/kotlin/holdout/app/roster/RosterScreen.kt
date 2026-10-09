@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -16,7 +17,9 @@ import androidx.compose.ui.Modifier
 import holdout.app.chain.Holdout
 import holdout.app.ui.Body
 import holdout.app.ui.Format
+import holdout.app.ui.MemberIdentity
 import holdout.app.ui.Reading
+import holdout.app.ui.ReportShownWallets
 import holdout.app.ui.SectionLabel
 import holdout.app.ui.TestCohortBadge
 import holdout.app.ui.theme.HoldoutColors
@@ -31,6 +34,10 @@ import holdout.core.ScriptedWallets
  * fallen by days lasted. **No amounts anywhere** — a roster ranks nobody by
  * money (FR-063, constitution XIII). Every scripted member is labelled, from
  * the bundled list, with no server (FR-043a).
+ *
+ * Members show by Seeker ID where they have one (spec 003 FR-002), looked up
+ * only for the rows on screen ([onShowing], FR-012). Names never change the
+ * order or a label (FR-008).
  */
 @Composable
 fun RosterScreen(
@@ -40,10 +47,15 @@ fun RosterScreen(
     now: Long,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onShowing: (Collection<String>) -> Unit = {},
 ) {
     val c = h.cohort
     val roster = members?.let { Derive.roster(c, it, now, ScriptedWallets.keys) }
+    val list = rememberLazyListState()
+    // Member rows are keyed by their wallet; the header rows have no key of their own.
+    ReportShownWallets(list, onShowing) { it as? String }
     LazyColumn(
+        state = list,
         modifier = modifier
             .fillMaxSize()
             .background(HoldoutColors.Canvas)
@@ -63,10 +75,12 @@ fun RosterScreen(
         items(roster, key = { it.member.wallet.base58() }) { entry ->
             val address = entry.member.wallet.base58()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    Format.short(address) + if (address == me) " · you" else "",
-                    style = MaterialTheme.typography.bodyLarge,
+                MemberIdentity(
+                    address,
+                    isYou = address == me,
+                    budget = 20,
                     color = if (entry.standing) HoldoutColors.TextPrimary else HoldoutColors.TextTertiary,
+                    style = MaterialTheme.typography.bodyLarge,
                 )
                 Text(
                     buildString {

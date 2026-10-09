@@ -1,9 +1,12 @@
 package holdout.app.ui
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -18,11 +21,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.HoldoutColors
+import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 import java.math.BigDecimal
@@ -58,6 +71,12 @@ object Format {
 
     /** `ABcd…wxYZ`: a wallet as the roster shows it (FR-062). */
     fun short(address: String): String = if (address.length <= 10) address else address.take(4) + "…" + address.takeLast(4)
+
+    /**
+     * A member as the app names them (spec 003): their Seeker ID cut to
+     * [budget] characters, or their shortened address when they have none.
+     */
+    fun identity(wallet: String, name: String?, budget: Int): String = name?.let { holdout.core.SeekerNames.fit(it, budget) } ?: short(wallet)
 
     /** A day length, for the short test cohort's label (FR-044a). */
     fun dayLength(seconds: Long): String = when {
@@ -171,3 +190,61 @@ fun Notice(text: String?, warning: Boolean = false, modifier: Modifier = Modifie
         modifier = modifier.padding(vertical = Spacing.tight),
     )
 }
+
+/**
+ * Every kept Seeker ID, wallet base58 → name (spec 003), provided once by the
+ * app from `SeekerNameRepository.names`. Empty in previews and tests, where
+ * every member shows their shortened address.
+ */
+val LocalSeekerNames = compositionLocalOf<Map<String, String>> { emptyMap() }
+
+/**
+ * One member, the way every list and line names them (spec 003 FR-001–FR-004,
+ * research R8): their Seeker ID when they have one, else their shortened
+ * address, in the same [style] and [color] either way, so the two look like
+ * the same kind of row — no badge, no "verified" mark (FR-003). "· you"
+ * follows when it is the connected wallet, decided by the wallet and never
+ * by the name (FR-008).
+ *
+ * The address shows at once and the name crossfades in over 200 ms when it
+ * arrives (FR-006). The line keeps the address's width underneath, so a row
+ * never shrinks while a name loads.
+ */
+@Composable
+fun MemberIdentity(
+    wallet: String,
+    isYou: Boolean,
+    budget: Int,
+    color: Color,
+    modifier: Modifier = Modifier,
+    style: TextStyle = AmountStyle,
+) {
+    val you = if (isYou) " · you" else ""
+    val shown = Format.identity(wallet, LocalSeekerNames.current[wallet], budget) + you
+    Box(modifier.clearAndSetSemantics { contentDescription = shown }) {
+        Text(Format.short(wallet) + you, style = style, color = color, maxLines = 1, modifier = Modifier.alpha(0f))
+        Crossfade(targetState = shown, animationSpec = tween(durationMillis = 200), label = "member identity") {
+            Text(it, style = style, color = color, maxLines = 1)
+        }
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+private fun MemberIdentityNamedPreview() {
+    HoldoutTheme {
+        CompositionLocalProvider(LocalSeekerNames provides mapOf(PREVIEW_WALLET to "alice.skr")) {
+            MemberIdentity(PREVIEW_WALLET, isYou = true, budget = 20, color = HoldoutColors.TextPrimary)
+        }
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+private fun MemberIdentityAddressPreview() {
+    HoldoutTheme {
+        MemberIdentity(PREVIEW_WALLET, isYou = false, budget = 20, color = HoldoutColors.TextPrimary)
+    }
+}
+
+private const val PREVIEW_WALLET = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"

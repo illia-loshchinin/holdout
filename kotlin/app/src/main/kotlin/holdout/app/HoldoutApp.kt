@@ -2,10 +2,12 @@ package holdout.app
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,6 +36,7 @@ import holdout.app.home.HomeScreen
 import holdout.app.home.HomeState
 import holdout.app.leaderboard.LeaderboardScreen
 import holdout.app.lobby.LobbyScreen
+import holdout.app.names.SeekerNameRepository
 import holdout.app.reminders.ReminderScheduler
 import holdout.app.roster.RosterScreen
 import holdout.app.sitting.BankingController
@@ -48,6 +51,8 @@ import holdout.app.streak.StreakStore
 import holdout.app.tour.TourScreen
 import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
+import holdout.app.ui.LocalSeekerNames
+import holdout.app.ui.MemberIdentity
 import holdout.app.ui.Reading
 import holdout.app.ui.SecondaryButton
 import holdout.app.ui.SectionLabel
@@ -63,6 +68,7 @@ import holdout.core.Leaderboard
 import holdout.core.LeagueParams
 import holdout.core.Reminders
 import holdout.core.ScriptedWallets
+import holdout.core.SeekerNameReader
 import holdout.core.Stage
 import holdout.repcounter.Stakes
 import kotlinx.coroutines.delay
@@ -107,11 +113,44 @@ private sealed interface Sitting {
  * only the connect screen and no-wallet help. Everything the Daily 25 does after
  * that works with no connection at all (FR-024b). Which Holdout screen shows
  * is decided by `Journey.stage` from chain state and chain time.
+ *
+ * Members are named by their Seeker ID where they have one (spec 003): the
+ * names kept on the phone are provided to every screen through
+ * [LocalSeekerNames], and looked up lazily by one repository per process.
  */
 @Composable
 fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val store: Store = remember { MmkvStore.create(context) }
+    val seekerNames = remember { ProcessSeekerNames.repository(store) }
+    val names by seekerNames.names.collectAsStateWithLifecycle()
+    CompositionLocalProvider(LocalSeekerNames provides names) {
+        HoldoutScreens(sender, store, seekerNames, modifier)
+    }
+}
+
+/**
+ * The one [SeekerNameRepository] per app process (spec 003 data-model §4):
+ * its queue and worker outlive any Activity, so a rotation never starts a
+ * second worker or loses the pace.
+ */
+private object ProcessSeekerNames {
+    @Volatile
+    private var instance: SeekerNameRepository? = null
+
+    fun repository(store: Store): SeekerNameRepository = instance ?: synchronized(this) {
+        instance ?: SeekerNameRepository(
+            nameOf = { wallet -> reader.nameOf(SolanaPublicKey.from(wallet)) },
+            store = store,
+        ).also { instance = it }
+    }
+
+    private val reader by lazy { SeekerNameReader(BuildConfig.NAMES_RPC_URL) }
+}
+
+@Composable
+private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNames: SeekerNameRepository, modifier: Modifier) {
+    val context = LocalContext.current
     val streaks = remember { StreakStore(store) }
     val offlineDays = remember { OfflineDays(store, streaks, DAILY_25) }
     val boot = remember { bootCount(context) }
@@ -126,6 +165,9 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
     // The wallet a previous run connected is restored with its auth token, so a
     // restart does not ask again (contracts/android-app §3).
     var address by remember { mutableStateOf(holdouts.wallet.restored) }
+    // The connected wallet's own Seeker ID is checked again on every connect,
+    // a restored session included (spec 003 FR-007).
+    LaunchedEffect(address) { address?.let { seekerNames.connected(it.base58()) } }
     var connecting by remember { mutableStateOf(false) }
     var connectMessage by remember { mutableStateOf<String?>(null) }
     var noWallet by remember { mutableStateOf(false) }
@@ -481,7 +523,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             )
             is Route.Lobby -> LobbyScreen(target, chainNow, chain.busy, chain.message, chain.messageIsWarning, { holdouts.leave(sender, target) }, { route = Route.Roster(target.address) }, goHome, modifier)
             is Route.Detail -> CohortDetailScreen(target, members, stage, chainNow, claimSignature, { route = Route.Roster(target.address) }, goHome, modifier)
-            is Route.Roster -> RosterScreen(target, members, wallet, chainNow, goHome, modifier)
+            is Route.Roster -> RosterScreen(target, members, wallet, chainNow, goHome, modifier, onShowing = seekerNames::showing)
             is Route.Forfeit -> ForfeitScreen(
                 h = target,
                 stage = stage as? Stage.Forfeited ?: Stage.Forfeited(target.membership?.daysCompleted ?: 0, recorded = false),
@@ -546,7 +588,7 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
             val boards = Leaderboard.Board.entries.filter { it != Leaderboard.Board.TEST || read?.cohortsAfter.orEmpty().any { c -> Leaderboard.Board.TEST.covers(c.leagueId) } }
             val board = routed.board
             val shown = if (read == null || chainNow == null) null else Leaderboard.view(board, read, chainNow, ScriptedWallets::isScripted)
-            LeaderboardScreen(board, boards, shown, address, { route = Route.Leaderboards(it) }, goHome, modifier)
+            LeaderboardScreen(board, boards, shown, address, { route = Route.Leaderboards(it) }, goHome, modifier, onShowing = seekerNames::showing)
             return
         }
         else -> Unit
@@ -689,7 +731,10 @@ fun HoldoutApp(sender: ActivityResultSender, modifier: Modifier = Modifier) {
                     reminders.clear()
                     address = null
                 }
-            }) { Text("Disconnect ${Format.short(wallet)}", color = HoldoutColors.TextTertiary) }
+            }) {
+                Text("Disconnect ", color = HoldoutColors.TextTertiary)
+                MemberIdentity(wallet, isYou = false, budget = 28, color = HoldoutColors.TextTertiary, style = LocalTextStyle.current)
+            }
         },
     )
 }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -16,8 +17,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.ui.Body
-import holdout.app.ui.Format
+import holdout.app.ui.MemberIdentity
 import holdout.app.ui.Reading
+import holdout.app.ui.ReportShownWallets
 import holdout.app.ui.SectionLabel
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.LabelStyle
@@ -30,8 +32,9 @@ import holdout.core.Leaderboard.View
 /**
  * The league leaderboards (US-10, FR-060…FR-065, T097): all-time, one per
  * league, plus one combined board for the short test cohorts. Ranked by
- * [Leaderboard] from on-chain progress only; shortened addresses, scripted
- * members labelled, and **no amount anywhere** (FR-063, constitution XIII).
+ * [Leaderboard] from on-chain progress only; each member by Seeker ID or
+ * shortened address (spec 003), scripted members labelled, and **no amount
+ * anywhere** (FR-063, constitution XIII). Names never reorder the board (FR-008).
  */
 @Composable
 fun LeaderboardScreen(
@@ -42,8 +45,13 @@ fun LeaderboardScreen(
     onBoard: (Board) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onShowing: (Collection<String>) -> Unit = {},
 ) {
+    val list = rememberLazyListState()
+    // Rows are keyed "r" or "n" (ranked, not yet) + the wallet; drop the prefix for the wallet.
+    ReportShownWallets(list, onShowing) { (it as? String)?.takeIf { key -> key.length > 1 }?.drop(1) }
     LazyColumn(
+        state = list,
         modifier = modifier
             .fillMaxSize()
             .background(HoldoutColors.Canvas)
@@ -84,11 +92,10 @@ private fun Line(place: String, r: Leaderboard.Row, me: SolanaPublicKey?) {
     val address = r.wallet.base58()
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(
-                "$place ${Format.short(address)}" + if (r.wallet == me) " · you" else "",
-                style = MaterialTheme.typography.bodyLarge,
-                color = HoldoutColors.TextPrimary,
-            )
+            Row {
+                Text("$place ", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextPrimary)
+                MemberIdentity(address, isYou = r.wallet == me, budget = 20, color = HoldoutColors.TextPrimary, style = MaterialTheme.typography.bodyLarge)
+            }
             Text(LeaderboardText.rate(r), style = LabelStyle, color = HoldoutColors.Success)
         }
         Text(LeaderboardText.figures(r), style = LabelStyle, color = HoldoutColors.TextSecondary)

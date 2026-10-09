@@ -7,6 +7,11 @@
       "fix": "Mainnet with real SKR"
     },
     {
+      "what": "Seeker ID names are read from Solana mainnet",
+      "why": "Seeker IDs (.skr names) exist only on mainnet; the app reads them, for display only, from the public mainnet RPC, while everything else runs on devnet. Members without one, scripted members included, are shown by shortened address",
+      "fix": "Nothing to fix for display: on mainnet the same lookup reads the same network. A dedicated RPC provider would make first-time lookups of large lists faster"
+    },
+    {
       "what": "\"Stake back\" is true in SKR, not in dollars",
       "why": "Everything is SKR-denominated with no oracle in the contract",
       "fix": "A known property of SKR-native staking, stated in the app"
