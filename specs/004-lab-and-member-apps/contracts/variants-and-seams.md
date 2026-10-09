@@ -47,6 +47,7 @@ Every existing command that named a variant changes: `assembleDebug` → `assemb
 ```kotlin
 interface SittingRecorder {
     val fileName: String?
+    val failed: Boolean   // true once the trace could not be written: the set is not saved
     fun record(/* the arguments TraceRecorder.record takes today */)
     fun label(expectedReps: Int, done: Map<String, Int>, note: String, placement: String? = null, phoneSide: String? = null)
     fun close()
@@ -55,9 +56,13 @@ interface SittingRecorder {
 class LabSittingTools(
     val readouts: Boolean,
     val cleanScreen: Boolean,
-    val labelPrompt: @Composable (viewModel: SittingViewModel, onDone: () -> Unit) -> Unit,
+    val recordVideo: Boolean,
+    val labelPrompt: @Composable (counted: Int, onSave: (done: Map<String, Int>, note: String, placement: String?, phoneSide: String?) -> Unit, onSkip: () -> Unit) -> Unit,
+    val notSavedNotice: @Composable (onOk: () -> Unit) -> Unit,
 )
 ```
+
+- When a Lab set ends and `recorder.failed` is true, `SittingScreen` shows `notSavedNotice` instead of `labelPrompt`, and the readouts show "rec · not saved" (spec edge case: the phone runs out of space during a Lab set). A set whose trace failed is never labelled.
 
 - `SittingViewModel(…, recorder: SittingRecorder? = null, …)` replaces `traceDir: File?`.
 - `SittingScreen(…, tools: LabSittingTools? = null, …)` replaces `cleanScreen` and `recordVideo` and every `BuildConfig.DEBUG` check in it.
