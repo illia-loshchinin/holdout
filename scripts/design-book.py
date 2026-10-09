@@ -156,8 +156,10 @@ def check(report_only: bool) -> int:
                 # DisplayStyle = CounterStyle.copy(...) inherits the weight unless the copy overrides it
                 block = block.split("\n")[0]
                 wt = re.search(r"FontWeight\.(\w+)", block) or re.search(r"FontWeight\.(\w+)", type_src[type_src.find("val CounterStyle"):])
-            if s["name"] == "label" and not size:
-                continue
+            # A property the Kotlin style lost is drift too, not a reason to skip the style.
+            for prop, found in (("fontSize", size), ("lineHeight", line), ("fontWeight", wt)):
+                if not found:
+                    problems.append(f"type    {s['name']:<18} has no {prop} in Kotlin")
             if size and px(s["fontSize"]) != float(size[1]):
                 problems.append(f"type    {s['name']:<18} size book {s['fontSize']} != Kotlin {size[1]}sp")
             if line and px(s["lineHeight"]) != float(line[1]):
