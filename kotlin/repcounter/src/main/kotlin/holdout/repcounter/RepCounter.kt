@@ -151,8 +151,8 @@ data class RepRules(
      * Judged only inside [maxHipRisePlacementRatio]: from further in front the
      * hips sit behind the shoulders in the picture and the reading drops —
      * honest reps recorded there read down to 0.84. A staked sitting cannot
-     * start from there (`Preflight.stakedFrontRatio`, the same line), so this
-     * exempts only the Daily 25 and recordings older than the line.
+     * start from there (`Preflight.stakedFrontRatio`, the same line), nor since
+     * 8 Oct a Daily 25, so this exempts only recordings older than the line.
      */
     val minHipRise: Float = 0.90f,
     /** The placement ratio (`Preflight.placementRatio`, held through the countdown) under which [minHipRise] is judged: about 35° and further round to the side. */
@@ -393,9 +393,6 @@ class RepCounter(
      */
     private val judgeKnees = stakes.judgesKnees
 
-    /** Money is on it — Hard or Easy: an unknown that would let a rep pass does not ([hipRiseTooLow]). */
-    private val moneyStaked = stakes.staked
-
     /**
      * And where push-ups from the knees count, a body straight from shoulder
      * to **knee** is a body held, whatever the lower legs do behind it: raised
@@ -500,11 +497,11 @@ class RepCounter(
         if (view != CameraView.OBLIQUE) return false
         val ratio = heldRatio ?: return false
         if (ratio >= rules.maxHipRisePlacementRatio) return false
-        // Where money is staked — Hard or Easy — a rise that could not be read is not
-        // a body that came up as one piece, as a knee never seen is not off the floor.
-        // On every recording only one counted rep had none: a cobra (4 Oct). Easy is
-        // staked though it counts knee push-ups, so it is held to this too (review, PR #14).
-        return hipRise()?.let { it < rules.minHipRise } ?: moneyStaked
+        // A rise that could not be read is not a body that came up as one piece, as a
+        // knee never seen is not off the floor. On every recording only one counted rep
+        // had none: a cobra (4 Oct). The rule is Easy's as much as Hard's, and the Daily 25
+        // is an Easy Holdout with nothing staked, so none lets an unknown pass (review, PR #14).
+        return hipRise()?.let { it < rules.minHipRise } ?: true
     }
 
     /**

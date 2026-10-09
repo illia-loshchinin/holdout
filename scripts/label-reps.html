@@ -475,7 +475,7 @@ async function refreshSitting() {
   // The sitting this read is for: another may be open by the time it returns.
   const base = S.base;
   // A save still to run, or running, would be read back half-written: wait for it.
-  if (saveTimer) { clearTimeout(saveTimer); writeNow(); }
+  writeNow();
   await saving;
   const [labelsText, todayText] = await Promise.all([
     fetch(`/files/${base}.labels.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')),
@@ -521,7 +521,7 @@ async function open(base, atT) {
   // goes. The queue moves on as soon as a rep is done — a Done or a confirmed
   // label saved 250 ms later, after the next sitting had opened, was written
   // into that one instead and lost.
-  if (saveTimer) { clearTimeout(saveTimer); writeNow(); }
+  writeNow();
   await saving;
   if (gen !== openGen) return;
   history.replaceState(null, '', mode === 'sitting' ? `?s=${encodeURIComponent(base)}` : location.pathname);
@@ -787,55 +787,74 @@ function toggleFlag() {
   if (e.flag && !e.note) $('note').focus();
 }
 
+/**
+ * The save waiting to run: the sitting it was made in, its labels and the form
+ * as they stood then. Taken when the edit is made, not when the write runs —
+ * an edit to the sitting still on screen while the next one loads was written
+ * into that next one once it took over the page, and lost (review, PR #14).
+ */
+let pendingSave = null;
+
 function save() {
   if (!S) return;
+  // An edit to another sitting still waiting goes now, not dropped for this one.
+  if (pendingSave && pendingSave.sitting !== S) writeNow();
   clearTimeout(saveTimer);
   // Every rep labelled, none waiting for the reviewer's confirmation: the sitting
   // is finished — ticked once, as it becomes so; the reviewer can untick it.
   const complete = S.reps.every((r) => { const l = S.labels.byT.get(r.end); return l && l.by === 'reviewer'; });
   if (complete && !S.wasComplete && !$('reviewed').checked) $('reviewed').checked = true;
   S.wasComplete = complete;
+  pendingSave = {
+    sitting: S,
+    labels: S.labels,
+    person: oneLine($('person').value),
+    clothing: oneLine($('clothing').value),
+    reviewed: $('reviewed').checked,
+  };
   saveTimer = setTimeout(writeNow, 250);
 }
 
 /** Saves run one after another, so a refresh can wait for the last. */
 function writeNow() {
+  clearTimeout(saveTimer);
   saveTimer = null;
-  saving = saving.then(write, write);
+  const job = pendingSave;
+  pendingSave = null;
+  if (job) saving = saving.then(() => write(job), () => write(job));
   return saving;
 }
 
-async function write() {
-  if (!S) return;
+async function write({ sitting, labels, person, clothing, reviewed }) {
   {
     // Claude may have answered since the page read the file: an answer on disk
     // the page has not seen is kept, and with it the rep's "answered".
-    const disk = parseLabels(await fetch(`/files/${S.base}.labels.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')));
+    const disk = parseLabels(await fetch(`/files/${sitting.base}.labels.csv`, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')));
     for (const [t, d] of disk.byT) {
-      const l = S.labels.byT.get(t);
+      const l = labels.byT.get(t);
       if (!l || !d.reply || d.reply === l.reply) continue;
       l.reply = d.reply;
       if (l.flag === 'check' || l.flag === '') l.flag = d.flag;
     }
     // Every header line the file had is kept; these are the page's own.
     const meta = {
-      ...S.labels.meta,
-      trace: `${S.base.split('/').pop()}.trace.csv`,
-      person: oneLine($('person').value),
-      clothing: oneLine($('clothing').value),
-      offset: S.offset,
-      reviewed: $('reviewed').checked ? (S.labels.meta.reviewed || new Date().toISOString().slice(0, 10)) : '',
+      ...labels.meta,
+      trace: `${sitting.base.split('/').pop()}.trace.csv`,
+      person,
+      clothing,
+      offset: sitting.offset,
+      reviewed: reviewed ? (labels.meta.reviewed || new Date().toISOString().slice(0, 10)) : '',
     };
     delete meta.holdout;
-    S.labels.meta = meta;
+    labels.meta = meta;
     const lines = ['# holdout-rep-labels v2', ...Object.entries(meta).filter(([, v]) => v !== '' && v !== undefined).map(([k, v]) => `# ${k}=${v}`), 't,label,by,flag,hint,note,claude,reply'];
     // Every label row, in time order — one whose rep is no longer a candidate too: a count
     // the counter stopped making is still the evidence that it once made it.
-    for (const t of [...S.labels.byT.keys()].sort((a, b) => a - b)) {
-      const l = S.labels.byT.get(t);
+    for (const t of [...labels.byT.keys()].sort((a, b) => a - b)) {
+      const l = labels.byT.get(t);
       lines.push([t, l.label, l.by, l.flag, l.hint ?? '', oneLine(l.note), oneLine(l.claude), oneLine(l.reply)].map((v) => csvField(String(v ?? ''))).join(','));
     }
-    const res = await fetch(`/files/${S.base}.labels.csv`, { method: 'PUT', body: lines.join('\n') + '\n' });
+    const res = await fetch(`/files/${sitting.base}.labels.csv`, { method: 'PUT', body: lines.join('\n') + '\n' });
     $('status').textContent = res.ok ? `saved ${new Date().toLocaleTimeString()}` : `NOT saved (${res.status})`;
   }
 }
