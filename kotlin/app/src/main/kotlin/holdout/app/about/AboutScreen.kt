@@ -42,7 +42,7 @@ fun AboutScreen(
     ) {
         item { TextButton(onClick = onBack) { Text("← Back", color = HoldoutColors.TextSecondary) } }
         item { Text("About Holdout", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary) }
-        item { Body("Test network, test token. Holdout runs on devnet with a mock SKR token; no stake, prize or token touches mainnet or real value. The one mainnet read is members' public Seeker ID names, for display only.") }
+        item { Body("Test network, test token. Holdout runs on devnet with a mock SKR token; no stake, prize or token touches mainnet or real value. Two things are read from mainnet, and nothing is ever sent there: members' public Seeker ID names, for display, and whether your wallet holds a Seeker Genesis Token, checked before you join a Holdout.") }
         item { Body("Some members in these Holdouts are scripted: real wallets under the same rules, labelled SCRIPTED wherever they appear.") }
         onTour?.let { item { SecondaryButton("The three-card tour again", it) } }
         onDisconnect?.let {

@@ -9,9 +9,9 @@ import holdout.core.SeekerGenesisReader.Companion.TOKEN_2022_PROGRAM
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -42,10 +42,14 @@ class SeekerGenesisReaderTest {
     private fun ok(result: String) = """{"jsonrpc":"2.0","result":$result,"id":"x"}"""
 
     /** `getTokenAccountsByOwner` holding `amount` of each mint. */
+    /** The token account holding the i-th mint in [tokenAccounts]. */
+    private fun holder(i: Int) = SolanaPublicKey(ByteArray(32) { (0x40 + i).toByte() })
+
     private fun tokenAccounts(vararg held: Pair<String, String>) = ok(
         """{"context":{"slot":1},"value":""" +
-            held.joinToString(",", "[", "]") { (mint, amount) ->
-                """{"pubkey":"${SolanaPublicKey(ByteArray(32) { 0x44 }).base58()}","account":{"data":{"parsed":{"info":{"isNative":false,"mint":"$mint","owner":"${wallet.base58()}","state":"initialized","tokenAmount":{"amount":"$amount","decimals":0,"uiAmount":1.0,"uiAmountString":"$amount"}},"type":"account"},"program":"spl-token-2022","space":170},"executable":false,"lamports":2074080,"owner":"$TOKEN_2022_PROGRAM","rentEpoch":0,"space":170}}"""
+            held.withIndex().joinToString(",", "[", "]") { (i, pair) ->
+                val (mint, amount) = pair
+                """{"pubkey":"${holder(i).base58()}","account":{"data":{"parsed":{"info":{"isNative":false,"mint":"$mint","owner":"${wallet.base58()}","state":"initialized","tokenAmount":{"amount":"$amount","decimals":0,"uiAmount":1.0,"uiAmountString":"$amount"}},"type":"account"},"program":"spl-token-2022","space":170},"executable":false,"lamports":2074080,"owner":"$TOKEN_2022_PROGRAM","rentEpoch":0,"space":170}}"""
             } + "}",
     )
 
@@ -62,14 +66,22 @@ class SeekerGenesisReaderTest {
     fun `a wallet holding a Seeker Genesis Token is found in two reads`() = runBlocking {
         val http = FakeHttp { method, _ -> if (method == "getTokenAccountsByOwner") tokenAccounts(other to "5", sgt to "1") else mints(other to null, sgt to SEEKER_GENESIS_GROUP) }
 
-        assertEquals(GenesisCheck.Holds(SolanaPublicKey.from(sgt)), readerWith(http).check(wallet))
+        assertEquals(GenesisCheck.Holds(SolanaPublicKey.from(sgt), holder(1)), readerWith(http).check(wallet), "the mint and the account holding it")
 
+        // The two reads, checked against the literal requests the whole check rests on.
         assertEquals(2, http.sent.size)
         val search = Json.parseToJsonElement(http.sent[0]).jsonObject
-        assertEquals(SeekerGenesisReader.tokenAccountsParams(wallet), search.getValue("params"))
+        assertEquals("getTokenAccountsByOwner", search.getValue("method").jsonPrimitive.content)
+        assertEquals(
+            Json.parseToJsonElement("""["${wallet.base58()}",{"programId":"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"},{"encoding":"jsonParsed","commitment":"confirmed"}]"""),
+            search.getValue("params"),
+        )
         val read = Json.parseToJsonElement(http.sent[1]).jsonObject
         assertEquals("getMultipleAccounts", read.getValue("method").jsonPrimitive.content)
-        assertEquals(listOf(other, sgt), read.getValue("params").jsonArray[0].jsonArray.map { it.jsonPrimitive.content })
+        assertEquals(
+            Json.parseToJsonElement("""[["$other","$sgt"],{"encoding":"jsonParsed","commitment":"confirmed"}]"""),
+            read.getValue("params"),
+        )
     }
 
     @Test
@@ -112,6 +124,35 @@ class SeekerGenesisReaderTest {
 
         val limited = FakeHttp { _, _ -> """{"jsonrpc":"2.0","error":{"code":429,"message":"Too many requests"},"id":"x"}""" }
         assertEquals(GenesisCheck.Unknown(rateLimited = true), readerWith(limited).check(wallet))
+    }
+
+    @Test
+    fun `an unreachable node, or one answering garbage, is unknown`() = runBlocking {
+        val unreachable = FakeHttp { _, _ -> throw IOException("Unable to resolve host") }
+        assertEquals(GenesisCheck.Unknown(rateLimited = false), readerWith(unreachable).check(wallet))
+
+        val garbage = FakeHttp { _, _ -> "<html>502 Bad Gateway</html>" }
+        assertEquals(GenesisCheck.Unknown(rateLimited = false), readerWith(garbage).check(wallet))
+    }
+
+    @Test
+    fun `an answer not in the parsed shape is unknown, never none`() = runBlocking {
+        val base64Token = FakeHttp { _, _ ->
+            ok("""{"context":{"slot":1},"value":[{"pubkey":"${holder(0).base58()}","account":{"data":["AAAA","base64"],"executable":false,"lamports":1,"owner":"$TOKEN_2022_PROGRAM","rentEpoch":0,"space":170}}]}""")
+        }
+        assertEquals(GenesisCheck.Unknown(rateLimited = false), readerWith(base64Token).check(wallet), "a token account the node did not parse")
+
+        val base64Mint = FakeHttp { method, _ ->
+            if (method == "getTokenAccountsByOwner") {
+                tokenAccounts(sgt to "1")
+            } else {
+                ok("""{"context":{"slot":1},"value":[{"data":["AAAA","base64"],"executable":false,"lamports":1,"owner":"$TOKEN_2022_PROGRAM","rentEpoch":0,"space":400}]}""")
+            }
+        }
+        assertEquals(GenesisCheck.Unknown(rateLimited = false), readerWith(base64Mint).check(wallet), "a mint the node did not parse")
+
+        val short = FakeHttp { method, _ -> if (method == "getTokenAccountsByOwner") tokenAccounts(other to "1", sgt to "1") else mints(other to null) }
+        assertEquals(GenesisCheck.Unknown(rateLimited = false), readerWith(short).check(wallet), "fewer mints answered than asked for")
     }
 
     @Test

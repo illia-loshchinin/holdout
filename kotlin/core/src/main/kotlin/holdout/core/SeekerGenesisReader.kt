@@ -22,10 +22,18 @@ import java.io.IOException
 
 /** What one Seeker Genesis Token check found (spec FR-003b–FR-003d, research R17). */
 sealed interface GenesisCheck {
-    /** The wallet holds a Seeker Genesis Token: this mint. */
-    data class Holds(val mint: SolanaPublicKey) : GenesisCheck
+    /**
+     * The wallet holds a Seeker Genesis Token: this mint, in this token
+     * account — the two accounts `join_cohort` reads once the gate is on at
+     * mainnet (research R17).
+     */
+    data class Holds(val mint: SolanaPublicKey, val tokenAccount: SolanaPublicKey) : GenesisCheck
 
-    /** The node answered and the wallet holds none: the Seeker-exclusive notice. */
+    /**
+     * The node answered in full and the wallet holds none: the Seeker-exclusive
+     * notice. Only an answer read in its expected shape can say this; anything
+     * else is [Unknown] (FR-003d).
+     */
     data object None : GenesisCheck
 
     /**
@@ -72,15 +80,24 @@ class SeekerGenesisReader(
     }
 
     private suspend fun lookUp(wallet: SolanaPublicKey): GenesisCheck {
+        // Mint → the token account holding it, for every account holding ≥ 1.
         val held = call("getTokenAccountsByOwner", tokenAccountsParams(wallet))
             .jsonObject.getValue("value").jsonArray
-            .mapNotNull { heldMint(it.jsonObject.getValue("account").jsonObject) }
-            .distinct()
+            .mapNotNull { entry ->
+                val e = entry.jsonObject
+                heldMint(e.getValue("account").jsonObject)?.let { it to e.getValue("pubkey").jsonPrimitive.content }
+            }
+            .distinctBy { it.first }
         if (held.isEmpty()) return GenesisCheck.None
         for (chunk in held.chunked(MINT_READS_PER_CALL)) {
-            val mints = call("getMultipleAccounts", mintReadParams(chunk)).jsonObject.getValue("value").jsonArray
-            chunk.zip(mints).forEach { (mint, account) ->
-                if (account !is JsonNull && isGenesisMember(account.jsonObject, mint)) return GenesisCheck.Holds(SolanaPublicKey.from(mint))
+            val mints = call("getMultipleAccounts", mintReadParams(chunk.map { it.first })).jsonObject.getValue("value").jsonArray
+            // A short answer would silently drop a mint, which could be the one that counts.
+            if (mints.size != chunk.size) throw IOException("getMultipleAccounts answered ${mints.size} of ${chunk.size} mints")
+            chunk.zip(mints).forEach { (pair, account) ->
+                val (mint, tokenAccount) = pair
+                if (account !is JsonNull && isGenesisMember(account.jsonObject, mint)) {
+                    return GenesisCheck.Holds(SolanaPublicKey.from(mint), SolanaPublicKey.from(tokenAccount))
+                }
             }
         }
         return GenesisCheck.None
@@ -122,18 +139,24 @@ class SeekerGenesisReader(
             )
         }
 
-        /** The mint of a parsed token account holding at least one token, else null. */
+        /**
+         * The mint of a parsed token account holding at least one token, null
+         * for an emptied one. An account not in the expected parsed shape
+         * throws, so the whole check is [GenesisCheck.Unknown], never None.
+         */
         internal fun heldMint(account: JsonObject): String? {
-            val info = parsedInfo(account) ?: return null
-            val amount = (info["tokenAmount"] as? JsonObject)?.get("amount")?.jsonPrimitive?.content ?: return null
-            if (amount.toBigIntegerOrNull()?.signum() != 1) return null
-            return info["mint"]?.jsonPrimitive?.content
+            val info = parsedInfo(account) ?: throw IOException("token account not jsonParsed")
+            val amount = (info["tokenAmount"] as? JsonObject)?.get("amount")?.jsonPrimitive?.content?.toBigIntegerOrNull()
+                ?: throw IOException("token account without an amount")
+            if (amount.signum() != 1) return null
+            return info["mint"]?.jsonPrimitive?.content ?: throw IOException("token account without a mint")
         }
 
         /** Whether a parsed Token-2022 mint is a member of the Seeker Genesis group. */
         internal fun isGenesisMember(account: JsonObject, mint: String): Boolean {
             if (account["owner"]?.jsonPrimitive?.content != TOKEN_2022_PROGRAM) return false
-            val extensions = parsedInfo(account)?.get("extensions") as? JsonArray ?: return false
+            val info = parsedInfo(account) ?: throw IOException("mint not jsonParsed")
+            val extensions = info["extensions"] as? JsonArray ?: return false
             return extensions.any { entry ->
                 val ext = entry as? JsonObject ?: return@any false
                 val state = ext["state"] as? JsonObject ?: return@any false

@@ -36,6 +36,7 @@ import holdout.app.home.CohortHome
 import holdout.app.home.HoldoutOffer
 import holdout.app.home.HomeScreen
 import holdout.app.home.HomeState
+import holdout.app.home.RunningHoldoutCard
 import holdout.app.leaderboard.LeaderboardScreen
 import holdout.app.lobby.LobbyScreen
 import holdout.app.names.SeekerNameRepository
@@ -173,7 +174,7 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     val clockViewModel: MainViewModel = viewModel()
     val holdouts: HoldoutViewModel = viewModel { HoldoutViewModel(store) }
     // Every join passes the Seeker check before the stake confirm opens (FR-003b).
-    val seekerGate = remember { SeekerGate(store, check = { w -> ProcessSeekerGenesis.reader.check(SolanaPublicKey.from(w)) }) }
+    val seekerGate = remember { SeekerGate(store, check = { w -> ProcessSeekerGenesis.reader.check(SolanaPublicKey.from(w)) }, enabled = BuildConfig.SEEKER_GATE) }
     val uriHandler = LocalUriHandler.current
     val chain by holdouts.state.collectAsStateWithLifecycle()
     val rosters by holdouts.rosters.collectAsStateWithLifecycle()
@@ -719,6 +720,15 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     val complete = remember(wallet, dayIndex, refreshToken) { store.isDayComplete(wallet, Store.CHALLENGE, dayIndex) }
     val streak = remember(wallet, dayIndex, refreshToken) { streaks.read(wallet, dayIndex) }
 
+    // Home's "Running now" list shows figures derived from rosters, as the
+    // connect screen's live list does — read here, and kept fresh (FR-062a).
+    val watching = chainNow?.let { n -> view?.runningNotMine(n)?.map { it.address } }.orEmpty()
+    InFrontLoop(watching) {
+        if (watching.isEmpty()) kotlinx.coroutines.awaitCancellation()
+        watching.forEach { holdouts.loadRoster(it) }
+        delay(ROSTER_REFRESH_MILLIS)
+    }
+
     HomeScreen(
         state = HomeState(
             remainingToday = (DAILY_25 - banked).coerceAtLeast(0),
@@ -763,6 +773,10 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             val open = view.openToJoin(chainNow)
             if (open.isNotEmpty()) SectionLabel("Holdouts open to join")
             open.forEach { h -> HoldoutOffer(h, chainNow, onClick = { route = Route.Stake(h.address) }) }
+            // Watched from outside, by every wallet, with or without a Seeker (FR-062a).
+            val running = view.runningNotMine(chainNow)
+            if (running.isNotEmpty()) SectionLabel("Running now")
+            running.forEach { h -> RunningHoldoutCard(h, chainNow, rosters[h.address], onClick = { route = Route.Detail(h.address) }) }
             SecondaryButton("Leaderboards", { route = Route.Leaderboards(Leaderboard.Board.EASY_7D) })
             SecondaryButton("Get test tokens · ${Format.skr(view.skr)} held", { route = Route.Faucet })
             TextButton(onClick = { route = Route.About }) { Text("About Holdout", color = HoldoutColors.TextTertiary) }

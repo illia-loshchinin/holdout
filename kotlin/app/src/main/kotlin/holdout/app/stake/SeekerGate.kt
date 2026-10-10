@@ -31,16 +31,23 @@ class SeekerGate(
     private val store: Store,
     private val check: suspend (wallet: String) -> GenesisCheck,
     private val clock: () -> Long = System::currentTimeMillis,
+    /**
+     * False only in a debug build made with `-Pholdout.seekerGate=off`
+     * (`BuildConfig.SEEKER_GATE`, research R17): every wallet then goes
+     * straight to the stake confirm and mainnet is never asked. A release
+     * build always checks.
+     */
+    private val enabled: Boolean = true,
 ) {
-    /** Whether [wallet] was already confirmed on this phone. */
-    fun remembered(wallet: String): Boolean = store.seekerConfirmation(wallet) != null
+    /** Whether [wallet] goes straight on: confirmed on this phone, or the gate is off. */
+    fun remembered(wallet: String): Boolean = !enabled || store.seekerConfirmation(wallet) != null
 
     /** [wallet]'s standing: remembered, or asked of mainnet now. */
     suspend fun status(wallet: String): SeekerStatus {
         if (remembered(wallet)) return SeekerStatus.Confirmed
         return when (val answer = check(wallet)) {
             is GenesisCheck.Holds -> {
-                store.setSeekerConfirmation(wallet, SeekerConfirmation(answer.mint.base58(), clock()))
+                store.setSeekerConfirmation(wallet, SeekerConfirmation(answer.mint.base58(), clock(), answer.tokenAccount.base58()))
                 SeekerStatus.Confirmed
             }
             GenesisCheck.None -> SeekerStatus.NotSeeker

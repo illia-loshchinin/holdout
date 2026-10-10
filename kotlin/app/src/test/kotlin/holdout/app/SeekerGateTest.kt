@@ -18,6 +18,8 @@ class SeekerGateTest {
 
     private val wallet = SolanaPublicKey(ByteArray(32) { 0x11 }).base58()
     private val mint = SolanaPublicKey(ByteArray(32) { 0x22 })
+    private val tokenAccount = SolanaPublicKey(ByteArray(32) { 0x44 })
+    private val holds = GenesisCheck.Holds(mint, tokenAccount)
 
     private class Answers(vararg answers: GenesisCheck) {
         private val queue = ArrayDeque(answers.toList())
@@ -32,11 +34,11 @@ class SeekerGateTest {
     @Test
     fun `a holder is confirmed, remembered, and never asked again`() = runBlocking {
         val store = InMemoryStore()
-        val answers = Answers(GenesisCheck.Holds(mint))
+        val answers = Answers(holds)
         val gate = SeekerGate(store, answers::check, clock = { 42L })
 
         assertEquals(SeekerStatus.Confirmed, gate.status(wallet))
-        assertEquals(SeekerConfirmation(mint.base58(), 42L), store.seekerConfirmation(wallet))
+        assertEquals(SeekerConfirmation(mint.base58(), 42L, tokenAccount.base58()), store.seekerConfirmation(wallet))
         assertTrue(gate.remembered(wallet))
 
         assertEquals(SeekerStatus.Confirmed, gate.status(wallet), "an outage later never blocks a confirmed owner")
@@ -46,7 +48,7 @@ class SeekerGateTest {
     @Test
     fun `a wallet without one sees the Seeker-exclusive sheet, and is asked again next time`() = runBlocking {
         val store = InMemoryStore()
-        val answers = Answers(GenesisCheck.None, GenesisCheck.Holds(mint))
+        val answers = Answers(GenesisCheck.None, holds)
         val gate = SeekerGate(store, answers::check)
 
         assertEquals(SeekerStatus.NotSeeker, gate.status(wallet))
@@ -70,16 +72,29 @@ class SeekerGateTest {
     fun `a confirmation is kept per wallet`() = runBlocking {
         val store = InMemoryStore()
         val other = SolanaPublicKey(ByteArray(32) { 0x33 }).base58()
-        val gate = SeekerGate(store, Answers(GenesisCheck.Holds(mint), GenesisCheck.None)::check)
+        val gate = SeekerGate(store, Answers(holds, GenesisCheck.None)::check)
 
         assertEquals(SeekerStatus.Confirmed, gate.status(wallet))
         assertEquals(SeekerStatus.NotSeeker, gate.status(other), "another wallet on the same phone is checked on its own")
     }
 
     @Test
+    fun `a debug build with the gate off lets every wallet straight on, asking nothing`() = runBlocking {
+        val store = InMemoryStore()
+        val answers = Answers()
+        val gate = SeekerGate(store, answers::check, enabled = false)
+
+        assertTrue(gate.remembered(wallet))
+        assertEquals(SeekerStatus.Confirmed, gate.status(wallet))
+        assertEquals(0, answers.asked, "mainnet is never asked")
+        assertNull(store.seekerConfirmation(wallet), "nothing is kept: a later build with the gate on checks again")
+    }
+
+    @Test
     fun `the confirmation record round-trips`() {
-        val kept = SeekerConfirmation(mint.base58(), 1_760_000_000_000L)
+        val kept = SeekerConfirmation(mint.base58(), 1_760_000_000_000L, tokenAccount.base58())
         assertEquals(kept, SeekerConfirmation.decode(kept.encode()))
+        assertEquals(SeekerConfirmation(mint.base58(), 12L), SeekerConfirmation.decode("12|${mint.base58()}"), "a record with no token account still reads")
         assertNull(SeekerConfirmation.decode("garbage"))
         assertNull(SeekerConfirmation.decode("12|"))
     }

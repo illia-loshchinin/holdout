@@ -207,18 +207,20 @@ data class KeptName(val name: String?, val checkedAtMillis: Long) {
 
 /**
  * A wallet's Seeker Genesis Token, found on mainnet (001 FR-003b, data-model §4):
- * its [mint], and when it was confirmed on the phone's wall clock, which
- * decides nothing.
+ * its [mint], the [tokenAccount] holding it — the two accounts a join sends
+ * once the contract checks the token at mainnet (research R17) — and when it
+ * was confirmed on the phone's wall clock, which decides nothing.
  */
-data class SeekerConfirmation(val mint: String, val confirmedAtMillis: Long) {
-    /** `<confirmedAtMillis>|<mint>`. */
-    fun encode(): String = "$confirmedAtMillis|$mint"
+data class SeekerConfirmation(val mint: String, val confirmedAtMillis: Long, val tokenAccount: String? = null) {
+    /** `<confirmedAtMillis>|<mint>|<tokenAccount>`, the last empty when unknown. */
+    fun encode(): String = "$confirmedAtMillis|$mint|${tokenAccount.orEmpty()}"
 
     companion object {
         fun decode(value: String): SeekerConfirmation? {
-            val bar = value.indexOf('|').takeIf { it > 0 } ?: return null
-            val at = value.substring(0, bar).toLongOrNull() ?: return null
-            return value.substring(bar + 1).takeIf { it.isNotEmpty() }?.let { SeekerConfirmation(it, at) }
+            val parts = value.split('|')
+            val at = parts.getOrNull(0)?.toLongOrNull() ?: return null
+            val mint = parts.getOrNull(1)?.takeIf { it.isNotEmpty() } ?: return null
+            return SeekerConfirmation(mint, at, parts.getOrNull(2)?.takeIf { it.isNotEmpty() })
         }
     }
 }

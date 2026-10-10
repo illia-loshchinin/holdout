@@ -16,21 +16,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import holdout.app.chain.Holdout
 import holdout.app.home.HoldoutOffer
+import holdout.app.home.RunningHoldoutCard
 import holdout.app.ui.Body
-import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
 import holdout.app.ui.Notice
 import holdout.app.ui.PrimaryButton
 import holdout.app.ui.SectionLabel
-import holdout.app.ui.TestCohortBadge
 import holdout.app.ui.Wordmark
-import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 import holdout.core.CohortStatus
-import holdout.core.Derive
 
 /**
  * Connect wallet — required before anything else, **even for the free Daily 25**
@@ -80,19 +77,7 @@ fun ConnectScreen(
             SectionLabel("Live now")
             live.forEach { h ->
                 if (h.status(now) == CohortStatus.Running) {
-                    // From the roster and chain time, as every other screen: the raw
-                    // account lags a missed deadline until the crank records it.
-                    val figures = rosters[h.address]?.let { Derive.figures(h.cohort, it, now) }
-                    HoldoutCard {
-                        if (h.isTest) TestCohortBadge(h.cohort.dayLength)
-                        Text("${Format.holdoutTitle(h.cohort)} · running", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
-                        Text(
-                            figures?.let { "${it.survivors.standing} still standing of ${it.survivors.starters} · prize pool ${Format.skr(it.projectedPool)}" }
-                                ?: "${h.cohort.memberCount} started · prize pool ${Format.skr(h.cohort.pool)}",
-                            style = AmountStyle,
-                            color = HoldoutColors.Accent,
-                        )
-                    }
+                    RunningHoldoutCard(h, now, rosters[h.address], onClick = null)
                 } else {
                     HoldoutOffer(h, now, onClick = null)
                 }
