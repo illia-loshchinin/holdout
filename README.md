@@ -78,4 +78,9 @@ When documents disagree: constitution → spec → decision record → scope doc
 `docs/holdout_setup_runbook.md` covers the parts that need a domain, a phone or
 a person.
 
+`bash scripts/ci-local.sh` runs the CI workflow's four jobs on your machine —
+the Solana side in WSL, Kotlin on Windows — with the same pass/fail as GitHub
+Actions; `--only kotlin` (or a comma list) runs a subset. A change to
+documentation alone starts no CI run on GitHub.
+
 Constitution and spec are written and clarified; amend them rather than regenerating them.
