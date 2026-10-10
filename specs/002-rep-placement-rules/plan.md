@@ -42,7 +42,7 @@ The evidence is the phone's own: Holdout Lab (spec 004; debug builds before 2026
 | VII. Tests precede logic | Pass | Every threshold change landed with a synthetic test or a labelled phone trace that failed first; since 4 Oct the ratchet makes a regression on any confirmed labelled rep fail the build. |
 | IX. Every state has a screen | Pass | Refused placement (with which way to turn), knees down, legs out of the picture, cobra, too shallow and an unreadable knee each have a shown and spoken hint. A rep on the back or standing is refused in silence on purpose: there is nothing to coach. |
 | X. Camera frames never leave the device | Pass | Traces are landmark numbers; video is the recording exception (v1.5.0, moved to Holdout Lab in v2.1.0) — Holdout Lab only, no audio, on the device until pulled over USB, consenting people only, and `checkMemberHasNoLabCode` fails any member-app build that contains the recorder. |
-| XI. Weaknesses documented | Pass | README table rendered from `kotlin/app/src/main/assets/weaknesses.json`: one-person tuning, the coarse 45° body line, cobras and hips resting on the floor not always caught, knee push-ups counting in the Daily 25 and Easy by design. The head-on rows left with the placement. |
+| XI. Weaknesses documented | Pass | README table rendered from `docs/weaknesses.json` by `scripts/render-weaknesses.mjs` (in the app's assets until spec 004): one-person tuning, the coarse 45° body line, cobras and hips resting on the floor not always caught, knee push-ups counting in the Daily 25 and Easy by design. The head-on rows left with the placement. |
 | XIII. Honest language | Pass | The Hard and Easy rule sentences (`Stakes.STAKED_RULE`, `EASY_RULE`) are plain and shown before staking; the tour states one placement for every sitting. |
 
 Post-design re-check (2026-10-08): no change. Dropping head-on removes a placement whose limits had to be excused; it adds no new exception.
@@ -96,8 +96,9 @@ kotlin/app/src/main/kotlin/holdout/app/
 ├── sitting/SittingCues.kt       # rep tone, banked chime, speech
 ├── sitting/TraceRecorder.kt     # writes the trace, debug only
 ├── sitting/TraceLabelDialog.kt  # "What did you just do?"
-├── streak/ToesMeter.kt          # how many of the Daily 25's reps Hard would have counted
-└── assets/weaknesses.json       # the known weaknesses, rendered into README.md
+└── streak/ToesMeter.kt          # how many of the Daily 25's reps Hard would have counted
+
+docs/weaknesses.json    # the known weaknesses, rendered into README.md by scripts/render-weaknesses.mjs
 
 scripts/
 ├── pull-traces.sh      # adb pull of traces and videos; videos deleted from the phone once copied
