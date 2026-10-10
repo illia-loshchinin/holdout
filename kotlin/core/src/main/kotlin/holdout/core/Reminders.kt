@@ -25,7 +25,11 @@ data class Reminder(
     /** Days the chain had recorded when this was scheduled: those are done, whatever the phone holds. */
     val daysOnChain: Int = 0,
 ) {
-    enum class Kind { Start, Deadline }
+    /** [Midday] is last so the older kinds keep their ordinals, and with them their ids. */
+    enum class Kind { Start, Deadline, Midday }
+
+    /** Posted without sound or vibration (FR-068, 2026-10-10): a long day's reminder before its deadline, which may fall at night. */
+    val silent: Boolean get() = kind == Kind.Deadline && Reminders.hasMidday(dayLength)
 
     /** Stable across recomputations, so scheduling it again replaces it rather than adding another. */
     val id: Int get() = 31 * (31 * cohort.base58().hashCode() + kind.ordinal) + dayIndex
@@ -43,6 +47,17 @@ object Reminders {
 
     /** The shortest window Android grants an inexact alarm without the exact-alarm permission. */
     const val MIN_WINDOW_SECONDS = 10 * 60L
+
+    /**
+     * Days at least this long also get a reminder halfway through, with sound,
+     * and their reminder before the deadline is silent (FR-068, amended
+     * 2026-10-10): 3 hours before a 05:00 UTC deadline is the middle of the
+     * night in Europe, while the midpoint, 17:00 UTC, is an evening there and a
+     * working day in the Americas. Chain time only — no timezone (constitution II).
+     */
+    const val MIDDAY_MIN_DAY_SECONDS = 12 * 3_600L
+
+    fun hasMidday(dayLength: Long): Boolean = dayLength >= MIDDAY_MIN_DAY_SECONDS
 
     /**
      * Every reminder still to come for one wallet at [now]: for each Holdout it
@@ -76,6 +91,10 @@ object Reminders {
             if (m.daysCompleted == 0 && deliverable(c.start, Derive.deadlineOf(c, 0))) add(reminder(Reminder.Kind.Start, 0, c.start))
             val lead = leadSeconds(c.dayLength)
             for (day in m.daysCompleted until c.durationDays) {
+                if (hasMidday(c.dayLength)) {
+                    val midday = Derive.deadlineOf(c, day) - c.dayLength / 2
+                    if (midday > c.start && deliverable(midday, Derive.deadlineOf(c, day))) add(reminder(Reminder.Kind.Midday, day, midday))
+                }
                 val at = Derive.deadlineOf(c, day) - lead
                 // A day reminded as it opens: the first one is the start reminder's.
                 if (at > c.start && deliverable(at, Derive.deadlineOf(c, day))) add(reminder(Reminder.Kind.Deadline, day, at))

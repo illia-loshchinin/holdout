@@ -64,6 +64,28 @@ class RemindersTest {
     }
 
     @Test
+    fun `a 24-hour day is reminded at its midpoint with sound, and before its deadline silently`() {
+        val c = cohort()
+        val r = schedule(c, member(), now = start - 86_400)
+        val middays = r.filter { it.kind == Reminder.Kind.Midday }
+        assertEquals((0 until 7).toList(), middays.map { it.dayIndex })
+        // 05:00 UTC deadlines: the midpoint is 17:00 UTC — an evening in Europe, a working day in the Americas.
+        middays.forEach { assertEquals(Derive.deadlineOf(c, it.dayIndex) - 12 * 3_600, it.at) }
+        assertTrue(middays.none { it.silent }, "the midday reminder sounds")
+        assertTrue(r.filter { it.kind == Reminder.Kind.Deadline }.all { it.silent }, "the one 3 hours before the deadline may fall at night: silent")
+        assertEquals(r.size, r.map { it.id }.toSet().size, "a midday and a deadline reminder of one day are two reminders")
+    }
+
+    @Test
+    fun `short days keep one reminder, with sound`() {
+        for (dayLength in listOf(600L, 3_600L)) {
+            val r = schedule(cohort(dayLength = dayLength, reps = 5), member(), now = start - 60)
+            assertTrue(r.none { it.kind == Reminder.Kind.Midday }, "day length $dayLength")
+            assertTrue(r.none { it.silent }, "day length $dayLength")
+        }
+    }
+
+    @Test
     fun `a one-hour test day is reminded 15 minutes before its deadline`() {
         val c = cohort(dayLength = 3_600, reps = 5)
         val day0 = schedule(c, member(), now = start + 60).first { it.kind == Reminder.Kind.Deadline }
@@ -78,7 +100,7 @@ class RemindersTest {
         val c = cohort()
         val midDay2 = start + 2 * 86_400 + 60
         val r = schedule(c, member(days = 2), now = midDay2)
-        assertEquals(listOf(2, 3, 4, 5, 6), r.map { it.dayIndex }, "day 2 still owed today, whether or not the phone has it done")
+        assertEquals(listOf(2, 3, 4, 5, 6), r.filter { it.kind == Reminder.Kind.Deadline }.map { it.dayIndex }, "day 2 still owed today, whether or not the phone has it done")
         assertTrue(r.all { it.daysOnChain == 2 }, "the alarm carries what the chain had: day 2's needs no record on this phone of day 1")
         val late = start + 3 * 86_400 - 1 - 60 // past day 2's reminder window, before its deadline
         assertTrue(schedule(c, member(days = 2), now = late).none { it.dayIndex == 2 })

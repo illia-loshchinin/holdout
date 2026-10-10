@@ -611,7 +611,7 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 | ID | Moment | Tier · Status | From → to |
 |---|---|---|---|
 | **N1** | **Wallet app signs** (Mobile Wallet Adapter): connect, join, leave, submit day, claim, faucet | MUST · ✅ · 🎨 | A1, H2, H3, T2/S6, H7, W1 → back with the result in a notice line; the calling button reads *"Waiting for the wallet…"* |
-| **N2** | **Reminder notification** (on-device): the Holdout starts; before each deadline not yet met; *"submit your day"* when done but not on chain | SHOULD · ✅ | OS → T2 |
+| **N2** | **Reminder notification** (on-device): the Holdout starts; on a 24-hour day, one at its midpoint (17:00 UTC) with sound and one 3 hours before the deadline, silent (2026-10-10, FR-068); on a shorter test day, one before each deadline; *"submit your day"* when done but not on chain | SHOULD · ✅ | OS → T2 |
 | **N3** | **Notification permission**, asked once at the first join with the reason shown on H2; the join goes ahead either way | SHOULD · ✅ | H2 → N1 |
 | **N4** | **Camera permission**: the OS dialog behind S1 | MUST · ✅ | S1 → S2/S3 |
 | **N5** | **"Dropped since yesterday"**, once per new day | SHOULD · 🎨 drawn on T2, ⬜ not built | T2 line (and ∿ badge); tap → H4 |
