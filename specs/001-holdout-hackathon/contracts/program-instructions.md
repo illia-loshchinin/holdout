@@ -42,7 +42,7 @@ A second `claim_payout`, `submit_day` for the same day, `leave_cohort` after the
 
 ## 4. Events
 
-`FlagsSet` · `ChipSetPublished { version, amounts }` · `FaucetClaimed { recipient, skr, lamports }` · `SponsorToppedUp { lamports }` · `CohortOpened { league, index, start, chips }` · `MemberJoined { cohort, wallet, tier, stake }` · `MemberLeft { cohort, wallet, stake }` · `DayCompleted { cohort, wallet, day_index, proof_hash }` · `ForfeitRecorded { cohort, wallet, days_completed, fee }` · `MemberCounted { cohort, wallet, finished }` · `CohortSettled { cohort, finishers, total_finisher_stake, share_per_tier, rounding_remainder }` · `PayoutClaimed { cohort, wallet, amount }`
+`FlagsSet` · `ChipSetPublished { version, amounts }` · `FaucetClaimed { recipient, skr, lamports }` · `SponsorToppedUp { lamports }` · `CohortOpened { league, index, start, chips }` · `MemberJoined { cohort, wallet, tier, stake }` · `MemberLeft { cohort, wallet, stake }` · `DayCompleted { cohort, wallet, day_index, proof_hash }` · `ForfeitRecorded { cohort, wallet, days_completed, fee }` · `MemberCounted { cohort, wallet, finished }` · `CohortSettled { cohort, finishers, total_finisher_stake, share_per_tier, rounding_remainder, boost, comeback_funded }` · `PayoutClaimed { cohort, wallet, amount, comeback }`
 
 ## 5. Errors
 
