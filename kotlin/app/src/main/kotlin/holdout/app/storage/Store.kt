@@ -122,6 +122,15 @@ interface Store {
     /** Every kept wallet that has a Seeker ID: wallet base58 → name. */
     fun allSeekerNames(): Map<String, String>
 
+    /**
+     * That [wallet] was found to hold a Seeker Genesis Token (`seeker:{wallet}`,
+     * data-model §4, FR-003b), or null. Only a confirmation is ever kept, so an
+     * outage never blocks a confirmed owner and a wallet without one is checked
+     * again on its next join (FR-003d).
+     */
+    fun seekerConfirmation(wallet: String): SeekerConfirmation?
+    fun setSeekerConfirmation(wallet: String, confirmation: SeekerConfirmation)
+
     companion object {
         /** Kept Seeker ID entries at most (research R7): every member a judge could meet, under 0.5 MB. */
         const val SEEKER_NAMES_MAX = 5_000
@@ -193,6 +202,24 @@ data class KeptName(val name: String?, val checkedAtMillis: Long) {
          * longest ago, or null when there is room or [adding] is already kept.
          */
         fun toDrop(kept: Map<String, KeptName>, adding: String, max: Int = Store.SEEKER_NAMES_MAX): String? = if (adding in kept || kept.size < max) null else kept.minByOrNull { it.value.checkedAtMillis }?.key
+    }
+}
+
+/**
+ * A wallet's Seeker Genesis Token, found on mainnet (001 FR-003b, data-model §4):
+ * its [mint], and when it was confirmed on the phone's wall clock, which
+ * decides nothing.
+ */
+data class SeekerConfirmation(val mint: String, val confirmedAtMillis: Long) {
+    /** `<confirmedAtMillis>|<mint>`. */
+    fun encode(): String = "$confirmedAtMillis|$mint"
+
+    companion object {
+        fun decode(value: String): SeekerConfirmation? {
+            val bar = value.indexOf('|').takeIf { it > 0 } ?: return null
+            val at = value.substring(0, bar).toLongOrNull() ?: return null
+            return value.substring(bar + 1).takeIf { it.isNotEmpty() }?.let { SeekerConfirmation(it, at) }
+        }
     }
 }
 
@@ -354,6 +381,12 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         .mapNotNull { key -> kv.decodeString(key)?.let(KeptName::decode)?.let { key.removePrefix(SEEKER_NAME) to it } }
         .toMap()
 
+    override fun seekerConfirmation(wallet: String): SeekerConfirmation? = kv.decodeString("$SEEKER_CONFIRMED$wallet")?.let(SeekerConfirmation::decode)
+
+    override fun setSeekerConfirmation(wallet: String, confirmation: SeekerConfirmation) {
+        kv.encode("$SEEKER_CONFIRMED$wallet", confirmation.encode())
+    }
+
     override fun recordsVideo(): Boolean = kv.decodeBool("records_video", false)
 
     override fun setRecordsVideo(on: Boolean) {
@@ -488,6 +521,12 @@ class InMemoryStore : Store {
 
     override fun seekerName(wallet: String): KeptName? = values["$SEEKER_NAME$wallet"] as? KeptName
 
+    override fun seekerConfirmation(wallet: String): SeekerConfirmation? = values["$SEEKER_CONFIRMED$wallet"] as? SeekerConfirmation
+
+    override fun setSeekerConfirmation(wallet: String, confirmation: SeekerConfirmation) {
+        values["$SEEKER_CONFIRMED$wallet"] = confirmation
+    }
+
     override fun setSeekerName(wallet: String, kept: KeptName) {
         KeptName.toDrop(keptNames(), wallet)?.let { values.remove("$SEEKER_NAME$it") }
         values["$SEEKER_NAME$wallet"] = kept
@@ -503,3 +542,6 @@ class InMemoryStore : Store {
 
 /** Key prefix of a kept Seeker ID entry: `seekerName:<wallet base58>` (spec 003 data-model §2). */
 private const val SEEKER_NAME = "seekerName:"
+
+/** Key prefix of a Seeker Genesis Token confirmation: `seeker:<wallet base58>` (001 data-model §4). */
+private const val SEEKER_CONFIRMED = "seeker:"

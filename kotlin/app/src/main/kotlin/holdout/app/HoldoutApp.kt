@@ -11,12 +11,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -42,6 +44,9 @@ import holdout.app.roster.RosterScreen
 import holdout.app.sitting.BankingController
 import holdout.app.sitting.SittingScreen
 import holdout.app.sitting.SittingViewModel
+import holdout.app.stake.SeekerGate
+import holdout.app.stake.SeekerGateSheet
+import holdout.app.stake.SeekerStatus
 import holdout.app.stake.StakeSheet
 import holdout.app.storage.MmkvStore
 import holdout.app.storage.SavedChainReading
@@ -68,6 +73,7 @@ import holdout.core.Leaderboard
 import holdout.core.LeagueParams
 import holdout.core.Reminders
 import holdout.core.ScriptedWallets
+import holdout.core.SeekerGenesisReader
 import holdout.core.SeekerNameReader
 import holdout.core.Stage
 import holdout.repcounter.Stakes
@@ -148,6 +154,14 @@ private object ProcessSeekerNames {
     private val reader by lazy { SeekerNameReader(BuildConfig.NAMES_RPC_URL) }
 }
 
+/**
+ * The mainnet Seeker Genesis Token reader (research R17), on the same
+ * read-only endpoint as Seeker ID names: one per process, made on first use.
+ */
+private object ProcessSeekerGenesis {
+    val reader by lazy { SeekerGenesisReader(BuildConfig.NAMES_RPC_URL) }
+}
+
 @Composable
 private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNames: SeekerNameRepository, modifier: Modifier) {
     val context = LocalContext.current
@@ -158,6 +172,9 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
 
     val clockViewModel: MainViewModel = viewModel()
     val holdouts: HoldoutViewModel = viewModel { HoldoutViewModel(store) }
+    // Every join passes the Seeker check before the stake confirm opens (FR-003b).
+    val seekerGate = remember { SeekerGate(store, check = { w -> ProcessSeekerGenesis.reader.check(SolanaPublicKey.from(w)) }) }
+    val uriHandler = LocalUriHandler.current
     val chain by holdouts.state.collectAsStateWithLifecycle()
     val rosters by holdouts.rosters.collectAsStateWithLifecycle()
     val leaderboardRead by holdouts.leaderboard.collectAsStateWithLifecycle()
@@ -507,20 +524,43 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             if (routed is Route.Lobby && stage != Stage.Lobby && stage != Stage.LobbyLocked) route = Route.Home
         }
         when (routed) {
-            is Route.Stake -> StakeSheet(
-                h = target,
-                skrBalance = view?.skr ?: 0uL,
-                lamports = view?.lamports ?: 0L,
-                now = chainNow,
-                joinBlocker = Journey.joinBlocker(target.cohort, view?.profile, view?.runningEnd(chainNow), chainNow),
-                busy = chain.busy,
-                message = chain.message,
-                messageIsWarning = chain.messageIsWarning,
-                onStake = { tier -> joinAsking { holdouts.join(sender, target, tier, chainNow) } },
-                onGetTokens = { route = Route.Faucet },
-                onBack = goHome,
-                modifier = modifier,
-            )
+            is Route.Stake -> {
+                // Staked Holdouts are Seeker-exclusive (FR-003b–FR-003d): a wallet
+                // confirmed on this phone goes straight on; otherwise mainnet is
+                // asked, and a no or no answer shows its own variant instead.
+                var seeker by remember(wallet) { mutableStateOf(if (seekerGate.remembered(wallet)) SeekerStatus.Confirmed else SeekerStatus.Checking) }
+                var attempt by remember(wallet) { mutableIntStateOf(0) }
+                LaunchedEffect(wallet, attempt) {
+                    if (seeker != SeekerStatus.Confirmed) {
+                        seeker = SeekerStatus.Checking
+                        seeker = seekerGate.status(wallet)
+                    }
+                }
+                if (seeker != SeekerStatus.Confirmed) {
+                    SeekerGateSheet(
+                        status = seeker,
+                        onGetSeeker = { runCatching { uriHandler.openUri(SeekerGate.SEEKER_STORE_URL) } },
+                        onRetry = { attempt += 1 },
+                        onBack = goHome,
+                        modifier = modifier,
+                    )
+                    return
+                }
+                StakeSheet(
+                    h = target,
+                    skrBalance = view?.skr ?: 0uL,
+                    lamports = view?.lamports ?: 0L,
+                    now = chainNow,
+                    joinBlocker = Journey.joinBlocker(target.cohort, view?.profile, view?.runningEnd(chainNow), chainNow),
+                    busy = chain.busy,
+                    message = chain.message,
+                    messageIsWarning = chain.messageIsWarning,
+                    onStake = { tier -> joinAsking { holdouts.join(sender, target, tier, chainNow) } },
+                    onGetTokens = { route = Route.Faucet },
+                    onBack = goHome,
+                    modifier = modifier,
+                )
+            }
             is Route.Lobby -> LobbyScreen(target, chainNow, chain.busy, chain.message, chain.messageIsWarning, { holdouts.leave(sender, target) }, { route = Route.Roster(target.address) }, goHome, modifier)
             is Route.Detail -> CohortDetailScreen(target, members, stage, chainNow, claimSignature, { route = Route.Roster(target.address) }, goHome, modifier)
             is Route.Roster -> RosterScreen(target, members, wallet, chainNow, goHome, modifier, onShowing = seekerNames::showing)
