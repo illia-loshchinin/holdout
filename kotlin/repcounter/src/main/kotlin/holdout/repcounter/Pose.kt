@@ -11,7 +11,7 @@ package holdout.repcounter
  *
  * Coordinates are **3D world landmarks** — metres, origin at the hip midpoint —
  * not image coordinates, so an angle does not change when the phone moves
- * (PRD §8.4, research R4).
+ * (research R4).
  */
 data class Landmark(
     val x: Float,

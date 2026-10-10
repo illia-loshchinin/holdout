@@ -1,7 +1,7 @@
 package holdout.repcounter
 
 /**
- * The push-up rule, and the machine that applies it (FR-021, PRD §8.4, T048).
+ * The push-up rule, and the machine that applies it (FR-021, research R4, T048).
  *
  * **The rule** — what the product promises, and what the tests assert:
  *
@@ -256,7 +256,7 @@ fun RepRules.forView(view: CameraView): RepRules = when (view) {
     CameraView.OBLIQUE -> copy(topTriggerDegrees = topDegrees)
 }
 
-/** What the sitting screen shows when a rep is thrown away (PRD §8.4). */
+/** What the sitting screen shows when a rep is thrown away (002 contracts/words.md). */
 enum class RepHint(val message: String) {
     GO_LOWER("Go lower"),
     KEEP_BODY_STRAIGHT("Keep your body straight"),

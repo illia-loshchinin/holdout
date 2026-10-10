@@ -4,7 +4,7 @@ package holdout.repcounter
  * What starts a sitting: the four pre-flight pills green **and** the member
  * held at the top of a push-up, together, for about a second. No tap.
  *
- * **This replaces the palm liveness check** (was FR-020, PRD §8.3). The palm
+ * **This replaces the palm liveness check** (FR-020, amended 2026-09-22). The palm
  * asked someone already face-down on the floor to lift a hand off it, which is
  * the same mistake as the "I'm ready" button it followed. Being in position is
  * a better readiness signal than a gesture, because it is the position the

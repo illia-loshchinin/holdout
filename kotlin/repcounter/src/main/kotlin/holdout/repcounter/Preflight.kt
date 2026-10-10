@@ -3,7 +3,7 @@ package holdout.repcounter
 import kotlin.math.hypot
 
 /**
- * The four environment checks that gate every sitting (FR-019, PRD §8.2).
+ * The four environment checks that gate every sitting (FR-019).
  *
  * They run before **every** sitting, not only the day's first, and the sitting
  * cannot start until all four are green. Each failure says exactly what to fix
