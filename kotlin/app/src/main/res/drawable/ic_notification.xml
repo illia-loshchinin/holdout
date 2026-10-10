@@ -1,12 +1,8 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- The reminder's status-bar icon (FR-068): a 3x3 crowd, the Holdout larger
-     in the middle. One ink, as Android tints small icons. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M3.00,5.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0M10.00,5.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0M17.00,5.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0M3.00,12.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0M8.80,12.00a3.20,3.20 0 1,0 6.40,0a3.20,3.20 0 1,0 -6.40,0M17.00,12.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0M3.00,19.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0M10.00,19.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0M17.00,19.00a2.00,2.00 0 1,0 4.00,0a2.00,2.00 0 1,0 -4.00,0" />
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="40" android:viewportHeight="40" android:tint="?attr/colorControlNormal">
+    <group android:translateX="-34" android:translateY="-34">
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="5" android:strokeLineCap="round" android:pathData="M43,43 L43,65 M65,43 L65,65 M43,54 L65,54"/>
+        <path android:fillColor="#FFFFFFFF" android:pathData="M37.40,43 a5.6,5.6 0 1,0 11.20,0 a5.6,5.6 0 1,0 -11.20,0 M37.40,54 a5.6,5.6 0 1,0 11.20,0 a5.6,5.6 0 1,0 -11.20,0 M37.40,65 a5.6,5.6 0 1,0 11.20,0 a5.6,5.6 0 1,0 -11.20,0 M48.40,54 a5.6,5.6 0 1,0 11.20,0 a5.6,5.6 0 1,0 -11.20,0 M59.40,43 a5.6,5.6 0 1,0 11.20,0 a5.6,5.6 0 1,0 -11.20,0 M59.40,54 a5.6,5.6 0 1,0 11.20,0 a5.6,5.6 0 1,0 -11.20,0 M59.40,65 a5.6,5.6 0 1,0 11.20,0 a5.6,5.6 0 1,0 -11.20,0"/>
+    </group>
 </vector>

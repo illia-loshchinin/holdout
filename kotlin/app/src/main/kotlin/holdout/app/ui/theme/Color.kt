@@ -24,6 +24,9 @@ object HoldoutColors {
     /** Over the camera preview, so overlaid text stays legible. */
     val Scrim = Color(0x99000000)
 
+    /** The sheet's drag handle: white at 24%. */
+    val DragHandle = Color(0x3DFFFFFF)
+
     // Text.
     val TextPrimary = Color(0xFFFFFFFF)
     val TextSecondary = Color(0xB3FFFFFF)
@@ -35,6 +38,9 @@ object HoldoutColors {
     /** Tide. Rare emphasis on an accent surface. */
     val AccentStrong = Color(0xFF00DAFF)
 
+    /** [Accent] at 12%: the fill of a selected tier chip. */
+    val AccentTint = Color(0x1F80ECFF)
+
     /** Solana Green. Still standing, day complete, claim, confirmed transactions. */
     val Success = Color(0xFF14F195)
 
@@ -43,6 +49,9 @@ object HoldoutColors {
 
     /** Solana Purple. Decoration only — never text under 24sp. */
     val Celebration = Color(0xFF9945FF)
+
+    /** Solana Purple lightened, same hue: the rare purple that has to be read, such as a PB label. */
+    val CelebrationText = Color(0xFFB980FF)
 
     /** The label on the white pill button. */
     val OnLight = Color(0xFF000000)
