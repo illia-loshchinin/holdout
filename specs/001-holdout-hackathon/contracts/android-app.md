@@ -63,7 +63,7 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 | Membership `Pending` in `Open` cohort | Lobby (with leave) |
 | Membership `Pending` in `Locked` cohort | Lobby — locked variant (ES-12a) |
 | Membership `Active`, today not complete | Home — cohort variant; Sitting |
-| Sitting `Preflight` / `Countdown` / `Counting` | Sitting sub-screens; the hold's reason when it will not fill (FR-020, 002 `contracts/words.md`); last-10-minutes warning (FR-047); offline warning (FR-024b) |
+| Sitting `Preflight` / `Countdown` / `Counting` | Sitting sub-screens; the hold's reason when it will not fill (002 FR-018a, `contracts/words.md`); last-10-minutes warning (FR-047); offline warning (FR-024b) |
 | Sitting ended part-way | Sitting — stopped part-way variant |
 | Day `Completed`, pending submission | Home — "Done — tap to submit" (Phase 1) |
 | Day `Submitted` | Home — cohort variant, day counter advanced |
