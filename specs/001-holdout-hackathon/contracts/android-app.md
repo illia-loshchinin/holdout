@@ -59,10 +59,12 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 | No wallet | Connect wallet — no-wallet variant (ES-0): what a wallet is and how to get one; nothing else is reachable before a wallet (FR-001a, amended 2026-10-09) |
 | Wallet without test SKR or fee SOL | Faucet sheet; used-today and can't-pay-out variants (ES-0a, ES-0b) |
 | Wallet just connected, first run | Tour — three cards, skippable, re-openable (FR-067) |
+| Running Holdouts the member is not in | Home — **Running now** list (FR-062a): read-only, every connected wallet with or without a Seeker; each row opens that Holdout's cohort detail and roster; no join |
 | No Holdout running, Daily 25 available | Home — Daily 25 variant, with the Holdouts open to join and what is at stake in each (FR-053) |
 | Cohort `Open`, member not joined | Home or Forfeit offer → Stake confirm (no ladder screen since 2026-10-09; Forfeit's "next Holdout" — the same league's (US-4) — opens the stake confirm directly). Before the stake confirm opens, the Seeker check (FR-003b, R17): a wallet remembered or found to hold a Seeker Genesis Token goes on; the two variants below otherwise |
 | Joining, wallet holds no Seeker Genesis Token (checked: None) | **Seeker-exclusive sheet** (FR-003c, ES-0c): *"Holdouts are for Seeker owners"* · *"Staking in a Holdout needs a Seeker. You can still do the Daily 25 and watch every Holdout."* · **Get a Seeker** (opens `https://store.solanamobile.com/`) · **Not now**. No join is offered and nothing is signed |
-| Joining, the check could not be made (Unknown) | **Couldn't check** variant of the stake confirm (FR-003d, ES-0d): *"We couldn't check your Seeker — try again."* · **Try again**. Never the Seeker-exclusive sheet; nothing is signed |
+| Joining, the check in progress | **Seeker sheet — checking** variant: *Checking your Seeker…* with the loader, until mainnet answers (FR-003b, R17). Every first join of a wallet not yet confirmed on this phone passes through it |
+| Joining, the check could not be made (Unknown) | **Seeker sheet — couldn't-check** variant (FR-003d, ES-0d): *"We couldn't check your Seeker — try again."* · **Try again**. Never the Seeker-exclusive wording; nothing is signed |
 | Membership `Pending` in `Open` cohort | Lobby (with leave) |
 | Membership `Pending` in `Locked` cohort | Lobby — locked variant (ES-12a) |
 | Membership `Active`, today not complete | Home — cohort variant; Sitting |

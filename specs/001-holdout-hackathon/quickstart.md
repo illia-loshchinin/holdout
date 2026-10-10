@@ -142,7 +142,7 @@ npm --prefix tests test -- --grep "full cycle"
 
 ### Beta test on the rehearsal deployment (24–26 Sep)
 
-The same compressed idea, but on devnet with real testers and real phones: a test league of **three 10-minute days at 5 reps a day**, a new cohort every 30 minutes (FR-044a, H36) — so each tester, or a single judge, runs faucet → join → sittings → a deliberate forfeit → settlement → claim in under an hour, and the lobby keeps opening cohorts through the live period.
+The same compressed idea, but on devnet with real testers and real phones: a test league of **three 10-minute days at 5 reps a day**, a new cohort every 30 minutes (FR-044a, H36) — so each tester, or a single judge, with a wallet holding a Seeker Genesis Token (FR-003b), runs faucet → join → sittings → a deliberate forfeit → settlement → claim in under an hour, and the lobby keeps opening cohorts through the live period.
 
 ```bash
 java -jar kotlin/crank/build/libs/crank.jar init --test-league --first-start <iso>
@@ -181,6 +181,8 @@ cd kotlin && ./gradlew :app:installMemberDebug -Pholdout.rpcUrl=http://127.0.0.1
 ```
 
 A member debug build (`memberDebug`) pointed away from devnet asks the wallet to **sign only** and sends the transaction itself — the wallet would otherwise send it to devnet. Cleartext HTTP is allowed to `127.0.0.1`, `localhost` and `10.0.2.2`, in debug builds only.
+
+Staking needs a wallet holding a Seeker Genesis Token on mainnet (FR-003b). On the emulator or a phone without one, build the member app with the debug-only bypass, `./gradlew :app:installMemberDebug -Pholdout.seekerGate=off` (research R17); a release build always checks.
 
 **Expected:** connect → faucet → Home (no ladder screen since 2026-10-09) → the short test cohort, labelled → stake → lobby; from the start, 5 push-ups at 45° in each 10-minute day, submitted; scripted members forfeit on their seeded days; after the seventh day (70 minutes in) the cohort settles and the claim pays stake plus share. `bash scripts/localnet-crank.sh status` shows it all.
 
