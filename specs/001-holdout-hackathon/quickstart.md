@@ -128,7 +128,7 @@ cd kotlin && ./gradlew :app:lint :app:checkNoAudioPermission
 python scripts/design-book.py check
 ```
 
-**Expected:** `design-book check: 0 drift` — every token in `docs/design/tokens.json` has its twin in `ui/theme/*.kt` with the same value. Notes, such as the fonts not bundled yet (T035), do not fail it. Dynamic colour is off by construction: `Theme.kt` has one dark `ColorScheme` and no `dynamicColor` parameter. The lobby card's "at stake" with the joined count, never the word "prize" before a Holdout starts (FR-053, spec §1a), has no unit test; it is checked on the screen (holdout-ui skill, `references/verify.md`).
+**Expected:** `design-book check: 0 drift` — every token in `docs/design/tokens.json` has its twin in `ui/theme/*.kt` with the same value, except the tokens the script lists as having no twin by design (`NO_TWIN_OK`, skipped) or as added when a screen first needs one (`ADD_WHEN_NEEDED`, reported as notes). Notes, such as those and the fonts not bundled yet (T035), do not fail it. Dynamic colour is off by construction: `Theme.kt` has one dark `ColorScheme` and no `dynamicColor` parameter. The lobby card's "at stake" with the joined count, never the word "prize" before a Holdout starts (FR-053, spec §1a), has no unit test; it is checked on the screen (holdout-ui skill, `references/verify.md`).
 
 ## 5. Full cycle on a compressed clock (spike S3 / rehearsal)
 
