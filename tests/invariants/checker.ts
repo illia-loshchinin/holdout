@@ -176,8 +176,8 @@ export const forfeitSplit = (stake: bigint): ForfeitSplit => {
 
 const min = (a: bigint, b: bigint): bigint => (a < b ? a : b);
 
-/** `min(20 % of the cohort's own pool, the league's boost reserve)` (FR-037d). */
-export const boostFor = (ownPool: bigint, boostReserve: bigint): bigint => min((ownPool * 20n) / 100n, boostReserve);
+/** `min(10 % of the cohort's own pool, the league's boost reserve)` (FR-037d). */
+export const boostFor = (ownPool: bigint, boostReserve: bigint): bigint => min((ownPool * 10n) / 100n, boostReserve);
 
 /** `min(20 % of the forfeited stake, the stake finished on)` (FR-037e). */
 export const comebackOwedFor = (forfeitedStake: bigint, newStake: bigint): bigint =>
@@ -839,19 +839,19 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
     }
     const league = prevLeagues.get(c.leagueId);
     if (c.totalFinisherStake > 0n) {
-      // FR-037d · the boost is `min(20 % of the cohort's own pool, the reserve
+      // FR-037d · the boost is `min(10 % of the cohort's own pool, the reserve
       // before this step)`. A cohort with no forfeits has no pool and gets none.
-      const cap = (ownPool * 20n) / 100n;
+      const cap = (ownPool * 10n) / 100n;
       if (league) {
         const want = boostFor(ownPool, league.boostReserve);
         if (c.boostReceived !== want) {
           fail(
             'INV-2',
-            `cohort ${c.address}: boost ${c.boostReceived}, but min(20% of ${ownPool}, reserve ${league.boostReserve}) is ${want}`,
+            `cohort ${c.address}: boost ${c.boostReceived}, but min(10% of ${ownPool}, reserve ${league.boostReserve}) is ${want}`,
           );
         }
       } else if (c.boostReceived > cap) {
-        fail('INV-2', `cohort ${c.address}: boost ${c.boostReceived} exceeds 20% of its own pool ${ownPool}`);
+        fail('INV-2', `cohort ${c.address}: boost ${c.boostReceived} exceeds 10% of its own pool ${ownPool}`);
       }
       // Finalization is the one place a pool moves without a claim, and it
       // moves to a figure the cohort has just written down for itself: the

@@ -9,7 +9,7 @@
 //! ## The league reserve, in cohort order (FR-037c–e, H35)
 //!
 //! With finishers, in this order: the cohort draws its **boost** —
-//! `min(20% of its own pool, the boost reserve)` — and the shares are computed
+//! `min(10% of its own pool, the boost reserve)` — and the shares are computed
 //! on the boosted pool; it draws `min(comeback owed, the comeback reserve)` for
 //! its finishers' **comeback refunds**; then it **credits** the reserve shares
 //! of its own forfeits to the league. A cohort draws before it credits, so its

@@ -116,7 +116,7 @@ const shuffled = <T>(items: readonly T[], next: () => number): T[] => {
 describe('the randomised invariant suite (T076, spike S3)', () => {
   it('holds INV-1…INV-10 after every step of a seeded random walk', async () => {
     // A league with something in reserve, so the finalize the walk ends on draws
-    // a boost (FR-037d) — capped at 20 % of whatever pool the walk produced, or
+    // a boost (FR-037d) — capped at 10 % of whatever pool the walk produced, or
     // at this odd figure, whichever is smaller — and credits its dues (FR-037c).
     const f = await setUp({ boostReserve: 7n * SKR + 3n, comebackReserve: 2n * SKR });
     const next = rng(20260920);
