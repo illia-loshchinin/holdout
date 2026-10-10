@@ -9,7 +9,7 @@ Source of values: `docs/design/tokens.json`. Re-check this page with
 | Token | Kotlin | Use |
 | --- | --- | --- |
 | `canvas` | `Canvas` | screen background |
-| `surface-1` / `-2` / `-3` | `Surface1` / `Surface2` / `Surface3` | cards · nav, sheets, dialogs · chips, pressed, inputs |
+| `surface-1` / `-2` / `-3` | `Surface1` / `Surface2` / `Surface3` | cards, dialogs · nav, sheets · chips, pressed, inputs |
 | `hairline` | `Hairline` | every 1dp border |
 | `scrim` | `Scrim` | bands over the camera |
 | `drag-handle` | `DragHandle` | the sheet's drag handle |
@@ -86,6 +86,14 @@ Material defaults (`Notice` currently does this).
 | Stat block | inline in `HomeScreen`, `CohortHome` (`CounterStyle` + caption) | ◻ extract `StatBlock(label?, value, of?, caption)` |
 | Quiet action | screens use `TextButton` "← Back" in `TextSecondary` | ◻ book: `bodyLarge` Medium in `Accent` (or `Warning`), ≥48dp |
 | Bank ring, Streak flame, Tier chips, Sheet, Roster row, Bottom nav, Camera sitting | partly inline in their screens (`sitting/SittingScreen.kt`, `stake/StakeSheet.kt`, `roster/RosterScreen.kt`, `faucet/FaucetSheet.kt`; no streak flame UI yet) | ◻ grep before building; extract to `ui/` on second use |
+| Leaderboard line | inline in `leaderboard/LeaderboardScreen.kt` (place + identity, rate, figures) | ✅ its own anatomy, described on the Roster row page; not a roster row |
+| Notice card | Lab's *Not saved* card in `LabApp.kt` | ◻ no shared Composable. `Notice(text)` is the one-line notice, a different component (the faucet's outcomes, Today's offline line) |
+| Status chip | `TestCohortBadge` (text form) | ◻ book's chip form `ho-tag`; Lab's `LAB` chip is not built yet |
+| Choice chips | Lab: M3 `FilterChip`s in `TraceLabelDialog`; member: the Leaderboards picker, a row of `TextButton`s | ⚠ drift: neither matches the book (36px pill, 48dp target, `accent-tint` when picked, one choice, arrow keys) |
+| Dialog (Lab only) | `TraceLabelDialog`, `TraceNotSavedDialog` in `src/lab/.../sitting/` | ⚠ drift: no `hairline`, no width cap, title in M3 `titleLarge` (book: `title` = `titleMedium`) |
+| Switch (Lab only) | `TestSwitch`, `RecordVideoSwitch` in `src/lab/.../ui/TestSwitch.kt` | ✅ M3 `Switch` with the book's labels and colours |
+| Stepper (Lab only) | the *Target* stepper in `LabApp.kt`; `Counter` in `TraceLabelDialog` | ⚠ drift: `Counter` shows its value in `CounterStyle`; book: `amount` |
+| Readouts (Lab only) | `LabReadouts` in `src/lab/.../sitting/LabReadouts.kt` | ✅ `LabelStyle`, not uppercased |
 
 HTML reference implementations of every component are in `docs/design/components/bundle.css` (`ho-*`
 classes) — read the CSS for exact paddings, gaps and states when the README is not enough.
