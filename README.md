@@ -13,8 +13,10 @@ Solana Mobile fitness commitment dApp. Built for the CLOCK IN hackathon, submiss
 | Layer | |
 |---|---|
 | The Daily 25 | Free, every day, for everyone. Builds a personal streak. Unlocks nothing, pays nothing, and a forfeit doesn't break it. |
-| 7-day Holdout | Staked. Entry rung and comeback lane. Never closes. |
-| 21-day Holdout | Staked. Where the money is. |
+| 7-day Holdout | Staked, **Easy**: seven days, knee push-ups count. Open to everyone, always. |
+| 21-day Holdout | Staked, **Hard**: twenty-one days, from the toes. Open to everyone, always. |
+
+The two Holdouts are separate leagues for different people, not rungs of a ladder: neither unlocks the other, and nothing earned in one is needed for the other (FR-003).
 
 A Holdout is a cohort of members who start and finish together; "Holdout" is what members read, `Cohort` is what the contract stores (spec §1a).
 
@@ -33,7 +35,6 @@ Named here on purpose (constitution XI). Each has its real fix beside it.
 | Devnet with a mock SKR mint | Hackathon build; no real value at stake | Mainnet with real SKR |
 | Seeker ID names are read from Solana mainnet | Seeker IDs (.skr names) exist only on mainnet; the app reads them, for display only, from the public mainnet RPC, while everything else runs on devnet. Members without one, scripted members included, are shown by shortened address | Nothing to fix for display: on mainnet the same lookup reads the same network. A dedicated RPC provider would make first-time lookups of large lists faster |
 | "Stake back" is true in SKR, not in dollars | Everything is SKR-denominated with no oracle in the contract | A known property of SKR-native staking, stated in the app |
-| `ladder_gate_enabled = false` — both leagues open from first launch | Nobody should have to spend a week before reaching the 21-day league; the unlock is still computed and recorded | Flip the flag |
 | `genesis_gate_enabled = false` | Testers have no Seeker | Flip the flag on mainnet |
 | Non-default `day_seconds` for test cohorts — a **short test lobby kept running on devnet**, labelled and open to anyone, from which the demo video is recorded | Lets a single person run a whole cycle alone: three 10-minute days, a new cohort every 30 minutes (FR-044a, H36). Only one test league runs at a time, since streaks are written when a cohort is counted and two test leagues of different lengths could count a member's outcomes out of order on the combined test board | Admin-guarded; real cohorts always use 24 hours |
 | A completed day's proof is client-signed | No backend in the build | Server-side attestation signer with pinned traces |

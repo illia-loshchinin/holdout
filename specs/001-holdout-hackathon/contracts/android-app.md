@@ -59,7 +59,7 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 | Wallet without test SKR or fee SOL | Faucet sheet; used-today and can't-pay-out variants (ES-0a, ES-0b) |
 | Wallet just connected, first run | Tour — three cards, skippable, re-openable (FR-067) |
 | No Holdout running, Daily 25 available | Home — Daily 25 variant, with the Holdouts open to join and what is at stake in each (FR-053) |
-| Cohort `Open`, member not joined | Home or Forfeit offer → Stake confirm (no ladder screen since 2026-10-09; Forfeit's "next 7-day" opens the stake confirm directly) |
+| Cohort `Open`, member not joined | Home or Forfeit offer → Stake confirm (no ladder screen since 2026-10-09; Forfeit's "next Holdout" — the same league's (US-4) — opens the stake confirm directly) |
 | Membership `Pending` in `Open` cohort | Lobby (with leave) |
 | Membership `Pending` in `Locked` cohort | Lobby — locked variant (ES-12a) |
 | Membership `Active`, today not complete | Home — cohort variant; Sitting |
@@ -75,7 +75,7 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 | **[Phase 2]** League leaderboard | Leaderboards screen (US-10) |
 | About Holdout | The test network, one line on scripted members, the tour again, and Disconnect wallet. For every member; nothing in it is addressed to judges, and the known weaknesses are in the README only (spec 004, amended 2026-10-09). There is no walkthrough in the app: the full cycle is in the demo video, sent as a link (FR-044) |
 
-`Withdrawn` returns the member to the ladder with a refund confirmation; the cohort-level `Settled` state is shown in cohort detail.
+`Withdrawn` returns the member home with a refund confirmation; the cohort-level `Settled` state is shown in cohort detail.
 
 ## 6. Figures shown
 

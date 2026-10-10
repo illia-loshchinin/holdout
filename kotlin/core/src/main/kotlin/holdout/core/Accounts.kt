@@ -10,15 +10,14 @@ import com.solana.publickey.SolanaPublicKey
  * `fixtures/accounts.json` field by field instead.
  */
 
-/** `programs/holdout/src/state/profile.rs` — 258 bytes. */
+/** `programs/holdout/src/state/profile.rs` — 257 bytes. */
 object ProfileLayout {
-    const val SIZE = 258
+    const val SIZE = 257
 
     /** `sha256("account:Profile")[..8]`. */
     val DISCRIMINATOR: ByteArray get() = byteArrayOf(0xb8.toByte(), 0x65, 0xa5.toByte(), 0xbc.toByte(), 0x5f, 0x3f, 0x7f, 0xbc.toByte())
 
     const val WALLET = 8
-    const val QUALIFIED = 40
 
     /**
      * Three `LeagueProgress` slots of 40 bytes: 7-day, 21-day, test
@@ -26,21 +25,21 @@ object ProfileLayout {
      * then the open comeback (H35) — `comeback_stake`, `comeback_from`,
      * `comeback_until`.
      */
-    const val LEAGUES = 41
+    const val LEAGUES = 40
     const val LEAGUE_SLOTS = 3
     const val LEAGUE_PROGRESS_SIZE = 40
     const val TEST_LEAGUE_SLOT = 2
-    const val RUNNING = 161
-    const val PENDING = 201
-    const val LAST_FAUCET_DAY = 249
-    const val BUMP = 257
+    const val RUNNING = 160
+    const val PENDING = 200
+    const val LAST_FAUCET_DAY = 248
+    const val BUMP = 256
 
     /** The wallet key, for a `memcmp` that finds one member's profile among all of them. */
     const val WALLET_OFFSET = WALLET
 }
 
 /**
- * A wallet's `Profile` (data-model §1.5): its ladder unlock, per-league record,
+ * A wallet's `Profile` (data-model §1.5): its per-league record,
  * the cohort it is running in and the one it waits in the lobby of, and the
  * last faucet day.
  *
@@ -50,7 +49,6 @@ object ProfileLayout {
  */
 data class ProfileSnapshot(
     val wallet: SolanaPublicKey,
-    val qualified: Boolean,
     val leagues: List<LeagueProgress>,
     val running: Running?,
     val pending: Pending?,
@@ -118,7 +116,6 @@ data class ProfileSnapshot(
             val pendingCohort = r.pubkey(l.PENDING)
             return ProfileSnapshot(
                 wallet = r.pubkey(l.WALLET),
-                qualified = r.bool(l.QUALIFIED),
                 leagues = List(l.LEAGUE_SLOTS) {
                     val at = l.LEAGUES + it * l.LEAGUE_PROGRESS_SIZE
                     LeagueProgress(r.u16(at), r.u16(at + 2), r.u16(at + 4), r.u16(at + 6), r.i64(at + 8), r.u64(at + 16), r.i64(at + 24), r.i64(at + 32))

@@ -82,7 +82,7 @@ The rule: **a feature earns its place only if it appears in the video or is load
 | S4 | — | *(was: leaderboard seeded from cohort #1 and #2 data. Now live from on-chain progress — F9.)* | — |
 | S5 | Notifications | Manual Telegram push to cohort members | None — invisible in video |
 | S6 | Genesis Token gate | Feature flag `genesis_gate_enabled`, **off on devnet** | **Must be off**, or no tester without a Seeker can join |
-| S7 | League gate | Feature flag `ladder_gate_enabled`, **off**; the 21-day unlock is still computed and recorded | None — named in the README |
+| S7 | ~~League gate~~ | **Removed 2026-10-10 (H37):** no gate, no flag, no unlock record — both leagues open to every member | — |
 | S8 | Judging-period cohorts | Real members first — beta testers and anyone who installs the app — with scripted members **topping a cohort up to a floor only** (20 for a 7-day cohort, 12 for a 21-day one). Scripted members are **ordinary wallets run by automation under the same contract rules**: real test-SKR stakes, completed days, planned forfeits and finishes. Their forfeits fund real prizes. Their days are not camera-verified. Addresses published in the build; disclosed in the app, README, demo video and pitch deck, and labelled wherever they appear (H14, constitution XII) | None if labelled; deception if not |
 | S9 | Full-cycle demo | Recorded walkthrough inside the app, captured from cohort #3 on the real devnet program — the whole flow from launching the app to the claim, playable before a wallet is connected (H14, `holdout_demo_video.md`) | None — it is a recording of the real thing |
 | S10 | Stake chip prices | **Phase 1:** Operator publishes one SKR chip set at launch from an off-chain rate. **[Phase 2]** re-prices weekly when drift exceeds 20% (H8, H23) | None — named in the README as a trusted input |
@@ -208,7 +208,7 @@ This is the one place where cutting a corner has real consequences, so it gets d
 | Layer | What it is |
 |---|---|
 | **The Daily 25** | 25 reps, every day, free, for everyone. No cohort, no stake, no prize. Builds a streak. |
-| **7-day league** | Staked. The entry rung and the comeback lane. Clearing it unlocks the 21-day. |
+| **7-day league** | Staked. Never closes. *(Its "entry rung" role and the 21-day unlock were removed 2026-10-10, H37.)* |
 | **21-day league** | Staked. Where the money is. |
 
 **This inverts the product's shape, in a good direction.** Holdout is now a free daily habit app with a staking layer on top, rather than a staking app with a free trial. For a rubric that puts 25% on Stickiness & PMF, a free loop anyone can run on day one, forever, is a far stronger story than a cohort you must pay to enter.
@@ -219,7 +219,7 @@ This is the one place where cutting a corner has real consequences, so it gets d
 2. **The streak must stay cosmetic.** It unlocks nothing and nothing is ever paid against it. The moment a streak gates or pays anything, free sessions need economic anti-cheat — and free sessions are exactly where there is no stake to make cheating expensive. Cosmetic keeps it off-chain, unsigned, and free to build.
 3. **A forfeit must not break the streak.** Losing a stake and losing a habit are different failures. Conflating them punishes a member twice for one bad day and pushes exactly the people the free tier is meant to retain.
 
-**Gating is off for the hackathon.** Both leagues are joinable from first launch. The unlock logic is still written and still records a clear — only the check is skipped, behind `ladder_gate_enabled`, exactly as the Genesis Token gate is handled in D-D. Two reasons to do it with a flag rather than by deleting the code: a judge reading the repo sees the designed ladder rather than a missing feature, and nobody has to spend a week clearing the 7-day league before reaching the one worth filming. The README names the flag alongside the others (constitution XI).
+*(Superseded 2026-10-10, H37: the gate is deleted, not off — the two leagues are separate products.)* **Gating is off for the hackathon.** Both leagues are joinable from first launch. The unlock logic is still written and still records a clear — only the check is skipped, behind `ladder_gate_enabled`, exactly as the Genesis Token gate is handled in D-D. Two reasons to do it with a flag rather than by deleting the code: a judge reading the repo sees the designed ladder rather than a missing feature, and nobody has to spend a week clearing the 7-day league before reaching the one worth filming. The README names the flag alongside the others (constitution XI).
 
 **Solo sessions come back into scope**, having been cut in §1.3 — they are now the entire free product. The cost is small because the session flow already exists: an entry point, an off-chain streak store, and a home screen that shows the challenge when no cohort is running.
 
@@ -283,11 +283,11 @@ stateDiagram-v2
 
 | Transition | Trigger | Guard | Effects |
 |---|---|---|---|
-| `[*] → Pending` | user, `join_cohort` | cohort `Open`; stake equals one of the cohort's four chip amounts; ladder gate passed (flag off); member holds no other `Pending`; cohort starts no earlier than the final deadline of the member's running membership (FR-006a, FR-006b) | stake held **segregated**, never in the pool; `member_count++` |
+| `[*] → Pending` | user, `join_cohort` | cohort `Open`; stake equals one of the cohort's four chip amounts; member holds no other `Pending`; cohort starts no earlier than the final deadline of the member's running membership (FR-006a, FR-006b) | stake held **segregated**, never in the pool; `member_count++` |
 | `Pending → Withdrawn` | user, `leave_cohort` | cohort still `Open` (before the join cutoff) | full refund, no fee, `member_count--` |
 | `Pending → Active` | time | cohort reaches `Running` | `days_completed = 0`; unaffected by anything happening to the member's other membership |
 | `Active → Forfeited` | anyone, `tick_cohort` (keeper usually; materialises a breach that already exists; pageable) | `now > deadline_of(days_completed)` | 20% fee, 80% to pool; `progress[league].forfeited++`; the current league streak is set to 0 when this cohort is **counted at settlement**, not here, so a forfeit recorded before an earlier cohort settles still breaks the streak (FR-061a); daily streak untouched |
-| `Active → ReadyToClaim` | anyone, `settle_cohort` (keeper usually) | `days_completed == duration_days`; the league's previous cohort has settled | `progress[league].cleared++`; current league streak++, longest = max; clearing a 7-day cohort sets `qualified = true` (recorded even with the gate off) |
+| `Active → ReadyToClaim` | anyone, `settle_cohort` (keeper usually) | `days_completed == duration_days`; the league's previous cohort has settled | `progress[league].cleared++`; current league streak++, longest = max |
 | `ReadyToClaim → Claimed` | user, `claim_payout` | — | transfers `stake + pool × stake / total_finisher_stake` |
 
 `progress[league]` (cleared, forfeited, current and longest league streak) is the only source for the leaderboards (H17).

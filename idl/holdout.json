@@ -1633,7 +1633,7 @@
     {
       "name": "set_flags",
       "docs": [
-        "Admin only. The two gates this build ships off (FR-003, research R17)."
+        "Admin only. The genesis gate this build ships off (research R17)."
       ],
       "discriminator": [
         199,
@@ -1671,10 +1671,6 @@
         }
       ],
       "args": [
-        {
-          "name": "ladder_gate_enabled",
-          "type": "bool"
-        },
         {
           "name": "genesis_gate_enabled",
           "type": "bool"
@@ -2348,11 +2344,6 @@
       "msg": "A tier is 0, 1, 2 or 3"
     },
     {
-      "code": 6023,
-      "name": "LadderGateClosed",
-      "msg": "A 21-day Holdout needs a cleared 7-day one while the ladder gate is on"
-    },
-    {
       "code": 6024,
       "name": "GenesisGateClosed",
       "msg": "The genesis gate is on and this wallet did not pass it"
@@ -2833,13 +2824,6 @@
             "type": "pubkey"
           },
           {
-            "name": "ladder_gate_enabled",
-            "docs": [
-              "`false` on devnet: both leagues are open from launch (FR-003)."
-            ],
-            "type": "bool"
-          },
-          {
             "name": "genesis_gate_enabled",
             "docs": [
               "`false` on devnet: testers have no Seeker (research R17)."
@@ -2979,10 +2963,6 @@
       "type": {
         "kind": "struct",
         "fields": [
-          {
-            "name": "ladder_gate_enabled",
-            "type": "bool"
-          },
           {
             "name": "genesis_gate_enabled",
             "type": "bool"
@@ -3396,14 +3376,6 @@
           {
             "name": "wallet",
             "type": "pubkey"
-          },
-          {
-            "name": "qualified",
-            "docs": [
-              "Set on any 7-day clear and never cleared, whether or not the ladder gate",
-              "is on (FR-003a, FR-004)."
-            ],
-            "type": "bool"
           },
           {
             "name": "leagues",

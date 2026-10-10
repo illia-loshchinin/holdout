@@ -139,7 +139,6 @@ const config: ConfigAccount = {
   skrMint: MINT,
   feeDestination: FEE_DESTINATION,
   developerDestination: DEVELOPER_DESTINATION,
-  ladderGateEnabled: false,
   genesisGateEnabled: false,
   chipSet: { amounts: DEFAULT_CHIPS, version: 1, publishedAt: BigInt(FIRST_START - WEEK), maxTopTier: DEFAULT_CHIPS[3] },
   faucet: {
@@ -274,7 +273,6 @@ const zeroProgress = {
 
 const profile = (over: Partial<ProfileAccount> = {}): ProfileAccount => ({
   wallet: MEMBER,
-  qualified: true,
   leagues: [
     // A counted forfeit whose comeback window is still open: 14 days from its missed deadline.
     {
@@ -323,7 +321,7 @@ const accountFixtures = () => {
   };
 
   add('Config', 'initialised', Config, config);
-  add('Config', 'gates-on', Config, { ...config, ladderGateEnabled: true, genesisGateEnabled: true });
+  add('Config', 'genesis-gate-on', Config, { ...config, genesisGateEnabled: true });
   add('LeagueConfig', 'seven-day', LeagueConfig, league);
   add('LeagueConfig', 'twenty-one-day', LeagueConfig, {
     ...league,
@@ -347,9 +345,8 @@ const accountFixtures = () => {
     comebackEntitled: 2n * SKR + 500_000n,
   }));
   add('Membership', 'claimed', Membership, membership({ state: 'Claimed', daysCompleted: 7, counted: true }));
-  add('Profile', 'qualified-with-history', Profile, profile());
+  add('Profile', 'with-history', Profile, profile());
   add('Profile', 'fresh', Profile, profile({
-    qualified: false,
     leagues: [{ ...zeroProgress }, { ...zeroProgress }, { ...zeroProgress }],
     running: { cohort: key(0), end: 0n },
     pending: { cohort: key(0), start: 0n, end: 0n },
@@ -439,8 +436,8 @@ const instructionFixtures = async () => {
   );
   await add(
     'set_flags',
-    { ladderGateEnabled: true, genesisGateEnabled: false },
-    await setFlagsIx(ADMIN, true, false),
+    { genesisGateEnabled: true },
+    await setFlagsIx(ADMIN, true),
   );
   await add(
     'publish_chip_set',

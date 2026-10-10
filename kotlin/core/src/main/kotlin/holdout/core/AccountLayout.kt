@@ -102,9 +102,9 @@ object AccountLayout {
         const val ROSTER_SLICE_LENGTH = COMEBACK_ENTITLED + 8 - WALLET
     }
 
-    /** `programs/holdout/src/state/config.rs` — 295 bytes. */
+    /** `programs/holdout/src/state/config.rs` — 294 bytes. */
     object Config {
-        const val SIZE = 295
+        const val SIZE = 294
 
         /** `sha256("account:Config")[..8]`. */
         val DISCRIMINATOR: ByteArray get() = bytes(0x9b, 0x0c, 0xaa, 0xe0, 0x1e, 0xfa, 0xcc, 0x82)
@@ -119,18 +119,17 @@ object AccountLayout {
 
         /** The developer wallet's SKR account (FR-037f, H35). */
         const val DEVELOPER_DESTINATION = 168
-        const val LADDER_GATE_ENABLED = 200
-        const val GENESIS_GATE_ENABLED = 201
-        const val CHIP_AMOUNTS = 202
-        const val CHIP_VERSION = 234
-        const val CHIP_PUBLISHED_AT = 238
-        const val MAX_TOP_TIER = 246
-        const val SOL_TOP_UP = 254
-        const val SPONSOR_FLOAT = 262
-        const val DAILY_LAMPORT_CAP = 270
-        const val LAMPORT_DAY = 278
-        const val LAMPORTS_TODAY = 286
-        const val BUMP = 294
+        const val GENESIS_GATE_ENABLED = 200
+        const val CHIP_AMOUNTS = 201
+        const val CHIP_VERSION = 233
+        const val CHIP_PUBLISHED_AT = 237
+        const val MAX_TOP_TIER = 245
+        const val SOL_TOP_UP = 253
+        const val SPONSOR_FLOAT = 261
+        const val DAILY_LAMPORT_CAP = 269
+        const val LAMPORT_DAY = 277
+        const val LAMPORTS_TODAY = 285
+        const val BUMP = 293
     }
 
     private fun bytes(vararg b: Int) = ByteArray(b.size) { b[it].toByte() }
@@ -326,7 +325,6 @@ data class ConfigSnapshot(
     val feeDestination: SolanaPublicKey,
     /** The developer destination (FR-037f, H35): the developer wallet's SKR account. */
     val developerDestination: SolanaPublicKey,
-    val ladderGateEnabled: Boolean,
     val genesisGateEnabled: Boolean,
     val chipAmounts: List<ULong>,
     /** `0` until the first publish (FR-055b). */
@@ -358,7 +356,6 @@ data class ConfigSnapshot(
                 skrMint = r.pubkey(l.SKR_MINT),
                 feeDestination = r.pubkey(l.FEE_DESTINATION),
                 developerDestination = r.pubkey(l.DEVELOPER_DESTINATION),
-                ladderGateEnabled = r.bool(l.LADDER_GATE_ENABLED),
                 genesisGateEnabled = r.bool(l.GENESIS_GATE_ENABLED),
                 chipAmounts = r.u64s(l.CHIP_AMOUNTS, 4),
                 chipVersion = r.u32(l.CHIP_VERSION),

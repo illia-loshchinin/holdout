@@ -132,7 +132,7 @@ class ScriptedTest {
         val c = cohort(index = 1)
         val other = SolanaPublicKey(ByteArray(32) { 8 })
         val now = c.joinCutoff - day
-        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(other, false, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending, -1)
+        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(other, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending, -1)
         assertTrue(Scripted.canJoin(null, c, null, now), "a wallet that has never played")
         assertTrue(Scripted.canJoin(profile(running = ProfileSnapshot.Running(other, c.start)), c, c.start, now), "back to back")
         assertFalse(Scripted.canJoin(profile(running = ProfileSnapshot.Running(other, c.start + 1)), c, c.start + 1, now))

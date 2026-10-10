@@ -85,7 +85,7 @@ Holdout is a Solana Mobile fitness commitment app. Anyone can do a **free Daily 
 ### 4.2 Access
 
 - **No Seeker requirement.** The Genesis Token check is written but off (`genesis_gate_enabled = false`) because testers have no Seeker. Named in the README.
-- **No ladder gate.** Both leagues are joinable from first launch (`ladder_gate_enabled = false`, FR-003); the 21-day unlock is still computed and recorded (FR-003a).
+- **No ladder.** The 7-day and 21-day leagues are separate products for different people, both open to every member at all times (FR-003). The gate, its flag and the unlock record were deleted on 2026-10-10 (H37).
 - **No geo-blocking, no terms-of-service screen** — out of scope for a devnet build with a test token (spec §3).
 - **Wallet first.** Connecting a wallet is the first thing the app asks for, and nothing — not even the Daily 25 — is usable before it (FR-001a). A person without a wallet is told plainly that they need one and how to get one (ES-0). The daily streak is kept on the phone for the connected wallet.
 - **One wallet, one member.** No username, no password, no display name, no avatar. Leaderboards show a shortened wallet address (FR-063).
@@ -102,9 +102,9 @@ Holdout is a Solana Mobile fitness commitment app. Anyone can do a **free Daily 
 |---|---|---|---|---|
 | **Daily 25** | today | 25 | none | everyone, every day |
 | **7-day league** | 7 days | 25 | one of four chips | everyone; never closes |
-| **21-day league** | 21 days | 25 | one of four chips | requirement: clear a 7-day cohort — **stated, not enforced** in this build |
+| **21-day league** | 21 days | 25 | one of four chips | everyone; never closes |
 
-- **The 7-day league never closes** — not after a clear, not after a forfeit. It is the entry rung and the way back (FR-002).
+- **Neither league ever closes to a member** — not after a clear, not after a forfeit (FR-002). Neither is an entry rung to the other; after a forfeit the way back is the same league's next cohort (US-4).
 - **The unlock is permanent** and never revoked, including after a forfeit (FR-004).
 - **The Daily 25 is not a league.** It grants no unlock, no prize and no league progress — only the streak (FR-005).
 - **A completed cohort day counts as the day's challenge** — nobody trains twice (FR-050).
@@ -471,7 +471,6 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 
 | Flag | Value | Effect |
 |---|---|---|
-| `ladder_gate_enabled` | `false` | 21-day join not gated; unlock still recorded |
 | `genesis_gate_enabled` | `false` | No Seeker check |
 | `day_seconds` | non-default for test cohorts only | Compressed cycles for testing; admin-guarded; not offered to judges (FR-044) |
 
@@ -509,7 +508,7 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 4. **Home** — the running Holdout (§10.1a) if the member is in one; otherwise **today's Daily 25 as the primary action**, with the Holdouts open to join underneath — each showing how many have joined, **what is at stake**, any carry-over, and the closing countdown (FR-053). Daily streak always visible. Never empty, never *"come back later"*. **Offline-completion variant:** *"Done — tap to submit"* once online (Phase 1), or *"Done — waiting for network"* with automatic submission **[Phase 2]** (FR-024b)
 
 **Ladder and staking**
-5. **Ladder** — the Daily 25, then the 7-day and 21-day Holdouts both open, the 21-day requirement stated plainly (US-1)
+5. **Holdouts** — the 7-day (Easy) and 21-day (Hard) Holdouts open to join, side by side, and the Daily 25 (US-1)
 6. **Stake confirm** — league, chip picker (§6.3), daily obligation, duration, time until joining closes and until start, current prize pool with any carry-over shown separately, and: *"If nobody drops out, you get exactly your stake back."* Test-network notice (US-6, FR-041, FR-042)
 7. **Lobby** — countdown to cutoff and start, live roster count, held stake, leave button (§5.2). **Locked variant:** joining closed, final roster, countdown to start (ES-12a)
 

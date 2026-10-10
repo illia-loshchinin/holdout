@@ -25,7 +25,7 @@ export const ERROR_CODES = {
   CohortNotDue: 6020,
   JoiningClosed: 6021,
   InvalidTier: 6022,
-  LadderGateClosed: 6023,
+  // 6023 was LadderGateClosed — retired with the ladder gate, never reused.
   GenesisGateClosed: 6024,
   LobbyPlaceTaken: 6025,
   ObligationsOverlap: 6026,

@@ -98,7 +98,7 @@ Product owner decisions, before the program is first deployed.
 
 ### Session 2026-10-06
 
-- Q: Does the ladder keep a locked Human Flag rung above the two leagues? (US-1) → A: **No — removed entirely.** The ladder is the Daily 25 under the 7-day and 21-day leagues, nothing above them. It never existed in the contract, so nothing on chain changes. *(Removes it from US-1 and from the §3 out-of-scope list.)*
+- Q: Does the ladder keep a locked Human Flag rung above the two leagues? (US-1) → A: **No — removed entirely.** The ladder is the Daily 25 under the 7-day and 21-day leagues, nothing above them. It never existed in the contract, so nothing on chain changes. *(Removes it from US-1 and from the §3 out-of-scope list.)* *(Superseded 2026-10-10: there is no ladder at all — the two leagues are separate products.)*
 - Q: Are the league leaderboards and automatic offline submission built? (§3a, H36) → A: **Yes — both**, client and crank only, with no contract change.
 - Q: Which time windows does a league leaderboard cover? (FR-060) → A: **All-time only, one board per league**, from on-chain progress. Quarterly and yearly boards are **deferred** — not built in this phase.
 - Q: Does the short test league get a leaderboard? (FR-060, FR-044a) → A: **Yes — one combined board, labelled as a short test cohort.** Every test league shares one progress record, so their figures are combined; it is the one board on which ranking can be seen before judging, since no member can finish three judged cohorts by 9 October.
@@ -144,6 +144,11 @@ Product owner decisions, from the PR #20 and #22 reviews.
 - Q: May a re-price started in the last moments of the publish window still send, given that it might land after 05:00 UTC, once the cohorts opening then have copied the previous set? (FR-056) → A: **No — no send starts in the window's last 90 seconds.** That is about a blockhash's life (the send is watched for 60 s), so a publish never lands after the boundary. The command reads the chain's time again just before sending, since fetching the rate and the mint takes time: a run in those last 90 seconds, or one whose rate fetch ran into them, publishes nothing and reports that it is too late, and the cohorts opening at 05:00 copy the previous set (FR-057). An hourly run at `:17` never meets it. *(PR #30 review.)*
 - Q: Since a transaction's blockhash lasts about 150 blocks rather than a fixed 90 seconds, how is a chip set kept from landing after 05:00 if block production slows, and what deadline does a set published by hand carry? (FR-055a, FR-056) → A: **The contract enforces it: every chip set is published with a deadline, and the contract refuses one that lands at or after it.** The weekly re-price signs the window's close, Monday 05:00 UTC, so a late set is refused instead of reaching only the next week's cohorts; the 90-second cutoff stays as the crank's own margin. A set published by hand (FR-055a) carries **chain time + 10 minutes** by default, and the Operator may give another deadline explicitly. The deadline is a time, never a price or a fiat figure (constitution III). *(PR #30 review.)*
 
+Product owner decision: the two leagues serve different audiences.
+
+- Q: Is there a ladder between the leagues — must a member clear a 7-day Holdout before the 21-day league opens to them? (FR-003, US-5) → A: **No — the ladder gate and the notion of qualification are deleted, not flagged off.** The 7-day (Easy) and 21-day (Hard) leagues are two separate products for different people and do not contradict each other, so the 21-day league is open to every member at all times and never needs "qualification" through the 7-day one. Nothing is unlocked by a clear, nothing is recorded as an unlock, and no flag remains that could restore the gate. *(Replaces FR-003, FR-003a, FR-004 and US-5; constitution v2.2.0.)*
+- Q: After a forfeit, which Holdout does the app offer as the way back, alongside today's Daily 25? (US-4) → A: **The next cohort of the same league.** It is the league the member chose, it is the one the comeback refund (FR-037e) pays on, and offering the 7-day league after a 21-day forfeit would present it as a lower rung.
+
 ---
 
 ### Session 2026-09-23
@@ -155,10 +160,9 @@ Product owner decisions, from the PR #20 and #22 reviews.
 | | |
 |---|---|
 | Exercise | Push-ups only in this build. The exercise is a **cohort parameter**, so a later one — negative (eccentric) or decline push-ups — needs no new account layout; only push-ups are accepted here (FR-007, H30) |
-| Leagues | **Staked 7-day** (25 reps/day) → **staked 21-day** (25 reps/day) |
+| Leagues | **Staked 7-day** (Easy) and **staked 21-day** (Hard), 25 reps/day each — two separate products for different people, both open to every member at all times |
 | Free tier | **The Daily 25** — 25 reps, offered every day to everyone, no cohort, no stake, no prize. Builds a streak and nothing else. This is the habit product; the leagues sit on top of it. |
-| Progression | Clearing the staked 7-day league permanently unlocks the 21-day league. The 7-day league never closes — it is also the comeback path after a forfeit. |
-| Gating | **Off for the hackathon.** Both leagues are joinable from first launch. The unlock is still computed and recorded; only the check is disabled, by config flag. |
+| Gating | **None.** Neither league requires anything earned in the other — no ladder, no qualification, no flag (2026-10-10). |
 | Asset | SKR, and only SKR — stakes, pool, payouts, fee |
 | Stakes | Four SKR chips tracking **$10 / $25 / $50 / $100**, locked per cohort at creation; the same tiers in both leagues. One chip set at launch in Phase 1; re-priced every week in Phase 2, in the 4 hours before the next cohort opens *(§3a, §9 OD-2)* |
 | Phasing | **Phase 1** is everything not listed as Phase 2 in §3a and must work end to end before any Phase 2 work starts. There is no feature freeze (removed 2026-10-06, constitution v2.0.0). |
@@ -208,7 +212,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 **Given** a person has installed the app and has a wallet
 **When** they open it for the first time
-**Then** they connect their wallet before anything else is available (FR-001a), are walked through the three-card tour (FR-067), and then see the ladder with both Holdout lengths open (the 21-day league's requirement stated plainly, but not enforced in this build — FR-003), and can start today's Daily 25 in one tap.
+**Then** they connect their wallet before anything else is available (FR-001a), are walked through the three-card tour (FR-067), and then see both Holdout lengths open to join, each open to them (FR-003), and can start today's Daily 25 in one tap.
 
 ### US-2 · Joining from the lobby
 
@@ -237,17 +241,9 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 **Given** a member has not completed today's reps
 **When** the day's deadline passes
-**Then** their stake is forfeited, 30% is taken as fee and the remainder is added to that cohort's prize pool, their league progress resets, and they are told what happened and offered today's Daily 25 and the next 7-day cohort as the way back. Their daily streak is untouched (FR-052).
+**Then** their stake is forfeited, 30% is taken as fee and the remainder is added to that cohort's prize pool, their league progress resets, and they are told what happened and offered today's Daily 25 and the next cohort of the same league as the way back. Their daily streak is untouched (FR-052).
 
 **And** they cannot submit any further completed day for that cohort, whether or not the Scheduler has run yet.
-
-### US-5 · Qualifying
-
-**Given** a member completes all 7 days of a staked 7-day cohort
-**When** the cohort settles
-**Then** the 21-day unlock is recorded permanently, alongside the payout they were already owed. The 7-day league stays open to them — it does not close on a clear.
-
-**Note for this build:** the unlock is recorded but not enforced; both leagues are open to everyone from first launch (FR-003).
 
 ### US-5a · The Daily 25
 
@@ -334,16 +330,16 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 ## 6. Functional requirements
 
-### Access and progression
+### Access
 
 - **FR-001** A member is identified by their wallet.
 - **FR-001a** Connecting a wallet is the first step in the app and is required before anything else is usable — the Daily 25, the streak, cohorts, rosters and leaderboards included. *(Amended 2026-10-09: the recorded walkthrough, once the one exception, is gone — FR-044.)* Before a wallet is connected, only the connect screen and, when the phone has no wallet app, help getting one are reachable. A person without a wallet is told plainly that one is needed and how to get one. The daily streak is kept on the device for the connected wallet.
 - **FR-001b** *(added 2026-09-27)* **Devnet wallets only.** The app asks the wallet to authorize it on devnet and refuses to connect, or to have anything signed, when the wallet reports that it authorized another network — checked at connect and again inside every signing session, before a signature is requested. The member is told to switch the wallet to devnet and connect again, and the saved authorization is dropped so the next connect asks afresh. A wallet that reports no network (MWA 1.x) cannot be checked and is allowed.
-- **FR-002** The 7-day league is joinable by anyone with a wallet and a stake. It is the entry point and it never closes — a member may enter it again after clearing it and after forfeiting it.
-- **FR-003** The 21-day league is gated on having cleared a 7-day cohort. **The gate is disabled for the hackathon build** (`ladder_gate_enabled = false`): both leagues are joinable from first launch so that anyone — a judge included — reaches the interesting league without first spending a week.
-- **FR-003a** The unlock is still computed and recorded on every 7-day clear even while the gate is off, so enabling it later is a one-flag change and never a migration.
-- **FR-004** The unlock is permanent and is never revoked, including after a forfeit.
-- **FR-005** Daily 25 days completed outside a cohort grant no unlock, no prize and no league progress — only the streak.
+- **FR-002** *(Amended 2026-10-10.)* Each league is joinable by anyone with a wallet and a stake whenever it has a cohort open, and it never closes to a member — after a clear or after a forfeit, in either league.
+- **FR-003** *(Amended 2026-10-10.)* There is no ladder between the leagues. The 7-day and 21-day leagues are two separate products for different people, and both are open to every member at all times, unconditionally: neither requires a clear, a history or anything else earned in the other, and no gate, flag or qualification record exists for it anywhere in the system.
+- **FR-003a** *(Removed 2026-10-10 — nothing is unlocked, so nothing is recorded; see FR-003.)*
+- **FR-004** *(Removed 2026-10-10 — there is no unlock to keep; see FR-003.)*
+- **FR-005** Daily 25 days completed outside a cohort grant no prize and no league progress — only the streak.
 - **FR-006** A member may be in at most one running cohort at a time.
 - **FR-006a** A member may additionally hold at most one lobby place (a `Pending` membership) at any time, including while in a running cohort, in either league. The lobby place is independent of the running cohort: finishing or forfeiting it changes nothing about the lobby place, which the member can still leave for a full refund until that cohort's join cutoff.
 - **FR-006b** A lobby place is accepted only in a cohort that starts no earlier than the final deadline of the member's running cohort, so a member never carries two daily obligations at once. A 7-day member can hold a place in the cohort starting the instant theirs ends; a 21-day member cannot hold a place in a cohort starting while theirs still runs.
@@ -470,7 +466,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 - **FR-043** At any moment from submission (13 October 2026) through the winners' announcement (11 November 2026), a member installing the app finds at least one real-time cohort running and visibly populated, with no manual intervention for that whole period. Cohorts open on the weekly schedule (FR-007a) and are filled **by real members first**: scripted members join only until a cohort reaches its league's minimum — **20 members for a 7-day cohort, 12 for a 21-day one** — and their forfeits are spread across the cohort so the survivor count visibly falls. The scripted membership is disclosed in the app, the README, the demo video and the pitch deck (FR-066).
 - **FR-043a** Scripted members are **ordinary wallets run by automation**, with no special treatment anywhere in the contract. Each joins with a real test-SKR stake on a normal chip, submits completed days through the same path as any member, and forfeits or finishes on a planned schedule. Their forfeits fund the prize pool real members win, and a scripted finisher takes its proportional share like anyone else. Every figure on screen therefore stays backed by on-chain state (FR-038a, FR-065). Their completed days are not camera-verified — this is named in the README as part of the client-signed trust gap (constitution XI). The set of scripted wallet addresses is public and fixed in the build, so labels (FR-064) need no server and anyone can check them. How many join is decided by the cohort's own membership: scripted wallets stop joining once the minimum of FR-043 is reached, and a scripted member already in a cohort never leaves to make room for a real one.
 - **FR-044** *(amended 2026-09-26, 2026-10-09)* A full cycle — join, daily sessions, forfeiture, settlement, claim — can be watched without waiting days in the **demo video, sent as a link with the submission** (FR-066). It is a recording of the real app against the devnet contract, taken from **a cohort of the short test lobby** (FR-044a), which says on screen, throughout, that it is a short test cohort with compressed days. It is never a mock-up. **The app itself carries no walkthrough, no About section for judges and no link addressed to judges**: the submission is judged as the app's final state (spec 004). Members meet the product through the first-run tour (FR-067), and anyone can run the whole cycle on a short test Holdout (FR-044a).
-- **FR-044a** *(added 2026-09-26, amended 2026-10-06, 2026-10-07, 2026-10-09)* **A short test lobby, devnet only, kept running, labelled, open to anyone.** The admin may create a test league (id 100 and up) with a compressed day on the devnet program built with the `test-leagues` feature: **three 10-minute days at 5 reps a day, a new cohort every 30 minutes**, joinable right up to each start (join lock 0), so one test cohort is always open for joining; the next opens as the current one starts. Its cohorts keep opening alongside the real 7-day and 21-day lobbies through the whole live period, so the devnet build always offers a test cohort and **a single person can run the whole cycle alone**. **One test league runs at a time:** the newest (highest id) is the lobby, and an older one opens no new cohorts and winds down (its open and running cohorts still run, settle and pay), so the combined test board's streaks follow the cohorts in order (FR-060); testers use it too, and the demo video is recorded from it. Only the admin can create the league; members join its cohorts like any Holdout. It MUST be labelled as a short test cohort — with its day length — everywhere it appears in the app: the ladder, the stake sheet, the lobby, home, the roster and cohort detail. It MUST be disclosed in the README, the demo video and the pitch deck. It never touches the judged 7-day and 21-day leagues, which keep 24-hour days, and its progress never counts toward their streaks, unlocks or leaderboards. A mainnet build never carries `test-leagues`, so no short cohort can exist there.
+- **FR-044a** *(added 2026-09-26, amended 2026-10-06, 2026-10-07, 2026-10-09)* **A short test lobby, devnet only, kept running, labelled, open to anyone.** The admin may create a test league (id 100 and up) with a compressed day on the devnet program built with the `test-leagues` feature: **three 10-minute days at 5 reps a day, a new cohort every 30 minutes**, joinable right up to each start (join lock 0), so one test cohort is always open for joining; the next opens as the current one starts. Its cohorts keep opening alongside the real 7-day and 21-day lobbies through the whole live period, so the devnet build always offers a test cohort and **a single person can run the whole cycle alone**. **One test league runs at a time:** the newest (highest id) is the lobby, and an older one opens no new cohorts and winds down (its open and running cohorts still run, settle and pay), so the combined test board's streaks follow the cohorts in order (FR-060); testers use it too, and the demo video is recorded from it. Only the admin can create the league; members join its cohorts like any Holdout. It MUST be labelled as a short test cohort — with its day length — everywhere it appears in the app: the stake sheet, the lobby, home, the roster and cohort detail. It MUST be disclosed in the README, the demo video and the pitch deck. It never touches the judged 7-day and 21-day leagues, which keep 24-hour days, and its progress never counts toward their streaks or leaderboards. A mainnet build never carries `test-leagues`, so no short cohort can exist there.
 - **FR-066** The hackathon submission is made before **13 October 2026, 01:59 CEST** (12 October, 23:59 UTC; moved from 9 October, 08:59 CEST) — no late entries — and contains: a functional Android APK that installs and runs on a real device (not only a simulator); a GitHub repository with the full source that someone else can clone, build and run by following the README; a demo video of about **three minutes** showing the full cycle from the real app on devnet; and a pitch deck. Judges score completion from the demo video and technical depth from the repository's commit history. The submitted APK is assumed to be the build judges install, so app fixes after the deadline are not assumed to reach them; contract fixes can (FR-007b). Every submission material is accurate — scripted members, the test network and test token, and every weakness named in the README are never hidden in the video or deck — because false or misleading materials disqualify the entry.
 
 ---
@@ -479,11 +475,11 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 | Entity | Holds | Notes |
 |---|---|---|
-| **League** | Duration, daily reps, its unlock requirement | Two exist, both staked. The Daily 25 is not a league. |
+| **League** | Duration, daily reps, its form (Easy or Hard) | Two exist, both staked, each open to every member (FR-003). The Daily 25 is not a league. |
 | **Cohort** | Its league, start, join cutoff (1 hour before start — joining and leaving both close), duration, daily reps, day length, its locked chip set (four SKR amounts), status, member count, prize pool, and — written once at settlement — finisher count, total finisher stake, the rounding remainder sent to the fee destination, and for a no-finisher cohort the pool sent to the fee destination. Its carry-over fields remain in the layout, always zero (2026-10-05) | Parameters immutable after creation (FR-007) |
 | **Chip set** | The four USD tiers, the SKR amount for each, the rate it was priced at, and the boundary from which it applies | One current set shared by both leagues; replaced by the Operator every week in the 4 hours before the cohorts open (FR-056). Each cohort keeps a copy of the set current at its creation. |
 | **Membership** | The member, the cohort, the SKR stake held, the chip tier chosen, days completed, status | The stake here is never pool money, and its SKR amount never changes after join (FR-058) |
-| **Progress** | Whether the member has qualified, and per league: cohorts cleared, cohorts forfeited, current league streak, longest league streak, and when these figures last changed | Qualification is permanent. Recorded from Phase 1 even though league leaderboards (FR-060) are Phase 2 — so they need no migration. The daily streak is separate, off-chain, and not part of this entity. |
+| **Progress** | Per league: cohorts cleared, cohorts forfeited, current league streak, longest league streak, and when these figures last changed | Recorded from Phase 1 even though league leaderboards (FR-060) are Phase 2 — so they need no migration. The daily streak is separate, off-chain, and not part of this entity. |
 | **Day progress** | Day index, banked reps (whole blocks of 10), verified reps in the current sitting, whether the day is complete | On the device only (FR-024a); a completed cohort day is recorded on-chain, a Daily 25 day never is |
 | **Sitting** | One continuous run of checks, the held start position and counting | Any number per day; each one re-verifies (FR-019, FR-020) |
 
@@ -609,7 +605,7 @@ At settlement, half goes to the fee destination and half carries over into the p
 
 The build is done when all of the following are demonstrable on devnet:
 
-1. A member joins a 7-day cohort, completes 7 days of verified sessions, claims a payout, and the 21-day unlock is recorded. With the gate flag flipped on, an account without that unlock is refused a 21-day join.
+1. A member joins a 7-day cohort, completes 7 days of verified sessions and claims a payout. A member with no 7-day history joins a 21-day cohort.
 2. A member joins a staked cohort, misses a day, and their stake appears in the pool minus exactly 30%.
 3. A cohort settles once, and two finishers with equal stakes receive byte-identical payouts. In a cohort whose shares do not divide exactly, every share is rounded down, the remainder reaches the fee destination at settlement, and the sum of all claims equals total finisher stake plus pool minus that remainder, to the unit.
 4. A finisher claims and the funds arrive.

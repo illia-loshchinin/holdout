@@ -62,7 +62,7 @@ class JourneyTest {
     @Test
     fun `a join is blocked by closed joining, a held lobby place, or an overlap`() {
         val other = SolanaPublicKey(ByteArray(32) { 2 })
-        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, false, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending, -1)
+        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending, -1)
         val lobby = start - day
         assertNull(Journey.joinBlocker(c, null, null, lobby))
         assertEquals(Journey.JoinBlocker.JoiningClosed, Journey.joinBlocker(c, null, null, start - 3_600))
@@ -70,5 +70,22 @@ class JourneyTest {
         assertEquals(Journey.JoinBlocker.Overlaps, Journey.joinBlocker(c, profile(running = ProfileSnapshot.Running(other, start + 1)), start + 1, lobby))
         assertNull(Journey.joinBlocker(c, profile(running = ProfileSnapshot.Running(other, start)), start, lobby), "back to back is fine")
         assertEquals(other, Journey.runningCohortFor(profile(running = ProfileSnapshot.Running(other, start)), lobby))
+    }
+
+    @Test
+    fun `after a forfeit the way back is the same league's next Holdout, never another league's (US-4)`() {
+        fun open(leagueId: Int, weeks: Int) = c.copy(leagueId = leagueId, start = start + weeks * 7 * day)
+        val sevenSoon = open(LeagueParams.LEAGUE_7D, 1)
+        val twentyOneLater = open(LeagueParams.LEAGUE_21D, 3)
+        val twentyOneSoon = open(LeagueParams.LEAGUE_21D, 2)
+        val testLobby = open(LeagueParams.TEST_LEAGUE_MIN + 4, 0)
+        val offers = listOf(sevenSoon, twentyOneLater, testLobby, twentyOneSoon)
+
+        assertEquals(twentyOneSoon, Journey.wayBack(c.copy(leagueId = LeagueParams.LEAGUE_21D), offers) { it }, "a 21-day forfeit: the earliest 21-day Holdout, though a 7-day one starts sooner")
+        assertEquals(sevenSoon, Journey.wayBack(c, offers) { it })
+        // Every test league is one lobby: a test cohort's way back is the test lobby, whatever its id.
+        assertEquals(testLobby, Journey.wayBack(c.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN + 1), offers) { it })
+        assertNull(Journey.wayBack(c.copy(leagueId = LeagueParams.LEAGUE_21D), listOf(sevenSoon, testLobby)) { it }, "none of its league open: no offer, not another league's")
+        assertNull(Journey.wayBack(c, emptyList<CohortSnapshot>()) { it })
     }
 }

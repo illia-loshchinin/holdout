@@ -145,9 +145,6 @@ impl PendingSlot {
 #[derive(InitSpace)]
 pub struct Profile {
     pub wallet: Pubkey,
-    /// Set on any 7-day clear and never cleared, whether or not the ladder gate
-    /// is on (FR-003a, FR-004).
-    pub qualified: bool,
     pub leagues: [LeagueProgress; LEAGUE_SLOTS],
     pub running: RunningSlot,
     pub pending: PendingSlot,
@@ -204,7 +201,6 @@ mod tests {
     fn profile() -> Profile {
         Profile {
             wallet: Pubkey::default(),
-            qualified: false,
             leagues: [LeagueProgress::default(); LEAGUE_SLOTS],
             running: RunningSlot::default(),
             pending: PendingSlot::default(),

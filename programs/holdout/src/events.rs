@@ -8,7 +8,6 @@ use anchor_lang::prelude::*;
 
 #[event]
 pub struct FlagsSet {
-    pub ladder_gate_enabled: bool,
     pub genesis_gate_enabled: bool,
 }
 

@@ -39,8 +39,6 @@ feeDestination: Address;
  * developer part of every forfeit and half of a no-finisher pool (H35).
  */
 developerDestination: Address; 
-/** `false` on devnet: both leagues are open from launch (FR-003). */
-ladderGateEnabled: boolean; 
 /** `false` on devnet: testers have no Seeker (research R17). */
 genesisGateEnabled: boolean; chipSet: ChipSet; faucet: Faucet; bump: number;  };
 
@@ -70,19 +68,17 @@ feeDestination: Address;
  * developer part of every forfeit and half of a no-finisher pool (H35).
  */
 developerDestination: Address; 
-/** `false` on devnet: both leagues are open from launch (FR-003). */
-ladderGateEnabled: boolean; 
 /** `false` on devnet: testers have no Seeker (research R17). */
 genesisGateEnabled: boolean; chipSet: ChipSetArgs; faucet: FaucetArgs; bump: number;  };
 
 /** Gets the encoder for {@link ConfigArgs} account data. */
 export function getConfigEncoder(): FixedSizeEncoder<ConfigArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['admin', getAddressEncoder()], ['operator', getAddressEncoder()], ['sponsor', getAddressEncoder()], ['skrMint', getAddressEncoder()], ['feeDestination', getAddressEncoder()], ['developerDestination', getAddressEncoder()], ['ladderGateEnabled', getBooleanEncoder()], ['genesisGateEnabled', getBooleanEncoder()], ['chipSet', getChipSetEncoder()], ['faucet', getFaucetEncoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: CONFIG_DISCRIMINATOR }));
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['admin', getAddressEncoder()], ['operator', getAddressEncoder()], ['sponsor', getAddressEncoder()], ['skrMint', getAddressEncoder()], ['feeDestination', getAddressEncoder()], ['developerDestination', getAddressEncoder()], ['genesisGateEnabled', getBooleanEncoder()], ['chipSet', getChipSetEncoder()], ['faucet', getFaucetEncoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: CONFIG_DISCRIMINATOR }));
 }
 
 /** Gets the decoder for {@link Config} account data. */
 export function getConfigDecoder(): FixedSizeDecoder<Config> {
-    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['admin', getAddressDecoder()], ['operator', getAddressDecoder()], ['sponsor', getAddressDecoder()], ['skrMint', getAddressDecoder()], ['feeDestination', getAddressDecoder()], ['developerDestination', getAddressDecoder()], ['ladderGateEnabled', getBooleanDecoder()], ['genesisGateEnabled', getBooleanDecoder()], ['chipSet', getChipSetDecoder()], ['faucet', getFaucetDecoder()], ['bump', getU8Decoder()]]);
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['admin', getAddressDecoder()], ['operator', getAddressDecoder()], ['sponsor', getAddressDecoder()], ['skrMint', getAddressDecoder()], ['feeDestination', getAddressDecoder()], ['developerDestination', getAddressDecoder()], ['genesisGateEnabled', getBooleanDecoder()], ['chipSet', getChipSetDecoder()], ['faucet', getFaucetDecoder()], ['bump', getU8Decoder()]]);
 }
 
 /** Gets the codec for {@link Config} account data. */
@@ -135,5 +131,5 @@ export async function fetchAllMaybeConfig(
 }
 
 export function getConfigSize(): number {
-  return 295;
+  return 294;
 }

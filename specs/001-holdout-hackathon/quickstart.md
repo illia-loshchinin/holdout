@@ -262,7 +262,7 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 
 | # | Scenario | How to run | Pass when |
 |---|---|---|---|
-| 1 | 7-day cycle, unlock, gate | *local*: join 7-day, 7 submits, settle, claim; flip `set_flags(ladder=true)`; try 21-day join with a fresh wallet | Claim lands; `Profile.qualified`; fresh wallet gets `LadderGateClosed` |
+| 1 | 7-day cycle; both leagues open | *local*: join 7-day, 7 submits, settle, claim; join a 21-day cohort with a fresh wallet that has no 7-day history (`tests/scenarios/open-leagues.spec.ts`) | Claim lands; the fresh wallet's 21-day join succeeds |
 | 2 | Forfeit fee | *local*: join, skip a day, `crank run` | Pool rises by 70 % of the stake; developer destination +10 %; operations (`fee_destination`) +10 %; the other 10 % stays in the vault as `boost_due` and `comeback_due` until finalize (FR-027) |
 | 3 | Equal stakes, equal payouts; remainder | *local*: V17 shape | Byte-identical payouts; remainder at fee destination; Σ claims = Σ stakes + pool − remainder |
 | 4 | Claim arrives | Devnet cohort #3 finisher | SKR balance increases by payout |

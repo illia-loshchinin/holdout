@@ -28,7 +28,8 @@ import holdout.core.Stage
 /**
  * The forfeit (US-4, FR-052, T070): what happened, plainly; that **the streak
  * is still alive** — a forfeit ends a Holdout, never the Daily 25 streak — and
- * the two ways back: today's Daily 25, and the next 7-day Holdout.
+ * the two ways back: today's Daily 25, and the next Holdout of the same league
+ * — the league the member chose, and the one a comeback refund pays on (FR-037e).
  */
 @Composable
 fun ForfeitScreen(
@@ -36,7 +37,7 @@ fun ForfeitScreen(
     stage: Stage.Forfeited,
     streak: Int,
     onDaily25: () -> Unit,
-    /** The next 7-day Holdout's stake sheet; null when none is open to join. */
+    /** The same league's next Holdout's stake sheet; null when none is open to join. */
     onNextHoldout: (() -> Unit)?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -65,6 +66,6 @@ fun ForfeitScreen(
         }
         SectionLabel("Two ways back")
         PrimaryButton("Today's Daily 25", onDaily25)
-        onNextHoldout?.let { SecondaryButton("The next 7-day Holdout", it) }
+        onNextHoldout?.let { SecondaryButton(if (h.isTest) "The next short test cohort" else "The next ${c.durationDays}-day Holdout", it) }
     }
 }

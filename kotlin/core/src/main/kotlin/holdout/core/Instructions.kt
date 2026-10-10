@@ -146,11 +146,11 @@ object Instructions {
         )
     }
 
-    /** `set_flags(ladder_gate_enabled, genesis_gate_enabled)` — admin only; the only difference between this build and an enforced ladder (AC-1). */
-    suspend fun setFlags(programId: SolanaPublicKey, admin: SolanaPublicKey, ladderGateEnabled: Boolean, genesisGateEnabled: Boolean): TransactionInstruction = TransactionInstruction(
+    /** `set_flags(genesis_gate_enabled)` — admin only; the only difference between this build and an enforced genesis gate (R17). */
+    suspend fun setFlags(programId: SolanaPublicKey, admin: SolanaPublicKey, genesisGateEnabled: Boolean): TransactionInstruction = TransactionInstruction(
         programId,
         listOf(AccountMeta(admin, true, false), AccountMeta(Pdas.config(programId), false, true)),
-        discriminator("set_flags") + byteArrayOf(ladderGateEnabled.byte(), genesisGateEnabled.byte()),
+        discriminator("set_flags") + byteArrayOf(genesisGateEnabled.byte()),
     )
 
     /**

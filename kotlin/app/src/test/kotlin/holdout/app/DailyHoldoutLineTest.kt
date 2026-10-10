@@ -18,7 +18,6 @@ class DailyHoldoutLineTest {
 
     private fun profile(comebackStake: ULong = 0uL, from: Long = 0, until: Long = 0) = ProfileSnapshot(
         SolanaPublicKey(ByteArray(32)),
-        false,
         listOf(ProfileSnapshot.LeagueProgress(0, 1, 0, 0, from, comebackStake, from, until)) + List(2) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) },
         null,
         null,
