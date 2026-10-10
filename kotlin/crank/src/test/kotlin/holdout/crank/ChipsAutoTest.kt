@@ -302,6 +302,20 @@ class ChipsAutoTest {
     }
 
     @Test
+    fun `given the window's last 90 seconds, when dry-run, then it still prices and simulates but says a real run would not publish now`() {
+        val c = cluster(now = lastSend + 1)
+        val json = auto(c, FixedRate(BigDecimal("0.03")), "--dry-run")
+        assertEquals("true", json.text("insideWindow"))
+        assertEquals("false", json.text("wouldPublishNow"))
+        assertEquals("2026-10-12T04:58:30Z", json.text("sendCutoff"))
+        assertEquals(1, c.sent("simulateTransaction").size)
+
+        assertEquals("true", auto(cluster(now = lastSend), FixedRate(BigDecimal("0.03")), "--dry-run").text("wouldPublishNow"))
+        assertEquals("false", auto(cluster(now = wednesday), FixedRate(BigDecimal("0.03")), "--dry-run").text("wouldPublishNow"))
+        assertEquals("false", auto(cluster(configBytes(publishedAt = inWindow)), FixedRate(BigDecimal("0.03")), "--dry-run").text("wouldPublishNow"))
+    }
+
+    @Test
     fun `given no rate or an unusable one, when dry-run, then the report still says whether a real run would publish now`() {
         for (rate in listOf(null, BigDecimal("2"))) {
             val outside = auto(cluster(now = wednesday), FixedRate(rate), "--dry-run")

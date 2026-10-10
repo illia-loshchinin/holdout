@@ -383,6 +383,7 @@ object Chips {
         fun JsonObjectBuilder.putWindow() {
             put("windowOpens", Instant.ofEpochSecond(window.first).toString())
             put("windowCloses", Instant.ofEpochSecond(window.last + 1).toString())
+            put("sendCutoff", Instant.ofEpochSecond(window.last + 1 - SEND_MARGIN_SECONDS).toString())
         }
 
         val alreadyThisWindow = onChain.chipPublishedAt in window
@@ -390,6 +391,8 @@ object Chips {
         fun JsonObjectBuilder.putWindowState() {
             put("insideWindow", insideWindow)
             if (alreadyThisWindow) put("alreadyPublishedThisWindow", true)
+            // What a real run at this chain time would do — a dry run goes on past every guard.
+            put("wouldPublishNow", insideWindow && !alreadyThisWindow && canSendIn(window, now))
         }
 
         fun report(published: Boolean, reason: String?, more: JsonObjectBuilder.() -> Unit = {}) = buildJsonObject {
