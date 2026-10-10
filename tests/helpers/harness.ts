@@ -35,6 +35,7 @@ import { fileURLToPath } from 'node:url';
 import { LiteSVM } from 'litesvm';
 import {
   addSignersToTransactionMessage,
+  address,
   appendTransactionMessageInstructions,
   createTransactionMessage,
   generateKeyPairSigner,
@@ -227,6 +228,32 @@ const mintBytes = (authority: Address | null, supply: bigint, decimals: number):
   return out;
 };
 
+/** The Token-2022 program, which owns every Seeker Genesis Token (research R17). */
+export const TOKEN_2022_PROGRAM = address('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
+
+/** The Seeker Genesis Token group (`genesis::SEEKER_GENESIS_GROUP`, research R17). */
+export const SEEKER_GENESIS_GROUP = address('GT22s89nU4iWFkNXj1Bw6uYhJJWDRPpShHt4Bk8f99Te');
+
+const TOKEN_GROUP_MEMBER_EXTENSION = 23;
+const ACCOUNT_TYPE_MINT = 1;
+
+const groupMemberMintBytes = (mint: Address, group: Address, memberNumber: bigint): Uint8Array => {
+  // Token-2022 mint with extensions: the 82-byte base, zeros up to the token
+  // account length (165), the account type byte, then one TLV entry — type u16,
+  // length u16 — holding TokenGroupMember { mint, group, member_number u64 }.
+  const enc = getAddressEncoder();
+  const out = new Uint8Array(166 + 4 + 72);
+  out.set(mintBytes(null, 1n, 0), 0);
+  out[165] = ACCOUNT_TYPE_MINT;
+  const view = new DataView(out.buffer);
+  view.setUint16(166, TOKEN_GROUP_MEMBER_EXTENSION, true);
+  view.setUint16(168, 72, true);
+  out.set(enc.encode(mint), 170);
+  out.set(enc.encode(group), 202);
+  view.setBigUint64(234, memberNumber, true);
+  return out;
+};
+
 // ---------------------------------------------------------------------- harness
 
 export interface HarnessOptions {
@@ -399,6 +426,22 @@ export class Harness {
   /** An SPL token account holding `amount`. */
   injectTokenAccount(at: Address, mint: Address, owner: Address, amount: bigint): Address {
     this.put(at, tokenAccountBytes(mint, owner, amount), TOKEN_PROGRAM);
+    return at;
+  }
+
+  /**
+   * A Token-2022 NFT mint that is a member of `group` — the Seeker Genesis
+   * group for a real Seeker Genesis Token. LiteSVM writes it directly, so no
+   * group authority signs, which is what lets a test show a fake group failing.
+   */
+  injectGroupMemberMint(mint: Address, group: Address = SEEKER_GENESIS_GROUP): Address {
+    this.put(mint, groupMemberMintBytes(mint, group, 1n), TOKEN_2022_PROGRAM);
+    return mint;
+  }
+
+  /** A Token-2022 token account holding `amount`. */
+  injectToken2022Account(at: Address, mint: Address, owner: Address, amount: bigint): Address {
+    this.put(at, tokenAccountBytes(mint, owner, amount), TOKEN_2022_PROGRAM);
     return at;
   }
 

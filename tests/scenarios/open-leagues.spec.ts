@@ -178,4 +178,48 @@ describe('both leagues open to every member (AC-1, FR-002, FR-003)', () => {
     await h.sendOrThrow([await setFlagsIx(admin.address, false)], admin);
     expect((await h.readConfig()).genesisGateEnabled).toBe(false);
   });
+
+  describe('with the Seeker Genesis Token gate on (FR-003b, AC-21, research R17)', () => {
+    /** A Token-2022 account of `owner` holding `amount` of a mint in `group`. */
+    const genesisToken = async (owner: Address, amount = 1n, group?: Address) => {
+      const mint = h.injectGroupMemberMint((await generateKeyPairSigner()).address, group);
+      const token = h.injectToken2022Account((await generateKeyPairSigner()).address, mint, owner, amount);
+      return { token, mint };
+    };
+
+    const gateOn = async () => {
+      const admin = h.upgradeAuthority;
+      await h.sendOrThrow([await setFlagsIx(admin.address, true)], admin);
+    };
+
+    const join = async (genesis?: { token: Address; mint: Address }) =>
+      h.send([await joinCohortIx(member.address, mint, LEAGUE_21D, 0, 1, undefined, genesis)], member);
+
+    it('takes a member who shows a Seeker Genesis Token', async () => {
+      await gateOn();
+      const joined = await join(await genesisToken(member.address));
+      expect(joined.ok, joined.logs.join('\n')).toBe(true);
+      expect((await h.readCohort(LEAGUE_21D, 0)).memberCount).toBe(1);
+    });
+
+    it('refuses a member who shows nothing', async () => {
+      await gateOn();
+      expectProgramError(await join(), 'GenesisGateClosed');
+    });
+
+    it('refuses an emptied account, someone else\'s token, and a mint of another group', async () => {
+      await gateOn();
+      expectProgramError(await join(await genesisToken(member.address, 0n)), 'GenesisGateClosed');
+      const stranger = await h.newWallet();
+      expectProgramError(await join(await genesisToken(stranger.address)), 'GenesisGateClosed');
+      const fake = (await generateKeyPairSigner()).address;
+      expectProgramError(await join(await genesisToken(member.address, 1n, fake)), 'GenesisGateClosed');
+      expect((await h.readCohort(LEAGUE_21D, 0)).memberCount, 'nothing was taken').toBe(0);
+    });
+
+    it('reads nothing while the flag is off, so a join without the token still lands', async () => {
+      const joined = await join();
+      expect(joined.ok, joined.logs.join('\n')).toBe(true);
+    });
+  });
 });
