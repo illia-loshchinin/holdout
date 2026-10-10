@@ -277,6 +277,8 @@ The book (`docs/design/`) has no word on Lab. To draw the boards above it needs,
 
 ## 10. Open points
 
-1. **The Lab icon under v2.** Today Lab uses the old 3×3 status-bar crowd in `accent`. With Holdout's icon now the 5×5 crowd and the H of seven, Lab's should speak the same language and still differ at a glance. Candidates, for the product owner: the same grid with the H drawn in `warning` (coral) instead of `accent`; the grid with an **L** of members; the H in `accent` with the other members at 12 % as in the launch loop's dim state. The brand rule "never recolour the members, never draw the H in anything but `accent`" is written for Holdout's own icon and may stay so if Lab's mark is a different letter.
-2. **Mode detail lines on L0.** Built as `45° · 40–60° · knees allowed` for both the Daily 25 and Easy, which reads as if they were the same mode. The Daily 25 counts and stores knee reps separately (the toes meter); the detail could say so, or the two rows could be one row with a note. Spec 002 FR-007 is the source.
-3. **Set count threshold.** Whether the footer warns when many sets are waiting on the phone, and at what number.
+Decided by the product owner on 2026-10-10 (to be built as code tasks on spec 004, and drawn):
+
+1. **The Lab icon under v2 — decided:** the same 5×5 crowd as Holdout's icon, with the H of seven drawn in **`warning`** (coral, `#FF623A`) instead of `accent`. One language, one shape; the colour says "test". The book's rule *"never draw the H in anything but `accent`"* is written for Holdout's own icon and gets one stated exception: Holdout Lab's launcher, themed and status-bar icons. Replaces today's 3×3 crowd in `src/lab/res/drawable/`.
+2. **Mode detail lines on L0 — decided: three different descriptions.** *Daily 25:* `45° · knees allowed · counts toes separately`. *Easy Holdout:* `45° · knees allowed · staked rules`. *Hard Holdout:* `45° · from the toes`. The three rows stay, because a trace carries its mode. Source: spec 002 FR-007 and `LabMode` in `lab/LabSettings.kt`.
+3. **Set count threshold — open:** whether the footer warns when many sets wait on the phone, and at what number. Low impact; decide when the Lab boards are drawn.
