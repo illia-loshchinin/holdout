@@ -95,6 +95,16 @@ def kotlin_colours() -> dict[str, str]:
     return vals
 
 
+# `letterSpacing = 0.02.em` or `letterSpacing = (-0.01).em` in a Compose TextStyle.
+TRACKING = r"letterSpacing\s*=\s*\(?(-?[\d.]+)\)?\.em"
+
+
+def em(value) -> float:
+    """A tracking value from tokens.json ("0", "0.02em", "-0.01em") as em units."""
+    s = str(value).strip()
+    return float(s[:-2]) if s.endswith("em") else float(s or 0)
+
+
 def px(v: str) -> float:
     return float(re.sub(r"[a-z%]+$", "", str(v)))
 
@@ -168,14 +178,25 @@ def check(report_only: bool) -> int:
             size = re.search(r"fontSize\s*=\s*([\d.]+)\.sp", block)
             line = re.search(r"lineHeight\s*=\s*([\d.]+)\.sp", block)
             wt = re.search(r"FontWeight\.(\w+)", block)
+            tracking = re.search(TRACKING, block)
             if s["name"] == "display" and "CounterStyle.copy(" in block[:40]:
-                # DisplayStyle = CounterStyle.copy(...) inherits the weight unless the copy overrides it
+                # DisplayStyle = CounterStyle.copy(...) inherits the weight and the tracking unless the copy overrides them
                 block = block.split("\n")[0]
-                wt = re.search(r"FontWeight\.(\w+)", block) or re.search(r"FontWeight\.(\w+)", type_src[type_src.find("val CounterStyle"):])
+                parent_start = type_src.find("val CounterStyle = TextStyle(") + len("val CounterStyle = TextStyle(")
+                parent = style_block(type_src, parent_start)
+                wt = re.search(r"FontWeight\.(\w+)", block) or re.search(r"FontWeight\.(\w+)", parent)
+                tracking = re.search(TRACKING, block) or re.search(TRACKING, parent)
             # A property the Kotlin style lost is drift too, not a reason to skip the style.
             for prop, found in (("fontSize", size), ("lineHeight", line), ("fontWeight", wt)):
                 if not found:
                     problems.append(f"type    {s['name']:<18} has no {prop} in Kotlin")
+            # Tracking: the book writes "0", "0.02em" or "-0.01em"; Compose leaves it unset when it is 0.
+            book_em = em(s.get("letterSpacing", "0"))
+            kt_em = float(tracking[1]) if tracking else 0.0
+            if tracking is None and book_em != 0:
+                problems.append(f"type    {s['name']:<18} has no letterSpacing in Kotlin (book {s['letterSpacing']})")
+            elif abs(book_em - kt_em) > 1e-6:
+                problems.append(f"type    {s['name']:<18} tracking book {s.get('letterSpacing', '0')} != Kotlin {kt_em}em")
             if size and px(s["fontSize"]) != float(size[1]):
                 problems.append(f"type    {s['name']:<18} size book {s['fontSize']} != Kotlin {size[1]}sp")
             if line and px(s["lineHeight"]) != float(line[1]):
