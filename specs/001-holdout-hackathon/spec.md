@@ -1,10 +1,10 @@
 # Holdout — feature specification (hackathon build)
 
-**Date:** 2026-09-15, last clarified 2026-09-18 · **Status:** clarified, planned and tasked — implementation starts at T001 · **Target:** CLOCK IN submission due 9 Oct 2026 08:59 CEST · judging 10 Oct – 9 Nov 2026
+**Date:** 2026-09-15, last clarified 2026-10-10 · **Status:** clarified, planned and tasked; implementation under way, tracked in `tasks.md` · **Target:** CLOCK IN submission due 13 Oct 2026 01:59 CEST · judging 13 Oct – 9 Nov 2026
 
-> This IS the spec-kit feature spec for `001-holdout-hackathon`. All open decisions in §9 are resolved (see Clarifications). Work is split into **Phase 1 (core)** and **Phase 2 (deferred)** — see §3a. The plan, its design artifacts and the 116-task list are written; next is `/speckit-implement`.
+> This IS the spec-kit feature spec for `001-holdout-hackathon`. All open decisions in §9 are resolved (see Clarifications). Work is split into **Phase 1 (core)** and **Phase 2 (deferred)** — see §3a. The plan, its design artifacts and the task list are written; what is built and what is left is tracked in `tasks.md`.
 > **This file describes *what* and *why* only.** Stack, accounts, PDAs, instruction signatures and framework choices belong in `plan.md`.
-> Governed by `.specify/memory/constitution.md`. Behavioural detail and the reasoning behind the cuts live in `docs/holdout_scope_and_state_machines.md`; screens, copy, verification rules and settlement test vectors for this build live in `docs/holdout_v1_prd.md`; the full post-hackathon product vision is archived in `docs/archive/holdout_v1_prd_full-vision_2026-09-15.md`, which this spec deliberately does **not** try to satisfy.
+> Governed by `.specify/memory/constitution.md`. **This spec and its design artifacts, with specs 002–004, are the only source of rules for this build** (2026-10-10). The reasoning behind the decisions is in `docs/holdout_decisions.md`; the screens as built are described in `docs/holdout_screen_map.md`, the look in `docs/design/` and the numbers the program must reproduce in `fixtures/`, and none of them decides anything. The hackathon PRD (v2.7, 18 September) is archived, unmaintained, as `docs/archive/holdout_v1_prd_hackathon-build_2026-09-18.md`; a `PRD §n` citation in this feature points there for origin only, and this spec wins wherever the two differ. The scope-and-state-machines document is retired (`git show 7dc976a:docs/holdout_scope_and_state_machines.md`). The full post-hackathon product vision is in git history (`git show ba1e06c:docs/archive/holdout_v1_prd_full-vision_2026-09-15.md`), and this spec deliberately does **not** try to satisfy it.
 
 ---
 
@@ -113,6 +113,7 @@ Product owner decisions, before the program is first deployed.
 ### Session 2026-10-10
 
 - Q: Does the 20% comeback refund keep deliberate forfeiture unprofitable? (FR-037d, FR-037e) → A: **Not with a 20% boost cap.** A group that forfeits on purpose into its own finisher recovers `0.7 × (1 + m) + r` per SKR lost once the league's reserves are full of honest members' money: with m = 0.20 and r = 0.20 that is **1.04**, and the decisions log's farm bound of 0.94 assumed r = 0.10. **The boost cap m drops to 10% of the cohort's own pool; the comeback refund r stays 20%**: the bound is 0.97 < 1, and from its own forfeits alone a group recovers 0.80. The average boost is unchanged (the reserve, 5% of forfeits, binds long before the cap); the cap bites only on small pools. Found by the Codex review of PR #28; decided by the product owner.
+- Q: Which documents may this spec and its design artifacts cite as a source of rules, now that `docs/` is pruned to the product being shipped? → A: **Only the spec-kit specs (this one and 002–004) under the constitution.** The hackathon PRD (v2.7, last revised 18 September) is archived as `docs/archive/holdout_v1_prd_hackathon-build_2026-09-18.md` and is history: a `PRD §n` citation in this feature names where a screen, copy or vector came from and decides nothing. The scope-and-state-machines document is retired; its one surviving note, the bounded-oracle pattern for per-member local midnight, is research R7. Decided by the product owner in the docs pruning (PR #39); updates the header and OD-1.
 
 ### Session 2026-10-09
 
@@ -563,7 +564,7 @@ The boundary instant is **05:00 UTC** — chosen for Europe and the Americas tog
 
 The boundary instant is a **property of the cohort**, so regional cohorts later are configuration, not redesign.
 
-Per-member local midnight, and the bounded-oracle pattern that would make it safe, are recorded in `docs/holdout_scope_and_state_machines.md` D-B for a global launch. Evaluating deadlines in a backend was considered and rejected there.
+Per-member local midnight, and the bounded-oracle pattern that would make it safe, are recorded in research R7 for a global launch. Evaluating deadlines in a backend was considered and rejected there.
 
 ### OD-2 · Stake chip amounts in SKR — **RESOLVED 2026-09-15: SKR chips tracking USD tiers, checked weekly, locked per cohort**
 
