@@ -25,6 +25,6 @@ fun TestSwitch(checked: Boolean, onChange: (Boolean) -> Unit, on: String, off: S
 fun RecordVideoSwitch(checked: Boolean, onChange: (Boolean) -> Unit) = TestSwitch(
     checked,
     onChange,
-    on = "TEST · recording sittings as video — only people who agreed in writing to be filmed",
-    off = "TEST · video recording off — only people who agreed in writing may be filmed",
+    on = "TEST · recording sets as video — only people who agreed in writing to be filmed",
+    off = "TEST · video off — only people who agreed in writing to be filmed",
 )

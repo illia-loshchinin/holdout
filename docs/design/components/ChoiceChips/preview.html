@@ -1,0 +1,35 @@
+<!-- @dsCard group="Inputs" height=120 subtitle="One of a few, remembered" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ChoiceChips — preview</title></head>
+<body>
+<div class="ho-stage" style="max-width:400px">
+  <div class="ho-choices" role="radiogroup" aria-label="Where was the phone?">
+    <button class="ho-choice" role="radio" aria-checked="false">front</button>
+    <button class="ho-choice" role="radio" aria-checked="false">30°</button>
+    <button class="ho-choice" role="radio" aria-checked="false">40°</button>
+    <button class="ho-choice" role="radio" aria-checked="true">45°</button>
+    <button class="ho-choice" role="radio" aria-checked="false">50°</button>
+    <button class="ho-choice" role="radio" aria-checked="false">60°</button>
+    <button class="ho-choice" role="radio" aria-checked="false">side</button>
+  </div>
+</div>
+<script>
+(function () {
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.ho-choice'));
+  function select(c, focus) { chips.forEach(function (o) { var on = o === c; o.setAttribute('aria-checked', on ? 'true' : 'false'); o.tabIndex = on ? 0 : -1; }); if (focus) c.focus(); }
+  chips.forEach(function (c, i) {
+    c.addEventListener('click', function () { select(c, false); });
+    c.addEventListener('keydown', function (e) {
+      var n = chips.length, to = null;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') to = (i + 1) % n;
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') to = (i - 1 + n) % n;
+      else if (e.key === 'Home') to = 0; else if (e.key === 'End') to = n - 1;
+      if (to === null) return; e.preventDefault(); select(chips[to], true);
+    });
+  });
+  select(chips.filter(function (c) { return c.getAttribute('aria-checked') === 'true'; })[0] || chips[0], false);
+})();
+</script>
+</body>
+</html>
