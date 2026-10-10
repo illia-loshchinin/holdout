@@ -350,3 +350,11 @@
 - [X] T126 [P] Sync the Operator docs to the window per plan: crank contract — `contracts/crank-cli.md` (the `chips publish --auto` row and the schedule paragraph), `research.md` R15 Phase 2, and `quickstart.md` (the hourly cron/Task Scheduler section and the AC-12 row): the hourly schedule stays, the command publishes once in Monday 01:00–05:00 UTC so the 05:00 cohort locks a set at most 4 hours old (partial)
 - [X] T127 [P] Name the publish window in the off-chain-rate row of `docs/weaknesses.json` ("re-priced every week, in the 4 hours before the next cohorts open") and re-render the README with `node scripts/render-weaknesses.mjs` per Constitution XI (partial)
 - [X] T128 [P] Log the 2026-10-10 decision in `docs/holdout_decisions.md` — the re-price publishes in the 4 hours before Monday 05:00 UTC, superseding the 2026-10-07 "first run after the boundary", and why (lobbies locked a week-old rate; a :00 run raced the opening) per plan: decision record (missing)
+
+---
+
+## Phase 16: Convergence
+
+- [ ] T129 [P] In `contracts/crank-cli.md`, add to the `chips publish --auto` row: no send starts in the window's last 90 seconds and the chain's time is read again just before sending, so a publish never lands after 05:00; such a run publishes nothing and reports "too late to land in the publish window"; every report, dry runs included, carries `insideWindow`, `alreadyPublishedThisWindow`, `sendCutoff` and `wouldPublishNow` per FR-056, AC-12 (partial)
+- [ ] T130 [P] In `quickstart.md`, say in the cron section that `--dry-run` reports `wouldPublishNow` and `sendCutoff` (04:58:30 UTC) and that a run in the window's last 90 seconds sends nothing, and add the last-90-seconds case to the AC-12 row per FR-056, AC-12 (partial)
+- [ ] T131 [P] In `research.md` R15 Phase 2, add the 90-second send cutoff and the chain-time re-check before sending, with why (a blockhash's life; a late send would reach only the next week's cohorts) per plan: research R15 (partial)
