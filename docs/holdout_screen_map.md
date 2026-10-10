@@ -10,7 +10,7 @@
 
 > **Two states, one map (decided 2026-10-10).** The boards and the cards describe the **target** navigation: a four-tab bar, *My Holdouts* (H0) and *Me* (W1). The build submitted on **13 October** ships the code as it is, **hub-and-spoke through Home** (`HoldoutApp.kt`): every screen returns to Home with "← Home", and Home carries the offers, the member's own Holdout cards, *Leaderboards*, *Get test tokens* and *About Holdout* below the hero. The bar, H0 and W1 are built after the submission. Each card says which of the two it is drawn for where it matters.
 
-**Decided 2026-10-10 (product owner):** the tab with the crowd is **Standing**; the fee sentence members read is *"80 % stays with members: 70 % to the prize pool, 10 % to this league's boost and comeback reserves. 20 % goes to the project."*; the levels are named **Easy · 7-day** and **Hard · 21-day**.
+**Decided 2026-10-10 (product owner):** the tab with the crowd is **Standing**; the fee sentence members read is *"Miss one and you lose your stake. 80 % of it stays with members: 70 % to the prize pool and 10 % to the boost and comeback reserves of Easy · 7-day Holdouts. 20 % goes to the project, and so does the prize pool if nobody finishes."* (reworded the same afternoon after the PR #36 review: member copy names a league's reserves by level and length, never "league"); the levels are named **Easy · 7-day** and **Hard · 21-day**.
 
 ## Contents
 
@@ -95,7 +95,7 @@ Never *cohort* in anything a member reads, and no names for the lengths: the num
 
 **Levels (H35, decided 2026-10-05; named 2026-10-10).** A Holdout's level is its form, and the level comes first: **Easy · 7-day** (push-ups from the knees count) and **Hard · 21-day** (from the toes only). On a card: **Easy · 7-day** · from 12 Oct. In a header label: `EASY · 7-DAY · FROM 12 OCT · DAY 3 OF 7`. The rule sentence a level carries is read the same everywhere it appears (002 FR-014). *Staked* is not a word members read; it is the code's name for the Hard rules.
 
-**The fee, in one sentence (decided 2026-10-10):** *80 % stays with members: 70 % to the prize pool, 10 % to this league's boost and comeback reserves. 20 % goes to the project.* Used on the stake sheet (H2) and the forfeit screen (H6); nowhere else are percentages shown. The reserves come back as the boost line on offers and the comeback line on Today and the claim.
+**The fee, in one sentence (decided 2026-10-10):** *Miss one and you lose your stake. 80 % of it stays with members: 70 % to the prize pool and 10 % to the boost and comeback reserves of Easy · 7-day Holdouts. 20 % goes to the project, and so does the prize pool if nobody finishes.* Used on the stake sheet (H2) and the forfeit screen (H6); nowhere else are percentages shown. The reserves come back as the boost line on offers and the comeback line on Today and the claim.
 
 ---
 
@@ -275,7 +275,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 4. Section label `LIVE RIGHT NOW` · mono hint `devnet · test SKR`
 5. Two live cards, read from devnet with no wallet:
    - running: `21-DAY · DAY 12` · `running` (green) · **189 / 312** still standing · prize pool `48,200 SKR`
-   - open: `EASY · 7-DAY · STARTS MONDAY` · `open` (accent) · **14** joined so far · at stake `12,500 SKR` · (when the league's reserve holds more than 0) *Prize boost: up to 480 SKR from this league's reserve when it settles* (green, FR-053)
+   - open: `EASY · 7-DAY · STARTS MONDAY` · `open` (accent) · **14** joined so far · at stake `12,500 SKR` · (when the league's reserve holds more than 0) *Prize boost: up to 480 SKR from the reserve of Easy · 7-day Holdouts when it settles* (green, FR-053)
 6. Spacer → **Connect wallet** (primary)
 7. Link: *No wallet yet?* (accent)
 
@@ -340,7 +340,7 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 1. `TODAY` label · streak chip (flame, mono `12`) right
 2. **Daily 25 card:** `THE DAILY 25` + `FREE` chip · **25** push-ups (60 px) · *all at once, or 10 at a time* · **Start** (primary) · `4h 06m left today` (mono, accent)
 3. Section label `HOLDOUTS OPEN TO JOIN` · hint `$10 – $100 in SKR`
-4. Offer cards, each with an outlined **Join** button. The title names the level and the length — **Easy · 7-day** · from 12 Oct, **Hard · 21-day** · from 12 Oct — and, while the league's boost reserve holds more than 0, a green line *Prize boost: up to 480 SKR from this league's reserve when it settles* (FR-053, FR-037d; "up to", never a promised amount; `home/HoldoutOffer.kt`). A short test Holdout is offered the same way with its `TEST COHORT · 10-MIN DAYS` badge and no mention of judges (FR-014 of spec 004):
+4. Offer cards, each with an outlined **Join** button. The title names the level and the length — **Easy · 7-day** · from 12 Oct, **Hard · 21-day** · from 12 Oct — and, while the league's boost reserve holds more than 0, a green line *Prize boost: up to 480 SKR from the reserve of Easy · 7-day Holdouts when it settles* (FR-053, FR-037d; "up to", never a promised amount; `home/HoldoutOffer.kt`). A short test Holdout is offered the same way with its `TEST COHORT · 10-MIN DAYS` badge and no mention of judges (FR-014 of spec 004):
    - **7-day** · from 12 Oct · `12,500 SKR` at stake · 14 joined · `closes in 6h 12m`
    - **21-day** · from 12 Oct · `9,000 SKR` at stake · 9 joined · **extra line** (green): `+2,400 SKR` *added to the prize pool*
      - **The extra line shows only the amount, never its source.** It covers any money added to a Holdout's prize beyond its members' stakes: today that's only carry-over (`carry_over_received`). Treasury top-ups and sponsorships are parked (§9). The board's *showExtra* tweak hides the line when there's nothing extra. If the source is ever shown, it belongs on the stake sheet (H2) or the detail screen (H4), not on this card.
@@ -368,7 +368,7 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 **On screen (as drawn, top → bottom)**
 1. `21-DAY · FROM 21 SEP · DAY 12 OF 21`
 2. **189** / 312 (68 px; total in 48 %) · `STILL STANDING` · ▲ *3 dropped since yesterday* (green)
-3. Card: **Prize pool** `48,200 SKR` · hairline · **Your share now** `255 SKR` / *≈ $6* · *+17 SKR since yesterday* (green) · *+ about 1,200 SKR boost from this league's reserve if anyone finishes* (green; only while the reserve holds more than 0; FR-037d, `home/CohortHome.kt`)
+3. Card: **Prize pool** `48,200 SKR` · hairline · **Your share now** `255 SKR` / *≈ $6* · *+17 SKR since yesterday* (green) · *+ about 1,200 SKR boost from the reserve of Hard · 21-day Holdouts if anyone finishes* (green; only while the reserve holds more than 0; FR-037d, `home/CohortHome.kt`)
 4. Bank ring (1 of 3 segments) with `10` · **10 banked today** · *one block of 10 · 15 reps to go*
 5. **Do 15 more** (primary)
 6. Footer row: flame `12` *day streak* · `4h 06m left` (mono, accent)
@@ -483,7 +483,7 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 3. Card: **Your stake** `1,250 SKR` / *≈ $25* · hairline · **At stake now** `12,500 SKR` · *14 joined* · (*extra* tweak) *+2,400 SKR added to the prize pool*, amount only · **Joining closes in** `6h 12m`
 4. *If nobody drops out, you get exactly your stake back.* With an extra: *…you get your stake back plus a share of the 2,400 SKR added.* (FR-041)
 5. **How reps are counted here** (drawn: a surface/3 row with a 45° phone icon, under the reassurance line): **Hard:** *At 45° only: phone on the floor ahead of your shoulder. Full push-ups from your toes — push-ups from the knees don't count.* **Easy:** *At 45° only. Push-ups from the knees count.* The sentence is the level's, read the same everywhere (FR-021a, 002 FR-012–FR-014); the sheet never shows the Hard rule on an Easy Holdout
-6. ➕ *Miss a day: your stake goes into the prize pool. 80 % stays with members: 70 % to the prize pool, 10 % to this league's boost and comeback reserves. 20 % goes to the project.* · *Leave for a full refund until joining closes.* (the fee sentence decided 2026-10-10; the code's *70 % to the pool and a 30 % fee…* and the board's *80 % to the pool, 20 % fee* both change, §7 #11)
+6. ➕ *Miss one and you lose your stake. 80 % of it stays with members: 70 % to the prize pool and 10 % to the boost and comeback reserves of Easy · 7-day Holdouts. 20 % goes to the project, and so does the prize pool if nobody finishes.* · *Leave for a full refund until joining closes.* (the fee sentence decided 2026-10-10; the code's *70 % to the pool and a 30 % fee…* and the board's *80 % to the pool, 20 % fee* both change, §7 #11)
 7. **Stake 1,250 SKR** (primary)
 8. `TEST NETWORK · TEST TOKEN`
 
@@ -535,7 +535,7 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 #### H6 · Forfeit
 **MUST · ✅ Built · 🎨 Drawn** (board *9 · Forfeit*; the *recorded* tweak shows the not-yet-recorded line) · `cohort/ForfeitScreen.kt` · PRD #9, US-4
 
-**On screen:** back · `21-DAY · FROM 21 SEP` · **You missed day 7.** (warning) · card: *You lasted 6 of 21 days. The deadline passed before day 7 reached the chain, so your stake of 1,250 SKR went into this Holdout's prize pool. 80 % stays with members: 70 % to the prize pool, 10 % to this league's boost and comeback reserves. 20 % goes to the project.* (+ *"final from the deadline; the record catches up on the next automation pass"* if not yet recorded) · *NICE, not built:* **the comeback**, one line: *Finish the next Easy · 7-day Holdout within 14 days and up to 250 SKR of this stake comes back.* (FR-037e) · card with green flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (primary) · **The next 21-day Holdout** (secondary — the same league as the one lost, US-4)
+**On screen:** back · `21-DAY · FROM 21 SEP` · **You missed day 7.** (warning) · card: *You lasted 6 of 21 days. The deadline passed before day 7 reached the chain, so your stake of 1,250 SKR went into this Holdout's prize pool. 80 % stays with members: 70 % to the prize pool, 10 % to league boost and comeback reserves. 20 % goes to the project.* (+ *"final from the deadline; the record catches up on the next automation pass"* if not yet recorded) · *NICE, not built:* **the comeback**, one line: *Finish the next Easy · 7-day Holdout within 14 days and up to 250 SKR of this stake comes back.* (FR-037e) · card with green flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (primary) · **The next 21-day Holdout** (secondary — the same league as the one lost, US-4)
 
 **As drawn:** a back button and `21-DAY · FROM 21 SEP` label · the tour's dot row at `DAY 7` (8 green, 5 faded, yours a hollow coral ring marked `you`) · **You missed day 7.** (30 px light, coral) · *The deadline passed before day 7 reached the chain, so your run in this Holdout has ended.* · card: **You lasted** `6 of 21 days` · **Your stake** `1,250 SKR` · hairline · *to this Holdout's prize pool* `1,000 SKR` · *fee, 20 %* `250 SKR` · (not recorded: *Final from the deadline. The on-chain record catches up on the next automation pass.*) · green-outlined card with the flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (white pill) · **The next 7-day** *· from 12 Oct* (outline). The same visual language as the tour, and no blame.
 
@@ -681,12 +681,12 @@ Where the draft says something the spec, the PRD or its own tokens note say diff
 | 8 | 3 · Today, 5 · Home | ~~Bottom bar icons have no labels~~ | ✅ **Fixed on the canvas (6 Oct):** every tab screen (Today, Home, My Holdouts, Holdout detail, Me) has a labelled bar: Today · Crowd · Holdouts · Me (*Crowd* becomes *Standing*, #12), working links, the current tab marked | accessibility, §3 |
 | 9 | 3 · Today | ~~`+2,400 SKR carried over` *from cohort 13*~~ | ✅ **Fixed on the canvas (5 Oct):** *"from a Holdout nobody finished"*; members never see cohort numbers | H28, `LadderScreen.kt` |
 | 10 | all | ~~No `TEST COHORT` badge anywhere~~ | ✅ **Fixed on the canvas (6 Oct):** a coral `TEST COHORT · 10-MIN DAYS` badge, shown by the *testCohort* tweak on Home and Lobby (the walkthrough already carries it) | README known weaknesses |
-| 11 | 4 · Stake, 9 · Forfeit | *80 % to the pool, 20 % fee* (and the code's *70 % to the pool and a 30 % fee, a third of which…*) | *80 % stays with members: 70 % to the prize pool, 10 % to this league's boost and comeback reserves. 20 % goes to the project.* — the board **and** `StakeSheet.kt`, `ForfeitScreen.kt` | decided 2026-10-10; FR-027 |
+| 11 | 4 · Stake, 9 · Forfeit | *80 % to the pool, 20 % fee* (and the code's *70 % to the pool and a 30 % fee, a third of which…*) | *Miss one and you lose your stake. 80 % of it stays with members: 70 % to the prize pool and 10 % to the boost and comeback reserves of Easy · 7-day Holdouts. 20 % goes to the project, and so does the prize pool if nobody finishes.* — the board **and** `StakeSheet.kt`, `ForfeitScreen.kt` | decided 2026-10-10; FR-027 |
 | 12 | every tab screen | The bar's second label reads *Crowd* | **Standing** | decided 2026-10-10 |
 | 13 | 27 · About | *Watch a full cycle*, known weaknesses, the scripted-wallet list | Devnet notice · the tour again · Disconnect wallet · one sentence on scripted members; nothing for judges | spec 004 FR-012, FR-015 |
 | 14 | Walkthrough board | Still on the canvas | Delete; A2 is gone | spec 004 |
 | 15 | 2 · Tour, 3 · Today, 4 · Stake, 8 · Lobby, 13 · Detail, 16 · Set-up | No level anywhere: *7-day*, *21-day*, one counting rule | **Easy · 7-day**, **Hard · 21-day**; the Easy rule sentence on Easy screens, the Hard one on Hard screens; tour cards 2 and 3 as built | H35, 002 FR-013, FR-014 |
-| 16 | 3 · Today, 5 · Home, 7 · Claim, 1 · First open | No boost line on offers, no boost estimate on Home, no comeback row on Claim, no comeback nudge | *Prize boost: up to N SKR from this league's reserve when it settles* on every offer with a reserve · *+ about N SKR boost … if anyone finishes* on Home · **Comeback** row on Claim · the comeback nudge on Today | FR-053, FR-037d, FR-037e |
+| 16 | 3 · Today, 5 · Home, 7 · Claim, 1 · First open | No boost line on offers, no boost estimate on Home, no comeback row on Claim, no comeback nudge | *Prize boost: up to N SKR from the reserve of Easy · 7-day Holdouts when it settles* on every offer with a reserve · *+ about N SKR boost … if anyone finishes* on Home · **Comeback** row on Claim · the comeback nudge on Today | FR-053, FR-037d, FR-037e |
 | 17 | — | No leaderboards board | **L1** under ∿ Standing, with its five variants | US-10, PR 20 |
 
 ---

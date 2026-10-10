@@ -27,9 +27,23 @@ class HoldoutPiecesTest {
 
     @Test
     fun `an offer shows the boost the league reserve can add, and nothing while it is empty`() {
-        assertEquals("Prize boost: up to 12.5 SKR from this league's reserve when it settles", boostLine(12_500_000uL))
-        assertNull(boostLine(0uL))
-        assertNull(boostLine(null), "a league not read yet")
+        assertEquals("Prize boost: up to 12.5 SKR from the reserve of Easy · 7-day Holdouts when it settles", boostLine(12_500_000uL, "Easy · 7-day"))
+        assertNull(boostLine(0uL, "Easy · 7-day"))
+        assertNull(boostLine(null, "Easy · 7-day"), "a league not read yet")
+    }
+
+    @Test
+    fun `the lost-stake sentence names the level and length, says where the pool goes when nobody finishes, and never says league`() {
+        val easy = CohortSnapshot(0, 0, 0, 0, 7, 25, 86_400, 0, listOf(1uL, 2uL, 3uL, 4uL), form = holdout.core.LeagueParams.FORM_KNEES_ALLOWED)
+        val hard = easy.copy(durationDays = 21, form = holdout.core.LeagueParams.FORM_TOES)
+        assertEquals(
+            "80 % of it stays with members: 70 % to the prize pool and 10 % to the boost and comeback reserves of Easy · 7-day Holdouts. " +
+                "20 % goes to the project, and so does the prize pool if nobody finishes.",
+            Format.lostStakeSplit(easy, "the prize pool"),
+        )
+        assertTrue("Hard · 21-day Holdouts" in Format.lostStakeSplit(hard, "this Holdout's prize pool"))
+        assertTrue("league" !in Format.lostStakeSplit(hard, "the prize pool").lowercase())
+        assertTrue(" %" !in Format.lostStakeSplit(easy, "the prize pool"), "a % never starts a line on its own")
     }
 
     @Test

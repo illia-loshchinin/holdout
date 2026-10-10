@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Holdout Lab: the same icon and splash, with the H in `warning`, so the
+         colour says "test" (004 research R8). -->
+    <color name="ic_launcher_h">#FFFF623A</color>
+</resources>

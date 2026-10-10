@@ -89,7 +89,7 @@ fun sittingVideo(context: Context, dir: File, stakes: String, onFailed: (what: S
 
 | Screen | Shows | Actions |
 |---|---|---|
-| **Choose** | Title "Holdout Lab"; three rows: *Daily 25*, *Easy Holdout · knees allowed · 40–60°*, *Hard Holdout · from the toes · 45°*; the switches *Record video* (consent wording from `RecordVideoSwitch`), *Clean screen*; *Target* (default 25); the count of traces on the phone; a "not saved" card for each label or video the last sets lost, until dismissed | Tap a row: start a set |
+| **Choose** | Title "Holdout Lab"; three rows with a detail line each *(wording decided 2026-10-10, revised the same day: the Daily 25 and the 7-day share the rules and the counting, the 21-day counts more strictly)*: *Daily 25* · `45° · knees allowed · counted as the 7-day`, *Easy Holdout* · `7-day · 45° · knees allowed`, *Hard Holdout* · `21-day · 45° · from the toes · the stricter count`; the switches *Record video* (consent wording from `RecordVideoSwitch`), *Clean screen*; *Target* (default 25); the count of traces on the phone; a "not saved" card for each label or video the last sets lost, until dismissed | Tap a row: start a set |
 | **Set** | The shared sitting: set-up guide, placement checks, counting; readouts on (unless clean screen) | Stop |
 | **Label** | The existing label dialog (002 FR-025) | Save, or skip; then back to Choose |
 

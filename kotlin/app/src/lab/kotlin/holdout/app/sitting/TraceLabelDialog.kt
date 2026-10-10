@@ -23,6 +23,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -121,7 +123,9 @@ private fun Counter(label: String, value: Int, onChange: (Int) -> Unit) {
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextPrimary)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { onChange(value - 1) }) { Text("−", style = MaterialTheme.typography.titleLarge, color = HoldoutColors.Accent) }
+            TextButton(onClick = { onChange(value - 1) }, modifier = Modifier.semantics { contentDescription = "Fewer ${label.lowercase()}" }) {
+                Text("−", style = MaterialTheme.typography.titleLarge, color = HoldoutColors.Accent)
+            }
             Text(
                 "$value",
                 style = CounterStyle.copy(fontSize = MaterialTheme.typography.titleLarge.fontSize),
@@ -129,7 +133,9 @@ private fun Counter(label: String, value: Int, onChange: (Int) -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.width(40.dp),
             )
-            TextButton(onClick = { onChange(value + 1) }) { Text("+", style = MaterialTheme.typography.titleLarge, color = HoldoutColors.Accent) }
+            TextButton(onClick = { onChange(value + 1) }, modifier = Modifier.semantics { contentDescription = "More ${label.lowercase()}" }) {
+                Text("+", style = MaterialTheme.typography.titleLarge, color = HoldoutColors.Accent)
+            }
         }
     }
 }
