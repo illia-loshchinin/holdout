@@ -138,16 +138,33 @@ object Chips {
         val askedDecimals = args.option("decimals")?.let { it.toIntOrNull() ?: configError("--decimals must be a whole number, got $it") }
         val askedDeadline = args.option("valid-until")?.let(::parseValidUntil)
 
+        // A set published by hand is refused from chain time + 10 minutes, unless
+        // the Operator gives another deadline (FR-055a): a signed set left pending
+        // never lands much later than the Operator expects. Derived the same way
+        // with or without the key, so a dry run says what a real run would sign.
+        fun deadlineAt(chainNow: Long): Long {
+            val validUntil = askedDeadline ?: (chainNow + HAND_DEADLINE_SECONDS)
+            if (validUntil <= chainNow) {
+                configError("--valid-until ${Instant.ofEpochSecond(validUntil)} is not after the chain's time, ${Instant.ofEpochSecond(chainNow)}; the program would refuse the set (6014)")
+            }
+            return validUntil
+        }
+
         val operatorPath = config.operatorKeypair
         if (operatorPath == null) {
             if (!args.dryRun) config.requireOperator()
-            // A dry run without the key can still show the set; it cannot build
-            // the transaction, which needs the signer.
+            // A dry run without the key can still show the set and its deadline;
+            // it cannot build the transaction, which needs the signer. It works
+            // offline too: with no answer from the chain the deadline goes unchecked
+            // and the report says so.
             val tiers = pricing { price(rate, askedDecimals ?: DEFAULT_SKR_DECIMALS) }
+            val chainNow = rpc.chainTime()?.unixSeconds
+            val validUntil = chainNow?.let(::deadlineAt) ?: askedDeadline
             return summary(rate, askedDecimals ?: DEFAULT_SKR_DECIMALS, tiers, dryRun = true) {
                 put("simulated", false)
                 put("sent", false)
-                askedDeadline?.let { put("validUntil", Instant.ofEpochSecond(it).toString()) }
+                put("validUntil", validUntil?.let { Instant.ofEpochSecond(it).toString() })
+                if (chainNow == null) put("deadlineNote", "the chain's time could not be read, so the deadline is unchecked; a real run signs chain time + 10 minutes unless --valid-until")
                 put("note", "set HOLDOUT_OPERATOR_KEYPAIR to build and simulate the transaction")
             }
         }
@@ -161,14 +178,7 @@ object Chips {
             configError("--decimals $askedDecimals disagrees with the SKR mint, which has $mintDecimals")
         }
         val tiers = pricing { price(rate, mintDecimals) }
-        // A set published by hand is refused from chain time + 10 minutes, unless
-        // the Operator gives another deadline (FR-055a): a signed set left pending
-        // never lands much later than the Operator expects.
-        val chainNow = rpc.chainTime()?.unixSeconds ?: failed("could not read the chain's time")
-        val validUntil = askedDeadline ?: (chainNow + HAND_DEADLINE_SECONDS)
-        if (validUntil <= chainNow) {
-            configError("--valid-until ${Instant.ofEpochSecond(validUntil)} is not after the chain's time, ${Instant.ofEpochSecond(chainNow)}; the program would refuse the set (6014)")
-        }
+        val validUntil = deadlineAt(rpc.chainTime()?.unixSeconds ?: failed("could not read the chain's time"))
         return sendSet(args, config, rpc, operator, configAddress, onChain, rate, mintDecimals, tiers, pause, validUntil, extra = { })
     }
 

@@ -317,11 +317,22 @@ class ChipsPublishTest {
     }
 
     @Test
-    fun `a dry run without the key still prices the set, and touches no cluster`() {
+    fun `a dry run without the key still prices the set and its deadline, and reads only the chain's time`() {
         val c = cluster()
         val json = publish(c, "--rate", "0.0213", "--dry-run", env = env - "HOLDOUT_OPERATOR_KEYPAIR")
         assertEquals("false", json.getValue("simulated").jsonPrimitive.content)
         assertEquals(priced.map { it.toLong() }, json.getValue("amounts").jsonArray.map { it.jsonPrimitive.long })
-        assertTrue(c.calls.isEmpty())
+        assertEquals("2026-10-10T12:10:00Z", json.getValue("validUntil").jsonPrimitive.content)
+        assertEquals(setOf("getSlot", "getBlockTime"), c.calls.map { it.getValue("method").jsonPrimitive.content }.toSet())
+    }
+
+    @Test
+    fun `a dry run without the key refuses an expired --valid-until, as a run with it does`() {
+        val e =
+            assertFailsWith<CrankException> {
+                publish(cluster(), "--rate", "0.0213", "--valid-until", "2026-10-10T11:00:00Z", "--dry-run", env = env - "HOLDOUT_OPERATOR_KEYPAIR")
+            }
+        assertEquals(EXIT_CONFIG, e.exitCode)
+        assertTrue(e.message!!.contains("6014"), e.message)
     }
 }
