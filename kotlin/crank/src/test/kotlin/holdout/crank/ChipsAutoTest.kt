@@ -258,6 +258,9 @@ class ChipsAutoTest {
         val json = auto(cluster(now = wednesday), FixedRate(BigDecimal("0.03")))
         assertEquals("2026-10-12T01:00:00Z", json.text("windowOpens"))
         assertEquals("2026-10-12T05:00:00Z", json.text("windowCloses"))
+        for (key in listOf("insideWindow", "alreadyPublishedThisWindow", "wouldPublishNow")) {
+            assertEquals("false", json.text(key), "$key is always in the report")
+        }
     }
 
     @Test

@@ -393,7 +393,7 @@ object Chips {
         fun JsonObjectBuilder.putWindowState(at: Long, sentNow: Boolean = false) {
             val already = alreadyThisWindow || sentNow
             put("insideWindow", at in window)
-            if (already) put("alreadyPublishedThisWindow", true)
+            put("alreadyPublishedThisWindow", already)
             // What a real run at this chain time would do — a dry run goes on past every guard.
             put("wouldPublishNow", at in window && !already && canSendIn(window, at))
         }
