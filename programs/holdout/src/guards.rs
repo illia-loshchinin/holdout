@@ -48,12 +48,6 @@ pub fn require_tier(tier: u8) -> Result<()> {
     Ok(())
 }
 
-/// The ladder gate: a 21-day join needs a cleared 7-day cohort, but only while
-/// the flag is on. The unlock is recorded either way (FR-003, FR-003a).
-pub fn ladder_gate_ok(enabled: bool, league_id: u8, qualified: bool) -> bool {
-    !enabled || league_id == crate::state::league::LEAGUE_7D || qualified
-}
-
 /// The genesis gate (research R17). `holds_genesis` is established by the
 /// instruction from the accounts it was passed; with the flag off, nothing is
 /// checked and no account is needed.
@@ -157,7 +151,7 @@ pub fn clear_instant(cohort: &Cohort) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::league::{DEVNET_DAY_LENGTH, DEVNET_JOIN_LOCK, LEAGUE_21D, LEAGUE_7D};
+    use crate::state::league::{DEVNET_DAY_LENGTH, DEVNET_JOIN_LOCK};
     use crate::state::profile::{PendingSlot, RunningSlot};
 
     const FIRST_START: i64 = 1_790_571_600;
@@ -215,7 +209,6 @@ mod tests {
     fn profile() -> Profile {
         Profile {
             wallet: Pubkey::default(),
-            qualified: false,
             leagues: Default::default(),
             running: RunningSlot::default(),
             pending: PendingSlot::default(),
@@ -303,20 +296,6 @@ mod tests {
             code_of(require_submittable(&membership(3), &c, 3, FIRST_START)),
             u32::from(HoldoutError::WrongDay),
             "6031 for the calendar day"
-        );
-    }
-
-    #[test]
-    fn the_ladder_gate_only_bites_when_it_is_on() {
-        assert!(
-            ladder_gate_ok(false, LEAGUE_21D, false),
-            "devnet: both leagues open (FR-003)"
-        );
-        assert!(!ladder_gate_ok(true, LEAGUE_21D, false));
-        assert!(ladder_gate_ok(true, LEAGUE_21D, true));
-        assert!(
-            ladder_gate_ok(true, LEAGUE_7D, false),
-            "the 7-day league never closes (FR-002)"
         );
     }
 

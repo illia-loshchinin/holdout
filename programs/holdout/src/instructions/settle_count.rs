@@ -27,7 +27,7 @@ use crate::{
     state::{
         cohort::{Cohort, COHORT_SEED, VAULT_SEED},
         config::{Config, CONFIG_SEED},
-        league::{LeagueConfig, LEAGUE_7D, LEAGUE_SEED},
+        league::{LeagueConfig, LEAGUE_SEED},
         membership::{Membership, MembershipState},
         profile::{Profile, PROFILE_SEED},
     },
@@ -235,12 +235,6 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleCount<'info>>) -> Result<
 
             let progress = profile.progress_mut(league_id);
             progress.record_clear(outcome_at);
-
-            // The 21-day unlock: recorded on every 7-day clear, whether or not
-            // the gate is on, and never cleared (T084, FR-003a, FR-004).
-            if league_id == LEAGUE_7D {
-                profile.qualified = true;
-            }
         } else {
             // Counted in a forfeited state, whenever that forfeit was recorded.
             let outcome_at = guards::forfeit_instant(membership, &ctx.accounts.cohort);

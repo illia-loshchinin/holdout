@@ -160,8 +160,7 @@ pub(crate) fn handler(
     config.skr_mint = ctx.accounts.skr_mint.key();
     config.fee_destination = ctx.accounts.fee_destination.key();
     config.developer_destination = ctx.accounts.developer_destination.key();
-    // Both gates are off in this build, and the README says why (FR-003, R17).
-    config.ladder_gate_enabled = false;
+    // The genesis gate is off in this build, and the README says why (R17).
     config.genesis_gate_enabled = false;
     // No chip set yet: `open_cohort` refuses until the Operator publishes one,
     // so no cohort can ever copy four zeroed amounts (FR-055b).

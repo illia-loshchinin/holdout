@@ -411,7 +411,6 @@ export class Harness {
       skrMint: NO_KEY,
       feeDestination: NO_KEY,
       developerDestination: NO_KEY,
-      ladderGateEnabled: false,
       genesisGateEnabled: false,
       chipSet: { amounts: DEFAULT_CHIPS, version: 1, publishedAt: BigInt(FIRST_START - WEEK), maxTopTier: DEFAULT_CHIPS[3] },
       faucet: {
@@ -595,7 +594,6 @@ export class Harness {
     };
     const profile: ProfileAccount = {
       wallet,
-      qualified: false,
       leagues: [{ ...zero }, { ...zero }, { ...zero }],
       running: { cohort: NO_KEY, end: 0n },
       pending: { cohort: NO_KEY, start: 0n, end: 0n },
@@ -747,7 +745,6 @@ export class Harness {
 
       return {
         wallet: p.wallet,
-        qualified: p.qualified,
         leagues,
         runningCohort: p.running.cohort === NO_KEY ? null : p.running.cohort,
         runningEnd: Number(p.running.end),

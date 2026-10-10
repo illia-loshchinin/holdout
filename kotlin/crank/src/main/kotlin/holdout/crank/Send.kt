@@ -26,6 +26,12 @@ internal suspend fun signAndSend(
     refusedMeans: String = "it did not land",
     /** What to do before running again when the outcome is unknown. */
     beforeRetrying: String = "check that signature, then run again",
+    /**
+     * Runs after the blockhash is read and the transaction signed, just
+     * before it is simulated or sent. It may throw to stop: nothing has been
+     * sent then.
+     */
+    afterSigning: suspend () -> Unit = {},
 ): String? {
     val blockhash = rpc.latestBlockhash() ?: failed("could not read a recent blockhash for $what")
     // Never Message.Builder directly: it miscounts an account with mixed flags (see Transactions).
@@ -39,6 +45,7 @@ internal suspend fun signAndSend(
         }
     val transaction = Transaction(signatures, message).serialize()
     val expected = Base58.encodeToString(signatures.first())
+    afterSigning()
 
     if (dryRun) {
         val simulation =

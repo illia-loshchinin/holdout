@@ -24,7 +24,7 @@ class LeaderboardTest {
 
     private val none = progress(0, 0)
 
-    private fun profile(n: Int, sevenDay: ProfileSnapshot.LeagueProgress = none, twentyOneDay: ProfileSnapshot.LeagueProgress = none, test: ProfileSnapshot.LeagueProgress = none) = ProfileSnapshot(key(n), qualified = false, leagues = listOf(sevenDay, twentyOneDay, test), running = null, pending = null, lastFaucetDay = -1)
+    private fun profile(n: Int, sevenDay: ProfileSnapshot.LeagueProgress = none, twentyOneDay: ProfileSnapshot.LeagueProgress = none, test: ProfileSnapshot.LeagueProgress = none) = ProfileSnapshot(key(n), leagues = listOf(sevenDay, twentyOneDay, test), running = null, pending = null, lastFaucetDay = -1)
 
     private fun cohort(leagueId: Int, counted: Long = 0, settled: Boolean = false, cohortStart: Long = start) = CohortSnapshot(
         leagueId = leagueId,

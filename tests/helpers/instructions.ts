@@ -217,35 +217,35 @@ export const createLeagueIx = async (
 const bool = (v: boolean) => new Uint8Array([v ? 1 : 0]);
 
 /**
- * `set_flags(ladder_gate_enabled, genesis_gate_enabled)` — admin only. The two
- * gates this build ships off, and flipping one is the *only* difference between
- * it and an enforced ladder (AC-1), which is why it is an instruction rather
- * than a redeploy.
+ * `set_flags(genesis_gate_enabled)` — admin only. The genesis gate ships off in
+ * this build, and flipping it is the *only* difference between it and an
+ * enforced gate, which is why it is an instruction rather than a redeploy.
+ * There is no ladder gate (FR-003).
  */
-export const setFlagsIx = async (
-  admin: Address,
-  ladderGateEnabled: boolean,
-  genesisGateEnabled: boolean,
-): Promise<Instruction> => ({
+export const setFlagsIx = async (admin: Address, genesisGateEnabled: boolean): Promise<Instruction> => ({
   programAddress: PROGRAM_ID,
   accounts: [roSigner(admin), rw(await configPda())],
-  data: concat(
-    instructionDiscriminator('set_flags'),
-    bool(ladderGateEnabled),
-    bool(genesisGateEnabled),
-  ),
+  data: concat(instructionDiscriminator('set_flags'), bool(genesisGateEnabled)),
 });
 
 // ------------------------------------------------------------ publish_chip_set
 
-/** `publish_chip_set(amounts: [u64; 4])` — the operator signs, and no price is passed (constitution III). */
+/** A deadline no scenario's clock reaches, for publishes that are not about the deadline. */
+export const NO_DEADLINE = 2n ** 63n - 1n;
+
+/**
+ * `publish_chip_set(amounts: [u64; 4], valid_until: i64)` — the operator signs,
+ * and no price is passed (constitution III); the set is refused at or after
+ * `validUntil` (6014, FR-055a, FR-056).
+ */
 export const publishChipSetIx = async (
   operator: Address,
   amounts: readonly [bigint | number, bigint | number, bigint | number, bigint | number],
+  validUntil: bigint | number = NO_DEADLINE,
 ): Promise<Instruction> => ({
   programAddress: PROGRAM_ID,
   accounts: [roSigner(operator), rw(await configPda())],
-  data: concat(instructionDiscriminator('publish_chip_set'), ...amounts.map(u64)),
+  data: concat(instructionDiscriminator('publish_chip_set'), ...amounts.map(u64), i64(validUntil)),
 });
 
 // ----------------------------------------------------------------- open_cohort

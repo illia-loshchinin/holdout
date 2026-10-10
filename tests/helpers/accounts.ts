@@ -157,7 +157,6 @@ export interface ConfigAccount {
   /** The operations destination (H35). */
   feeDestination: Address;
   developerDestination: Address;
-  ladderGateEnabled: boolean;
   genesisGateEnabled: boolean;
   chipSet: ChipSet;
   faucet: Faucet;
@@ -244,7 +243,6 @@ export interface PendingSlot { cohort: Address; start: bigint; end: bigint }
 
 export interface ProfileAccount {
   wallet: Address;
-  qualified: boolean;
   /** Slot 0 = 7-day, 1 = 21-day, 2 = every test league (`Profile::slot_of`). */
   leagues: [LeagueProgress, LeagueProgress, LeagueProgress];
   running: RunningSlot;
@@ -280,11 +278,11 @@ const pendingSlot = struct<PendingSlot>(
 const configCodec = struct<ConfigAccount>(
   {
     admin: pubkey, operator: pubkey, sponsor: pubkey, skrMint: pubkey, feeDestination: pubkey,
-    developerDestination: pubkey, ladderGateEnabled: bool, genesisGateEnabled: bool, chipSet, faucet, bump: u8,
+    developerDestination: pubkey, genesisGateEnabled: bool, chipSet, faucet, bump: u8,
   },
   [
     'admin', 'operator', 'sponsor', 'skrMint', 'feeDestination', 'developerDestination',
-    'ladderGateEnabled', 'genesisGateEnabled', 'chipSet', 'faucet', 'bump',
+    'genesisGateEnabled', 'chipSet', 'faucet', 'bump',
   ],
 );
 
@@ -330,11 +328,11 @@ const membershipCodec = struct<MembershipAccount>(
 
 const profileCodec = struct<ProfileAccount>(
   {
-    wallet: pubkey, qualified: bool,
+    wallet: pubkey,
     leagues: array(leagueProgress, 3) as unknown as Codec<ProfileAccount['leagues']>,
     running: runningSlot, pending: pendingSlot, lastFaucetDay: i64, bump: u8,
   },
-  ['wallet', 'qualified', 'leagues', 'running', 'pending', 'lastFaucetDay', 'bump'],
+  ['wallet', 'leagues', 'running', 'pending', 'lastFaucetDay', 'bump'],
 );
 
 // ---------------------------------------------------------------- discriminators

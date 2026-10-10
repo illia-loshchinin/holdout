@@ -1493,7 +1493,8 @@
     {
       "name": "publish_chip_set",
       "docs": [
-        "Operator only. Four SKR amounts, never a price (constitution III)."
+        "Operator only. Four SKR amounts, never a price (constitution III), and",
+        "the instant from which the set is refused (FR-055a, FR-056)."
       ],
       "discriminator": [
         104,
@@ -1539,6 +1540,10 @@
               4
             ]
           }
+        },
+        {
+          "name": "valid_until",
+          "type": "i64"
         }
       ]
     },
@@ -1628,7 +1633,7 @@
     {
       "name": "set_flags",
       "docs": [
-        "Admin only. The two gates this build ships off (FR-003, research R17)."
+        "Admin only. The genesis gate this build ships off (research R17)."
       ],
       "discriminator": [
         199,
@@ -1666,10 +1671,6 @@
         }
       ],
       "args": [
-        {
-          "name": "ladder_gate_enabled",
-          "type": "bool"
-        },
         {
           "name": "genesis_gate_enabled",
           "type": "bool"
@@ -2323,6 +2324,11 @@
       "msg": "A league's form is 0 (from the toes) or 1 (knees allowed)"
     },
     {
+      "code": 6014,
+      "name": "ChipSetExpired",
+      "msg": "This chip set reached its deadline before it landed"
+    },
+    {
       "code": 6020,
       "name": "CohortNotDue",
       "msg": "This cohort is not due yet, or its index is wrong"
@@ -2336,11 +2342,6 @@
       "code": 6022,
       "name": "InvalidTier",
       "msg": "A tier is 0, 1, 2 or 3"
-    },
-    {
-      "code": 6023,
-      "name": "LadderGateClosed",
-      "msg": "A 21-day Holdout needs a cleared 7-day one while the ladder gate is on"
     },
     {
       "code": 6024,
@@ -2823,13 +2824,6 @@
             "type": "pubkey"
           },
           {
-            "name": "ladder_gate_enabled",
-            "docs": [
-              "`false` on devnet: both leagues are open from launch (FR-003)."
-            ],
-            "type": "bool"
-          },
-          {
             "name": "genesis_gate_enabled",
             "docs": [
               "`false` on devnet: testers have no Seeker (research R17)."
@@ -2969,10 +2963,6 @@
       "type": {
         "kind": "struct",
         "fields": [
-          {
-            "name": "ladder_gate_enabled",
-            "type": "bool"
-          },
           {
             "name": "genesis_gate_enabled",
             "type": "bool"
@@ -3386,14 +3376,6 @@
           {
             "name": "wallet",
             "type": "pubkey"
-          },
-          {
-            "name": "qualified",
-            "docs": [
-              "Set on any 7-day clear and never cleared, whether or not the ladder gate",
-              "is on (FR-003a, FR-004)."
-            ],
-            "type": "bool"
           },
           {
             "name": "leagues",

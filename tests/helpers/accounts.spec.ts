@@ -44,8 +44,7 @@ const config: ConfigAccount = {
   skrMint: key(0x44),
   feeDestination: key(0x55),
   developerDestination: key(0x56),
-  ladderGateEnabled: true,
-  genesisGateEnabled: false,
+  genesisGateEnabled: true,
   chipSet: {
     amounts: [10_000_000n, 25_000_000n, 50_000_000n, 100_000_000n],
     version: 7,
@@ -127,7 +126,6 @@ const membership: MembershipAccount = {
 
 const profile: ProfileAccount = {
   wallet: key(0x99),
-  qualified: true,
   leagues: [
     {
       cleared: 5, forfeited: 2, currentStreak: 3, longestStreak: 4, lastChanged: 1_790_600_000n,
@@ -149,11 +147,11 @@ const profile: ProfileAccount = {
 };
 
 const cases = [
-  ['Config', Config, config, 295],
+  ['Config', Config, config, 294],
   ['LeagueConfig', LeagueConfig, leagueConfig, 68],
   ['Cohort', Cohort, cohort, 229],
   ['Membership', Membership, membership, 101],
-  ['Profile', Profile, profile, 258],
+  ['Profile', Profile, profile, 257],
 ] as const;
 
 describe.each(cases)('%s', (name, layout, expected, space) => {

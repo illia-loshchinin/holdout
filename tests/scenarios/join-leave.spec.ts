@@ -112,7 +112,6 @@ describe('join_cohort and leave_cohort (contracts §3)', () => {
       await h.sendOrThrow([await joinCohortIx(member.address, mint, LEAGUE, INDEX, 0)], member);
       const first = await h.readProfile(member.address);
       expect(first.wallet).toBe(member.address);
-      expect(first.qualified).toBe(false);
       expect(first.lastFaucetDay).toBe(-1n);
       for (const league of first.leagues) {
         expect(league.cleared).toBe(0);

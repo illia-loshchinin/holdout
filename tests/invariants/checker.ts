@@ -96,7 +96,6 @@ export interface LeagueProgressSnapshot {
 
 export interface ProfileSnapshot {
   wallet: Address;
-  qualified: boolean;
   /** Keyed by league id, as the program's three slots decode. */
   leagues: Record<number, LeagueProgressSnapshot>;
   runningCohort: Address | null;
@@ -1085,7 +1084,7 @@ export const assertSameProgress = (a: Snapshot, b: Snapshot): void => {
     JSON.stringify(
       [...s.profiles]
         .sort((x, y) => x.wallet.localeCompare(y.wallet))
-        .map((p) => [p.wallet, p.qualified, p.leagues]),
+        .map((p) => [p.wallet, p.leagues]),
       (_k, v) => (typeof v === 'bigint' ? v.toString() : v),
     );
   if (key(a) !== key(b)) fail('INV-9', 'two processing orders produced different progress');

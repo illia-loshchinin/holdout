@@ -26,19 +26,19 @@ Judges score completion from the demo video and technical depth from the GitHub 
 
 **Source:** constitution Hackathon Constraints and Governance; spec §1.
 
-### H2. The ladder: a free daily habit under two staked leagues
+### H2. A free daily habit beside two staked leagues *(ladder removed 2026-10-10, H37)*
 
 **Decided:**
 
 | Layer | What it is |
 |---|---|
 | **Daily challenge** | 25 push-ups, every day, free, for everyone. No cohort, no stake, no prize. Builds a cosmetic streak. |
-| **7-day league** | Staked, 25 reps/day. The entry rung and the comeback lane. **Never closes** — not on a clear, not on a forfeit. |
-| **21-day league** | Staked, 25 reps/day. Where the money is. |
+| **7-day league** | Staked, 25 reps/day, Easy. **Never closes** — not on a clear, not on a forfeit. |
+| **21-day league** | Staked, 25 reps/day, Hard. Open to every member, always. |
 
-Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off for the hackathon** (`ladder_gate_enabled = false`): both leagues are joinable from first launch, the unlock is still computed and recorded, and enabling the gate later is one flag, never a migration.
+~~Clearing a 7-day cohort permanently records the 21-day unlock, behind a gate flag that is off for the hackathon.~~ **Superseded by H37 (2026-10-10):** there is no ladder, no unlock and no gate flag; both leagues are open to every member at all times.
 
-**Why:** a free loop anyone can run on day one, forever, is a far stronger stickiness story than a cohort you must pay to enter. The 7-day league must never close because with no free cohort it is the only short way back after a forfeit. The gate is off so a judge reaches the 21-day league without spending a week first; it is a flag rather than deleted code so the repo still shows the designed ladder.
+**Why:** a free loop anyone can run on day one, forever, is a far stronger stickiness story than a cohort you must pay to enter. The 7-day league must never close because with no free cohort it is the only short way back after a forfeit. *(The gate reasoning that stood here — off for judges, kept as a flag to show the designed ladder — is withdrawn by H37.)*
 
 **Reverses:** the archived D3 (staked qualifier closes on a clear). **Supersedes:** archived D1 (three leagues) and D2 (free clear qualifies).
 
@@ -52,7 +52,7 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 **What was given up:** the free qualifying route, and with it the free-entry lane that made the product legal where paid entry is not. A launch concern, not a hackathon one. The "does this even work for my body, my camera, my room" objection is still answered for free by the daily challenge, which is the same session.
 
-**Supersedes:** archived D12 (free cohorts beside staked ones) and the free half of D14 (free week as comeback path). After a forfeit the app now offers today's daily challenge and the open 7-day cohort.
+**Supersedes:** archived D12 (free cohorts beside staked ones) and the free half of D14 (free week as comeback path). After a forfeit the app now offers today's daily challenge and the next cohort of the same league (H37).
 
 **Source:** spec US-1, US-4, US-8, FR-011, §8.2.
 
@@ -163,7 +163,7 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 **Why:** a 7-day cohort ends at the same instant the next one starts. Without a lobby place alongside a running cohort, every finisher — at their most motivated — sits out a week, and cohort #3's finishers could not appear in cohort #4 during filming.
 
-**Why unconditional is cheap when the PRD version was not:** PRD §5.6a's pre-join depended on clearing the current cohort and was refunded automatically on forfeit, which put refund transfers inside the forfeiture run (scope doc E8, compute budget unverified). With the gate off, a lobby place depends on nothing, so there is nothing to resolve.
+**Why unconditional is cheap when the PRD version was not:** PRD §5.6a's pre-join depended on clearing the current cohort and was refunded automatically on forfeit, which put refund transfers inside the forfeiture run (scope doc E8, compute budget unverified). With no gate, a lobby place depends on nothing, so there is nothing to resolve.
 
 **Still cut:** conditional pre-joining (constitution Hackathon Constraints, amended v1.1.0).
 
@@ -270,7 +270,6 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 | Weakness | Real fix |
 |---|---|
-| `ladder_gate_enabled = false` | Flip the flag; the unlock is already recorded |
 | `genesis_gate_enabled = false` | Flip the flag on mainnet |
 | Non-default `day_seconds` for test cohorts | Admin-guarded; mainnet cohorts cannot use it |
 | Client-signed completed-day attestation (scope doc D-E) | Server-side attestation signer, pinned traces |
@@ -672,6 +671,18 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 
 **Source:** spec clarifications, session 2026-10-06; constitution v2.0.0.
 
+### H37. No ladder: two separate leagues, both open to everyone
+
+**Decided (2026-10-10, product owner; constitution v2.2.0):** the 7-day (Easy) and 21-day (Hard) leagues are **two separate products for different people**. They do not contradict each other, so the 21-day league is never gated and never needs "qualification" through the 7-day one. The ladder gate is **deleted, not flagged off**: `Config.ladder_gate_enabled`, its `set_flags` parameter and `FlagsSet` field, the `join_cohort` check, `Profile.qualified` and the line of `settle_count` that set it are gone. Error **6023** (`LadderGateClosed`) is retired — never reused, and no other code moved. After a forfeit the way back is **the next cohort of the same league**, the one a comeback refund pays on.
+
+**Why:** the two leagues serve different audiences, so a gate between them only ever blocked people from the product they came for. A disabled flag kept a rule nobody wants any more, and a README weakness that described a choice, not a shortcut.
+
+**Account format:** the program was not on devnet when this was decided (2026-10-10), so the fields were removed outright — `Config` 295 → 294 bytes, `Profile` 258 → 257 — rather than kept as reserved bytes. No stored record changes format.
+
+**Supersedes:** the unlock and the gate of H2; the `ladder_gate_enabled` weakness of H16; US-5, FR-003a and FR-004 of the spec.
+
+**Source:** spec clarifications, session 2026-10-10; constitution v2.2.0; tasks T137–T151.
+
 ---
 
 ## 2. Still valid from the product-vision record
@@ -695,13 +706,13 @@ Carried forward unchanged; full reasoning in the archive.
 | Was | Where it lived | Replaced by |
 |---|---|---|
 | Three leagues: Push-Up 7d → Front Lever 21d → Human Flag 28d (30 reps) | archived D1 | H2 |
-| A free 7-day clear qualifies | archived D2 | H2, H3 |
+| A free 7-day clear qualifies | archived D2 | H2, H3, H37 — nothing qualifies |
 | Staked qualifier closes on a clear | archived D3 | H2 — the 7-day never closes |
 | Front Lever and Human Flag as permanent "homes" | archived D4 | H2 — two leagues only |
 | USD chip ladders ($5…$200), Human Flag doubled, ceilings lowered | archived D5, D6, D7 | H8 |
 | Free cohorts beside staked ones | archived D12 | H3 |
 | No-finisher pool split 50/50 with a carry-over into the league's open lobby; `deliver_carry_over` for a held one | H12, T099 | H34 — the whole pool to the fee destination |
-| Comeback path is the free week | archived D14 | H3 — daily challenge plus the open 7-day cohort |
+| Comeback path is the free week | archived D14 | H3, H37 — daily challenge plus the same league's next cohort |
 | Free 7-day → staked 21-day | scope doc D-I (first version) | H2 |
 | Fixed SKR chips 100 / 250 / 500 / 1,000 | scope doc D-C | H8 |
 | "Never show a dollar figure" | scope doc D-C | H8 — USD tier labels, marked approximate |
@@ -838,3 +849,5 @@ By decision, not by omission.
 | 2026-10-09 | **Prize boost shown from the lobby (FR-053), paid at settlement (FR-037d unchanged).** Every Holdout offered to join shows "Prize boost: up to N SKR from this league's reserve when it settles" when the reserve holds anything. It draws people in with no contract change and never pays out money nobody lost. Topping a pool up when a cohort opens was rejected for the hackathon. Decided in the plan-page thread (option A). |
 | 2026-10-10 | **Boost cap 10% (FR-037d); the comeback refund stays 20%.** The Codex review of PR #28 showed that with both at 20% a group forfeiting on purpose into its own finisher recovers 0.7 × 1.2 + 0.2 = 1.04 per SKR lost once the league's reserves hold honest members' money, against the 0.94 bound H35 recorded for a 10% refund. The product owner kept the 20% comeback members were promised and cut the boost cap to 10% of a cohort's own pool: the bound is 0.97. The average boost is unchanged, because the reserve (5% of forfeits) binds long before the cap; only small pools feel it. Program constant, Kotlin core, checker and golden vectors changed together. |
 | 2026-10-10 | **Fee sentence reworded after the PR #36 review (FR-041, FR-053; FR-027 unchanged).** The stake sheet and forfeit screen say "Miss one and you lose your stake. 80 % of it stays with members: 70 % to the prize pool and 10 % to the boost and comeback reserves of Easy · 7-day Holdouts. 20 % goes to the project, and so does the prize pool if nobody finishes." The morning's sentence contradicted "your stake goes into the prize pool", used the member-banned word "league" and was false when nobody finishes. Member copy names a league's reserves by level and length, so the boost lines read "…from the reserve of Easy · 7-day Holdouts…". Holdout Lab's mode lines now say the Daily 25 and the 7-day count the same way and the 21-day counts more strictly. Decided by the product owner. |
+| 2026-10-10 | **Chip set published in the 4 hours before the cohorts open** (FR-056, T125). `crank chips publish --auto` still runs hourly, but publishes only inside Monday 01:00–05:00 UTC, once per window, by chain time. Publishing on the first run after 05:00 came after that week's cohorts had already opened, so every lobby locked a rate about a week old (two by its join cutoff), and a run at `:00` raced the opening. Now a new lobby locks a rate at most 4 hours old and keeps it for every joiner; a window with no rate leaves the previous set (FR-057). Supersedes the 2026-10-07 "first run after the boundary". |
+| 2026-10-10 | **Constitution v2.2.0 and H37: no ladder.** The 7-day and 21-day leagues are separate products, both open to every member at all times. The ladder gate, its flag, `Profile.qualified` and error 6023 (retired, not reused) are deleted from the program, IDL, client, fixtures, Kotlin and crank; `qualify.spec.ts` becomes `open-leagues.spec.ts`; the README weakness row is gone. Spec FR-003 amended, FR-003a/FR-004 and US-5 removed; after a forfeit the way back is the same league (US-4). Removed outright, not as reserved bytes, because nothing was on devnet yet. |

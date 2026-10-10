@@ -185,9 +185,8 @@ describe('injected state reads back exactly', () => {
     const m = await h.readMembership(cohort, wallet);
     expect(m).toMatchObject({ daysCompleted: 4, state: 'Forfeited', tier: 1, stake: 25n * SKR, wallet, cohort });
 
-    await h.injectProfile(wallet, { qualified: true, lastFaucetDay: 9n });
+    await h.injectProfile(wallet, { lastFaucetDay: 9n });
     const p = await h.readProfile(wallet);
-    expect(p.qualified).toBe(true);
     expect(p.lastFaucetDay).toBe(9n);
     expect(await profilePda(wallet)).toBeDefined();
   });

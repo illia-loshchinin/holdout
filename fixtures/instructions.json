@@ -120,10 +120,9 @@
     {
       "name": "set_flags",
       "args": {
-        "ladderGateEnabled": true,
-        "genesisGateEnabled": false
+        "genesisGateEnabled": true
       },
-      "data": "c7366f7c572fd9c60100",
+      "data": "c7366f7c572fd9c601",
       "accounts": [
         {
           "address": "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4",
@@ -143,9 +142,10 @@
           "25000000",
           "50000000",
           "100000000"
-        ]
+        ],
+        "validUntil": 1790571600
       },
-      "data": "689bad3f4bb95eba809698000000000040787d010000000080f0fa020000000000e1f50500000000",
+      "data": "689bad3f4bb95eba809698000000000040787d010000000080f0fa020000000000e1f5050000000050f4b96a00000000",
       "accounts": [
         {
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",

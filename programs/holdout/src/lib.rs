@@ -85,9 +85,14 @@ pub mod holdout {
         )
     }
 
-    /// Operator only. Four SKR amounts, never a price (constitution III).
-    pub fn publish_chip_set(ctx: Context<PublishChipSet>, amounts: [u64; 4]) -> Result<()> {
-        instructions::publish_chip_set::handler(ctx, amounts)
+    /// Operator only. Four SKR amounts, never a price (constitution III), and
+    /// the instant from which the set is refused (FR-055a, FR-056).
+    pub fn publish_chip_set(
+        ctx: Context<PublishChipSet>,
+        amounts: [u64; 4],
+        valid_until: i64,
+    ) -> Result<()> {
+        instructions::publish_chip_set::handler(ctx, amounts, valid_until)
     }
 
     /// Permissionless: the caller pays the rent and nothing else (FR-030a).
@@ -143,12 +148,8 @@ pub mod holdout {
         instructions::top_up_sponsor::handler(ctx)
     }
 
-    /// Admin only. The two gates this build ships off (FR-003, research R17).
-    pub fn set_flags(
-        ctx: Context<SetFlags>,
-        ladder_gate_enabled: bool,
-        genesis_gate_enabled: bool,
-    ) -> Result<()> {
-        instructions::set_flags::handler(ctx, ladder_gate_enabled, genesis_gate_enabled)
+    /// Admin only. The genesis gate this build ships off (research R17).
+    pub fn set_flags(ctx: Context<SetFlags>, genesis_gate_enabled: bool) -> Result<()> {
+        instructions::set_flags::handler(ctx, genesis_gate_enabled)
     }
 }

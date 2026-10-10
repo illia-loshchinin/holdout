@@ -18,13 +18,14 @@ export const ERROR_CODES = {
   InvalidLeagueTiming: 6010,
   InvalidChipSet: 6011,
   ChipSetNotPublished: 6012,
+  ChipSetExpired: 6014,
   /** A league's form is 0 (from the toes) or 1 (knees allowed) — H35. */
   InvalidForm: 6013,
   // 6020–6026 · opening, joining and the lobby
   CohortNotDue: 6020,
   JoiningClosed: 6021,
   InvalidTier: 6022,
-  LadderGateClosed: 6023,
+  // 6023 was LadderGateClosed — retired with the ladder gate, never reused.
   GenesisGateClosed: 6024,
   LobbyPlaceTaken: 6025,
   ObligationsOverlap: 6026,

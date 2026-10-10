@@ -790,7 +790,6 @@ describe('given test leagues (league_id >= 100)', () => {
     });
     expect(profile.leagues[SLOT_7D]).toEqual(ZERO);
     expect(profile.leagues[SLOT_21D]).toEqual(ZERO);
-    expect(profile.qualified, 'only a 7-day clear unlocks the 21-day league').toBe(false);
   });
 
   it('when the member also has 7-day league progress, then test-league outcomes leave that slot exactly as it was', async () => {

@@ -36,7 +36,6 @@ class StatusTest {
             skrMint = key(0x44),
             feeDestination = key(0x55),
             developerDestination = key(0x56),
-            ladderGateEnabled = false,
             genesisGateEnabled = false,
             chipAmounts = listOf(460_000_000uL, 1_170_000_000uL, 2_340_000_000uL, 4_690_000_000uL),
             chipVersion = 1,

@@ -52,22 +52,30 @@ class InstructionsTest {
     }
 
     @Test
-    fun `publish_chip_set carries four little-endian amounts and nothing else`() = runBlocking {
+    fun `publish_chip_set carries four little-endian amounts and a deadline, and nothing else`() = runBlocking {
         val config = Pdas.config(programId)
         val amounts = listOf(460_000_000uL, 1_170_000_000uL, 2_340_000_000uL, ULong.MAX_VALUE)
-        val ix = Instructions.publishChipSet(programId, operator, config, amounts)
+        val deadline = 1_791_781_200L // Monday 12 October 2026, 05:00 UTC
+        val ix = Instructions.publishChipSet(programId, operator, config, amounts, deadline)
 
         assertEquals(programId, ix.programId)
-        assertEquals(8 + 32, ix.data.size, "discriminator and four u64s — no rate, no price (constitution III)")
+        assertEquals(8 + 32 + 8, ix.data.size, "discriminator, four u64s and an i64 deadline — no rate, no price (constitution III)")
         assertContentEquals(Instructions.discriminator("publish_chip_set"), ix.data.copyOf(8))
-        val body = ByteBuffer.wrap(ix.data, 8, 32).order(ByteOrder.LITTLE_ENDIAN)
+        val body = ByteBuffer.wrap(ix.data, 8, 40).order(ByteOrder.LITTLE_ENDIAN)
         assertEquals(amounts, List(4) { body.getLong().toULong() })
+        assertEquals(deadline, body.getLong())
+    }
+
+    @Test
+    fun `publish_chip_set args follow the IDL`() {
+        val args = idlPublish.getValue("args").jsonArray.map { it.jsonObject.getValue("name").jsonPrimitive.content }
+        assertEquals(listOf("amounts", "valid_until"), args)
     }
 
     @Test
     fun `publish_chip_set accounts follow the IDL, with the operator also paying`() = runBlocking {
         val config = Pdas.config(programId)
-        val ix = Instructions.publishChipSet(programId, operator, config, listOf(1uL, 2uL, 3uL, 4uL))
+        val ix = Instructions.publishChipSet(programId, operator, config, listOf(1uL, 2uL, 3uL, 4uL), 0L)
         val idlAccounts = idlPublish.getValue("accounts").jsonArray.map { it.jsonObject }
 
         assertEquals(idlAccounts.map { it.getValue("name").jsonPrimitive.content }, listOf("operator", "config"))
@@ -79,7 +87,7 @@ class InstructionsTest {
 
     @Test
     fun `a message built from it has the operator as its only signer and fee payer`() = runBlocking {
-        val ix = Instructions.publishChipSet(programId, operator, Pdas.config(programId), listOf(1uL, 2uL, 3uL, 4uL))
+        val ix = Instructions.publishChipSet(programId, operator, Pdas.config(programId), listOf(1uL, 2uL, 3uL, 4uL), 0L)
         val message =
             Message
                 .Builder()
@@ -95,7 +103,7 @@ class InstructionsTest {
     @Test
     fun `a chip set is exactly four amounts`() {
         assertFailsWith<IllegalArgumentException> {
-            Instructions.publishChipSet(programId, operator, operator, listOf(1uL, 2uL, 3uL))
+            Instructions.publishChipSet(programId, operator, operator, listOf(1uL, 2uL, 3uL), 0L)
         }
     }
 }

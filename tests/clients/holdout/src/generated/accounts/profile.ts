@@ -6,39 +6,29 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { assertAccountExists, assertAccountsExist, combineCodec, decodeAccount, fetchEncodedAccount, fetchEncodedAccounts, fixDecoderSize, fixEncoderSize, getAddressDecoder, getAddressEncoder, getArrayDecoder, getArrayEncoder, getBooleanDecoder, getBooleanEncoder, getBytesDecoder, getBytesEncoder, getI64Decoder, getI64Encoder, getStructDecoder, getStructEncoder, getU8Decoder, getU8Encoder, transformEncoder, type Account, type Address, type EncodedAccount, type FetchAccountConfig, type FetchAccountsConfig, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type MaybeAccount, type MaybeEncodedAccount, type ReadonlyUint8Array } from '@solana/kit';
+import { assertAccountExists, assertAccountsExist, combineCodec, decodeAccount, fetchEncodedAccount, fetchEncodedAccounts, fixDecoderSize, fixEncoderSize, getAddressDecoder, getAddressEncoder, getArrayDecoder, getArrayEncoder, getBytesDecoder, getBytesEncoder, getI64Decoder, getI64Encoder, getStructDecoder, getStructEncoder, getU8Decoder, getU8Encoder, transformEncoder, type Account, type Address, type EncodedAccount, type FetchAccountConfig, type FetchAccountsConfig, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type MaybeAccount, type MaybeEncodedAccount, type ReadonlyUint8Array } from '@solana/kit';
 import { getLeagueProgressDecoder, getLeagueProgressEncoder, getPendingSlotDecoder, getPendingSlotEncoder, getRunningSlotDecoder, getRunningSlotEncoder, type LeagueProgress, type LeagueProgressArgs, type PendingSlot, type PendingSlotArgs, type RunningSlot, type RunningSlotArgs } from '../types';
 
 export const PROFILE_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([184, 101, 165, 188, 95, 63, 127, 188]);
 
 export function getProfileDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(PROFILE_DISCRIMINATOR); }
 
-export type Profile = { discriminator: ReadonlyUint8Array; wallet: Address; 
-/**
- * Set on any 7-day clear and never cleared, whether or not the ladder gate
- * is on (FR-003a, FR-004).
- */
-qualified: boolean; leagues: Array<LeagueProgress>; running: RunningSlot; pending: PendingSlot; 
+export type Profile = { discriminator: ReadonlyUint8Array; wallet: Address; leagues: Array<LeagueProgress>; running: RunningSlot; pending: PendingSlot; 
 /** Global day index of the last faucet claim; `-1` = never (R13). */
 lastFaucetDay: bigint; bump: number;  };
 
-export type ProfileArgs = { wallet: Address; 
-/**
- * Set on any 7-day clear and never cleared, whether or not the ladder gate
- * is on (FR-003a, FR-004).
- */
-qualified: boolean; leagues: Array<LeagueProgressArgs>; running: RunningSlotArgs; pending: PendingSlotArgs; 
+export type ProfileArgs = { wallet: Address; leagues: Array<LeagueProgressArgs>; running: RunningSlotArgs; pending: PendingSlotArgs; 
 /** Global day index of the last faucet claim; `-1` = never (R13). */
 lastFaucetDay: number | bigint; bump: number;  };
 
 /** Gets the encoder for {@link ProfileArgs} account data. */
 export function getProfileEncoder(): FixedSizeEncoder<ProfileArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['wallet', getAddressEncoder()], ['qualified', getBooleanEncoder()], ['leagues', getArrayEncoder(getLeagueProgressEncoder(), { size: 3 })], ['running', getRunningSlotEncoder()], ['pending', getPendingSlotEncoder()], ['lastFaucetDay', getI64Encoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: PROFILE_DISCRIMINATOR }));
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['wallet', getAddressEncoder()], ['leagues', getArrayEncoder(getLeagueProgressEncoder(), { size: 3 })], ['running', getRunningSlotEncoder()], ['pending', getPendingSlotEncoder()], ['lastFaucetDay', getI64Encoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: PROFILE_DISCRIMINATOR }));
 }
 
 /** Gets the decoder for {@link Profile} account data. */
 export function getProfileDecoder(): FixedSizeDecoder<Profile> {
-    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['wallet', getAddressDecoder()], ['qualified', getBooleanDecoder()], ['leagues', getArrayDecoder(getLeagueProgressDecoder(), { size: 3 })], ['running', getRunningSlotDecoder()], ['pending', getPendingSlotDecoder()], ['lastFaucetDay', getI64Decoder()], ['bump', getU8Decoder()]]);
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['wallet', getAddressDecoder()], ['leagues', getArrayDecoder(getLeagueProgressDecoder(), { size: 3 })], ['running', getRunningSlotDecoder()], ['pending', getPendingSlotDecoder()], ['lastFaucetDay', getI64Decoder()], ['bump', getU8Decoder()]]);
 }
 
 /** Gets the codec for {@link Profile} account data. */
@@ -91,5 +81,5 @@ export async function fetchAllMaybeProfile(
 }
 
 export function getProfileSize(): number {
-  return 258;
+  return 257;
 }

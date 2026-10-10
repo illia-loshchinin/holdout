@@ -243,7 +243,7 @@ flowchart TB
     T2 -. "missed a deadline" .-> H6
     T2 -. "last day passed" .-> H4
     H6 -- "Today's Daily 25" --> S1
-    H6 -- "The next 7-day" --> H2
+    H6 -- "The next Holdout, same league" --> H2
     H7 -- "Claim ✍" --> H4
 
     %% me
@@ -535,13 +535,13 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 #### H6 · Forfeit
 **MUST · ✅ Built · 🎨 Drawn** (board *9 · Forfeit*; the *recorded* tweak shows the not-yet-recorded line) · `cohort/ForfeitScreen.kt` · PRD #9, US-4
 
-**On screen:** back · `21-DAY · FROM 21 SEP` · **You missed day 7.** (warning) · card: *You lasted 6 of 21 days. The deadline passed before day 7 reached the chain, so your stake of 1,250 SKR is lost. 80 % of it stays with members: 70 % to this Holdout's prize pool and 10 % to the boost and comeback reserves of Hard · 21-day Holdouts. 20 % goes to the project, and so does the prize pool if nobody finishes.* (+ *"final from the deadline; the record catches up on the next automation pass"* if not yet recorded) · *NICE, not built:* **the comeback**, one line: *Finish the next Easy · 7-day Holdout within 14 days and up to 250 SKR of this stake comes back.* (FR-037e) · card with green flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (primary) · **The next 7-day** (secondary)
+**On screen:** back · `21-DAY · FROM 21 SEP` · **You missed day 7.** (warning) · card: *You lasted 6 of 21 days. The deadline passed before day 7 reached the chain, so your stake of 1,250 SKR went into this Holdout's prize pool. 80 % stays with members: 70 % to the prize pool, 10 % to league boost and comeback reserves. 20 % goes to the project.* (+ *"final from the deadline; the record catches up on the next automation pass"* if not yet recorded) · *NICE, not built:* **the comeback**, one line: *Finish the next Easy · 7-day Holdout within 14 days and up to 250 SKR of this stake comes back.* (FR-037e) · card with green flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (primary) · **The next 21-day Holdout** (secondary — the same league as the one lost, US-4)
 
 **As drawn:** a back button and `21-DAY · FROM 21 SEP` label · the tour's dot row at `DAY 7` (8 green, 5 faded, yours a hollow coral ring marked `you`) · **You missed day 7.** (30 px light, coral) · *The deadline passed before day 7 reached the chain, so your run in this Holdout has ended.* · card: **You lasted** `6 of 21 days` · **Your stake** `1,250 SKR` · hairline · *to this Holdout's prize pool* `1,000 SKR` · *fee, 20 %* `250 SKR` · (not recorded: *Final from the deadline. The on-chain record catches up on the next automation pass.*) · green-outlined card with the flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (white pill) · **The next 7-day** *· from 12 Oct* (outline). The same visual language as the tour, and no blame.
 
 **Variants:** recorded / not yet recorded · tried to submit after the deadline (ES-4)
 
-**Exits:** Daily 25 → S1 · next 7-day → H2 sheet
+**Exits:** Daily 25 → S1 · the same league's next Holdout → H2 sheet
 
 #### H7 · Claim
 **MUST · ✅ Built · 🎨 Drawn** (board *7 · Claim*) · `claim/ClaimScreen.kt` · PRD #10, US-8, FR-035
@@ -747,7 +747,7 @@ The paths design has to make smooth, with the screens they cross. Times are PRD 
 - **J2 — Stake on yourself:** `T1` or `☰ H0` **Join** → `H2` sheet → *(short → `W1` sheet → back)* → `N3` (first join) → ✍ → `H3 Lobby` → *(Monday 05:00 UTC)* → `T2`
 - **J3 — A day inside a Holdout (PRD §10.3):** `N2` or app open → `T2` (*3 dropped since yesterday*) → **Do 15 more** → `S1…S6` → **Submit** ✍ → `T2` *on chain* · optionally `∿ H4 / H5`
 - **J4 — Change your mind before the start:** `☰ H0` → `H3` → **Leave — full refund** ✍ → `H0`. After the cutoff `H3` is locked.
-- **J5 — Miss a day, and the way back:** `T2` → *(deadline)* → `H6` → **Today's Daily 25** (`S1…`) or **The next 7-day** (`H2` → J2); for 14 days `T1` carries the comeback nudge, and finishing that Holdout pays the comeback with the claim (`H7`)
+- **J5 — Miss a day, and the way back:** `T2` → *(deadline)* → `H6` → **Today's Daily 25** (`S1…`) or **the same league's next Holdout** (`H2` → J2); for 14 days `T1` carries the comeback nudge, and finishing that Holdout pays the comeback with the claim (`H7`)
 - **J6 — Finish and get paid:** `T2` (last day) → `∿ H4` *settlement in progress* → *(settled)* → `H7` → **Claim** ✍ → claimed → `☰ H0` *Finished*
 - **J7 — Anyone, a judge included, sees the whole cycle:** the demo video (sent with the submission) · or, connected, `T1` → a short test Holdout → `H2` → its 10-minute days → settlement → `H7` claim, in about half an hour (FR-044a)
 - **J8 — Offline:** `T1` the Daily 25 works with no network. `T2` warns before starting; afterwards **Done — tap to submit** once online, and only before the deadline.

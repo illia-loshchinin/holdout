@@ -529,10 +529,11 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                 stage = stage as? Stage.Forfeited ?: Stage.Forfeited(target.membership?.daysCompleted ?: 0, recorded = false),
                 streak = streaks.read(wallet, dayIndex).current,
                 onDaily25 = goHome,
-                // The way back is the next 7-day Holdout's stake sheet, straight (screen map §8);
-                // none open to join right now, and the button is not shown.
+                // The way back is the same league's next Holdout, its stake sheet straight
+                // (US-4; the test lobby for a test cohort); none open to join right now, and
+                // the button is not shown.
                 onNextHoldout = chainNow?.let { now -> view?.openToJoin(now) }
-                    ?.firstOrNull { it.cohort.leagueId == LeagueParams.LEAGUE_7D }
+                    ?.let { open -> Journey.wayBack(target.cohort, open) { it.cohort } }
                     ?.let { next -> { route = Route.Stake(next.address) } },
                 onBack = goHome,
                 modifier = modifier,

@@ -33,6 +33,8 @@ pub enum HoldoutError {
     ChipSetNotPublished = 12,
     #[msg("A league's form is 0 (from the toes) or 1 (knees allowed)")]
     InvalidForm = 13,
+    #[msg("This chip set reached its deadline before it landed")]
+    ChipSetExpired = 14,
 
     // ---- 6020–6026 · opening, joining and the lobby ---------------------
     #[msg("This cohort is not due yet, or its index is wrong")]
@@ -41,8 +43,8 @@ pub enum HoldoutError {
     JoiningClosed = 21,
     #[msg("A tier is 0, 1, 2 or 3")]
     InvalidTier = 22,
-    #[msg("A 21-day Holdout needs a cleared 7-day one while the ladder gate is on")]
-    LadderGateClosed = 23,
+    // 23 (6023) was `LadderGateClosed`, deleted with the ladder gate on
+    // 2026-10-10 (FR-003). Retired: never reused, and no other code moves.
     #[msg("The genesis gate is on and this wallet did not pass it")]
     GenesisGateClosed = 24,
     #[msg("This wallet already holds a lobby place")]
@@ -121,11 +123,11 @@ mod tests {
         assert_eq!(code(HoldoutError::InvalidChipSet), 6011);
         assert_eq!(code(HoldoutError::ChipSetNotPublished), 6012);
         assert_eq!(code(HoldoutError::InvalidForm), 6013);
+        assert_eq!(code(HoldoutError::ChipSetExpired), 6014);
 
         assert_eq!(code(HoldoutError::CohortNotDue), 6020);
         assert_eq!(code(HoldoutError::JoiningClosed), 6021);
         assert_eq!(code(HoldoutError::InvalidTier), 6022);
-        assert_eq!(code(HoldoutError::LadderGateClosed), 6023);
         assert_eq!(code(HoldoutError::GenesisGateClosed), 6024);
         assert_eq!(code(HoldoutError::LobbyPlaceTaken), 6025);
         assert_eq!(code(HoldoutError::ObligationsOverlap), 6026);
