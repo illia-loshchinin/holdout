@@ -236,6 +236,7 @@ class ChipsAutoTest {
         val json = auto(c, slow)
         assertEquals("false", json.text("published"))
         assertEquals("too late to land in the publish window", json.text("reason"))
+        assertEquals("false", json.text("wouldPublishNow"), "the state at the second read, not the first")
         assertTrue(c.sent("simulateTransaction").isEmpty() && c.sent("sendTransaction").isEmpty())
     }
 

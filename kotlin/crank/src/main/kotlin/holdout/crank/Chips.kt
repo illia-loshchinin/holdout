@@ -388,20 +388,22 @@ object Chips {
 
         val alreadyThisWindow = onChain.chipPublishedAt in window
 
-        fun JsonObjectBuilder.putWindowState() {
-            put("insideWindow", insideWindow)
+        // The state at chain time [at]: the time read last, so a report never
+        // contradicts the guard that ended the run.
+        fun JsonObjectBuilder.putWindowState(at: Long) {
+            put("insideWindow", at in window)
             if (alreadyThisWindow) put("alreadyPublishedThisWindow", true)
             // What a real run at this chain time would do — a dry run goes on past every guard.
-            put("wouldPublishNow", insideWindow && !alreadyThisWindow && canSendIn(window, now))
+            put("wouldPublishNow", at in window && !alreadyThisWindow && canSendIn(window, at))
         }
 
-        fun report(published: Boolean, reason: String?, more: JsonObjectBuilder.() -> Unit = {}) = buildJsonObject {
+        fun report(published: Boolean, reason: String?, at: Long = now, more: JsonObjectBuilder.() -> Unit = {}) = buildJsonObject {
             put("command", "chips publish --auto")
             put("dryRun", args.dryRun)
             put("published", published)
             reason?.let { put("reason", it) }
             putWindow()
-            putWindowState()
+            putWindowState(at)
             put("lastPublished", Instant.ofEpochSecond(onChain.chipPublishedAt).toString())
             more()
         }
@@ -431,7 +433,7 @@ object Chips {
             put("command", "chips publish --auto")
             put("published", sent)
             putWindow()
-            putWindowState()
+            putWindowState(now)
             putJsonArray("previous") { onChain.chipAmounts.forEach { add(JsonPrimitive(it.toBig())) } }
         }
         if (operator == null) {
@@ -446,7 +448,7 @@ object Chips {
         // started now still lands before the window closes.
         if (!args.dryRun) {
             val sendAt = rpc.chainTime()?.unixSeconds ?: failed("could not read the chain's time")
-            if (!canSendIn(window, sendAt)) return report(false, TOO_LATE) { put("rate", rate.toPlainString()) }
+            if (!canSendIn(window, sendAt)) return report(false, TOO_LATE, at = sendAt) { put("rate", rate.toPlainString()) }
         }
         return sendSet(args, config, rpc, operator, configAddress, onChain, rate, decimals, tiers, pause, autoFields)
     }
