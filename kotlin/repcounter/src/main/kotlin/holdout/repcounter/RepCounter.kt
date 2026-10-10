@@ -264,10 +264,11 @@ enum class RepHint(val message: String) {
     UP_ON_YOUR_TOES("Knees off the floor"),
 
     /**
-     * Staked only: the near leg was not readable on the push or on the way
-     * down — the knee unseen, or at the picture's edge where the model
-     * guesses, or the foot slipping out of it — so nothing proved the knee off
-     * the floor.
+     * Every sitting (the Daily 25 since 8 Oct, 002 FR-007): the near leg was
+     * not readable on the push or on the way down — the knee unseen, or at the
+     * picture's edge where the model guesses, or the foot slipping out of it —
+     * so nothing proved the knee off the floor (Hard), nor let the body line
+     * and the hip rise be judged.
      */
     LEGS_IN_VIEW("Keep your legs in the picture"),
 
