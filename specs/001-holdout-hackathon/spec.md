@@ -144,6 +144,10 @@ Product owner decisions, from the PR #20 and #22 reviews.
 - Q: May a re-price started in the last moments of the publish window still send, given that it might land after 05:00 UTC, once the cohorts opening then have copied the previous set? (FR-056) → A: **No — no send starts in the window's last 90 seconds.** That is about a blockhash's life (the send is watched for 60 s), so a publish never lands after the boundary. The command reads the chain's time again just before sending, since fetching the rate and the mint takes time: a run in those last 90 seconds, or one whose rate fetch ran into them, publishes nothing and reports that it is too late, and the cohorts opening at 05:00 copy the previous set (FR-057). An hourly run at `:17` never meets it. *(PR #30 review.)*
 - Q: Since a transaction's blockhash lasts about 150 blocks rather than a fixed 90 seconds, how is a chip set kept from landing after 05:00 if block production slows, and what deadline does a set published by hand carry? (FR-055a, FR-056) → A: **The contract enforces it: every chip set is published with a deadline, and the contract refuses one that lands at or after it.** The weekly re-price signs the window's close, Monday 05:00 UTC, so a late set is refused instead of reaching only the next week's cohorts; the 90-second cutoff stays as the crank's own margin. A set published by hand (FR-055a) carries **chain time + 10 minutes** by default, and the Operator may give another deadline explicitly. The deadline is a time, never a price or a fiat figure (constitution III). *(PR #30 review.)*
 
+Spec consistency, from the analysis of PR #41:
+
+- Q: Should the sitting flow drop the `Liveness` state, so a sitting runs `Idle` → `Preflight` → `Countdown` → `Counting` with the held start position as the only gate before the countdown? (FR-020, US-3, §8.3) → A: **Yes.** The palm check was dropped on 2026-09-22 (FR-020, OD-3, T047) and nothing took its place as a liveness check: holding the start position is a readiness check. §8.3 loses the `Liveness` state and its rows, US-3 no longer promises that a live human is verified, and the Android contract's sitting row loses `Liveness` and the palm-timeout variant.
+
 Product owner decision: the two leagues serve different audiences.
 
 - Q: Is there a ladder between the leagues — must a member clear a 7-day Holdout before the 21-day league opens to them? (FR-003, US-5) → A: **No — the ladder gate and the notion of qualification are deleted, not flagged off.** The 7-day (Easy) and 21-day (Hard) leagues are two separate products for different people and do not contradict each other, so the 21-day league is open to every member at all times and never needs "qualification" through the 7-day one. Nothing is unlocked by a clear, nothing is recorded as an unlock, and no flag remains that could restore the gate. *(Replaces FR-003, FR-003a, FR-004 and US-5; constitution v2.2.0.)*
@@ -227,10 +231,10 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 **Given** a member's cohort is running and today's reps are not yet done
 **When** they start a sitting
-**Then** the app checks the environment and refuses to start until every check passes, telling them exactly what to fix; verifies a live human is present; counts reps that meet the form rules and silently discards ones that do not; banks every block of 10 verified reps on the device; and the moment the banked total reaches the day's requirement, records the day as complete.
+**Then** the app checks the environment and refuses to start until every check passes, telling them exactly what to fix; waits until they hold the start position, a readiness check and not a liveness check (FR-020, OD-3); counts reps that meet the form rules and silently discards ones that do not; banks every block of 10 verified reps on the device; and the moment the banked total reaches the day's requirement, records the day as complete.
 
 **And given** they stop part-way — say after 10, then come back for 10 more, then 5
-**Then** each sitting starts with the checks and the liveness step again, banked blocks carry across sittings for the whole day, and reps short of the next block of 10 when a sitting ends are not kept.
+**Then** each sitting starts with the checks and the held start position again, banked blocks carry across sittings for the whole day, and reps short of the next block of 10 when a sitting ends are not kept.
 
 **And** the survivor counter, the prize figure and their own day counter update on completion.
 
@@ -520,15 +524,14 @@ Leaving the lobby is a transition out of `Pending`, not out of `Active`. A `Pend
 
 ### 8.3 Sitting and day progress
 
-A sitting: `Idle` → `Preflight` → `Liveness` → `Countdown` → `Counting`, then either back to `Idle` (sitting ended) or on to `Completed` → `Submitted`.
+A sitting: `Idle` → `Preflight` → `Countdown` → `Counting`, then either back to `Idle` (sitting ended) or on to `Completed` → `Submitted`.
 
 | From → To | Trigger | Effect |
 |---|---|---|
 | `Idle → Preflight` | member starts a sitting | shows reps still needed and time left; warns in the last 10 minutes (FR-047) |
 | `Preflight → Idle` | an environment check fails | nothing banked changes |
-| `Preflight → Liveness → Countdown → Counting` | checks pass, live human confirmed | — |
 | `Preflight → Countdown` | four checks green **and** the start position held about a second | no tap; spoken countdown; leaving the position restarts the hold and nothing banked changes (FR-020) |
-| `Liveness → Idle` | member cancels | nothing banked changes |
+| `Preflight` or `Countdown → Idle` | member cancels | nothing banked changes |
 | within `Counting` | every 10th verified rep of the day | a block of 10 is banked on the device |
 | `Counting → Idle` | sitting ends — member stops, app closes or crashes | reps short of the next block of 10 are discarded; banked blocks kept for the day |
 | `Counting → Completed` | banked + current verified reps reach the day's requirement | the day is done |
