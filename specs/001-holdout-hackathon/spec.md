@@ -147,6 +147,7 @@ Product owner decisions, from the PR #20 and #22 reviews.
 Spec consistency, from the analysis of PR #41:
 
 - Q: Should the sitting flow drop the `Liveness` state, so a sitting runs `Idle` → `Preflight` → `Countdown` → `Counting` with the held start position as the only gate before the countdown? (FR-020, US-3, §8.3) → A: **Yes.** The palm check was dropped on 2026-09-22 (FR-020, OD-3, T047) and nothing took its place as a liveness check: holding the start position is a readiness check. §8.3 loses the `Liveness` state and its rows, US-3 no longer promises that a live human is verified, and the Android contract's sitting row loses `Liveness` and the palm-timeout variant.
+- Q: When an environment check fails, does the sitting end, or stay in pre-flight showing that check's fix, with a failure during the countdown going back to pre-flight? (FR-019, FR-020, §8.3) → A: **It never ends on a failed check.** In `Preflight` the failing check shows its fix and the sitting waits; the still-background check only advises (FR-019). During `Countdown`, a gating check failing, the camera view changing or the plank breaking returns to `Preflight` and the hold starts again (FR-020). Nothing banked changes either way; only the member cancelling, or the sitting ending, leads back to `Idle`.
 
 Product owner decision: the two leagues serve different audiences.
 
@@ -529,7 +530,8 @@ A sitting: `Idle` → `Preflight` → `Countdown` → `Counting`, then either ba
 | From → To | Trigger | Effect |
 |---|---|---|
 | `Idle → Preflight` | member starts a sitting | shows reps still needed and time left; warns in the last 10 minutes (FR-047) |
-| `Preflight → Idle` | an environment check fails | nothing banked changes |
+| within `Preflight` | a gating check fails | that check shows what to fix and the sitting waits; the still-background check only advises (FR-019); nothing banked changes |
+| `Countdown → Preflight` | a gating check fails, the camera view changes or the plank breaks before "go" | back to the checks; the hold starts again; nothing banked changes (FR-020) |
 | `Preflight → Countdown` | four checks green **and** the start position held about a second | no tap; spoken countdown; leaving the position restarts the hold and nothing banked changes (FR-020) |
 | `Preflight` or `Countdown → Idle` | member cancels | nothing banked changes |
 | within `Counting` | every 10th verified rep of the day | a block of 10 is banked on the device |
