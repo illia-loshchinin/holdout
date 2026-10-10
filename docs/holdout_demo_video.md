@@ -20,7 +20,7 @@ Both are cut from the same footage. Until they exist, the app says "Walkthrough 
 
 ## 2. Storyboard — 3:00
 
-Screen numbers are the PRD's screen inventory (§10.1).
+Screen numbers are the hackathon PRD's screen inventory (§10.1 of `docs/archive/holdout_v1_prd_hackathon-build_2026-09-18.md`, archived); the same screens as built are the cards in `docs/holdout_screen_map.md`.
 
 | Time | Beat | On screen | Filmed |
 |---|---|---|---|
@@ -103,7 +103,7 @@ Keep it in this file or beside the footage; the README's "how to verify" section
 - **Submission export:** 16:9, 1080p, H.264, about 3:00.
 - **In-app export:** 9:16, 720×1280, H.264 at about 1.5 Mbps → roughly 34 MB, inside the 40 MB budget. Check the file size before it goes into the APK.
 - **Music:** only tracks that are licensed for this use, or none.
-- **Cards and captions** use the app's own tokens (PRD §11): black canvas, white text, `#80ECFF` for emphasis, `#14F195` for the claim moment, and the Solana gradient only on the end card. Captions in Roboto, amounts in JetBrains Mono, so the video and the app look like one thing.
+- **Cards and captions** use the app's own tokens (`docs/design/tokens.json`): black canvas, white text, `#80ECFF` for emphasis, `#14F195` for the claim moment, and the Solana gradient only on the end card. Captions in Roboto, amounts in JetBrains Mono, so the video and the app look like one thing.
 
 ## 8. Rules
 

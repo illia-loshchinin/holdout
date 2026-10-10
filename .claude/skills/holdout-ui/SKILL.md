@@ -20,9 +20,9 @@ Read, in one go:
 5. The nearest existing screen (`home/HomeScreen.kt`, `claim/ClaimScreen.kt`, `lobby/LobbyScreen.kt`)
    to match local conventions.
 
-If the screen is new, also read its entry in `docs/holdout_screen_map.md` and the PRD section it
-cites (`docs/holdout_v1_prd.md` §11 for visuals). Product behaviour comes from the spec, not from
-the design book: if the two disagree, stop and say so. Spec-kit files (`specs/*`) change only
+If the screen is new, also read its card in `docs/holdout_screen_map.md` (or
+`docs/holdout_lab_screen_map.md` for Holdout Lab); the archived PRD a card cites is the screen's
+origin, never a source. Product behaviour comes from the spec, not from the design book: if the two disagree, stop and say so. Spec-kit files (`specs/*`) change only
 through the `/speckit-*` skills — never edit them from here (see `CLAUDE.md`).
 
 ## Hard rules
