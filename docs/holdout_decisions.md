@@ -1,6 +1,6 @@
 # Holdout — decision record
 
-**Companion to `specs/001-holdout-hackathon/spec.md` and `.specify/memory/constitution.md` (v1.3.1).** The spec says *what to build*. The constitution says *what may never be violated*. This file says *why it is that way, what was tried and rejected, and what is still open* — so settled questions are not reopened by accident.
+**Companion to `specs/001-holdout-hackathon/spec.md` and `.specify/memory/constitution.md` (v2.2.0).** The spec says *what to build*. The constitution says *what may never be violated*. This file says *why it is that way, what was tried and rejected, and what is still open* — so settled questions are not reopened by accident.
 
 **Precedence when documents disagree:** constitution → spec → this file. The specs (`specs/001-holdout-hackathon` with 002, 003 and 004) are the only description of what is built. `docs/holdout_screen_map.md` and `docs/holdout_lab_screen_map.md` describe the screens as built, `docs/design/` the look, and `fixtures/` the numbers the program must reproduce; they describe and decide nothing. The hackathon PRD (v2.7, 18 September) is archived at `docs/archive/holdout_v1_prd_hackathon-build_2026-09-18.md` and is not maintained. The scope-and-state-machines document was retired on 2026-10-10; its one surviving note, the bounded-oracle pattern for per-member local midnight, moved to research R7.
 

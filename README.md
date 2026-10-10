@@ -64,8 +64,8 @@ Named here on purpose (constitution XI). Each has its real fix beside it.
 | `docs/holdout_decisions.md` | Decision record H1–H37: why the build is what it is, what was rejected, what is still open. Read before changing the mechanic. |
 | `docs/holdout_screen_map.md` · `docs/holdout_lab_screen_map.md` | Every screen of the member app and of Holdout Lab as built: what it shows, where it leads, what is still to draw or to build. |
 | `docs/design/` | The design book: tokens, components and copy rules, mirrored from the design-system artifact. The Compose rules that use it are the `holdout-ui` skill. |
-| `docs/holdout_setup_runbook.md` | The steps only a human can do: toolchain, keys, devnet SOL, the domain, the rep-counter calibration on real video. |
-| `docs/holdout_demo_video.md` | The demo video for the submission: storyboard, shot list and recording workflow. |
+| `docs/holdout_setup_runbook.md` | The steps only a human can do: toolchain, keys, devnet SOL, the domain and the release keystore, labelled rep-counter sets on real video, testers. |
+| `docs/holdout_demo_video.md` | The demo video for the submission: storyboard, shot list and recording workflow, and the testers' onboarding note (§9). |
 | `docs/archive/` | The hackathon PRD (v2.7, 18 September), kept unmaintained because the screen maps cite its screen numbers. Not a source. |
 
 When documents disagree: constitution → spec → decision record. The screen maps, the design book and the runbook describe; they decide nothing.

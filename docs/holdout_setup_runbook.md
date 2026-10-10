@@ -9,7 +9,7 @@ that *is* automatic: building, testing and deploying.
 Step numbers are stable because code and tests cite them: the sponsor key
 (step 3, `kotlin/app/build.gradle.kts`), `scrcpy` (step 5, the `holdout-ui`
 skill), the S1 regression test (step 6, `S1JvmSpikeTest`) and the rep-counter
-calibration (step 7, `fixtures/rep-traces/README.md`).
+recordings (step 7, `fixtures/rep-traces/README.md`).
 
 ---
 
@@ -17,9 +17,9 @@ calibration (step 7, `fixtures/rep-traces/README.md`).
 
 | | |
 |---|---|
-| Done | Toolchain and keypair checks (1, 2); operational keys and scripted wallets (3); `scrcpy` and spike S1 on 22 September (5, 6) |
-| Still by hand | Devnet SOL for the faucet vault (3); the domain and its Digital Asset Links file (4); the release keystore (4); rep-counter calibration on real video (7); testers (8) |
-| Not blocked | Everything in the program and the app builds and tests without any of this; the rep counter runs on research R4's trigger values until step 7 replaces them with measured ones |
+| Done | Toolchain and keypair checks (1, 2); operational keys and scripted wallets (3); `scrcpy` and spike S1 on 22 September (5, 6); spike S2, done differently through spec 002: the counter is held by sittings recorded on a Seeker (7, T012b) |
+| Still by hand | Devnet SOL for the faucet vault (3); the domain and its Digital Asset Links file (4); the release keystore (4); more labelled sets for the rep counter, from more people (7, spec 002 T033, T046–T048); testers (8) |
+| Not blocked | Everything in the program and the app builds and tests without any of this; the rep counter is held by the fixtures already committed, and step 7 adds evidence to them |
 
 ---
 
@@ -40,8 +40,8 @@ installed from `curl -sL https://run.surfpool.run/ | bash` — never
 NO_DNA=1 anchor build && cargo test -p holdout --lib --features test-leagues
 ```
 
-**Done when** both pass. They pass in the local CI gate
-(`scripts/ci-local.sh`), so a failure here is the local toolchain, not the code.
+**Done when** both pass. They pass in CI, so a failure here is the local
+toolchain, not the code.
 
 ---
 
@@ -119,20 +119,23 @@ faucet exists. Collect a bit at a time, from more than one source
 
 ## 4. Domain, Digital Asset Links and the release keystore (T009, T115)
 
-The app claims the identity `https://holdout.app` (`MainViewModel`). Until that
-domain serves a Digital Asset Links file naming this package and its signing
-certificate, wallets show the member an unverified raw package name instead of
-"Holdout".
+The app claims the identity `https://holdout.app` (`WalletRepository`). Until
+that domain serves a Digital Asset Links file naming this package and its
+signing certificate, wallets show the member an unverified raw package name
+instead of "Holdout".
 
 1. Register `holdout.app`, or pick a subdomain of something you already own.
    **If it is not `holdout.app`, change `identityUri` in
-   `kotlin/app/src/main/kotlin/holdout/app/MainViewModel.kt` to match** — the
-   URI and the file have to be on the same host or the check fails.
+   `kotlin/app/src/main/kotlin/holdout/app/wallet/WalletRepository.kt` to
+   match** — the URI and the file have to be on the same host or the check
+   fails.
 2. Create the release keystore, outside the repository, and back it up with the
-   program keypair. The build reads it from Gradle properties in
+   program keypair. A lost keystore means a new package identity for every
+   member. **The build does not sign a release yet.** T115 adds the signing
+   config for `memberRelease`, reading the keystore from Gradle properties in
    `%USERPROFILE%\.gradle\gradle.properties`: `holdout.keystore`,
-   `holdout.keystorePassword`, `holdout.keyAlias`, `holdout.keyPassword`
-   (T115). A lost keystore means a new package identity for every member.
+   `holdout.keystorePassword`, `holdout.keyAlias`, `holdout.keyPassword`. Until
+   it lands, `assembleMemberRelease` produces an unsigned APK.
 3. Generate the file:
 
    ```bash
@@ -221,65 +224,60 @@ never see it.
 
 ---
 
-## 7. Rep-counter calibration on real video (T012b) — half a day
+## 7. Rep counting on real video (T012b, spec 002) — an hour per set
 
-**The rep counter is built and tested** (T046–T049), against synthetic traces
-and the trigger values research R4 proposed: 165° at the top, 85° at the
-bottom. Every test asserts the *rule* — top above 160°, bottom below 90°, body
-line within ±10°, cycle 0.8–6 s — and never those triggers, so this step can
-move them without rewriting a single test.
+**Spike S2 is closed, done differently** (T012b, 23–26 September, with
+`specs/002-rep-placement-rules`). Its planned output, `s2-angles.json` from ten
+honest and three cheat videos in two placements, was replaced by sittings that
+Holdout Lab recorded on a Seeker and a person labelled rep by rep from the
+video. They are committed under `fixtures/rep-traces/`; `RepRatchetTest` holds
+every labelled rep and `RecordedTracesTest` every counted, unlabelled trace.
+Pose inference runs at 22–25 FPS on the FULL model (spec 002 plan), the
+counter reads a 4:3 picture (spec 002 T034b), and the palm check went with
+palm liveness (T047).
 
-**What is not yet known is whether those numbers are right for a real body in
-front of a real model.** Synthetic traces prove the state machine does what the
-rule says. Only video proves the rule survives a real person, real light and the
-model's own ~2° error. Until this runs, the counter is plausible, not verified,
-and it is the product's magic, so it cannot be left at plausible.
+What is still by hand is more evidence, from more people:
 
-Record in **Holdout Lab**, on a Seeker, **on the front camera** — that is what
-a sitting uses (research R4), and its resolution and field of view are lower
-than the back camera's, so a recording made with the back one would not measure
-the app. Lab writes the trace and the label; nothing leaves the phone except
-what the tester exports (constitution X, spec 004).
-
-**The set doubles: every video in both placements.** The app accepts the phone
-in front of the member and beside them, so both have to be measured. A threshold
-set from side-on traces alone is a threshold for half the members.
-
-| Videos, in **each** placement | |
+| Task | What to record or label |
 |---|---|
-| 10 honest | 25 real push-ups each. Different people and rooms if you can — one person in one room is one set of angles, not a sample |
-| 3 cheats | half reps; sagging hips; too fast |
+| spec 002 T033 | Three more people: one honest, one from the knees and one cobra set each, staked switch on |
+| spec 002 T048 | A Daily 25 set at the front edge of the band, about 40°: 10 honest, 5 from the knees, 5 cobras |
+| spec 002 T046, T047 | The reps the labelling page lists as not recorded, and the labels Claude set that a reviewer has not confirmed |
 
-The **sagging-hips** cheat is the one to watch head-on. The body line points away
-from the lens there, which is the weakest thing a single camera measures, and
-these traces are what decides whether the front view needs its own trigger set
-or whether staked cohorts should require the side view.
+**Every sitting is at about 45°, the Daily 25 included** (spec 002 FR-001,
+FR-002, amended 7 October): the phone propped to one side of the member, on the
+front camera a sitting uses. Head-on and square side-on sets are refused by
+today's app, so they are evidence at most, never a test. Anyone filmed agrees
+in writing first (step 8).
 
-What has to come out of it:
+The loop runs on this machine; the label format and the rules are in
+`fixtures/rep-traces/README.md`:
 
-- **≥ 15 FPS** pose inference on the Seeker's front camera with the FULL model.
-  Below that, fall back in this order: LITE (one constant in `VisionAnalyzer`),
-  lower analysis resolution, CPU delegate.
-- **The whole body still in frame** at the distance a propped phone gives. If
-  the ankles drop out, the pre-flight check says so rather than miscounting,
-  but the member cannot start, so this is a real pass/fail. 4:3 is the fallback,
-  at the cost of a smaller preview.
-- **The start position is recognised**, in both placements. Holding the top of a
-  push-up is what begins a sitting (`ReadyGate`, FR-020); if the model reads a
-  plank as anything other than elbows extended and body straight, nothing starts.
-- **The positioning overlay puts the outline somewhere sensible.** The floor
-  line comes from the phone's tilt and its lens, so check it against where the
-  floor actually is in the preview.
-- Every honest video counted within **1 rep** of 25, and all three cheats
-  rejected, under the rule, before any tuning.
-- The palm detected.
-- **The measured per-frame elbow and body-line angles committed as
-  `fixtures/rep-traces/s2-angles.json`.** The schema is in
-  `fixtures/rep-traces/README.md`. This is the step's real output: the
-  `RepRules` defaults in `kotlin/repcounter/.../RepCounter.kt` are replaced from
-  these numbers, and the traces are replayed alongside the synthetic ones.
-  Relaxing a threshold is allowed, but only against recorded evidence, which is
-  that file.
+```bash
+bash scripts/pull-traces.sh
+```
+
+Copies Holdout Lab's traces and videos over USB into `phone_traces/`
+(git-ignored) and deletes each one from the phone once its copy is complete.
+
+```bash
+node scripts/label-reps.mjs
+```
+
+Serves the labelling page at `http://localhost:8766`: label each rep from its
+video until the sitting is finished. `node scripts/label-reps.mjs --promote`
+then copies finished sittings into `fixtures/rep-traces/`, traces and labels
+only, never a video.
+
+```bash
+cd kotlin && ./gradlew :repcounter:testBench -Pgate
+```
+
+**Done when** the bench gate holds (honest reps counted 98 % or more, each
+cheat 2 % or less) and `:repcounter:test` passes. A threshold moves only
+against a failing fixture; when a change moves the ratchet,
+`./gradlew :repcounter:updateBaseline` rewrites `fixtures/rep-traces/baseline.csv`,
+committed with that change.
 
 ---
 
@@ -288,8 +286,8 @@ What has to come out of it:
 Real people with Android phones, for the test lobby and for Lab sets.
 
 - Open the group chat and send the one-page onboarding note
-  (`docs/holdout_demo_video.md` §9): install, a devnet wallet, the faucet, what
-  each day asks.
+  (`docs/holdout_demo_video.md` §9): install, a devnet wallet, the faucet, the
+  phone at 45°, the test lobby and what each day asks.
 - Anyone recorded in Lab, or who may appear on camera, consents in writing, in
   the chat. Keep the messages (constitution X).
 - The test lobby (FR-044a) is the fastest full cycle: three 10-minute days, so a
@@ -305,9 +303,9 @@ further, so every real tester makes the crowd more real.
 | Step | Written down in |
 |---|---|
 | 3 | `kotlin/core/src/main/resources/scripted-wallets.json`, committed |
-| 4 | the domain's `.well-known/`, the keystore backup, and `MainViewModel` if the host changed |
+| 4 | the domain's `.well-known/`, the keystore backup, and `WalletRepository` if the host changed |
 | 6 | `research.md`, "S1 · passed 22 September 2026" |
-| 7 | `fixtures/rep-traces/s2-angles.json`, committed |
+| 7 | `fixtures/rep-traces/`: traces, labels and `baseline.csv`, committed |
 | 8 | the group chat, and the consent messages kept |
 
 Tick the matching task in `specs/001-holdout-hackathon/tasks.md` as each one
