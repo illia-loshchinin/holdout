@@ -57,8 +57,9 @@ pub const BOOST_PERCENT: u128 = 5;
 pub const COMEBACK_PERCENT: u128 = 5;
 pub const DEVELOPER_PERCENT: u128 = 10;
 
-/// The most a boost may add to a cohort's own pool, in percent (FR-037d).
-pub const BOOST_CAP_PERCENT: u128 = 20;
+/// The most a boost may add to a cohort's own pool, in percent (FR-037d; 10 since
+/// 2026-10-10, so a group forfeiting into its own finisher recovers under 1 SKR per SKR lost).
+pub const BOOST_CAP_PERCENT: u128 = 10;
 /// The share of a counted forfeited stake a comeback refunds, in percent (FR-037e).
 pub const COMEBACK_REFUND_PERCENT: u128 = 20;
 /// How many of the finished cohort's days after the missed deadline a comeback
@@ -113,7 +114,7 @@ pub fn forfeit_split(forfeited_stake: u64) -> ForfeitSplit {
     }
 }
 
-/// The boost a finishing cohort draws: 20% of its own pool, never more than the
+/// The boost a finishing cohort draws: 10% of its own pool, never more than the
 /// league's boost reserve holds (FR-037d). A cohort with no forfeits gets none.
 pub fn boost_for(own_pool: u64, boost_reserve: u64) -> u64 {
     percent_of(own_pool, BOOST_CAP_PERCENT).min(boost_reserve)

@@ -62,8 +62,8 @@ object Settlement {
     const val COMEBACK_PERCENT = 5
     const val DEVELOPER_PERCENT = 10
 
-    /** The most a boost may add to a cohort's own pool, in percent (FR-037d). */
-    const val BOOST_CAP_PERCENT = 20
+    /** The most a boost may add to a cohort's own pool, in percent (FR-037d; 10 since 2026-10-10). */
+    const val BOOST_CAP_PERCENT = 10
 
     /** The share of a counted forfeited stake a comeback refunds, in percent (FR-037e). */
     const val COMEBACK_REFUND_PERCENT = 20
@@ -102,7 +102,7 @@ object Settlement {
     }
 
     /**
-     * The boost a finishing cohort draws: 20% of its own pool, never more than
+     * The boost a finishing cohort draws: 10% of its own pool, never more than
      * the league's boost reserve holds (FR-037d). A cohort with no forfeits
      * gets none.
      */
@@ -339,7 +339,7 @@ object Derive {
 
     /**
      * The prize boost this cohort can expect from its league's boost reserve
-     * (FR-037d), shown **"up to"**: `min(floor(20% × projected pool),
+     * (FR-037d), shown **"up to"**: `min(floor(10% × projected pool),
      * boostReserve)`, where [boostReserve] is the league's reserve as read now.
      * The real draw happens at finalization, against the reserve as it stands
      * then (earlier cohorts of the league finalize first and draw on it, and
