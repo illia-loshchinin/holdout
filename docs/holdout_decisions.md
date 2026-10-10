@@ -797,6 +797,7 @@ By decision, not by omission.
 | L10 | **Solana dApp Store listing** — required within 30 calendar days of the announcement if the app wins (H25) | On the winners' announcement, 10–11 November 2026 |
 | L11 | **Mainnet launch** — real SKR, faucet removed or replaced, upgrade authority revoked once the contract is final (H24), Genesis gate on | Together with or after L10 |
 | L12 | **More exercises** — negative (eccentric) push-ups, a controlled 3–5 second descent as the beginner path to a first full rep, and decline push-ups. The cohort already carries `exercise`, with both values reserved (H30), so each needs rules, recorded traces and cheat videos, not a migration | After the hackathon; sooner if beta testers cannot do 25 full push-ups |
+| L13 | **Close settled cohorts to reclaim rent, and a separate crank payer** — `open_cohort` is permissionless and its caller pays rent for the `Cohort` account and its SKR vault (devnet about 0.0033 SOL a Holdout, mainnet about 0.0045), which nothing returns today. Add a permissionless `close_cohort` that closes a settled cohort's accounts once every claim is done (or after a long claim window, FR-035 permitting) and returns the rent to whoever opened it. On mainnet the crank pays from its own small hot key (`HOLDOUT_PAYER_KEY_JSON`), apart from the Operator and the admin. Raised 2026-10-10 by the product owner while funding devnet | Spec 005 (mainnet), with L11 |
 
 ---
 
