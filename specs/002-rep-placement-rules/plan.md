@@ -1,6 +1,6 @@
 # Implementation Plan: Rep Placement and Form Rules
 
-**Branch**: `002-rep-placement-rules` | **Date**: 2026-09-26 (as built); refreshed 2026-10-08 | **Spec**: [spec.md](spec.md)
+**Branch**: `002-rep-placement-rules` | **Date**: 2026-09-26 (as built); refreshed 2026-10-08; source paths refreshed 2026-10-10 (spec 004's weaknesses file and Lab sources) | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `specs/002-rep-placement-rules/spec.md`
 
@@ -42,7 +42,7 @@ The evidence is the phone's own: Holdout Lab (spec 004; debug builds before 2026
 | VII. Tests precede logic | Pass | Every threshold change landed with a synthetic test or a labelled phone trace that failed first; since 4 Oct the ratchet makes a regression on any confirmed labelled rep fail the build. |
 | IX. Every state has a screen | Pass | Refused placement (with which way to turn), knees down, legs out of the picture, cobra, too shallow and an unreadable knee each have a shown and spoken hint. A rep on the back or standing is refused in silence on purpose: there is nothing to coach. |
 | X. Camera frames never leave the device | Pass | Traces are landmark numbers; video is the recording exception (v1.5.0, moved to Holdout Lab in v2.1.0) — Holdout Lab only, no audio, on the device until pulled over USB, consenting people only, and `checkMemberHasNoLabCode` fails any member-app build that contains the recorder. |
-| XI. Weaknesses documented | Pass | README table rendered from `docs/weaknesses.json` by `scripts/render-weaknesses.mjs` (in the app's assets until spec 004): one-person tuning, the coarse 45° body line, cobras and hips resting on the floor not always caught, knee push-ups counting in the Daily 25 and Easy by design. The head-on rows left with the placement. |
+| XI. Weaknesses documented | Pass | README table rendered from `docs/weaknesses.json` by `scripts/render-weaknesses.mjs` (in the app's assets until spec 004): one-person tuning, the coarse 45° body line, cobras and hips resting on the floor not always caught, knee push-ups counting in the Daily 25 and Easy by design, loose trousers hiding the knees. The head-on rows left with the placement. |
 | XIII. Honest language | Pass | The Hard and Easy rule sentences (`Stakes.STAKED_RULE`, `EASY_RULE`) are plain and shown before staking; the tour states one placement for every sitting. |
 
 Post-design re-check (2026-10-08): no change. Dropping head-on removes a placement whose limits had to be excused; it adds no new exception.
@@ -98,7 +98,8 @@ kotlin/app/src/main/kotlin/holdout/app/
 
 kotlin/app/src/lab/kotlin/holdout/app/   # Holdout Lab only (spec 004)
 ├── sitting/TraceRecorder.kt     # writes the trace
-└── sitting/TraceLabelDialog.kt  # "What did you just do?"
+├── sitting/TraceLabelDialog.kt  # "What did you just do?"
+└── sitting/SittingVideoFactory.kt  # CameraX VideoCapture beside the trace; the member flavour's copy in src/member returns null
 
 docs/weaknesses.json    # the known weaknesses, rendered into README.md by scripts/render-weaknesses.mjs
 
