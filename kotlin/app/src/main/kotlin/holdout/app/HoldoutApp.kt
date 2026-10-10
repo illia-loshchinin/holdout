@@ -533,8 +533,7 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                 // (US-4; the test lobby for a test cohort); none open to join right now, and
                 // the button is not shown.
                 onNextHoldout = chainNow?.let { now -> view?.openToJoin(now) }
-                    ?.filter { if (target.isTest) it.isTest else it.cohort.leagueId == target.cohort.leagueId }
-                    ?.minByOrNull { it.cohort.start }
+                    ?.let { open -> Journey.wayBack(target.cohort, open) { it.cohort } }
                     ?.let { next -> { route = Route.Stake(next.address) } },
                 onBack = goHome,
                 modifier = modifier,

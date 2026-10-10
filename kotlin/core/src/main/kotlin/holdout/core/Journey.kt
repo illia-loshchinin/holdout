@@ -105,4 +105,18 @@ object Journey {
     }
 
     enum class JoinBlocker { JoiningClosed, LobbyPlaceTaken, Overlaps }
+
+    /**
+     * The way back after forfeiting [forfeited] (US-4): of the Holdouts [open] to
+     * join, the earliest-starting one in the same league — the league the member
+     * chose, and the one a comeback refund pays on (FR-037e). Every test league is
+     * one lobby, so a test cohort's way back is any test league's. Never another
+     * league's: with none of its own open, there is no offer (FR-003).
+     */
+    fun <T> wayBack(forfeited: CohortSnapshot, open: List<T>, cohortOf: (T) -> CohortSnapshot): T? {
+        fun isTest(leagueId: Int) = leagueId >= LeagueParams.TEST_LEAGUE_MIN
+        val sameLeague: (CohortSnapshot) -> Boolean =
+            if (isTest(forfeited.leagueId)) { c -> isTest(c.leagueId) } else { c -> c.leagueId == forfeited.leagueId }
+        return open.filter { sameLeague(cohortOf(it)) }.minByOrNull { cohortOf(it).start }
+    }
 }

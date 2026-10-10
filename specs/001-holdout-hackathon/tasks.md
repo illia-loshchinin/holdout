@@ -367,4 +367,4 @@
 
 ## Phase 19: Convergence
 
-- [ ] T150 Move the forfeit's way back into `Journey.wayBack` in `kotlin/core/src/main/kotlin/holdout/core/Journey.kt` — the earliest-starting cohort open to join in the forfeited cohort's league, or in any test league (id ≥ `TEST_LEAGUE_MIN`) for a test cohort, else none — with tests in `JourneyTest.kt` (a 21-day forfeit gets the 21-day cohort, never a 7-day one; a test cohort gets the test lobby; nothing open gives null), and have `HoldoutApp.kt` call it per US-4, /speckit-analyze C1 (partial)
+- [X] T150 Move the forfeit's way back into `Journey.wayBack` in `kotlin/core/src/main/kotlin/holdout/core/Journey.kt` — the earliest-starting cohort open to join in the forfeited cohort's league, or in any test league (id ≥ `TEST_LEAGUE_MIN`) for a test cohort, else none — with tests in `JourneyTest.kt` (a 21-day forfeit gets the 21-day cohort, never a 7-day one; a test cohort gets the test lobby; nothing open gives null), and have `HoldoutApp.kt` call it per US-4, /speckit-analyze C1 (partial)
