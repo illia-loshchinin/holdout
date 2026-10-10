@@ -11,7 +11,7 @@
  * `record_forfeits` is. `settle_finalize` runs **once** (INV-5, INV-6), and
  * what it writes is written once.
  *
- * A cohort nobody finished sends its whole pool out — a third to the developer
+ * A cohort nobody finished sends its whole pool out — half to the developer
  * destination, the rest to operations — and nothing carries over (FR-037, H34,
  * H35), so settling it needs no other cohort and no caller can change where the
  * money goes (FR-030a). Either way a finalizing cohort credits its reserve dues
@@ -461,7 +461,7 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
 
   // --------------------------------------------------- nobody finished at all
 
-  it('splits a no-finisher pool a third to the developer and the rest to operations, and nothing carries over (FR-037)', async () => {
+  it('splits a no-finisher pool half to the developer and the rest to operations, and nothing carries over (FR-037)', async () => {
     const cohort = await cohortAt(0);
     const quitter = await member(0, 3);
     // A later lobby is open: it must receive nothing.
@@ -490,9 +490,9 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
     expect(settled.settled).toBe(true);
     expect(settled.noFinisherFee).toBe(pool);
     expect(settled.pool).toBe(0n);
-    // 70 SKR: 23.333333 to the developer (floored), 46.666667 to operations.
+    // 70 SKR: 35 to the developer (floored), 35 to operations.
     const out = noFinisherSplit(pool);
-    expect(out.developer).toBe(pool / 3n);
+    expect(out.developer).toBe(pool / 2n);
     expect(h.tokenBalance(fees.developer)).toBe(developerBefore + out.developer);
     expect(h.tokenBalance(fees.operations)).toBe(operationsBefore + out.operations);
     // Its reserve shares still reach the league (H35), and the vault ends empty.

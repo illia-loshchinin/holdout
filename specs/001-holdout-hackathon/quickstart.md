@@ -150,7 +150,7 @@ java -jar kotlin/crank/build/libs/crank.jar init --test-league --first-start <is
 
 Three 10-minute days at 5 reps, back to back every 30 minutes, joinable right up to each start (join lock 0, so one test cohort is always open), is the default; `--day-seconds`, `--days`, `--reps`, `--cadence` and `--join-lock` override it. If a test league already exists at id 100 with another shape (an earlier seven-day league, or the 5-minute join lock), the command refuses it; pass `--league-id 101`, or the next free id, to create the lobby. The newest test league is the lobby: the crank opens no more cohorts in the older one, which winds down, and opens the new lobby's first cohort only once every cohort of the older one has settled (FR-044a).
 
-**Expected:** 5–7 testers each complete a full cycle on the short test cohort (FR-044a); bugs are fixed the same day. This run is the one the walkthrough and demo video are recorded from, labelled on screen as a short test cohort (constitution v1.4.0).
+**Expected:** 5–7 testers each complete a full cycle on the short test cohort (FR-044a); bugs are fixed the same day. This run is the one the demo video is recorded from, labelled on screen as a short test cohort (constitution v1.4.0; no in-app walkthrough since 2026-10-09).
 
 ## 5a. The whole build on a local validator
 
@@ -177,12 +177,12 @@ bash scripts/localnet-crank.sh --loop      # leave running: opens, fills, forfei
 ```bash
 # The app on a phone over USB, reading and sending to the local validator.
 adb reverse tcp:8899 tcp:8899
-cd kotlin && ./gradlew :app:installDebug -Pholdout.rpcUrl=http://127.0.0.1:8899 -Pholdout.sponsorKeypair=//wsl.localhost/Ubuntu/home/<you>/.config/solana/holdout/sponsor.json
+cd kotlin && ./gradlew :app:installMemberDebug -Pholdout.rpcUrl=http://127.0.0.1:8899 -Pholdout.sponsorKeypair=//wsl.localhost/Ubuntu/home/<you>/.config/solana/holdout/sponsor.json
 ```
 
-A debug build pointed away from devnet asks the wallet to **sign only** and sends the transaction itself — the wallet would otherwise send it to devnet. Cleartext HTTP is allowed to `127.0.0.1`, `localhost` and `10.0.2.2`, in debug builds only.
+A member debug build (`memberDebug`) pointed away from devnet asks the wallet to **sign only** and sends the transaction itself — the wallet would otherwise send it to devnet. Cleartext HTTP is allowed to `127.0.0.1`, `localhost` and `10.0.2.2`, in debug builds only.
 
-**Expected:** connect → faucet → ladder → the short test cohort, labelled → stake → lobby; from the start, 5 push-ups at 45° in each 10-minute day, submitted; scripted members forfeit on their seeded days; after the seventh day (70 minutes in) the cohort settles and the claim pays stake plus share. `bash scripts/localnet-crank.sh status` shows it all.
+**Expected:** connect → faucet → Home (no ladder screen since 2026-10-09) → the short test cohort, labelled → stake → lobby; from the start, 5 push-ups at 45° in each 10-minute day, submitted; scripted members forfeit on their seeded days; after the seventh day (70 minutes in) the cohort settles and the claim pays stake plus share. `bash scripts/localnet-crank.sh status` shows it all.
 
 ## 6. Devnet deployment
 
@@ -249,7 +249,7 @@ java -jar kotlin/crank/build/libs/crank.jar run
 ## 7. App on a device
 
 ```bash
-cd kotlin && ./gradlew :app:installDevnetDebug
+cd kotlin && ./gradlew :app:installMemberDebug
 ```
 
 **Expected:** the app opens on the connect-wallet screen, with the test-network notice.
@@ -261,16 +261,16 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | # | Scenario | How to run | Pass when |
 |---|---|---|---|
 | 1 | 7-day cycle, unlock, gate | *local*: join 7-day, 7 submits, settle, claim; flip `set_flags(ladder=true)`; try 21-day join with a fresh wallet | Claim lands; `Profile.qualified`; fresh wallet gets `LadderGateClosed` |
-| 2 | Forfeit fee | *local*: join, skip a day, `crank run` | Pool rises by stake − 30 %; fee destination +30 % |
+| 2 | Forfeit fee | *local*: join, skip a day, `crank run` | Pool rises by 70 % of the stake; developer destination +10 %; operations (`fee_destination`) +10 %; the other 10 % stays in the vault as `boost_due` and `comeback_due` until finalize (FR-027) |
 | 3 | Equal stakes, equal payouts; remainder | *local*: V17 shape | Byte-identical payouts; remainder at fee destination; Σ claims = Σ stakes + pool − remainder |
 | 4 | Claim arrives | Devnet cohort #3 finisher | SKR balance increases by payout |
 | 5 | Crank killed a day; stranger cranks | *local*: stop crank, advance 1 day, run `crank run` from a different payer | Same forfeits and payouts as uninterrupted run; breached member's submit failed meanwhile |
 | 6 | Vectors | Section 3 | All V1–V22 pass |
 | 7 | Invariants at 1,000 members | Section 3 | Randomised suite green |
-| 8 | Fresh install; counters at the deadline | Devnet: install, play the walkthrough **without connecting**, then connect; stop crank before a boundary | Wallet asked first, with only the walkthrough available before it; the first-run tour appears once the wallet connects, skips cleanly and re-opens from About (FR-067); cohort populated to at least its floor, scripted members labelled; one second after the deadline the counter already excludes non-submitters |
+| 8 | Fresh install; counters at the deadline | Devnet: install, then connect; stop crank before a boundary | Wallet asked first, with nothing but help getting a wallet available before it; the first-run tour appears once the wallet connects, skips cleanly and re-opens from About (FR-067); cohort populated to at least its floor, scripted members labelled; one second after the deadline the counter already excludes non-submitters |
 | 9 | No price read | Code search + test | No instruction reads a price; only `crank chips publish` uses a rate |
 | 10 | No frame leaves device | Proxy the phone, run a sitting | Only RPC traffic observed |
-| 11 | No finishers | *local*: all forfeit | The whole pool reaches the fee destination; no other cohort changes, whether or not the league has one open |
+| 11 | No finishers | *local*: all forfeit | The whole pool goes out: half (floored) to the developer destination, the rest to operations; no other cohort changes, whether or not the league has one open (FR-037) |
 | 12 **[Phase 2]** | Weekly re-pricing | *local*: `crank chips publish --auto` twice in one week, then after the next Monday 05:00 UTC | Publishes once per week, the second run that week does nothing; old cohorts keep old chips |
 | 13 | Lobby place, lock, overlap | *local* | Continuous 7-day → 7-day; cutoff ±1 s behaviour; 21-day overlap refused |
 | 14 **[Phase 2]** | Leaderboard ranking | Devnet or *local* with seeded profiles | Ranking and "not ranked yet" as specified; no amounts; scripted labels |
@@ -278,4 +278,4 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 16 | Faucet from zero, and after a drained sponsor | Device with a brand-new wallet; then empty the sponsor's float with the bundled devnet key and try a second brand-new wallet before and after one `crank run` | One tap funds a full 7-day cycle; second tap the same day refused with the time it returns. With the float empty the claim fails as ES-0b and blames nobody; after the crank's `top_up_sponsor` the next brand-new wallet funds normally, and `crank status` shows the day's spend against `daily_lamport_cap` (AC-16, FR-042b) |
 | 17 | Start position | Device: with the four pills green, hold the top of a push-up; then drop out of it before the countdown ends | Counting starts on the hold alone, with no tap and a spoken countdown; dropping out restarts the hold; banked reps unchanged |
 | 18 | Offline completion | Device in airplane mode | Warning shown; reconnect before deadline + tap submit lands the day (automatic **[Phase 2]**); after deadline, breach |
-| 19 | Submission complete | 7–8 Oct: install the final APK on a Seeker and a plain phone; build from a clean clone on a machine that has never built the project, following only the README; review the demo video and deck (R18) | Both installs run; clean clone builds the app and the program; video ≈ 3 min shows join, sitting, forfeit, settlement and claim from cohort #3; scripted members and the test network disclosed in app, README, video and deck; submitted before 9 Oct 08:59 CEST |
+| 19 | Submission complete | By 12 Oct: install the final member APK on a Seeker and a plain phone; build from a clean clone on a machine that has never built the project, following only the README; review the demo video and deck (R18) | Both installs run; clean clone builds the app and the program; video ≈ 3 min shows join, sitting, forfeit, settlement and claim from a cohort of the short test lobby, labelled on screen as one (AC-19, FR-044); scripted members and the test network disclosed in app, README, video and deck; submitted before 13 Oct 01:59 CEST |

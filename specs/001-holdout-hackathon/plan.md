@@ -19,7 +19,7 @@ Work follows the spec's phasing (spec §3a): **Phase 1** is the full loop and mu
 - **Android app** — generated from the Solana Mobile CLI's **Kotlin Compose Minimal** template (R3):
   - **Build:** AGP 9.3.2 with Gradle 9.7.1; Compose BOM 2026.08.00.
   - **Solana:** `mobile-wallet-adapter-clientlib-ktx` 2.2.0, `web3-solana` 0.3.1, `multimult` 0.2.6, plus `rpc-core` (version pinned at scaffold).
-  - **Camera and device:** MediaPipe Tasks Vision (Pose Landmarker, Hand Landmarker), CameraX, MMKV for Android, Media3 ExoPlayer (R4–R6, R18).
+  - **Camera and device:** MediaPipe Tasks Vision (Pose Landmarker, Hand Landmarker), CameraX, MMKV for Android (R4–R6). *(Media3 ExoPlayer dropped 2026-10-09 with the in-app walkthrough, R18.)*
 - **Tests:** `@solana/kit` with `@solana/kit-plugin-litesvm` (LiteSVM 1.3.x) and a Codama-generated Kit client; a Surfpool smoke suite before deploys (R2).
 - **Crank:** `kotlin/core` (`web3-solana`, `rpc-core`) plus a CLI argument parser (R12).
 
@@ -51,7 +51,7 @@ Work follows the spec's phasing (spec §3a): **Phase 1** is the full loop and mu
 - **Chain time:** every deadline is judged by chain time, never the device clock.
 - **Offline:** sittings and banking work without a connection.
 - **Reminders:** on-device only — `AlarmManager` on chain-derived elapsed-realtime instants, no server or push service; `POST_NOTIFICATIONS` asked once at the first join (FR-068, R21).
-- **Deadlines:** submission (APK, GitHub repository, demo video of about three minutes, pitch deck) before 9 October 2026 08:59 CEST (FR-066).
+- **Deadlines:** submission (APK, GitHub repository, demo video of about three minutes, pitch deck) before 13 October 2026, 01:59 CEST (FR-066; moved from 9 October, 08:59 CEST, constitution v2.0.1). Judging runs 13 October – 9 November.
 - **Live period:** no manual intervention from submission through the winners' announcement on 11 November 2026 (FR-042a, FR-043).
 - **Upgrades:** the contract stays upgradeable for defect fixes only (FR-007b, R14).
 
@@ -76,9 +76,9 @@ No `NEEDS CLARIFICATION` items remain — all are resolved in [research.md](rese
 | **IX. Every state has a screen** | Each state reachable in UI or provably unreachable | PASS | State → screen table in contracts/android-app §5, first-run tour (FR-067) and the About/judges route included |
 | **X. Camera frames never leave the device** | No upload, persistence or server inference | PASS | Network egress limited to RPC and the local wallet (contracts/android-app §2); no `RECORD_AUDIO`; AC-10 traffic check |
 | **XI. Weaknesses documented** | Everything faked, stubbed, flagged or trusting is named in the README | PASS — **action required** | Two trust gaps the README must name, with their fixes: the faucet's fee **sponsor key ships in the APK** (R13), and the **program upgrade authority** is kept (R14). The demo video and pitch deck must not hide them (follow-ups below) |
-| **XII. The build demonstrates itself** | Live populated cohort any day of the live period; free challenge immediately; scripting disclosed in app, README, demo video and deck | PASS | Permissionless weekly opening; crank every 10 min; real members first, with scripted wallets filling each cohort only to its floor (R12); faucet funded to 11 November (R13); walkthrough from cohort #3 in the APK, shared with the demo video and playable before a wallet is connected (R18, FR-001a) |
+| **XII. The build demonstrates itself** | Live populated cohort any day of the live period; free challenge immediately; scripting disclosed in app, README, demo video and deck | PASS | Permissionless weekly opening; crank every 10 min; real members first, with scripted wallets filling each cohort only to its floor (R12); faucet funded to 11 November (R13); the full cycle shown in the demo video, sent as a link, and runnable by anyone on the short test lobby (R18, FR-044, FR-044a; amended 2026-10-09) |
 | **XIII. Honest language** | "Prize"; no money on leaderboards; fiat approximate; test network stated | PASS | Copy per PRD §13; roster and boards carry no amounts (contracts/android-app §6) |
-| **Hackathon constraints** | Devnet only; signed APK, no store listing; named flags; submission deliverables by 9 October; upgrade authority for defect fixes only; out-of-scope list; leaderboards on-chain only | PASS | Flags in `Config`; Phase 2 built after Phase 1, no date gate; test leagues confined to `test-leagues` builds and a separate rehearsal deployment; GitHub repository judges can clone, pushed from the first commit; deliverables and final APK in the delivery sequence; upgrade rule in R14 |
+| **Hackathon constraints** | Devnet only; signed APK, no store listing; named flags; submission deliverables by 13 October 01:59 CEST; upgrade authority for defect fixes only; out-of-scope list; leaderboards on-chain only | PASS | Flags in `Config`; Phase 2 built after Phase 1, no date gate; test leagues confined to `test-leagues` builds and a separate rehearsal deployment; GitHub repository judges can clone, pushed from the first commit; deliverables and final APK in the delivery sequence; upgrade rule in R14 |
 | **Development workflow** | Stack in the plan, not the spec; risk spikes before implementation | PASS | Spec unchanged; spikes S1–S3 are the first delivery step |
 
 **Gate result: PASS.** No violations; nothing needs complexity justification.
@@ -154,7 +154,7 @@ kotlin/                             # Gradle root generated by `npx solana-mobil
 │       ├── wallet/  faucet/  home/  ladder/  lobby/  sitting/
 │       ├── cohort/  roster/  claim/  streak/
 │       ├── tour/                     # first-run cards, FR-067
-│       ├── about/                    # judges: walkthrough player, scripted list, weaknesses
+│       ├── about/                    # About Holdout: test network, tour again, disconnect (spec 004)
 │       ├── ui/theme/                 # Color.kt, Type.kt, Shape.kt, Theme.kt — PRD §11 tokens
 │       └── leaderboard/            # [Phase 2]
 └── crank/                          # JVM CLI: run, scripted, chips, init, status
@@ -166,6 +166,8 @@ fly.toml                            # crank scheduled machine
 **Structure Decision**: one repository, three build systems with one job each. **Cargo** builds the program (WSL2). **npm** exists only to test the program on LiteSVM, generate the Codama client and generate the fixtures (WSL2). **Gradle** — seeded from the Solana Mobile CLI template — builds everything that runs in production off-chain: the Android app and the crank, sharing `kotlin/core` so there is exactly one Kotlin client implementation, pinned to the program by committed fixtures.
 
 ## Delivery sequence
+
+*(2026-10-09: the organisers moved the submission to 13 October 01:59 CEST and judging to 13 October – 9 November (constitution v2.0.1); the in-app walkthrough was dropped for a demo video sent as a link, and recording moved to Holdout Lab (spec 004, v2.1.0). The rows below are kept as the history they record.)*
 
 **Re-planned 17 September 2026** against the official CLOCK IN dates: submission due 9 October 08:59 CEST (06:59 UTC), judging 10 October – 9 November, winners announced 11 November. The spikes had not started by 17 September, so they now run alongside the tests-first step instead of before it, and the judged launch moves from 20–21 to 22–23 September. The hard gates are fixed by cohort #3: its lobby must be live and the app's join flow working before its join cutoff (**28 September 04:00 UTC**), because the walkthrough and demo video can only come from it (R18). Each step ends with its tests green.
 

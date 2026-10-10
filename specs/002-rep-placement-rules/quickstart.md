@@ -18,13 +18,13 @@ cd kotlin && ./gradlew :repcounter:testBench
 
 Expected: a table per label, person and sitting, every miss with its time and notes, and the gate (honest ≥ 98 % counted, each cheat ≤ 2 %; a knee rep counts where knees are not judged). "Counted where no rep is labelled" lists counts nobody has vouched for — label them (§4). Point it at the phone's recordings with `-Ptraces=../phone_traces`.
 
-## 3. On a phone (debug build)
+## 3. On a phone (Holdout Lab)
 
 ```bash
-cd kotlin && ./gradlew :app:installDebug
+cd kotlin && ./gradlew :app:installLabDebug
 ```
 
-On the home screen, debug switches: **TEST · staked rules** (a Hard sitting without a stake), **TEST · clean screen** (nothing drawn over the camera), **record video** (consenting people only) and **TEST · reset today to 0**.
+Holdout Lab (spec 004) opens on the counting mode: **Daily 25**, **Easy Holdout** or **Hard Holdout** (a Hard sitting without a stake). Its switches: **TEST · clean screen** (nothing drawn over the camera) and **record video** (consenting people only). Every set starts from zero. No wallet is needed. The member app (`installMemberDebug`) counts the same way but records nothing and shows none of these switches.
 
 | Check | Do | Expect |
 |---|---|---|
@@ -35,12 +35,12 @@ On the home screen, debug switches: **TEST · staked rules** (a Hard sitting wit
 | US1-5 | Daily 25 at 45°, 5 push-ups from the knees | 5 counted; the toes meter says they were not from your toes |
 | US1-6 | Daily 25 at 45°, 5 half push-ups | 0 counted, "Go lower" |
 | Legs | Daily 25 at 45°, your knees outside the picture | no start: "Keep your knees in the picture — move the phone further away" |
-| US2-2 | Staked switch on, 45°, 5 from the knees (feet down, then raised) | 0 counted, "Knees off the floor" |
-| US2-3 | Staked switch on, phone head-on | red: "Turn the phone to 45°", no countdown |
+| US2-2 | Hard Holdout, 45°, 5 from the knees (feet down, then raised) | 0 counted, "Knees off the floor" |
+| US2-3 | Hard Holdout, phone head-on | red: "Turn the phone to 45°", no countdown |
 | Cobra | 45°, lie flat, press only the chest up, 5 times | 0 counted (at most one slips through), "Keep your body straight" |
 | US3 | Start a sitting | set-up guide first; tick "Don't show this again", start again: not shown |
 | FR-024 | Put your head out of the picture while getting ready | "Keep your head in the picture"; nothing said about the head once counting |
-| FR-025 | Press Stop | "What did you just do?" form; Save writes it into the trace |
+| FR-025 | Press Stop in Holdout Lab | "What did you just do?" form; Save writes it into the trace |
 
 ## 4. Turn a phone session into a test
 
@@ -48,7 +48,7 @@ On the home screen, debug switches: **TEST · staked rules** (a Hard sitting wit
 bash scripts/pull-traces.sh
 ```
 
-Traces and videos land in `phone_traces/` (git-ignored); videos are deleted from the phone once copied.
+It reads Holdout Lab (`holdout.app.lab`). Traces and videos land in `phone_traces/` (git-ignored); videos are deleted from the phone once copied. Traces left in the member app by debug builds made before 2026-10-09 are drained once with `--package holdout.app`.
 
 ```bash
 cd kotlin && ./gradlew :repcounter:todayVerdicts

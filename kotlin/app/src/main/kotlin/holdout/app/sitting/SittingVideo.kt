@@ -3,16 +3,16 @@ package holdout.app.sitting
 import androidx.camera.core.UseCase
 
 /**
- * A sitting's camera, saved as video — **debug builds only** (constitution
- * X, v1.5.0; spec 002 FR-026). Rep recognition is tested against what really
- * happened, and the knee classifier is trained on it.
+ * A set's camera, saved as video — **Holdout Lab only** (constitution X
+ * v2.1.0; spec 002 FR-026, spec 004). Rep recognition is tested against what
+ * really happened, and the knee classifier is trained on it.
  *
- * The one implementation is in `src/debug/`; `src/release/` returns null, and
- * the CameraX video library is a debug-only dependency, so a release APK
- * contains no recorder at all — `checkReleaseHasNoRecorder` fails the release
- * build if that ever changes. Video only: no audio, no microphone permission.
- * Saved in the app's private storage beside the sitting's trace; the team
- * pulls it over USB and deletes it (`scripts/pull-traces.sh`).
+ * The one implementation is in `src/lab/`; `src/member/` returns null, and the
+ * CameraX video library is a Lab-only dependency, so the member app contains
+ * no recorder in any build — `checkMemberHasNoLabCode` fails a member build if
+ * that ever changes. Video only: no audio, no microphone permission. Saved in
+ * Lab's private storage beside the set's trace; the team pulls it over USB
+ * and deletes it (`scripts/pull-traces.sh`).
  */
 interface SittingVideo {
     /** Bound with the preview and the analysis. */

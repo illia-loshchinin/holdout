@@ -123,7 +123,7 @@ describe('record_forfeits (contracts §2)', () => {
 
   // -------------------------------------------------------------- the numbers
 
-  it('splits the stake 70 / 10 / 5 / 5 / 10 — pool, boost due, comeback due, developer, operations (FR-027, H35)', async () => {
+  it('splits the stake 70 / 5 / 5 / 10 / 10 — pool, boost due, comeback due, developer, operations (FR-027, H35)', async () => {
     const member = await joinedMember(3);
     const stake = DEFAULT_CHIPS[3]!;
 
@@ -132,11 +132,11 @@ describe('record_forfeits (contracts §2)', () => {
     expect(result.ok, result.logs.join('\n')).toBe(true);
 
     const after = await h.readCohort(LEAGUE, INDEX);
-    // 100 SKR: 70 to the pool, 10 + 5 held for the league, 5 and 10 paid out now.
+    // 100 SKR: 70 to the pool, 5 + 5 held for the league, 10 and 10 paid out now.
     expect(after.pool).toBe(70n * SKR);
-    expect(after.boostDue).toBe(10n * SKR);
+    expect(after.boostDue).toBe(5n * SKR);
     expect(after.comebackDue).toBe(5n * SKR);
-    expect(h.tokenBalance(fees.developer)).toBe(5n * SKR);
+    expect(h.tokenBalance(fees.developer)).toBe(10n * SKR);
     expect(h.tokenBalance(fees.operations)).toBe(10n * SKR);
     expect(after.heldStake).toBe(0n);
     expect(after.forfeitsRecorded).toBe(1);
@@ -144,9 +144,9 @@ describe('record_forfeits (contracts §2)', () => {
     const league = await h.readLeague(LEAGUE);
     expect([league.boostReserve, league.comebackReserve]).toEqual([0n, 0n]);
     // The vault still holds what the cohort says it holds (INV-1): the pool and
-    // both dues, everything but the 15 SKR that left.
+    // both dues, everything but the 20 SKR that left.
     expect(h.tokenBalance(vault)).toBe(cohortCustody(after));
-    expect(h.tokenBalance(vault)).toBe(stake - 15n * SKR);
+    expect(h.tokenBalance(vault)).toBe(stake - 20n * SKR);
   });
 
   it.each([

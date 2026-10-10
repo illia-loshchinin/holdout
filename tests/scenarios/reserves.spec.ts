@@ -14,7 +14,7 @@
  *    forfeits, so "everyone finishes, exactly your stake back" still holds.
  *  - **The comeback refund** (FR-037e): forfeit, then finish a later cohort of the
  *    same league that starts within 14 days of the missed deadline, and the claim
- *    pays 10 % of the forfeited stake on top — scaled down pro rata when the
+ *    pays 20 % of the forfeited stake on top — scaled down pro rata when the
  *    reserve is short.
  *  - **Form** (constitution V): `create_league` takes 0 or 1 and nothing else,
  *    `open_cohort` copies it, and `create_league` also creates the reserve vault.
@@ -228,7 +228,7 @@ const reservesOf = async (w: World, leagueId = w.league) => {
 // ================================================================== the split
 
 describe('when a forfeit is recorded (FR-027, H35)', () => {
-  it('lands 70 % in the pool, 10 % and 5 % as the cohort\'s dues, 5 % with the developer and the rest with operations', async () => {
+  it('lands 70 % in the pool, 5 % and 5 % as the cohort\'s dues, 10 % with the developer and the rest with operations', async () => {
     const w = await world();
     // Stakes the golden vectors pin, chosen so every floor bites somewhere.
     const chips: [bigint, bigint, bigint, bigint] = [9n, 19n, 1_250n, 25_000_000n];
@@ -293,7 +293,7 @@ describe('given a league whose cohorts settle in order (FR-037c, INV-10)', () =>
     expect(await reservesOf(w), 'counting moves nothing into the reserve either').toEqual({ boost: 0n, comeback: 0n, vault: 0n });
 
     await w.act([await settleFinalizeIx(w.crank.address, w.fees, w.league, 0)], w.crank);
-    expect(await reservesOf(w)).toEqual({ boost: 10n * SKR, comeback: 5n * SKR, vault: 15n * SKR });
+    expect(await reservesOf(w)).toEqual({ boost: 5n * SKR, comeback: 5n * SKR, vault: 10n * SKR });
     const settled = await w.h.readCohort(w.league, 0);
     expect([settled.boostDue, settled.comebackDue]).toEqual([0n, 0n]);
     expect(settled.boostReceived, 'an empty reserve boosts nothing').toBe(0n);
@@ -303,9 +303,9 @@ describe('given a league whose cohorts settle in order (FR-037c, INV-10)', () =>
     /**
      * Cohort 0: one finisher, one quitter (pool 70, so 20 % is 14), against a
      * boost reserve of 5. Cohort 1 is running by the time cohort 0 settles, and
-     * one of its members has missed day 0. Crediting cohort 1's 10 SKR boost
+     * one of its members has missed day 0. Crediting cohort 1's 5 SKR boost
      * share when it is recorded would let the crank lift cohort 0's boost from 5
-     * to 14 just by recording first.
+     * to 10 just by recording first.
      */
     const run = async (recordFirst: boolean) => {
       const w = await world({ boostReserve: 5n * SKR });
@@ -346,9 +346,9 @@ describe('given a league whose cohorts settle in order (FR-037c, INV-10)', () =>
     const settledFirst = await run(false);
     expect(recordedFirst.boost).toBe(5n * SKR);
     expect(recordedFirst).toEqual(settledFirst);
-    // Cohort 0 drew 5 and credited its own 10 + 5; cohort 1's shares wait for it.
-    expect(recordedFirst.reserves).toEqual({ boost: 10n * SKR, comeback: 5n * SKR, vault: 15n * SKR });
-    expect(recordedFirst.laterDues).toEqual([10n * SKR, 5n * SKR]);
+    // Cohort 0 drew 5 and credited its own 5 + 5; cohort 1's shares wait for it.
+    expect(recordedFirst.reserves).toEqual({ boost: 5n * SKR, comeback: 5n * SKR, vault: 10n * SKR });
+    expect(recordedFirst.laterDues).toEqual([5n * SKR, 5n * SKR]);
   });
 });
 
@@ -381,11 +381,11 @@ describe('given a cohort with finishers at finalization (FR-037d)', () => {
     // The only finisher takes the whole boosted pool: 70 of the quitter's 100, plus the boost.
     expect(settled.sharePerTier[1]).toBe(70n * SKR + boost);
     expect(settled.roundingRemainder).toBe(0n);
-    // Drawn first, then this cohort's own 10 + 5 credited.
+    // Drawn first, then this cohort's own 5 + 5 credited.
     expect(await reservesOf(w)).toEqual({
-      boost: reserve - boost + 10n * SKR,
+      boost: reserve - boost + 5n * SKR,
       comeback: 5n * SKR,
-      vault: reserve - boost + 15n * SKR,
+      vault: reserve - boost + 10n * SKR,
     });
 
     const before = await balanceOf(w, finisher);
@@ -425,19 +425,19 @@ describe('given a cohort with finishers at finalization (FR-037d)', () => {
 // =============================================================== the comeback
 
 describe('given a member who forfeited and came back (FR-037e)', () => {
-  it('pays stake, share and 10 % of the forfeited stake to one who finishes the next cohort of the league within 14 days', async () => {
+  it('pays stake, share and 20 % of the forfeited stake to one who finishes the next cohort of the league within 14 days', async () => {
     const w = await world();
     await cohortAt(w, 0);
     await cohortAt(w, 1);
     const comeback = await wallet(w);
-    const quitters = [await wallet(w), await wallet(w)];
+    const quitters = [await wallet(w), await wallet(w), await wallet(w)];
     const steady = await wallet(w);
     const lateQuitter = await wallet(w);
     for (const who of [comeback, ...quitters]) await join(w, who, 0, 3);
     await join(w, steady, 0, 0);
     await join(w, lateQuitter, 1, 3);
 
-    // Cohort 0: three tier-3 forfeits on day 0 — 30 SKR of boost and 15 of comeback due.
+    // Cohort 0: four tier-3 forfeits on day 0 — 20 SKR of boost and 20 of comeback due.
     w.h.setTime(deadlineOf(0, 0) + 1);
     await record(w, 0, [comeback, ...quitters]);
     // Free again, the member stakes on the next cohort straight away.
@@ -450,7 +450,7 @@ describe('given a member who forfeited and came back (FR-037e)', () => {
     expect(progress.comebackStake).toBe(DEFAULT_CHIPS[3]);
     expect(progress.comebackFrom).toBe(BigInt(deadlineOf(0, 0)));
     expect(progress.comebackUntil).toBe(BigInt(deadlineOf(0, 0) + WINDOW));
-    expect(await reservesOf(w)).toEqual({ boost: 30n * SKR, comeback: 15n * SKR, vault: 45n * SKR });
+    expect(await reservesOf(w)).toEqual({ boost: 20n * SKR, comeback: 20n * SKR, vault: 40n * SKR });
 
     // Cohort 1 starts inside the window: 840 s after a deadline the window keeps open for 840.
     expect(startOf(1)).toBeGreaterThan(deadlineOf(0, 0));
@@ -461,34 +461,34 @@ describe('given a member who forfeited and came back (FR-037e)', () => {
 
     const one = await w.h.readCohort(w.league, 1);
     const membership = await w.h.readMembership(await cohortPda(w.league, 1), comeback.address);
-    expect(membership.comebackEntitled, '10 % of the 100 SKR forfeited').toBe(10n * SKR);
-    expect(one.comebackOwed).toBe(10n * SKR);
-    expect(one.comebackFunded, 'the reserve held 15').toBe(10n * SKR);
-    expect(one.boostReceived, 'min(20 % of 70, 30)').toBe(14n * SKR);
+    expect(membership.comebackEntitled, '20 % of the 100 SKR forfeited').toBe(20n * SKR);
+    expect(one.comebackOwed).toBe(20n * SKR);
+    expect(one.comebackFunded, 'the reserve held 20').toBe(20n * SKR);
+    expect(one.boostReceived, 'min(20 % of 70, 20)').toBe(14n * SKR);
     expect((await w.h.readProfile(comeback.address)).leagues[2]!.comebackStake, 'used up').toBe(0n);
     expect(await reservesOf(w)).toEqual({
-      boost: 30n * SKR - 14n * SKR + 10n * SKR,
-      comeback: 15n * SKR - 10n * SKR + 5n * SKR,
-      vault: 36n * SKR,
+      boost: 20n * SKR - 14n * SKR + 5n * SKR,
+      comeback: 20n * SKR - 20n * SKR + 5n * SKR,
+      vault: 16n * SKR,
     });
 
     const before = await balanceOf(w, comeback);
     const claim = await w.act([await claimPayoutIx(comeback.address, w.mint, w.league, 1)], comeback);
     const paid = (await balanceOf(w, comeback)) - before;
-    // Stake 100, the whole boosted pool 70 + 14, and the refund 10.
-    expect(paid).toBe(DEFAULT_CHIPS[3] + 84n * SKR + 10n * SKR);
+    // Stake 100, the whole boosted pool 70 + 14, and the refund 20.
+    expect(paid).toBe(DEFAULT_CHIPS[3] + 84n * SKR + 20n * SKR);
     expect(decodeClaimed(oneEvent(claim, 'PayoutClaimed'))).toEqual({
       wallet: comeback.address,
       amount: paid,
-      comeback: 10n * SKR,
+      comeback: 20n * SKR,
     });
     const after = await w.h.readCohort(w.league, 1);
-    expect(after.comebackClaimed).toBe(10n * SKR);
+    expect(after.comebackClaimed).toBe(20n * SKR);
     expect(w.h.tokenBalance(await vaultPda(await cohortPda(w.league, 1))), 'nothing left behind').toBe(0n);
   });
 
   it.each([
-    ['counts a cohort starting on the last second of the window', 0, 10n * SKR],
+    ['counts a cohort starting on the last second of the window', 0, 20n * SKR],
     ['owes nothing for one starting a second after it', 1, 0n],
   ])('%s', async (_name, late, owed) => {
     const w = await world();
@@ -555,7 +555,7 @@ describe('given a member who forfeited and came back (FR-037e)', () => {
   });
 
   it('scales every refund down pro rata when the comeback reserve is short, flooring each', async () => {
-    // Two comebacks owed 10 and 5 SKR against a reserve of 5: each gets a third
+    // Two comebacks owed 20 and 10 SKR against a reserve of 5: each gets a sixth
     // of its entitlement, floored, and one base unit stays in the vault (H35's
     // known limit). The forfeits are injected as counted comeback records rather
     // than played out, so this case checks figures, not invariants.
@@ -589,7 +589,7 @@ describe('given a member who forfeited and came back (FR-037e)', () => {
     await w.h.sendOrThrow([await settleFinalizeIx(w.crank.address, w.fees, w.league, 0)], w.crank);
 
     const settled = await w.h.readCohort(w.league, 0);
-    expect(settled.comebackOwed).toBe(15n * SKR);
+    expect(settled.comebackOwed).toBe(30n * SKR);
     expect(settled.comebackFunded, 'all the reserve had').toBe(5n * SKR);
     expect((await reservesOf(w)).comeback).toBe(0n);
 
@@ -602,7 +602,7 @@ describe('given a member who forfeited and came back (FR-037e)', () => {
       expect((await balanceOf(w, who)) - before).toBe(DEFAULT_CHIPS[3] + refund);
       refunds.push(refund);
     }
-    // floor(10 × 5 / 15) and floor(5 × 5 / 15), in SKR base units.
+    // floor(20 × 5 / 30) and floor(10 × 5 / 30), in SKR base units.
     expect(refunds).toEqual([3_333_333n, 1_666_666n]);
     const after = await w.h.readCohort(w.league, 0);
     expect(after.comebackClaimed).toBe(4_999_999n);

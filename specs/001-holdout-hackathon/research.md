@@ -123,7 +123,7 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
 - **Decision:** because every stake in a cohort equals one of that cohort's **four** locked chip amounts (FR-055), `settle_count` accumulates **finisher counts per tier** alongside `total_finisher_stake` (`T`). `settle_finalize` computes, in constant time:
   - `share_t = floor(pool × chip_t ÷ T)` for each tier `t`
   - `remainder = pool − Σ_t count_t × share_t`, sent to the fee destination (FR-032a)
-  - with `T = 0`: `fee_half = floor(pool ÷ 2)`, `carry = pool − fee_half` (the odd unit goes to the carry-over, FR-037)
+  - with `T = 0`: `developer = floor(pool ÷ 2)` to the developer destination and `pool − developer` to the operations destination; nothing carries over (FR-037, revised 2026-10-05 and 2026-10-09)
   A claim pays `stake + share_tier`, read from the finalized cohort.
 - **Rationale:** the exact remainder normally needs every finisher's share; tier counters make it O(1) and give every member of a tier a byte-identical payout (acceptance criterion 3) with no iteration at claim.
 - **Alternatives considered:** storing each finisher's payout during counting (the pool isn't final until every forfeit is recorded); leaving the remainder in the pool (rejected by H11).
@@ -175,8 +175,8 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
   - **Scripted wallets** are pre-funded with SOL once by the Operator and pay their own fees, so their claims mint SKR only (R12).
   - **Sizing (revised 2026-09-17 for the live period through 11 November; the stored values are normative in data-model §1.1):**
     - **Worst case per SOL-paying claim ≈ 0.024 SOL:** the 0.02 top-up, plus the profile and SKR token account rent reimbursed to the sponsor for a brand-new wallet.
-    - **Funding deadline:** the vault may be topped up by hand until submission. From 9 October it must last to 11 November with no top-up (FR-042a).
-    - **Amount:** 34 days × 0.72 SOL ≈ **24.5 SOL**, so the vault is funded to **25 SOL by 8 October**.
+    - **Funding deadline:** the vault may be topped up by hand until submission. From 13 October (moved from 9 October, 2026-10-09) it must last to 11 November with no top-up (FR-042a).
+    - **Amount:** 34 days × 0.72 SOL ≈ **24.5 SOL**, so the vault is funded to **25 SOL by 12 October** (was 8 October; the live period is now 30 days, so 25 SOL leaves more margin).
     - **Why 0.72 SOL a day is enough:** at the worst case it is 30 brand-new wallets a day, well above expected judge and community traffic, and one claim funds a wallet for a whole 21-day cycle. Refilling a drained sponsor draws on the same budget, so a griefer must spend the whole day's allowance to stop onboarding for the rest of that day.
 - **Rationale:** meets FR-042a and FR-042b — no server, no public faucet, no manual top-up — within Solana's fee rules. A sponsor key in the APK is a devnet-only trust gap: anyone can extract it, but it holds only a 0.05 SOL float, cannot touch a stake, a pool or a carry-over, cannot be locked out of use because anyone may refill it, and the daily lamport budget bounds what it can cost in a day.
 - **Must be documented** in the README's known weaknesses (constitution XI): "the faucet's fee sponsor key ships in the app; a daily lamport budget caps abuse at one day's faucet allowance, and anyone can refill the sponsor if it is drained."
@@ -195,7 +195,7 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
 ## R14 · Fee destination and privileged keys
 
 - **Decision:**
-  - `Config.fee_destination` is an SKR token account owned by a **treasury wallet** set at initialisation. It receives the 20 % forfeit fee, the no-finisher 50 % and rounding remainders.
+  - `Config.fee_destination` is the **operations** destination: an SKR token account owned by the treasury wallet, set at initialisation. `Config.developer_destination` is the **developer** destination, set at the same time and named in the README with what each is for (FR-037f). The 30 % fee on a forfeited stake is split by program rule — 5 % to the league's boost reserve, 5 % to its comeback reserve, 10 % to the developer destination, 10 % to operations (FR-027, H35; re-split 2026-10-09) — and operations also receives the rest of a no-finisher pool after the developer's floored half (FR-037) and the rounding remainders (FR-032a).
   - `Config.operator` may only `publish_chip_set`.
   - `Config.admin` may only `initialize`, `create_league` and `set_flags` (the two gates). `create_league` creates the two real leagues at launch, and a `league_id ≥ 100` test league only in builds carrying the `test-leagues` feature — one instruction, not two.
   - **Who may `initialize` (added 2026-09-19):** the program's **upgrade authority**, verified inside the instruction against the program's `ProgramData` account, and it becomes `Config.admin`. Before `Config` exists there is no stored key to check a signer against, so a deployment left uninitialised for even a moment could be claimed by a stranger who would then hold `admin`, `operator`, `sponsor` and the fee destination — and the program ID, which the app and the README both name, could not be reclaimed. Binding to the upgrade authority needs no constant in the source, works the same on the rehearsal and judged deployments, and anyone can verify it from chain state. **Ordering consequence:** `initialize` must run before the authority is revoked (FR-007b, README weakness); revoking first would leave the program permanently uninitialisable. Rejected: a hardcoded admin pubkey (a second constant to keep in step with two deployments, and it leaks a key into the source); trusting the deploy-then-init window to be short (it is a race the attacker picks the timing of).
@@ -230,7 +230,10 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
 - **Rationale:** constitution Hackathon Constraints — flags disable checks, never delete the logic.
 - **Alternatives considered:** omitting the check (violates the flag rule).
 
-## R18 · Recorded walkthrough
+## R18 · Recorded walkthrough — superseded 2026-10-09
+
+**Superseded (spec 004, constitution v2.1.0):** the app carries no walkthrough and no Media3. The submission is judged as the app's final state, so the full cycle is shown in the **demo video, sent as a link with the submission**, recorded from the real app on a cohort of the short test lobby (FR-044, FR-044a). The 9:16 in-app export and the 40 MB budget are dropped. What follows is kept as the record of the earlier decision.
+
 
 - **Decision (revised 2026-09-17):** a screen recording of the real app on the judged devnet program, taken **only from cohort #3**, the first judged 7-day cohort (FR-044). The same footage serves both the in-app walkthrough and the submission's demo video (FR-066).
   - **Two wallets on two devices:** a **finisher** on the Seeker and a **forfeiter** on the second phone. Both join cohort #3 through the release-candidate app before its join cutoff, **28 September 04:00 UTC**.
@@ -277,9 +280,9 @@ Resolves decision-record open items P3, P4, P5, P6, P8, P10, P11 (plan-level par
 
 ## R20 · First-run tour and the design tokens in Compose
 
-- **Decision:** the tour (FR-067) is **three Compose pages in a `HorizontalPager`** inside `kotlin/app/.../tour/`, shown after the first successful connect and re-openable from the About route. A `tour:{wallet}` MMKV record marks it seen (data-model §4). It carries **no video dependency at the freeze**: the short explainer (R18) drops into card 2 when it exists, and the cards stand alone until then.
+- **Decision:** the tour (FR-067) is **three Compose pages in a `HorizontalPager`** inside `kotlin/app/.../tour/`, shown after the first successful connect and re-openable from About Holdout. A `tour:{wallet}` MMKV record marks it seen (data-model §4). It carries **no video dependency at the freeze**: the short explainer (R18) drops into card 2 when it exists, and the cards stand alone until then.
 - **Theme:** PRD §11 tokens are transcribed once into `ui/theme/` — `Color.kt`, `Type.kt`, `Shape.kt`, `Theme.kt` — as a single dark `ColorScheme` with **dynamic colour disabled**. System Roboto for UI; **JetBrains Mono bundled in `res/font/`** for amounts and countdowns. No other font ships.
-- **Rationale:** the tour is the only onboarding a member gets now that the walkthrough is judge-facing (H29), and it must be finished before the app slice ends on 26 September — a pager over three static pages is hours of work, not days. Keeping the tokens in one file makes the design freeze on 20 September enforceable.
+- **Rationale:** the tour is the only onboarding a member gets (H29; there is no in-app walkthrough since 2026-10-09), and it must be finished before the app slice ends on 26 September — a pager over three static pages is hours of work, not days. Keeping the tokens in one file makes the design freeze on 20 September enforceable.
 - **Alternatives considered:** a video-only explainer (nothing to ship at the freeze, since cohort #3 is not filmed until October); an interactive coach-mark overlay on the real screens (more code, and it fights the camera screens); Material You dynamic colour (recolours the brand on every device).
 
 ## R21 · On-device reminders (added 2026-09-27)
