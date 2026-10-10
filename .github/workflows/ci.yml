@@ -18,34 +18,19 @@
 # The same four jobs run on a developer's machine with `bash scripts/ci-local.sh`
 # (Solana side in WSL, Kotlin on Windows), which is the gate when this workflow's
 # minutes run out. A change that touches only documentation — docs, specs, the
-# agent and Spec Kit folders, Markdown — starts no run here: none of the jobs
-# reads those files, except the README's weaknesses table and its source, which
-# stay in.
+# agent and Spec Kit folders, Markdown — skips the four jobs: the `changes` job
+# asks `scripts/needs-ci.sh`, which also lists the few such files a job does
+# read (the README's weaknesses table and its source, and the program
+# instructions contract the no-oracle suite checks). The `ci` gate reports
+# either way, so a required check never waits on a run that did not start —
+# which a workflow-level `paths` filter would leave pending.
 
 name: CI
 
 on:
   push:
     branches: [main, '001-holdout-hackathon']
-    paths:
-      - '**'
-      - '!**/*.md'
-      - '!docs/**'
-      - '!specs/**'
-      - '!.claude/**'
-      - '!.specify/**'
-      - 'README.md'
-      - 'docs/weaknesses.json'
   pull_request:
-    paths:
-      - '**'
-      - '!**/*.md'
-      - '!docs/**'
-      - '!specs/**'
-      - '!.claude/**'
-      - '!.specify/**'
-      - 'README.md'
-      - 'docs/weaknesses.json'
   workflow_dispatch:
 
 # A new push supersedes the run in flight on the same ref; a finished run on main
@@ -68,9 +53,45 @@ env:
   NO_DNA: '1'
 
 jobs:
+  # ---------------------------------------------------------------- changes
+  # Whether the change reaches anything a job reads. The diff is the PR's own
+  # changes against its base, or the push's against the commit before it; a
+  # manual run, or a push with nothing to compare against, runs everything.
+  changes:
+    name: Code or documentation alone
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ask scripts/needs-ci.sh
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          case "$EVENT" in
+            pull_request) from="$PR_BASE"; range="$PR_BASE...HEAD" ;;
+            push) from="$BEFORE"; range="$BEFORE..HEAD" ;;
+            *) from="" ;;
+          esac
+          if [ -n "$from" ] && git rev-parse -q --verify "$from^{commit}" >/dev/null; then
+            code="$(git diff --name-only "$range" | bash scripts/needs-ci.sh)"
+          else
+            code=true
+          fi
+          echo "code=$code" | tee -a "$GITHUB_OUTPUT"
+
   # ---------------------------------------------------------------- program
   program:
     name: Program — fmt, clippy, unit tests
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -109,6 +130,8 @@ jobs:
   # ----------------------------------------------------------------- anchor
   anchor:
     name: Anchor build
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -209,7 +232,8 @@ jobs:
     name: Contract tests — Kit + LiteSVM
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: anchor
+    needs: [changes, anchor]
+    if: needs.changes.outputs.code == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -261,6 +285,8 @@ jobs:
   # ----------------------------------------------------------------- kotlin
   kotlin:
     name: Kotlin — ktlint, JVM tests, debug APK
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -313,16 +339,19 @@ jobs:
         run: bash scripts/check-wording.sh
 
   # ------------------------------------------------------------------- gate
-  # One required check for branch protection: green only when every job above is.
+  # One required check for branch protection: green only when no job above
+  # failed or was cancelled. A documentation-only change skips the four jobs and
+  # is green here; `changes` failing is a failure like any other.
   ci:
     name: CI
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [program, anchor, contract-tests, kotlin]
+    needs: [changes, program, anchor, contract-tests, kotlin]
     if: always()
     steps:
       - name: Check the results
         run: |
+          echo "changes:        ${{ needs.changes.result }} (code: ${{ needs.changes.outputs.code }})"
           echo "program:        ${{ needs.program.result }}"
           echo "anchor:         ${{ needs.anchor.result }}"
           echo "contract-tests: ${{ needs.contract-tests.result }}"
