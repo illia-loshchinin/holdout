@@ -23,6 +23,8 @@ val HoldoutShapes = Shapes(
 
 /** The 4dp base grid, named so screens do not invent their own numbers. */
 object Spacing {
+    /** The base unit: icon-to-label gaps, the bank ring's segment gap. */
+    val base = 4.dp
     val screenGutter = 20.dp
     val cardPadding = 20.dp
     val betweenSections = 24.dp
