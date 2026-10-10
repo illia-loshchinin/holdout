@@ -28,3 +28,4 @@
   (`/code-review xhigh <PR number> --comment`, which posts its findings on the PR). Fix or answer
   every finding on the PR, and say in the PR that this review replaced Codex's. The PR is not
   ready for review, and is not merged, until that review is done and answered.
+- Do not use `archive` folder for development or implementation. The data source inside the archive folder must be treated as deprecated.
