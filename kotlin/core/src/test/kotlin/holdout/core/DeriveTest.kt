@@ -361,13 +361,13 @@ class DeriveTest {
     // ---- league reserves (FR-037d, FR-037e, H35) ----------------------------
 
     @Test
-    fun `given a running cohort with an unrecorded breach, when projecting the boost, then it is up to 20 percent of the projected pool`() {
-        // Own pool 600 + 70 of the unrecorded 100-stake breach = 670; 20% of it is 134.
+    fun `given a running cohort with an unrecorded breach, when projecting the boost, then it is up to 10 percent of the projected pool`() {
+        // Own pool 600 + 70 of the unrecorded 100-stake breach = 670; 10% of it is 67.
         val c = cohort(memberCount = 3, pool = 600uL)
         val members = listOf(member(1, 1), member(2, 1), member(3, 0))
         val at = Derive.deadlineOf(c, 0) + 1
         assertEquals(670uL, Derive.projectedPool(c, members, at), "the projected pool stays the cohort's own: no boost in it")
-        assertEquals(134uL, Derive.projectedBoost(c, members, at, boostReserve = 1_000uL))
+        assertEquals(67uL, Derive.projectedBoost(c, members, at, boostReserve = 1_000uL))
     }
 
     @Test
@@ -404,7 +404,7 @@ class DeriveTest {
         val c = cohort(memberCount = 3, pool = 600uL)
         val members = listOf(member(1, 1), member(2, 1), member(3, 0))
         val at = Derive.deadlineOf(c, 0) + 1
-        assertEquals(134uL, Derive.figures(c, members, at, boostReserve = 1_000uL).projectedBoost)
+        assertEquals(67uL, Derive.figures(c, members, at, boostReserve = 1_000uL).projectedBoost)
         assertNull(Derive.figures(c, members, at).projectedBoost)
     }
 
