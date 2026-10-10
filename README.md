@@ -80,7 +80,9 @@ a person.
 
 `bash scripts/ci-local.sh` runs the CI workflow's four jobs on your machine —
 the Solana side in WSL, Kotlin on Windows — with the same pass/fail as GitHub
-Actions; `--only kotlin` (or a comma list) runs a subset. A change to
-documentation alone starts no CI run on GitHub.
+Actions; `--only kotlin` (or a comma list) runs a subset, and `--report` sets
+the commit status **CI (local)** on the pull request's head commit and keeps one
+comment on the PR with the results. A change to documentation alone starts no
+CI run on GitHub.
 
 Constitution and spec are written and clarified; amend them rather than regenerating them.
