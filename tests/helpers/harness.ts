@@ -254,6 +254,81 @@ const groupMemberMintBytes = (mint: Address, group: Address, memberNumber: bigin
   return out;
 };
 
+// Token-2022 extension type numbers (spl-token-2022-interface 2.1.0, `ExtensionType`).
+const MINT_CLOSE_AUTHORITY_EXTENSION = 3;
+const IMMUTABLE_OWNER_EXTENSION = 7;
+const PERMANENT_DELEGATE_EXTENSION = 12;
+const METADATA_POINTER_EXTENSION = 18;
+const GROUP_MEMBER_POINTER_EXTENSION = 22;
+const ACCOUNT_TYPE_ACCOUNT = 2;
+const ACCOUNT_STATE_FROZEN = 2;
+
+/** The Seeker Genesis Token's mint authority (research R17); any key would do. */
+const SEEKER_GENESIS_AUTHORITY = address('GT2zuHVaZQYZSyQMgJPLzvkmyztfyXg2NJunqFp4p3A4');
+
+/** Token-2022 TLV entries — type u16, length u16, value — laid end to end. */
+const tlv = (entries: [type: number, value: Uint8Array][]): Uint8Array => {
+  const out = new Uint8Array(entries.reduce((n, [, value]) => n + 4 + value.length, 0));
+  const view = new DataView(out.buffer);
+  let at = 0;
+  for (const [type, value] of entries) {
+    view.setUint16(at, type, true);
+    view.setUint16(at + 2, value.length, true);
+    out.set(value, at + 4);
+    at += 4 + value.length;
+  }
+  return out;
+};
+
+/**
+ * A mint shaped as a real Seeker Genesis Token's on mainnet (450 bytes): the
+ * 82-byte base with mint and freeze authority, padded to 165, the account
+ * type, then MetadataPointer, PermanentDelegate, MintCloseAuthority,
+ * GroupMemberPointer and TokenGroupMember, in that order.
+ */
+const seekerGenesisMintBytes = (mint: Address, group: Address, memberNumber: bigint): Uint8Array => {
+  const enc = getAddressEncoder();
+  const authority = enc.encode(SEEKER_GENESIS_AUTHORITY);
+  const pair = (a: ArrayLike<number>, b: ArrayLike<number>) => {
+    const out = new Uint8Array(64);
+    out.set(a, 0);
+    out.set(b, 32);
+    return out;
+  };
+  const member = new Uint8Array(72);
+  member.set(enc.encode(mint), 0);
+  member.set(enc.encode(group), 32);
+  new DataView(member.buffer).setBigUint64(64, memberNumber, true);
+  const extensions = tlv([
+    [METADATA_POINTER_EXTENSION, pair(authority, enc.encode(group))],
+    [PERMANENT_DELEGATE_EXTENSION, Uint8Array.from(authority)],
+    [MINT_CLOSE_AUTHORITY_EXTENSION, Uint8Array.from(authority)],
+    [GROUP_MEMBER_POINTER_EXTENSION, pair(authority, enc.encode(mint))],
+    [TOKEN_GROUP_MEMBER_EXTENSION, member],
+  ]);
+  const out = new Uint8Array(166 + extensions.length);
+  out.set(mintBytes(SEEKER_GENESIS_AUTHORITY, 1n, 0), 0);
+  new DataView(out.buffer).setUint32(46, 1, true); // freeze_authority: Some
+  out.set(authority, 50);
+  out[165] = ACCOUNT_TYPE_MINT;
+  out.set(extensions, 166);
+  return out;
+};
+
+/**
+ * A token account shaped as a real Seeker Genesis Token's (170 bytes): an
+ * associated token account, so it carries ImmutableOwner (no value), and
+ * frozen.
+ */
+const frozenAtaBytes = (mint: Address, owner: Address, amount: bigint): Uint8Array => {
+  const out = new Uint8Array(166 + 4);
+  out.set(tokenAccountBytes(mint, owner, amount), 0);
+  out[108] = ACCOUNT_STATE_FROZEN;
+  out[165] = ACCOUNT_TYPE_ACCOUNT;
+  out.set(tlv([[IMMUTABLE_OWNER_EXTENSION, new Uint8Array(0)]]), 166);
+  return out;
+};
+
 // ---------------------------------------------------------------------- harness
 
 export interface HarnessOptions {
@@ -442,6 +517,35 @@ export class Harness {
   /** A Token-2022 token account holding `amount`. */
   injectToken2022Account(at: Address, mint: Address, owner: Address, amount: bigint): Address {
     this.put(at, tokenAccountBytes(mint, owner, amount), TOKEN_2022_PROGRAM);
+    return at;
+  }
+
+  /**
+   * A mint shaped as a real Seeker Genesis Token's — five extensions, the
+   * group member last — in `group`. `program` owns it: Token-2022 for the
+   * real thing, another program to show the check refusing it.
+   */
+  injectSeekerGenesisMint(
+    mint: Address,
+    group: Address = SEEKER_GENESIS_GROUP,
+    program: Address = TOKEN_2022_PROGRAM,
+  ): Address {
+    this.put(mint, seekerGenesisMintBytes(mint, group, 121_184n), program);
+    return mint;
+  }
+
+  /**
+   * A frozen associated token account with ImmutableOwner, as a real Seeker
+   * Genesis Token sits in, holding `amount`, owned by `program`.
+   */
+  injectFrozenAta(
+    at: Address,
+    mint: Address,
+    owner: Address,
+    amount: bigint,
+    program: Address = TOKEN_2022_PROGRAM,
+  ): Address {
+    this.put(at, frozenAtaBytes(mint, owner, amount), program);
     return at;
   }
 
