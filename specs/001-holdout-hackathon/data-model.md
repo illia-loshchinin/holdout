@@ -1,6 +1,6 @@
 # Data model — 001-holdout-hackathon
 
-**Phase 1 output of `/speckit-plan`.** Behaviour is fixed by `spec.md` §6–§8; state machines and edge cases by `docs/holdout_scope_and_state_machines.md` §3–§4. This file fixes **what is stored where**. Instruction signatures are in `contracts/program-instructions.md`.
+**Phase 1 output of `/speckit-plan`.** Behaviour, state machines and edge cases are fixed by `spec.md` §6–§8. This file fixes **what is stored where**. Instruction signatures are in `contracts/program-instructions.md`.
 
 Units: SKR amounts are **base units** (`u64`); times are **Unix seconds of chain time** (`i64`); lamports for SOL.
 

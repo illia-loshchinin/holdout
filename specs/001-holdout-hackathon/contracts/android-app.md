@@ -1,6 +1,6 @@
 # Contract — Android app (Kotlin)
 
-**Phase 1 output of `/speckit-plan`.** What the native app (`kotlin/app`) promises to the member, the chain and the constitution. Screen designs and copy: `docs/holdout_v1_prd.md` §10–§13. This contract fixes the boundaries: permissions, network, storage, wallet use, and which screen shows each state.
+**Phase 1 output of `/speckit-plan`.** What the native app (`kotlin/app`) promises to the member, the chain and the constitution. What each screen shows and says is fixed by `spec.md`; the screens as built are described in `docs/holdout_screen_map.md` and their look in `docs/design/`. A `PRD §n` citation below names the archived hackathon PRD as a screen's origin only (spec header). This contract fixes the boundaries: permissions, network, storage, wallet use, and which screen shows each state.
 
 ## 1. Platform and permissions
 
@@ -42,9 +42,9 @@ Client: `com.solanamobile:mobile-wallet-adapter-clientlib-ktx` 2.2.0, used as in
 
 | Item | Contract |
 |---|---|
-| Theme | **A single dark theme** built from the tokens in `docs/holdout_v1_prd.md` §11 — black canvas, Solana-palette accents. No light variant |
+| Theme | **A single dark theme** built from the tokens in `docs/design/` (`tokens.json`, transcribed into `ui/theme/`) — black canvas, Solana-palette accents. No light variant |
 | Dynamic colour | **Disabled.** Material You never recolours the app; brand colours are fixed |
-| Fonts | System Roboto / Roboto Flex for UI, JetBrains Mono (bundled, open licence) for amounts and countdowns. **No licensed brand font ships in the APK** (PRD §11.8) |
+| Fonts | System Roboto / Roboto Flex for UI, JetBrains Mono (bundled, open licence) for amounts and countdowns. **No licensed brand font ships in the APK** (`docs/design/README.md`, Type) |
 | Camera screens | Designed for black: full-bleed preview, with a scrim behind any text |
 
 ## 4. Device storage

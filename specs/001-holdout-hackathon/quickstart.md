@@ -128,7 +128,7 @@ cd kotlin && ./gradlew :app:lint :app:checkNoAudioPermission
 cd kotlin && ./gradlew :app:testDevnetDebugUnitTest --tests '*ThemeTest*' --tests '*LobbyCardTest*'
 ```
 
-**Expected:** the Compose theme carries the PRD §11 hex values with dynamic colour off, and a lobby card renders "at stake" with the joined count — never the word "prize" before a Holdout starts (FR-053, spec §1a).
+**Expected:** the Compose theme carries the hex values of `docs/design/tokens.json` with dynamic colour off, and a lobby card renders "at stake" with the joined count — never the word "prize" before a Holdout starts (FR-053, spec §1a).
 
 ## 5. Full cycle on a compressed clock (spike S3 / rehearsal)
 
