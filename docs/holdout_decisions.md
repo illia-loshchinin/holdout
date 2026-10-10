@@ -683,6 +683,16 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 
 **Source:** spec clarifications, session 2026-10-10; constitution v2.2.0; tasks T137–T151.
 
+### H38. Staking is Seeker-exclusive
+
+**Decided (2026-10-10, product owner; constitution v2.3.0):** joining any staked Holdout — 7-day, 21-day and the short test lobby — needs a wallet holding a **Seeker Genesis Token**. It is part of the hackathon pitch and of Holdout's marketing. The contract's check (research R17: a Token-2022 account owned by the member, holding one token whose mint is a member of the Seeker Genesis Token group) is written in `join_cohort` behind `genesis_gate_enabled`, and the flag is turned on at mainnet launch. Seeker Genesis Tokens exist only on mainnet, so on devnet the flag stays off and **the app** checks the connected wallet's token on mainnet before it signs a join. A wallet without one keeps the Daily 25 and can watch every Holdout; joining shows that staked Holdouts are Seeker-exclusive, with a link to the Seeker store. If mainnet cannot be reached, joining is refused with a try-again message, and a wallet once confirmed is remembered on the phone.
+
+**Why:** Holdout is built for the Seeker community the hackathon judges. Until now the flag existed but the check had never been written (`join_cohort` passed `holds_genesis = false`), so turning it on would have closed joining to everyone, which broke the rule that flags never delete the logic behind them.
+
+**Trade-off:** on devnet the gate is the app's, not the contract's, so a wallet that signs a join without the app is not stopped. It is named in the README as a known weakness, and the fix is the contract check at mainnet launch.
+
+**Source:** spec clarifications, session 2026-10-10 (FR-003b–FR-003d, ES-0c, ES-0d, AC-21); constitution v2.3.0.
+
 ---
 
 ## 2. Still valid from the product-vision record
@@ -850,3 +860,4 @@ By decision, not by omission.
 | 2026-10-10 | **Boost cap 10% (FR-037d); the comeback refund stays 20%.** The Codex review of PR #28 showed that with both at 20% a group forfeiting on purpose into its own finisher recovers 0.7 × 1.2 + 0.2 = 1.04 per SKR lost once the league's reserves hold honest members' money, against the 0.94 bound H35 recorded for a 10% refund. The product owner kept the 20% comeback members were promised and cut the boost cap to 10% of a cohort's own pool: the bound is 0.97. The average boost is unchanged, because the reserve (5% of forfeits) binds long before the cap; only small pools feel it. Program constant, Kotlin core, checker and golden vectors changed together. |
 | 2026-10-10 | **Chip set published in the 4 hours before the cohorts open** (FR-056, T125). `crank chips publish --auto` still runs hourly, but publishes only inside Monday 01:00–05:00 UTC, once per window, by chain time. Publishing on the first run after 05:00 came after that week's cohorts had already opened, so every lobby locked a rate about a week old (two by its join cutoff), and a run at `:00` raced the opening. Now a new lobby locks a rate at most 4 hours old and keeps it for every joiner; a window with no rate leaves the previous set (FR-057). Supersedes the 2026-10-07 "first run after the boundary". |
 | 2026-10-10 | **Constitution v2.2.0 and H37: no ladder.** The 7-day and 21-day leagues are separate products, both open to every member at all times. The ladder gate, its flag, `Profile.qualified` and error 6023 (retired, not reused) are deleted from the program, IDL, client, fixtures, Kotlin and crank; `qualify.spec.ts` becomes `open-leagues.spec.ts`; the README weakness row is gone. Spec FR-003 amended, FR-003a/FR-004 and US-5 removed; after a forfeit the way back is the same league (US-4). Removed outright, not as reserved bytes, because nothing was on devnet yet. |
+| 2026-10-10 | **Constitution v2.3.0 (minor) and H38: staking is Seeker-exclusive.** Joining any staked Holdout needs a wallet holding a Seeker Genesis Token: the contract checks it at mainnet (R17, flag turned on at launch), and on devnet the app checks the wallet's token on mainnet. Without one, the Daily 25 and watching stay open and joining shows the Seeker-exclusive notice with a Seeker store link. Spec FR-002, FR-003, FR-044a, US-1, US-6 and US-9 amended; FR-003b–FR-003d, ES-0c, ES-0d and AC-21 added. |
