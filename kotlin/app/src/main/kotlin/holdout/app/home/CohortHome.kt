@@ -137,14 +137,12 @@ fun CohortHome(
                     color = HoldoutColors.Success,
                 )
                 Body(
-                    "Your ${c.repsPerDay} are counted on this phone. It only counts once it reaches the chain before the deadline" +
-                        if (offline) {
-                            ", and it is sent by itself as soon as the connection is back."
-                        } else if (tap) {
-                            "."
-                        } else {
-                            ": approve it in your wallet."
-                        },
+                    if (offline) {
+                        // Not "by itself": nothing is sent while the app is closed (FR-024b, 2026-10-10).
+                        "Your ${c.repsPerDay} are saved on this phone. It's sent when Holdout is open and back online, and you approve it in your wallet. Until then the day doesn't count."
+                    } else {
+                        "Your ${c.repsPerDay} are counted on this phone. It only counts once it reaches the chain before the deadline" + if (tap) "." else ": approve it in your wallet."
+                    },
                 )
                 timeLeft?.let { Body("${Format.countdown(it)} left.") }
                 if (tap) {

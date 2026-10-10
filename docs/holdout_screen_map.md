@@ -381,7 +381,7 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 | Part-way (drawn) | ring 1/3 · *10 banked today* | **Do 15 more** |
 | Last 10 min | time in warning colour + *"Under 10 minutes left. You can still start — the deadline is the chain's"* | Start (never blocked) |
 | Offline, not done | warning card: reps can be done, the day counts only once submitted before the deadline | Start |
-| Done, not submitted | ring full · *"Done — tap to submit"* · time left | **Submit day 12** → N1 |
+| Done, not submitted | ring full · offline: *"Done — waiting for network"* · *"…It's sent when Holdout is open and back online, and you approve it in your wallet. Until then the day doesn't count."*; online the wallet opens by itself (T098), and *"Done — tap to submit"* only if that send failed · time left | **Submit day 12** → N1 (only after a failed send) |
 | Short of SOL to submit | notice + **Get test tokens** | → W1 sheet |
 | Submitted | ring full in green · *"Today is done and on chain."* · *"Next day opens in …"* | — |
 
@@ -438,6 +438,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 **On screen:** **25** in green · `DONE` · gradient sweep · one button:
 - Daily 25 → **Done** → T1 (streak +1, *NICE:* flame flourish *"13-day streak"*)
 - Holdout day → **Submit day 12 to the chain** → N1 → T2 *"on chain"*
+- Holdout day, **offline** (2026-10-10, FR-024b): *"Done — not sent yet"* · *"You're offline, so day 12 isn't on chain yet. Your 25 are saved on this phone. Open Holdout online before the deadline (4h 06m left) and approve day 12 in your wallet."* · **Back to today** → T2
 
 *NICE, not built:* after a Daily 25 with no Holdout → *"Want money on it? Join a 7-day Holdout."* → H2 (PRD §10.2)
 

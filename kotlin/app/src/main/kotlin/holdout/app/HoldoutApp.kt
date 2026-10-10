@@ -451,7 +451,9 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                 onFinished = done,
                 onCancelled = { done() },
                 modifier = modifier,
-                finishLabel = "Submit day ${s.day + 1} to the chain",
+                // Offline, a submit cannot work: say so, and how the day gets sent (FR-024b, 2026-10-10).
+                finishLabel = if (chain.offline) "Back to today" else "Submit day ${s.day + 1} to the chain",
+                finishNote = if (chain.offline) offlineNote(h, s.day, clock.nowSeconds()) else null,
             )
             return
         }
@@ -764,4 +766,17 @@ private fun InFrontLoop(key: Any?, pass: suspend () -> Unit) {
             while (true) pass()
         }
     }
+}
+
+/**
+ * What the finished screen says for a cohort day completed offline (001
+ * FR-024b, decided 2026-10-10): not sent yet, saved on the phone, and how it
+ * gets on chain — opened online before the deadline and approved in the wallet.
+ */
+internal fun offlineNote(h: Holdout, day: Int, nowSeconds: Long?): Pair<String, String> {
+    val left = nowSeconds?.let { holdout.core.Derive.timeLeftToday(h.cohort, it) }
+    val deadline = left?.let { " (${Format.countdown(it)} left)" } ?: ""
+    return "Done — not sent yet" to
+        "You're offline, so day ${day + 1} isn't on chain yet. Your ${h.cohort.repsPerDay} are saved on this phone. " +
+        "Open Holdout online before the deadline$deadline and approve day ${day + 1} in your wallet."
 }

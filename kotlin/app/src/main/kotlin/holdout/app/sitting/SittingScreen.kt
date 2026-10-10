@@ -102,6 +102,11 @@ fun SittingScreen(
     /** The finished screen's button: "Back" for the Daily 25, the submit for a Holdout day. */
     finishLabel: String = "Back",
     /**
+     * Said on the finished screen above its button, when the day is done but
+     * cannot be sent yet: a title and a sentence (001 FR-024b, 2026-10-10).
+     */
+    finishNote: Pair<String, String>? = null,
+    /**
      * Holdout Lab's additions (spec 004): readouts, clean screen, video and the
      * label question. The member app passes none.
      */
@@ -210,7 +215,7 @@ fun SittingScreen(
                 } else {
                     CountingOverlay(state, readouts = tools?.readouts)
                 }
-                SittingViewModel.Step.COMPLETE -> DayComplete(state, finishLabel) {
+                SittingViewModel.Step.COMPLETE -> DayComplete(state, finishLabel, finishNote) {
                     if (tools != null && viewModel.labEnding != null) labelThen = onFinished else onFinished()
                 }
             }
@@ -521,9 +526,13 @@ private fun DeadlineBanner(viewModel: SittingViewModel, modifier: Modifier) {
 }
 
 @Composable
-private fun DayComplete(state: SittingViewModel.UiState, label: String, onFinished: () -> Unit) {
+private fun DayComplete(state: SittingViewModel.UiState, label: String, note: Pair<String, String>?, onFinished: () -> Unit) {
     Text("${state.target}", style = CounterStyle, color = HoldoutColors.Success)
     Text("done", style = LabelStyle, color = HoldoutColors.TextSecondary)
+    note?.let { (title, sentence) ->
+        Text(title, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Warning, textAlign = TextAlign.Center)
+        Text(sentence, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary, textAlign = TextAlign.Center)
+    }
     PrimaryButton(label, onFinished)
 }
 
