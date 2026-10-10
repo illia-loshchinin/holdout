@@ -218,13 +218,13 @@ java -jar kotlin/crank/build/libs/crank.jar init --admin <keypair> --operator <p
 java -jar kotlin/crank/build/libs/crank.jar chips publish --rate <usd-per-skr>
 ```
 
-**The weekly chip check** (FR-056, T100) is the Operator's own scheduled command — never part of `crank run`, so the Operator key is loaded only while it runs. It reads the SKR rate from the Jupiter Price API and re-prices all four chips from it every week, publishes at most once per Monday 05:00 UTC boundary, and exits `0` without publishing when Jupiter has no answer, saying why (FR-057). Try it first without sending:
+**The weekly chip check** (FR-056, T100) is the Operator's own scheduled command — never part of `crank run`, so the Operator key is loaded only while it runs. It reads the SKR rate from the Jupiter Price API and re-prices all four chips from it every week, publishes at most once per **publish window** — Monday 01:00 to 05:00 UTC, the 4 hours before the week's cohorts open, so they lock a rate at most 4 hours old — and exits `0` without publishing when Jupiter has no answer, saying why (FR-057). Try it first without sending:
 
 ```bash
 java -jar kotlin/crank/build/libs/crank.jar chips publish --auto --dry-run
 ```
 
-Then schedule it to run **every hour**, with `HOLDOUT_RPC_URL`, `HOLDOUT_PROGRAM_ID` and `HOLDOUT_OPERATOR_KEYPAIR` set (and `HOLDOUT_JUPITER_API_KEY` if you have one). The machine's time zone doesn't matter: the command itself knows the Monday 05:00 UTC boundary, so the first run after it publishes and every other run that week does nothing, without fetching a rate. Linux or WSL2 cron:
+Then schedule it to run **every hour**, with `HOLDOUT_RPC_URL`, `HOLDOUT_PROGRAM_ID` and `HOLDOUT_OPERATOR_KEYPAIR` set (and `HOLDOUT_JUPITER_API_KEY` if you have one). The machine's time zone doesn't matter: the command itself knows the window by chain time, so the first run inside it publishes and every other run that week does nothing, without fetching a rate. Linux or WSL2 cron:
 
 ```cron
 17 * * * *  cd /path/to/holdout && java -jar kotlin/crank/build/libs/crank.jar chips publish --auto >> crank-chips.log 2>&1
@@ -236,7 +236,7 @@ Windows Task Scheduler:
 schtasks /Create /TN "Holdout weekly chip check" /SC HOURLY /ST 00:17 /TR "cmd /c cd /d C:\path\to\holdout && java -jar kotlin\crank\build\libs\crank.jar chips publish --auto >> crank-chips.log 2>&1"
 ```
 
-A run that fails or finds no rate is simply tried again the next hour, within the same week; once a set has been published, running it again that week does nothing. A once-a-Monday schedule is not used: cron ignores `CRON_TZ` on Debian, and a local-time Monday run can land before 05:00 UTC, or move with daylight saving, and publish a week late.
+A run that fails or finds no rate is simply tried again the next hour inside the window — four tries at `:17`; if none succeeds, the cohorts opening at 05:00 keep the previous set (FR-057). Once a set has been published in the window, running it again does nothing. A once-a-Monday schedule is not used: cron ignores `CRON_TZ` on Debian, and a local-time run can miss the window or move with daylight saving. `--dry-run` works any day and reports `insideWindow`.
 
 **Expected:** `Config`, the 7-day and 21-day `LeagueConfig`s (first start Monday 5 October 05:00 UTC by default — moved from 28 September on 26 September — so cohort index 0 is the first judged cohort and its lobby can open immediately), the mock SKR mint and a funded faucet vault exist; `crank status` lists the leagues with no cohorts yet.
 
@@ -271,7 +271,7 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 9 | No price read | Code search + test | No instruction reads a price; only `crank chips publish` uses a rate |
 | 10 | No frame leaves device | Proxy the phone, run a sitting | Only RPC traffic observed |
 | 11 | No finishers | *local*: all forfeit | The whole pool reaches the fee destination; no other cohort changes, whether or not the league has one open |
-| 12 **[Phase 2]** | Weekly re-pricing | *local*: `crank chips publish --auto` twice in one week, then after the next Monday 05:00 UTC | Publishes once per week, the second run that week does nothing; old cohorts keep old chips |
+| 12 **[Phase 2]** | Weekly re-pricing | *local*: `crank chips publish --auto` outside the window, then twice inside Monday 01:00–05:00 UTC, then open the 05:00 cohort | Outside the window and the second run inside it do nothing; the first run inside publishes and the 05:00 cohort holds that set; old cohorts keep old chips |
 | 13 | Lobby place, lock, overlap | *local* | Continuous 7-day → 7-day; cutoff ±1 s behaviour; 21-day overlap refused |
 | 14 **[Phase 2]** | Leaderboard ranking | Devnet or *local* with seeded profiles | Ranking and "not ranked yet" as specified; no amounts; scripted labels |
 | 15 | Banked reps across sittings | Device: 10 + 10 + 5; stop at 17; kill app | Day lands only after rep 25; 10 kept at 17; blocks survive kill; late sitting allowed with warning |

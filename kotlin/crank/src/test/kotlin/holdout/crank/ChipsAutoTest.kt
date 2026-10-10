@@ -27,9 +27,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * T100 — `crank chips publish --auto`, the Operator's weekly re-pricing
+ * T100, T116 — `crank chips publish --auto`, the Operator's weekly re-pricing
  * (FR-056, FR-057, AC-12, research R15): the rate from Jupiter only, every
- * week with no threshold, at most one publish per weekly boundary.
+ * week with no threshold, at most one publish per publish window — the 4
+ * hours before Monday 05:00 UTC, so the cohort opening then locks a fresh rate.
  */
 class ChipsAutoTest {
     private val programId = SolanaPublicKey.from("Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4")
@@ -37,9 +38,19 @@ class ChipsAutoTest {
     private val mint = SolanaPublicKey(ByteArray(32) { 9 })
     private val configAddress = runBlocking { Pdas.config(programId) }
 
-    /** Wednesday 7 October 2026, 12:00 UTC; the week's boundary is Monday 5 October, 05:00 UTC. */
+    /** Wednesday 7 October 2026, 12:00 UTC; the latest boundary is Monday 5 October, 05:00 UTC. */
     private val wednesday = Instant.parse("2026-10-07T12:00:00Z").epochSecond
     private val monday = Instant.parse("2026-10-05T05:00:00Z").epochSecond
+
+    /** The next boundary, Monday 12 October 05:00 UTC, and its publish window from 01:00. */
+    private val nextMonday = Instant.parse("2026-10-12T05:00:00Z").epochSecond
+    private val windowOpens = Instant.parse("2026-10-12T01:00:00Z").epochSecond
+
+    /** The first hourly run inside the window (a cron at :17). */
+    private val inWindow = Instant.parse("2026-10-12T01:17:00Z").epochSecond
+
+    /** Last week's set, published in last week's window. */
+    private val lastWeek = Instant.parse("2026-10-05T01:17:00Z").epochSecond
 
     private val env =
         mapOf(
@@ -53,7 +64,7 @@ class ChipsAutoTest {
 
     private fun configBytes(
         amounts: List<ULong> = launchSet,
-        publishedAt: Long = monday - 7 * 86_400,
+        publishedAt: Long = lastWeek,
         configOperator: SolanaPublicKey = operator.publicKey,
         version: Int = 1,
     ): ByteArray {
@@ -71,6 +82,9 @@ class ChipsAutoTest {
 
     private class Cluster(val replies: Map<String, (JsonObject) -> String>) : HttpNetworkDriver {
         val calls = mutableListOf<JsonObject>()
+
+        /** The chain's time; a test moves it between runs. */
+        var now = 0L
 
         override suspend fun makeHttpRequest(request: HttpRequest): String {
             val body = Json.parseToJsonElement(request.body ?: "{}").jsonObject
@@ -90,9 +104,10 @@ class ChipsAutoTest {
         """{"context":{"slot":1},"value":{"data":["${Base64.getEncoder().encodeToString(data)}","base64"],"executable":false,"lamports":1,"owner":"11111111111111111111111111111111","rentEpoch":0}}""",
     )
 
-    private fun cluster(config: ByteArray = configBytes(), now: Long = wednesday): Cluster {
+    private fun cluster(config: ByteArray = configBytes(), now: Long = inWindow): Cluster {
         var configNow = config
-        return Cluster(
+        lateinit var cluster: Cluster
+        cluster = Cluster(
             mapOf(
                 "getAccountInfo" to { body ->
                     when (body.getValue("params").jsonArray[0].jsonPrimitive.content) {
@@ -102,13 +117,15 @@ class ChipsAutoTest {
                     }
                 },
                 "getSlot" to { _ -> ok("777") },
-                "getBlockTime" to { _ -> ok("$now") },
+                "getBlockTime" to { _ -> ok("${cluster.now}") },
                 "getLatestBlockhash" to { _ -> ok("""{"context":{"slot":1},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":9}}""") },
                 "simulateTransaction" to { _ -> ok("""{"context":{"slot":1},"value":{"err":null,"logs":[]}}""") },
-                "sendTransaction" to { _ -> ok("\"5sig\"").also { configNow = configBytes(version = 2, publishedAt = now) } },
+                "sendTransaction" to { _ -> ok("\"5sig\"").also { configNow = configBytes(version = 2, publishedAt = cluster.now) } },
                 "getSignatureStatuses" to { _ -> ok("""{"context":{"slot":1},"value":[{"err":null,"confirmationStatus":"confirmed"}]}""") },
             ),
         )
+        cluster.now = now
+        return cluster
     }
 
     /** A rate source that answers [rate] and counts how often it was asked. */
@@ -179,36 +196,96 @@ class ChipsAutoTest {
         assertTrue(c.sent("simulateTransaction").isEmpty() && c.sent("sendTransaction").isEmpty())
     }
 
-    // ---- once per weekly boundary ------------------------------------------------------
+    // ---- once per publish window: the 4 hours before Monday 05:00 UTC -----------------
 
     @Test
-    fun `given a set already published since this Monday 05 00 UTC, when checked, then no rate is fetched and nothing is sent`() {
-        val c = cluster(configBytes(publishedAt = monday + 60))
-        val rate = FixedRate(BigDecimal("0.05"))
-        val json = auto(c, rate)
-        assertEquals("false", json.text("published"))
-        assertEquals("already published this week", json.text("reason"))
-        assertEquals(0, rate.asked)
-        assertTrue(c.sent("sendTransaction").isEmpty())
+    fun `given the window's first and last second, when run, then each publishes`() {
+        for (now in listOf(windowOpens, nextMonday - 1)) {
+            val json = auto(cluster(now = now), FixedRate(BigDecimal("0.03")))
+            assertEquals("true", json.text("published"), Instant.ofEpochSecond(now).toString())
+        }
     }
 
     @Test
-    fun `given this week's set already published, when dry-run, then the rate is still fetched, priced and simulated, and nothing is sent`() {
-        val c = cluster(configBytes(publishedAt = monday + 60))
+    fun `given an instant outside the window, when run, then no rate is fetched, nothing is sent, and the report names the window`() {
+        val outside = listOf(windowOpens - 1, nextMonday, wednesday, Instant.parse("2026-10-11T12:00:00Z").epochSecond)
+        for (now in outside) {
+            val c = cluster(now = now)
+            val rate = FixedRate(BigDecimal("0.03"))
+            val json = auto(c, rate)
+            val at = Instant.ofEpochSecond(now).toString()
+            assertEquals("false", json.text("published"), at)
+            assertEquals("outside the publish window", json.text("reason"), at)
+            assertEquals(0, rate.asked, at)
+            assertTrue(c.sent("simulateTransaction").isEmpty() && c.sent("sendTransaction").isEmpty(), at)
+        }
+        val json = auto(cluster(now = wednesday), FixedRate(BigDecimal("0.03")))
+        assertEquals("2026-10-12T01:00:00Z", json.text("windowOpens"))
+        assertEquals("2026-10-12T05:00:00Z", json.text("windowCloses"))
+    }
+
+    @Test
+    fun `given a set already published in this window, when run again in it, then no rate is fetched and nothing is sent`() {
+        val c = cluster()
+        assertEquals("true", auto(c, FixedRate(BigDecimal("0.03"))).text("published"))
+        c.now = inWindow + 3_600
+        val rate = FixedRate(BigDecimal("0.05"))
+        val json = auto(c, rate)
+        assertEquals("false", json.text("published"))
+        assertEquals("already published in this window", json.text("reason"))
+        assertEquals(0, rate.asked)
+        assertEquals(1, c.sent("sendTransaction").size, "only the first run's publish")
+    }
+
+    @Test
+    fun `given a run in the window found no rate, when the next hourly run in it has one, then that run publishes`() {
+        val c = cluster()
+        assertEquals("no rate", auto(c, FixedRate(null)).text("reason"))
+        c.now = inWindow + 3_600
+        val json = auto(c, FixedRate(BigDecimal("0.03")))
+        assertEquals("true", json.text("published"))
+        assertEquals(1, c.sent("sendTransaction").size)
+    }
+
+    @Test
+    fun `given a set published last week or just before this window, when run in the window, then it still publishes`() {
+        for (publishedAt in listOf(nextMonday - 7 * 86_400 - 1, windowOpens - 1)) {
+            val json = auto(cluster(configBytes(publishedAt = publishedAt)), FixedRate(BigDecimal("0.03")))
+            assertEquals("true", json.text("published"), Instant.ofEpochSecond(publishedAt).toString())
+        }
+    }
+
+    @Test
+    fun `given an instant outside the window, when dry-run, then the rate is still fetched, priced and simulated, and nothing is sent`() {
+        val c = cluster(now = wednesday)
         val rate = FixedRate(BigDecimal("0.03"))
         val json = auto(c, rate, "--dry-run")
-        assertEquals(1, rate.asked, "the pre-scheduling check reaches Jupiter whatever the week")
+        assertEquals(1, rate.asked, "the pre-scheduling check reaches Jupiter any day")
         assertEquals("0.03", json.text("rate"))
-        assertEquals("true", json.text("alreadyPublishedThisWeek"), "and says a real run would send nothing this week")
+        assertEquals("false", json.text("insideWindow"), "and says a real run would send nothing now")
         assertEquals("false", json.text("published"))
         assertEquals(1, c.sent("simulateTransaction").size)
         assertTrue(c.sent("sendTransaction").isEmpty())
     }
 
     @Test
-    fun `given a set published just before this Monday 05 00 UTC, when checked, then the week is still open`() {
-        val json = auto(cluster(configBytes(publishedAt = monday - 1)), FixedRate(BigDecimal("0.03")))
-        assertEquals("true", json.text("published"))
+    fun `given this window's set already published, when dry-run in it, then it prices and simulates and says a real run would send nothing`() {
+        val c = cluster(configBytes(publishedAt = inWindow))
+        val json = auto(c, FixedRate(BigDecimal("0.03")), "--dry-run")
+        assertEquals("true", json.text("insideWindow"))
+        assertEquals("true", json.text("alreadyPublishedThisWindow"))
+        assertEquals(1, c.sent("simulateTransaction").size)
+        assertTrue(c.sent("sendTransaction").isEmpty())
+    }
+
+    @Test
+    fun `given any instant, when the publish window is found, then it is the 4 hours before the next Monday 05 00 UTC`() {
+        val window = windowOpens until nextMonday
+        assertEquals(window, Chips.publishWindow(wednesday))
+        assertEquals(window, Chips.publishWindow(monday))
+        assertEquals(window, Chips.publishWindow(windowOpens))
+        assertEquals(window, Chips.publishWindow(nextMonday - 1))
+        assertEquals(window.first + 7 * 86_400 until window.last + 1 + 7 * 86_400, Chips.publishWindow(nextMonday))
     }
 
     @Test

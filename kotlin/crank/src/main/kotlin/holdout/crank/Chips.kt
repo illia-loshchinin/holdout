@@ -324,15 +324,31 @@ object Chips {
         return (day - sinceMonday) * HoldoutDay.SECONDS_PER_DAY + HoldoutDay.BOUNDARY_OFFSET_SECONDS
     }
 
+    /** How long before each weekly boundary the publish window opens (FR-056). */
+    const val PUBLISH_WINDOW_SECONDS = 4 * 3_600L
+
+    /**
+     * The publish window that [now] is in, or the next one: the 4 hours before
+     * the next Monday 05:00 UTC, up to but not including it. The cohorts that
+     * open at that boundary copy the set published in it (FR-056).
+     */
+    fun publishWindow(now: Long): LongRange {
+        val closes = latestWeeklyBoundary(now) + 7 * HoldoutDay.SECONDS_PER_DAY
+        return closes - PUBLISH_WINDOW_SECONDS until closes
+    }
+
     /**
      * `--auto`: the Operator's weekly re-pricing, run every hour by the
      * Operator's own scheduler, in any time zone — never by `crank run`, so the
-     * Operator key is loaded only for this. In order: nothing to do if a set
-     * was already published since the latest boundary (no rate fetched); no
-     * rate, nothing published, and the report says why (FR-057); otherwise all
+     * Operator key is loaded only for this. In order, by chain time: nothing to
+     * do outside the publish window, or if a set was already published in it
+     * (no rate fetched); no rate, nothing published, and the report says why
+     * (FR-057) — the next hourly run in the window tries again; otherwise all
      * four tiers are re-priced at the rate and published — every week, with no
-     * threshold, even when the amounts come out the same (FR-056). Every way
-     * out exits 0 except a failure to read or send.
+     * threshold, even when the amounts come out the same (FR-056). Publishing
+     * in the 4 hours *before* the boundary is what makes the cohort opening at
+     * it lock a fresh rate: a set published after 05:00 reaches only the next
+     * week's cohort. Every way out exits 0 except a failure to read or send.
      */
     private suspend fun weekly(
         args: Args,
@@ -350,22 +366,31 @@ object Chips {
         val onChain = readConfig(rpc, configAddress)
         operator?.let { requireOperatorKey(it, onChain) }
         val now = rpc.chainTime()?.unixSeconds ?: failed("could not read the chain's time")
-        val boundary = latestWeeklyBoundary(now)
+        val window = publishWindow(now)
+        val insideWindow = now in window
+
+        fun JsonObjectBuilder.putWindow() {
+            put("windowOpens", Instant.ofEpochSecond(window.first).toString())
+            put("windowCloses", Instant.ofEpochSecond(window.last + 1).toString())
+        }
 
         fun report(published: Boolean, reason: String?, more: JsonObjectBuilder.() -> Unit = {}) = buildJsonObject {
             put("command", "chips publish --auto")
             put("dryRun", args.dryRun)
             put("published", published)
             reason?.let { put("reason", it) }
-            put("week", Instant.ofEpochSecond(boundary).toString())
+            putWindow()
             put("lastPublished", Instant.ofEpochSecond(onChain.chipPublishedAt).toString())
             more()
         }
 
         // A dry run is the Operator's check of the rate source and the set, so
-        // it goes on past the weekly guard; a real run stops here (FR-056).
-        val alreadyThisWeek = onChain.chipPublishedAt >= boundary
-        if (alreadyThisWeek && !args.dryRun) return report(false, "already published this week")
+        // it goes on past the window guard any day; a real run stops here (FR-056).
+        val alreadyThisWindow = onChain.chipPublishedAt in window
+        if (!args.dryRun) {
+            if (!insideWindow) return report(false, "outside the publish window")
+            if (alreadyThisWindow) return report(false, "already published in this window")
+        }
         val rate = source.usdPerSkr() ?: return report(false, "no rate") { source.problem?.let { put("detail", it) } }
         val decimals = mintDecimals(rpc, onChain)
         // A rate the four tiers cannot be priced at (two tiers collapsing onto one
@@ -383,8 +408,9 @@ object Chips {
         val autoFields: JsonObjectBuilder.(Boolean) -> Unit = { sent ->
             put("command", "chips publish --auto")
             put("published", sent)
-            put("week", Instant.ofEpochSecond(boundary).toString())
-            if (alreadyThisWeek) put("alreadyPublishedThisWeek", true)
+            putWindow()
+            put("insideWindow", insideWindow)
+            if (alreadyThisWindow) put("alreadyPublishedThisWindow", true)
             putJsonArray("previous") { onChain.chipAmounts.forEach { add(JsonPrimitive(it.toBig())) } }
         }
         if (operator == null) {
