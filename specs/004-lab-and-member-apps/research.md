@@ -145,9 +145,9 @@ Constitution X forbids the recorder, which is code that records, and the check e
 
 **Decision**:
 - **Name:** `src/lab/res/values/strings.xml` sets `app_name` to **"Holdout Lab"**.
-- **Icon:** `src/lab/res/` holds an adaptive icon built from the design book's **status-bar glyph**: the 3×3 crowd with the larger Holdout in the middle, drawn in `accent` (`#80ECFF`) on `canvas` black. A phone screen can tell it from Holdout's 5×5 white-and-green crowd at a glance (FR-001).
+- **Icon** *(revised 2026-10-10, product owner)*: `src/lab/res/drawable/ic_launcher_foreground.xml` is Holdout's own icon v2 — the 5×5 crowd of `text-primary` members and the H of seven — with the H drawn in `warning` (`#FF623A`) instead of `accent`, on `canvas` black. One language, one shape; the colour says "test", and a phone screen tells the two apart at a glance (FR-001). The themed-icon and status-bar layers are not overridden: Lab inherits the member app's H alone in one ink. *Until 2026-10-10 the icon was the design book's status-bar glyph, the 3×3 crowd in `accent`.*
 
-**Rationale**: It stays on black and uses no second green dot, so the brand rules for Holdout's own icon are untouched. Lab is never shown to members, so it needs no design-system entry. The design book's rule "never recolour the members" governs Holdout's own icon.
+**Rationale**: It stays on black and recolours nothing but the H. The design book's rule that the H is only ever `accent` is written for Holdout's own icon and now names Holdout Lab as its one exception (design book, *Holdout Lab* section). Lab is never shown to members, so the exception reaches no member.
 
 ## R9 · What the member app's developer build may still do
 
