@@ -125,10 +125,10 @@ cd kotlin && ./gradlew :app:lint :app:checkNoAudioPermission
 **Expected:** lint passes; the manifest check confirms `RECORD_AUDIO` is absent (FR-022a).
 
 ```bash
-cd kotlin && ./gradlew :app:testDevnetDebugUnitTest --tests '*ThemeTest*' --tests '*LobbyCardTest*'
+python scripts/design-book.py check
 ```
 
-**Expected:** the Compose theme carries the PRD §11 hex values with dynamic colour off, and a lobby card renders "at stake" with the joined count — never the word "prize" before a Holdout starts (FR-053, spec §1a).
+**Expected:** `design-book check: 0 drift` — every token in `docs/design/tokens.json` has its twin in `ui/theme/*.kt` with the same value, except the tokens the script lists as having no twin by design (`NO_TWIN_OK`, skipped) or as added when a screen first needs one (`ADD_WHEN_NEEDED`, reported as notes). Notes, such as those and the fonts not bundled yet (T035), do not fail it. Dynamic colour is off by construction: `Theme.kt` has one dark `ColorScheme` and no `dynamicColor` parameter. The lobby card's "at stake" with the joined count, never the word "prize" before a Holdout starts (FR-053, spec §1a), has no unit test; it is checked on the screen (holdout-ui skill, `references/verify.md`).
 
 ## 5. Full cycle on a compressed clock (spike S3 / rehearsal)
 

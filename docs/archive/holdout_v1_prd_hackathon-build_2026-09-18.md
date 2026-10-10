@@ -1,6 +1,8 @@
-# Holdout — product requirements (hackathon build)
+# Holdout — product requirements (hackathon build) — ARCHIVED
 
-**Version:** 2.7 · **Date:** 2026-09-18 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
+**Version:** 2.7 · **Date:** 2026-09-18 · **Status:** **archived 2026-10-10, not maintained** · **Target when written:** CLOCK IN submission, devnet only
+
+> **Archived.** This is the last version of the hackathon-build PRD. It is kept only because `docs/holdout_screen_map.md` cites its screen numbers (`PRD #n`) and sections (`PRD §n`) as the origin of each screen. It was last revised in substance on 18 September 2026 and still describes a 50/50 no-finisher split, carry-over, a walkthrough for judges, 20 % fee vectors and a 9 October deadline, all superseded. **Nothing here is a source.** What is built is in `specs/001-holdout-hackathon` (with 002, 003 and 004); the screens as built are in `docs/holdout_screen_map.md` and `docs/holdout_lab_screen_map.md`; tokens, components and copy rules in `docs/design/`; the settlement vectors the program must reproduce in `fixtures/settlement-vectors.json`; the reasoning in `docs/holdout_decisions.md`.
 
 > **Revision note, 2026-10-05 (decision H34):** the forfeit split is now **70/30** (70 % to the prize pool, 30 % fee) and a Holdout nobody finished sends its **whole pool to the fee destination**: nothing carries over. Wherever this document still says 20 %/80 %, a 50/50 split or carry-over, including the §19 vectors, the spec (FR-027, FR-037) and `fixtures/settlement-vectors.json` govern.
 
@@ -18,7 +20,7 @@
 >
 > **Precedence:** `.specify/memory/constitution.md` (v1.3.1) → spec → `holdout_decisions.md` (H1–H30, the why) → `holdout_scope_and_state_machines.md` (state machines, edge cases) → this file.
 >
-> **Not here, on purpose.** Stack, accounts, PDAs and instruction signatures belong to `plan.md`. The post-hackathon vision — three leagues, USDC pool, free cohorts, badges, share cards, referrals, Swelfie, geo-blocking, ToS, audit, treasury policy, cold-start matching, simulated economics — is archived verbatim at `archive/holdout_v1_prd_full-vision_2026-09-15.md`. Top-level section numbers match that archive, so an older reference like "§8" still lands on the same subject; subsection numbers do not.
+> **Not here, on purpose.** Stack, accounts, PDAs and instruction signatures belong to `plan.md`. The post-hackathon vision — three leagues, USDC pool, free cohorts, badges, share cards, referrals, Swelfie, geo-blocking, ToS, audit, treasury policy, cold-start matching, simulated economics — was removed from the tree on 2026-10-10 and lives in git history (`git show ba1e06c:docs/archive/holdout_v1_prd_full-vision_2026-09-15.md`). Top-level section numbers match that archive, so an older reference like "§8" still lands on the same subject; subsection numbers do not.
 
 ---
 
@@ -84,7 +86,7 @@ Holdout is a Solana Mobile fitness commitment app. Anyone can do a **free Daily 
 
 ### 4.2 Access
 
-- ~~**No Seeker requirement.** The Genesis Token check is written but off (`genesis_gate_enabled = false`) because testers have no Seeker. Named in the README.~~ **Superseded by H38 (2026-10-10):** staking is Seeker-exclusive. Joining any staked Holdout needs a wallet holding a Seeker Genesis Token: on devnet the app checks it on Solana mainnet, and at mainnet launch the contract does (FR-003b–FR-003d). The Daily 25 and watching every Holdout stay open to any connected wallet.
+- **No Seeker requirement.** The Genesis Token check is written but off (`genesis_gate_enabled = false`) because testers have no Seeker. Named in the README.
 - **No ladder.** The 7-day and 21-day leagues are separate products for different people, both open to every member at all times (FR-003). The gate, its flag and the unlock record were deleted on 2026-10-10 (H37).
 - **No geo-blocking, no terms-of-service screen** — out of scope for a devnet build with a test token (spec §3).
 - **Wallet first.** Connecting a wallet is the first thing the app asks for, and nothing — not even the Daily 25 — is usable before it (FR-001a). A person without a wallet is told plainly that they need one and how to get one (ES-0). The daily streak is kept on the phone for the connected wallet.
@@ -422,7 +424,7 @@ Either way: If it lands before the deadline, the day counts. If it lands after, 
 | Impossibly fast reps | 0.8-second minimum cycle |
 | Camera covered or off | Pre-flight requires a live, lit, full-body frame |
 | Hand the phone over between sittings | Every sitting re-runs pre-flight and the start position (FR-019, FR-020) — raises the bar, doesn't prove identity, and proves it less than the palm did |
-| Someone else does all the reps | Not defended — one wallet is one member ~~and the Genesis gate is off~~; documented. *(Superseded in part by H38, 2026-10-10: staking now needs a Seeker Genesis Token, which ties a wallet to a Seeker, not to the person doing the reps.)* |
+| Someone else does all the reps | Not defended — one wallet is one member and the Genesis gate is off; documented |
 | Submit a completed day late, claiming it finished in time offline | Rejected — only chain time at submission counts (FR-017, FR-024b) |
 | Edit banked progress on the device | Not defended — banked reps are device-local and the completed-day proof is client-signed; documented |
 | Forge the on-device model output | Not defended — needs attested hardware; documented |
@@ -471,7 +473,7 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 
 | Flag | Value | Effect |
 |---|---|---|
-| `genesis_gate_enabled` | `false` | ~~No Seeker check~~ **Superseded by H38 (2026-10-10):** the contract's Seeker Genesis Token check is written and tested; the flag stays off on devnet, where the app checks the token on mainnet instead, and is turned on at mainnet launch together with the app sending the token account and its mint to `join_cohort` |
+| `genesis_gate_enabled` | `false` | No Seeker check |
 | `day_seconds` | non-default for test cohorts only | Compressed cycles for testing; admin-guarded; not offered to judges (FR-044) |
 
 **Flags disable checks; they never delete the logic behind them.**

@@ -1,29 +1,25 @@
 # Setup runbook — what only a human can do
 
-Everything in `tasks.md` Phase 1 that a machine cannot finish on its own: a
-domain, devnet SOL, real phones, real people. Each step says what to run, what
-"done" looks like, and where the answer gets written down.
+The parts of running Holdout that a machine cannot finish on its own: a domain,
+devnet SOL, keys that must never be committed, real phones, real people. Each
+step says what to run, what "done" looks like, and where the answer gets
+written down. `specs/001-holdout-hackathon/quickstart.md` covers everything
+that *is* automatic: building, testing and deploying.
 
-**Read the order as real.** Steps 1–4 block nothing but cost nothing; step 7
-blocks the rep counter entirely (constitution, Development Workflow:
-implementation does not begin before the spikes pass or their fallbacks are
-chosen). Step 8 blocks the footage, which blocks the submission. Steps 5 and 6
-are **done** — kept below as the record of what was run.
-
-Dates below are the plan's: freeze **28 September**, submission **9 October
-08:59 CEST**.
+Step numbers are stable because code and tests cite them: the sponsor key
+(step 3, `kotlin/app/build.gradle.kts`), `scrcpy` (step 5, the `holdout-ui`
+skill), the S1 regression test (step 6, `S1JvmSpikeTest`) and the rep-counter
+recordings (step 7, `fixtures/rep-traces/README.md`).
 
 ---
 
-## 0. Where things already are
+## 0. Where things stand
 
 | | |
 |---|---|
-| Done in the repository | The Anchor workspace, the account and maths layer, the LiteSVM harness, the contract suites, CI, the Gradle project with all four modules, ktlint, the S1 JVM spike, and **the Daily 25 end to end** — pre-flight, palm liveness, the rep counter, banking and the streak |
-| Done so far | Steps 5 and 6 — `scrcpy` and spike S1, both on 22 September |
-| Still to do | Steps 1–4, 7 and 8 |
-| Blocked until then | Nothing is stopped. The rep counter is **built against research R4's trigger values**, and step 7 is what replaces them with measured ones — see the warning in step 7 |
-| Not blocked at all | `initialize`, `create_league`, `open_cohort`, join/leave, settlement — the program work carries on regardless (T027 onward) |
+| Done | Toolchain and keypair checks (1, 2); operational keys and scripted wallets (3); `scrcpy` and spike S1 on 22 September (5, 6); spike S2, done differently through spec 002: the counter is held by sittings recorded on a Seeker (7, T012b) |
+| Still by hand | Devnet SOL for the faucet vault (3); the domain and its Digital Asset Links file (4); the release keystore (4); more labelled sets for the rep counter, from more people (7, spec 002 T033, T046–T048); testers (8) |
+| Not blocked | Everything in the program and the app builds and tests without any of this; the rep counter is held by the fixtures already committed, and step 7 adds evidence to them |
 
 ---
 
@@ -49,7 +45,7 @@ toolchain, not the code.
 
 ---
 
-## 2. Program keypair — 2 minutes, before anything touches devnet
+## 2. Program keypair — 2 minutes, before anything touches a network
 
 The deployed address has to stay `Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4`.
 Anchor silently generates a *different* key when the file is missing, deploys to
@@ -62,13 +58,13 @@ mkdir -p target/deploy && cp ~/.config/solana/holdout-program-keypair.json targe
 
 **Done when** it prints `holdout: Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4`.
 
-If that file does not exist yet, this is the moment to find out: a key generated
-after the 28 September freeze strands the judged cohort. Back it up off this
-machine today.
+The keypair lives in `~/.config/solana/` inside WSL and nowhere in the
+repository. Back it up off this machine; a lost program key means a new program
+address and a new deployment for every member.
 
 ---
 
-## 3. Operational keys and devnet SOL (T010) — 20 minutes, then it drips
+## 3. Operational keys and devnet SOL (T010)
 
 ```bash
 bash scripts/devnet-keys.sh
@@ -106,47 +102,54 @@ requires. Run it **once**; regenerating it strands whatever you have funded.
 bash scripts/devnet-status.sh
 ```
 
-The funding schedule it measures you against:
+What has to be funded, and from which key:
 
-| By | What | How much |
+| What | From | How much |
 |---|---|---|
-| now | deploy rent, on `admin` | measured at the rehearsal deploy |
-| 22 Sep | scripted wallets, from `operator` | ~1.12 SOL, 0.02 each |
-| launch | sponsor float | 0.05 SOL |
-| 8 Oct | faucet vault | **25 SOL** — from 9 October it must last to 11 November with no top-up (FR-042a) |
+| Deploy rent | `admin` | measured at the first deploy |
+| Scripted wallets | `operator` | ~1.12 SOL, 0.02 each |
+| Sponsor float | `sponsor` | 0.05 SOL |
+| Faucet vault | `admin`, at `crank init` | **25 SOL** — it must last the whole judging period, to 11 November, with no top-up (FR-042a) |
 
 Devnet airdrops are rate-limited and often fail, which is the whole reason the
-faucet exists. Start collecting now, a bit at a time, from more than one source
-(`solana airdrop 2`, the web faucet). 25 SOL is not something to begin on 7
-October.
+faucet exists. Collect a bit at a time, from more than one source
+(`solana airdrop 2`, the web faucet), well before the deploy.
 
 ---
 
-## 4. Domain and Digital Asset Links (T009) — 30 minutes plus DNS
+## 4. Domain, Digital Asset Links and the release keystore (T009, T115)
 
-The app already claims the identity `https://holdout.app` (`MainViewModel`).
-Until that domain serves a Digital Asset Links file naming this package and its
+The app claims the identity `https://holdout.app` (`WalletRepository`). Until
+that domain serves a Digital Asset Links file naming this package and its
 signing certificate, wallets show the member an unverified raw package name
 instead of "Holdout".
 
 1. Register `holdout.app`, or pick a subdomain of something you already own.
    **If it is not `holdout.app`, change `identityUri` in
-   `kotlin/app/src/main/kotlin/holdout/app/MainViewModel.kt` to match** — the
-   URI and the file have to be on the same host or the check fails.
-2. Generate the file:
+   `kotlin/app/src/main/kotlin/holdout/app/wallet/WalletRepository.kt` to
+   match** — the URI and the file have to be on the same host or the check
+   fails.
+2. Create the release keystore, outside the repository, and back it up with the
+   program keypair. A lost keystore means a new package identity for every
+   member. **The build does not sign a release yet.** T115 adds the signing
+   config for `memberRelease`, reading the keystore from Gradle properties in
+   `%USERPROFILE%\.gradle\gradle.properties`: `holdout.keystore`,
+   `holdout.keystorePassword`, `holdout.keyAlias`, `holdout.keyPassword`. Until
+   it lands, `assembleMemberRelease` produces an unsigned APK.
+3. Generate the file:
 
    ```bash
    bash scripts/assetlinks.sh
    ```
 
    That prints the debug build's entry. Add the release fingerprint to the same
-   array once the release keystore exists:
+   array:
 
    ```bash
    bash scripts/assetlinks.sh --keystore ~/holdout-release.jks --alias holdout
    ```
 
-3. Serve it at `https://<domain>/.well-known/assetlinks.json` — HTTPS, no
+4. Serve it at `https://<domain>/.well-known/assetlinks.json` — HTTPS, no
    redirect, `Content-Type: application/json`.
 
 ```bash
@@ -166,30 +169,24 @@ certificate, not a key.
 scrcpy --record=take.mp4 --no-audio
 ```
 
-**Answer: Seed Vault's approval screen records.** It is not `FLAG_SECURE`, so no
-moment in the film needs the second camera and every take can be a single
-capture. Written into `docs/holdout_demo_video.md` §4, where every filming day
-reads it.
-
-The second phone's wallet has not been checked and may still block; that is one
-line of the first tester install (step 8).
+**Answer: Seed Vault's approval screen records.** It is not `FLAG_SECURE`, so a
+wallet approval can be captured like any other screen. The `holdout-ui` skill
+uses `scrcpy` to look at the live phone while checking a screen.
 
 ---
 
 ## 6. Spike S1 — wallet signing on real hardware (T012a) — passed 22 September
 
-**T038, T040 and T061 are unblocked.** No fallback was needed: the template's
-libraries work as researched and nothing moves to sol4k. The full result, and
-the one finding that constrains the code, is in `research.md` under
-"S1 · passed 22 September 2026".
+No fallback was needed: the template's libraries work as researched and nothing
+moved to sol4k. The full result is in `research.md` under "S1 · passed 22
+September 2026".
 
 | Leg | |
 |---|---|
-| Seeker + Seed Vault: connect, sign, send | **Passed** — signature `3PN4nN1L…fJwzzL`, slot 502,517,648, shot log S-01 |
+| Seeker + Seed Vault: connect, sign, send | **Passed** — signature `3PN4nN1L…fJwzzL`, slot 502,517,648 |
 | `web3-solana` + `rpc-core` on a plain JVM | **Passed**, and kept as a test |
-| `scrcpy` on the approval screen | **Passed** — step 5 |
-| Plain Android phone + its own MWA wallet | Not run. Answered by the first tester install (step 8) |
-| `NoWalletFound` on a phone with no wallet | Not run. It is T041's acceptance criterion and is checked there |
+| Plain Android phone + its own MWA wallet | Not run on the spike; covered by tester installs (step 8) |
+| `NoWalletFound` on a phone with no wallet | T041's acceptance criterion, checked there |
 
 **Carry this into every instruction built from here:** Seed Vault returned the
 transaction with **two `ComputeBudget` instructions it added itself**. What the
@@ -212,113 +209,92 @@ drift (R12). The devnet round trip is opt-in:
 cd kotlin && HOLDOUT_DEVNET_SPIKE=1 ./gradlew :core:test --rerun-tasks
 ```
 
-The app's temporary screen keeps its **Send devnet transaction** button until
-T039–T040 replace it, so the path can be re-run on any phone in a minute:
+The two apps install side by side:
 
 ```bash
 cd kotlin && ./gradlew :app:installMemberDebug
 ```
 
-Holdout Lab, the tester app that records and labels sets (spec 004), installs beside it:
-
 ```bash
 cd kotlin && ./gradlew :app:installLabDebug
 ```
 
-Two things are still worth a glance when a tester phone is in hand: that the
-approval screen names **"Holdout"** rather than a raw package once step 4's
-Digital Asset Links file is live, and that a phone with no wallet returns
-`NoWalletFound`.
+Holdout Lab is the tester app that records and labels sets (spec 004); members
+never see it.
 
 ---
 
-## 7. Spike S2 — rep counting on real video (T012b) — half a day
+## 7. Rep counting on real video (T012b, spec 002) — an hour per set
 
-**The rep counter is already built and tested** (T046–T049), against synthetic
-traces and the trigger values research R4 proposed: 165° at the top, 85° at the
-bottom. Every test asserts the *rule* — top above 160°, bottom below 90°, body
-line within ±10°, cycle 0.8–6 s — and never those triggers, so this spike can
-move them without rewriting a single test.
+**Spike S2 is closed, done differently** (T012b, 23–26 September, with
+`specs/002-rep-placement-rules`). Its planned output, `s2-angles.json` from ten
+honest and three cheat videos in two placements, was replaced by sittings that
+Holdout Lab recorded on a Seeker and a person labelled rep by rep from the
+video. They are committed under `fixtures/rep-traces/`; `RepRatchetTest` holds
+every labelled rep and `RecordedTracesTest` every counted, unlabelled trace.
+Pose inference runs at 22–25 FPS on the FULL model (spec 002 plan), the
+counter reads a 4:3 picture (spec 002 T034b), and the palm check went with
+palm liveness (T047).
 
-**What is not yet known is whether those numbers are right for a real body in
-front of a real model.** Synthetic traces prove the state machine does what the
-rule says. Only video proves the rule survives a real person, real light and the
-model's own ~2° error. Until this spike runs, the counter is plausible, not
-verified — and it is the product's magic, so it cannot be left at plausible.
+What is still by hand is more evidence, from more people:
 
-What to record, on a Seeker, **on the front camera** — that is what a sitting
-uses (research R4), and its resolution and field of view are lower than the back
-camera's, so a recording made with the back one would not measure the app:
-
-**The set doubles: every video in both placements.** The app accepts the phone
-in front of the member and beside them, so both have to be measured. A threshold
-set from side-on traces alone is a threshold for half the members.
-
-| Videos, in **each** placement | |
+| Task | What to record or label |
 |---|---|
-| 10 honest | 25 real push-ups each. Different people and rooms if you can — one person in one room is one set of angles, not a sample |
-| 3 cheats | half reps; sagging hips; too fast |
+| spec 002 T033 | Three more people: one honest, one from the knees and one cobra set each, staked switch on |
+| spec 002 T048 | A Daily 25 set at the front edge of the band, about 40°: 10 honest, 5 from the knees, 5 cobras |
+| spec 002 T046, T047 | The reps the labelling page lists as not recorded, and the labels Claude set that a reviewer has not confirmed |
 
-The **sagging-hips** cheat is the one to watch head-on. The body line points away
-from the lens there, which is the weakest thing a single camera measures, and
-these traces are what decides whether the front view needs its own trigger set
-or whether staked cohorts should require the side view.
+**Every sitting is at about 45°, the Daily 25 included** (spec 002 FR-001,
+FR-002, amended 7 October): the phone propped to one side of the member, on the
+front camera a sitting uses. Head-on and square side-on sets are refused by
+today's app, so they are evidence at most, never a test. Anyone filmed agrees
+in writing first (step 8).
 
-What has to come out of it:
+The loop runs on this machine; the label format and the rules are in
+`fixtures/rep-traces/README.md`:
 
-- **≥ 15 FPS** pose inference on the Seeker's front camera. Below that, fall
-  back in this order: lite model, lower analysis resolution, CPU delegate.
-- **The whole body still in frame** at the distance a propped phone gives. Two
-  things narrow it: the front camera, and the 16:9 aspect the preview and the
-  analysis are both pinned to, which is usually a vertical crop of the sensor.
-  If the ankles drop out, the pre-flight check says so rather than miscounting —
-  but it means the member cannot start, so this is a real pass/fail for the
-  spike. 4:3 is the fallback, at the cost of a smaller preview.
-- **The start position is recognised**, in both placements. Holding the top of a
-  push-up is what begins a sitting now (`ReadyGate`, FR-020); if the model reads
-  a plank as anything other than elbows extended and body straight, nothing
-  starts at all.
-- **The positioning overlay puts the outline somewhere sensible.** The floor
-  line comes from the phone's tilt and its lens, so check it against where the
-  floor actually is in the preview — a horizon in the wrong half of the screen
-  means the field of view was read off the wrong sensor axis.
-- **The frame rate on the FULL model.** R4's bar is ≥ 15 FPS on a Seeker. FULL
-  is now shipped as R4 always specified; LITE is the documented fallback and is
-  one constant in `VisionAnalyzer`.
-- Every honest video counted within **1 rep** of 25, and all three cheats
-  rejected — under the rule, before any tuning.
-- The palm detected.
-- **The measured per-frame elbow and body-line angles committed as
-  `fixtures/rep-traces/s2-angles.json`.** The schema is in
-  `fixtures/rep-traces/README.md`. This is the spike's real output: the
-  `RepRules` defaults in `kotlin/repcounter/.../RepCounter.kt` are replaced from
-  these numbers, and the traces are replayed alongside the synthetic ones.
-  Relaxing a threshold is allowed — but only against recorded evidence, which is
-  that file.
+```bash
+bash scripts/pull-traces.sh
+```
 
-The quickest way to gather it: install the debug APK, run a sitting, and record
-what the counter does against what you actually did. The counting screen already
-shows the running total and the hints, so a miscount is visible as it happens.
+Copies Holdout Lab's traces and videos over USB into `phone_traces/`
+(git-ignored) and deletes each one from the phone once its copy is complete.
+
+```bash
+node scripts/label-reps.mjs
+```
+
+Serves the labelling page at `http://localhost:8766`: label each rep from its
+video until the sitting is finished. `node scripts/label-reps.mjs --promote`
+then copies finished sittings into `fixtures/rep-traces/`, traces and labels
+only, never a video.
+
+```bash
+cd kotlin && ./gradlew :repcounter:testBench -Pgate
+```
+
+**Done when** the bench gate holds (honest reps counted 98 % or more, each
+cheat 2 % or less) and `:repcounter:test` passes. A threshold moves only
+against a failing fixture; when a change moves the ratchet,
+`./gradlew :repcounter:updateBaseline` rewrites `fixtures/rep-traces/baseline.csv`,
+committed with that change.
 
 ---
 
-## 8. Beta testers (T011) — this week
+## 8. Testers (T011)
 
-Five to seven real people with Android phones, recruited **by 21 September** on
-the filming calendar, which has already passed. This is the step most worth
-doing today.
+Real people with Android phones, for the test lobby and for Lab sets.
 
-- Open the group chat.
-- Send the one-page onboarding note. It is already written, in
-  `docs/holdout_demo_video.md` §9 — do not rewrite it.
-- Collect filming consent in writing, in the chat, from anyone who might appear
-  on camera. Keep the messages.
-- Book the rehearsal run, **24–26 September**: a test league of seven 10-minute
-  days at 5 reps (H32), about 70 minutes per tester, on the rehearsal deployment. Its
-  footage is never used.
+- Open the group chat and send the one-page onboarding note
+  (`docs/holdout_demo_video.md` §9): install, a devnet wallet, the faucet, the
+  phone at 45°, the test lobby and what each day asks.
+- Anyone recorded in Lab, or who may appear on camera, consents in writing, in
+  the chat. Keep the messages (constitution X).
+- The test lobby (FR-044a) is the fastest full cycle: three 10-minute days, so a
+  tester can join, sit, forfeit or finish, and claim inside an hour.
 
 Real members are the point. Scripted wallets top a cohort up to its floor and no
-further, so every tester recruited makes the crowd the judges see more real.
+further, so every real tester makes the crowd more real.
 
 ---
 
@@ -327,12 +303,11 @@ further, so every tester recruited makes the crowd the judges see more real.
 | Step | Written down in |
 |---|---|
 | 3 | `kotlin/core/src/main/resources/scripted-wallets.json`, committed |
-| 4 | the domain's `.well-known/`, and `MainViewModel` if the host changed |
-| 5 | `docs/holdout_demo_video.md` §4 |
-| 6 | `docs/holdout_demo_video.md` §5, with signatures |
-| 7 | `fixtures/rep-traces/s2-angles.json`, committed |
+| 4 | the domain's `.well-known/`, the keystore backup, and `WalletRepository` if the host changed |
+| 6 | `research.md`, "S1 · passed 22 September 2026" |
+| 7 | `fixtures/rep-traces/`: traces, labels and `baseline.csv`, committed |
 | 8 | the group chat, and the consent messages kept |
 
 Tick the matching task in `specs/001-holdout-hackathon/tasks.md` as each one
-lands. A spike is not closed by passing — it is closed by its result being
+lands. A step is not closed by passing; it is closed by its result being
 written where the next task reads it.

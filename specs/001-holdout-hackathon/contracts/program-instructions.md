@@ -1,6 +1,6 @@
 # Contract — `holdout` program instructions
 
-**Phase 1 output of `/speckit-plan`.** The on-chain interface the Kotlin app, the Kotlin crank and the TypeScript tests all target. Account layouts: `data-model.md` §1. State machines: spec §8, scope doc §3. Every guard below is enforced by the program, never only by a client.
+**Phase 1 output of `/speckit-plan`.** The on-chain interface the Kotlin app, the Kotlin crank and the TypeScript tests all target. Account layouts: `data-model.md` §1. State machines: spec §8. Every guard below is enforced by the program, never only by a client.
 
 Conventions: `now` = Clock sysvar `unix_timestamp`. "Anyone" = any signer paying the fee; the caller's identity never changes the outcome (FR-030a). **[Phase 2]** marks items built only after Phase 1 is complete (spec §3a).
 
