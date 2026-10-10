@@ -59,16 +59,16 @@ Named here on purpose (constitution XI). Each has its real fix beside it.
 
 | Path | |
 |---|---|
-| `.specify/memory/constitution.md` | The principles every phase is checked against (v1.3.1). Read first. |
-| `specs/001-holdout-hackathon/spec.md` | The feature spec — what and why, no stack. Clarified; ready for planning. |
-| `docs/holdout_decisions.md` | Decision record H1–H30: why the build is what it is, what was rejected, what is still open. Read before changing the mechanic. |
-| `docs/holdout_demo_video.md` | The demo video and in-app walkthrough: storyboard, screen checklist, recording workflow, filming calendar and the beta-test plan. |
-| `docs/holdout_setup_runbook.md` | The steps only a human can do: toolchain, keys, devnet SOL, the domain, the two hardware spikes and the beta testers. Start here to unblock the app. |
-| `docs/holdout_scope_and_state_machines.md` | Scope cut, decisions D-A…D-I, state machines and edge cases, synced to the spec. Read before coding. |
-| `docs/holdout_v1_prd.md` | Product requirements for this build: screens, copy, verification rules, settlement math and test vectors. Adds detail to the spec, never scope. |
-| `docs/archive/` | The full post-hackathon vision — the original PRD and its decision record — kept for the pitch. Not the build. |
+| `.specify/memory/constitution.md` | The principles every phase is checked against (v2.2.0). Read first. |
+| `specs/001-holdout-hackathon/spec.md` | The product spec: what and why, no stack. With `002-rep-placement-rules`, `003-seeker-id-names` and `004-lab-and-member-apps` it is the only description of what is built. Changed only through the `/speckit-*` skills. |
+| `docs/holdout_decisions.md` | Decision record H1–H37: why the build is what it is, what was rejected, what is still open. Read before changing the mechanic. |
+| `docs/holdout_screen_map.md` · `docs/holdout_lab_screen_map.md` | Every screen of the member app and of Holdout Lab as built: what it shows, where it leads, what is still to draw or to build. |
+| `docs/design/` | The design book: tokens, components and copy rules, mirrored from the design-system artifact. The Compose rules that use it are the `holdout-ui` skill. |
+| `docs/holdout_setup_runbook.md` | The steps only a human can do: toolchain, keys, devnet SOL, the domain and the release keystore, labelled rep-counter sets on real video, testers. |
+| `docs/holdout_demo_video.md` | The demo video for the submission: storyboard, shot list and recording workflow, and the testers' onboarding note (§9). |
+| `docs/archive/` | The hackathon PRD (v2.7, 18 September), kept unmaintained because the screen maps cite its screen numbers. Not a source. |
 
-When documents disagree: constitution → spec → decision record → scope doc → PRD.
+When documents disagree: constitution → spec → decision record. The screen maps, the design book and the runbook describe; they decide nothing.
 
 ## Workflow
 

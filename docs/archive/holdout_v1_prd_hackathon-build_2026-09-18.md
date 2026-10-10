@@ -1,6 +1,8 @@
-# Holdout — product requirements (hackathon build)
+# Holdout — product requirements (hackathon build) — ARCHIVED
 
-**Version:** 2.7 · **Date:** 2026-09-18 · **Status:** product companion to the spec · **Target:** CLOCK IN submission, devnet only
+**Version:** 2.7 · **Date:** 2026-09-18 · **Status:** **archived 2026-10-10, not maintained** · **Target when written:** CLOCK IN submission, devnet only
+
+> **Archived.** This is the last version of the hackathon-build PRD. It is kept only because `docs/holdout_screen_map.md` cites its screen numbers (`PRD #n`) and sections (`PRD §n`) as the origin of each screen. It was last revised in substance on 18 September 2026 and still describes a 50/50 no-finisher split, carry-over, a walkthrough for judges, 20 % fee vectors and a 9 October deadline, all superseded. **Nothing here is a source.** What is built is in `specs/001-holdout-hackathon` (with 002, 003 and 004); the screens as built are in `docs/holdout_screen_map.md` and `docs/holdout_lab_screen_map.md`; tokens, components and copy rules in `docs/design/`; the settlement vectors the program must reproduce in `fixtures/settlement-vectors.json`; the reasoning in `docs/holdout_decisions.md`.
 
 > **Revision note, 2026-10-05 (decision H34):** the forfeit split is now **70/30** (70 % to the prize pool, 30 % fee) and a Holdout nobody finished sends its **whole pool to the fee destination**: nothing carries over. Wherever this document still says 20 %/80 %, a 50/50 split or carry-over, including the §19 vectors, the spec (FR-027, FR-037) and `fixtures/settlement-vectors.json` govern.
 
@@ -18,7 +20,7 @@
 >
 > **Precedence:** `.specify/memory/constitution.md` (v1.3.1) → spec → `holdout_decisions.md` (H1–H30, the why) → `holdout_scope_and_state_machines.md` (state machines, edge cases) → this file.
 >
-> **Not here, on purpose.** Stack, accounts, PDAs and instruction signatures belong to `plan.md`. The post-hackathon vision — three leagues, USDC pool, free cohorts, badges, share cards, referrals, Swelfie, geo-blocking, ToS, audit, treasury policy, cold-start matching, simulated economics — is archived verbatim at `archive/holdout_v1_prd_full-vision_2026-09-15.md`. Top-level section numbers match that archive, so an older reference like "§8" still lands on the same subject; subsection numbers do not.
+> **Not here, on purpose.** Stack, accounts, PDAs and instruction signatures belong to `plan.md`. The post-hackathon vision — three leagues, USDC pool, free cohorts, badges, share cards, referrals, Swelfie, geo-blocking, ToS, audit, treasury policy, cold-start matching, simulated economics — was removed from the tree on 2026-10-10 and lives in git history (`git show ba1e06c:docs/archive/holdout_v1_prd_full-vision_2026-09-15.md`). Top-level section numbers match that archive, so an older reference like "§8" still lands on the same subject; subsection numbers do not.
 
 ---
 
