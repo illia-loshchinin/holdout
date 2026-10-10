@@ -116,8 +116,8 @@ fun HoldoutCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(HoldoutColors.Surface1, MaterialTheme.shapes.large)
-            .border(BorderStroke(1.dp, HoldoutColors.Hairline), MaterialTheme.shapes.large)
+            .background(HoldoutColors.Surface1, MaterialTheme.shapes.medium)
+            .border(BorderStroke(1.dp, HoldoutColors.Hairline), MaterialTheme.shapes.medium)
             .padding(Spacing.cardPadding),
         verticalArrangement = Arrangement.spacedBy(Spacing.tight),
         content = content,

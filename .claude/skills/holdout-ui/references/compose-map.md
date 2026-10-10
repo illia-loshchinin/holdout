@@ -77,7 +77,7 @@ Material defaults (`Notice` currently does this).
 | --- | --- | --- |
 | Primary button | `PrimaryButton(text, onClick, enabled, busy)` | ✅ shared — some screens still inline a `Button`; prefer the shared one |
 | Secondary button | `SecondaryButton(text, onClick, enabled, busy)` | ✅ shared |
-| Card | `HoldoutCard { … }` | ⚠ uses `shapes.large` (28dp); book says `radius-card` 24dp (`shapes.medium`) |
+| Card | `HoldoutCard { … }` | ✅ `radius-card` (`shapes.medium`, 24dp) |
 | Label / caption | `SectionLabel(text)` | ✅ uppercases for you |
 | Body copy | `Body(text, center)` | ✅ |
 | Loader | `HoldoutLoader(size = 24.dp)`, `Reading { … }` | ✅ |
