@@ -85,9 +85,14 @@ pub mod holdout {
         )
     }
 
-    /// Operator only. Four SKR amounts, never a price (constitution III).
-    pub fn publish_chip_set(ctx: Context<PublishChipSet>, amounts: [u64; 4]) -> Result<()> {
-        instructions::publish_chip_set::handler(ctx, amounts)
+    /// Operator only. Four SKR amounts, never a price (constitution III), and
+    /// the instant from which the set is refused (FR-055a, FR-056).
+    pub fn publish_chip_set(
+        ctx: Context<PublishChipSet>,
+        amounts: [u64; 4],
+        valid_until: i64,
+    ) -> Result<()> {
+        instructions::publish_chip_set::handler(ctx, amounts, valid_until)
     }
 
     /// Permissionless: the caller pays the rent and nothing else (FR-030a).

@@ -67,7 +67,7 @@
       "fix": "Reinstate the audio check and the audio rep condition together — one move restores liveness and anti-spoofing both"
     },
     {
-      "what": "Stake chips (≈ $10 / $25 / $50 / $100) are priced in SKR by the Operator from an off-chain rate — **a trusted input**: by hand at launch, then re-priced every week by the Operator's `crank chips publish --auto`, which reads the **Jupiter Price API** (mainnet SKR mint)",
+      "what": "Stake chips (≈ $10 / $25 / $50 / $100) are priced in SKR by the Operator from an off-chain rate — **a trusted input**: by hand at launch, then re-priced every week, in the 4 hours before the week's cohorts open, by the Operator's `crank chips publish --auto`, which reads the **Jupiter Price API** (mainnet SKR mint)",
       "why": "The contract must never read a price",
       "fix": "On-chain chip governance before real value is at stake"
     },

@@ -1493,7 +1493,8 @@
     {
       "name": "publish_chip_set",
       "docs": [
-        "Operator only. Four SKR amounts, never a price (constitution III)."
+        "Operator only. Four SKR amounts, never a price (constitution III), and",
+        "the instant from which the set is refused (FR-055a, FR-056)."
       ],
       "discriminator": [
         104,
@@ -1539,6 +1540,10 @@
               4
             ]
           }
+        },
+        {
+          "name": "valid_until",
+          "type": "i64"
         }
       ]
     },
@@ -2321,6 +2326,11 @@
       "code": 6013,
       "name": "InvalidForm",
       "msg": "A league's form is 0 (from the toes) or 1 (knees allowed)"
+    },
+    {
+      "code": 6014,
+      "name": "ChipSetExpired",
+      "msg": "This chip set reached its deadline before it landed"
     },
     {
       "code": 6020,

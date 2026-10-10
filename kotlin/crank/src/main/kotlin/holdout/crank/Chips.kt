@@ -136,16 +136,35 @@ object Chips {
         val rateText = args.option("rate") ?: configError("chips publish needs --rate <usd-per-skr>")
         val rate = pricing { parseRate(rateText) }
         val askedDecimals = args.option("decimals")?.let { it.toIntOrNull() ?: configError("--decimals must be a whole number, got $it") }
+        val askedDeadline = args.option("valid-until")?.let(::parseValidUntil)
+
+        // A set published by hand is refused from chain time + 10 minutes, unless
+        // the Operator gives another deadline (FR-055a): a signed set left pending
+        // never lands much later than the Operator expects. Derived the same way
+        // with or without the key, so a dry run says what a real run would sign.
+        fun deadlineAt(chainNow: Long): Long {
+            val validUntil = askedDeadline ?: (chainNow + HAND_DEADLINE_SECONDS)
+            if (validUntil <= chainNow) {
+                configError("--valid-until ${Instant.ofEpochSecond(validUntil)} is not after the chain's time, ${Instant.ofEpochSecond(chainNow)}; the program would refuse the set (6014)")
+            }
+            return validUntil
+        }
 
         val operatorPath = config.operatorKeypair
         if (operatorPath == null) {
             if (!args.dryRun) config.requireOperator()
-            // A dry run without the key can still show the set; it cannot build
-            // the transaction, which needs the signer.
+            // A dry run without the key can still show the set and its deadline;
+            // it cannot build the transaction, which needs the signer. It works
+            // offline too: with no answer from the chain the deadline goes unchecked
+            // and the report says so.
             val tiers = pricing { price(rate, askedDecimals ?: DEFAULT_SKR_DECIMALS) }
+            val chainNow = rpc.chainTime()?.unixSeconds
+            val validUntil = chainNow?.let(::deadlineAt) ?: askedDeadline
             return summary(rate, askedDecimals ?: DEFAULT_SKR_DECIMALS, tiers, dryRun = true) {
                 put("simulated", false)
                 put("sent", false)
+                put("validUntil", validUntil?.let { Instant.ofEpochSecond(it).toString() })
+                if (chainNow == null) put("deadlineNote", "the chain's time could not be read, so the deadline is unchecked; a real run signs chain time + 10 minutes unless --valid-until")
                 put("note", "set HOLDOUT_OPERATOR_KEYPAIR to build and simulate the transaction")
             }
         }
@@ -159,7 +178,25 @@ object Chips {
             configError("--decimals $askedDecimals disagrees with the SKR mint, which has $mintDecimals")
         }
         val tiers = pricing { price(rate, mintDecimals) }
-        return sendSet(args, config, rpc, operator, configAddress, onChain, rate, mintDecimals, tiers, pause) { }
+        val validUntil = deadlineAt(rpc.chainTime()?.unixSeconds ?: failed("could not read the chain's time"))
+        return sendSet(args, config, rpc, operator, configAddress, onChain, rate, mintDecimals, tiers, pause, validUntil, extra = { })
+    }
+
+    /** How long after the chain's time a set published by hand is refused, by default (FR-055a). */
+    const val HAND_DEADLINE_SECONDS = 600L
+
+    fun parseValidUntil(text: String): Long = runCatching { Instant.parse(text.trim()).epochSecond }.getOrNull()
+        ?: configError("--valid-until must be an ISO-8601 instant such as 2026-10-12T05:00:00Z, got '$text'")
+
+    /** The program refused the set: it reached its deadline before it landed (`ChipSetExpired`, 6014). */
+    class ChipSetExpiredException(
+        val validUntil: Long,
+    ) : CrankException(EXIT_FAILED, "the chip set reached its deadline, ${Instant.ofEpochSecond(validUntil)}, before it landed (6014); nothing was published")
+
+    /** 6014 as the RPC reports it: in a refused preflight (hex) or a landed failure (decimal). */
+    private fun isChipSetExpired(message: String?): Boolean {
+        val m = message?.lowercase() ?: return false
+        return "0x177e" in m || "custom\":6014" in m || "custom: 6014" in m || "custom(6014)" in m || "chipsetexpired" in m
     }
 
     /**
@@ -180,27 +217,37 @@ object Chips {
         mintDecimals: Int,
         tiers: List<Tier>,
         pause: suspend (Long) -> Unit,
+        validUntil: Long,
         extra: JsonObjectBuilder.(sent: Boolean) -> Unit,
+        afterSigning: suspend () -> Unit = {},
     ): JsonObject {
-        val instruction = Instructions.publishChipSet(config.programId, operator.publicKey, configAddress, tiers.map { it.baseUnits })
+        val instruction = Instructions.publishChipSet(config.programId, operator.publicKey, configAddress, tiers.map { it.baseUnits }, validUntil)
         // Not retried: every publish is a new version (FR-055a).
         val signature =
-            signAndSend(
-                rpc,
-                "publish_chip_set",
-                listOf(instruction),
-                listOf(operator),
-                args.dryRun,
-                pause,
-                refusedMeans = "nothing was published",
-                beforeRetrying = "Check that signature before publishing again, since a second publish is a new version",
-            )
+            try {
+                signAndSend(
+                    rpc,
+                    "publish_chip_set",
+                    listOf(instruction),
+                    listOf(operator),
+                    args.dryRun,
+                    pause,
+                    refusedMeans = "nothing was published",
+                    beforeRetrying = "Check that signature before publishing again, since a second publish is a new version",
+                    afterSigning = afterSigning,
+                )
+            } catch (e: CrankException) {
+                if (isChipSetExpired(e.message)) throw ChipSetExpiredException(validUntil)
+                throw e
+            }
+        val deadline = Instant.ofEpochSecond(validUntil).toString()
         if (signature == null) {
             return summary(rate, mintDecimals, tiers, dryRun = true) {
                 put("operator", operator.publicKey.base58())
                 put("simulated", true)
                 put("sent", false)
                 put("nextVersion", onChain.chipVersion + 1)
+                put("validUntil", deadline)
                 extra(false)
             }
         }
@@ -211,6 +258,7 @@ object Chips {
             put("operator", operator.publicKey.base58())
             put("sent", true)
             put("signature", signature)
+            put("validUntil", deadline)
             if (after != null) {
                 put("version", after.chipVersion)
             } else {
@@ -324,15 +372,42 @@ object Chips {
         return (day - sinceMonday) * HoldoutDay.SECONDS_PER_DAY + HoldoutDay.BOUNDARY_OFFSET_SECONDS
     }
 
+    /** How long before each weekly boundary the publish window opens (FR-056). */
+    const val PUBLISH_WINDOW_SECONDS = 4 * 3_600L
+
+    /**
+     * The publish window that [now] is in, or the next one: the 4 hours before
+     * the next Monday 05:00 UTC, up to but not including it. The cohorts that
+     * open at that boundary copy the set published in it (FR-056).
+     */
+    fun publishWindow(now: Long): LongRange {
+        val closes = latestWeeklyBoundary(now) + 7 * HoldoutDay.SECONDS_PER_DAY
+        return closes - PUBLISH_WINDOW_SECONDS until closes
+    }
+
+    /**
+     * No send starts this close to the window's end: a blockhash lives about
+     * this long, and the send is watched for 60 s, so a set sent later could
+     * land after 05:00 — after the cohorts opening then had copied the old
+     * one — and count as next week's (FR-056).
+     */
+    const val SEND_MARGIN_SECONDS = 90L
+
+    /** Whether a publish started at [now] can still land inside [window]. */
+    private fun canSendIn(window: LongRange, now: Long) = now >= window.first && now <= window.last - SEND_MARGIN_SECONDS
+
     /**
      * `--auto`: the Operator's weekly re-pricing, run every hour by the
      * Operator's own scheduler, in any time zone — never by `crank run`, so the
-     * Operator key is loaded only for this. In order: nothing to do if a set
-     * was already published since the latest boundary (no rate fetched); no
-     * rate, nothing published, and the report says why (FR-057); otherwise all
+     * Operator key is loaded only for this. In order, by chain time: nothing to
+     * do outside the publish window, or if a set was already published in it
+     * (no rate fetched); no rate, nothing published, and the report says why
+     * (FR-057) — the next hourly run in the window tries again; otherwise all
      * four tiers are re-priced at the rate and published — every week, with no
-     * threshold, even when the amounts come out the same (FR-056). Every way
-     * out exits 0 except a failure to read or send.
+     * threshold, even when the amounts come out the same (FR-056). Publishing
+     * in the 4 hours *before* the boundary is what makes the cohort opening at
+     * it lock a fresh rate: a set published after 05:00 reaches only the next
+     * week's cohort. Every way out exits 0 except a failure to read or send.
      */
     private suspend fun weekly(
         args: Args,
@@ -350,24 +425,53 @@ object Chips {
         val onChain = readConfig(rpc, configAddress)
         operator?.let { requireOperatorKey(it, onChain) }
         val now = rpc.chainTime()?.unixSeconds ?: failed("could not read the chain's time")
-        val boundary = latestWeeklyBoundary(now)
+        val window = publishWindow(now)
+        val insideWindow = now in window
 
-        fun report(published: Boolean, reason: String?, more: JsonObjectBuilder.() -> Unit = {}) = buildJsonObject {
+        fun JsonObjectBuilder.putWindow() {
+            put("windowOpens", Instant.ofEpochSecond(window.first).toString())
+            put("windowCloses", Instant.ofEpochSecond(window.last + 1).toString())
+            put("validUntil", Instant.ofEpochSecond(window.last + 1).toString())
+            put("sendCutoff", Instant.ofEpochSecond(window.last + 1 - SEND_MARGIN_SECONDS).toString())
+        }
+
+        val alreadyThisWindow = onChain.chipPublishedAt in window
+
+        // The state at chain time [at]: the time read last, so a report never
+        // contradicts the guard that ended the run — nor the publish it just sent.
+        fun JsonObjectBuilder.putWindowState(at: Long, sentNow: Boolean = false) {
+            val already = alreadyThisWindow || sentNow
+            put("insideWindow", at in window)
+            put("alreadyPublishedThisWindow", already)
+            // What a real run at this chain time would do — a dry run goes on past every guard.
+            put("wouldPublishNow", at in window && !already && canSendIn(window, at))
+        }
+
+        fun report(published: Boolean, reason: String?, at: Long = now, more: JsonObjectBuilder.() -> Unit = {}) = buildJsonObject {
             put("command", "chips publish --auto")
             put("dryRun", args.dryRun)
             put("published", published)
             reason?.let { put("reason", it) }
-            put("week", Instant.ofEpochSecond(boundary).toString())
+            putWindow()
+            putWindowState(at)
             put("lastPublished", Instant.ofEpochSecond(onChain.chipPublishedAt).toString())
             more()
         }
 
         // A dry run is the Operator's check of the rate source and the set, so
-        // it goes on past the weekly guard; a real run stops here (FR-056).
-        val alreadyThisWeek = onChain.chipPublishedAt >= boundary
-        if (alreadyThisWeek && !args.dryRun) return report(false, "already published this week")
-        val rate = source.usdPerSkr() ?: return report(false, "no rate") { source.problem?.let { put("detail", it) } }
+        // it goes on past the window guard any day; a real run stops here (FR-056).
+        if (!args.dryRun) {
+            if (!insideWindow) return report(false, "outside the publish window")
+            if (alreadyThisWindow) return report(false, "already published in this window")
+            if (!canSendIn(window, now)) return report(false, TOO_LATE)
+        }
+        // Every slow step — Jupiter, the mint, the blockhash — is followed by a
+        // fresh read of the chain's time, and the report gives the state as of
+        // that read: what a real run starting with this one would do.
+        suspend fun chainNow() = rpc.chainTime()?.unixSeconds ?: failed("could not read the chain's time")
+        val rate = source.usdPerSkr() ?: return report(false, "no rate", at = chainNow()) { source.problem?.let { put("detail", it) } }
         val decimals = mintDecimals(rpc, onChain)
+        var stateAt = chainNow()
         // A rate the four tiers cannot be priced at (two tiers collapsing onto one
         // amount, or one too large for a u64) is external data, not a mistake in
         // the command: the current set stays and the week is reported, like no rate.
@@ -375,16 +479,18 @@ object Chips {
             try {
                 price(rate, decimals)
             } catch (e: ChipPricingException) {
-                return report(false, "unusable rate") {
+                return report(false, "unusable rate", at = stateAt) {
                     put("rate", rate.toPlainString())
                     put("detail", e.message ?: "the rate cannot price four increasing tiers")
                 }
             }
+        // A real run that is already too late stops before reading a blockhash.
+        if (!args.dryRun && !canSendIn(window, stateAt)) return report(false, TOO_LATE, at = stateAt) { put("rate", rate.toPlainString()) }
         val autoFields: JsonObjectBuilder.(Boolean) -> Unit = { sent ->
             put("command", "chips publish --auto")
             put("published", sent)
-            put("week", Instant.ofEpochSecond(boundary).toString())
-            if (alreadyThisWeek) put("alreadyPublishedThisWeek", true)
+            putWindow()
+            putWindowState(stateAt, sentNow = sent)
             putJsonArray("previous") { onChain.chipAmounts.forEach { add(JsonPrimitive(it.toBig())) } }
         }
         if (operator == null) {
@@ -395,8 +501,33 @@ object Chips {
                 autoFields(false)
             }
         }
-        return sendSet(args, config, rpc, operator, configAddress, onChain, rate, decimals, tiers, pause, autoFields)
+        // The last check sits at the send itself, after the blockhash is read:
+        // a transaction expires about 90 s after its blockhash, so one that
+        // passes here before the cutoff should not land after 05:00. A dry run
+        // reads the time at the same point, so it reports what a real run would.
+        val lastCheck: suspend () -> Unit = {
+            stateAt = chainNow()
+            if (!args.dryRun && !canSendIn(window, stateAt)) throw TooLate(stateAt)
+        }
+        // The program refuses the set from the window's close (6014), so even a
+        // send that outlives the cutoff above never lands after the boundary.
+        val validUntil = window.last + 1
+        return try {
+            sendSet(args, config, rpc, operator, configAddress, onChain, rate, decimals, tiers, pause, validUntil, autoFields, lastCheck)
+        } catch (e: TooLate) {
+            report(false, TOO_LATE, at = e.at) { put("rate", rate.toPlainString()) }
+        } catch (e: ChipSetExpiredException) {
+            report(false, TOO_LATE, at = chainNow()) {
+                put("rate", rate.toPlainString())
+                put("detail", e.message)
+            }
+        }
     }
+
+    /** The cutoff passed between signing and sending; nothing was sent. */
+    private class TooLate(val at: Long) : Exception("too late to send")
+
+    private const val TOO_LATE = "too late to land in the publish window"
 
     /**
      * The options this command takes, checked before the environment is read
@@ -405,7 +536,8 @@ object Chips {
     fun checkArgs(args: Args) {
         if ("auto" in args.flags && args.option("rate") != null) configError("--auto reads the rate from Jupiter; it takes no --rate")
         if ("auto" in args.flags && args.option("decimals") != null) configError("--auto reads the decimals from the SKR mint; it takes no --decimals")
-        args.allow("rate", "decimals", "auto")
+        if ("auto" in args.flags && args.option("valid-until") != null) configError("--auto signs the publish window's close; it takes no --valid-until")
+        args.allow("rate", "decimals", "auto", "valid-until")
     }
 
     /** How long a send is watched for: 30 checks, 2 s apart. */

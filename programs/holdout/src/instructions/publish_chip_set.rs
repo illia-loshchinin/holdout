@@ -2,8 +2,14 @@
 //!
 //! The Operator prices the four chips in SKR off chain and publishes the
 //! amounts. **No price, no rate and no fiat figure reaches the program**
-//! (constitution III, AC-9): the only argument is four SKR amounts, and the
-//! only rule about them is that they are strictly increasing and positive.
+//! (constitution III, AC-9): the arguments are four SKR amounts, strictly
+//! increasing and positive, and a deadline — a time, not a price.
+//!
+//! The deadline exists because a transaction outlives the moment it was sent:
+//! its blockhash lasts about 150 blocks, not a fixed time. The weekly re-price
+//! signs the publish window's close, Monday 05:00 UTC, so a set that would land
+//! after the cohorts opening then had copied the old one is refused instead of
+//! reaching only next week's cohorts (FR-055a, FR-056, `ChipSetExpired`, 6014).
 //!
 //! Two properties the rest of the build leans on:
 //!
@@ -37,10 +43,23 @@ fn strictly_increasing(amounts: &[u64; 4]) -> bool {
     amounts[0] > 0 && amounts.windows(2).all(|pair| pair[0] < pair[1])
 }
 
-pub(crate) fn handler(ctx: Context<PublishChipSet>, amounts: [u64; 4]) -> Result<()> {
+/// A set may land only strictly before its deadline.
+fn before_deadline(now: i64, valid_until: i64) -> bool {
+    now < valid_until
+}
+
+pub(crate) fn handler(
+    ctx: Context<PublishChipSet>,
+    amounts: [u64; 4],
+    valid_until: i64,
+) -> Result<()> {
     require!(strictly_increasing(&amounts), HoldoutError::InvalidChipSet);
 
     let now = Clock::get()?.unix_timestamp;
+    require!(
+        before_deadline(now, valid_until),
+        HoldoutError::ChipSetExpired
+    );
     let config = &mut ctx.accounts.config;
 
     config.chip_set.amounts = amounts;
@@ -71,5 +90,13 @@ mod tests {
             "a decreasing pair"
         );
         assert!(!strictly_increasing(&[0, 0, 0, 0]), "the unpublished set");
+    }
+
+    #[test]
+    fn a_set_lands_only_strictly_before_its_deadline() {
+        let five = 1_791_781_200; // Monday 12 October 2026, 05:00 UTC
+        assert!(before_deadline(five - 1, five));
+        assert!(!before_deadline(five, five), "at the deadline");
+        assert!(!before_deadline(five + 1, five), "after it");
     }
 }
