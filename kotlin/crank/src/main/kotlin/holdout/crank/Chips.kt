@@ -181,7 +181,7 @@ object Chips {
         tiers: List<Tier>,
         pause: suspend (Long) -> Unit,
         extra: JsonObjectBuilder.(sent: Boolean) -> Unit,
-        beforeSending: suspend () -> Unit = {},
+        afterSigning: suspend () -> Unit = {},
     ): JsonObject {
         val instruction = Instructions.publishChipSet(config.programId, operator.publicKey, configAddress, tiers.map { it.baseUnits })
         // Not retried: every publish is a new version (FR-055a).
@@ -195,7 +195,7 @@ object Chips {
                 pause,
                 refusedMeans = "nothing was published",
                 beforeRetrying = "Check that signature before publishing again, since a second publish is a new version",
-                beforeSending = beforeSending,
+                afterSigning = afterSigning,
             )
         if (signature == null) {
             return summary(rate, mintDecimals, tiers, dryRun = true) {
@@ -418,8 +418,13 @@ object Chips {
             if (alreadyThisWindow) return report(false, "already published in this window")
             if (!canSendIn(window, now)) return report(false, TOO_LATE)
         }
-        val rate = source.usdPerSkr() ?: return report(false, "no rate") { source.problem?.let { put("detail", it) } }
+        // Every slow step — Jupiter, the mint, the blockhash — is followed by a
+        // fresh read of the chain's time, and the report gives the state as of
+        // that read: what a real run starting with this one would do.
+        suspend fun chainNow() = rpc.chainTime()?.unixSeconds ?: failed("could not read the chain's time")
+        val rate = source.usdPerSkr() ?: return report(false, "no rate", at = chainNow()) { source.problem?.let { put("detail", it) } }
         val decimals = mintDecimals(rpc, onChain)
+        var stateAt = chainNow()
         // A rate the four tiers cannot be priced at (two tiers collapsing onto one
         // amount, or one too large for a u64) is external data, not a mistake in
         // the command: the current set stays and the week is reported, like no rate.
@@ -427,21 +432,18 @@ object Chips {
             try {
                 price(rate, decimals)
             } catch (e: ChipPricingException) {
-                return report(false, "unusable rate") {
+                return report(false, "unusable rate", at = stateAt) {
                     put("rate", rate.toPlainString())
                     put("detail", e.message ?: "the rate cannot price four increasing tiers")
                 }
             }
-        // Fetching the rate and the mint took time: the report, a dry run's
-        // included, gives the state as of now, and a real run that is already
-        // too late stops before reading a blockhash.
-        val pricedAt = rpc.chainTime()?.unixSeconds ?: failed("could not read the chain's time")
-        if (!args.dryRun && !canSendIn(window, pricedAt)) return report(false, TOO_LATE, at = pricedAt) { put("rate", rate.toPlainString()) }
+        // A real run that is already too late stops before reading a blockhash.
+        if (!args.dryRun && !canSendIn(window, stateAt)) return report(false, TOO_LATE, at = stateAt) { put("rate", rate.toPlainString()) }
         val autoFields: JsonObjectBuilder.(Boolean) -> Unit = { sent ->
             put("command", "chips publish --auto")
             put("published", sent)
             putWindow()
-            putWindowState(pricedAt, sentNow = sent)
+            putWindowState(stateAt, sentNow = sent)
             putJsonArray("previous") { onChain.chipAmounts.forEach { add(JsonPrimitive(it.toBig())) } }
         }
         if (operator == null) {
@@ -454,10 +456,11 @@ object Chips {
         }
         // The last check sits at the send itself, after the blockhash is read:
         // a transaction expires about 90 s after its blockhash, so one that
-        // passes here before the cutoff cannot land after 05:00.
+        // passes here before the cutoff should not land after 05:00. A dry run
+        // reads the time at the same point, so it reports what a real run would.
         val lastCheck: suspend () -> Unit = {
-            val sendAt = rpc.chainTime()?.unixSeconds ?: failed("could not read the chain's time")
-            if (!canSendIn(window, sendAt)) throw TooLate(sendAt)
+            stateAt = chainNow()
+            if (!args.dryRun && !canSendIn(window, stateAt)) throw TooLate(stateAt)
         }
         return try {
             sendSet(args, config, rpc, operator, configAddress, onChain, rate, decimals, tiers, pause, autoFields, lastCheck)

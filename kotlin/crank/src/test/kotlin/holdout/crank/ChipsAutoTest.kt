@@ -256,6 +256,30 @@ class ChipsAutoTest {
     }
 
     @Test
+    fun `given the cutoff passes while a dry run reads the blockhash, when dry-run, then it still simulates but says a real run would not publish`() {
+        val c = cluster(now = lastSend, onBlockhash = { it.now = lastSend + 2 })
+        val json = auto(c, FixedRate(BigDecimal("0.03")), "--dry-run")
+        assertEquals("false", json.text("wouldPublishNow"), "a real run stops at the same point")
+        assertEquals(1, c.sent("simulateTransaction").size)
+        assertTrue(c.sent("sendTransaction").isEmpty())
+    }
+
+    @Test
+    fun `given Jupiter answers no rate only after the cutoff, when run, then the report gives the state as of its answer`() {
+        val c = cluster(now = lastSend)
+        val timedOut =
+            object : Chips.RateSource {
+                override suspend fun usdPerSkr(): BigDecimal? {
+                    c.now = lastSend + 30 // a 30 s timeout
+                    return null
+                }
+            }
+        val json = auto(c, timedOut)
+        assertEquals("no rate", json.text("reason"))
+        assertEquals("false", json.text("wouldPublishNow"))
+    }
+
+    @Test
     fun `given the cutoff passes while a dry run fetches the rate, when dry-run, then it still simulates but reports the state as of after pricing`() {
         val c = cluster(now = lastSend)
         val slow =
