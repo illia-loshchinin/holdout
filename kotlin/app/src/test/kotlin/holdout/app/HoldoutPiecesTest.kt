@@ -5,6 +5,7 @@ import holdout.app.cohort.survivorHistory
 import holdout.app.faucet.SponsorKey
 import holdout.app.holdout.HoldoutViewModel
 import holdout.app.holdout.ProgramErrors
+import holdout.app.home.boostLine
 import holdout.app.ui.Format
 import holdout.app.wallet.WalletRepository
 import holdout.core.CohortSnapshot
@@ -23,6 +24,13 @@ import kotlin.test.assertTrue
 /** The pieces of the staked app that need no phone: the sponsor's signature, errors, amounts, the crowd's history. */
 class HoldoutPiecesTest {
     private fun hex(bytes: ByteArray) = bytes.joinToString("") { "%02x".format(it) }
+
+    @Test
+    fun `an offer shows the boost the league reserve can add, and nothing while it is empty`() {
+        assertEquals("Prize boost: up to 12.5 SKR from this league's reserve when it settles", boostLine(12_500_000uL))
+        assertNull(boostLine(0uL))
+        assertNull(boostLine(null), "a league not read yet")
+    }
 
     @Test
     fun `the bundled sponsor key signs what an Ed25519 verifier accepts, and refuses a mismatched pair`() {

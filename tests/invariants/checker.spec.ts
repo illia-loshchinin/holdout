@@ -580,7 +580,7 @@ describe('INV-2 · finalization lands on an exact pool', () => {
     expectViolation('INV-2', () => assertInvariants(next, prev));
   });
 
-  it('splits a no-finisher pool a third to the developer, the rest to operations, and credits its dues', () => {
+  it('splits a no-finisher pool half to the developer, the rest to operations, and credits its dues', () => {
     const empty = counted({
       memberCount: 0,
       counted: 0,
@@ -589,9 +589,9 @@ describe('INV-2 · finalization lands on an exact pool', () => {
       totalFinisherStake: 0n,
       heldStake: 0n,
       pool: 81n,
-      boostDue: 10n,
+      boostDue: 5n,
       comebackDue: 5n,
-      vaultAmount: 96n,
+      vaultAmount: 91n,
     });
     const prev = snapshot({
       now: at,
@@ -607,18 +607,18 @@ describe('INV-2 · finalization lands on an exact pool', () => {
       snapshot({
         now: at,
         cohorts: [settledEmpty],
-        leagues: [leagueOf({ boostReserve: 10n, comebackReserve: 5n })],
+        leagues: [leagueOf({ boostReserve: 5n, comebackReserve: 5n })],
         memberships: [],
         profiles: [],
-        developerDestination: 27n,
-        operationsDestination: 54n,
+        developerDestination: 40n,
+        operationsDestination: 41n,
         ...over,
       });
     expect(() => assertInvariants(after(), prev)).not.toThrow();
 
-    // Split down the middle, as a 50/50 rule would: both sides of the account add up.
+    // Split a third / two thirds, as the rule before 2026-10-09 would: both sides of the account add up.
     expectViolation('INV-2', () =>
-      assertInvariants(after({ developerDestination: 40n, operationsDestination: 41n }), prev),
+      assertInvariants(after({ developerDestination: 27n, operationsDestination: 54n }), prev),
     );
     // The dues left the cohort but never reached the league's books.
     expectViolation('INV-10', () => assertInvariants(after({ leagues: [leagueOf()] }), prev));
@@ -811,11 +811,11 @@ describe('INV-5 · the denominator is written once, and not before its time', ()
 describe('INV-2 · a forfeit splits five ways (FR-027, H35)', () => {
   const at = FIRST_START + 3 * DAY;
 
-  /** One member of tier 3, stake 100, about to be forfeited: 70 pool, 10 + 5 due, 5 developer, 10 operations. */
+  /** One member of tier 3, stake 100, about to be forfeited: 70 pool, 5 + 5 due, 10 developer, 10 operations. */
   const live = cohort({ memberCount: 1, heldStake: 100n, pool: 0n, vaultAmount: 100n });
   const joined = membership();
   const forfeited = { ...joined, state: 'Forfeited' as const };
-  const after = cohort({ memberCount: 1, heldStake: 0n, pool: 70n, boostDue: 10n, comebackDue: 5n, vaultAmount: 85n });
+  const after = cohort({ memberCount: 1, heldStake: 0n, pool: 70n, boostDue: 5n, comebackDue: 5n, vaultAmount: 80n });
   const slots = [profile(inCohortA)];
   /** The missed deadline of day 0, which is the outcome instant a record writes. */
   const missed = FIRST_START + DAY - 1;
@@ -839,7 +839,7 @@ describe('INV-2 · a forfeit splits five ways (FR-027, H35)', () => {
       memberships: [forfeited],
       profiles: released,
       operationsDestination: 510n,
-      developerDestination: 205n,
+      developerDestination: 210n,
       ...over,
     });
 
@@ -849,14 +849,14 @@ describe('INV-2 · a forfeit splits five ways (FR-027, H35)', () => {
 
   it('catches an operations part that left the vault for somewhere else', () => {
     // Every figure the cohort keeps is right: the stake left held, 70 of it
-    // reached the pool, 15 is due, and the vault fell by 15. The 10 simply never
+    // reached the pool, 10 is due, and the vault fell by 20. The 10 simply never
     // arrived, and only reading the destination shows it.
     expectViolation('INV-2', () => assertInvariants(next({ operationsDestination: 500n }), prev));
   });
 
   it("catches the developer's part paid to operations", () => {
     expectViolation('INV-2', () =>
-      assertInvariants(next({ operationsDestination: 515n, developerDestination: 200n }), prev),
+      assertInvariants(next({ operationsDestination: 520n, developerDestination: 200n }), prev),
     );
   });
 
@@ -865,7 +865,7 @@ describe('INV-2 · a forfeit splits five ways (FR-027, H35)', () => {
       assertInvariants(
         next({
           cohorts: [{ ...after, boostDue: 0n, vaultAmount: 75n }],
-          operationsDestination: 520n,
+          operationsDestination: 515n,
         }),
         prev,
       ),
@@ -891,14 +891,14 @@ describe('INV-2 · a forfeit splits five ways (FR-027, H35)', () => {
 /**
  * A member who forfeited cohort A (day 0 missed, counted) and finished cohort B
  * — by default of the same league a week later: inside the 14-day window, so
- * owed 10 % of the forfeited 100 (FR-037e). B is settled; the reserve funded
+ * owed 20 % of the forfeited 100 (FR-037e). B is settled; the reserve funded
  * half of what it owed.
  */
 const comebackWorld = (over: { bStart?: number; bLeague?: number; entitled?: bigint } = {}) => {
   const missed = FIRST_START + DAY - 1;
   const bStart = over.bStart ?? FIRST_START + 7 * DAY;
   const bLeague = over.bLeague ?? 0;
-  const entitled = over.entitled ?? 10n;
+  const entitled = over.entitled ?? 20n;
   const a = cohort({
     address: 'cohort-A',
     settled: true,
@@ -951,7 +951,7 @@ describe('INV-2 · a comeback is earned in the window, in the same league (FR-03
   const check = (w: ReturnType<typeof comebackWorld>) => () =>
     assertInvariants(snapshot({ now: at, cohorts: [w.a, w.b], memberships: [w.lost, w.won], profiles: w.profiles }));
 
-  it('accepts 10 % of the forfeited stake for finishing a later cohort a week on', () => {
+  it('accepts 20 % of the forfeited stake for finishing a later cohort a week on', () => {
     expect(check(comebackWorld())).not.toThrow();
   });
 
@@ -976,7 +976,7 @@ describe('INV-2 · a comeback is earned in the window, in the same league (FR-03
 
 describe('INV-2 · a claim pays the comeback refund, scaled to what was funded', () => {
   const at = FIRST_START + 30 * DAY;
-  // Owed 10, funded 5: the reserve was short, so the refund is 5.
+  // Owed 20, funded 10: the reserve was short, so the refund is 10.
   const w = comebackWorld();
   const prev = snapshot({
     now: at,
@@ -988,22 +988,22 @@ describe('INV-2 · a claim pays the comeback refund, scaled to what was funded',
   const claimed = (paid: bigint, over: Partial<CohortSnapshot> = {}) =>
     snapshot({
       now: at,
-      cohorts: [w.a, { ...w.b, heldStake: 0n, pool: 0n, comebackClaimed: 5n, vaultAmount: 0n, ...over }],
+      cohorts: [w.a, { ...w.b, heldStake: 0n, pool: 0n, comebackClaimed: 10n, vaultAmount: 0n, ...over }],
       memberships: [w.lost, { ...w.won, state: 'Claimed' }],
       profiles: w.profiles,
       walletBalances: { 'wallet-1': paid },
     });
 
   it('accepts stake + share + the pro-rata refund', () => {
-    expect(() => assertInvariants(claimed(185n), prev)).not.toThrow();
+    expect(() => assertInvariants(claimed(190n), prev)).not.toThrow();
   });
 
   it('catches the full entitlement paid out of a short reserve', () => {
-    expectViolation('INV-2', () => assertInvariants(claimed(190n), prev));
+    expectViolation('INV-2', () => assertInvariants(claimed(200n), prev));
   });
 
   it('catches a refund the cohort did not book as claimed', () => {
-    expectViolation('INV-6', () => assertInvariants(claimed(185n, { comebackClaimed: 0n, vaultAmount: 5n }), prev));
+    expectViolation('INV-6', () => assertInvariants(claimed(190n, { comebackClaimed: 0n, vaultAmount: 10n }), prev));
   });
 });
 

@@ -98,7 +98,7 @@
     },
     {
       "what": "The fee funds reserves, a developer share and operations by rule, but the developer and operations shares are ordinary wallets",
-      "why": "Of every forfeited stake, 10% and 5% go to the league's boost and comeback reserves, which only the program can move, and 5% and 10% to the developer and operations wallets named in this README (H35). What those two wallets then do with it is not enforced by the contract",
+      "why": "Of every forfeited stake, 5% and 5% go to the league's boost and comeback reserves, which only the program can move, and 10% and 10% to the developer and operations wallets named in this README (H35; re-split 2026-10-09). What those two wallets then do with it is not enforced by the contract",
       "fix": "Publish both wallets' addresses and their spending; later, move operations spending on chain or under a multisig"
     },
     {

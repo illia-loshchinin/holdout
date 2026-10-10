@@ -17,7 +17,8 @@ import holdout.core.Derive
 /**
  * A Holdout open to join, as Home and the connect screen show it (FR-053):
  * **at stake** — the stakes already held — joined count and the time until
- * joining closes. Never a promised amount. The ladder screen that also listed
+ * joining closes, and the prize boost the league's reserve can add when it
+ * settles (FR-037d), as "up to". Never a promised amount. The ladder screen that also listed
  * these was removed on 6 October (screen map §8): the offers already sit on Home.
  */
 @Composable
@@ -32,5 +33,14 @@ fun HoldoutOffer(h: Holdout, now: Long, onClick: (() -> Unit)?, modifier: Modifi
         )
         Text("${Format.skr(Derive.atStake(c))} at stake · ${c.memberCount} joined", style = AmountStyle, color = HoldoutColors.Accent)
         Body("Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))} · starts in ${Format.countdown(c.start - now)}")
+        boostLine(h.league?.boostReserve)?.let { Text(it, style = AmountStyle, color = HoldoutColors.Success) }
     }
 }
+
+/**
+ * What the league's boost reserve can add to this Holdout's prize pool when it
+ * settles (FR-053, FR-037d), or nothing while the reserve is empty or unread.
+ * "Up to": the draw is capped at 20% of the pool and paid only if someone
+ * forfeits, so it is never a promised amount.
+ */
+internal fun boostLine(boostReserve: ULong?): String? = boostReserve?.takeIf { it > 0uL }?.let { "Prize boost: up to ${Format.skr(it)} from this league's reserve when it settles" }

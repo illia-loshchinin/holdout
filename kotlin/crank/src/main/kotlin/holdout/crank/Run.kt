@@ -37,7 +37,7 @@ import kotlinx.serialization.json.putJsonArray
  *    `settle_count` over the uncounted members, then `settle_finalize`, which
  *    draws the boost and the comeback funding from the league's reserve vault,
  *    credits the cohort's own reserve dues to it, and with no finishers sends
- *    the whole pool out, a third to the developer destination and the rest to
+ *    the whole pool out, half to the developer destination and the rest to
  *    operations (FR-037, FR-037c–e).
  *    Cohort *i* waits while *i − 1* is unsettled — the program refuses it
  *    (6045), so this is not a preference.

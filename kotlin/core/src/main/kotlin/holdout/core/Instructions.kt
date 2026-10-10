@@ -265,7 +265,7 @@ object Instructions {
      * `record_forfeits()` — permissionless, up to ten pairs in the remaining
      * accounts; pairs not in breach or already forfeited are skipped, so a page
      * may be repeated and re-ordered freely (research R9). Each forfeit splits
-     * 70/10/5/5/10 (FR-027, H35): the pool and the two reserve dues stay in the
+     * 70/5/5/10/10 (FR-027, H35): the pool and the two reserve dues stay in the
      * vault, the developer part goes to [developerDestination] and the
      * operations part to [feeDestination] at once.
      */
@@ -332,7 +332,7 @@ object Instructions {
      * `settle_finalize()`. With finishers it draws the boost from the league's
      * reserve vault into the pool, writes the shares, sends the rounding
      * remainder to [feeDestination] and funds the comeback refunds; with none
-     * it sends a third of the pool to [developerDestination] and the rest to
+     * it sends half of the pool to [developerDestination] and the rest to
      * [feeDestination] (FR-037). Either way the cohort's reserve dues then move
      * to the league's reserve vault, which is why the league is writable
      * (FR-037c–e, H35). It needs no other cohort, so no caller can change where

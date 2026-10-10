@@ -182,7 +182,7 @@ cd kotlin && ./gradlew :app:installMemberDebug -Pholdout.rpcUrl=http://127.0.0.1
 
 A member debug build (`memberDebug`) pointed away from devnet asks the wallet to **sign only** and sends the transaction itself — the wallet would otherwise send it to devnet. Cleartext HTTP is allowed to `127.0.0.1`, `localhost` and `10.0.2.2`, in debug builds only.
 
-**Expected:** connect → faucet → ladder → the short test cohort, labelled → stake → lobby; from the start, 5 push-ups at 45° in each 10-minute day, submitted; scripted members forfeit on their seeded days; after the seventh day (70 minutes in) the cohort settles and the claim pays stake plus share. `bash scripts/localnet-crank.sh status` shows it all.
+**Expected:** connect → faucet → Home (no ladder screen since 2026-10-09) → the short test cohort, labelled → stake → lobby; from the start, 5 push-ups at 45° in each 10-minute day, submitted; scripted members forfeit on their seeded days; after the seventh day (70 minutes in) the cohort settles and the claim pays stake plus share. `bash scripts/localnet-crank.sh status` shows it all.
 
 ## 6. Devnet deployment
 
@@ -261,7 +261,7 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | # | Scenario | How to run | Pass when |
 |---|---|---|---|
 | 1 | 7-day cycle, unlock, gate | *local*: join 7-day, 7 submits, settle, claim; flip `set_flags(ladder=true)`; try 21-day join with a fresh wallet | Claim lands; `Profile.qualified`; fresh wallet gets `LadderGateClosed` |
-| 2 | Forfeit fee | *local*: join, skip a day, `crank run` | Pool rises by stake − 30 %; fee destination +30 % |
+| 2 | Forfeit fee | *local*: join, skip a day, `crank run` | Pool rises by 70 % of the stake; developer destination +10 %; operations (`fee_destination`) +10 %; the other 10 % stays in the vault as `boost_due` and `comeback_due` until finalize (FR-027) |
 | 3 | Equal stakes, equal payouts; remainder | *local*: V17 shape | Byte-identical payouts; remainder at fee destination; Σ claims = Σ stakes + pool − remainder |
 | 4 | Claim arrives | Devnet cohort #3 finisher | SKR balance increases by payout |
 | 5 | Crank killed a day; stranger cranks | *local*: stop crank, advance 1 day, run `crank run` from a different payer | Same forfeits and payouts as uninterrupted run; breached member's submit failed meanwhile |
@@ -270,7 +270,7 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 8 | Fresh install; counters at the deadline | Devnet: install, then connect; stop crank before a boundary | Wallet asked first, with nothing but help getting a wallet available before it; the first-run tour appears once the wallet connects, skips cleanly and re-opens from About (FR-067); cohort populated to at least its floor, scripted members labelled; one second after the deadline the counter already excludes non-submitters |
 | 9 | No price read | Code search + test | No instruction reads a price; only `crank chips publish` uses a rate |
 | 10 | No frame leaves device | Proxy the phone, run a sitting | Only RPC traffic observed |
-| 11 | No finishers | *local*: all forfeit | The whole pool reaches the fee destination; no other cohort changes, whether or not the league has one open |
+| 11 | No finishers | *local*: all forfeit | The whole pool goes out: half (floored) to the developer destination, the rest to operations; no other cohort changes, whether or not the league has one open (FR-037) |
 | 12 **[Phase 2]** | Weekly re-pricing | *local*: `crank chips publish --auto` twice in one week, then after the next Monday 05:00 UTC | Publishes once per week, the second run that week does nothing; old cohorts keep old chips |
 | 13 | Lobby place, lock, overlap | *local* | Continuous 7-day → 7-day; cutoff ±1 s behaviour; 21-day overlap refused |
 | 14 **[Phase 2]** | Leaderboard ranking | Devnet or *local* with seeded profiles | Ranking and "not ranked yet" as specified; no amounts; scripted labels |

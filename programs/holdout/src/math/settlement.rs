@@ -49,17 +49,18 @@ pub fn rounding_remainder(pool: u64, finishers_per_tier: [u32; 4], shares: [u64;
     (u128::from(pool).saturating_sub(paid)) as u64
 }
 
-/// Percents of a forfeited stake for each destination of the fee (FR-027, H35).
+/// Percents of a forfeited stake for each destination of the fee (FR-027, H35;
+/// re-split 2026-10-09 to 70 / 5 / 5 / 10 / 10).
 /// The operations part is not a constant: it takes whatever the floors leave,
 /// so the five parts always add back to the stake.
-pub const BOOST_PERCENT: u128 = 10;
+pub const BOOST_PERCENT: u128 = 5;
 pub const COMEBACK_PERCENT: u128 = 5;
-pub const DEVELOPER_PERCENT: u128 = 5;
+pub const DEVELOPER_PERCENT: u128 = 10;
 
 /// The most a boost may add to a cohort's own pool, in percent (FR-037d).
 pub const BOOST_CAP_PERCENT: u128 = 20;
 /// The share of a counted forfeited stake a comeback refunds, in percent (FR-037e).
-pub const COMEBACK_REFUND_PERCENT: u128 = 10;
+pub const COMEBACK_REFUND_PERCENT: u128 = 20;
 /// How many of the finished cohort's days after the missed deadline a comeback
 /// cohort may start (FR-037e).
 pub const COMEBACK_WINDOW_DAYS: i64 = 14;
@@ -107,7 +108,7 @@ pub fn forfeit_split(forfeited_stake: u64) -> ForfeitSplit {
         boost,
         comeback,
         developer,
-        // 10 + 5 + 5 of the stake can never exceed 30 of it, so this cannot underflow.
+        // 5 + 5 + 10 of the stake can never exceed 30 of it, so this cannot underflow.
         operations: fee - boost - comeback - developer,
     }
 }
@@ -118,7 +119,7 @@ pub fn boost_for(own_pool: u64, boost_reserve: u64) -> u64 {
     percent_of(own_pool, BOOST_CAP_PERCENT).min(boost_reserve)
 }
 
-/// What a comeback owes a finisher: 10% of the forfeited stake, never more than
+/// What a comeback owes a finisher: 20% of the forfeited stake, never more than
 /// the stake they finished on (FR-037e).
 pub fn comeback_owed(forfeited_stake: u64, new_stake: u64) -> u64 {
     percent_of(forfeited_stake, COMEBACK_REFUND_PERCENT).min(new_stake)
@@ -133,10 +134,11 @@ pub fn comeback_refund(entitled: u64, funded: u64, total_owed: u64) -> u64 {
     ((entitled as u128) * (funded as u128) / (total_owed as u128)) as u64
 }
 
-/// A cohort nobody finished: its whole pool goes out, a third to the developer
-/// and the rest to operations, and nothing carries over (FR-037, H34, H35).
+/// A cohort nobody finished: its whole pool goes out, half (floored) to the
+/// developer and the rest to operations, in the ratio of their forfeit shares,
+/// and nothing carries over (FR-037, H34, H35; half each since 2026-10-09).
 pub fn no_finisher_split(pool: u64) -> (u64, u64) {
-    let developer = pool / 3;
+    let developer = pool / 2;
     (developer, pool - developer)
 }
 
