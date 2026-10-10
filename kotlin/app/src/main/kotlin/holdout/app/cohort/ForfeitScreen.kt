@@ -56,7 +56,7 @@ fun ForfeitScreen(
         SectionLabel(Format.holdoutTitle(c))
         Text("You missed day ${stage.daysLasted + 1}.", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.Warning)
         HoldoutCard {
-            Body("You lasted ${stage.daysLasted} of ${c.durationDays} days. The deadline passed before day ${stage.daysLasted + 1} reached the chain, so your stake of ${h.membership?.let { Format.skr(it.stake) } ?: "—"} went into this Holdout's prize pool. 80 % stays with members: 70 % to the prize pool, 10 % to this league's boost and comeback reserves. 20 % goes to the project.")
+            Body("You lasted ${stage.daysLasted} of ${c.durationDays} days. The deadline passed before day ${stage.daysLasted + 1} reached the chain, so your stake of ${h.membership?.let { Format.skr(it.stake) } ?: "—"} is lost. ${Format.lostStakeSplit(c, "this Holdout's prize pool")}")
             if (!stage.recorded) Body("It is final from the deadline; the record catches up on the next automation pass.")
         }
         HoldoutCard {

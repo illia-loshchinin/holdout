@@ -6,11 +6,13 @@ import holdout.repcounter.Stakes
 /**
  * How a Lab set is counted: exactly as the member app counts that sitting
  * (spec 004 FR-003). Nothing is staked — Lab has no wallet and no chain.
+ * The Daily 25 and the 7-day share the rules and the counting; the 21-day
+ * counts more strictly (decided 2026-10-10), and the detail lines say so.
  */
 enum class LabMode(val label: String, val detail: String, val stakes: Stakes) {
-    DAILY_25("Daily 25", "45° · knees allowed · counts toes separately", Stakes.DAILY),
-    EASY("Easy Holdout", "45° · knees allowed · staked rules", Stakes.EASY),
-    HARD("Hard Holdout", "45° · from the toes", Stakes.STAKED),
+    DAILY_25("Daily 25", "45° · knees allowed · counted as the 7-day", Stakes.DAILY),
+    EASY("Easy Holdout", "7-day · 45° · knees allowed", Stakes.EASY),
+    HARD("Hard Holdout", "21-day · 45° · from the toes · the stricter count", Stakes.STAKED),
 }
 
 /** Where a set banks: its own scope, so a new set never inherits reps (research R3). */
