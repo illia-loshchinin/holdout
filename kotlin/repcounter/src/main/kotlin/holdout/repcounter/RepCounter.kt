@@ -267,8 +267,8 @@ enum class RepHint(val message: String) {
      * Every sitting (the Daily 25 since 8 Oct, 002 FR-007): the near leg was
      * not readable on the push or on the way down — the knee unseen, or at the
      * picture's edge where the model guesses, or the foot slipping out of it —
-     * so nothing proved the knee off the floor (Hard), nor let the body line
-     * and the hip rise be judged.
+     * so nothing proved the knee off the floor (Hard), nor let the body line,
+     * which runs to the ankle or the knee, be judged. The hip rise needs no leg.
      */
     LEGS_IN_VIEW("Keep your legs in the picture"),
 
@@ -409,7 +409,8 @@ class RepCounter(
     /**
      * The legs must stay in view, whatever the stakes — the Daily 25 is held to
      * Easy since 8 Oct (002 FR-007): a rep whose knees spent the push out of
-     * the picture cannot be judged for the body line or the hip rise either (H35).
+     * the picture cannot be judged for the body line either (H35); the hip rise
+     * reads hips and shoulders only, so it is not the reason.
      * Every sitting is at 45°; the other views are the synthetic tests' only.
      */
     private val watchLegs = view == CameraView.OBLIQUE
