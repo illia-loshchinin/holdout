@@ -123,6 +123,7 @@ Product owner decisions after the organisers moved the CLOCK IN dates, and with 
 - Q: How large is the comeback refund, and which Holdout earns it? (FR-037e) → A: **20% of the counted forfeited stake** (was 10%), capped at the new stake. Everything else is unchanged: only a later Holdout of the **same league** earns it (lose a 7-day, finish a 7-day; lose a 21-day, finish a 21-day), starting within 14 of that league's days after the missed deadline; the league's comeback reserve (5% of every forfeit) funds it, cut pro rata when short. The reserve holds while the share who come back and finish × the refund ≤ 5%, so 20% holds up to a 25% come-back-and-finish rate.
 - Q: Should a Holdout's pool get extra money before people join, to draw them in, or does the prize boost stay at settlement? (FR-037d, FR-053) → A: **The boost stays at settlement** (FR-037d unchanged: min(20% of the cohort's own pool, the league's boost reserve), only when someone forfeited). **Every Holdout offered to join shows the league's boost reserve as it stands**: "Prize boost: up to N SKR from this league's reserve when it settles", only when the reserve holds more than 0; "up to", because the draw is capped at 20% of the pool and paid only if someone forfeits, so it is never a promised amount. Rejected for the hackathon: moving reserve into a cohort's pool when it opens, which would pay out with nobody having lost, drain the reserve weekly and need a contract change before the deploy.
 - Q: How are members identified on leaderboards and rosters, now that every Seeker owner has a Seeker ID (a `.skr` name)? (FR-062, FR-063) → A: **By Seeker ID when the wallet holds one, and by shortened wallet address otherwise.** Names are read from Solana mainnet for display only and never rank, order or label anyone; still no stake, prize or payout amount on any board. Detail: `specs/003-seeker-id-names` FR-002, FR-008. *(Revises FR-063's "shortened wallet address only".)*
+- Q: Where does a no-finisher pool go, now that the fee has two destinations? (FR-037) → A: **Half, rounded down, to the developer destination and the rest to the operations destination** (`Config.fee_destination`); nothing carries over. Decided 2026-10-09 with the re-split; the §3a table, ES-7 and OD-5 said "the whole pool goes to the fee destination" from 2026-10-05 and now say this. No rule changes.
 
 ### Session 2026-10-07
 
@@ -172,7 +173,7 @@ Product owner decisions, from the PR #20 and #22 reviews.
 |---|---|---|
 | **League leaderboards** | US-10 (league boards), FR-060…FR-060c, FR-061 display, FR-063, AC-14 | No league leaderboard screen. On-chain progress — cohorts cleared and forfeited, current and longest league streak — **is still recorded** from the first cohort, so boards need no migration. The cohort roster (FR-062, FR-064) **is Phase 1**. |
 | **Weekly chip re-pricing** | FR-056, FR-057, ES-10, ES-11, AC-12 | The Operator publishes **one chip set at launch** from that day's rate; every cohort locks it as usual (FR-055). Publishing a new set must already be possible, so re-pricing is tooling, not a contract change. |
-| **Delivery of a held carry-over** — *cut 2026-10-05* | FR-037a's held case, its delivery, ES-7a | Nothing carries over any more: a no-finisher cohort's whole pool goes to the fee destination (FR-037), so there is nothing to hold or deliver. The cohort's carry-over fields stay in its layout, always zero. |
+| **Delivery of a held carry-over** — *cut 2026-10-05* | FR-037a's held case, its delivery, ES-7a | Nothing carries over any more: a no-finisher cohort's whole pool goes out, half (rounded down) to the developer destination and the rest to the operations destination (FR-037; half each since 2026-10-09), so there is nothing to hold or deliver. The cohort has no carry-over fields. |
 | **Automatic offline submission** — *built 2026-10-05 (T098)* | The automatic-retry part of FR-024b and ES-3b, and of AC-18 | A completed day waiting for network stays on the device and the home screen shows **"Done — tap to submit"** once online; the member taps once. All offline warnings are Phase 1. |
 
 Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are marked **[Phase 2]** where they appear.
@@ -305,7 +306,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 | ES-4 | A member in breach tries to submit | Rejected, regardless of whether the Scheduler has run |
 | ES-5 | Nobody forfeits | Finishers get exactly their stake back, and nothing more; the app must have said this was possible up front |
 | ES-6 | One finisher | Receives stake plus the entire pool |
-| ES-7 | Nobody finishes | At settlement, the whole pool goes to the fee destination; nothing carries over (FR-037) |
+| ES-7 | Nobody finishes | At settlement, the whole pool goes out: half (rounded down) to the developer destination, the rest to the operations destination; nothing carries over (FR-037) |
 | ES-7a | Nobody finishes and the league has no other cohort | Settles exactly as ES-7: it needs no other cohort, so nothing waits on one (FR-037; superseded 2026-10-05 — it was refused until a lobby opened) |
 | ES-7b | *(Superseded 2026-10-05: no cohort receives a carry-over any more.)* | — |
 | ES-8 | Scheduler misses a run | Transfers and leaderboards lag; the survivor counter, projected pool and roster do not (FR-038a); no outcome changes |
@@ -584,11 +585,13 @@ The streak day resets on the same instant as the cohort day. There is exactly on
 
 Local-midnight streaks would have been safe — the streak is cosmetic and off-chain, so none of the reasons timezones were removed from the contract apply to it — but two notions of "today" in one app is a support burden that outweighs the gain. Revisit at launch, when the habit tier becomes the growth surface.
 
-### OD-5 · What happens to an unclaimed pool when nobody finishes (FR-037) — **RESOLVED 2026-09-15: split 50/50; REVISED 2026-10-05: all to the fee destination**
+### OD-5 · What happens to an unclaimed pool when nobody finishes (FR-037) — **RESOLVED 2026-09-15: split 50/50; REVISED 2026-10-05: all to the fee destination; REVISED 2026-10-09: half to the developer, the rest to operations**
 
 At settlement, half goes to the fee destination and half carries over into the prize pool of the next cohort of the same league that is still open for joining. If none is open, settlement waits: it is refused until someone opens that cohort, which anyone may do (revised 2026-09-19 — holding the carry-over on the settled cohort let a caller's timing decide whether it ever reached a prize pool). See FR-037…FR-037b, ES-7…ES-7b.
 
 **Revised 2026-10-05:** the whole pool goes to the fee destination and nothing carries over, so settlement never waits on another cohort (FR-037).
+
+**Revised 2026-10-09:** the fee now has two destinations, so the whole pool goes out half (rounded down) to the developer destination and the rest to the operations destination; still nothing carries over (FR-027, FR-037, FR-037f).
 
 ---
 
