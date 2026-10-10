@@ -8,8 +8,8 @@ import holdout.repcounter.Stakes
  * (spec 004 FR-003). Nothing is staked — Lab has no wallet and no chain.
  */
 enum class LabMode(val label: String, val detail: String, val stakes: Stakes) {
-    DAILY_25("Daily 25", "45° · 40–60° · knees allowed", Stakes.DAILY),
-    EASY("Easy Holdout", "45° · 40–60° · knees allowed", Stakes.EASY),
+    DAILY_25("Daily 25", "45° · knees allowed · counts toes separately", Stakes.DAILY),
+    EASY("Easy Holdout", "45° · knees allowed · staked rules", Stakes.EASY),
     HARD("Hard Holdout", "45° · from the toes", Stakes.STAKED),
 }
 

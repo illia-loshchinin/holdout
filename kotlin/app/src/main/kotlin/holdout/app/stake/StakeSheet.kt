@@ -102,7 +102,7 @@ fun StakeSheet(
         HoldoutCard {
             SectionLabel("Every day")
             Text("${c.repsPerDay} push-ups before each day's deadline, for ${c.durationDays} days", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
-            Body("Miss one and your stake goes into the prize pool — 70 % to the pool and a 30 % fee, a third of which funds this league's prize boosts and comeback refunds.")
+            Body("Miss one and your stake goes into the prize pool. 80 % stays with members: 70 % to the prize pool, 10 % to this league's boost and comeback reserves. 20 % goes to the project.")
             Body("Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))} · starts in ${Format.countdown(c.start - now)}")
             Body("You can leave for a full refund until joining closes.")
             Body("If you allow notifications, this phone reminds you when it starts and before each deadline you haven't met yet. The reminders never leave the phone.")
