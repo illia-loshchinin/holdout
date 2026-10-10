@@ -87,7 +87,7 @@ The faucet figures above are **normative**: research R13 explains where they com
 | `share_per_tier` | [u64; 4] | `floor(pool × chips[t] ÷ total_finisher_stake)`; all zero when no finishers |
 | `rounding_remainder` | u64 | Sent to fee destination (FR-032a) |
 | `no_finisher_fee` | u64 | The whole pool when no finishers: `floor(pool ÷ 2)` goes to the developer destination and the rest to operations; nothing carries over (FR-037, half each since 2026-10-09) |
-| `boost_received` | u64 | `min(floor(20 % × pool), league.boost_reserve)` drawn into the pool before shares; 0 with no finishers or no forfeits (FR-037d) |
+| `boost_received` | u64 | `min(floor(10 % × pool), league.boost_reserve)` drawn into the pool before shares (cap 10 % since 2026-10-10); 0 with no finishers or no forfeits (FR-037d) |
 | `comeback_owed` | u64 | Comeback refunds owed to this cohort's finishers, summed as `settle_count` counts them (FR-037e) |
 | `comeback_funded` | u64 | `min(comeback_owed, league.comeback_reserve)`, drawn at finalize (FR-037e) |
 | `comeback_claimed` | u64 | Refunds paid out with claims so far; a claim pays `floor(entitled × comeback_funded ÷ comeback_owed)` (FR-037e). Not written once: rises per claim |
