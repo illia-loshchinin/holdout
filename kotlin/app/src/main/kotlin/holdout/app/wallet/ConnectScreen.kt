@@ -23,6 +23,7 @@ import holdout.app.ui.Notice
 import holdout.app.ui.PrimaryButton
 import holdout.app.ui.SectionLabel
 import holdout.app.ui.TestCohortBadge
+import holdout.app.ui.Wordmark
 import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
@@ -35,7 +36,7 @@ import holdout.core.Derive
  * Connect wallet — required before anything else, **even for the free Daily 25**
  * (FR-001a, PRD §10.1 screen 2, T039, T041).
  *
- * The promise in two lines, one line each for the Daily 25 and a Holdout, and
+ * The wordmark, the promise in two lines, one line each for the Daily 25 and a Holdout, and
  * the Holdouts live right now — still standing and prize pool for the running
  * ones, joined count and **at stake** for the open ones — read from devnet
  * with no wallet. Then the button. Nothing else is reachable before a wallet
@@ -65,6 +66,7 @@ fun ConnectScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems, Alignment.CenterVertically),
     ) {
+        Wordmark()
         Text(
             text = "Stake on yourself.\nProve it every day.",
             style = MaterialTheme.typography.headlineMedium,

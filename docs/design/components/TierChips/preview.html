@@ -1,0 +1,40 @@
+<!-- @dsCard group="Inputs" height=168 subtitle="Four stake tiers, one selected" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>TierChips — preview</title></head>
+<body>
+<div class="ho-stage" style="max-width:420px">
+  <div class="ho-chips" role="radiogroup" aria-label="Stake">
+    <button class="ho-chip" role="radio" aria-checked="false"><span class="ho-chip-usd">≈ $10</span><span class="ho-chip-skr">416 SKR</span></button>
+    <button class="ho-chip" role="radio" aria-checked="true"><span class="ho-chip-usd">≈ $25</span><span class="ho-chip-skr">1,040 SKR</span></button>
+    <button class="ho-chip" role="radio" aria-checked="false"><span class="ho-chip-usd">≈ $50</span><span class="ho-chip-skr">2,080 SKR</span></button>
+    <button class="ho-chip" role="radio" aria-checked="false"><span class="ho-chip-usd">≈ $100</span><span class="ho-chip-skr">4,160 SKR</span></button>
+  </div>
+  <p class="ho-body" style="font-size:13px;line-height:18px">Stakes and payouts are in SKR; dollar values are approximate.</p>
+</div>
+<script>
+// A radio group: one tab stop on the selected chip; arrows, Home and End move and select (WAI-ARIA radio group).
+(function () {
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.ho-chip'));
+  function select(c, focus) {
+    chips.forEach(function (o) { var on = o === c; o.setAttribute('aria-checked', on ? 'true' : 'false'); o.tabIndex = on ? 0 : -1; });
+    if (focus) c.focus();
+  }
+  chips.forEach(function (c, i) {
+    c.addEventListener('click', function () { select(c, false); });
+    c.addEventListener('keydown', function (e) {
+      var n = chips.length, to = null;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') to = (i + 1) % n;
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') to = (i - 1 + n) % n;
+      else if (e.key === 'Home') to = 0;
+      else if (e.key === 'End') to = n - 1;
+      if (to === null) return;
+      e.preventDefault();
+      select(chips[to], true);
+    });
+  });
+  select(chips.filter(function (c) { return c.getAttribute('aria-checked') === 'true'; })[0] || chips[0], false);
+})();
+</script>
+</body>
+</html>
