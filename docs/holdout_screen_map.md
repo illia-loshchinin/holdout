@@ -407,7 +407,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 
 **Job:** read while the phone is still in hand, since the countdown can't start behind it. Draw it as a bottom sheet over the camera.
 
-**On screen:** placement drawings with captions — head-on (*head towards the phone, hands ~1.5 m from it*), 45° (*ahead of your shoulder, ~1.5 m away*); staked: *at 45° only* · position checklist (top of a push-up; whole body head to feet; line up with the outline; staked: on your toes, turn a little so the near knee shows; Daily 25: knees welcome) · how it runs (hold the top → ring fills → *three, two, one, go*; a beep per rep; banked every 10; ✕ any time) · ☐ *Don't show this again* · **Got it**
+**On screen:** first, under the title on every page *(2026-10-10, 002 FR-015)*: *Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone.* The body page opens with those two lines · placement drawings with captions — head-on (*head towards the phone, hands ~1.5 m from it*), 45° (*ahead of your shoulder, ~1.5 m away*); staked: *at 45° only* · position checklist (top of a push-up; whole body head to feet; line up with the outline; staked: on your toes, turn a little so the near knee shows; Daily 25: knees welcome) · how it runs (hold the top → ring fills → *three, two, one, go*; a beep per rep; banked every 10; ✕ any time) · ☐ *Don't show this again* · **Got it**
 
 **Variants:** Daily 25 (knees welcome, toes counted separately) · Easy (knees count) · Hard (from the toes only) · detected view highlighted. Every sitting is at 45°; head-on was retired on 7 Oct (002 FR-001)
 
