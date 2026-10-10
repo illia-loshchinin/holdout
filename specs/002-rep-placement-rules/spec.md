@@ -61,6 +61,10 @@ Product owner decision with spec 004 (Holdout Lab and the member app) and consti
 
 - Q: Where do traces, labelling, video and the tester switches live, now that the member app must hold only what members use? (FR-023, FR-025, FR-026) → A: **In Holdout Lab, a separate tester app with no wallet and no chain, installed only on the team's and consenting testers' phones.** It counts every set exactly as the member app counts it, from the same rules. No build of the member app, developer or release, records a trace or video, asks for a label or shows a tester switch, and a build check fails any member-app build that contains the recorder. Earlier answers that say "debug builds" now mean Holdout Lab.
 
+### Session 2026-10-10
+
+- Q: Should seeing the knees be its own pre-flight pill, now that "Whole body in frame" hides the most common failure inside it? (FR-018, FR-024a) → A: **Yes.** The pills are **Lighting · Whole body in frame · Knees visible · Camera view · Background still**. *Knees visible* holds the near-knee checks that *Whole body in frame* used to carry (the near knee found and clear of the picture's edges) and keeps their fixes; it blocks the start like the other three, and only *Background still* stays advisory. *Whole body in frame* keeps every joint present, the head inside the picture and the near foot clear of the edges. The valid plank stays the ready hold, not a pill (FR-018a). Decided by the product owner on the screen-map review.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Daily 25 counts at 45°, the placement a Holdout is counted at (Priority: P1)
@@ -192,6 +196,7 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 **Framing**
 
 - **FR-024** *(revised 2026-09-29)*: The head MUST be tracked as a point **for entry**: the whole-body check — which the ready hold and the countdown both need — MUST NOT pass until the head is clearly inside the picture, and says "Keep your head in the picture" until it is. **While counting the head MUST be ignored**: a head out of the picture neither discards a rep nor raises a warning. *(Replaces the counting-time "Head out of view · move back" warning.)*
+- **FR-024a** *(added 2026-10-10)*: The near knee MUST have its own pre-flight pill, **Knees visible**, between *Whole body in frame* and *Camera view*, blocking like them: it passes once the near knee is found and clear of the picture's edges, and while it fails it says which fix applies — "Turn your body slightly to your left (or right), away from the phone, so it sees your knees" when the knee is hidden behind the body, "Keep your knees in the picture — move the phone further away" when it is at an edge. *Whole body in frame* MUST NOT check the knee any more.
 
 **Privacy**
 
