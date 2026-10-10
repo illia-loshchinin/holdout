@@ -6,7 +6,7 @@
 
 **Tests**: Included, and not optional here — constitution VII makes settlement vectors and invariants failing tests **before** the logic they describe.
 
-**Organization**: grouped by user story, in the order the money loop has to come alive. Dates in the checkpoints follow the plan's delivery sequence; the submission is 9 October 08:59 CEST (FR-066). There is no feature freeze (removed 2026-10-06, constitution v2.0.0).
+**Organization**: grouped by user story, in the order the money loop has to come alive. Dates in the checkpoints follow the plan's delivery sequence; the submission is due 13 October 2026, 01:59 CEST (FR-066; moved from 9 October 08:59 CEST on 2026-10-09). There is no feature freeze (removed 2026-10-06, constitution v2.0.0).
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -85,7 +85,7 @@
 - [X] T032 [P] Implement `Derive.kt` in `kotlin/core/src/main/kotlin/holdout/core/` — survivor counter, projected pool, projected share, roster order, time left, warning window, **at stake**, carry-over received, time until joining closes (data-model §5)
 - [X] T033 [P] Implement chain-time tracking in `kotlin/core/src/main/kotlin/holdout/core/Clock.kt` — cached `{chainNow, slot, readAtElapsedRealtime}`, advanced with `SystemClock.elapsedRealtime()`, never the wall clock (research R7)
 - [X] T034 [P] Implement RPC reads in `kotlin/core/src/main/kotlin/holdout/core/Rpc.kt` — `getProgramAccounts` with a `memcmp` on the cohort key and a `dataSlice`, 30-second refresh while a cohort screen is visible (research R8)
-- [ ] T035 [P] Transcribe the design tokens into `kotlin/app/src/main/kotlin/holdout/app/ui/theme/` — `Color.kt`, `Type.kt`, `Shape.kt`, `Theme.kt`: one dark `ColorScheme`, **dynamic colour disabled**, JetBrains Mono in `kotlin/app/src/main/res/font/` (PRD §11, research R20)
+- [ ] T035 [P] Transcribe the design tokens into `kotlin/app/src/main/kotlin/holdout/app/ui/theme/` — `Color.kt`, `Type.kt`, `Shape.kt`, `Theme.kt`: one dark `ColorScheme`, **dynamic colour disabled**, JetBrains Mono in `kotlin/app/src/main/res/font/` (`docs/design/tokens.json`, research R20). **Partial, checked against the code 2026-10-10:** the four theme files are built, with one dark `ColorScheme` and no dynamic colour (e92e62b); `res/font/` does not exist yet, so JetBrains Mono and the Roboto Flex counter face (T121) are not bundled and the amount styles fall back to `FontFamily.Monospace`. What is left is adding both font files under their open licences and pointing `Type.kt` at them
 - [X] T036 [P] Scaffold the crank in `kotlin/crank/src/main/kotlin/holdout/crank/Main.kt` — argument parsing, RPC config, `status` subcommand printing cohorts plus the faucet vault, the sponsor's balance against its float and the day's lamport spend, single runnable JAR (contracts/crank-cli.md)
 
 **Checkpoint (21 Sep)**: math and schedule tests pass, accounts compile, `kotlin/core` replays every fixture, the theme renders, and the no-oracle check passes.
@@ -388,7 +388,7 @@
 - [X] T147 [P] Remove the `ladder_gate_enabled` entry from `docs/weaknesses.json`, re-render the README table with `node scripts/render-weaknesses.mjs`, and in the README's layer table describe the 7-day and 21-day Holdouts as two separate staked leagues (Easy, Hard), neither an entry rung nor a step up per Constitution XI, FR-003 (contradicts)
 - [X] T148 [P] Update the plan artifacts: `data-model.md` (drop `Config.ladder_gate_enabled`, `Profile.qualified` and the 21-day-join rule, noting they were removed before the first deploy), `contracts/program-instructions.md` (`set_flags(genesis_gate_enabled)`, no gate in `join_cohort`, 6023 retired), `contracts/android-app.md` (no ladder to return to), `quickstart.md` (AC-1 row: 7-day cycle plus a 21-day join from a fresh wallet), `plan.md` source tree (no `ladder/`), `research.md` (no ladder in the filmed flow) per FR-003, AC-1 (contradicts)
 - [X] T149 [P] In `docs/holdout_decisions.md` add H37 (no ladder: separate products for different audiences; gate, flag, `qualified` and 6023 deleted; same-league way back), revise H2, H3 and the H16 weakness list to match, and add a 2026-10-10 amendment log row naming constitution v2.2.0 per Constitution governance (partial)
-- [X] T150 [P] Mark the ladder gate removed (2026-10-10, H37) where `docs/holdout_v1_prd.md` and `docs/holdout_scope_and_state_machines.md` still describe it, and make the forfeit exits in `docs/holdout_screen_map.md` (H6, J5) the same league's next cohort per FR-003, US-4 (contradicts)
+- [X] T150 [P] Mark the ladder gate removed (2026-10-10, H37) where `docs/holdout_v1_prd.md` and `docs/holdout_scope_and_state_machines.md` still describe it, and make the forfeit exits in `docs/holdout_screen_map.md` (H6, J5) the same league's next cohort per FR-003, US-4 (contradicts). *(Both documents left the tree on 2026-10-10: the PRD is archived as `docs/archive/holdout_v1_prd_hackathon-build_2026-09-18.md` and the scope document is retired; the task stands as history.)*
 
 ---
 
