@@ -87,8 +87,8 @@ pub struct Initialize<'info> {
     /// CHECK: the treasury's (operations) wallet. It owns the fee destination and signs nothing.
     pub treasury_wallet: UncheckedAccount<'info>,
 
-    /// The operations destination: the operations part of every forfeit, two
-    /// thirds of a no-finisher pool and rounding remainders land here, in the
+    /// The operations destination: the operations part of every forfeit, half
+    /// of a no-finisher pool and rounding remainders land here, in the
     /// treasury's own associated token account — the program never holds them.
     #[account(
         init,

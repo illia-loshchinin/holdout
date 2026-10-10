@@ -59,7 +59,7 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 | Wallet without test SKR or fee SOL | Faucet sheet; used-today and can't-pay-out variants (ES-0a, ES-0b) |
 | Wallet just connected, first run | Tour — three cards, skippable, re-openable (FR-067) |
 | No Holdout running, Daily 25 available | Home — Daily 25 variant, with the Holdouts open to join and what is at stake in each (FR-053) |
-| Cohort `Open`, member not joined | Ladder → Stake confirm |
+| Cohort `Open`, member not joined | Home or Forfeit offer → Stake confirm (no ladder screen since 2026-10-09; Forfeit's "next 7-day" opens the stake confirm directly) |
 | Membership `Pending` in `Open` cohort | Lobby (with leave) |
 | Membership `Pending` in `Locked` cohort | Lobby — locked variant (ES-12a) |
 | Membership `Active`, today not complete | Home — cohort variant; Sitting |

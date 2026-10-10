@@ -27,7 +27,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * T100, T123 — `crank chips publish --auto`, the Operator's weekly re-pricing
+ * T100, T125 — `crank chips publish --auto`, the Operator's weekly re-pricing
  * (FR-056, FR-057, AC-12, research R15): the rate from Jupiter only, every
  * week with no threshold, at most one publish per publish window — the 4
  * hours before Monday 05:00 UTC, so the cohort opening then locks a fresh rate.

@@ -23,7 +23,7 @@
 //!
 //! ## Nobody finished
 //!
-//! Its whole pool goes out — a third to the developer, the rest to operations —
+//! Its whole pool goes out — half to the developer, the rest to operations —
 //! and nothing carries over into another cohort (FR-037, H34, H35). Its reserve
 //! shares are still credited to the league.
 

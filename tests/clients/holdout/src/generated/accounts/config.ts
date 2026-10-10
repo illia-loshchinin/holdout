@@ -30,13 +30,13 @@ sponsor: Address;
 skrMint: Address; 
 /**
  * The **operations** destination: the treasury's SKR token account. The
- * operations part of every forfeit, two thirds of a no-finisher pool and
+ * operations part of every forfeit, half of a no-finisher pool and
  * rounding remainders land here (research R14, H35).
  */
 feeDestination: Address; 
 /**
  * The **developer** destination: the developer's SKR token account. The
- * developer part of every forfeit and a third of a no-finisher pool (H35).
+ * developer part of every forfeit and half of a no-finisher pool (H35).
  */
 developerDestination: Address; 
 /** `false` on devnet: both leagues are open from launch (FR-003). */
@@ -61,13 +61,13 @@ sponsor: Address;
 skrMint: Address; 
 /**
  * The **operations** destination: the treasury's SKR token account. The
- * operations part of every forfeit, two thirds of a no-finisher pool and
+ * operations part of every forfeit, half of a no-finisher pool and
  * rounding remainders land here (research R14, H35).
  */
 feeDestination: Address; 
 /**
  * The **developer** destination: the developer's SKR token account. The
- * developer part of every forfeit and a third of a no-finisher pool (H35).
+ * developer part of every forfeit and half of a no-finisher pool (H35).
  */
 developerDestination: Address; 
 /** `false` on devnet: both leagues are open from launch (FR-003). */

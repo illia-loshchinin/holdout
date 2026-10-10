@@ -404,7 +404,7 @@ export const forfeitPairs = async (
  * skipped rather than refused — so a page may be repeated and re-ordered freely
  * (research R9, INV-7).
  *
- * Each breached stake splits 70/10/5/5/10 (FR-027, H35): the pool part and the
+ * Each breached stake splits 70/5/5/10/10 (FR-027, H35): the pool part and the
  * two reserve parts stay in the vault — the reserve parts as `boost_due` /
  * `comeback_due` until the cohort finalizes — while the developer and
  * operations parts leave at once, one batched transfer each per page.
@@ -474,7 +474,7 @@ export const settleCountIx = async (
 /**
  * `settle_finalize()`. With finishers it draws the boost from the league's
  * reserve, writes the shares on the boosted pool and funds the comeback
- * refunds; with none it splits the whole pool a third to the developer and the
+ * refunds; with none it splits the whole pool half to the developer and the
  * rest to operations (FR-037). Either way it then credits the cohort's reserve
  * shares to its league (FR-037c). Like `settle_count` it needs the league's
  * cohort `index - 1`, settled — an empty cohort is never counted, so this is

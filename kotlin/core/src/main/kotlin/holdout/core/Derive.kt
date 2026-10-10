@@ -57,16 +57,16 @@ object Settlement {
         return (pool.big() * chip.big() / totalFinisherStake.big()).toULongExact()
     }
 
-    /** Percents of a forfeited stake for each destination of the fee (FR-027, H35); operations takes what the floors leave. */
-    const val BOOST_PERCENT = 10
+    /** Percents of a forfeited stake for each destination of the fee (FR-027, H35; 70 / 5 / 5 / 10 / 10 since 2026-10-09); operations takes what the floors leave. */
+    const val BOOST_PERCENT = 5
     const val COMEBACK_PERCENT = 5
-    const val DEVELOPER_PERCENT = 5
+    const val DEVELOPER_PERCENT = 10
 
     /** The most a boost may add to a cohort's own pool, in percent (FR-037d). */
     const val BOOST_CAP_PERCENT = 20
 
     /** The share of a counted forfeited stake a comeback refunds, in percent (FR-037e). */
-    const val COMEBACK_REFUND_PERCENT = 10
+    const val COMEBACK_REFUND_PERCENT = 20
 
     /** How many of a cohort's days after the missed deadline a comeback cohort may start (FR-037e). */
     const val COMEBACK_WINDOW_DAYS = 14
@@ -91,13 +91,13 @@ object Settlement {
         val paidOutNow: ULong get() = developer + operations
     }
 
-    /** Split one forfeited stake 70 / 10 / 5 / 5 / 10, each part floored (FR-027, H35). */
+    /** Split one forfeited stake 70 / 5 / 5 / 10 / 10, each part floored (FR-027, H35). */
     fun forfeitSplit(forfeitedStake: ULong): ForfeitSplit {
         val fee = feeOf(forfeitedStake)
         val boost = percentOf(forfeitedStake, BOOST_PERCENT)
         val comeback = percentOf(forfeitedStake, COMEBACK_PERCENT)
         val developer = percentOf(forfeitedStake, DEVELOPER_PERCENT)
-        // 10 + 5 + 5 of the stake never exceed 30 of it, so this cannot underflow.
+        // 5 + 5 + 10 of the stake never exceed 30 of it, so this cannot underflow.
         return ForfeitSplit(forfeitedStake - fee, boost, comeback, developer, fee - boost - comeback - developer)
     }
 
@@ -108,7 +108,7 @@ object Settlement {
      */
     fun boostFor(ownPool: ULong, boostReserve: ULong): ULong = minOf(percentOf(ownPool, BOOST_CAP_PERCENT), boostReserve)
 
-    /** What a comeback owes a finisher: 10% of the forfeited stake, never more than the stake they finished on (FR-037e). */
+    /** What a comeback owes a finisher: 20% of the forfeited stake, never more than the stake they finished on (FR-037e). */
     fun comebackOwed(forfeitedStake: ULong, newStake: ULong): ULong = minOf(percentOf(forfeitedStake, COMEBACK_REFUND_PERCENT), newStake)
 
     /**
@@ -122,12 +122,13 @@ object Settlement {
     }
 
     /**
-     * A cohort nobody finished: its whole pool goes out, a third (floored) to
-     * the developer and the rest to operations (FR-037, H34, H35). Returned as
+     * A cohort nobody finished: its whole pool goes out, half (floored) to the
+     * developer and the rest to operations (FR-037, H34, H35; half each since
+     * 2026-10-09, was a third). Returned as
      * `(developer, operations)`.
      */
     fun noFinisherSplit(pool: ULong): Pair<ULong, ULong> {
-        val developer = pool / 3uL
+        val developer = pool / 2uL
         return developer to pool - developer
     }
 
