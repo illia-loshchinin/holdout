@@ -5,15 +5,17 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
 /**
- * One theme, dark, fixed (PRD §11, T035).
+ * One theme, dark, fixed (design book, Visual foundations → Colour in
+ * `docs/design/README.md`; T035).
  *
  * **No light variant and no dynamic colour.** Material You would repaint the
  * app from the member's wallpaper, and the palette here is the product's
  * identity — the survivor counter reading Solana Green is a decision, not a
  * default. There is deliberately no `dynamicColor` parameter to pass `true` to.
  *
- * The mapping below is PRD §11.1's table, slot for slot, so the theme is a
- * transcription rather than a reinterpretation.
+ * The mapping below puts each `color` token from `docs/design/tokens.json` in
+ * its Material slot, so the theme is a transcription rather than a
+ * reinterpretation.
  */
 private val HoldoutColorScheme = darkColorScheme(
     background = HoldoutColors.Canvas,

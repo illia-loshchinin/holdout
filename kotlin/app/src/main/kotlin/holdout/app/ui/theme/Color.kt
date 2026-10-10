@@ -3,7 +3,9 @@ package holdout.app.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * The colour tokens, transcribed from PRD §11.1 — not reinterpreted.
+ * The colour tokens, transcribed from the design book's `color` tokens in
+ * `docs/design/tokens.json` (Visual foundations → Colour in
+ * `docs/design/README.md`) — not reinterpreted.
  *
  * Every value is sampled from the Solana brand kit, so nothing looks borrowed.
  * **Dark only**, and Material You dynamic colour is disabled in [HoldoutTheme]:

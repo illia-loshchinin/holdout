@@ -9,10 +9,12 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 
 /**
- * Type, transcribed from PRD §11.2.
+ * Type, transcribed from the design book: the `type` tokens in
+ * `docs/design/tokens.json`, described under Visual foundations → Type in
+ * `docs/design/README.md`.
  *
  * **Roboto** is the Android system family, so the app matches the Seeker's own
- * UI with nothing bundled and no licence to carry. The PRD also names
+ * UI with nothing bundled and no licence to carry. The design book also names
  * **JetBrains Mono** for amounts and countdowns; until that file is added to
  * `res/font/`, those styles fall back to [FontFamily.Monospace], which the
  * system provides. That is a visual difference on the amount row only, and no

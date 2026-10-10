@@ -5,7 +5,9 @@ import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
 
 /**
- * Shape and spacing, from PRD §11.3.
+ * Shape and spacing, from the design book's `radius`, `spacing` and `size`
+ * tokens in `docs/design/tokens.json` (Visual foundations → Shape, Spacing and
+ * layout, Depth in `docs/design/README.md`).
  *
  * **Depth: none.** No shadows anywhere on black — a surface level plus a
  * hairline does all the separating.
