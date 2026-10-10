@@ -9,7 +9,7 @@
  *  - **Reserves are credited only at finalization, in cohort order** (FR-037c,
  *    INV-10): what a cohort draws can never depend on when the crank recorded
  *    somebody else's forfeit.
- *  - **The prize boost** (FR-037d): `min(20 % of the cohort's own pool, the
+ *  - **The prize boost** (FR-037d): `min(10 % of the cohort's own pool, the
  *    boost reserve)`, drawn before the shares — and nothing for a cohort with no
  *    forfeits, so "everyone finishes, exactly your stake back" still holds.
  *  - **The comeback refund** (FR-037e): forfeit, then finish a later cohort of the
@@ -356,8 +356,8 @@ describe('given a league whose cohorts settle in order (FR-037c, INV-10)', () =>
 
 describe('given a cohort with finishers at finalization (FR-037d)', () => {
   it.each([
-    ['20 % of its own pool when the reserve holds more', 1_000n * SKR, 14n * SKR],
-    ['the whole reserve when it holds less than 20 %', 3n * SKR, 3n * SKR],
+    ['10 % of its own pool when the reserve holds more', 1_000n * SKR, 7n * SKR],
+    ['the whole reserve when it holds less than 10 %', 3n * SKR, 3n * SKR],
   ])('boosts the pool by %s, before the shares are computed', async (_name, reserve, boost) => {
     const w = await world({ boostReserve: reserve });
     await cohortAt(w, 0);
@@ -464,19 +464,19 @@ describe('given a member who forfeited and came back (FR-037e)', () => {
     expect(membership.comebackEntitled, '20 % of the 100 SKR forfeited').toBe(20n * SKR);
     expect(one.comebackOwed).toBe(20n * SKR);
     expect(one.comebackFunded, 'the reserve held 20').toBe(20n * SKR);
-    expect(one.boostReceived, 'min(20 % of 70, 20)').toBe(14n * SKR);
+    expect(one.boostReceived, 'min(10 % of 70, 20)').toBe(7n * SKR);
     expect((await w.h.readProfile(comeback.address)).leagues[2]!.comebackStake, 'used up').toBe(0n);
     expect(await reservesOf(w)).toEqual({
-      boost: 20n * SKR - 14n * SKR + 5n * SKR,
+      boost: 20n * SKR - 7n * SKR + 5n * SKR,
       comeback: 20n * SKR - 20n * SKR + 5n * SKR,
-      vault: 16n * SKR,
+      vault: 23n * SKR,
     });
 
     const before = await balanceOf(w, comeback);
     const claim = await w.act([await claimPayoutIx(comeback.address, w.mint, w.league, 1)], comeback);
     const paid = (await balanceOf(w, comeback)) - before;
-    // Stake 100, the whole boosted pool 70 + 14, and the refund 20.
-    expect(paid).toBe(DEFAULT_CHIPS[3] + 84n * SKR + 20n * SKR);
+    // Stake 100, the whole boosted pool 70 + 7, and the refund 20.
+    expect(paid).toBe(DEFAULT_CHIPS[3] + 77n * SKR + 20n * SKR);
     expect(decodeClaimed(oneEvent(claim, 'PayoutClaimed'))).toEqual({
       wallet: comeback.address,
       amount: paid,

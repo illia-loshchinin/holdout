@@ -628,7 +628,7 @@ describe('INV-2 · finalization lands on an exact pool', () => {
   });
 });
 
-describe('INV-2 · the boost is min(20 % of the own pool, the reserve), drawn before the shares (FR-037d)', () => {
+describe('INV-2 · the boost is min(10 % of the own pool, the reserve), drawn before the shares (FR-037d)', () => {
   const at = FIRST_START + 8 * DAY;
   const finisher = membership({ state: 'Finished', daysCompleted: 7, counted: true });
   const cleared = [
@@ -682,16 +682,16 @@ describe('INV-2 · the boost is min(20 % of the own pool, the reserve), drawn be
     return () => assertInvariants(next, prev);
   };
 
-  it('accepts 20 % of the own pool when the reserve holds more', () => {
-    expect(step({ boost: 50n, comeback: 20n }, 14n)).not.toThrow();
+  it('accepts 10 % of the own pool when the reserve holds more', () => {
+    expect(step({ boost: 50n, comeback: 20n }, 7n)).not.toThrow();
   });
 
-  it('accepts the whole reserve when it holds less than 20 %', () => {
+  it('accepts the whole reserve when it holds less than 10 %', () => {
     expect(step({ boost: 5n, comeback: 0n }, 5n)).not.toThrow();
   });
 
-  it('catches a boost above 20 % of the own pool', () => {
-    expectViolation('INV-2', step({ boost: 50n, comeback: 20n }, 20n));
+  it('catches a boost above 10 % of the own pool', () => {
+    expectViolation('INV-2', step({ boost: 50n, comeback: 20n }, 14n));
   });
 
   it("catches a boost that drew on the cohort's own dues, credited too early", () => {
