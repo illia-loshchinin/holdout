@@ -19,8 +19,8 @@ import androidx.compose.ui.unit.sp
  * they use the system Roboto, the token's own fallback. It also names
  * **JetBrains Mono** for amounts and countdowns; until that file is added to
  * `res/font/`, those styles fall back to [FontFamily.Monospace], which the
- * system provides. That is a visual difference on the amount row only, and no
- * layout depends on it.
+ * system provides. That is a visual difference in [AmountStyle] text only,
+ * and no layout depends on it.
  *
  * Tabular figures everywhere a number changes, so counters and timers never
  * jitter as digits swap.

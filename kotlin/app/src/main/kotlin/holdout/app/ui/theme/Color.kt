@@ -49,7 +49,7 @@ object HoldoutColors {
     /** Coral. Forfeit, the last-10-minutes warning, faucet exhausted. Never a harsh red. */
     val Warning = Color(0xFFFF623A)
 
-    /** Solana Purple. Decoration only — never text under 24sp. */
+    /** Solana Purple. Decoration only, never text: purple that has to be read is [CelebrationText]. */
     val Celebration = Color(0xFF9945FF)
 
     /** Solana Purple lightened, same hue: the rare purple that has to be read, such as a PB label. */

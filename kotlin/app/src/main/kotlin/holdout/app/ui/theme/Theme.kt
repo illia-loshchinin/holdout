@@ -13,11 +13,15 @@ import androidx.compose.runtime.Composable
  * identity — the survivor counter reading Solana Green is a decision, not a
  * default. There is deliberately no `dynamicColor` parameter to pass `true` to.
  *
- * The mapping below gives each Material slot a `color` token from
+ * The mapping below fills the main Material slots with `color` tokens from
  * `docs/design/tokens.json`. The design book names no slots, so which token
- * fills which slot is decided here; the values are the tokens' own. Tokens
- * with no Material slot (scrim, drag handle, tertiary text, the strong and
- * tinted accent, celebration text, the gradient) live in [HoldoutColors] only.
+ * fills which slot is decided here; the values are the tokens' own. A slot
+ * not set below (the containers, `outlineVariant`, `surfaceContainerHighest`,
+ * `scrim`, …) keeps Material's baseline dark value, which is no token, so a
+ * component that reads one needs its colours set where it is called. Scrim,
+ * drag handle, tertiary text, the strong and tinted accent, celebration text
+ * and the gradient are in [HoldoutColors] only; the spare `palette-*` hues
+ * are not in code yet.
  */
 private val HoldoutColorScheme = darkColorScheme(
     background = HoldoutColors.Canvas,

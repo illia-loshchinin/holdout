@@ -5,9 +5,11 @@ import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
 
 /**
- * Shape and spacing, from the design book's `radius`, `spacing` and `size`
- * tokens in `docs/design/tokens.json` (Visual foundations → Shape, Spacing and
- * layout, Depth in `docs/design/README.md`).
+ * Shape and spacing, from the design book's `radius` and `spacing` tokens and
+ * two of its `size` tokens (`size-touch`, `size-button`) in
+ * `docs/design/tokens.json` (Visual foundations → Shape, Spacing and layout,
+ * Depth in `docs/design/README.md`). `size-border`, `size-ring-stroke` and
+ * `size-nav` are not named here yet.
  *
  * **Depth: none.** No shadows anywhere on black — a surface level plus a
  * hairline does all the separating.
