@@ -165,6 +165,8 @@ class ChipsAutoTest {
         assertEquals("true", json.text("published"))
         assertEquals(2, json.getValue("version").jsonPrimitive.long)
         assertEquals(Chips.price(BigDecimal("0.024"), 6).map { it.baseUnits }, amountsIn(c.sent("sendTransaction").single()))
+        assertEquals("true", json.text("alreadyPublishedThisWindow"), "the set it just sent counts")
+        assertEquals("false", json.text("wouldPublishNow"), "another run now would be skipped")
     }
 
     @Test

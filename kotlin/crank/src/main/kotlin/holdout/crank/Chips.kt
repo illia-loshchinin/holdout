@@ -389,12 +389,13 @@ object Chips {
         val alreadyThisWindow = onChain.chipPublishedAt in window
 
         // The state at chain time [at]: the time read last, so a report never
-        // contradicts the guard that ended the run.
-        fun JsonObjectBuilder.putWindowState(at: Long) {
+        // contradicts the guard that ended the run — nor the publish it just sent.
+        fun JsonObjectBuilder.putWindowState(at: Long, sentNow: Boolean = false) {
+            val already = alreadyThisWindow || sentNow
             put("insideWindow", at in window)
-            if (alreadyThisWindow) put("alreadyPublishedThisWindow", true)
+            if (already) put("alreadyPublishedThisWindow", true)
             // What a real run at this chain time would do — a dry run goes on past every guard.
-            put("wouldPublishNow", at in window && !alreadyThisWindow && canSendIn(window, at))
+            put("wouldPublishNow", at in window && !already && canSendIn(window, at))
         }
 
         fun report(published: Boolean, reason: String?, at: Long = now, more: JsonObjectBuilder.() -> Unit = {}) = buildJsonObject {
@@ -433,7 +434,7 @@ object Chips {
             put("command", "chips publish --auto")
             put("published", sent)
             putWindow()
-            putWindowState(now)
+            putWindowState(now, sentNow = sent)
             putJsonArray("previous") { onChain.chipAmounts.forEach { add(JsonPrimitive(it.toBig())) } }
         }
         if (operator == null) {
