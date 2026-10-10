@@ -10,3 +10,4 @@
   `/speckit-analyze` on the feature and check spec, plan, tasks, data model, contracts and
   quickstart against the code on the branch. Fix any drift through the skills above, then mark it
   ready or merge.
+- Do not use `archive` folder for development or implementation. The data source inside the archive folder must be treated as deprecated.
