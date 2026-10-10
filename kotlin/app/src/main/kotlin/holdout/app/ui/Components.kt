@@ -110,7 +110,7 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
     Text(text.uppercase(), style = LabelStyle, color = HoldoutColors.TextTertiary, modifier = modifier)
 }
 
-/** A hairline card — the only separation on black; there are no shadows (PRD §11). */
+/** A hairline card — the only separation on black; there are no shadows (design book, Depth). */
 @Composable
 fun HoldoutCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Column(
