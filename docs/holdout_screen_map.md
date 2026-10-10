@@ -414,7 +414,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 #### S3 · Pre-flight and hold the start position
 **MUST · ✅ Built · 🎨 Drawn** (board *17*; the *step* tweak shows Checks / Holding / Blocked / Tip sheet)
 
-**On screen:** camera + floor/outline guide (comes off once aligned) · four pills turning green: **Lighting · Whole body in frame · Camera view · Background still** · one big coach line, also spoken (*Phone to 45°*, *Knees up*, *Move back*, *Can't see knees*) · once all green, a **hold ring** fills while the member holds the top · if it won't fill, the reason · *How to set up* link · deadline (Holdout)
+**On screen:** camera + floor/outline guide (comes off once aligned) · five pills turning green: **Lighting · Whole body in frame · Knees visible · Camera view · Background still** (the knees got their own pill on 2026-10-10, 002 FR-024a; red, it says which way to turn or to move the phone back) · one big coach line, also spoken (*Phone to 45°*, *Knees up*, *Move back*, *Can't see knees*) · once all green, a **hold ring** fills while the member holds the top · if it won't fill, the reason · *How to set up* link · deadline (Holdout)
 
 **Variants:** looking… · each pill failing · staked refusal from too far in front (says which way to turn) · loose trousers · *NICE, not built:* after three failures, a **tip sheet** with the common fixes (PRD §10.4)
 

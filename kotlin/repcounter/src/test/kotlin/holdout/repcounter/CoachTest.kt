@@ -54,7 +54,7 @@ class CoachTest {
     @Test
     fun `a hidden knee asks the member to turn away, a knee at the edge asks for the phone further off`() {
         fun kneesReport(fix: String) = PreflightReport(
-            statuses = PreflightCheck.entries.map { if (it == PreflightCheck.WHOLE_BODY) PreflightStatus(it, passing = false, specificFix = fix) else PreflightStatus(it, passing = true) },
+            statuses = PreflightCheck.entries.map { if (it == PreflightCheck.KNEES_VISIBLE) PreflightStatus(it, passing = false, specificFix = fix) else PreflightStatus(it, passing = true) },
             view = CameraView.OBLIQUE,
         )
         assertEquals(Coach.TURN_LEFT, Coach.next(kneesReport(Preflight.KNEES_TURN_LEFT_FIX), guidance(null)), "phone on the right: turn left, away from it")

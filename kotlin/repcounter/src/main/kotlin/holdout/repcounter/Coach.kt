@@ -45,7 +45,7 @@ enum class Coach(val words: String) {
         fun next(report: PreflightReport?, guidance: Guidance?, hold: HoldBlocker? = null): Coach {
             if (report == null || guidance == null) return GET_IN_VIEW
             fun failing(check: PreflightCheck) = report.statuses.any { it.check == check && !it.passing }
-            val wholeBodyFix = report.statuses.firstOrNull { it.check == PreflightCheck.WHOLE_BODY }?.fix
+            val kneesFix = report.statuses.firstOrNull { it.check == PreflightCheck.KNEES_VISIBLE && !it.passing }?.fix
             val cameraFix = report.statuses.firstOrNull { it.check == PreflightCheck.CAMERA_ANGLE && !it.passing }?.fix
 
             return when {
@@ -58,10 +58,10 @@ enum class Coach(val words: String) {
                 cameraFix == Preflight.TOO_FRONT_TURN_RIGHT_FIX || cameraFix == Preflight.TOO_SIDE_TURN_RIGHT_FIX -> TURN_RIGHT
                 guidance.hint == PositionHint.PHONE_AT_45 || failing(PreflightCheck.CAMERA_ANGLE) -> TURN_45
                 guidance.hint == PositionHint.GET_DOWN -> GET_DOWN
-                wholeBodyFix == Preflight.KNEES_TURN_LEFT_FIX -> TURN_LEFT
-                wholeBodyFix == Preflight.KNEES_TURN_RIGHT_FIX -> TURN_RIGHT
-                wholeBodyFix == Preflight.KNEES_TURN_FIX -> TURN_AWAY
-                guidance.hint == PositionHint.MOVE_BACK || failing(PreflightCheck.WHOLE_BODY) -> FURTHER
+                kneesFix == Preflight.KNEES_TURN_LEFT_FIX -> TURN_LEFT
+                kneesFix == Preflight.KNEES_TURN_RIGHT_FIX -> TURN_RIGHT
+                kneesFix == Preflight.KNEES_TURN_FIX -> TURN_AWAY
+                guidance.hint == PositionHint.MOVE_BACK || failing(PreflightCheck.WHOLE_BODY) || failing(PreflightCheck.KNEES_VISIBLE) -> FURTHER
                 guidance.hint == PositionHint.MOVE_CLOSER -> CLOSER
                 guidance.hint == PositionHint.MOVE_LEFT -> LEFT
                 guidance.hint == PositionHint.MOVE_RIGHT -> RIGHT

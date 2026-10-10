@@ -313,7 +313,7 @@ private fun KeepScreenOn() {
 }
 
 /**
- * The positioning helper: what to fix next, then the four checks as chips.
+ * The positioning helper: what to fix next, then the pre-flight checks as chips.
  *
  * The outline itself is drawn by [PositionOverlay] over the camera; this is the
  * text half. Once the member is aligned it all goes, leaving the skeleton.
@@ -386,7 +386,7 @@ private fun PreflightPills(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Spacing.tight),
     ) {
-        // FR-019's four checks, still run and still gating — just no longer the
+        // FR-019's checks (five since 002 FR-024a gave the knees their own), still run and still gating — just no longer the
         // main event. Each red chip still states its own fix.
         report.statuses.forEach { status ->
             Text(
