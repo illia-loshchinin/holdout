@@ -55,7 +55,7 @@ data class ChainView(
     val skr: ULong,
     val lamports: Long,
 ) {
-    /** Cohorts taking members now — what the ladder, home and the connect screen offer (FR-053). */
+    /** Cohorts taking members now — what home and the connect screen offer (FR-053). */
     fun openToJoin(now: Long): List<Holdout> = holdouts.filter { it.status(now) == CohortStatus.Open && it.membership == null }
 
     /** Cohorts the wallet is in and has not claimed out of — what home leads with. */

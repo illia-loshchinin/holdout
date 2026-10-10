@@ -36,7 +36,8 @@ fun ForfeitScreen(
     stage: Stage.Forfeited,
     streak: Int,
     onDaily25: () -> Unit,
-    onNextHoldout: () -> Unit,
+    /** The next 7-day Holdout's stake sheet; null when none is open to join. */
+    onNextHoldout: (() -> Unit)?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -64,6 +65,6 @@ fun ForfeitScreen(
         }
         SectionLabel("Two ways back")
         PrimaryButton("Today's Daily 25", onDaily25)
-        SecondaryButton("The next 7-day Holdout", onNextHoldout)
+        onNextHoldout?.let { SecondaryButton("The next 7-day Holdout", it) }
     }
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Renders the README's "Known weaknesses" table from
-// kotlin/app/src/main/assets/weaknesses.json — the same file the app's About
-// screen shows (T090, T103) — so the two can never drift (constitution XI).
+// Renders the README's "Known weaknesses" table from docs/weaknesses.json, its
+// one source (constitution XI). The app shows no weaknesses screen: they are
+// documented in the README only (spec 004 FR-015).
 //
 //   node scripts/render-weaknesses.mjs           rewrite the table in README.md
 //   node scripts/render-weaknesses.mjs --check   exit 1 if README.md is out of date
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const readmePath = join(root, 'README.md');
-const source = JSON.parse(readFileSync(join(root, 'kotlin/app/src/main/assets/weaknesses.json'), 'utf8'));
+const source = JSON.parse(readFileSync(join(root, 'docs/weaknesses.json'), 'utf8'));
 
 const header = '| What | Why it is like this | Real fix |\n|---|---|---|';
 const table = [header, ...source.weaknesses.map((w) => `| ${w.what} | ${w.why} | ${w.fix} |`)].join('\n');

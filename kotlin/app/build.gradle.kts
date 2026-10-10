@@ -96,6 +96,12 @@ android {
         buildConfigField("String", "RPC_URL", "\"${providers.gradleProperty("holdout.rpcUrl").getOrElse("https://api.devnet.solana.com")}\"")
         buildConfigField("String", "PROGRAM_ID", "\"${providers.gradleProperty("holdout.programId").getOrElse("Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4")}\"")
 
+        // Seeker ID names (spec 003): the one mainnet endpoint, used only by
+        // the read-only SeekerNameReader to look up .skr names for display —
+        // it can neither sign nor send (research R5). A keyed provider can be
+        // set with -Pholdout.namesRpcUrl=... (research R4).
+        buildConfigField("String", "NAMES_RPC_URL", "\"${providers.gradleProperty("holdout.namesRpcUrl").getOrElse("https://api.mainnet-beta.solana.com")}\"")
+
         // The faucet's fee sponsor (research R13): its secret SHIPS IN THE APK by
         // design — a README known weakness, bounded on-chain by a 0.05 SOL float,
         // a daily lamport budget and a permissionless refill. It is read at build
@@ -121,6 +127,21 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+        }
+    }
+    // Two apps from one module (spec 004, research R1). `member` is the app
+    // members use and the APK that is submitted; `lab` is Holdout Lab, the
+    // tester app that records and labels sets, never given to members. Both
+    // compile src/main, so they count with the same rules; Lab-only code
+    // lives in src/lab, where member code cannot reach it (constitution X).
+    flavorDimensions += "app"
+    productFlavors {
+        create("member") {
+            dimension = "app"
+        }
+        create("lab") {
+            dimension = "app"
+            applicationIdSuffix = ".lab"
         }
     }
     compileOptions {
@@ -166,11 +187,11 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.mediapipe.tasks.vision)
-    // Debug builds only: a sitting's camera saved as video for testing rep
-    // recognition and training the knee classifier (constitution X, v1.5.0).
-    // camera-view already brings it in transitively; this only makes the debug
-    // recorder's dependency explicit. checkReleaseHasNoRecorder keeps release code off it.
-    debugImplementation(libs.androidx.camera.video)
+    // Holdout Lab only: a set's camera saved as video for testing rep
+    // recognition and training the knee classifier (constitution X v2.1.0).
+    // camera-view already brings it in transitively; this only makes the Lab
+    // recorder's dependency explicit. checkMemberHasNoLabCode keeps member code off it.
+    "labImplementation"(libs.androidx.camera.video)
 
     // Ed25519 for the one key the app itself signs with — the faucet's fee
     // sponsor (research R13). The JDK's own Ed25519 needs API 33; this runs on
@@ -227,31 +248,50 @@ androidComponents {
     }
 }
 
-// Constitution X (v1.5.0): only a debug build may record a sitting's camera.
-// The recorder's library must never reach the release classpath; if it does,
-// the release build fails here rather than ship a recorder.
+// Constitution X (v2.1.0), spec 004 FR-010: only Holdout Lab may record a set's
+// camera, keep a trace, ask for a label or show a tester switch. No build of the
+// member app, developer or release, may contain any of them; if it does, the
+// build fails here rather than ship it.
 //
-// The *library* cannot be kept off it: camera-view (PreviewView) depends on
-// camera-video. What the constitution forbids is the recorder, so this checks
-// the code a release build compiles — src/main and src/release — and fails if
-// any of it touches androidx.camera.video. The recorder lives in src/debug
-// alone, and R8 strips library classes that nothing references.
-abstract class CheckReleaseHasNoRecorder : DefaultTask() {
+// Lab's code lives in src/lab, which member variants do not compile, so a
+// reference to it already fails to compile. This is the constitution's build
+// check and the backstop for the one library member code can still see:
+// camera-view (PreviewView) depends on camera-video, so the library cannot be
+// kept off the classpath — what is forbidden is member code using it.
+abstract class CheckMemberHasNoLabCode : DefaultTask() {
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val releaseSources: ConfigurableFileCollection
+    abstract val memberSources: ConfigurableFileCollection
 
     @TaskAction
     fun check() {
-        val offenders = releaseSources.asFileTree.filter { it.extension in setOf("kt", "java") && "androidx.camera.video" in it.readText() }.files
+        val forbidden = listOf(
+            "androidx.camera.video",
+            "TraceRecorder",
+            "TraceLabelDialog",
+            "TestSwitch",
+            "LabApp",
+            "LabReadouts",
+            "\"rec · ",
+        )
+        val offenders = memberSources.asFileTree
+            .filter { it.extension in setOf("kt", "java") && forbidden.any { word -> word in it.readText() } }
+            .files
         if (offenders.isNotEmpty()) {
-            throw GradleException("Code compiled into a release build uses androidx.camera.video: $offenders. Only src/debug may record video (constitution X).")
+            throw GradleException(
+                "Member-app code contains Holdout Lab code: $offenders. Only src/lab may record, label, show " +
+                    "readouts or show tester switches (constitution X v2.1.0, spec 004 FR-010).",
+            )
         }
     }
 }
 
-val checkReleaseHasNoRecorder = tasks.register<CheckReleaseHasNoRecorder>("checkReleaseHasNoRecorder") {
-    description = "Fails if code compiled into a release build can record video (constitution X)."
-    releaseSources.from(listOf("src/main/kotlin", "src/main/java", "src/release/kotlin", "src/release/java").map { layout.projectDirectory.dir(it) })
+val checkMemberHasNoLabCode = tasks.register<CheckMemberHasNoLabCode>("checkMemberHasNoLabCode") {
+    description = "Fails if code compiled into any member-app build records, labels or shows tester switches (constitution X, spec 004)."
+    memberSources.from(
+        listOf("main", "member", "debug", "release", "memberDebug", "memberRelease")
+            .flatMap { set -> listOf("src/$set/kotlin", "src/$set/java") }
+            .map { layout.projectDirectory.dir(it) },
+    )
 }
-tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.configureEach { dependsOn(checkReleaseHasNoRecorder) }
+tasks.matching { it.name.startsWith("assembleMember") || it.name.startsWith("bundleMember") }.configureEach { dependsOn(checkMemberHasNoLabCode) }

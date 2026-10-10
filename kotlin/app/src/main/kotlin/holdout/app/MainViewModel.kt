@@ -12,7 +12,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * in `WalletRepository` (T040), and chain state in `HoldoutViewModel`.
  */
 class MainViewModel : ViewModel() {
-    // Devnet only, everywhere (README: nothing here touches mainnet). The app
+    // Devnet only, everywhere (README: no value touches mainnet; the only mainnet read is Seeker ID names, in SeekerNameReader). The app
     // reads chain state through the same client the crank uses (R8, R12).
     private val rpcClient = Rpc(Deployment.rpcUrl)
 

@@ -14,7 +14,7 @@
 
 ### H1. The build is a hackathon submission, not a launch
 
-**Decided:** devnet only, mock SKR mint, feature-frozen **28 September** when the first in-app cohort opens; submission **9 October 2026, 08:59 CEST**. Anything not required by a scenario in the spec is out of scope, and scope grows only by amending the spec. The submission's contents, the judging dates and the live period are in H25.
+**Decided:** devnet only, mock SKR mint, feature-frozen **28 September** when the first in-app cohort opens; submission **13 October 2026, 01:59 CEST** (moved by the organisers from 9 October 08:59 CEST; amended 2026-10-09). Anything not required by a scenario in the spec is out of scope, and scope grows only by amending the spec. The submission's contents, the judging dates and the live period are in H25.
 
 **Why:** the official CLOCK IN rubric has four equal parts:
 - stickiness and product fit with the Seeker community (habits and daily engagement);
@@ -230,7 +230,7 @@ Clearing a 7-day cohort permanently records the 21-day unlock. **The gate is off
 
 **What it shows, and who can watch it (clarified 2026-09-17):** the whole flow in order — launching the app, connecting a wallet, the faucet, the ladder, staking, the lobby, a sitting, a completed day, the crowd thinning, a forfeit, settlement and the claim. It is the **one thing playable before a wallet is connected** (FR-001a), because a judge whose wallet cannot sign on devnet would otherwise see nothing but the connect screen. Storyboard, shot list, recording workflow and beta-test plan: `holdout_demo_video.md`.
 
-**Why:** judges install the app between 10 October and 9 November, and a full staked cycle takes a week, so any live cohort a judge sees must be populated by script regardless. A recording of the real thing shows the complete money loop without asking a judge for 175 push-ups in an hour.
+**Why:** judges install the app between 13 October and 9 November, and a full staked cycle takes a week, so any live cohort a judge sees must be populated by script regardless. A recording of the real thing shows the complete money loop without asking a judge for 175 push-ups in an hour.
 
 **Rejected:**
 1. **A labelled compressed "Demo" cohort on-chain** — real contract, but judges would still have to perform the cycle.
@@ -454,13 +454,13 @@ A fix that would need any of those is not deployed. The authority is named in th
 
 ### H25. The CLOCK IN rules: what is submitted, when judging runs, how long the build stays live
 
-**Decided (clarified 2026-09-17 from the official CLOCK IN rules page):**
-- **Submission, before 9 October 2026 08:59 CEST, no late entries:**
+**Decided (clarified 2026-09-17 from the official CLOCK IN rules page; dates amended 2026-10-09 after the organisers moved them):**
+- **Submission, before 13 October 2026 01:59 CEST (12 October, 23:59 UTC), no late entries:**
   - a functional Android APK that runs on a real device;
   - a GitHub repository someone else can clone and run;
   - a demo video of about three minutes;
   - a pitch deck.
-- **Judging** runs 10 October – 9 November 2026. Winners are announced on 10 or 11 November; the rules page gives both dates.
+- **Judging** runs 13 October – 9 November 2026 (was 10 October). Winners are announced on 10 or 11 November; the rules page gives both dates.
 - **The build stays live with no manual intervention from submission through 11 November 2026:** cohorts, the faucet and the Scheduler.
 - **Distribution:** judges get the signed APK. **Publishing on the Solana dApp Store is not required** for submission. If the app wins, it must be published there within 30 calendar days of the announcement; that listing, and any mainnet launch, are post-hackathon work (L10, L11).
 - **No submission material may mislead:** scripted members, the test network and every README weakness are disclosed in the demo video and pitch deck as well as in the app and README (H16).
@@ -830,4 +830,7 @@ By decision, not by omission.
 | 2026-10-07 | **Test lobby join lock 0** (FR-044a, H36). The next test cohort opens only once the current one starts, so a 5-minute join lock left 5 minutes in every 30 with nothing to join. Each test cohort now stays joinable until its own start. The judged leagues keep their one-hour lock. |
 | 2026-10-07 | **Weekly chip check runs hourly** (FR-056, T100). The Operator schedules `crank chips publish --auto` every hour in any time zone, and the once-per-boundary guard publishes on the first run after Monday 05:00 UTC. A failed run, or one with no rate, is retried the next hour within the same week. A once-a-Monday cron needed `CRON_TZ`, which Debian's cron ignores. |
 | 2026-10-07 | **One test league at a time** (FR-044a, FR-060). The newest test league is the lobby, and the crank opens no more cohorts in an older one, which winds down. Streaks are written when a cohort is counted, after it ends, so two concurrent test leagues of different lengths could write a member's later clear before an earlier forfeit on the combined test board. No program change. |
-| 2026-10-10 | **Chip set published in the 4 hours before the cohorts open** (FR-056, T115). `crank chips publish --auto` still runs hourly, but publishes only inside Monday 01:00–05:00 UTC, once per window, by chain time. Publishing on the first run after 05:00 came after that week's cohorts had already opened, so every lobby locked a rate about a week old (two by its join cutoff), and a run at `:00` raced the opening. Now a new lobby locks a rate at most 4 hours old and keeps it for every joiner; a window with no rate leaves the previous set (FR-057). Supersedes the 2026-10-07 "first run after the boundary". |
+| 2026-10-09 | **Constitution v2.0.1 (patch): dates moved by the organisers.** Submission is due **13 October 2026, 01:59 CEST** (12 October, 23:59 UTC), no longer 9 October, 08:59 CEST. Judging runs **13 October – 9 November 2026** (was from 10 October). The winners' announcement stays 11 November 2026. No principle changed. The spec, plan, research and demo-video doc still quote the old dates. |
+| 2026-10-09 | **Constitution v2.1.0 (minor) and spec 004: Holdout Lab and the member app.** Rep-counting work moves to **Holdout Lab**, a separate tester app with no wallet and no chain, installed only on the team's and consenting testers' phones. Principle X's recording exception moves from "a debug build" to Holdout Lab, and the member app may not contain the recorder in any build. The member app drops everything addressed to judges: About · for judges, the in-app walkthrough and the *For judges* links. The submission is the app's final state, and the demo video is sent as a link. The short test lobby stays, "kept running, labelled, open to anyone". Specs 001 (FR-001a, FR-044, FR-044a, FR-066, AC-19), 002 (FR-023, FR-025, FR-026) and 003 (FR-010) follow through `/speckit-clarify`. |
+| 2026-10-09 | **Constitution v2.0.2 (patch, wording), carried into v2.1.1 with spec 004.** The reason the demo video may use the short test lobby is now the deploy date, not the deadline: the program reaches devnet only days before submission, so no judged 7-day Holdout can run its full week on it, while a test cohort shows the whole cycle in about half an hour. The permission itself is unchanged. |
+| 2026-10-10 | **Chip set published in the 4 hours before the cohorts open** (FR-056, T122). `crank chips publish --auto` still runs hourly, but publishes only inside Monday 01:00–05:00 UTC, once per window, by chain time. Publishing on the first run after 05:00 came after that week's cohorts had already opened, so every lobby locked a rate about a week old (two by its join cutoff), and a run at `:00` raced the opening. Now a new lobby locks a rate at most 4 hours old and keeps it for every joiner; a window with no rate leaves the previous set (FR-057). Supersedes the 2026-10-07 "first run after the boundary". |
