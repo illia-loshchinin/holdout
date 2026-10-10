@@ -338,6 +338,17 @@ object Chips {
     }
 
     /**
+     * No send starts this close to the window's end: a blockhash lives about
+     * this long, and the send is watched for 60 s, so a set sent later could
+     * land after 05:00 — after the cohorts opening then had copied the old
+     * one — and count as next week's (FR-056).
+     */
+    const val SEND_MARGIN_SECONDS = 90L
+
+    /** Whether a publish started at [now] can still land inside [window]. */
+    private fun canSendIn(window: LongRange, now: Long) = now >= window.first && now <= window.last - SEND_MARGIN_SECONDS
+
+    /**
      * `--auto`: the Operator's weekly re-pricing, run every hour by the
      * Operator's own scheduler, in any time zone — never by `crank run`, so the
      * Operator key is loaded only for this. In order, by chain time: nothing to
@@ -374,22 +385,30 @@ object Chips {
             put("windowCloses", Instant.ofEpochSecond(window.last + 1).toString())
         }
 
+        val alreadyThisWindow = onChain.chipPublishedAt in window
+
+        fun JsonObjectBuilder.putWindowState() {
+            put("insideWindow", insideWindow)
+            if (alreadyThisWindow) put("alreadyPublishedThisWindow", true)
+        }
+
         fun report(published: Boolean, reason: String?, more: JsonObjectBuilder.() -> Unit = {}) = buildJsonObject {
             put("command", "chips publish --auto")
             put("dryRun", args.dryRun)
             put("published", published)
             reason?.let { put("reason", it) }
             putWindow()
+            putWindowState()
             put("lastPublished", Instant.ofEpochSecond(onChain.chipPublishedAt).toString())
             more()
         }
 
         // A dry run is the Operator's check of the rate source and the set, so
         // it goes on past the window guard any day; a real run stops here (FR-056).
-        val alreadyThisWindow = onChain.chipPublishedAt in window
         if (!args.dryRun) {
             if (!insideWindow) return report(false, "outside the publish window")
             if (alreadyThisWindow) return report(false, "already published in this window")
+            if (!canSendIn(window, now)) return report(false, TOO_LATE)
         }
         val rate = source.usdPerSkr() ?: return report(false, "no rate") { source.problem?.let { put("detail", it) } }
         val decimals = mintDecimals(rpc, onChain)
@@ -409,8 +428,7 @@ object Chips {
             put("command", "chips publish --auto")
             put("published", sent)
             putWindow()
-            put("insideWindow", insideWindow)
-            if (alreadyThisWindow) put("alreadyPublishedThisWindow", true)
+            putWindowState()
             putJsonArray("previous") { onChain.chipAmounts.forEach { add(JsonPrimitive(it.toBig())) } }
         }
         if (operator == null) {
@@ -421,8 +439,16 @@ object Chips {
                 autoFields(false)
             }
         }
+        // Fetching the rate and the mint took time: check again that a send
+        // started now still lands before the window closes.
+        if (!args.dryRun) {
+            val sendAt = rpc.chainTime()?.unixSeconds ?: failed("could not read the chain's time")
+            if (!canSendIn(window, sendAt)) return report(false, TOO_LATE) { put("rate", rate.toPlainString()) }
+        }
         return sendSet(args, config, rpc, operator, configAddress, onChain, rate, decimals, tiers, pause, autoFields)
     }
+
+    private const val TOO_LATE = "too late to land in the publish window"
 
     /**
      * The options this command takes, checked before the environment is read

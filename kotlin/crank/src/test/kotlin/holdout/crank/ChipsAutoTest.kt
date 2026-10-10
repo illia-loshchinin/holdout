@@ -198,12 +198,45 @@ class ChipsAutoTest {
 
     // ---- once per publish window: the 4 hours before Monday 05:00 UTC -----------------
 
+    /** The last second a send may start and still land before 05:00. */
+    private val lastSend = nextMonday - 1 - Chips.SEND_MARGIN_SECONDS
+
     @Test
-    fun `given the window's first and last second, when run, then each publishes`() {
-        for (now in listOf(windowOpens, nextMonday - 1)) {
+    fun `given the window's first second and the last second a send can still land, when run, then each publishes`() {
+        for (now in listOf(windowOpens, lastSend)) {
             val json = auto(cluster(now = now), FixedRate(BigDecimal("0.03")))
             assertEquals("true", json.text("published"), Instant.ofEpochSecond(now).toString())
         }
+    }
+
+    @Test
+    fun `given the window's last moments, when run, then nothing is fetched or sent, since it could land after 05 00`() {
+        for (now in listOf(lastSend + 1, nextMonday - 1)) {
+            val c = cluster(now = now)
+            val rate = FixedRate(BigDecimal("0.03"))
+            val json = auto(c, rate)
+            val at = Instant.ofEpochSecond(now).toString()
+            assertEquals("false", json.text("published"), at)
+            assertEquals("too late to land in the publish window", json.text("reason"), at)
+            assertEquals(0, rate.asked, at)
+            assertTrue(c.sent("sendTransaction").isEmpty(), at)
+        }
+    }
+
+    @Test
+    fun `given the window nearly closes while the rate is fetched, when run, then it checks the chain's time again and sends nothing`() {
+        val c = cluster(now = lastSend)
+        val slow =
+            object : Chips.RateSource {
+                override suspend fun usdPerSkr(): BigDecimal {
+                    c.now = lastSend + 30 // Jupiter took 30 s
+                    return BigDecimal("0.03")
+                }
+            }
+        val json = auto(c, slow)
+        assertEquals("false", json.text("published"))
+        assertEquals("too late to land in the publish window", json.text("reason"))
+        assertTrue(c.sent("simulateTransaction").isEmpty() && c.sent("sendTransaction").isEmpty())
     }
 
     @Test
@@ -266,6 +299,17 @@ class ChipsAutoTest {
         assertEquals("false", json.text("published"))
         assertEquals(1, c.sent("simulateTransaction").size)
         assertTrue(c.sent("sendTransaction").isEmpty())
+    }
+
+    @Test
+    fun `given no rate or an unusable one, when dry-run, then the report still says whether a real run would publish now`() {
+        for (rate in listOf(null, BigDecimal("2"))) {
+            val outside = auto(cluster(now = wednesday), FixedRate(rate), "--dry-run")
+            assertEquals("false", outside.text("insideWindow"), "$rate")
+            val done = auto(cluster(configBytes(publishedAt = inWindow)), FixedRate(rate), "--dry-run")
+            assertEquals("true", done.text("insideWindow"), "$rate")
+            assertEquals("true", done.text("alreadyPublishedThisWindow"), "$rate")
+        }
     }
 
     @Test
