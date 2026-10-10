@@ -362,3 +362,9 @@
 - [X] T147 [P] Update the plan artifacts: `data-model.md` (drop `Config.ladder_gate_enabled`, `Profile.qualified` and the 21-day-join rule, noting they were removed before the first deploy), `contracts/program-instructions.md` (`set_flags(genesis_gate_enabled)`, no gate in `join_cohort`, 6023 retired), `contracts/android-app.md` (no ladder to return to), `quickstart.md` (AC-1 row: 7-day cycle plus a 21-day join from a fresh wallet), `plan.md` source tree (no `ladder/`), `research.md` (no ladder in the filmed flow) per FR-003, AC-1 (contradicts)
 - [X] T148 [P] In `docs/holdout_decisions.md` add H37 (no ladder: separate products for different audiences; gate, flag, `qualified` and 6023 deleted; same-league way back), revise H2, H3 and the H16 weakness list to match, and add a 2026-10-10 amendment log row naming constitution v2.2.0 per Constitution governance (partial)
 - [X] T149 [P] Mark the ladder gate removed (2026-10-10, H37) where `docs/holdout_v1_prd.md` and `docs/holdout_scope_and_state_machines.md` still describe it, and make the forfeit exits in `docs/holdout_screen_map.md` (H6, J5) the same league's next cohort per FR-003, US-4 (contradicts)
+
+---
+
+## Phase 19: Convergence
+
+- [ ] T150 Move the forfeit's way back into `Journey.wayBack` in `kotlin/core/src/main/kotlin/holdout/core/Journey.kt` — the earliest-starting cohort open to join in the forfeited cohort's league, or in any test league (id ≥ `TEST_LEAGUE_MIN`) for a test cohort, else none — with tests in `JourneyTest.kt` (a 21-day forfeit gets the 21-day cohort, never a 7-day one; a test cohort gets the test lobby; nothing open gives null), and have `HoldoutApp.kt` call it per US-4, /speckit-analyze C1 (partial)
