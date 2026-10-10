@@ -116,7 +116,6 @@ internal object Status {
                     // The two fee destinations (H35, FR-037f): operations and developer.
                     put("feeDestination", config.feeDestination.base58())
                     put("developerDestination", config.developerDestination.base58())
-                    put("ladderGateEnabled", config.ladderGateEnabled)
                     put("genesisGateEnabled", config.genesisGateEnabled)
                     putJsonObject("chipSet") {
                         put("version", config.chipVersion)

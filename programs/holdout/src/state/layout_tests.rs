@@ -50,8 +50,7 @@ fn config() -> Config {
         skr_mint: key(0x44),
         fee_destination: key(0x55),
         developer_destination: key(0x56),
-        ladder_gate_enabled: true,
-        genesis_gate_enabled: false,
+        genesis_gate_enabled: true,
         chip_set: ChipSet {
             amounts: [10_000_000, 25_000_000, 50_000_000, 100_000_000],
             version: 7,
@@ -141,7 +140,6 @@ fn membership() -> Membership {
 fn profile() -> Profile {
     Profile {
         wallet: key(0x99),
-        qualified: true,
         leagues: [
             LeagueProgress {
                 cleared: 5,
@@ -232,11 +230,11 @@ fn every_account_is_the_size_the_typescript_side_allocates() {
     // 8 bytes of discriminator + the packed fields. If one of these moves, the
     // TS `space` for the account moves with it, or a scenario would fund and
     // allocate a different account than the program does.
-    assert_eq!(8 + Config::INIT_SPACE, 295);
+    assert_eq!(8 + Config::INIT_SPACE, 294);
     assert_eq!(8 + LeagueConfig::INIT_SPACE, 68);
     assert_eq!(8 + Cohort::INIT_SPACE, 229);
     assert_eq!(8 + Membership::INIT_SPACE, 101);
-    assert_eq!(8 + Profile::INIT_SPACE, 258);
+    assert_eq!(8 + Profile::INIT_SPACE, 257);
 }
 
 #[test]

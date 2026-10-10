@@ -18,7 +18,6 @@ Units: SKR amounts are **base units** (`u64`); times are **Unix seconds of chain
 | `skr_mint` | Pubkey | Mock SKR mint; its mint authority is PDA `["mint_authority"]` |
 | `fee_destination` | Pubkey | The **operations** destination: the treasury wallet's SKR token account. Receives the operations part of every forfeit, the rest of a no-finisher pool after the developer's half, and rounding remainders (FR-027, FR-037, FR-032a, R14, H35) |
 | `developer_destination` | Pubkey | The **developer** destination: an SKR token account fixed at `initialize`. Receives the developer part of every forfeit and half (floored) of a no-finisher pool (FR-027, FR-037, FR-037f, H35) |
-| `ladder_gate_enabled` | bool | `false` on devnet (FR-003) |
 | `genesis_gate_enabled` | bool | `false` on devnet (R17) |
 | `chip_set.amounts` | [u64; 4] | $10, $25, $50, $100 tiers in SKR; strictly increasing, all > 0 |
 | `chip_set.version` | u32 | +1 on every publish; `0` until the first publish, which no cohort may precede (FR-055b) |
@@ -132,7 +131,6 @@ Created by the first `claim_faucet` or `join_cohort`, whichever comes first.
 | Field | Type | Rule |
 |---|---|---|
 | `wallet` | Pubkey | Seed |
-| `qualified` | bool | Set on any 7-day clear; never cleared (FR-003a, FR-004) |
 | `leagues[l].cleared` | u16 | +1 when counted as finisher |
 | `leagues[l].forfeited` | u16 | +1 when a forfeit is recorded |
 | `leagues[l].current_streak` | u16 | +1 on clear, 0 on forfeit (FR-061). Written **only by `settle_count`**, which runs in cohort order, so the figure never depends on the order automation happens to run in (FR-061a, INV-9) |
@@ -169,7 +167,7 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | Join only while `status == Open` | FR-008, FR-010 | `join_cohort` |
 | `stake == chips[tier]` for `tier ∈ 0..=3` | FR-055 | `join_cohort` |
 | At most one `pending`; new cohort `start ≥ running.end` | FR-006a/b, INV-4 | `join_cohort` |
-| 21-day join requires `qualified` **only if** `ladder_gate_enabled` | FR-003 | `join_cohort` |
+| Either league joinable by any member — no ladder gate, no qualification (removed 2026-10-10 before the first deploy, so no stored account changes format) | FR-003 | `join_cohort` |
 | Genesis check **only if** `genesis_gate_enabled` | R17 | `join_cohort` |
 | Leave only while `Open`; full stake refund | FR-009 | `leave_cohort` |
 | Submit only while `Running`, `day_index == days_completed`, `now ≤ deadline_of(days_completed)` | FR-013, FR-017, FR-018, FR-025, INV-8 | `submit_day` |

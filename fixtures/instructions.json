@@ -120,10 +120,9 @@
     {
       "name": "set_flags",
       "args": {
-        "ladderGateEnabled": true,
-        "genesisGateEnabled": false
+        "genesisGateEnabled": true
       },
-      "data": "c7366f7c572fd9c60100",
+      "data": "c7366f7c572fd9c601",
       "accounts": [
         {
           "address": "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4",

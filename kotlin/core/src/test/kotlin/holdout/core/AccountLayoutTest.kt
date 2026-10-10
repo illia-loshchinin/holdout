@@ -30,11 +30,11 @@ class AccountLayoutTest {
         assertEquals(AccountLayout.Cohort.SIZE, bytes("Cohort").size)
         assertEquals(101, bytes("Membership").size)
         assertEquals(AccountLayout.Membership.SIZE, bytes("Membership").size)
-        assertEquals(295, bytes("Config").size)
+        assertEquals(294, bytes("Config").size)
         assertEquals(AccountLayout.Config.SIZE, bytes("Config").size)
         assertEquals(68, bytes("LeagueConfig").size)
         assertEquals(LeagueSnapshot.SIZE, bytes("LeagueConfig").size)
-        assertEquals(258, bytes("Profile").size)
+        assertEquals(257, bytes("Profile").size)
         assertEquals(ProfileLayout.SIZE, bytes("Profile").size)
     }
 
@@ -121,8 +121,7 @@ class AccountLayoutTest {
         assertEquals(key(0x44), c.skrMint)
         assertEquals(key(0x55), c.feeDestination)
         assertEquals(key(0x56), c.developerDestination)
-        assertTrue(c.ladderGateEnabled)
-        assertEquals(false, c.genesisGateEnabled)
+        assertEquals(true, c.genesisGateEnabled)
         assertEquals(listOf(10_000_000uL, 25_000_000uL, 50_000_000uL, 100_000_000uL), c.chipAmounts)
         assertEquals(7, c.chipVersion)
         assertEquals(1_790_000_123, c.chipPublishedAt)

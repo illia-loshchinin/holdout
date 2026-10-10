@@ -125,8 +125,6 @@ pub struct Config {
     /// The **developer** destination: the developer's SKR token account. The
     /// developer part of every forfeit and half of a no-finisher pool (H35).
     pub developer_destination: Pubkey,
-    /// `false` on devnet: both leagues are open from launch (FR-003).
-    pub ladder_gate_enabled: bool,
     /// `false` on devnet: testers have no Seeker (research R17).
     pub genesis_gate_enabled: bool,
     pub chip_set: ChipSet,

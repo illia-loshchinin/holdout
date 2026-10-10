@@ -134,7 +134,6 @@ describe('initialize (research R14)', () => {
     expect(config.skrMint).toBe(mint.address);
     expect(config.feeDestination).toBe(await associatedTokenPda(args.treasuryWallet, mint.address));
     expect(config.developerDestination).toBe(await associatedTokenPda(args.developerWallet, mint.address));
-    expect(config.ladderGateEnabled).toBe(false);
     expect(config.genesisGateEnabled).toBe(false);
     // No chip set yet, which no cohort may precede (FR-055b).
     expect(config.chipSet.amounts).toEqual([0n, 0n, 0n, 0n]);

@@ -98,7 +98,7 @@ class FixtureReplayTest {
                     a.getValue("joinLock").jsonPrimitive.content.toLong(),
                 ),
             )
-            "set_flags" -> Instructions.setFlags(programId, f.accountAt(0), a.getValue("ladderGateEnabled").jsonPrimitive.boolean, a.getValue("genesisGateEnabled").jsonPrimitive.boolean)
+            "set_flags" -> Instructions.setFlags(programId, f.accountAt(0), a.getValue("genesisGateEnabled").jsonPrimitive.boolean)
             "publish_chip_set" -> Instructions.publishChipSet(programId, f.accountAt(0), f.accountAt(1), a.getValue("amounts").jsonArray.map { it.jsonPrimitive.content.toULong() })
             "open_cohort" -> Instructions.openCohort(
                 programId,
@@ -227,7 +227,6 @@ class FixtureReplayTest {
                 listOf(f.key("admin"), f.key("operator"), f.key("sponsor"), f.key("skrMint"), f.key("feeDestination"), f.key("developerDestination")),
                 listOf(c.admin, c.operator, c.sponsor, c.skrMint, c.feeDestination, c.developerDestination),
             )
-            assertEquals(f.b("ladderGateEnabled"), c.ladderGateEnabled)
             assertEquals(f.b("genesisGateEnabled"), c.genesisGateEnabled)
             val chips = f.getValue("chipSet").jsonObject
             assertEquals(chips.getValue("amounts").ulongs(), c.chipAmounts)
@@ -275,7 +274,6 @@ class FixtureReplayTest {
         profiles.forEach { (f, bytes) ->
             val p = ProfileSnapshot.decode(bytes)
             assertEquals(f.key("wallet"), p.wallet)
-            assertEquals(f.b("qualified"), p.qualified)
             assertEquals(
                 f.getValue("leagues").jsonArray.map { it.jsonObject }.map {
                     ProfileSnapshot.LeagueProgress(
@@ -303,7 +301,7 @@ class FixtureReplayTest {
     @Test
     fun `a lobby place that has started reads as the running cohort, as the program normalises it`() {
         val cohort = SolanaPublicKey(ByteArray(32) { 9 })
-        val p = ProfileSnapshot(cohort, false, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, null, ProfileSnapshot.Pending(cohort, 1_000, 2_000), ProfileSnapshot.NEVER_CLAIMED)
+        val p = ProfileSnapshot(cohort, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, null, ProfileSnapshot.Pending(cohort, 1_000, 2_000), ProfileSnapshot.NEVER_CLAIMED)
         assertEquals(p, p.normalised(999))
         assertEquals(ProfileSnapshot.Running(cohort, 2_000), p.normalised(1_000).running)
         assertNull(p.normalised(1_000).pending)

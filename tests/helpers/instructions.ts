@@ -217,23 +217,15 @@ export const createLeagueIx = async (
 const bool = (v: boolean) => new Uint8Array([v ? 1 : 0]);
 
 /**
- * `set_flags(ladder_gate_enabled, genesis_gate_enabled)` — admin only. The two
- * gates this build ships off, and flipping one is the *only* difference between
- * it and an enforced ladder (AC-1), which is why it is an instruction rather
- * than a redeploy.
+ * `set_flags(genesis_gate_enabled)` — admin only. The genesis gate ships off in
+ * this build, and flipping it is the *only* difference between it and an
+ * enforced gate, which is why it is an instruction rather than a redeploy.
+ * There is no ladder gate (FR-003).
  */
-export const setFlagsIx = async (
-  admin: Address,
-  ladderGateEnabled: boolean,
-  genesisGateEnabled: boolean,
-): Promise<Instruction> => ({
+export const setFlagsIx = async (admin: Address, genesisGateEnabled: boolean): Promise<Instruction> => ({
   programAddress: PROGRAM_ID,
   accounts: [roSigner(admin), rw(await configPda())],
-  data: concat(
-    instructionDiscriminator('set_flags'),
-    bool(ladderGateEnabled),
-    bool(genesisGateEnabled),
-  ),
+  data: concat(instructionDiscriminator('set_flags'), bool(genesisGateEnabled)),
 });
 
 // ------------------------------------------------------------ publish_chip_set

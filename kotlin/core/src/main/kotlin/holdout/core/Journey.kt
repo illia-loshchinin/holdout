@@ -12,7 +12,7 @@ import com.solana.publickey.SolanaPublicKey
  * deadline the member is [Forfeited], recorded or not.
  */
 sealed interface Stage {
-    /** Not in this cohort: the ladder offers it while it is `Open`. */
+    /** Not in this cohort: home offers it while it is `Open`. */
     data object NotJoined : Stage
 
     /** Joined and joining still open: the lobby, with leave (US-2). */

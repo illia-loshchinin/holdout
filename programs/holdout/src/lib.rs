@@ -143,12 +143,8 @@ pub mod holdout {
         instructions::top_up_sponsor::handler(ctx)
     }
 
-    /// Admin only. The two gates this build ships off (FR-003, research R17).
-    pub fn set_flags(
-        ctx: Context<SetFlags>,
-        ladder_gate_enabled: bool,
-        genesis_gate_enabled: bool,
-    ) -> Result<()> {
-        instructions::set_flags::handler(ctx, ladder_gate_enabled, genesis_gate_enabled)
+    /// Admin only. The genesis gate this build ships off (research R17).
+    pub fn set_flags(ctx: Context<SetFlags>, genesis_gate_enabled: bool) -> Result<()> {
+        instructions::set_flags::handler(ctx, genesis_gate_enabled)
     }
 }

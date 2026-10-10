@@ -97,7 +97,6 @@ const progress = (over: Partial<LeagueProgressSnapshot> = {}): LeagueProgressSna
 
 const profile = (over: Partial<ProfileSnapshot> = {}): ProfileSnapshot => ({
   wallet: 'wallet-1',
-  qualified: false,
   leagues: { 0: progress() },
   runningCohort: null,
   runningEnd: 0,

@@ -1,11 +1,11 @@
 //! `set_flags` (contracts/program-instructions §1). Task T028.
 //!
-//! The two gates this build ships off, and the README says why: the ladder gate
-//! because nobody should have to spend a week before reaching the 21-day league
-//! (FR-003), the genesis gate because testers have no Seeker (research R17).
-//! Both are still computed and recorded, so flipping a flag is the only
-//! difference between this build and an enforced ladder (AC-1) — which is what
-//! makes this instruction worth having rather than a redeploy.
+//! The genesis gate ships off in this build because testers have no Seeker
+//! (research R17), and the README says so. The check is still written, so
+//! flipping the flag is the only difference between this build and an enforced
+//! gate — which is what makes this instruction worth having rather than a
+//! redeploy. There is no ladder gate: both leagues are open to every member
+//! (FR-003, 2026-10-10).
 //!
 //! It moves no money. Nothing here, and nothing the admin can call, touches a
 //! held stake or a pool (constitution I).
@@ -27,18 +27,12 @@ pub struct SetFlags<'info> {
     pub config: Account<'info, Config>,
 }
 
-pub(crate) fn handler(
-    ctx: Context<SetFlags>,
-    ladder_gate_enabled: bool,
-    genesis_gate_enabled: bool,
-) -> Result<()> {
+pub(crate) fn handler(ctx: Context<SetFlags>, genesis_gate_enabled: bool) -> Result<()> {
     let config = &mut ctx.accounts.config;
-    config.ladder_gate_enabled = ladder_gate_enabled;
     config.genesis_gate_enabled = genesis_gate_enabled;
 
     emit!(FlagsSet {
-        ladder_gate_enabled,
-        genesis_gate_enabled,
+        genesis_gate_enabled
     });
 
     Ok(())

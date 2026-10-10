@@ -12,18 +12,18 @@ export const FLAGS_SET_EVENT_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array(
 
 export function getFlagsSetEventDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(FLAGS_SET_EVENT_DISCRIMINATOR); }
 
-export type FlagsSetEvent = { ladderGateEnabled: boolean; genesisGateEnabled: boolean;  };
+export type FlagsSetEvent = { genesisGateEnabled: boolean;  };
 
 export type FlagsSetEventArgs = FlagsSetEvent;
 
 /** Gets the encoder for {@link FlagsSetEventArgs} event data. */
 export function getFlagsSetEventEncoder(): FixedSizeEncoder<FlagsSetEventArgs> {
-    return getHiddenPrefixEncoder(getStructEncoder([['ladderGateEnabled', getBooleanEncoder()], ['genesisGateEnabled', getBooleanEncoder()]]), [getConstantEncoder(FLAGS_SET_EVENT_DISCRIMINATOR)]);
+    return getHiddenPrefixEncoder(getStructEncoder([['genesisGateEnabled', getBooleanEncoder()]]), [getConstantEncoder(FLAGS_SET_EVENT_DISCRIMINATOR)]);
 }
 
 /** Gets the decoder for {@link FlagsSetEvent} event data. */
 export function getFlagsSetEventDecoder(): FixedSizeDecoder<FlagsSetEvent> {
-    return getHiddenPrefixDecoder(getStructDecoder([['ladderGateEnabled', getBooleanDecoder()], ['genesisGateEnabled', getBooleanDecoder()]]), [getConstantDecoder(FLAGS_SET_EVENT_DISCRIMINATOR)]);
+    return getHiddenPrefixDecoder(getStructDecoder([['genesisGateEnabled', getBooleanDecoder()]]), [getConstantDecoder(FLAGS_SET_EVENT_DISCRIMINATOR)]);
 }
 
 /** Gets the codec for {@link FlagsSetEvent} event data. */

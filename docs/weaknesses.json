@@ -17,11 +17,6 @@
       "fix": "A known property of SKR-native staking, stated in the app"
     },
     {
-      "what": "`ladder_gate_enabled = false` — both leagues open from first launch",
-      "why": "Nobody should have to spend a week before reaching the 21-day league; the unlock is still computed and recorded",
-      "fix": "Flip the flag"
-    },
-    {
       "what": "`genesis_gate_enabled = false`",
       "why": "Testers have no Seeker",
       "fix": "Flip the flag on mainnet"

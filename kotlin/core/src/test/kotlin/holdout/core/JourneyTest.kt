@@ -62,7 +62,7 @@ class JourneyTest {
     @Test
     fun `a join is blocked by closed joining, a held lobby place, or an overlap`() {
         val other = SolanaPublicKey(ByteArray(32) { 2 })
-        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, false, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending, -1)
+        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending, -1)
         val lobby = start - day
         assertNull(Journey.joinBlocker(c, null, null, lobby))
         assertEquals(Journey.JoinBlocker.JoiningClosed, Journey.joinBlocker(c, null, null, start - 3_600))

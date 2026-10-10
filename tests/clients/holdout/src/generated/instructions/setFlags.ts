@@ -18,16 +18,16 @@ export function getSetFlagsDiscriminatorBytes(): ReadonlyUint8Array { return fix
 export type SetFlagsInstruction<TProgram extends string = typeof HOLDOUT_PROGRAM_ADDRESS, TAccountAdmin extends string | AccountMeta<string> = string, TAccountConfig extends string | AccountMeta<string> = string, TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
 Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountAdmin extends string ? ReadonlySignerAccount<TAccountAdmin> & AccountSignerMeta<TAccountAdmin> : TAccountAdmin, TAccountConfig extends string ? WritableAccount<TAccountConfig> : TAccountConfig, ...TRemainingAccounts]>;
 
-export type SetFlagsInstructionData = { discriminator: ReadonlyUint8Array; ladderGateEnabled: boolean; genesisGateEnabled: boolean;  };
+export type SetFlagsInstructionData = { discriminator: ReadonlyUint8Array; genesisGateEnabled: boolean;  };
 
-export type SetFlagsInstructionDataArgs = { ladderGateEnabled: boolean; genesisGateEnabled: boolean;  };
+export type SetFlagsInstructionDataArgs = { genesisGateEnabled: boolean;  };
 
 export function getSetFlagsInstructionDataEncoder(): FixedSizeEncoder<SetFlagsInstructionDataArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['ladderGateEnabled', getBooleanEncoder()], ['genesisGateEnabled', getBooleanEncoder()]]), (value) => ({ ...value, discriminator: SET_FLAGS_DISCRIMINATOR }));
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['genesisGateEnabled', getBooleanEncoder()]]), (value) => ({ ...value, discriminator: SET_FLAGS_DISCRIMINATOR }));
 }
 
 export function getSetFlagsInstructionDataDecoder(): FixedSizeDecoder<SetFlagsInstructionData> {
-    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['ladderGateEnabled', getBooleanDecoder()], ['genesisGateEnabled', getBooleanDecoder()]]);
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['genesisGateEnabled', getBooleanDecoder()]]);
 }
 
 export function getSetFlagsInstructionDataCodec(): FixedSizeCodec<SetFlagsInstructionDataArgs, SetFlagsInstructionData> {
@@ -37,7 +37,6 @@ export function getSetFlagsInstructionDataCodec(): FixedSizeCodec<SetFlagsInstru
 export type SetFlagsAsyncInput<TAccountAdmin extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput> =  {
   admin: TAccountAdmin;
 config?: TAccountConfig;
-ladderGateEnabled: SetFlagsInstructionDataArgs["ladderGateEnabled"];
 genesisGateEnabled: SetFlagsInstructionDataArgs["genesisGateEnabled"];
 }
 
@@ -68,7 +67,6 @@ return Object.freeze({ accounts: [getAccountMeta("admin", accounts.admin), getAc
 export type SetFlagsInput<TAccountAdmin extends InstructionSignerInput = InstructionSignerInput, TAccountConfig extends InstructionAccountInput = InstructionAccountInput> =  {
   admin: TAccountAdmin;
 config: TAccountConfig;
-ladderGateEnabled: SetFlagsInstructionDataArgs["ladderGateEnabled"];
 genesisGateEnabled: SetFlagsInstructionDataArgs["genesisGateEnabled"];
 }
 

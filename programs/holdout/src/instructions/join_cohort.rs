@@ -130,16 +130,8 @@ pub(crate) fn handler(ctx: Context<JoinCohort>, tier: u8) -> Result<()> {
         profile.running.end = account.end();
     }
 
-    // Both gates ship off in this build, and the unlock is recorded either way
-    // (FR-003, FR-003a, research R17).
-    require!(
-        guards::ladder_gate_ok(
-            ctx.accounts.config.ladder_gate_enabled,
-            ctx.accounts.cohort.league_id,
-            profile.qualified,
-        ),
-        HoldoutError::LadderGateClosed
-    );
+    // Both leagues are open to every member (FR-003); the genesis gate ships
+    // off in this build (research R17).
     require!(
         guards::genesis_gate_ok(ctx.accounts.config.genesis_gate_enabled, false),
         HoldoutError::GenesisGateClosed
