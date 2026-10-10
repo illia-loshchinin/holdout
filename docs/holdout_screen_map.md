@@ -1,12 +1,12 @@
 # Holdout — screen map (hackathon build)
 
-**Version:** 2.0 · **Date:** 2026-10-10 (the tab is *Standing*; Easy and Hard; leaderboards L1; the boost, comeback and fee lines; use cases in §11) · **Scope:** the devnet hackathon build only. Post-hackathon screens are parked in §9. Holdout Lab, the tester app, has its own map: `holdout_lab_screen_map.md`.
+**Version:** 2.1 · **Date:** 2026-10-10 (cards describe the code as built: tour copy, set-up guide, the streak and its freezes, the lobby rule gap, streak milestones parked; v2.0 the same day: the tab is *Standing*; Easy and Hard; leaderboards L1; the boost, comeback and fee lines; use cases in §11) · **Scope:** the devnet hackathon build only. Post-hackathon screens are parked in §9. Holdout Lab, the tester app, has its own map: `holdout_lab_screen_map.md`.
 
 **Purpose.** One place that lists every screen the app needs, what each one shows, and where a member can go from it. It is the brief for visual design: each card in §5 is one frame (or one set of frames) to draw.
 
-**Visual base:** the draft canvas *"Holdout — hero screens"* (claude.ai design canvas, 7 phone boards at 390 × 844, dark, tokens from PRD §11). Cards marked 🎨 describe that board. Every other card is written so it can be drawn in the same look (§2).
+**Visual base:** the canvas *"Holdout — hero screens"* (claude.ai design canvas, phone boards at 390 × 844, dark) and the design book `docs/design/`, which is the source for every token, component and sentence of copy. Cards marked 🎨 describe a board. Every other card is written so it can be drawn in the same look (§2).
 
-> **Precedence.** This file describes screens; it decides no mechanic. Where it disagrees with the spec or `holdout_v1_prd.md` §10, they are right and this file is a bug. Behaviour is checked against `kotlin/app/src/main/kotlin/holdout/app/` at commit `bb34fd6` (PRs 25 and 28 merged). Where the draft disagrees with the spec, §7 lists it.
+> **Sources and precedence (tightened 2026-10-10).** This file describes **the app as built**: every "On screen" list and every quoted sentence is read from `kotlin/app/src/main/kotlin/holdout/app/` at commit `9988d1a` (PRs 25, 28, 31, 32, 33 merged). **Rules come from the spec-kit specs and nothing else:** `specs/001-holdout-hackathon` (the product), `002-rep-placement-rules` (counting), `003-seeker-id-names`, `004-lab-and-member-apps`, with the constitution in `.specify/memory/constitution.md`; they change only through the `/speckit-*` skills. Where a spec asks for more than the code has, that is a **gap** in §8, never written as if built. Where a board on the canvas differs from the code, §7 lists it. **`docs/holdout_v1_prd.md` is history**, not an authority: the `PRD #n` and `PRD §n` citations on the cards point at the original brief for the screen's origin only, and the spec wins wherever the two differ. Mechanics are decided in the specs, never here.
 
 > **Two states, one map (decided 2026-10-10).** The boards and the cards describe the **target** navigation: a four-tab bar, *My Holdouts* (H0) and *Me* (W1). The build submitted on **13 October** ships the code as it is, **hub-and-spoke through Home** (`HoldoutApp.kt`): every screen returns to Home with "← Home", and Home carries the offers, the member's own Holdout cards, *Leaderboards*, *Get test tokens* and *About Holdout* below the hero. The bar, H0 and W1 are built after the submission. Each card says which of the two it is drawn for where it matters.
 
@@ -96,6 +96,8 @@ Never *cohort* in anything a member reads, and no names for the lengths: the num
 **Levels (H35, decided 2026-10-05; named 2026-10-10).** A Holdout's level is its form, and the level comes first: **Easy · 7-day** (push-ups from the knees count) and **Hard · 21-day** (from the toes only). On a card: **Easy · 7-day** · from 12 Oct. In a header label: `EASY · 7-DAY · FROM 12 OCT · DAY 3 OF 7`. The rule sentence a level carries is read the same everywhere it appears (002 FR-014). *Staked* is not a word members read; it is the code's name for the Hard rules.
 
 **The fee, in one sentence (decided 2026-10-10):** *Miss one and you lose your stake. 80 % of it stays with members: 70 % to the prize pool and 10 % to the boost and comeback reserves of Easy · 7-day Holdouts. 20 % goes to the project, and so does the prize pool if nobody finishes.* Used on the stake sheet (H2) and the forfeit screen (H6); nowhere else are percentages shown. The reserves come back as the boost line on offers and the comeback line on Today and the claim.
+
+**The daily streak, as built (`streak/StreakStore.kt`, FR-049…FR-052, H35).** Device-local, never on chain: +1 for every day completed, from the Daily 25 or a Holdout day alike; broken by a day with none unless a **freeze** covers it — one freeze is earned for every seven consecutive active days, at most two are held, and they are used by themselves; a forfeit never touches it; it turns over at 05:00 UTC by chain time. It unlocks nothing and is paid against nothing. **Where the member sees it:** the chip on Today (T1, with the freeze line), the footer of a running Holdout (T2), the *Your 9-day streak is still alive* card after a forfeit (H6), and, in the target design, large on Me (W1). The design book's Streak flame has four states: active, extended today, broken, personal best.
 
 ---
 
@@ -308,11 +310,11 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 
 | Card | Title | Illustration | Says |
 |---|---|---|---|
-| 1 | The Daily 25 | *to draw:* 25 dots filling in blocks of 10 | 25 push-ups, free, every day, counted by the camera. All at once or 10 at a time. Builds a streak, stakes nothing |
-| 2 🎨 | A Holdout | 12 dots on DAY 1 → 5 green, 7 faded on DAY 7: *5 still standing · 7 lost their stake* | Stake SKR and everyone starts together on Monday. Miss a day → stake into the prize pool. Finish → stake back + a share of the pool. *If nobody drops out, everybody gets their stake back, plus a share of anything already added to the prize pool* |
-| 3 | How reps are counted | *to draw:* phone at 45° and head-on | Daily 25: in front or at 45°, knees welcome. Staked: 45° only, from the toes. The camera never leaves the phone |
+| 1 | The Daily 25 | *to draw:* 25 dots filling in blocks of 10 | *25 push-ups, free, every day, counted by this phone's camera.* · *Do them at once or 10 at a time. It builds your streak and stakes nothing.* |
+| 2 🎨 | A Holdout | 12 dots on DAY 1 → 5 green, 7 faded on DAY 7: *5 still standing · 7 lost their stake* | *Put SKR on yourself with everyone who starts that Monday: Easy, 7 days, push-ups from the knees count; Hard, 21 days, from your toes.* · *Miss a day and your stake goes to the prize pool. Finish, and take back your stake plus a share of what the others left.* · *Leave any time before joining closes, for a full refund.* |
+| 3 | How reps are counted | *to draw:* the phone at 45°, one drawing (head-on was retired on 7 Oct) | *The Daily 25: the phone at 45°, as in a Holdout. Push-ups from the knees are welcome — it tells you how many came from your toes.* · *Easy Holdouts: the phone at 45°, push-ups from the knees count.* · the Hard rule sentence (`Stakes.STAKED_RULE`, "Hard Holdouts are counted at 45°: … full push-ups from your toes…") · *The camera never leaves the phone — no video, no landmarks, nothing uploaded.* |
 
-**Copy as built (`tour/TourScreen.kt`, 9 Oct):** card 2 says *Put SKR on yourself with everyone who starts that Monday: Easy, 7 days, push-ups from the knees count; Hard, 21 days, from your toes.* and *Miss a day and your stake goes to the prize pool. Finish, and take back your stake plus a share of what the others left.*; card 3 says *The Daily 25: the phone at 45°, as in a Holdout. Push-ups from the knees are welcome — it tells you how many came from your toes.* · *Easy Holdouts: the phone at 45°, push-ups from the knees count.* · the Hard rule sentence · *The camera never leaves the phone — no video, no landmarks, nothing uploaded.* The boards still carry the pre-Easy/Hard copy (§7 #15).
+Every sentence above is the code's (`tour/TourScreen.kt`); the footer reads `TEST NETWORK · TEST TOKEN`. The boards still carry the pre-7-Oct copy with a head-on drawing and one counting rule (§7 #15).
 
 **Exits:** Start / Skip → B2 → T1 · from T1 or X1 → back there
 
@@ -337,7 +339,7 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 **Entered from:** app open · tab ⌂ · S6 / S7
 
 **On screen (as drawn, top → bottom)**
-1. `TODAY` label · streak chip (flame, mono `12`) right
+1. `TODAY` label · streak chip (flame, mono `12`) right — as built: *12-day streak* or *no streak yet*, and under it the freeze line when one is held: *1 freeze held — a missed day won't break the streak* / *2 freezes held — two missed days won't break the streak*
 2. **Daily 25 card:** `THE DAILY 25` + `FREE` chip · **25** push-ups (60 px) · *all at once, or 10 at a time* · **Start** (primary) · `4h 06m left today` (mono, accent)
 3. Section label `HOLDOUTS OPEN TO JOIN` · hint `$10 – $100 in SKR`
 4. Offer cards, each with an outlined **Join** button. The title names the level and the length — **Easy · 7-day** · from 12 Oct, **Hard · 21-day** · from 12 Oct — and, while the league's boost reserve holds more than 0, a green line *Prize boost: up to 480 SKR from the reserve of Easy · 7-day Holdouts when it settles* (FR-053, FR-037d; "up to", never a promised amount; `home/HoldoutOffer.kt`). A short test Holdout is offered the same way with its `TEST COHORT · 10-MIN DAYS` badge and no mention of judges (FR-014 of spec 004):
@@ -393,7 +395,7 @@ Also on T2: a `TEST COHORT` badge when short; nudges for your other Holdouts (a 
 
 ### S — Sitting (full screen, no bar)
 
-One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → COUNTDOWN → COUNTING → COMPLETE). The same screen serves the Daily 25 (front or 45°, knees allowed) and a Holdout day (45° only, from the toes). **Shared chrome, as drawn on S5:** ✕ stop button (40 px circle, top left) · centre label (`DAY 12 · 25 REPS` or `THE DAILY 25`) · dark gradients top and bottom over the camera · skeleton in accent. Audio carries it, because the member is on the floor.
+One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → COUNTDOWN → COUNTING → COMPLETE). The same screen serves the Daily 25 (at 45°; knees welcome, and the toes are counted separately), an Easy day (at 45°; knees count) and a Hard day (at 45°; from the toes only). Every sitting is at 45° since 7 Oct (002 FR-001). **Shared chrome, as drawn on S5:** ✕ stop button (40 px circle, top left) · centre label (`DAY 12 · 25 REPS` or `THE DAILY 25`) · dark gradients top and bottom over the camera · skeleton in accent. Audio carries it, because the member is on the floor.
 
 #### S1 · Camera permission
 **MUST · ✅ Built · 🎨 Drawn** (board *15*; the *denied* tweak shows the Settings variant)
@@ -407,9 +409,9 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 
 **Job:** read while the phone is still in hand, since the countdown can't start behind it. Draw it as a bottom sheet over the camera.
 
-**On screen:** placement drawings with captions — head-on (*head towards the phone, hands ~1.5 m from it*), 45° (*ahead of your shoulder, ~1.5 m away*); staked: *at 45° only* · position checklist (top of a push-up; whole body head to feet; line up with the outline; staked: on your toes, turn a little so the near knee shows; Daily 25: knees welcome) · how it runs (hold the top → ring fills → *three, two, one, go*; a beep per rep; banked every 10; ✕ any time) · ☐ *Don't show this again* · **Got it**
+**On screen (as built, three pages):** **Before you get down** · tabs **1. Phone · 2. Body · 3. Start** · **Phone:** *Stand the phone up on the floor, screen facing where you will be. Lean it on something if it will not stand.* · one drawing, **At 45°** (*Ahead of your shoulder, ~1.5 m away, looking at you at 45°.*) · the rule line for these stakes — Daily 25: *At 45° only, as in a Holdout — turned well to the side of you, not in front, not straight beside you.*; Easy: *Easy: at 45° only — turned well to the side of you, not in front, not straight beside you.*; Hard: *Staked: at 45° only — not in front, not straight beside you.* · **Body:** *Get into the top of a push-up: arms straight, hands under your shoulders.* · *Your whole body in the picture — head to feet. Move back if it is not.* · *Line your body up with the outline on the screen.* · then per stakes — Hard: *On your toes, and stop just above the floor. Push-ups from the knees, or resting on the floor at the bottom, do not count.* + *The phone must see your knees: turn your body a little away from it, so the leg nearer the phone shows clearly.*; Easy: *From your toes or from your knees — both count in an Easy Holdout.* + *Body straight from shoulders to knees, and the phone must see your knees: turn a little away from it.*; Daily 25: *Body straight from shoulders to heels — or from the knees if you are building up. Both count for the Daily 25.* + the knees-visible line · **Start:** *Hold the top of a push-up for a second. A ring fills, then you hear "three, two, one, go".* · *Nothing to tap: each counted rep beeps, and every 10 are banked for good.* · *Go all the way down and all the way up. A rep that is too short is skipped with a hint.* · *Stop at any time with the button in the corner.* · ☐ *Don't show this again* · **Skip / Back** · **Next / Got it**
 
-**Variants:** Daily 25 (knees welcome, toes counted separately) · Easy (knees count) · Hard (from the toes only) · detected view highlighted. Every sitting is at 45°; head-on was retired on 7 Oct (002 FR-001)
+**Variants:** Daily 25 · Easy · Hard (the rule line and the Body page differ, above) · the detected view ticked (*At 45° ✓*). The board (16) still draws a head-on placement and one rule (§7 #15)
 
 #### S3 · Pre-flight and hold the start position
 **MUST · ✅ Built · 🎨 Drawn** (board *17*; the *step* tweak shows Checks / Holding / Blocked / Tip sheet)
@@ -509,6 +511,8 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 **On screen:** back · `LOBBY` (or `LOBBY · LOCKED`) · **7-day · 12 Oct – 19 Oct** · *starts in* **2d 04h 12m** (large mono, accent) · card: **14 members · 12,500 SKR at stake** · *Your stake: 1,250 SKR — held by the contract, not by us* · *Joining closes in 2d 03h 12m. Until then you can leave with your full stake back.* (locked: *Joining has closed. This is the final roster.*) · *From the start: 25 push-ups before each day's deadline, at 45°, from your toes* · **See who's in** (secondary) · **Leave — full refund** (secondary, warning text)
 
 **Variants:** open · leaving · locked (no Leave) · leave landed after cutoff (*"Leaving closed before your transaction landed. You're in the cohort."*)
+
+**Code note:** `LobbyScreen.kt` prints *From the start: 25 push-ups before each day's deadline, at 45°, from your toes.* for every Holdout, Easy included; the sentence must be the level's (002 FR-014) — §8 gap 14.
 
 **Exits:** See who's in → H5 · Leave → N1 → H0 · start time → T2
 
@@ -721,6 +725,8 @@ Still to draw:
 | 11 | Thinning chart | NICE | H4 | Same data, drawn as the crowd shrinking |
 | 12 | The fee sentence in `stake/StakeSheet.kt` and `cohort/ForfeitScreen.kt` | SHOULD | H2, H6 | Decided 2026-10-10 (§7 #11); a copy change, no rule change |
 | 13 | The comeback line on Forfeit | NICE | H6 | The moment the member most needs the way back (FR-037e) |
+| 14 | The lobby's rule sentence is the level's: Easy *push-ups from the knees count*, Hard *from your toes* | SHOULD | H3 | `LobbyScreen.kt` prints the Hard sentence for every Holdout (002 FR-014) |
+| 15 | **Streak milestones** (decided 2026-10-10, for after the submission): at 7, 14, 21 and 28 days, a month, 50 days, two months and so on, a one-time flourish on day complete (S6) and on Today (T1) with a motivating line, Duolingo-style; the design book needs the copy set and a *milestone* state of the Streak flame | NICE | S6, T1 | The daily streak is the free product's only reward; today it is a number and a flame with no moment at the milestones |
 
 ---
 
@@ -729,6 +735,7 @@ Still to draw:
 Out of scope for this build. Listed so the design system leaves room for them. Source: `docs/archive/holdout_v1_prd_full-vision_2026-09-15.md` §10.1 and PRD Phase 2.
 
 - ~~**League leaderboards**~~ — built 6–9 Oct (PR 20, H36): **L1** under ∿ Standing. Quarterly and yearly boards stay deferred (FR-060).
+- **Streak milestones** (decided 2026-10-10): the flourishes and motivating lines at 7, 14, 21, 28 days, a month, 50 days, two months…; built after the 13 October submission (§8 #15).
 - **Personal stats / profile**: total reps, longest streak, Holdouts cleared. Would grow ◯ Me.
 - **Share cards**: workout, streak, cohort recap. Swelfie capture and compose.
 - **Settings**: notifications, help and FAQ, terms, privacy.
