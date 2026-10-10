@@ -81,7 +81,7 @@ The rule: **a feature earns its place only if it appears in the video or is load
 | S3 | — | *(was: badges. Cut — H17.)* | — |
 | S4 | — | *(was: leaderboard seeded from cohort #1 and #2 data. Now live from on-chain progress — F9.)* | — |
 | S5 | Notifications | Manual Telegram push to cohort members | None — invisible in video |
-| S6 | Genesis Token gate | Feature flag `genesis_gate_enabled`, **off on devnet** | **Must be off**, or no tester without a Seeker can join |
+| S6 | Genesis Token gate | *(Superseded 2026-10-10, H38: staking is Seeker-exclusive. The flag stays off on devnet, but the app checks the wallet's Seeker Genesis Token on mainnet before a join; the contract checks it once the flag is turned on at mainnet launch.)* ~~Feature flag `genesis_gate_enabled`, **off on devnet**~~ | ~~**Must be off**, or no tester without a Seeker can join~~ Testers and judges need a wallet holding a Seeker Genesis Token, or a debug build with the gate off |
 | S7 | ~~League gate~~ | **Removed 2026-10-10 (H37):** no gate, no flag, no unlock record — both leagues open to every member | — |
 | S8 | Judging-period cohorts | Real members first — beta testers and anyone who installs the app — with scripted members **topping a cohort up to a floor only** (20 for a 7-day cohort, 12 for a 21-day one). Scripted members are **ordinary wallets run by automation under the same contract rules**: real test-SKR stakes, completed days, planned forfeits and finishes. Their forfeits fund real prizes. Their days are not camera-verified. Addresses published in the build; disclosed in the app, README, demo video and pitch deck, and labelled wherever they appear (H14, constitution XII) | None if labelled; deception if not |
 | S9 | Full-cycle demo | Recorded walkthrough inside the app, captured from cohort #3 on the real devnet program — the whole flow from launching the app to the claim, playable before a wallet is connected (H14, `holdout_demo_video.md`) | None — it is a recording of the real thing |
@@ -173,7 +173,7 @@ Say the devnet framing plainly in the README. A judge who reads "devnet, mock SK
 
 ### D-D. Genesis Token gate
 
-**Recommendation.** `genesis_gate_enabled: bool` in program config, off on devnet, with the client-side check written but bypassable. Cohort #3 testers will be ordinary Android users without a Seeker, and the whole demo plan dies if they cannot join. The deck still gets the "remove the Seeker and the product breaks" slide — the design claim is true whether the flag is on or off this month.
+*(Superseded 2026-10-10, H38: staking is Seeker-exclusive. The contract's check is written behind the flag, which is turned on at mainnet launch; on devnet the flag stays off and the app checks the wallet's Seeker Genesis Token on Solana mainnet before every join, so testers without a Seeker can no longer stake. Research R17.)* **Recommendation.** `genesis_gate_enabled: bool` in program config, off on devnet, with the client-side check written but bypassable. Cohort #3 testers will be ordinary Android users without a Seeker, and the whole demo plan dies if they cannot join. The deck still gets the "remove the Seeker and the product breaks" slide — the design claim is true whether the flag is on or off this month.
 
 ### D-E. Who signs the session attestation
 

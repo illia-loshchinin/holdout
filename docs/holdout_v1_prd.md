@@ -84,7 +84,7 @@ Holdout is a Solana Mobile fitness commitment app. Anyone can do a **free Daily 
 
 ### 4.2 Access
 
-- **No Seeker requirement.** The Genesis Token check is written but off (`genesis_gate_enabled = false`) because testers have no Seeker. Named in the README.
+- ~~**No Seeker requirement.** The Genesis Token check is written but off (`genesis_gate_enabled = false`) because testers have no Seeker. Named in the README.~~ **Superseded by H38 (2026-10-10):** staking is Seeker-exclusive. Joining any staked Holdout needs a wallet holding a Seeker Genesis Token: on devnet the app checks it on Solana mainnet, and at mainnet launch the contract does (FR-003b–FR-003d). The Daily 25 and watching every Holdout stay open to any connected wallet.
 - **No ladder.** The 7-day and 21-day leagues are separate products for different people, both open to every member at all times (FR-003). The gate, its flag and the unlock record were deleted on 2026-10-10 (H37).
 - **No geo-blocking, no terms-of-service screen** — out of scope for a devnet build with a test token (spec §3).
 - **Wallet first.** Connecting a wallet is the first thing the app asks for, and nothing — not even the Daily 25 — is usable before it (FR-001a). A person without a wallet is told plainly that they need one and how to get one (ES-0). The daily streak is kept on the phone for the connected wallet.
@@ -422,7 +422,7 @@ Either way: If it lands before the deadline, the day counts. If it lands after, 
 | Impossibly fast reps | 0.8-second minimum cycle |
 | Camera covered or off | Pre-flight requires a live, lit, full-body frame |
 | Hand the phone over between sittings | Every sitting re-runs pre-flight and the start position (FR-019, FR-020) — raises the bar, doesn't prove identity, and proves it less than the palm did |
-| Someone else does all the reps | Not defended — one wallet is one member and the Genesis gate is off; documented |
+| Someone else does all the reps | Not defended — one wallet is one member ~~and the Genesis gate is off~~; documented. *(Superseded in part by H38, 2026-10-10: staking now needs a Seeker Genesis Token, which ties a wallet to a Seeker, not to the person doing the reps.)* |
 | Submit a completed day late, claiming it finished in time offline | Rejected — only chain time at submission counts (FR-017, FR-024b) |
 | Edit banked progress on the device | Not defended — banked reps are device-local and the completed-day proof is client-signed; documented |
 | Forge the on-device model output | Not defended — needs attested hardware; documented |
@@ -471,7 +471,7 @@ State machines, guards and effects are specified in `holdout_scope_and_state_mac
 
 | Flag | Value | Effect |
 |---|---|---|
-| `genesis_gate_enabled` | `false` | No Seeker check |
+| `genesis_gate_enabled` | `false` | ~~No Seeker check~~ **Superseded by H38 (2026-10-10):** the contract's Seeker Genesis Token check is written and tested; the flag stays off on devnet, where the app checks the token on mainnet instead, and is turned on at mainnet launch together with the app sending the token account and its mint to `join_cohort` |
 | `day_seconds` | non-default for test cohorts only | Compressed cycles for testing; admin-guarded; not offered to judges (FR-044) |
 
 **Flags disable checks; they never delete the logic behind them.**
