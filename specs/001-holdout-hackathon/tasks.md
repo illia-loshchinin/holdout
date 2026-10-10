@@ -355,6 +355,6 @@
 
 ## Phase 16: Convergence
 
-- [ ] T129 [P] In `contracts/crank-cli.md`, add to the `chips publish --auto` row: no send starts in the window's last 90 seconds and the chain's time is read again just before sending, so a publish never lands after 05:00; such a run publishes nothing and reports "too late to land in the publish window"; every report, dry runs included, carries `insideWindow`, `alreadyPublishedThisWindow`, `sendCutoff` and `wouldPublishNow` per FR-056, AC-12 (partial)
-- [ ] T130 [P] In `quickstart.md`, say in the cron section that `--dry-run` reports `wouldPublishNow` and `sendCutoff` (04:58:30 UTC) and that a run in the window's last 90 seconds sends nothing, and add the last-90-seconds case to the AC-12 row per FR-056, AC-12 (partial)
-- [ ] T131 [P] In `research.md` R15 Phase 2, add the 90-second send cutoff and the chain-time re-check before sending, with why (a blockhash's life; a late send would reach only the next week's cohorts) per plan: research R15 (partial)
+- [X] T129 [P] In `contracts/crank-cli.md`, add to the `chips publish --auto` row: no send starts in the window's last 90 seconds and the chain's time is read again just before sending, so a publish never lands after 05:00; such a run publishes nothing and reports "too late to land in the publish window"; every report, dry runs included, carries `insideWindow`, `alreadyPublishedThisWindow`, `sendCutoff` and `wouldPublishNow` per FR-056, AC-12 (partial)
+- [X] T130 [P] In `quickstart.md`, say in the cron section that `--dry-run` reports `wouldPublishNow` and `sendCutoff` (04:58:30 UTC) and that a run in the window's last 90 seconds sends nothing, and add the last-90-seconds case to the AC-12 row per FR-056, AC-12 (partial)
+- [X] T131 [P] In `research.md` R15 Phase 2, add the 90-second send cutoff and the chain-time re-check before sending, with why (a blockhash's life; a late send would reach only the next week's cohorts) per plan: research R15 (partial)

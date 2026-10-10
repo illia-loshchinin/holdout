@@ -236,7 +236,7 @@ Windows Task Scheduler:
 schtasks /Create /TN "Holdout weekly chip check" /SC HOURLY /ST 00:17 /TR "cmd /c cd /d C:\path\to\holdout && java -jar kotlin\crank\build\libs\crank.jar chips publish --auto >> crank-chips.log 2>&1"
 ```
 
-A run that fails or finds no rate is simply tried again the next hour inside the window — four tries at `:17`; if none succeeds, the cohorts opening at 05:00 keep the previous set (FR-057). Once a set has been published in the window, running it again does nothing. A once-a-Monday schedule is not used: cron ignores `CRON_TZ` on Debian, and a local-time run can miss the window or move with daylight saving. `--dry-run` works any day and reports `insideWindow`.
+A run that fails or finds no rate is simply tried again the next hour inside the window — four tries at `:17`; if none succeeds, the cohorts opening at 05:00 keep the previous set (FR-057). Once a set has been published in the window, running it again does nothing. A once-a-Monday schedule is not used: cron ignores `CRON_TZ` on Debian, and a local-time run can miss the window or move with daylight saving. No send starts in the window's last 90 seconds (from 04:58:30 UTC), so a publish never lands after the cohorts open; a `:17` schedule never meets it. `--dry-run` works any day and reports `wouldPublishNow` and `sendCutoff`.
 
 **Expected:** `Config`, the 7-day and 21-day `LeagueConfig`s (first start Monday 5 October 05:00 UTC by default — moved from 28 September on 26 September — so cohort index 0 is the first judged cohort and its lobby can open immediately), the mock SKR mint and a funded faucet vault exist; `crank status` lists the leagues with no cohorts yet.
 
@@ -271,7 +271,7 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 9 | No price read | Code search + test | No instruction reads a price; only `crank chips publish` uses a rate |
 | 10 | No frame leaves device | Proxy the phone, run a sitting | Only RPC traffic observed |
 | 11 | No finishers | *local*: all forfeit | The whole pool goes out: half (floored) to the developer destination, the rest to operations; no other cohort changes, whether or not the league has one open (FR-037) |
-| 12 **[Phase 2]** | Weekly re-pricing | *local*: `crank chips publish --auto` outside the window, then twice inside Monday 01:00–05:00 UTC, then open the 05:00 cohort | Outside the window and the second run inside it do nothing; the first run inside publishes and the 05:00 cohort holds that set; old cohorts keep old chips |
+| 12 **[Phase 2]** | Weekly re-pricing | *local*: `crank chips publish --auto` outside the window, then twice inside Monday 01:00–05:00 UTC, then open the 05:00 cohort | Outside the window and the second run inside it do nothing; the first run inside publishes and the 05:00 cohort holds that set; a run after 04:58:30 sends nothing; old cohorts keep old chips |
 | 13 | Lobby place, lock, overlap | *local* | Continuous 7-day → 7-day; cutoff ±1 s behaviour; 21-day overlap refused |
 | 14 **[Phase 2]** | Leaderboard ranking | Devnet or *local* with seeded profiles | Ranking and "not ranked yet" as specified; no amounts; scripted labels |
 | 15 | Banked reps across sittings | Device: 10 + 10 + 5; stop at 17; kill app | Day lands only after rep 25; 10 kept at 17; blocks survive kill; late sitting allowed with warning |
