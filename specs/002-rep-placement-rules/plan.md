@@ -16,7 +16,7 @@ The evidence is the phone's own: Holdout Lab (spec 004; debug builds before 2026
 
 **Language/Version**: Kotlin 2.4.10, Java 17 bytecode (as `specs/001-holdout-hackathon/plan.md`). Node 22 for the labelling tool.
 
-**Primary Dependencies**: MediaPipe Tasks Vision Pose Landmarker (full model, GPU, live stream), CameraX (preview, analysis and — debug only — `VideoCapture` in one 3:4 `UseCaseGroup`), Jetpack Compose, MMKV, Android `TextToSpeech` and `ToneGenerator`. No new dependency.
+**Primary Dependencies**: MediaPipe Tasks Vision Pose Landmarker (full model, GPU, live stream), CameraX (preview, analysis and — Holdout Lab only — `VideoCapture` in one 3:4 `UseCaseGroup`), Jetpack Compose, MMKV, Android `TextToSpeech` and `ToneGenerator`. No new dependency.
 
 **Storage**: MMKV for the set-up guide preference (`setup_hidden:<wallet>:<stakes>`). Holdout Lab only (`holdout.app.lab`, the `labDebug` build; spec 004): trace files and videos in Lab's private `files/traces/`, pulled over USB into git-ignored `phone_traces/`; labels files beside them; promoted sittings committed to `fixtures/rep-traces/` as trace (gzip) and labels, never video.
 
@@ -28,7 +28,7 @@ The evidence is the phone's own: Holdout Lab (spec 004; debug builds before 2026
 
 **Performance Goals**: Pose inference ≥ 15 FPS (unchanged from 001; 22–25 FPS measured with debug video on); a counted rep's tone within 300 ms of the top.
 
-**Constraints**: Camera frames never leave the device (constitution X) — traces hold landmark numbers only, and debug video stays on the phone until pulled over USB, of people who agreed in writing. No microphone permission. Every threshold is stated with the measurements behind it (constitution XI).
+**Constraints**: Camera frames never leave the device (constitution X) — traces hold landmark numbers only, and Holdout Lab's video stays on the phone until pulled over USB, of people who agreed in writing. No microphone permission. Every threshold is stated with the measurements behind it (constitution XI).
 
 **Scale/Scope**: One exercise (push-ups), three stakes, one accepted placement (45°, with a band per stakes). 74 committed traces; 27 labelled sittings from at least three people; the 8 head-on traces (`front-*`) kept as evidence only.
 
@@ -94,9 +94,11 @@ kotlin/app/src/main/kotlin/holdout/app/
 ├── sitting/SittingScreen.kt     # camera, skeleton, +1, clean screen
 ├── sitting/PlacementGuide.kt    # SetupDialog: Phone / Body / Start, the 45° band per stakes
 ├── sitting/SittingCues.kt       # rep tone, banked chime, speech
-├── sitting/TraceRecorder.kt     # writes the trace, debug only
-├── sitting/TraceLabelDialog.kt  # "What did you just do?"
 └── streak/ToesMeter.kt          # how many of the Daily 25's reps Hard would have counted
+
+kotlin/app/src/lab/kotlin/holdout/app/   # Holdout Lab only (spec 004)
+├── sitting/TraceRecorder.kt     # writes the trace
+└── sitting/TraceLabelDialog.kt  # "What did you just do?"
 
 docs/weaknesses.json    # the known weaknesses, rendered into README.md by scripts/render-weaknesses.mjs
 
