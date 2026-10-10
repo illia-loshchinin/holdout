@@ -129,13 +129,51 @@ instead of "Holdout".
    `kotlin/app/src/main/kotlin/holdout/app/wallet/WalletRepository.kt` to
    match** — the URI and the file have to be on the same host or the check
    fails.
-2. Create the release keystore, outside the repository, and back it up with the
-   program keypair. A lost keystore means a new package identity for every
-   member. **The build does not sign a release yet.** T115 adds the signing
-   config for `memberRelease`, reading the keystore from Gradle properties in
-   `%USERPROFILE%\.gradle\gradle.properties`: `holdout.keystore`,
-   `holdout.keystorePassword`, `holdout.keyAlias`, `holdout.keyPassword`. Until
-   it lands, `assembleMemberRelease` produces an unsigned APK.
+2. Create the release keystore, **outside the repository**, and back it up with
+   the program keypair. A lost keystore means a new package identity for every
+   member; a leaked one lets anyone ship an update as Holdout. The JDK's
+   `keytool` makes it (`*.jks` and `*.keystore` are git-ignored as a backstop,
+   but keep it out of the clone anyway):
+
+   ```bash
+   keytool -genkeypair -v -keystore ~/holdout-release.jks -alias holdout \
+     -keyalg RSA -keysize 4096 -validity 10000 \
+     -dname "CN=Holdout, O=Holdout, C=DE"
+   ```
+
+   It asks for a keystore password and a key password; a backup copy of the
+   file is not enough without both, so store them with it. Then tell Gradle
+   where it is, in `%USERPROFILE%\.gradle\gradle.properties` (Windows) or
+   `~/.gradle/gradle.properties` — never in the repository's
+   `kotlin/gradle.properties`:
+
+   ```properties
+   holdout.keystore=C:/Users/<you>/holdout-release.jks
+   holdout.keystorePassword=...
+   holdout.keyAlias=holdout
+   holdout.keyPassword=...
+   ```
+
+   The same four can be given as `-Pholdout.keystore=...` flags or as
+   `ORG_GRADLE_PROJECT_holdout.keystore` etc. in the environment (a CI secret).
+   With all four set, `cd kotlin && ./gradlew :app:assembleMemberRelease`
+   writes a signed `app/build/outputs/apk/member/release/app-member-release.apk`
+   — the APK that is submitted. Without them the build still succeeds, so CI
+   and other machines need no keystore, but the APK is
+   `app-member-release-unsigned.apk` and Gradle prints a `WARNING: memberRelease
+   is UNSIGNED` line; some but not all four fails the build. The path and the
+   passwords never appear in the build output. Check the signature before
+   submitting:
+
+   ```bash
+   "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs \
+     kotlin/app/build/outputs/apk/member/release/app-member-release.apk
+   ```
+
+   A signed APK prints the signer's DN and the certificate's SHA-256 — the
+   release fingerprint step 3 adds to `assetlinks.json` — and exits 0 (add
+   `--verbose` for the `Verifies` line and the scheme used, v2). The unsigned
+   APK fails with `DOES NOT VERIFY`.
 3. Generate the file:
 
    ```bash
