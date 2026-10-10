@@ -6,16 +6,18 @@ import androidx.compose.runtime.Composable
 
 /**
  * One theme, dark, fixed (design book, Visual foundations → Colour in
- * `docs/design/README.md`; T035).
+ * `docs/design/README.md`; 001 T035).
  *
  * **No light variant and no dynamic colour.** Material You would repaint the
  * app from the member's wallpaper, and the palette here is the product's
  * identity — the survivor counter reading Solana Green is a decision, not a
  * default. There is deliberately no `dynamicColor` parameter to pass `true` to.
  *
- * The mapping below puts each `color` token from `docs/design/tokens.json` in
- * its Material slot, so the theme is a transcription rather than a
- * reinterpretation.
+ * The mapping below gives each Material slot a `color` token from
+ * `docs/design/tokens.json`. The design book names no slots, so which token
+ * fills which slot is decided here; the values are the tokens' own. Tokens
+ * with no Material slot (scrim, drag handle, tertiary text, the strong and
+ * tinted accent, celebration text, the gradient) live in [HoldoutColors] only.
  */
 private val HoldoutColorScheme = darkColorScheme(
     background = HoldoutColors.Canvas,

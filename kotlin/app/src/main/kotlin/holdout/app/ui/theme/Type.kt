@@ -14,7 +14,9 @@ import androidx.compose.ui.unit.sp
  * `docs/design/README.md`.
  *
  * **Roboto** is the Android system family, so the app matches the Seeker's own
- * UI with nothing bundled and no licence to carry. The design book also names
+ * UI with nothing bundled and no licence to carry. The design book sets the
+ * counter and display numbers in **Roboto Flex**, which is not bundled either:
+ * they use the system Roboto, the token's own fallback. It also names
  * **JetBrains Mono** for amounts and countdowns; until that file is added to
  * `res/font/`, those styles fall back to [FontFamily.Monospace], which the
  * system provides. That is a visual difference on the amount row only, and no
