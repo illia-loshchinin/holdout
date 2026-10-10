@@ -99,7 +99,7 @@ description: "Task list for 004 Holdout Lab and the member app"
 - [X] T012 [US1] Create `kotlin/app/src/lab/kotlin/holdout/app/AppRoot.kt`, which calls `LabApp(modifier)` and ignores `sender`.
 - [X] T013 [P] [US1] Add Lab resources in `kotlin/app/src/lab/res/` (research R8):
   - `values/strings.xml` with `app_name` = "Holdout Lab";
-  - an adaptive launcher icon (`mipmap-anydpi/ic_launcher.xml`, `ic_launcher_round.xml`, `drawable/ic_launcher_foreground.xml`): the design book's 3×3 status crowd (`docs/design/assets/app-icon/README.md`, the larger Holdout in the middle) drawn in `#80ECFF` on a `#000000` background, inside the 66 dp safe zone.
+  - an adaptive launcher icon (`mipmap-anydpi/ic_launcher.xml`, `ic_launcher_round.xml`, `drawable/ic_launcher_foreground.xml`): the design book's 3×3 status crowd (`docs/design/assets/app-icon/README.md`, the larger Holdout in the middle) drawn in `#80ECFF` on a `#000000` background, inside the 66 dp safe zone. *Superseded 2026-10-10 by T033: Holdout's icon v2 with the H in warning coral.*
 - [X] T014 [US1] In `scripts/pull-traces.sh`:
   - add `--package <id>`, defaulting to `holdout.app.lab`;
   - replace every `run-as holdout.app` (lines 27, 37, 41, 42, 45) with `run-as "$package"`;
@@ -183,6 +183,7 @@ description: "Task list for 004 Holdout Lab and the member app"
   - `docs/holdout_screen_map.md`: drop A2 Walkthrough and X1 "About · for judges", and add "About Holdout".
 - [ ] T031 Bring 001's plan, tasks and `contracts/android-app.md` in line with the amended 001 spec (no walkthrough, no About for judges, Media3 not needed; T090 and T106–T108), through `/speckit-converge` on 001. Do the same for 003's plan, tasks (T016–T017) and quickstart (row 7), through `/speckit-analyze` then `/speckit-tasks` on 003.
 - [ ] T032 Run quickstart §4 and §5 on a Seeker and record the results in the PR. **Needs the product owner's phone.**
+- [X] T033 [P] *(Added and done 2026-10-10, product-owner decisions; branch `feat/decisions-2026-10-10`.)* Holdout Lab's launcher icon is Holdout's icon v2 with the H of seven in `warning` (`#FF623A`): `kotlin/app/src/lab/res/drawable/ic_launcher_foreground.xml` replaces the 3×3 status crowd, and `ic_launcher_monochrome.xml` is removed from `src/lab` so the themed and status-bar layers inherit the member app's H alone (FR-001, research R8). The three rows on Choose carry different detail lines (contracts §5): `LabMode.detail` in `kotlin/app/src/lab/kotlin/holdout/app/lab/LabSettings.kt`. In the same change the member app's stake sheet and forfeit screen read the fee sentence decided for members, "80 % stays with members: 70 % to the prize pool, 10 % to this league's boost and comeback reserves. 20 % goes to the project." (`stake/StakeSheet.kt`, `cohort/ForfeitScreen.kt`; 001 FR-027 unchanged). Checked: ktlint, `:app:testMemberDebugUnitTest`, `:app:testLabDebugUnitTest`, `:app:assembleMemberDebug`, `:app:assembleLabDebug`, `check-wording.sh`.
 
 ---
 
