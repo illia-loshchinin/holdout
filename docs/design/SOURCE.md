@@ -3,8 +3,8 @@
 | | |
 | --- | --- |
 | Artifact | https://claude.ai/code/artifact/f4e92223-6e90-4e26-b194-3e2d69d87d9a (Design System type, "Holdout") |
-| Version | 1791633404-fa08 |
-| Synced | 2026-10-10 (Standing, Easy/Hard, the fee sentence, Holdout Lab, seven components) |
+| Version | 1791648011-de34 |
+| Synced | 2026-10-10 (Standing, Easy/Hard, the fee sentence, Holdout Lab, seven components; `tokens.json` names the theme as its source, not the archived PRD) |
 | Components | BankRing, BottomNav, CameraSitting, Card, ChoiceChips, Countdown, Dialog, NoticeCard, PrimaryButton, QuietAction, Readouts, RosterRow, SecondaryButton, Sheet, StatBlock, StatusChip, Stepper, StreakFlame, Switch, TierChips |
 
 `docs/design/` mirrors the artifact and is never edited by hand. To refresh it, follow
