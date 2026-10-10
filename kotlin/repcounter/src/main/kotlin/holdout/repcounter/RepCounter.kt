@@ -158,18 +158,19 @@ data class RepRules(
     /** The placement ratio (`Preflight.placementRatio`, held through the countdown) under which [minHipRise] is judged: about 35° and further round to the side. */
     val maxHipRisePlacementRatio: Float = 1.1f,
     /**
-     * Staked: how far inside the picture the near knee must stay, as a share of
-     * each side. A knee that leaves the frame is not dropped by the model: it
-     * is placed just inside the edge, with full confidence, and the knee check
-     * then judges a guess. On 29 Sep a set with the knees out of camera had the
+     * Every sitting at 45° (the Daily 25 since 8 Oct, 002 FR-010): how far
+     * inside the picture the near knee must stay, as a share of each side. A
+     * knee that leaves the frame is not dropped by the model: it is placed
+     * just inside the edge, with full confidence, and the knee check then
+     * judges a guess. On 29 Sep a set with the knees out of camera had the
      * knee within 12 % of the edge in 28–50 % of every rep's frames; honest sets
      * at 45° had it there in 0–3 %.
      */
     val legEdgeMargin: Float = 0.13f,
     /**
-     * Staked: the largest share of the push back up the near knee may spend
-     * inside [legEdgeMargin] (or unseen) before the rep cannot be judged and is
-     * refused with [RepHint.LEGS_IN_VIEW]. Calibrated on the phone's traces.
+     * Every sitting at 45°: the largest share of the push back up the near
+     * knee may spend inside [legEdgeMargin] (or unseen) before the rep cannot
+     * be judged and is refused with [RepHint.LEGS_IN_VIEW]. Calibrated on the phone's traces.
      */
     val maxLegsUnseenShare: Float = 0.25f,
     /**
@@ -234,18 +235,21 @@ data class RepRules(
 /**
  * The rules to use for a given camera view.
  *
- * **It returns the same rules for every view, and that is deliberate.** The
- * first front-view recording showed that head-on needed a different
- * *measurement*, not different numbers: read in the picture, the elbow clears
- * the same 165° / 85° triggers with room to spare (`ViewReading`). So the view
- * changes what is read, and this stays the one place that would change the
- * thresholds, should S2's traces ever show a view needs its own.
+ * **At 45° — every sitting — the top trigger is the rule's own 160°**, not the
+ * stricter 165°: a locked-out arm reads 150–173° there depending on where the
+ * phone stands, and the counter then sets the sitting's top from the arm held
+ * through the countdown (`RepCounter.top`, 002 FR-008). SIDE and FRONT keep
+ * the defaults; no sitting is counted from either, and a FRONT frame is no
+ * reading at all (`ViewReading`, 002 research D10). This stays the one place
+ * that changes a view's thresholds.
  *
  * **What must never happen** is loosening a front-view trigger past the rule to
  * make head-on counting work. The triggers exist to be *stricter* than the rule
  * so jitter cannot count a rep; a trigger looser than the rule counts reps the
  * rule forbids, which is not tuning but a change to what a rep is. `RepRules`'s
  * own `require` refuses it, and `RepRulesViewTest` checks every view's set.
+ * The 45° top under 160° is not such a trigger: it is the spec's own lockout
+ * at 45° (002 FR-008), and `RepCounter.top` keeps it within 148–160°.
  */
 fun RepRules.forView(view: CameraView): RepRules = when (view) {
     CameraView.SIDE, CameraView.FRONT -> this
@@ -568,11 +572,11 @@ class RepCounter(
     private val descentKnees = mutableListOf<Float>()
     private val descentLegs = mutableListOf<Float>()
 
-    /** Descent frames, and those whose near knee was unseen, unreadable or at the picture's edge (staked). */
+    /** Descent frames, and those whose near knee was unseen, unreadable or at the picture's edge. */
     private var descentFrames = 0
     private var descentKneeUnseen = 0
 
-    /** Push frames, and those whose near knee was unseen or at the picture's edge (staked). */
+    /** Push frames, and those whose near knee was unseen or at the picture's edge. */
     private var pushFrames = 0
     private var pushLegsUnseen = 0
     private var minShoulderOverHandInCycle = Float.MAX_VALUE
@@ -768,10 +772,10 @@ class RepCounter(
                     // 7 Oct were each told "Go lower" or "Up on your toes" out loud
                     // (reviewer, 8 Oct). Unknown passes on to the checks below.
                     notFaceDown() -> RepEvent.Discarded(null)
-                    // Where money is staked, knees never seen on the push are
-                    // not knees off the floor: the rep cannot be judged. Nor
-                    // can one whose knee spent much of the push out of the
-                    // picture or at its edge — the knees may have been down.
+                    // Every sitting (002 FR-007, FR-010): a knee never seen on
+                    // the push leaves the rep unjudged — on Hard, it is not a
+                    // knee off the floor. Nor can one whose knee spent much of
+                    // the push out of the picture or at its edge.
                     watchLegs && (pushKnees.isEmpty() && pushLegs.isEmpty() || legsUnseenShare() > rules.maxLegsUnseenShare) ->
                         RepEvent.Discarded(RepHint.LEGS_IN_VIEW)
                     // The way down is held to the same: a knee hidden while

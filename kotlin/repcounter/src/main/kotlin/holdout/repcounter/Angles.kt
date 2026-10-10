@@ -89,8 +89,9 @@ object Angles {
      * One number per frame from whichever sides are visible.
      *
      * Averaging both sides when both are present steadies the reading; falling
-     * back to one side keeps a sitting filmed from one side working at all,
-     * since the far arm is frequently occluded by the near one.
+     * back to one side keeps a frame readable when the far arm is occluded by
+     * the near one. World landmarks only, so the synthetic traces: a sitting
+     * on a phone reads the near side in the picture ([nearSide], 002 FR-009).
      */
     private fun bothSides(left: Float?, right: Float?): Float? = when {
         left != null && right != null -> (left + right) / 2f
