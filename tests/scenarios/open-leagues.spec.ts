@@ -129,12 +129,13 @@ describe('both leagues open to every member (AC-1, FR-002, FR-003)', () => {
     expect((await h.readCohort(LEAGUE_21D, 0)).memberCount).toBe(1);
   });
 
-  it('takes a member into the 21-day league after a 7-day clear exactly as before it', async () => {
+  // The next cohorts' joining closes an hour before the running 7-day cohort
+  // can settle (its end is their start), so on a real chain a member takes the
+  // next place while the 7-day cohort is still the running one, and the
+  // settlement lands after. The two cases below keep that order.
+  it('takes a member who has cleared a 7-day cohort into the next 21-day one, and the clear still records', async () => {
     await h.sendOrThrow([await joinCohortIx(member.address, mint, LEAGUE_7D, 0, 1)], member);
     await clearSevenDays(0, member);
-    h.setTime(endOf(0));
-    await settle7d(0, [member.address]);
-    expect((await h.readProfile(member.address)).leagues[LEAGUE_7D]!.cleared).toBe(1);
 
     h.setTime(startOf(1) - 2 * HOUR);
     const joined = await h.send(
@@ -142,6 +143,14 @@ describe('both leagues open to every member (AC-1, FR-002, FR-003)', () => {
       member,
     );
     expect(joined.ok, joined.logs.join('\n')).toBe(true);
+
+    h.setTime(endOf(0));
+    await settle7d(0, [member.address]);
+    const profile = await h.readProfile(member.address);
+    expect(profile.leagues[LEAGUE_7D]!.cleared).toBe(1);
+    // The 21-day cohort started at the same instant, so settling the 7-day one
+    // promotes the place from pending to running.
+    expect(profile.running.cohort, 'the 21-day place survives the settlement').toBe(await cohortPda(LEAGUE_21D, 1));
   });
 
   it('keeps both leagues open after a 7-day forfeit, the 7-day one included (FR-002)', async () => {
@@ -150,18 +159,20 @@ describe('both leagues open to every member (AC-1, FR-002, FR-003)', () => {
     await h.sendOrThrow([await joinCohortIx(member.address, mint, LEAGUE_7D, 0, 1)], member);
     await h.sendOrThrow([await joinCohortIx(quitter.address, mint, LEAGUE_7D, 0, 0)], quitter);
     const finisher = await finisherIn(0);
+
+    // Either league takes a forfeiter: the 7-day league never closes, and the
+    // 21-day league never asked for anything. Both missed day 0 long ago.
+    h.setTime(startOf(1) - 2 * HOUR);
+    const running = await cohortPda(LEAGUE_7D, 0);
+    const again = await h.send([await joinCohortIx(member.address, mint, LEAGUE_7D, 1, 0, running)], member);
+    expect(again.ok, again.logs.join('\n')).toBe(true);
+    const across = await h.send([await joinCohortIx(quitter.address, mint, LEAGUE_21D, 1, 0, running)], quitter);
+    expect(across.ok, across.logs.join('\n')).toBe(true);
+
     h.setTime(endOf(0));
     await settle7d(0, [member.address, quitter.address, finisher.address]);
     expect((await h.readProfile(member.address)).leagues[LEAGUE_7D]!.forfeited).toBe(1);
     expect((await h.readProfile(quitter.address)).leagues[LEAGUE_7D]!.forfeited).toBe(1);
-
-    // Either league takes a forfeiter back: the 7-day league never closes, and
-    // the 21-day league never asked for anything.
-    h.setTime(startOf(1) - 2 * HOUR);
-    const again = await h.send([await joinCohortIx(member.address, mint, LEAGUE_7D, 1, 0)], member);
-    expect(again.ok, again.logs.join('\n')).toBe(true);
-    const across = await h.send([await joinCohortIx(quitter.address, mint, LEAGUE_21D, 1, 0)], quitter);
-    expect(across.ok, across.logs.join('\n')).toBe(true);
   });
 
   it('sets the genesis gate through set_flags, admin only — there is no other flag', async () => {

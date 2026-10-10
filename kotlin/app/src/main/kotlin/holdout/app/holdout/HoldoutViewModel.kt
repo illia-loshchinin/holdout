@@ -375,7 +375,6 @@ class HoldoutViewModel(
 object ProgramErrors {
     fun explain(code: Int?): String? = when (code) {
         6021 -> "Joining for this Holdout has closed."
-        6023 -> "This Holdout needs a 7-day clear first."
         6025 -> "You already hold a place in a Holdout that hasn't started. Leave it first, or wait for it to start."
         6026 -> "This Holdout would start before your current one ends."
         6030 -> "This Holdout isn't running right now."

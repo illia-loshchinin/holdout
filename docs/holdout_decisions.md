@@ -38,7 +38,7 @@ Judges score completion from the demo video and technical depth from the GitHub 
 
 ~~Clearing a 7-day cohort permanently records the 21-day unlock, behind a gate flag that is off for the hackathon.~~ **Superseded by H37 (2026-10-10):** there is no ladder, no unlock and no gate flag; both leagues are open to every member at all times.
 
-**Why:** a free loop anyone can run on day one, forever, is a far stronger stickiness story than a cohort you must pay to enter. The 7-day league must never close because with no free cohort it is the only short way back after a forfeit. *(The gate reasoning that stood here — off for judges, kept as a flag to show the designed ladder — is withdrawn by H37.)*
+**Why:** a free loop anyone can run on day one, forever, is a far stronger stickiness story than a cohort you must pay to enter. Neither league ever closes to a member; after a forfeit the way back is the same league's next cohort (H37). *(The gate reasoning that stood here — off for judges, kept as a flag to show the designed ladder — is withdrawn by H37.)*
 
 **Reverses:** the archived D3 (staked qualifier closes on a clear). **Supersedes:** archived D1 (three leagues) and D2 (free clear qualifies).
 
