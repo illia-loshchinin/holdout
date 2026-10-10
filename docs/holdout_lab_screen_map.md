@@ -130,7 +130,7 @@ Stop on S1 or S2, before any frame reached the recorder, returns to L0 with no d
    | 2 | **Easy Holdout** | `7-day · 45° · knees allowed` | `Stakes.EASY` |
    | 3 | **Hard Holdout** | `21-day · 45° · from the toes · the stricter count` | `Stakes.STAKED` |
 5. `SET` section label, then:
-   - **Record video** switch — off: *TEST · video recording off — only people who agreed in writing may be filmed*; on: *TEST · recording sittings as video — only people who agreed in writing to be filmed* (constitution X, 002 FR-026). Off on every fresh install, remembered on the phone (FR-005)
+   - **Record video** switch — off: *TEST · video off — only people who agreed in writing to be filmed*; on: *TEST · recording sets as video — only people who agreed in writing to be filmed* (constitution X, 002 FR-026). Off on every fresh install, remembered on the phone (FR-005)
    - **Clean screen** switch — on: *TEST · clean screen: no dots or text, for training recordings*; off: *TEST · clean screen off*. Remembered
    - `TARGET` with a **−** / **+** stepper around the number (`amount` style, accent signs; 1–100, default 25; touch targets ≥ 48 dp, accessible names *Fewer reps* / *More reps*). Remembered
 6. Footer, `label` style, tertiary: *N sets on this phone · pull them over USB with scripts/pull-traces.sh* (count of `*.trace.csv` in `files/traces/`)
