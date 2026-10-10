@@ -159,7 +159,7 @@ object Chips {
             configError("--decimals $askedDecimals disagrees with the SKR mint, which has $mintDecimals")
         }
         val tiers = pricing { price(rate, mintDecimals) }
-        return sendSet(args, config, rpc, operator, configAddress, onChain, rate, mintDecimals, tiers, pause) { }
+        return sendSet(args, config, rpc, operator, configAddress, onChain, rate, mintDecimals, tiers, pause, extra = { })
     }
 
     /**
@@ -181,6 +181,7 @@ object Chips {
         tiers: List<Tier>,
         pause: suspend (Long) -> Unit,
         extra: JsonObjectBuilder.(sent: Boolean) -> Unit,
+        beforeSending: suspend () -> Unit = {},
     ): JsonObject {
         val instruction = Instructions.publishChipSet(config.programId, operator.publicKey, configAddress, tiers.map { it.baseUnits })
         // Not retried: every publish is a new version (FR-055a).
@@ -194,6 +195,7 @@ object Chips {
                 pause,
                 refusedMeans = "nothing was published",
                 beforeRetrying = "Check that signature before publishing again, since a second publish is a new version",
+                beforeSending = beforeSending,
             )
         if (signature == null) {
             return summary(rate, mintDecimals, tiers, dryRun = true) {
@@ -430,11 +432,16 @@ object Chips {
                     put("detail", e.message ?: "the rate cannot price four increasing tiers")
                 }
             }
+        // Fetching the rate and the mint took time: the report, a dry run's
+        // included, gives the state as of now, and a real run that is already
+        // too late stops before reading a blockhash.
+        val pricedAt = rpc.chainTime()?.unixSeconds ?: failed("could not read the chain's time")
+        if (!args.dryRun && !canSendIn(window, pricedAt)) return report(false, TOO_LATE, at = pricedAt) { put("rate", rate.toPlainString()) }
         val autoFields: JsonObjectBuilder.(Boolean) -> Unit = { sent ->
             put("command", "chips publish --auto")
             put("published", sent)
             putWindow()
-            putWindowState(now, sentNow = sent)
+            putWindowState(pricedAt, sentNow = sent)
             putJsonArray("previous") { onChain.chipAmounts.forEach { add(JsonPrimitive(it.toBig())) } }
         }
         if (operator == null) {
@@ -445,14 +452,22 @@ object Chips {
                 autoFields(false)
             }
         }
-        // Fetching the rate and the mint took time: check again that a send
-        // started now still lands before the window closes.
-        if (!args.dryRun) {
+        // The last check sits at the send itself, after the blockhash is read:
+        // a transaction expires about 90 s after its blockhash, so one that
+        // passes here before the cutoff cannot land after 05:00.
+        val lastCheck: suspend () -> Unit = {
             val sendAt = rpc.chainTime()?.unixSeconds ?: failed("could not read the chain's time")
-            if (!canSendIn(window, sendAt)) return report(false, TOO_LATE, at = sendAt) { put("rate", rate.toPlainString()) }
+            if (!canSendIn(window, sendAt)) throw TooLate(sendAt)
         }
-        return sendSet(args, config, rpc, operator, configAddress, onChain, rate, decimals, tiers, pause, autoFields)
+        return try {
+            sendSet(args, config, rpc, operator, configAddress, onChain, rate, decimals, tiers, pause, autoFields, lastCheck)
+        } catch (e: TooLate) {
+            report(false, TOO_LATE, at = e.at) { put("rate", rate.toPlainString()) }
+        }
     }
+
+    /** The cutoff passed between signing and sending; nothing was sent. */
+    private class TooLate(val at: Long) : Exception("too late to send")
 
     private const val TOO_LATE = "too late to land in the publish window"
 

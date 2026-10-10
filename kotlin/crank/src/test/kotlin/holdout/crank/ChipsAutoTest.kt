@@ -104,7 +104,7 @@ class ChipsAutoTest {
         """{"context":{"slot":1},"value":{"data":["${Base64.getEncoder().encodeToString(data)}","base64"],"executable":false,"lamports":1,"owner":"11111111111111111111111111111111","rentEpoch":0}}""",
     )
 
-    private fun cluster(config: ByteArray = configBytes(), now: Long = inWindow): Cluster {
+    private fun cluster(config: ByteArray = configBytes(), now: Long = inWindow, onBlockhash: (Cluster) -> Unit = {}): Cluster {
         var configNow = config
         lateinit var cluster: Cluster
         cluster = Cluster(
@@ -118,7 +118,10 @@ class ChipsAutoTest {
                 },
                 "getSlot" to { _ -> ok("777") },
                 "getBlockTime" to { _ -> ok("${cluster.now}") },
-                "getLatestBlockhash" to { _ -> ok("""{"context":{"slot":1},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":9}}""") },
+                "getLatestBlockhash" to { _ ->
+                    onBlockhash(cluster)
+                    ok("""{"context":{"slot":1},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":9}}""")
+                },
                 "simulateTransaction" to { _ -> ok("""{"context":{"slot":1},"value":{"err":null,"logs":[]}}""") },
                 "sendTransaction" to { _ -> ok("\"5sig\"").also { configNow = configBytes(version = 2, publishedAt = cluster.now) } },
                 "getSignatureStatuses" to { _ -> ok("""{"context":{"slot":1},"value":[{"err":null,"confirmationStatus":"confirmed"}]}""") },
@@ -240,6 +243,32 @@ class ChipsAutoTest {
         assertEquals("too late to land in the publish window", json.text("reason"))
         assertEquals("false", json.text("wouldPublishNow"), "the state at the second read, not the first")
         assertTrue(c.sent("simulateTransaction").isEmpty() && c.sent("sendTransaction").isEmpty())
+    }
+
+    @Test
+    fun `given the cutoff passes while the blockhash is read, when run, then the check at the send point stops it and nothing is sent`() {
+        val c = cluster(now = lastSend, onBlockhash = { it.now = lastSend + 2 })
+        val json = auto(c, FixedRate(BigDecimal("0.03")))
+        assertEquals("false", json.text("published"))
+        assertEquals("too late to land in the publish window", json.text("reason"))
+        assertEquals("false", json.text("wouldPublishNow"))
+        assertTrue(c.sent("sendTransaction").isEmpty())
+    }
+
+    @Test
+    fun `given the cutoff passes while a dry run fetches the rate, when dry-run, then it still simulates but reports the state as of after pricing`() {
+        val c = cluster(now = lastSend)
+        val slow =
+            object : Chips.RateSource {
+                override suspend fun usdPerSkr(): BigDecimal {
+                    c.now = lastSend + 30
+                    return BigDecimal("0.03")
+                }
+            }
+        val json = auto(c, slow, "--dry-run")
+        assertEquals("false", json.text("wouldPublishNow"), "a real run starting with it would stop as too late")
+        assertEquals(1, c.sent("simulateTransaction").size)
+        assertTrue(c.sent("sendTransaction").isEmpty())
     }
 
     @Test
