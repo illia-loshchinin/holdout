@@ -99,7 +99,13 @@ class FixtureReplayTest {
                 ),
             )
             "set_flags" -> Instructions.setFlags(programId, f.accountAt(0), a.getValue("genesisGateEnabled").jsonPrimitive.boolean)
-            "publish_chip_set" -> Instructions.publishChipSet(programId, f.accountAt(0), f.accountAt(1), a.getValue("amounts").jsonArray.map { it.jsonPrimitive.content.toULong() })
+            "publish_chip_set" -> Instructions.publishChipSet(
+                programId,
+                f.accountAt(0),
+                f.accountAt(1),
+                a.getValue("amounts").jsonArray.map { it.jsonPrimitive.content.toULong() },
+                a.getValue("validUntil").jsonPrimitive.content.toLong(),
+            )
             "open_cohort" -> Instructions.openCohort(
                 programId,
                 f.accountAt(0),

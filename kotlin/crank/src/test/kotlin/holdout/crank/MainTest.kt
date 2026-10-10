@@ -110,6 +110,7 @@ class MainTest {
             json.getValue("amounts").jsonArray.map { it.jsonPrimitive.long },
         )
         assertEquals("false", json.getValue("sent").jsonPrimitive.content)
+        assertTrue(json.containsKey("deadlineNote"), "offline, the deadline is unchecked and the report says so")
     }
 
     @Test

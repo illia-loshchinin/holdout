@@ -1,5 +1,5 @@
 /**
- * Both leagues are open to every member, always. Task T138.
+ * Both leagues are open to every member, always. Task T143.
  *
  * The 7-day and 21-day leagues are two separate products for different people,
  * not rungs of a ladder (FR-003, decided 2026-10-10). So a wallet with no 7-day

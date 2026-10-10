@@ -33,6 +33,8 @@ pub enum HoldoutError {
     ChipSetNotPublished = 12,
     #[msg("A league's form is 0 (from the toes) or 1 (knees allowed)")]
     InvalidForm = 13,
+    #[msg("This chip set reached its deadline before it landed")]
+    ChipSetExpired = 14,
 
     // ---- 6020–6026 · opening, joining and the lobby ---------------------
     #[msg("This cohort is not due yet, or its index is wrong")]
@@ -121,6 +123,7 @@ mod tests {
         assert_eq!(code(HoldoutError::InvalidChipSet), 6011);
         assert_eq!(code(HoldoutError::ChipSetNotPublished), 6012);
         assert_eq!(code(HoldoutError::InvalidForm), 6013);
+        assert_eq!(code(HoldoutError::ChipSetExpired), 6014);
 
         assert_eq!(code(HoldoutError::CohortNotDue), 6020);
         assert_eq!(code(HoldoutError::JoiningClosed), 6021);

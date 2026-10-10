@@ -59,6 +59,9 @@ class ChipsPublishTest {
 
     private fun mintBytes(decimals: Int) = ByteArray(82).also { it[44] = decimals.toByte() }
 
+    /** The chain's time in every scripted cluster: Saturday 10 October 2026, 12:00 UTC. */
+    private val chainNow = java.time.Instant.parse("2026-10-10T12:00:00Z").epochSecond
+
     /** A cluster that answers each method from [replies], and records what was sent. */
     private class Cluster(val replies: Map<String, (JsonObject) -> String>) : HttpNetworkDriver {
         val calls = mutableListOf<JsonObject>()
@@ -111,6 +114,8 @@ class ChipsPublishTest {
                     }
                 },
                 "getLatestBlockhash" to { _ -> ok("""{"context":{"slot":1},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":9}}""") },
+                "getSlot" to { _ -> ok("100") },
+                "getBlockTime" to { _ -> ok("$chainNow") },
                 "simulateTransaction" to { _ -> simulation },
                 "sendTransaction" to { _ -> send().also { configNow = configAfterSend } },
                 "getSignatureStatuses" to { _ ->
@@ -139,7 +144,47 @@ class ChipsPublishTest {
         return List(4) { b.getLong().toULong() }
     }
 
+    private fun deadlineIn(tx: Transaction): Long = ByteBuffer.wrap(tx.message.instructions.single().data, 40, 8).order(ByteOrder.LITTLE_ENDIAN).getLong()
+
     private val priced = listOf(460_000_000uL, 1_170_000_000uL, 2_340_000_000uL, 4_690_000_000uL)
+
+    // ---- the deadline (FR-055a) ----------------------------------------------------
+
+    @Test
+    fun `a set published by hand is refused from chain time plus 10 minutes, and the report says when`() {
+        val c = cluster()
+        val json = publish(c, "--rate", "0.0213")
+        assertEquals(chainNow + 600, deadlineIn(c.sentTransactions("sendTransaction").single()))
+        assertEquals("2026-10-10T12:10:00Z", json.getValue("validUntil").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `--valid-until gives another deadline, and one not after the chain's time is refused before signing`() {
+        val c = cluster()
+        publish(c, "--rate", "0.0213", "--valid-until", "2026-10-12T05:00:00Z", "--dry-run")
+        assertEquals(java.time.Instant.parse("2026-10-12T05:00:00Z").epochSecond, deadlineIn(c.sentTransactions("simulateTransaction").single()))
+
+        for (late in listOf("2026-10-10T12:00:00Z", "2026-10-09T00:00:00Z")) {
+            val d = cluster()
+            val e = assertFailsWith<CrankException> { publish(d, "--rate", "0.0213", "--valid-until", late) }
+            assertEquals(EXIT_CONFIG, e.exitCode, late)
+            assertTrue(e.message!!.contains("6014"), e.message)
+            assertTrue(d.sentTransactions("sendTransaction").isEmpty() && d.sentTransactions("simulateTransaction").isEmpty())
+        }
+        val bad = assertFailsWith<CrankException> { publish(cluster(), "--rate", "0.0213", "--valid-until", "Monday") }
+        assertEquals(EXIT_CONFIG, bad.exitCode)
+    }
+
+    @Test
+    fun `a set the program refuses as past its deadline is reported as such, refused or landed`() {
+        val refusedSend = cluster(send = { refused("Transaction simulation failed: Error processing Instruction 0: custom program error: 0x177e") })
+        val e1 = assertFailsWith<Chips.ChipSetExpiredException> { publish(refusedSend, "--rate", "0.0213") }
+        assertEquals(EXIT_FAILED, e1.exitCode)
+        assertTrue(e1.message!!.contains("deadline") && e1.message!!.contains("nothing was published"), e1.message)
+
+        val landedFailed = cluster(statuses = mutableListOf("""{"err":{"InstructionError":[0,{"Custom":6014}]},"confirmationStatus":"confirmed"}"""))
+        assertFailsWith<Chips.ChipSetExpiredException> { publish(landedFailed, "--rate", "0.0213") }
+    }
 
     @Test
     fun `a dry run builds, signs and simulates the set, and sends nothing`() {
@@ -272,11 +317,22 @@ class ChipsPublishTest {
     }
 
     @Test
-    fun `a dry run without the key still prices the set, and touches no cluster`() {
+    fun `a dry run without the key still prices the set and its deadline, and reads only the chain's time`() {
         val c = cluster()
         val json = publish(c, "--rate", "0.0213", "--dry-run", env = env - "HOLDOUT_OPERATOR_KEYPAIR")
         assertEquals("false", json.getValue("simulated").jsonPrimitive.content)
         assertEquals(priced.map { it.toLong() }, json.getValue("amounts").jsonArray.map { it.jsonPrimitive.long })
-        assertTrue(c.calls.isEmpty())
+        assertEquals("2026-10-10T12:10:00Z", json.getValue("validUntil").jsonPrimitive.content)
+        assertEquals(setOf("getSlot", "getBlockTime"), c.calls.map { it.getValue("method").jsonPrimitive.content }.toSet())
+    }
+
+    @Test
+    fun `a dry run without the key refuses an expired --valid-until, as a run with it does`() {
+        val e =
+            assertFailsWith<CrankException> {
+                publish(cluster(), "--rate", "0.0213", "--valid-until", "2026-10-10T11:00:00Z", "--dry-run", env = env - "HOLDOUT_OPERATOR_KEYPAIR")
+            }
+        assertEquals(EXIT_CONFIG, e.exitCode)
+        assertTrue(e.message!!.contains("6014"), e.message)
     }
 }

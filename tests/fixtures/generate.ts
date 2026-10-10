@@ -439,7 +439,11 @@ const instructionFixtures = async () => {
     { genesisGateEnabled: true },
     await setFlagsIx(ADMIN, true),
   );
-  await add('publish_chip_set', { amounts: DEFAULT_CHIPS }, await publishChipSetIx(OPERATOR, DEFAULT_CHIPS));
+  await add(
+    'publish_chip_set',
+    { amounts: DEFAULT_CHIPS, validUntil: FIRST_START },
+    await publishChipSetIx(OPERATOR, DEFAULT_CHIPS, FIRST_START),
+  );
   await add('open_cohort', { leagueId: 0, index: 0 }, await openCohortIx(ADMIN, MINT, 0, 0));
   await add(
     'open_cohort',

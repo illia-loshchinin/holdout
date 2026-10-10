@@ -469,8 +469,11 @@ describe('a cohort cannot open before a chip set is published (FR-055b)', () => 
     await h.injectLeague(0);
   });
 
-  const publish = async (amounts: readonly [bigint, bigint, bigint, bigint], signer: KeyPairSigner = operator) =>
-    h.send([await publishChipSetIx(signer.address, amounts)], signer);
+  const publish = async (
+    amounts: readonly [bigint, bigint, bigint, bigint],
+    signer: KeyPairSigner = operator,
+    validUntil?: number,
+  ) => h.send([await publishChipSetIx(signer.address, amounts, validUntil)], signer);
 
   it('fails open_cohort with ChipSetNotPublished, and succeeds with the same accounts once a set exists', async () => {
     const open = await openCohortIx(crank.address, mint, 0, 0);
@@ -507,6 +510,20 @@ describe('a cohort cannot open before a chip set is published (FR-055b)', () => 
     expect(vault?.mint).toBe(mint);
     expect(vault?.authority).toBe(await cohortPda(0, 0));
     expect(vault?.amount).toBe(0n);
+  });
+
+  it('accepts a set landing before its deadline and refuses one at or after it, changing nothing (6014, FR-056)', async () => {
+    const deadline = h.now() + 60;
+    const before = await h.readConfig();
+
+    h.setTime(deadline);
+    expectProgramError(await publish(DEFAULT_CHIPS, operator, deadline), 'ChipSetExpired');
+    h.setTime(deadline + 1);
+    expectProgramError(await publish(DEFAULT_CHIPS, operator, deadline), 'ChipSetExpired');
+    expect((await h.readConfig()).chipSet, 'a refused set leaves the current one in force').toEqual(before.chipSet);
+
+    await h.sendOrThrow([await publishChipSetIx(operator.address, DEFAULT_CHIPS, h.now() + 1)], operator);
+    expect((await h.readConfig()).chipSet.version).toBe(1);
   });
 
   it('records the published set: version, amounts, when, and the highest top tier ever seen', async () => {

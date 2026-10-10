@@ -115,8 +115,10 @@ object Instructions {
     }
 
     /**
-     * `publish_chip_set(amounts: [u64; 4])` — four SKR amounts in base units and
-     * nothing else: no rate, no USD figure (constitution III).
+     * `publish_chip_set(amounts: [u64; 4], valid_until: i64)` — four SKR amounts
+     * in base units and the unix second from which the program refuses the set
+     * (`ChipSetExpired`, 6014; FR-055a, FR-056). No rate, no USD figure
+     * (constitution III).
      *
      * [operator] signs, and in the crank it also pays the fee, so it is marked
      * writable: a fee payer must be. The program only requires a signer, so the
@@ -127,11 +129,13 @@ object Instructions {
         operator: SolanaPublicKey,
         config: SolanaPublicKey,
         amounts: List<ULong>,
+        validUntil: Long,
     ): TransactionInstruction {
         require(amounts.size == 4) { "a chip set is four amounts, got ${amounts.size}" }
-        val data = ByteBuffer.allocate(8 + 4 * 8).order(ByteOrder.LITTLE_ENDIAN)
+        val data = ByteBuffer.allocate(8 + 4 * 8 + 8).order(ByteOrder.LITTLE_ENDIAN)
         data.put(discriminator("publish_chip_set"))
         amounts.forEach { data.putLong(it.toLong()) }
+        data.putLong(validUntil)
         return TransactionInstruction(
             programId,
             listOf(

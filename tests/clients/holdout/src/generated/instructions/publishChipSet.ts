@@ -6,7 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { combineCodec, fixDecoderSize, fixEncoderSize, getArrayDecoder, getArrayEncoder, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, getU64Decoder, getU64Encoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type Instruction, type InstructionWithAccounts, type InstructionWithData, type ReadonlySignerAccount, type ReadonlyUint8Array, type WritableAccount } from '@solana/kit';
+import { combineCodec, fixDecoderSize, fixEncoderSize, getArrayDecoder, getArrayEncoder, getBytesDecoder, getBytesEncoder, getI64Decoder, getI64Encoder, getStructDecoder, getStructEncoder, getU64Decoder, getU64Encoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type Instruction, type InstructionWithAccounts, type InstructionWithData, type ReadonlySignerAccount, type ReadonlyUint8Array, type WritableAccount } from '@solana/kit';
 import { getAccountMetaFactory, type InstructionAccountInput, type InstructionAccountInputAddress, type InstructionSignerInput, type ResolvedInstructionAccount, type ResolvedInstructionAccountMeta } from '@solana/program-client-core';
 import { findConfigPda } from '../pdas';
 import { HOLDOUT_PROGRAM_ADDRESS } from '../programs';
@@ -18,16 +18,16 @@ export function getPublishChipSetDiscriminatorBytes(): ReadonlyUint8Array { retu
 export type PublishChipSetInstruction<TProgram extends string = typeof HOLDOUT_PROGRAM_ADDRESS, TAccountOperator extends string | AccountMeta<string> = string, TAccountConfig extends string | AccountMeta<string> = string, TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
 Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountOperator extends string ? ReadonlySignerAccount<TAccountOperator> & AccountSignerMeta<TAccountOperator> : TAccountOperator, TAccountConfig extends string ? WritableAccount<TAccountConfig> : TAccountConfig, ...TRemainingAccounts]>;
 
-export type PublishChipSetInstructionData = { discriminator: ReadonlyUint8Array; amounts: Array<bigint>;  };
+export type PublishChipSetInstructionData = { discriminator: ReadonlyUint8Array; amounts: Array<bigint>; validUntil: bigint;  };
 
-export type PublishChipSetInstructionDataArgs = { amounts: Array<number | bigint>;  };
+export type PublishChipSetInstructionDataArgs = { amounts: Array<number | bigint>; validUntil: number | bigint;  };
 
 export function getPublishChipSetInstructionDataEncoder(): FixedSizeEncoder<PublishChipSetInstructionDataArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['amounts', getArrayEncoder(getU64Encoder(), { size: 4 })]]), (value) => ({ ...value, discriminator: PUBLISH_CHIP_SET_DISCRIMINATOR }));
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['amounts', getArrayEncoder(getU64Encoder(), { size: 4 })], ['validUntil', getI64Encoder()]]), (value) => ({ ...value, discriminator: PUBLISH_CHIP_SET_DISCRIMINATOR }));
 }
 
 export function getPublishChipSetInstructionDataDecoder(): FixedSizeDecoder<PublishChipSetInstructionData> {
-    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['amounts', getArrayDecoder(getU64Decoder(), { size: 4 })]]);
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['amounts', getArrayDecoder(getU64Decoder(), { size: 4 })], ['validUntil', getI64Decoder()]]);
 }
 
 export function getPublishChipSetInstructionDataCodec(): FixedSizeCodec<PublishChipSetInstructionDataArgs, PublishChipSetInstructionData> {
@@ -38,6 +38,7 @@ export type PublishChipSetAsyncInput<TAccountOperator extends InstructionSignerI
   operator: TAccountOperator;
 config?: TAccountConfig;
 amounts: PublishChipSetInstructionDataArgs["amounts"];
+validUntil: PublishChipSetInstructionDataArgs["validUntil"];
 }
 
 export async function getPublishChipSetInstructionAsync<TAccountOperator extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TProgramAddress extends Address = typeof HOLDOUT_PROGRAM_ADDRESS>(input: PublishChipSetAsyncInput<TAccountOperator, TAccountConfig>, config?: { programAddress?: TProgramAddress } ): Promise<PublishChipSetInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountOperator, InstructionAccountInputAddress<TAccountOperator>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>>> {
@@ -68,6 +69,7 @@ export type PublishChipSetInput<TAccountOperator extends InstructionSignerInput 
   operator: TAccountOperator;
 config: TAccountConfig;
 amounts: PublishChipSetInstructionDataArgs["amounts"];
+validUntil: PublishChipSetInstructionDataArgs["validUntil"];
 }
 
 export function getPublishChipSetInstruction<TAccountOperator extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TProgramAddress extends Address = typeof HOLDOUT_PROGRAM_ADDRESS>(input: PublishChipSetInput<TAccountOperator, TAccountConfig>, config?: { programAddress?: TProgramAddress } ): PublishChipSetInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountOperator, InstructionAccountInputAddress<TAccountOperator>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>> {
