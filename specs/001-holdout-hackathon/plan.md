@@ -28,7 +28,7 @@ Work follows the spec's phasing (spec §3a): **Phase 1** is the full loop and mu
 - **Device:** MMKV key-value records for banked reps, pending submissions, streak and cached chain time (data-model §4). No server database.
 
 **Testing**:
-- **Program:** `cargo test` for the pure settlement math (PRD §19 vectors V1–V22 plus property tests); Kit + LiteSVM integration tests for every scenario, including the randomised INV-1…INV-9 suite at 1,000 members; a Surfpool smoke run (`anchor test`) with time travel before each devnet deploy.
+- **Program:** `cargo test` for the pure settlement math (the vectors V1–V22 and the reserve vectors in `fixtures/settlement-vectors.json`, which govern, first drawn from the archived PRD §19, plus property tests); Kit + LiteSVM integration tests for every scenario, including the randomised INV-1…INV-9 suite at 1,000 members; a Surfpool smoke run (`anchor test`) with time travel before each devnet deploy.
 - **Kotlin:** JUnit 5 for `core` (golden fixture replay) and `repcounter` (recorded landmark traces, including cheats); Compose UI tests for key screens.
 - **Manual device checks:** quickstart §8.
 
@@ -201,7 +201,7 @@ Post-hackathon, outside this plan: a winning app must be published on the Solana
 - **GitHub:** create the repository and push the existing history now; judges score technical depth from the commit history (FR-066).
 - **Beta testers (by 21 Sep):** recruit 5–7, open a group chat, write the one-page onboarding note (install, devnet wallet, faucet, what each day asks) and collect written consent from anyone who may appear in the footage — `docs/holdout_demo_video.md`.
 - **Filming kit (before spike S1):** `scrcpy` installed and checked against the wallet's approval screen, a tripod for the second phone, and the shot log started.
-- **Scope doc D-F and D-G:** note the Kotlin crank and MMKV for Android.
+- ~~**Scope doc D-F and D-G:** note the Kotlin crank and MMKV for Android.~~ *(Moot 2026-10-10: the scope document is retired; the crank is research R12 and MMKV research R6.)*
 - **Devnet SOL, gathered on this schedule:**
   - Rehearsal and judged program deploys by 21–22 Sep (rent measured at the rehearsal deploy; the rehearsal program can be closed afterwards to reclaim it).
   - About 1.12 SOL for the 56 scripted wallets by 22 Sep (R12).
