@@ -17,12 +17,12 @@
       "fix": "A known property of SKR-native staking, stated in the app"
     },
     {
-      "what": "`genesis_gate_enabled = false`",
-      "why": "Testers have no Seeker",
-      "fix": "Flip the flag on mainnet"
+      "what": "Staking is Seeker-exclusive, but on devnet the app enforces it, not the contract (`genesis_gate_enabled = false`)",
+      "why": "Seeker Genesis Tokens exist only on mainnet, so the app checks the wallet's token on mainnet before it offers a join; a wallet that signs a join without the app is not stopped, and a wallet confirmed once is remembered on that phone",
+      "fix": "Turn the flag on at mainnet launch: the contract then checks the Seeker Genesis Token on every join (already written and tested)"
     },
     {
-      "what": "Non-default `day_seconds` for test cohorts — a **short test lobby kept running on devnet**, labelled and open to anyone, from which the demo video is recorded",
+      "what": "Non-default `day_seconds` for test cohorts — a **short test lobby kept running on devnet**, labelled and open to every Seeker owner, from which the demo video is recorded",
       "why": "Lets a single person run a whole cycle alone: three 10-minute days, a new cohort every 30 minutes (FR-044a, H36). Only one test league runs at a time, since streaks are written when a cohort is counted and two test leagues of different lengths could count a member's outcomes out of order on the combined test board",
       "fix": "Admin-guarded; real cohorts always use 24 hours"
     },
