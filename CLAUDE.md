@@ -17,3 +17,10 @@
   sets the commit status **CI (local)** on the PR's head commit and keeps one comment on the PR
   with the per-job results. A green CI (local) on the head commit is the merge gate; a run with
   uncommitted changes or an unpushed HEAD sets no status. A docs-only change needs no run.
+- **No Codex review means a stand-in review, before merge.** When `chatgpt-codex-connector[bot]`
+  answers a pull request with "You have reached your Codex usage limits for code reviews" — or no
+  Codex review arrives — run a strong independent reviewer as a separate agent instead: not the
+  session that wrote the change, with no context from it, at the highest effort available
+  (`/code-review xhigh <PR number> --comment`, which posts its findings on the PR). Fix or answer
+  every finding on the PR, and say in the PR that this review replaced Codex's. The PR is not
+  ready for review, and is not merged, until that review is done and answered.
