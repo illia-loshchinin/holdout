@@ -78,6 +78,45 @@ val downloadMediaPipeModels = tasks.register("downloadMediaPipeModels") {
 
 tasks.named("preBuild") { dependsOn(downloadMediaPipeModels) }
 
+// The release signing key (T115; constitution Hackathon Constraints, FR-066,
+// AC-19: the submitted APK is signed). The keystore and its passwords live
+// OUTSIDE the repository and reach the build only through four Gradle
+// properties — in `~/.gradle/gradle.properties`, as `-P` flags, or as
+// `ORG_GRADLE_PROJECT_holdout.keystore` etc. in the environment; the runbook
+// (docs/holdout_setup_runbook.md §4) has the keytool recipe and the backup
+// rule:
+//
+//   holdout.keystore          absolute path of the .jks
+//   holdout.keystorePassword
+//   holdout.keyAlias
+//   holdout.keyPassword
+//
+// All four set: `assembleMemberRelease` produces a signed
+// app-member-release.apk (labRelease shares the config — one key, two
+// package names). None set, which is CI and every machine without the
+// owner's keystore: the release still builds, unsigned, as
+// app-member-release-unsigned.apk, and assemble says so in one warning
+// (below, in `onVariants`). Some but not all is a slip the build refuses
+// rather than guesses around. Neither the path nor the passwords are printed.
+val releaseSigningProperties = listOf(
+    "holdout.keystore",
+    "holdout.keystorePassword",
+    "holdout.keyAlias",
+    "holdout.keyPassword",
+).associateWith { providers.gradleProperty(it).orNull?.takeIf { value -> value.isNotBlank() } }
+val releaseSigningConfigured = releaseSigningProperties.values.all { it != null }
+if (!releaseSigningConfigured && releaseSigningProperties.values.any { it != null }) {
+    throw GradleException(
+        "Release signing needs all four Gradle properties or none; missing: " +
+            releaseSigningProperties.filterValues { it == null }.keys.joinToString() +
+            " (docs/holdout_setup_runbook.md §4).",
+    )
+}
+val releaseKeystore = releaseSigningProperties["holdout.keystore"]?.let { file(it) }
+if (releaseKeystore != null && !releaseKeystore.isFile) {
+    throw GradleException("holdout.keystore does not name an existing file; check the path in ~/.gradle/gradle.properties (docs/holdout_setup_runbook.md §4).")
+}
+
 android {
     namespace = "holdout.app"
     compileSdk = 37
@@ -119,6 +158,14 @@ android {
         buildConfigField("String", "SPONSOR_KEYPAIR_HEX", "\"$sponsorHex\"")
     }
 
+    if (releaseSigningConfigured) {
+        signingConfigs.create("release") {
+            storeFile = releaseKeystore
+            storePassword = releaseSigningProperties.getValue("holdout.keystorePassword")
+            keyAlias = releaseSigningProperties.getValue("holdout.keyAlias")
+            keyPassword = releaseSigningProperties.getValue("holdout.keyPassword")
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -127,6 +174,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Wired only when the owner's keystore is configured (above); an
+            // unset signingConfig is what makes the APK `-unsigned`.
+            if (releaseSigningConfigured) signingConfig = signingConfigs.getByName("release")
         }
     }
     // Two apps from one module (spec 004, research R1). `member` is the app
@@ -245,6 +295,23 @@ androidComponents {
         }
         checkNoAudioPermission.configure { dependsOn(check) }
         tasks.matching { it.name == "assemble$name" }.configureEach { dependsOn(check) }
+
+        // T115: a release built without the owner's keystore says so, once,
+        // after it is assembled — rather than being found out at install time.
+        // Plain values only, for the configuration cache.
+        if (variant.buildType == "release" && !releaseSigningConfigured) {
+            val variantName = variant.name
+            val apkName = "app-${variant.flavorName}-release-unsigned.apk"
+            tasks.matching { it.name == "assemble$name" }.configureEach {
+                doLast {
+                    logger.warn(
+                        "WARNING: $variantName is UNSIGNED ($apkName): no release keystore is configured. " +
+                            "Set holdout.keystore, holdout.keystorePassword, holdout.keyAlias and holdout.keyPassword " +
+                            "in ~/.gradle/gradle.properties to sign it (docs/holdout_setup_runbook.md §4).",
+                    )
+                }
+            }
+        }
     }
 }
 
