@@ -18,7 +18,7 @@ Units: SKR amounts are **base units** (`u64`); times are **Unix seconds of chain
 | `skr_mint` | Pubkey | Mock SKR mint; its mint authority is PDA `["mint_authority"]` |
 | `fee_destination` | Pubkey | The **operations** destination: the treasury wallet's SKR token account. Receives the operations part of every forfeit, the rest of a no-finisher pool after the developer's half, and rounding remainders (FR-027, FR-037, FR-032a, R14, H35) |
 | `developer_destination` | Pubkey | The **developer** destination: an SKR token account fixed at `initialize`. Receives the developer part of every forfeit and half (floored) of a no-finisher pool (FR-027, FR-037, FR-037f, H35) |
-| `genesis_gate_enabled` | bool | `false` on devnet (R17) |
+| `genesis_gate_enabled` | bool | `false` on devnet, turned on at mainnet launch (R17, H38). The group it checks against is the compile-time constant `SEEKER_GENESIS_GROUP` (`GT22s89nU4iWFkNXj1Bw6uYhJJWDRPpShHt4Bk8f99Te`), not a field: no layout change |
 | `chip_set.amounts` | [u64; 4] | $10, $25, $50, $100 tiers in SKR; strictly increasing, all > 0 |
 | `chip_set.version` | u32 | +1 on every publish; `0` until the first publish, which no cohort may precede (FR-055b) |
 | `chip_set.max_top_tier` | u64 | The largest `amounts[3]` ever published — `max(max_top_tier, a3)` at each publish, never decreasing. What the faucet mints, so a claim funds the top chip of any open cohort even after a Phase 2 re-price lowered the tiers (FR-042a) |
@@ -168,7 +168,7 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | `stake == chips[tier]` for `tier ∈ 0..=3` | FR-055 | `join_cohort` |
 | At most one `pending`; new cohort `start ≥ running.end` | FR-006a/b, INV-4 | `join_cohort` |
 | Either league joinable by any member — no ladder gate, no qualification (removed 2026-10-10 before the first deploy, so no stored account changes format) | FR-003 | `join_cohort` |
-| Genesis check **only if** `genesis_gate_enabled` | R17 | `join_cohort` |
+| Genesis check **only if** `genesis_gate_enabled`: remaining accounts `[token account, mint]`, both Token-2022; token account owned by the member, of that mint, amount ≥ 1; the mint's `TokenGroupMember.group == SEEKER_GENESIS_GROUP` — else 6024 | FR-003b, R17 | `join_cohort` |
 | Leave only while `Open`; full stake refund | FR-009 | `leave_cohort` |
 | Submit only while `Running`, `day_index == days_completed`, `now ≤ deadline_of(days_completed)` | FR-013, FR-017, FR-018, FR-025, INV-8 | `submit_day` |
 | Forfeit only if `in_breach(now)`; fee `floor(stake × 30 ÷ 100)`, split 5 boost / 5 comeback / 10 developer / 10 operations, each floored, operations taking the rounding | FR-026, FR-027, INV-2 | `record_forfeits` |
@@ -209,6 +209,7 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | `progress:{wallet}:{scope}:{dayIndex}` | `{banked, target, completedAt?}` | `scope` = cohort address or `challenge`; `banked` is a multiple of 10; **written before "banked" is shown** (FR-023, R6) |
 | `pending:{wallet}:{cohort}` | `{dayIndex, proofHash, completedAt}` | A completed cohort day not yet landed; Phase 1 "Done — tap to submit" (FR-024b) |
 | `streak:{wallet}` | `{current, longest, lastDay}` | `lastDay` = global day index `floor((chainNow − 18,000) ÷ 86,400)` (turns over at 05:00 UTC, OD-6); +1 when a day completes on `lastDay + 1`; reset when a day is skipped; untouched by forfeits (FR-049…FR-052) |
+| `seeker:{wallet}` | `{mint, confirmedAt}` | Written only when the mainnet check found a Seeker Genesis Token for this wallet (FR-003b, R17); then never re-asked, so an outage never blocks a confirmed owner (FR-003d). Absence is never stored — a wallet with none is checked again on its next join |
 | `tour:{wallet}` | `{seenVersion}` | The first-run tour has been completed or skipped by this wallet (FR-067). Absent = show it after connecting; the tour stays re-openable from the app whatever this holds |
 | *(bundled resource)* | JSON | Scripted wallet public keys from `kotlin/core/src/main/resources/scripted-wallets.json` (FR-043a) — read-only, not in MMKV |
 
