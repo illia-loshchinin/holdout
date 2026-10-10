@@ -107,10 +107,10 @@ document.querySelectorAll('.ho-ring').forEach(function (el) {
   <div class="ho-dialog" role="dialog" aria-labelledby="t">
     <p class="ho-dialog-title" id="t">What did you just do?</p>
     <p class="ho-body" style="text-align:center;font-size:14px;line-height:20px">The app counted 17. Log what you really did — it goes into this set's trace.</p>
-    <div class="ho-card-row"><span class="ho-body" style="color:var(--text-primary)">Full push-ups</span><span class="ho-stepper"><button class="ho-stepper-btn" aria-label="Fewer">−</button><span class="ho-amount ho-stepper-value">15</span><button class="ho-stepper-btn" aria-label="More">+</button></span></div>
-    <div class="ho-card-row"><span class="ho-body" style="color:var(--text-primary)">From the knees</span><span class="ho-stepper"><button class="ho-stepper-btn" aria-label="Fewer">−</button><span class="ho-amount ho-stepper-value">2</span><button class="ho-stepper-btn" aria-label="More">+</button></span></div>
+    <div class="ho-card-row"><span class="ho-body" style="color:var(--text-primary)">Full push-ups</span><span class="ho-stepper"><button class="ho-stepper-btn" aria-label="Fewer full push-ups">−</button><span class="ho-amount ho-stepper-value">15</span><button class="ho-stepper-btn" aria-label="More full push-ups">+</button></span></div>
+    <div class="ho-card-row"><span class="ho-body" style="color:var(--text-primary)">From the knees</span><span class="ho-stepper"><button class="ho-stepper-btn" aria-label="Fewer from the knees">−</button><span class="ho-amount ho-stepper-value">2</span><button class="ho-stepper-btn" aria-label="More from the knees">+</button></span></div>
     <div class="ho-dialog-actions">
-      <button class="ho-quiet" style="color:var(--text-secondary)">Skip</button>
+      <button class="ho-quiet">Skip</button>
       <button class="ho-btn ho-btn-primary">Save</button>
     </div>
   </div>
@@ -132,7 +132,7 @@ document.querySelectorAll('.ho-ring').forEach(function (el) {
 </section><section id="QuietAction"><h2>QuietAction</h2>
 <div class="ho-stage"><div class="ho-row">
   <button class="ho-quiet">No wallet yet?</button>
-  <button class="ho-quiet">For judges: full cycle, 3 min</button>
+  <button class="ho-quiet">View on explorer</button>
   <button class="ho-quiet ho-quiet-warning">Leave — full refund until joining closes</button>
 </div></div>
 </section><section id="Readouts"><h2>Readouts</h2>
@@ -176,7 +176,7 @@ document.querySelectorAll('.ho-ring').forEach(function (el) {
 </div>
 </section><section id="StatBlock"><h2>StatBlock</h2>
 <div class="ho-stage"><div class="ho-row" style="justify-content:space-around">
-  <div class="ho-stat"><span class="ho-label">21-day · from 21 Sep · day 12 of 21</span><span class="ho-stat-counter">189 <span class="ho-stat-of">/ 312</span></span><span class="ho-caption">still standing</span></div>
+  <div class="ho-stat"><span class="ho-label">Hard · 21-day · from 21 Sep · day 12 of 21</span><span class="ho-stat-counter">189 <span class="ho-stat-of">/ 312</span></span><span class="ho-caption">still standing</span></div>
   <div class="ho-stat"><span class="ho-label">The Daily 25</span><span class="ho-stat-counter">25</span><span class="ho-caption">push-ups</span></div>
 </div></div>
 </section><section id="StatusChip"><h2>StatusChip</h2>
@@ -193,14 +193,15 @@ document.querySelectorAll('.ho-ring').forEach(function (el) {
   </div>
 </div>
 </section><section id="Stepper"><h2>Stepper</h2>
-<div class="ho-stage">
+<div class="ho-stage" id="stepper-demo">
   <div class="ho-row">
     <span class="ho-label">Target</span>
-    <span class="ho-stepper"><button class="ho-stepper-btn" aria-label="Fewer reps">−</button><span class="ho-amount ho-stepper-value" id="v">25</span><button class="ho-stepper-btn" aria-label="More reps">+</button></span>
+    <span class="ho-stepper"><button class="ho-stepper-btn" aria-label="Fewer reps">−</button><span class="ho-amount ho-stepper-value">25</span><button class="ho-stepper-btn" aria-label="More reps">+</button></span>
   </div>
 </div>
 <script>
-(function () { var v = document.getElementById('v'), b = document.querySelectorAll('.ho-stepper-btn'), n = 25;
+// Scoped to this card: in the gallery the Dialog's steppers come first on the page.
+(function () { var root = document.getElementById('stepper-demo'), v = root.querySelector('.ho-stepper-value'), b = root.querySelectorAll('.ho-stepper-btn'), n = 25;
   b[0].addEventListener('click', function () { n = Math.max(1, n - 1); v.textContent = n; });
   b[1].addEventListener('click', function () { n = Math.min(100, n + 1); v.textContent = n; }); })();
 </script>
@@ -212,13 +213,18 @@ document.querySelectorAll('.ho-ring').forEach(function (el) {
   <div class="ho-stat"><span class="ho-flame ho-flame-pb"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c.6 3 4.9 5.6 4.9 10.9a4.9 4.9 0 0 1-9.8 0c0-2.4 1.1-4 2.4-5.4.2 1.6.9 2.7 2.2 3.2-.4-3-.6-5.8.3-8.7z"/></svg><span class="ho-flame-num">31</span><span class="ho-pb">PB</span></span><span class="ho-caption">personal best</span></div>
 </div></div>
 </section><section id="Switch"><h2>Switch</h2>
-<div class="ho-stage" style="max-width:420px">
-  <button class="ho-switch" role="switch" aria-checked="true"><span class="ho-switch-track"><span class="ho-switch-knob"></span></span><span class="ho-switch-text">Test · recording sittings as video — only people who agreed in writing to be filmed</span></button>
-  <button class="ho-switch" role="switch" aria-checked="false"><span class="ho-switch-track"><span class="ho-switch-knob"></span></span><span class="ho-switch-text">Test · clean screen off</span></button>
+<div class="ho-stage" id="switch-demo" style="max-width:420px">
+  <button class="ho-switch" role="switch" aria-checked="true" data-on="Test · recording sets as video — only people who agreed in writing to be filmed" data-off="Test · video off — only people who agreed in writing to be filmed"><span class="ho-switch-track"><span class="ho-switch-knob"></span></span><span class="ho-switch-text">Test · recording sets as video — only people who agreed in writing to be filmed</span></button>
+  <button class="ho-switch" role="switch" aria-checked="false" data-on="Test · clean screen: no dots or text, for training recordings" data-off="Test · clean screen off"><span class="ho-switch-track"><span class="ho-switch-knob"></span></span><span class="ho-switch-text">Test · clean screen off</span></button>
 </div>
 <script>
-Array.prototype.forEach.call(document.querySelectorAll('.ho-switch'), function (s) {
-  s.addEventListener('click', function () { s.setAttribute('aria-checked', s.getAttribute('aria-checked') === 'true' ? 'false' : 'true'); });
+// The label is read, not inferred: it changes with the state. Scoped to this card, so the gallery's other cards are untouched.
+Array.prototype.forEach.call(document.querySelectorAll('#switch-demo .ho-switch'), function (s) {
+  s.addEventListener('click', function () {
+    var on = s.getAttribute('aria-checked') !== 'true';
+    s.setAttribute('aria-checked', on ? 'true' : 'false');
+    s.querySelector('.ho-switch-text').textContent = s.getAttribute(on ? 'data-on' : 'data-off');
+  });
 });
 </script>
 </section><section id="TierChips"><h2>TierChips</h2>

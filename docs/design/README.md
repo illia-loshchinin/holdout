@@ -22,7 +22,7 @@ The look is **native on Seeker**. It should feel like it shipped with the device
 
 **Voice:** a calm coach who can also do maths. Second person ("you", "your stake"), present tense, short sentences, and numbers before adjectives. Say what happened and what to do next. Never guilt-trip, never hype.
 
-**Casing:** sentence case for everything a person reads (*Connect wallet*, *Join the 7-day Holdout*). `label` text is uppercase, applied at the call site (`STILL STANDING`, `21-DAY · FROM 21 SEP · DAY 12 OF 21`). What to call things is under **Naming**.
+**Casing:** sentence case for everything a person reads (*Connect wallet*, *Join the 7-day Holdout*). `label` text is uppercase, applied at the call site (`STILL STANDING`, `HARD · 21-DAY · FROM 21 SEP · DAY 12 OF 21`). What to call things is under **Naming**.
 
 **Words to use / never use** (constitution XIII):
 
@@ -38,7 +38,7 @@ The look is **native on Seeker**. It should feel like it shipped with the device
 - *"If nobody drops out, you get exactly your stake back."* before every join.
 - *"Stakes and payouts are in SKR; dollar values are approximate."* wherever a USD label appears.
 - *"Some members in these Holdouts are scripted."* on first run, with a label on each scripted member.
-- *"80 % stays with members: 70 % to the prize pool, 10 % to this league's boost and comeback reserves. 20 % goes to the project."* wherever a forfeit split shows: the stake sheet and the forfeit screen, nowhere else. Decided 2026-10-10; the rule itself is 70 / 5 / 5 / 10 / 10, and the 10 % comes back as the boost and comeback lines below.
+- *"Miss one and you lose your stake. 80 % of it stays with members: 70 % to the prize pool and 10 % to the boost and comeback reserves of Easy · 7-day Holdouts. 20 % goes to the project, and so does the prize pool if nobody finishes."* wherever a forfeit split shows: the stake sheet and the forfeit screen (*"…so your stake of 1,250 SKR is lost. 80 % of it stays with members: 70 % to this Holdout's prize pool and 10 % …"*), nowhere else. The level and length are the Holdout's own, and a no-break space keeps every % on its number's line. Decided 2026-10-10 and reworded the same day; the rule itself is 70 / 5 / 5 / 10 / 10, and the 10 % comes back as the boost and comeback lines below.
 
 **Real copy, by moment:**
 
@@ -49,7 +49,7 @@ The look is **native on Seeker**. It should feel like it shipped with the device
 - Forfeit: *"You missed day 7."* then *"Your 9-day streak is still alive."* and two ways back: *Today's Daily 25* · *The next 7-day Holdout*.
 - Claim: *"You held out 21 days."* above **Claim 1,560 SKR**.
 - Broken streak: *"Your 14-day streak broke. Start a new one today."* There is no save button because there is no grace day.
-- The boost, on an offer: *"Prize boost: up to 480 SKR from this league's reserve when it settles"*, in `success`, only while the league's reserve holds more than 0. "Up to": the boost is capped at 20 % of the pool and paid only if someone forfeits, so it is never a promised amount. On a running Holdout: *"+ about 1,200 SKR boost from this league's reserve if anyone finishes"*.
+- The boost, on an offer: *"Prize boost: up to 480 SKR from the reserve of Easy · 7-day Holdouts when it settles"*, in `success`, only while that reserve holds more than 0. "Up to": the boost is capped at 10 % of the pool and paid only if someone forfeits, so it is never a promised amount. On a running Holdout: *"+ about 1,200 SKR boost from the reserve of Hard · 21-day Holdouts if anyone finishes"*. A reserve is always named by its Holdouts' level and length, never "league".
 - The comeback, on Today while a lost stake's 14-day window is open: *"Finish the Easy · 7-day Holdout starting in 2d 4h and up to 250 SKR of the stake you lost comes back."* On the claim, its own row: **Comeback** `250 SKR` *part of your last lost stake, back*.
 - Coach cues, shown large and spoken: *More light · Get in view · Phone to 45° · Arms straight · Hold*. Refused reps: *Go lower · Keep your body straight · Slow down*.
 
@@ -105,7 +105,7 @@ Each word has one job. **Holdout** names the thing you join, **challenge** names
 
 **Colour.** There is one theme, dark, and it is fixed. Material You dynamic colour is off, because the palette is the identity.
 
-- Ground: `canvas` (pure black). Raise content onto `surface-1` (cards), `surface-2` (nav, sheets, dialogs) and `surface-3` (chips, pressed states, inputs).
+- Ground: `canvas` (pure black). Raise content onto `surface-1` (cards and dialogs), `surface-2` (nav and sheets) and `surface-3` (chips, pressed states, inputs).
 - Text: `text-primary` for numbers and copy, `text-secondary` for captions and supporting lines, `text-tertiary` for labels and metadata. All three hold 4.5:1 or better on every surface.
 - `accent` (Tide Light) is the only interactive colour. `success` (Solana Green) means still standing, done, or confirmed. `warning` (Coral) means forfeit, last 10 minutes, or leave/stop. `celebration` (Solana Purple, `#9945FF`) is decoration only: the gradient and the personal-best flame. When purple has to be read, such as a **PB** label, set it in `celebration-text`, the same hue lightened to hold 5.7:1 or better on every surface.
 - Status is never colour alone. Pair `success` and `warning` with a word (*still standing*, *forfeited*) or an icon. They also differ in lightness by 2:1 (14:1 vs 7.1:1 on `canvas`).
@@ -142,6 +142,8 @@ The product has three of its own marks, all built from simple geometry rather th
 - **Minimum size:** horizontal 120px wide; the mark with its crowd 32px. Below 32px use the H alone, as the status-bar icon does.
 - **Ground:** the colour versions live only on black (`canvas`). On a light page someone else controls (a hackathon listing, a partner site, print), use the one-ink black version: the bold H alone, the themed-icon geometry, with the name. Never put the colour version on white.
 - **Never:** recolour the members or the H, stretch or rotate, add a gradient, glow or shadow, re-set the name in another font, rearrange the lockup, or put it on a photo without its black ground.
+
+Inside the app the name is live text, not the outlined file: `ui/Wordmark.kt` sets *Holdout* in the `counter` face at weight 300, tracked −2%, and follows the theme's face. The outlined files are for everything outside the app.
 
 Never borrow the Solana logomark as Holdout's own. It may appear only where Solana's brand guidelines allow, and nothing may imply an official Solana or Seeker product.
 
