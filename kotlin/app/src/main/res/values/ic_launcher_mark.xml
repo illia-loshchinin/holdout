@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The H of seven in the launcher icon and the splash: `accent`. Holdout Lab
+         overrides it with `warning` in src/lab/res/values (004 research R8). -->
+    <color name="ic_launcher_h">#FF80ECFF</color>
+</resources>

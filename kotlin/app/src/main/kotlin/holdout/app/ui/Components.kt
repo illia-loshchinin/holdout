@@ -46,7 +46,22 @@ object Format {
     const val SKR_DECIMALS = 6
 
     /** "Easy · 7-day Holdout", "Hard · 21-day Holdout": a Holdout's level is its form (H35). */
-    fun holdoutTitle(c: holdout.core.CohortSnapshot): String = "${holdout.core.LeagueParams.formName(c.form)} · ${c.durationDays}-day Holdout"
+    fun holdoutTitle(c: holdout.core.CohortSnapshot): String = "${level(c)} Holdout"
+
+    /**
+     * "Easy · 7-day", "Hard · 21-day": the level and the length. Member copy
+     * names a league's reserves by these, never by the word "league" (FR-041).
+     */
+    fun level(c: holdout.core.CohortSnapshot): String = "${holdout.core.LeagueParams.formName(c.form)} · ${c.durationDays}-day"
+
+    /**
+     * Where a lost stake goes, in the sentence the stake sheet and the forfeit
+     * screen share (FR-027, FR-037, FR-041; decided 2026-10-10). [pool] names
+     * the prize pool as that screen sees it. A no-break space keeps every "%"
+     * on its number's line.
+     */
+    fun lostStakeSplit(c: holdout.core.CohortSnapshot, pool: String): String = "80 % of it stays with members: 70 % to $pool and 10 % to the boost and comeback reserves of ${level(c)} Holdouts. " +
+        "20 % goes to the project, and so does the prize pool if nobody finishes."
 
     /** `46 SKR`, `12.5 SKR`: every amount a member stakes or receives, in SKR (FR-059). */
     fun skr(baseUnits: ULong): String = BigDecimal(baseUnits.toString()).movePointLeft(SKR_DECIMALS).stripTrailingZeros().toPlainString() + " SKR"
@@ -95,7 +110,7 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
     Text(text.uppercase(), style = LabelStyle, color = HoldoutColors.TextTertiary, modifier = modifier)
 }
 
-/** A hairline card — the only separation on black; there are no shadows (PRD §11). */
+/** A hairline card — the only separation on black; there are no shadows (design book, Depth). */
 @Composable
 fun HoldoutCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Column(

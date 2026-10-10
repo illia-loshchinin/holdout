@@ -3,7 +3,9 @@ package holdout.app.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * The colour tokens, transcribed from PRD §11.1 — not reinterpreted.
+ * The colour tokens, transcribed from the design book's `color` tokens in
+ * `docs/design/tokens.json` (Visual foundations → Colour in
+ * `docs/design/README.md`) — not reinterpreted.
  *
  * Every value is sampled from the Solana brand kit, so nothing looks borrowed.
  * **Dark only**, and Material You dynamic colour is disabled in [HoldoutTheme]:
@@ -47,7 +49,7 @@ object HoldoutColors {
     /** Coral. Forfeit, the last-10-minutes warning, faucet exhausted. Never a harsh red. */
     val Warning = Color(0xFFFF623A)
 
-    /** Solana Purple. Decoration only — never text under 24sp. */
+    /** Solana Purple. Decoration only, never text: purple that has to be read is [CelebrationText]. */
     val Celebration = Color(0xFF9945FF)
 
     /** Solana Purple lightened, same hue: the rare purple that has to be read, such as a PB label. */

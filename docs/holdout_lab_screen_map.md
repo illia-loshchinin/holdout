@@ -6,7 +6,7 @@
 
 **Visual base (decided 2026-10-10):** the same design system as the member app, the same sitting screen, plus an explicit **LAB marker** so a tester always knows which app is open: the name *Holdout Lab*, its own icon, and a `LAB` chip on the Choose screen. Lab is never shown to members, so nothing here changes what a member sees.
 
-> **Precedence.** This file describes screens; it decides no mechanic. Where it disagrees with spec 004, spec 002 (FR-023, FR-025, FR-026) or constitution X, they are right and this file is a bug. Behaviour is checked against `kotlin/app/src/lab/` and `kotlin/app/src/main/kotlin/holdout/app/sitting/` at commit `e6df566`.
+> **Precedence.** This file describes screens; it decides no mechanic. Where it disagrees with spec 004, spec 002 (FR-023, FR-025, FR-026) or constitution X, they are right and this file is a bug. Behaviour is checked against `kotlin/app/src/lab/` and `kotlin/app/src/main/kotlin/holdout/app/sitting/` at commit `478cd44`.
 
 ## Contents
 
@@ -52,7 +52,7 @@ Tiers, status columns and the card layout are the member map's (`holdout_screen_
 
 | Where | What | Why |
 |---|---|---|
-| Launcher | Its own icon, told apart from Holdout's at a glance (FR-001). Today: the status-bar 3×3 crowd in `accent` on black (004 research R8). To be brought under icon v2 (§10) | The two apps sit side by side on a tester's phone |
+| Launcher | Its own icon, told apart from Holdout's at a glance (FR-001). Holdout's icon v2 with the H of seven in `warning` (coral) instead of `accent`; on a themed home screen the whole crowd with the H in one ink, where Holdout shows the H alone; the Android 12+ splash plays the coral H (004 research R8) | The two apps sit side by side on a tester's phone |
 | App name | **Holdout Lab** | Android shows it under the icon and in the recents |
 | L0 header | Wordmark *Holdout* + a `LAB` chip (`surface-3`, `accent` text, `label` style) on the same line | The first thing a tester reads |
 | Switches | Every tester switch label starts `TEST ·`, in `accent` when on and `text-tertiary` when off (`TestSwitch`) | A switch is never mistaken for a member setting |
@@ -126,11 +126,11 @@ Stop on S1 or S2, before any frame reached the recorder, returns to L0 with no d
 4. `COUNT AS` section label, then three cards, each a full-width secondary button with a detail line under it:
    | Row | Button | Detail line (as built) | Counts as |
    |---|---|---|---|
-   | 1 | **Daily 25** | `45° · 40–60° · knees allowed` | `Stakes.DAILY` |
-   | 2 | **Easy Holdout** | `45° · 40–60° · knees allowed` | `Stakes.EASY` |
-   | 3 | **Hard Holdout** | `45° · from the toes` | `Stakes.STAKED` |
+   | 1 | **Daily 25** | `45° · knees allowed · counted as the 7-day` | `Stakes.DAILY` |
+   | 2 | **Easy Holdout** | `7-day · 45° · knees allowed` | `Stakes.EASY` |
+   | 3 | **Hard Holdout** | `21-day · 45° · from the toes · the stricter count` | `Stakes.STAKED` |
 5. `SET` section label, then:
-   - **Record video** switch — off: *TEST · video recording off — only people who agreed in writing may be filmed*; on: *TEST · recording sittings as video — only people who agreed in writing to be filmed* (constitution X, 002 FR-026). Off on every fresh install, remembered on the phone (FR-005)
+   - **Record video** switch — off: *TEST · video off — only people who agreed in writing to be filmed*; on: *TEST · recording sets as video — only people who agreed in writing to be filmed* (constitution X, 002 FR-026). Off on every fresh install, remembered on the phone (FR-005)
    - **Clean screen** switch — on: *TEST · clean screen: no dots or text, for training recordings*; off: *TEST · clean screen off*. Remembered
    - `TARGET` with a **−** / **+** stepper around the number (`amount` style, accent signs; 1–100, default 25; touch targets ≥ 48 dp, accessible names *Fewer reps* / *More reps*). Remembered
 6. Footer, `label` style, tertiary: *N sets on this phone · pull them over USB with scripts/pull-traces.sh* (count of `*.trace.csv` in `files/traces/`)
@@ -279,6 +279,6 @@ The book (`docs/design/`) has no word on Lab. To draw the boards above it needs,
 
 Decided by the product owner on 2026-10-10 (to be built as code tasks on spec 004, and drawn):
 
-1. **The Lab icon under v2 — decided:** the same 5×5 crowd as Holdout's icon, with the H of seven drawn in **`warning`** (coral, `#FF623A`) instead of `accent`. One language, one shape; the colour says "test". The book's rule *"never draw the H in anything but `accent`"* is written for Holdout's own icon and gets one stated exception: Holdout Lab's launcher, themed and status-bar icons. Replaces today's 3×3 crowd in `src/lab/res/drawable/`.
-2. **Mode detail lines on L0 — decided: three different descriptions.** *Daily 25:* `45° · knees allowed · counts toes separately`. *Easy Holdout:* `45° · knees allowed · staked rules`. *Hard Holdout:* `45° · from the toes`. The three rows stay, because a trace carries its mode. Source: spec 002 FR-007 and `LabMode` in `lab/LabSettings.kt`.
+1. **The Lab icon under v2 — decided:** the same 5×5 crowd as Holdout's icon, with the H of seven drawn in **`warning`** (coral, `#FF623A`) instead of `accent`. One language, one shape; the colour says "test". The book's rule *"never draw the H in anything but `accent`"* is written for Holdout's own icon and gets one stated exception: Holdout Lab's launcher icon and splash. **Built (478cd44):** the H colour is the resource `ic_launcher_h`, which `src/lab/res/values` overrides; Lab's themed-icon layer is the whole crowd with the H, so it differs from Holdout's H alone. The 3×3 crowd is gone.
+2. **Mode detail lines on L0 — decided: three different descriptions.** Revised the same afternoon, because the first lines were untrue in Lab: the Daily 25 and the 7-day share the rules and the counting, the 21-day counts more strictly. *Daily 25:* `45° · knees allowed · counted as the 7-day`. *Easy Holdout:* `7-day · 45° · knees allowed`. *Hard Holdout:* `21-day · 45° · from the toes · the stricter count`. The three rows stay, because a trace carries its mode. Source: spec 002 FR-007 and `LabMode` in `lab/LabSettings.kt`.
 3. **Set count threshold — open:** whether the footer warns when many sets wait on the phone, and at what number. Low impact; decide when the Lab boards are drawn.

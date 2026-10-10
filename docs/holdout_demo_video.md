@@ -20,7 +20,7 @@ Both are cut from the same footage. Until they exist, the app says "Walkthrough 
 
 ## 2. Storyboard — 3:00
 
-Screen numbers are the PRD's screen inventory (§10.1).
+Screen numbers are the hackathon PRD's screen inventory (§10.1 of `docs/archive/holdout_v1_prd_hackathon-build_2026-09-18.md`, archived); the same screens as built are the cards in `docs/holdout_screen_map.md`.
 
 | Time | Beat | On screen | Filmed |
 |---|---|---|---|
@@ -103,7 +103,7 @@ Keep it in this file or beside the footage; the README's "how to verify" section
 - **Submission export:** 16:9, 1080p, H.264, about 3:00.
 - **In-app export:** 9:16, 720×1280, H.264 at about 1.5 Mbps → roughly 34 MB, inside the 40 MB budget. Check the file size before it goes into the APK.
 - **Music:** only tracks that are licensed for this use, or none.
-- **Cards and captions** use the app's own tokens (PRD §11): black canvas, white text, `#80ECFF` for emphasis, `#14F195` for the claim moment, and the Solana gradient only on the end card. Captions in Roboto, amounts in JetBrains Mono, so the video and the app look like one thing.
+- **Cards and captions** use the app's own tokens (`docs/design/tokens.json`): black canvas, white text, `#80ECFF` for emphasis, `#14F195` for the claim moment, and the Solana gradient only on the end card. Captions in Roboto, amounts in JetBrains Mono, so the video and the app look like one thing.
 
 ## 8. Rules
 
@@ -120,7 +120,7 @@ Five to seven real people, recruited by 21 September. They are the point: real m
 
 ### What they need
 
-- An Android phone, and a wallet that can sign devnet transactions — spike S1 says which to recommend.
+- An Android phone, and a wallet that signs devnet transactions over Mobile Wallet Adapter. Seed Vault on a Seeker passed spike S1 (research, "S1 · passed 22 September 2026"); another phone's own wallet is checked at its first install.
 - The APK, from the GitHub release.
 - About five minutes a day, plus 25 push-ups.
 
@@ -128,9 +128,9 @@ Five to seven real people, recruited by 21 September. They are the point: real m
 
 1. Install the APK and the wallet.
 2. Open Holdout, connect the wallet, tap **Get test tokens**.
-3. Do today's free challenge to see how counting feels.
-4. Join the 7-day cohort **before Monday 28 September 04:00 UTC** — after that, joining is closed.
-5. From Monday, 25 push-ups a day before 05:00 UTC. Miss one and the stake is gone. Reps bank in blocks of 10, so several sittings a day are fine.
+3. Do today's Daily 25 to see how counting feels, with the phone propped at about 45° to one side of you; the camera check says when it is right.
+4. For a whole cycle in under an hour, join the test lobby: three 10-minute days at 5 reps, a new Holdout every 30 minutes. The 7-day and 21-day Holdouts start every Monday at 05:00 UTC, and joining closes an hour before.
+5. In a 7-day or 21-day Holdout, 25 push-ups a day before 05:00 UTC. Miss one and the stake is gone. Reps bank in blocks of 10, so several sittings a day are fine.
 6. Everything is a test network and a test token: nothing has value.
 7. The camera never leaves the phone — no video or landmark is uploaded.
 8. Report anything odd in the group chat, with the time it happened.
