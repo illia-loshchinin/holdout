@@ -145,9 +145,9 @@ Constitution X forbids the recorder, which is code that records, and the check e
 
 **Decision**:
 - **Name:** `src/lab/res/values/strings.xml` sets `app_name` to **"Holdout Lab"**.
-- **Icon:** `src/lab/res/` holds an adaptive icon built from the design book's **status-bar glyph**: the 3×3 crowd with the larger Holdout in the middle, drawn in `accent` (`#80ECFF`) on `canvas` black. A phone screen can tell it from Holdout's 5×5 white-and-green crowd at a glance (FR-001).
+- **Icon** *(revised 2026-10-10, product owner; as built after the PR #36 review)*: Lab's launcher icon is Holdout's own icon v2 — the 5×5 crowd of `text-primary` members and the H of seven — with the H in `warning` (`#FF623A`) instead of `accent`, on `canvas` black. One language, one shape; the colour says "test", and a phone screen tells the two apart at a glance (FR-001). Lab copies no geometry: `src/main/res/drawable/ic_launcher_foreground.xml` and the splash `avd_holdout_splash.xml` take the H's colour from the resource `ic_launcher_h` (`src/main/res/values/ic_launcher_mark.xml`, `accent`), which `src/lab/res/values/ic_launcher_mark.xml` overrides with `warning` — so Lab's Android 12+ splash plays the coral H too. A themed icon has no colour, so Lab has its own themed-icon layer, `src/lab/res/drawable/ic_launcher_monochrome.xml` (an inset of the foreground): the whole crowd with the H in one ink, where Holdout's is the H alone, and the two stay apart on a themed home screen as well. The status-bar icon is not overridden. *Until 2026-10-10 the icon was the design book's status-bar glyph, the 3×3 crowd in `accent`.*
 
-**Rationale**: It stays on black and uses no second green dot, so the brand rules for Holdout's own icon are untouched. Lab is never shown to members, so it needs no design-system entry. The design book's rule "never recolour the members" governs Holdout's own icon.
+**Rationale**: It stays on black and recolours nothing but the H. The design book's rule that the H is only ever `accent` is written for Holdout's own icon and names Holdout Lab as its one exception in its *Holdout Lab* section, which arrives with the design-book sync of PR #34; that PR therefore merges before this one. Lab is never shown to members, so the exception reaches no member.
 
 ## R9 · What the member app's developer build may still do
 
