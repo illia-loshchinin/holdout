@@ -103,7 +103,7 @@ fun CohortHome(
         // drawn only at settlement and only if someone finishes.
         figures?.projectedBoost?.takeIf { it > 0uL }?.let {
             Text(
-                "+ about ${Format.skr(it)} boost from this league's reserve if anyone finishes",
+                "+ about ${Format.skr(it)} boost from the reserve of ${Format.level(c)} Holdouts if anyone finishes",
                 style = MaterialTheme.typography.bodyMedium,
                 color = HoldoutColors.TextSecondary,
             )
