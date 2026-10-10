@@ -218,6 +218,8 @@ java -jar kotlin/crank/build/libs/crank.jar init --admin <keypair> --operator <p
 java -jar kotlin/crank/build/libs/crank.jar chips publish --rate <usd-per-skr>
 ```
 
+The set carries a deadline: the program refuses it from chain time + 10 minutes (`ChipSetExpired`, 6014), so a signed set left pending never lands much later than you meant. Give another with `--valid-until 2026-10-12T05:00:00Z`.
+
 **The weekly chip check** (FR-056, T100) is the Operator's own scheduled command — never part of `crank run`, so the Operator key is loaded only while it runs. It reads the SKR rate from the Jupiter Price API and re-prices all four chips from it every week, publishes at most once per **publish window** — Monday 01:00 to 05:00 UTC, the 4 hours before the week's cohorts open, so they lock a rate at most 4 hours old — and exits `0` without publishing when Jupiter has no answer, saying why (FR-057). Try it first without sending:
 
 ```bash

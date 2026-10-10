@@ -168,6 +168,8 @@ class ChipsAutoTest {
         assertEquals("true", json.text("published"))
         assertEquals(2, json.getValue("version").jsonPrimitive.long)
         assertEquals(Chips.price(BigDecimal("0.024"), 6).map { it.baseUnits }, amountsIn(c.sent("sendTransaction").single()))
+        assertEquals(nextMonday, ByteBuffer.wrap(c.sent("sendTransaction").single().message.instructions.single().data, 40, 8).order(ByteOrder.LITTLE_ENDIAN).getLong(), "signed with the window's close as its deadline")
+        assertEquals("2026-10-12T05:00:00Z", json.text("validUntil"))
         assertEquals("true", json.text("alreadyPublishedThisWindow"), "the set it just sent counts")
         assertEquals("false", json.text("wouldPublishNow"), "another run now would be skipped")
     }
@@ -243,6 +245,19 @@ class ChipsAutoTest {
         assertEquals("too late to land in the publish window", json.text("reason"))
         assertEquals("false", json.text("wouldPublishNow"), "the state at the second read, not the first")
         assertTrue(c.sent("simulateTransaction").isEmpty() && c.sent("sendTransaction").isEmpty())
+    }
+
+    @Test
+    fun `given the program refuses the set as past its deadline, when run, then the report says too late, not a failure`() {
+        val c = cluster()
+        val refusing =
+            Cluster(
+                c.replies + ("sendTransaction" to { _ -> """{"jsonrpc":"2.0","error":{"code":-32002,"message":"Transaction simulation failed: custom program error: 0x177e"},"id":"x"}""" }),
+            ).also { it.now = c.now }
+        val json = auto(refusing, FixedRate(BigDecimal("0.03")))
+        assertEquals("false", json.text("published"))
+        assertEquals("too late to land in the publish window", json.text("reason"))
+        assertTrue(json.text("detail").contains("6014"), json.text("detail"))
     }
 
     @Test
@@ -453,6 +468,8 @@ class ChipsAutoTest {
         assertFailsWith<CrankException> { check("--auto", "--rate", "0.02") }
         assertFailsWith<CrankException> { check("--auto", "--decimals", "6") }.also { assertTrue(it.message!!.contains("--decimals"), it.message) }
         assertFailsWith<CrankException> { check("--auto", "--if-drift", "0.20") }
+        assertFailsWith<CrankException> { check("--auto", "--valid-until", "2026-10-12T05:00:00Z") }.also { assertTrue(it.message!!.contains("window's close"), it.message) }
+        check("--rate", "0.02", "--valid-until", "2026-10-12T05:00:00Z")
     }
 
     // ---- the Jupiter answer -----------------------------------------------------------

@@ -238,14 +238,22 @@ export const setFlagsIx = async (
 
 // ------------------------------------------------------------ publish_chip_set
 
-/** `publish_chip_set(amounts: [u64; 4])` — the operator signs, and no price is passed (constitution III). */
+/** A deadline no scenario's clock reaches, for publishes that are not about the deadline. */
+export const NO_DEADLINE = 2n ** 63n - 1n;
+
+/**
+ * `publish_chip_set(amounts: [u64; 4], valid_until: i64)` — the operator signs,
+ * and no price is passed (constitution III); the set is refused at or after
+ * `validUntil` (6014, FR-055a, FR-056).
+ */
 export const publishChipSetIx = async (
   operator: Address,
   amounts: readonly [bigint | number, bigint | number, bigint | number, bigint | number],
+  validUntil: bigint | number = NO_DEADLINE,
 ): Promise<Instruction> => ({
   programAddress: PROGRAM_ID,
   accounts: [roSigner(operator), rw(await configPda())],
-  data: concat(instructionDiscriminator('publish_chip_set'), ...amounts.map(u64)),
+  data: concat(instructionDiscriminator('publish_chip_set'), ...amounts.map(u64), i64(validUntil)),
 });
 
 // ----------------------------------------------------------------- open_cohort
