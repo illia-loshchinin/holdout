@@ -64,6 +64,7 @@ Product owner decision with spec 004 (Holdout Lab and the member app) and consti
 ### Session 2026-10-10
 
 - Q: Should seeing the knees be its own pre-flight pill, now that "Whole body in frame" hides the most common failure inside it? (FR-018, FR-024a) → A: **Yes.** The pills are **Lighting · Whole body in frame · Knees visible · Camera view · Background still**. *Knees visible* holds the near-knee checks that *Whole body in frame* used to carry (the near knee found and clear of the picture's edges) and keeps their fixes; it blocks the start like the other three, and only *Background still* stays advisory. *Whole body in frame* keeps every joint present, the head inside the picture and the near foot clear of the edges. The valid plank stays the ready hold, not a pill (FR-018a). Decided by the product owner on the screen-map review.
+- Q: What should the set-up guide say first, now that a fast reader sees only page 1, which is about the phone? (FR-015) → A: **The two things that decide whether a rep counts.** Under the guide's title, on every page: "Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone." Page 1 adds after the 45° drawing "From there it sees all of you, and the knee nearer to it." Page 2 opens with the whole-body line and the knees line, then the position and the outline. Decided by the product owner on the screen-map review.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -181,7 +182,7 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 
 **Setting up**
 
-- **FR-015**: When a sitting opens, a set-up guide MUST be shown before the camera checks can start a countdown, with three pages: where the phone goes (only the placements these stakes accept, drawn from above with distances), how to lie, and how counting starts.
+- **FR-015**: When a sitting opens, a set-up guide MUST be shown before the camera checks can start a countdown, with three pages: where the phone goes (only the placements these stakes accept, drawn from above with distances), how to lie, and how counting starts. *(Amended 2026-10-10.)* Under its title, on every page, it MUST first say "Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone."; the phone page MUST say why the placement serves both ("From there it sees all of you, and the knee nearer to it."), and the body page MUST open with the whole-body and knees lines before the position and the outline.
 - **FR-016**: The guide MUST offer "Don't show this again", remembered per wallet and per stakes, and MUST be reopenable from the sitting screen until the member is lined up.
 - **FR-017**: No countdown MAY start while the guide is open.
 - **FR-018**: While the member gets into position, the screen MUST show one correction at a time, at most three words, in type readable from about two metres, chosen in this order: more light; the phone standing up; getting into view; the phone's placement; getting down; further; closer; left or right; then "Hold". A moving background is shown as its own pill, never as the correction, because it does not block the start (001 FR-019).
