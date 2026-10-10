@@ -30,7 +30,7 @@ The evidence is the phone's own: Holdout Lab (spec 004; debug builds before 2026
 
 **Constraints**: Camera frames never leave the device (constitution X) — traces hold landmark numbers only, and Holdout Lab's video stays on the phone until pulled over USB, of people who agreed in writing. No microphone permission. Every threshold is stated with the measurements behind it (constitution XI).
 
-**Scale/Scope**: One exercise (push-ups), three stakes, one accepted placement (45°, with a band per stakes). 74 committed traces; 27 labelled sittings from at least three people; the 8 head-on traces (`front-*`) kept as evidence only.
+**Scale/Scope**: One exercise (push-ups), three stakes, one accepted placement (45°, with a band per stakes). 46 committed traces; 27 labelled sittings from at least three people; the 8 head-on traces (`front-*`) kept as evidence only.
 
 ## Constitution Check
 
