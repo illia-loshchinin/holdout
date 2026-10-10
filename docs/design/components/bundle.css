@@ -94,3 +94,46 @@ html, body { margin: 0; background: var(--canvas); color: var(--text-primary); f
 
 /* Gradient — two moments only */
 .ho-sweep { background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end)); }
+
+/* Status chip: state words beside a number; never colour alone */
+.ho-tag-accent { color: var(--accent); }
+.ho-tag-success { color: var(--success); }
+.ho-tag-warning { color: var(--warning); }
+
+/* Notice card: a card that reports, with a quiet way out */
+.ho-notice-title { font: 500 20px/26px var(--font-sans); color: var(--text-primary); margin: 0; }
+.ho-notice-warning .ho-notice-title { color: var(--warning); }
+
+/* Dialog: a focused question over a 65% scrim */
+.ho-scrim { background: rgba(0, 0, 0, .65); padding: var(--space-gutter); display: flex; align-items: center; justify-content: center; }
+.ho-dialog { box-sizing: border-box; width: 100%; max-width: 350px; background: var(--surface-1); border: var(--size-border) solid var(--hairline); border-radius: var(--radius-card); padding: var(--space-card); display: flex; flex-direction: column; gap: var(--space-tight); }
+.ho-dialog-title { font: 500 22px/28px var(--font-sans); color: var(--text-primary); margin: 0; text-align: center; }
+.ho-dialog-actions { display: flex; justify-content: space-between; align-items: center; gap: var(--space-items); margin-top: var(--space-tight); }
+.ho-dialog .ho-btn { width: auto; min-width: 120px; height: var(--size-touch); padding: 0 var(--space-items); font-size: 16px; line-height: 24px; }
+
+/* Choice chips: a small single choice, remembered */
+.ho-choices { display: flex; flex-wrap: wrap; gap: var(--space-tight); }
+.ho-choice { box-sizing: border-box; min-height: 36px; padding: 0 var(--space-items); background: var(--surface-3); border: var(--size-border) solid var(--hairline); border-radius: var(--radius-pill); color: var(--text-primary); font: 500 14px/20px var(--font-sans); cursor: pointer; }
+.ho-choice[aria-checked="true"] { background: var(--accent-tint); border-color: var(--accent); color: var(--accent); }
+.ho-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Switch (Holdout Lab only): a tester setting, labelled for both states */
+.ho-switch { display: flex; align-items: center; gap: var(--space-tight); min-height: var(--size-touch); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; color: var(--text-tertiary); }
+.ho-switch-track { position: relative; flex: none; width: 44px; height: 24px; border-radius: var(--radius-pill); background: var(--surface-3); border: var(--size-border) solid var(--hairline); transition: background-color 200ms; }
+.ho-switch-knob { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: var(--radius-pill); background: var(--text-secondary); transition: transform 200ms, background-color 200ms; }
+.ho-switch[aria-checked="true"] .ho-switch-track { background: var(--accent); border-color: var(--accent); }
+.ho-switch[aria-checked="true"] .ho-switch-knob { transform: translateX(20px); background: var(--on-light); }
+.ho-switch[aria-checked="true"] .ho-switch-text { color: var(--accent); }
+.ho-switch-text { font: 500 13px/16px var(--font-sans); letter-spacing: .02em; text-transform: uppercase; }
+.ho-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-chip); }
+
+/* Stepper (Holdout Lab only): a small integer, one tap a step */
+.ho-stepper { display: inline-flex; align-items: center; gap: var(--space-tight); }
+.ho-stepper-btn { width: var(--size-touch); height: var(--size-touch); background: none; border: 0; border-radius: var(--radius-pill); color: var(--accent); font-family: var(--font-mono); font-size: 20px; cursor: pointer; }
+.ho-stepper-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ho-stepper-value { min-width: 40px; text-align: center; }
+
+/* Readouts (Holdout Lab only): what the counter is reading, under the count */
+.ho-readouts { display: flex; flex-direction: column; gap: var(--space-1); }
+.ho-readouts .ho-label { text-transform: none; letter-spacing: 0; font-family: var(--font-mono); font-weight: 400; }
+.ho-readout-warning { color: var(--warning) !important; }

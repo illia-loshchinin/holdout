@@ -1,0 +1,16 @@
+<!-- @dsCard group="Inputs" height=140 subtitle="Holdout Lab only: labelled in both states" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Switch — preview</title></head>
+<body>
+<div class="ho-stage" style="max-width:420px">
+  <button class="ho-switch" role="switch" aria-checked="true"><span class="ho-switch-track"><span class="ho-switch-knob"></span></span><span class="ho-switch-text">Test · recording sittings as video — only people who agreed in writing to be filmed</span></button>
+  <button class="ho-switch" role="switch" aria-checked="false"><span class="ho-switch-track"><span class="ho-switch-knob"></span></span><span class="ho-switch-text">Test · clean screen off</span></button>
+</div>
+<script>
+Array.prototype.forEach.call(document.querySelectorAll('.ho-switch'), function (s) {
+  s.addEventListener('click', function () { s.setAttribute('aria-checked', s.getAttribute('aria-checked') === 'true' ? 'false' : 'true'); });
+});
+</script>
+</body>
+</html>

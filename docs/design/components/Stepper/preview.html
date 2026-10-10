@@ -1,0 +1,18 @@
+<!-- @dsCard group="Inputs" height=96 subtitle="One tap, one step" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Stepper — preview</title></head>
+<body>
+<div class="ho-stage">
+  <div class="ho-row">
+    <span class="ho-label">Target</span>
+    <span class="ho-stepper"><button class="ho-stepper-btn" aria-label="Fewer reps">−</button><span class="ho-amount ho-stepper-value" id="v">25</span><button class="ho-stepper-btn" aria-label="More reps">+</button></span>
+  </div>
+</div>
+<script>
+(function () { var v = document.getElementById('v'), b = document.querySelectorAll('.ho-stepper-btn'), n = 25;
+  b[0].addEventListener('click', function () { n = Math.max(1, n - 1); v.textContent = n; });
+  b[1].addEventListener('click', function () { n = Math.min(100, n + 1); v.textContent = n; }); })();
+</script>
+</body>
+</html>

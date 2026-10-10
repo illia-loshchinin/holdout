@@ -3,9 +3,9 @@
 | | |
 | --- | --- |
 | Artifact | https://claude.ai/code/artifact/f4e92223-6e90-4e26-b194-3e2d69d87d9a (Design System type, "Holdout") |
-| Version | 1791563473-5f67 |
-| Synced | 2026-10-09 (app icon v2) |
-| Components | BankRing, BottomNav, CameraSitting, Card, Countdown, PrimaryButton, QuietAction, RosterRow, SecondaryButton, Sheet, StatBlock, StreakFlame, TierChips |
+| Version | 1791633404-fa08 |
+| Synced | 2026-10-10 (Standing, Easy/Hard, the fee sentence, Holdout Lab, seven components) |
+| Components | BankRing, BottomNav, CameraSitting, Card, ChoiceChips, Countdown, Dialog, NoticeCard, PrimaryButton, QuietAction, Readouts, RosterRow, SecondaryButton, Sheet, StatBlock, StatusChip, Stepper, StreakFlame, Switch, TierChips |
 
 `docs/design/` mirrors the artifact and is never edited by hand. To refresh it, follow
 `.claude/skills/holdout-ui/references/sync.md`.
@@ -13,6 +13,7 @@
 Files here:
 
 - `README.md` — the brand book (principles, voice, naming, visual foundations, iconography).
+- `lab.md` — the Holdout Lab section: the LAB marker, the icon exception, the words and the components Lab adds.
 - `tokens.json` — every token, the source the Kotlin theme is checked against.
 - `components/<Comp>/README.md` — guidelines per component; `preview.html` — its HTML reference.
 - `components/bundle.css` — the `ho-*` HTML reference implementation.

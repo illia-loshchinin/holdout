@@ -34,7 +34,7 @@ through the `/speckit-*` skills — never edit them from here (see `CLAUDE.md`).
   add it to the theme file first — with the exact value from `docs/design/tokens.json` — then use it.
 - **Shared components first.** Use `PrimaryButton`, `SecondaryButton`, `HoldoutCard`, `SectionLabel`,
   `Body`, `Notice`, `Reading`, `HoldoutLoader`, `Format.*` from `holdout.app.ui`. When the book names a
-  component that has no shared Composable yet (StatBlock, BankRing, Countdown, StreakFlame, TierChips,
+  component that has no shared Composable yet (StatBlock, BankRing, Countdown, StreakFlame, TierChips, StatusChip, NoticeCard, Dialog, ChoiceChips, Switch, Stepper, Readouts,
   Sheet, RosterRow, BottomNav, QuietAction), grep for an inline version first; extract it into
   `ui/Components.kt` (or its own file in `ui/`) instead of writing a second copy.
 - **One column, no app bar, hero number centred.** `Spacing.screenGutter` edges, `Spacing.betweenSections`
