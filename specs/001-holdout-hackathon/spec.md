@@ -147,7 +147,9 @@ Product owner decisions, from the PR #20 and #22 reviews.
 Spec consistency, from the analysis of PR #41:
 
 - Q: Should the sitting flow drop the `Liveness` state, so a sitting runs `Idle` → `Preflight` → `Countdown` → `Counting` with the held start position as the only gate before the countdown? (FR-020, US-3, §8.3) → A: **Yes.** The palm check was dropped on 2026-09-22 (FR-020, OD-3, T047) and nothing took its place as a liveness check: holding the start position is a readiness check. §8.3 loses the `Liveness` state and its rows, US-3 no longer promises that a live human is verified, and the Android contract's sitting row loses `Liveness` and the palm-timeout variant.
-- Q: When an environment check fails, does the sitting end, or stay in pre-flight showing that check's fix, with a failure during the countdown going back to pre-flight? (FR-019, FR-020, §8.3) → A: **It never ends on a failed check.** In `Preflight` the failing check shows its fix and the sitting waits; the still-background check only advises (FR-019). During `Countdown`, a gating check failing, the camera view changing or the plank breaking returns to `Preflight` and the hold starts again (FR-020). Nothing banked changes either way; only the member cancelling, or the sitting ending, leads back to `Idle`.
+- Q: When an environment check fails, does the sitting end, or stay in pre-flight showing that check's fix, with a failure during the countdown going back to pre-flight? (FR-019, FR-020, §8.3) → A: **It never ends on a failed check.** In `Preflight` the failing check shows its fix and the sitting waits; the still-background check only advises (FR-019). During `Countdown`, a gating check failing, the camera view changing or the plank breaking returns to `Preflight` and the hold starts again (FR-020). Nothing banked changes either way; only the member cancelling or stopping, or the app being closed or crashing, leads back to `Idle`.
+- Q: What moves a sitting from `Countdown` to `Counting`, and where does a sitting go when the app leaves the foreground mid-set? (FR-020, FR-024, §8.3) → A: **Counting begins when the spoken countdown ends with the checks still holding and the plank read; leaving the foreground starts over at the checks.** At "go" the counter must have read enough of the held plank to set the sitting's top and placement (002 FR-008); if it has not, the sitting goes back to `Preflight` and the hold starts again. When the app leaves the foreground during `Countdown` or `Counting`, the camera stops watching, so that sitting ends: reps short of the next block of 10 are discarded, banked blocks are kept, and the screen returns to `Preflight`, where a new sitting needs the checks and the held start position again. Only the member stopping, or the app being closed or crashing, returns to `Idle`. *(PR #41 review.)*
+- Q: Does US-3's "refuses to start until every check passes" include the still-background check? (FR-019, US-3) → A: **No.** The lighting, whole-body and camera-view checks gate the start; the still-background check is shown with its fix and never blocks (FR-019, 2026-09-26). US-3 now says so. *(PR #41 review.)*
 
 Product owner decision: the two leagues serve different audiences.
 
@@ -232,7 +234,7 @@ Requirements, edge scenarios and acceptance criteria belonging to Phase 2 are ma
 
 **Given** a member's cohort is running and today's reps are not yet done
 **When** they start a sitting
-**Then** the app checks the environment and refuses to start until every check passes, telling them exactly what to fix; waits until they hold the start position, a readiness check and not a liveness check (FR-020, OD-3); counts reps that meet the form rules and silently discards ones that do not; banks every block of 10 verified reps on the device; and the moment the banked total reaches the day's requirement, records the day as complete.
+**Then** the app checks the environment and refuses to start until the lighting, whole-body and camera-view checks pass, telling them exactly what to fix (the still-background check only advises, FR-019); waits until they hold the start position, a readiness check and not a liveness check (FR-020, OD-3); counts reps that meet the form rules and silently discards ones that do not; banks every block of 10 verified reps on the device; and the moment the banked total reaches the day's requirement, records the day as complete.
 
 **And given** they stop part-way — say after 10, then come back for 10 more, then 5
 **Then** each sitting starts with the checks and the held start position again, banked blocks carry across sittings for the whole day, and reps short of the next block of 10 when a sitting ends are not kept.
@@ -531,11 +533,13 @@ A sitting: `Idle` → `Preflight` → `Countdown` → `Counting`, then either ba
 |---|---|---|
 | `Idle → Preflight` | member starts a sitting | shows reps still needed and time left; warns in the last 10 minutes (FR-047) |
 | within `Preflight` | a gating check fails | that check shows what to fix and the sitting waits; the still-background check only advises (FR-019); nothing banked changes |
-| `Countdown → Preflight` | a gating check fails, the camera view changes or the plank breaks before "go" | back to the checks; the hold starts again; nothing banked changes (FR-020) |
 | `Preflight → Countdown` | four checks green **and** the start position held about a second | no tap; spoken countdown; leaving the position restarts the hold and nothing banked changes (FR-020) |
+| `Countdown → Counting` | the spoken countdown ends with the checks still holding and enough of the plank read to set the sitting's top and placement (002 FR-008) | counting begins; a descent begun on "1" counts |
+| `Countdown → Preflight` | a gating check fails, the camera view changes or the plank breaks before "go", or too little of the plank was read by "go" | back to the checks; the hold starts again; nothing banked changes (FR-020) |
 | `Preflight` or `Countdown → Idle` | member cancels | nothing banked changes |
 | within `Counting` | every 10th verified rep of the day | a block of 10 is banked on the device |
-| `Counting → Idle` | sitting ends — member stops, app closes or crashes | reps short of the next block of 10 are discarded; banked blocks kept for the day |
+| `Countdown` or `Counting → Preflight` | the app leaves the foreground | that sitting ends: reps short of the next block of 10 are discarded, banked blocks kept; the next sitting starts at the checks (FR-024) |
+| `Counting → Idle` | sitting ends — member stops, the app is closed or crashes | reps short of the next block of 10 are discarded; banked blocks kept for the day |
 | `Counting → Completed` | banked + current verified reps reach the day's requirement | the day is done |
 | `Completed → Submitted` | the completed cohort day is confirmed on-chain | day counter advances; a Daily 25 day is recorded on the device instead |
 
