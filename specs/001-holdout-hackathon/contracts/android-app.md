@@ -42,7 +42,7 @@ Client: `com.solanamobile:mobile-wallet-adapter-clientlib-ktx` 2.2.0, used as in
 
 | Item | Contract |
 |---|---|
-| Theme | **A single dark theme** built from the tokens in `docs/design/` (`tokens.json`, transcribed into `ui/theme/`) — black canvas, Solana-palette accents. No light variant |
+| Theme | **A single dark theme** in `ui/theme/`, its tokens kept equal to `docs/design/tokens.json` and checked by `python scripts/design-book.py check` — black canvas, Solana-palette accents. No light variant |
 | Dynamic colour | **Disabled.** Material You never recolours the app; brand colours are fixed |
 | Fonts | System Roboto / Roboto Flex for UI, JetBrains Mono (bundled, open licence) for amounts and countdowns. **No licensed brand font ships in the APK** (`docs/design/README.md`, Type) |
 | Camera screens | Designed for black: full-bleed preview, with a scrim behind any text |
