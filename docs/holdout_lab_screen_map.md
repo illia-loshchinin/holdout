@@ -126,8 +126,8 @@ Stop on S1 or S2, before any frame reached the recorder, returns to L0 with no d
 4. `COUNT AS` section label, then three cards, each a full-width secondary button with a detail line under it:
    | Row | Button | Detail line (as built) | Counts as |
    |---|---|---|---|
-   | 1 | **Daily 25** | `45° · 40–60° · knees allowed` | `Stakes.DAILY` |
-   | 2 | **Easy Holdout** | `45° · 40–60° · knees allowed` | `Stakes.EASY` |
+   | 1 | **Daily 25** | `45° · knees allowed · counts toes separately` | `Stakes.DAILY` |
+   | 2 | **Easy Holdout** | `45° · knees allowed · staked rules` | `Stakes.EASY` |
    | 3 | **Hard Holdout** | `45° · from the toes` | `Stakes.STAKED` |
 5. `SET` section label, then:
    - **Record video** switch — off: *TEST · video recording off — only people who agreed in writing may be filmed*; on: *TEST · recording sittings as video — only people who agreed in writing to be filmed* (constitution X, 002 FR-026). Off on every fresh install, remembered on the phone (FR-005)
