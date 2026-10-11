@@ -64,7 +64,7 @@ None: no new dependency (Material 3's `pullToRefresh` is in the existing BOM, re
 
 - [X] T013 Run the `holdout-ui` visual check on the five states of contracts/check-again-ui.md (screenshots on a phone or emulator) — *2026-10-11, Seeker against the localnet: the home over an earlier read, details, forfeit, the still line, the pull indicator while unreachable and none while answering. The waiting-day state was not on screen: no running Holdout on that ledger. The walk's fixes are in b66f751 and 0274804.*
 - [X] T014 Run `bash scripts/ci-local.sh --only kotlin` (ktlint, unit tests, both debug APKs) and fix what it finds
-- [ ] T019 [US1] A JVM test seam for `HoldoutViewModel.checkNow`, from the stand-in review of PR #57:
+- [X] T019 [US1] A JVM test seam for `HoldoutViewModel.checkNow`, from the stand-in review of PR #57:
   - a `ChainReads` interface (`load`, `roster`, `leaderboard`) in `kotlin/app/src/main/kotlin/holdout/app/chain/ChainRepository.kt`, implemented by `ChainRepository` and taken by `HoldoutViewModel`;
   - `WalletRepository` builds its `MobileWalletAdapter` lazily, so the view model can be built on the JVM;
   - `kotlinx-coroutines-test` as a test dependency;
@@ -76,6 +76,7 @@ None: no new dependency (Material 3's `pullToRefresh` is in the existing BOM, re
     - a scheduled read mid-check clearing it;
     - a throwing side read still ending the check;
     - a check never submitting: `autoSubmit` untouched and no pending day written (SC-003).
+  - *Done in 119c5f6: 8 tests pass; removing the in-front guard or the side-read catch makes them fail.*
 - [ ] T015 Walk quickstart.md (steps 1–6) on a phone against a local validator — *2026-10-11: steps 2, 4 and 5 walked. Steps 1 and 3 need a running Holdout with today's reps done, which that ledger lacked (no `localnet-crank.sh --loop` running), so this stays open.*
 - [ ] T016 Check SC-003: review that `HoldoutViewModel.checkNow` and `checkChain` in `kotlin/app/src/main/kotlin/holdout/app/` call no `submitDay` and do not touch `AutoSubmit`, and in T015's step 3 see the wallet's approval open by itself once, then *"Done — tap to submit"* after a decline (001 FR-024b) — *review half done 2026-10-11: `checkNow` and `checkChain` call no `submitDay` and do not touch `AutoSubmit`. The walk half waits on T015 step 3.*
 
