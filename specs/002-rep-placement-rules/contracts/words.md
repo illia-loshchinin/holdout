@@ -20,7 +20,9 @@ Every sitting is at 45° *(since 2026-10-08; the Daily 25 said "Put the phone in
 
 ## Getting into position (FR-018, FR-019) — `Coach`, in priority order, shown large and spoken
 
-More light · Stand phone up · Get in view · Phone to 45° · Get down · Further · Closer · Move left · Move right · Arms straight · Knees up · Can't see knees · Body straight · Hold
+More light · Stand phone up · Get in view · Phone to 45° · Get down · Turn slightly left / right / away · Further · Closer · Move left · Move right · Arms straight · Knees up · Can't see knees · Body straight · Hold
+
+"Turn slightly left", "right" and "away" *(added 2026-10-10, FR-018, FR-024a)* sit after "Get down": they turn the body so the phone sees the near knee (the Knees visible pill's fixes below), and are shown only while the Whole body in frame pill passes; while it fails, "Further" comes first. "Turn slightly left" and "right" are also said earlier, with the phone's placement, when a staked phone stands a little too far in front of or beside the member (the Camera view pill's turn fixes).
 
 The last four before "Hold" *(added 2026-10-02)* come only once every pill is green: they say what the position itself still lacks, and each has its sentence under it (`HoldBlocker.fix`):
 
