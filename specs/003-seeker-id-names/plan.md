@@ -115,11 +115,13 @@ kotlin/core/src/main/kotlin/holdout/core/
 ├── SeekerNames.kt            # NEW — constants, address derivation, owner-search query,
 │                             #       reverse-record parsing, choice (R3), validation (R6),
 │                             #       truncation (R9)
-└── SeekerNameReader.kt       # NEW — read-only mainnet client: owner search + batched reads (R5)
+├── SeekerNameReader.kt       # NEW — read-only mainnet client: owner search + batched reads (R5)
+└── SeekerGenesisReader.kt    # added by 001 R17 — read-only mainnet client: Token-2022 accounts + mint reads
 
 kotlin/core/src/test/kotlin/holdout/core/
 ├── SeekerNamesTest.kt        # NEW — R1 constants, request JSON, parsing, R3/R6/R9
-└── SeekerNameReaderTest.kt   # NEW — the two requests and the Lookup results, with a fake driver
+├── SeekerNameReaderTest.kt   # NEW — the two requests and the Lookup results, with a fake driver
+└── SeekerGenesisReaderTest.kt # added by 001 R17
 
 kotlin/app/src/main/kotlin/holdout/app/
 ├── names/
@@ -131,7 +133,7 @@ kotlin/app/src/main/kotlin/holdout/app/
 ├── roster/RosterScreen.kt        # Format.short → MemberIdentity; rosterRowWallet(key)
 ├── leaderboard/LeaderboardScreen.kt  # Format.short → MemberIdentity; leaderboardRowWallet(key) drops the r/n prefix
 ├── about/AboutScreen.kt          # the "test network" line names the mainnet reads (FR-009, FR-010; both since 001 R17)
-├── MainViewModel.kt              # comment only: no value touches mainnet; the names read does
+├── MainViewModel.kt              # comment only: no value touches mainnet; the names read and the Seeker Genesis Token check do (SeekerNameReader, SeekerGenesisReader)
 └── HoldoutApp.kt                 # the connected-wallet line → MemberIdentity; one repository per process, provided
                                   # through LocalSeekerNames; connected(address) on every change, null on disconnect
 
@@ -149,7 +151,7 @@ docs/weaknesses.json                  # + one entry; README re-rendered (spec 00
 README.md                             # the opening "devnet only" line names the mainnet reads (two since 001 R17)
 ```
 
-**Structure Decision**: The pure, network-free logic goes in `kotlin/core`, next to `Pdas.kt` and `Rpc.kt`, where every rule in this codebase is unit-tested on the JVM. The read-only network client also goes there, beside `Rpc`, so the two drivers sit side by side and a review sees that only one of them can send. The cache, pacing and Compose pieces go in `kotlin/app`, beside the screens that use them. Program, crank and tests under `tests/` are untouched.
+**Structure Decision**: The pure, network-free logic goes in `kotlin/core`, next to `Pdas.kt` and `Rpc.kt`, where every rule in this codebase is unit-tested on the JVM. The read-only network clients also go there, beside `Rpc` — `SeekerNameReader` for the names and, since 001 R17, `SeekerGenesisReader` for the Seeker Genesis Token check — so the drivers sit side by side and a review sees that only `Rpc` can send. The cache, pacing and Compose pieces go in `kotlin/app`, beside the screens that use them. Program, crank and tests under `tests/` are untouched.
 
 ## Complexity Tracking
 
@@ -157,3 +159,4 @@ README.md                             # the opening "devnet only" line names the
 |-----------|------------|-------------------------------------|
 | A read from **Solana mainnet** in a "devnet only" build | Seeker IDs exist only on mainnet; there is no devnet copy to read | Not showing names defeats the feature. A server that mirrors names breaks "no server" (FR-009, 001 constraints). The read is public, signs nothing, and goes through a client that cannot send (R5). It is disclosed under XI |
 | A **second RPC client** (`SeekerNameReader`) beside `Rpc` | Keeps `Rpc`'s guarantee that no path can reach mainnet with a send | A second `Rpc` instance on mainnet would expose `send`/`simulate` to a mainnet endpoint |
+| A **third RPC client** (`SeekerGenesisReader`, since 001 R17) beside `Rpc` and `SeekerNameReader` | The Seeker Genesis Token exists only on mainnet, so the member app checks it there before offering a join (001 FR-003b). It reads the wallet's Token-2022 accounts (`getTokenAccountsByOwner`) and their mints (`getMultipleAccounts`), sends only the wallet's already-public address, and like `SeekerNameReader` can neither sign nor send | Reusing `SeekerNameReader` mixes a name lookup with a gate on every join, and its answers (found, none, unknown) differ. Reusing `Rpc` would let a send reach mainnet. Disclosed in the same weaknesses row (XI) |

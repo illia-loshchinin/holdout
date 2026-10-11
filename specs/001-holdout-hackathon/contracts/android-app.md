@@ -45,7 +45,7 @@ Client: `com.solanamobile:mobile-wallet-adapter-clientlib-ktx` 2.2.0, used as in
 |---|---|
 | Theme | **A single dark theme** in `ui/theme/`, its tokens the design book's (`docs/design/tokens.json`; direction and the hand-run check in research R20) — black canvas, Solana-palette accents. No light variant |
 | Dynamic colour | **Disabled.** Material You never recolours the app; brand colours are fixed |
-| Fonts | System Roboto / Roboto Flex for UI, JetBrains Mono (open licence; **to be bundled in `res/font/`**, T035 — until then amounts and countdowns fall back to the system monospace face) for amounts and countdowns. **No licensed brand font ships in the APK** (`docs/design/README.md`, Type) |
+| Fonts | System Roboto for UI; Roboto Flex is neither a system font nor bundled (**to be bundled in `res/font/`**, T035 — until then the design book's `counter` and `display` styles fall back to the theme's default face); JetBrains Mono (open licence; **to be bundled in `res/font/`**, T035 — until then amounts and countdowns fall back to the system monospace face) for amounts and countdowns. **No licensed brand font ships in the APK** (`docs/design/README.md`, Type) |
 | Camera screens | Designed for black: full-bleed preview, with a scrim behind any text |
 
 ## 4. Device storage
