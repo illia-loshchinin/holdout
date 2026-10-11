@@ -143,7 +143,7 @@ description: "Task list for 002 rep placement and form rules — as built, with 
 - T028 and T033 wait on 001 T095 (beta testers).
 - T034 waits on T033 (it writes T033's results into the weaknesses rows).
 - Phase 8 waits on T033 and T035.
-- Phase 9 (T049, T050) follows Phase 7 and is independent of Phase 8; T050 follows T049 (the guide's knees line names the pill).
+- Phase 9 (T049, T050) is built; it does not wait on Phase 7's open T046–T048 (labelling and a recording) or on Phase 8, and is independent of both; T050 follows T049 (the guide's knees line names the pill).
 
 ## Parallel execution examples
 
