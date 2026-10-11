@@ -119,12 +119,18 @@ class FormatCopyTest {
     }
 
     @Test
-    fun `amounts group their thousands and keep their decimals`() {
+    fun `amounts group their thousands and show at most two decimals, rounded down`() {
         assertEquals("1,560 SKR", Format.skr(1_560_000_000uL))
         assertEquals("12.5 SKR", Format.skr(12_500_000uL))
         assertEquals("1,234,567.5 SKR", Format.skr(1_234_567_500_000uL))
         assertEquals("999 SKR", Format.skr(999_000_000uL))
         assertEquals("0 SKR", Format.skr(0uL))
+        assertEquals("428.57 SKR", Format.skr(428_571_428uL))
+        assertEquals("223.75 SKR", Format.skr(223_750_000uL))
+        assertEquals("0.99 SKR", Format.skr(999_999uL))
+        assertEquals("1.1 SKR", Format.skr(1_109_999uL))
+        assertEquals("1,000 SKR", Format.skr(1_000_004_999uL))
+        assertEquals("0 SKR", Format.skr(1uL))
     }
 
     @Test

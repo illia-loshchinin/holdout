@@ -51,6 +51,7 @@ import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 import holdout.repcounter.Stakes
 import java.math.BigDecimal
+import java.math.RoundingMode
 
 /** Amounts, times and the shared pieces every Holdout screen is built from. */
 object Format {
@@ -139,9 +140,17 @@ object Format {
     /** The claim's **Comeback** row note, under the amount. */
     const val COMEBACK_CLAIM_NOTE = "part of your last lost stake, back"
 
-    /** `46 SKR`, `12.5 SKR`, `1,560 SKR`: every amount a member stakes or receives, in SKR, thousands grouped (FR-059). */
+    /** Most decimals a member ever reads in an amount; the chain keeps all [SKR_DECIMALS]. */
+    private const val SHOWN_DECIMALS = 2
+
+    /**
+     * `46 SKR`, `12.5 SKR`, `1,560 SKR`: every amount a member stakes or receives, in SKR (FR-059).
+     * Thousands grouped, at most two decimals, rounded DOWN (never overstate what a member gets),
+     * trailing zeros dropped. Display only: the exact base units go to the chain unchanged.
+     */
     fun skr(baseUnits: ULong): String {
-        val plain = BigDecimal(baseUnits.toString()).movePointLeft(SKR_DECIMALS).stripTrailingZeros().toPlainString()
+        val plain = BigDecimal(baseUnits.toString()).movePointLeft(SKR_DECIMALS)
+            .setScale(SHOWN_DECIMALS, RoundingMode.DOWN).stripTrailingZeros().toPlainString()
         val whole = plain.substringBefore('.')
         val fraction = plain.substringAfter('.', "")
         val grouped = whole.reversed().chunked(3).joinToString(",").reversed()

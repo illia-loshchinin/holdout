@@ -1,6 +1,7 @@
 package holdout.app.sitting
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,15 +31,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -93,6 +99,31 @@ fun BoxScope.SetupSheet(
     }
 }
 
+/**
+ * A page that runs past the bottom of its scroll area fades out there, so the cut line is read
+ * as "more below" and not as clipped text; at the end of the scroll the fade is gone.
+ */
+private fun Modifier.fadeBottomWhileMore(scroll: ScrollState): Modifier = this
+    .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+    .drawWithContent {
+        drawContent()
+        if (scroll.canScrollForward) {
+            val fade = FadeHeight.toPx()
+            drawRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(HoldoutColors.TextPrimary, Color.Transparent),
+                    startY = size.height - fade,
+                    endY = size.height,
+                ),
+                topLeft = Offset(0f, size.height - fade),
+                size = Size(size.width, fade),
+                blendMode = BlendMode.DstIn,
+            )
+        }
+    }
+
+private val FadeHeight = 48.dp
+
 /** The sheet's content: title with the level, the three tabs, the page, "Don't show this again" and the buttons. */
 @Composable
 internal fun SetupGuide(
@@ -127,7 +158,8 @@ internal fun SetupGuide(
 
         Column(
             modifier = Modifier
-                .weight(1f, fill = false)
+                .weight(1f)
+                .fadeBottomWhileMore(scroll)
                 .verticalScroll(scroll),
             verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
         ) {
@@ -363,7 +395,7 @@ internal const val GUIDE_HEADLINE =
 
 private val TabHeight = 40.dp
 private val TickSize = 16.dp
-private val PlacementHeight = 140.dp
+private val PlacementHeight = 112.dp
 private val FigureHeight = 96.dp
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000, widthDp = 390, heightDp = 844)

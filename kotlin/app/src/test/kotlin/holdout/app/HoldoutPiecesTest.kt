@@ -78,10 +78,10 @@ class HoldoutPiecesTest {
     }
 
     @Test
-    fun `amounts are SKR with the mint's six decimals, and dollars are always approximate`() {
+    fun `amounts are SKR with at most two decimals, rounded down, and dollars are always approximate`() {
         assertEquals("46 SKR", Format.skr(46_000_000uL))
         assertEquals("12.5 SKR", Format.skr(12_500_000uL))
-        assertEquals("0.000001 SKR", Format.skr(1uL))
+        assertEquals("0 SKR", Format.skr(1uL))
         assertEquals("≈ $25", Format.tierUsd(1))
         assertEquals("3d 4h", Format.countdown(3 * 86_400 + 4 * 3_600 + 59))
         assertEquals("4h 06m", Format.countdown(4 * 3_600 + 6 * 60))

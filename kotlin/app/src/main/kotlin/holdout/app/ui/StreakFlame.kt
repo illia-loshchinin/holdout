@@ -21,7 +21,9 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.DisplayStyle
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
@@ -52,9 +54,12 @@ enum class StreakState {
  * The accessible name carries the state, since the flame's colour is never
  * the only signal: "12-day streak", "13-day streak, extended today",
  * "Streak broken", "31-day streak, personal best".
+ *
+ * [chip] draws it small, in a pill on `surface-3` (the Today header, board 5):
+ * a 16 dp flame and the number at label size.
  */
 @Composable
-fun StreakFlame(days: Int, state: StreakState, modifier: Modifier = Modifier) {
+fun StreakFlame(days: Int, state: StreakState, modifier: Modifier = Modifier, chip: Boolean = false) {
     val spoken = when (state) {
         StreakState.Active -> "$days-day streak"
         StreakState.ExtendedToday -> "$days-day streak, extended today"
@@ -62,14 +67,16 @@ fun StreakFlame(days: Int, state: StreakState, modifier: Modifier = Modifier) {
         StreakState.PersonalBest -> "$days-day streak, personal best"
     }
     Row(
-        modifier = modifier.semantics(mergeDescendants = true) { contentDescription = spoken },
+        modifier = modifier
+            .semantics(mergeDescendants = true) { contentDescription = spoken }
+            .then(if (chip) Modifier.background(HoldoutColors.Surface3, MaterialTheme.shapes.extraLarge).padding(horizontal = Spacing.betweenItems, vertical = Spacing.tight) else Modifier),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.tight),
     ) {
-        Flame(state)
+        Flame(state, if (chip) CHIP_FLAME_SIZE else FLAME_SIZE)
         Text(
             text = "$days",
-            style = DisplayStyle,
+            style = if (chip) AmountStyle.copy(fontSize = LabelStyle.fontSize) else DisplayStyle,
             color = when (state) {
                 StreakState.ExtendedToday -> HoldoutColors.Success
                 StreakState.Broken -> HoldoutColors.TextTertiary
@@ -90,7 +97,7 @@ fun StreakFlame(days: Int, state: StreakState, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Flame(state: StreakState) {
+private fun Flame(state: StreakState, flameSize: Dp) {
     val outline = remember { PathParser().parsePathString(FLAME).toPath() }
     val crack = remember { PathParser().parsePathString(CRACK).toPath() }
     val fill: Color? = when (state) {
@@ -99,7 +106,7 @@ private fun Flame(state: StreakState) {
         StreakState.PersonalBest -> HoldoutColors.Celebration
         StreakState.Broken -> null
     }
-    Canvas(Modifier.size(FLAME_SIZE)) {
+    Canvas(Modifier.size(flameSize)) {
         scale(scale = size.minDimension / VIEWBOX, pivot = Offset.Zero) {
             if (fill != null) {
                 drawPath(outline, fill)
@@ -113,6 +120,7 @@ private fun Flame(state: StreakState) {
 }
 
 private val FLAME_SIZE = 36.dp
+private val CHIP_FLAME_SIZE = 16.dp
 private const val VIEWBOX = 24f
 private const val BROKEN_STROKE = 1.5f
 

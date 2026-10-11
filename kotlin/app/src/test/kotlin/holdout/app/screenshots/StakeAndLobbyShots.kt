@@ -1,6 +1,10 @@
 package holdout.app.screenshots
 
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.chain.Holdout
 import holdout.app.home.HoldoutsBlock
@@ -73,7 +77,8 @@ class StakeAndLobbyShots {
         skrBalance: ULong = 10_000uL * skr,
         lamports: Long = 1_000_000_000L,
         tier: Int = 1,
-    ) = compose.shoot("stake", name) {
+        after: ComposeContentTestRule.() -> Unit = {},
+    ) = compose.shoot("stake", name, after = after) {
         Sheeted(behind = { HomeScreen(behind, {}, {}, {}, {}) }) {
             StakeSheet(
                 h = h,
@@ -100,6 +105,10 @@ class StakeAndLobbyShots {
 
     @Test
     fun shortOfSkr() = stake("short-of-skr", skrBalance = 400uL * skr)
+
+    /** The sheet scrolls inside itself: the button under the long copy is reachable. */
+    @Test
+    fun shortOfSkrEnd() = stake("short-of-skr-end", skrBalance = 400uL * skr, after = { onNodeWithText("Stake 1,250 SKR").performScrollTo().assertIsDisplayed() })
 
     private fun gate(name: String, status: SeekerStatus) = compose.shoot("stake", name) {
         Sheeted(behind = { HomeScreen(behind, {}, {}, {}, {}) }) {
