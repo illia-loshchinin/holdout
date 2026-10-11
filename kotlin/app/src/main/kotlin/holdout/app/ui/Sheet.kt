@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -33,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
@@ -79,7 +79,7 @@ fun BoxScope.HoldoutSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier, 
         Column(
             modifier = modifier
                 .fillMaxWidth()
-                .fillMaxHeight(MAX_HEIGHT_FRACTION)
+                .heightUpTo(MAX_HEIGHT_FRACTION)
                 .offset { IntOffset(0, dragged.roundToInt()) }
                 .clip(shape)
                 .background(HoldoutColors.Surface2, shape)
@@ -113,6 +113,16 @@ private const val ENTER_MILLIS = 300
 
 /** The sheet leaves the top of the screen it covers in view. */
 private const val MAX_HEIGHT_FRACTION = 0.92f
+
+/**
+ * Wraps the content, up to [fraction] of the height on offer: a short state
+ * (the Seeker gate's) is a short sheet, a long form stops below the top of the screen.
+ */
+private fun Modifier.heightUpTo(fraction: Float): Modifier = layout { measurable, constraints ->
+    val ceiling = if (constraints.hasBoundedHeight) (constraints.maxHeight * fraction).roundToInt() else constraints.maxHeight
+    val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = ceiling))
+    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+}
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000, heightDp = 480)
 @Composable

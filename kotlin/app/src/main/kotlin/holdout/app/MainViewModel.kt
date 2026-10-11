@@ -30,6 +30,9 @@ class MainViewModel : ViewModel() {
 
     /** The wait before chain time is asked again, cut short when the network comes back. */
     val retry = ChainTimeRetry()
+
+    /** The activity was asked to open again, from the launcher or a reminder: Today (FR-069). */
+    val opens = AppOpens()
 }
 
 /**

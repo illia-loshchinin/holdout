@@ -8,6 +8,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -23,6 +25,7 @@ import holdout.app.names.SeekerNameRepository
 import holdout.app.nav.Badges
 import holdout.app.nav.Nav
 import holdout.app.nav.NavEvent
+import holdout.app.nav.NavSaved
 import holdout.app.nav.NavState
 import holdout.app.nav.Screen
 import holdout.app.nav.Sheet
@@ -61,6 +64,7 @@ import holdout.app.shell.resend
 import holdout.app.shell.standingDropped
 import holdout.app.shell.standingHoldout
 import holdout.app.stake.SeekerGate
+import holdout.app.stake.SeekerStatus
 import holdout.app.storage.MmkvStore
 import holdout.app.storage.SavedChainReading
 import holdout.app.storage.Store
@@ -172,7 +176,16 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     var noWallet by remember { mutableStateOf(false) }
 
     // Where the member is. The app opens on Today (G1); a restored wallet skips the connect screen.
-    var nav by remember { mutableStateOf(address?.let { NavState().then(NavEvent.Connected(tourSeen = store.hasSeenTour(it.base58()))) } ?: NavState()) }
+    // The tab and the pushed screens survive the process dying behind the app (NavSaved);
+    // a sheet, the signing flow and a sitting do not (banked reps come back through Today's crash page).
+    val firstNav = { address?.let { NavState().then(NavEvent.Connected(tourSeen = store.hasSeenTour(it.base58()))) } ?: NavState() }
+    var nav by rememberSaveable(stateSaver = NavStateSaver) { mutableStateOf(firstNav()) }
+    // A restored state that disagrees with the wallet (none restored, or one that was disconnected) starts over.
+    if (nav.connected != (address != null)) nav = firstNav()
+    // A reminder's tap (or the launcher) reaching the running activity: Today (FR-069).
+    LaunchedEffect(clockViewModel) { clockViewModel.opens.flow.collect { nav = Nav.reduce(nav, NavEvent.AppOpened) } }
+    // This session's Seeker check found no token: no screen offers this wallet a stake it cannot make (G12).
+    var knownNotSeeker by remember { mutableStateOf(false) }
 
     // Chain time, never the wall clock (research R7). The last answer is saved,
     // so a restart offline still knows the day — on the same boot only, since
@@ -372,6 +385,11 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
         nav = Nav.reduce(before, e)
         when (e) {
             NavEvent.TourDone -> store.setSeenTour(wallet)
+            is NavEvent.SeekerChecked -> when (e.status) {
+                SeekerStatus.NotSeeker -> knownNotSeeker = true
+                SeekerStatus.Confirmed -> knownNotSeeker = false
+                else -> Unit
+            }
             // "Try again": the same signature, asked of the wallet again.
             NavEvent.TxRetry -> before.tx?.kind?.let { shared.resend(it) }
             else -> Unit
@@ -406,11 +424,13 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                 holdouts.wallet.disconnect(sender)
                 reminders.clear()
                 address = null
+                knownNotSeeker = false
                 nav = Nav.reduce(nav, NavEvent.Disconnected)
             }
         },
         seekerKnown = seekerGate.remembered(wallet),
         notificationsOn = notificationsOn,
+        knownNotSeeker = knownNotSeeker,
     )
 
     // The chain moving a Holdout's stage moves the member (screen map §4, dotted arrows).
@@ -499,6 +519,12 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
         modifier = modifier,
     )
 }
+
+/** [NavState] through `rememberSaveable`: the strings of [NavSaved], which a bundle holds. */
+private val NavStateSaver = Saver<NavState, ArrayList<String>>(
+    save = { ArrayList(NavSaved.encode(it)) },
+    restore = { NavSaved.decode(it) },
+)
 
 /**
  * Which boot of the phone this is, to tell whether a monotonic-clock reading

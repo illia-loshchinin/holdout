@@ -2,9 +2,11 @@ package holdout.app.shell
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import holdout.app.faucet.FaucetClient
 import holdout.app.home.CohortHome
 import holdout.app.home.HomeScreen
 import holdout.app.home.HomeState
@@ -14,6 +16,8 @@ import holdout.app.nav.NavEvent
 import holdout.app.nav.Sitting
 import holdout.app.nav.Tab
 import holdout.app.sitting.BankingController
+import holdout.app.sitting.StoppedScreen
+import holdout.app.sitting.StoppedUi
 import holdout.app.storage.Store
 import holdout.app.streak.ToesMeter
 import holdout.app.ui.ChainCheckBox
@@ -37,6 +41,15 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
     }
     val running = active()
     val chainNow = now
+    // A sitting that did not end cleanly (the app killed mid-set) says what was kept, once, on the next open (ES-1, ES-2).
+    var interrupted by remember { mutableStateOf<List<StoppedUi>>(emptyList()) }
+    LaunchedEffect(wallet, dayIndex, running?.first?.address, running?.second?.dayIndex) {
+        interrupted = interrupted + interruptedSittings(store, wallet, dayIndex, chainNow, running)
+    }
+    interrupted.firstOrNull()?.let { page ->
+        StoppedScreen(page, onBack = { interrupted = interrupted.drop(1) }, modifier = modifier)
+        return
+    }
     if (running != null && chainNow != null) {
         val (h, stage) = running
         InFrontLoop(h.address) {
@@ -76,7 +89,7 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
             onGetTokens = { dispatch(NavEvent.OpenFaucet) },
             modifier = modifier,
             streak = streaks.read(wallet, dayIndex).current,
-            canPayFees = (view?.lamports ?: Long.MAX_VALUE) >= FaucetClient.MEMBER_CAN_PAY_LAMPORTS,
+            canPayFees = canPayFees(view),
             checking = chain.check.checking,
             stillUnreachable = chain.check.stillUnreachable,
             onCheck = { checkChain(h.address) },

@@ -11,6 +11,7 @@ import holdout.app.sitting.SittingScreen
 import holdout.app.sitting.SittingViewModel
 import holdout.app.sittingNote
 import holdout.app.storage.Store
+import holdout.app.ui.Format
 import holdout.core.Derive
 import holdout.core.HoldoutDay
 import holdout.repcounter.Stakes
@@ -50,7 +51,21 @@ internal fun Shared.SittingHost(s: Sitting, modifier: Modifier = Modifier) {
                 dispatch(NavEvent.SittingEnded)
                 bumpRefresh()
             }
-            SittingScreen(viewModel = vm, onFinished = done, onCancelled = { done() }, modifier = modifier)
+            // After the Daily 25: the next Holdout to join, or a comeback in its place — and
+            // nothing while a Holdout runs or waits in a lobby, or for a wallet known not to
+            // be a Seeker (C-D8, G12). A tap ends this sitting first: the sheet cannot open under it.
+            val offer = remember(view, now?.div(60), seekerKnown, knownNotSeeker) { SittingOffers.of(view, now, seekerKnown, knownNotSeeker) }
+            SittingScreen(
+                viewModel = vm,
+                onFinished = done,
+                onCancelled = { done() },
+                modifier = modifier,
+                offer = offer?.offer,
+                onOffer = {
+                    done()
+                    offer?.let { dispatch(it.go) }
+                },
+            )
         }
         is Sitting.HoldoutDay -> {
             // The Holdout as it was when the sitting started; a later read never swaps it mid-sitting.
@@ -88,19 +103,23 @@ internal fun Shared.SittingHost(s: Sitting, modifier: Modifier = Modifier) {
             // (FR-024b, 2026-10-10; too late online or off, 2026-10-11). One value per
             // composition, so label and tap agree.
             val note = sittingNote(h, s.day, now, chain.offline)
+            // The chain already counts this day (read live, not the Holdout as the sitting started):
+            // the finished page has nothing left to submit.
+            val onChain = dayOnChain(holdout(s.cohort), s.day)
             val done = {
-                dispatch(NavEvent.SittingEnded)
-                bumpRefresh()
                 // The day it started on, or the next one if it ran across a boundary.
                 val today = now?.let { Derive.dayIndex(h.cohort, it) }
                 val completed = listOfNotNull(s.day, today).distinct().firstOrNull { store.isDayComplete(wallet, scope, it.toLong()) }
+                // A finished day that came too late to send goes on to its Forfeit, not just back to Today.
+                holdoutDayEndEvents(s.cohort, completed != null, completed != null && tooLateToSend(h, completed, now)).forEach(dispatch)
+                bumpRefresh()
                 if (completed != null) {
                     // A completed cohort day is that day's training for the streak too, so
                     // nobody trains twice (FR-050) — judged leagues only, whose days are real days.
                     // The day the reps were done on — the cohort day's own date — not the day
                     // this screen is left on: across 05:00 UTC those are two different days.
                     if (!h.isTest) streaks.recordCompletedDay(wallet, HoldoutDay.indexOf(h.cohort.start + completed * h.cohort.dayLength))
-                    if (note == null) holdouts.submitDay(sender, h, completed, h.cohort.repsPerDay)
+                    if (note == null && !onChain) holdouts.submitDay(sender, h, completed, h.cohort.repsPerDay)
                 }
             }
             SittingScreen(
@@ -108,8 +127,10 @@ internal fun Shared.SittingHost(s: Sitting, modifier: Modifier = Modifier) {
                 onFinished = done,
                 onCancelled = { done() },
                 modifier = modifier,
-                finishLabel = if (note == null) "Submit day ${s.day + 1}" else "Back to today",
+                finishLabel = if (note == null && !onChain) "Submit day ${s.day + 1}" else "Back to today",
                 finishNote = note,
+                headerLabel = Format.headerLabel(h.cohort, s.day + 1),
+                onChain = onChain,
             )
         }
     }

@@ -8,6 +8,7 @@ import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.chain.ChainView
 import holdout.app.chain.Holdout
+import holdout.app.faucet.FaucetClient
 import holdout.app.holdout.HoldoutViewModel
 import holdout.app.names.SeekerNameRepository
 import holdout.app.nav.NavEvent
@@ -59,6 +60,8 @@ internal class Shared(
     val seekerKnown: Boolean,
     /** Notifications are on: only then may a screen say "we'll remind you" (ruling G9). */
     val notificationsOn: Boolean,
+    /** This session's Seeker check found no Genesis Token for the wallet: no screen offers it a stake it cannot make (ruling G12). */
+    val knownNotSeeker: Boolean = false,
 ) {
     val view: ChainView? get() = chain.view
 
@@ -70,6 +73,13 @@ internal class Shared(
     /** The member's Holdout running today with them standing in it, if any (T2). */
     fun active(): Pair<Holdout, Stage.Active>? = now?.let { n -> view?.mine(n)?.firstNotNullOfOrNull { h -> (h.stage(n) as? Stage.Active)?.let { h to it } } }
 }
+
+/**
+ * Whether the wallet holds the SOL to pay a transaction's fee. Unknown (no
+ * chain read yet) counts as yes: nothing is said or blocked on a guess. Today
+ * says "short of SOL" below this, and the automatic send stays shut.
+ */
+internal fun canPayFees(view: ChainView?): Boolean = (view?.lamports ?: Long.MAX_VALUE) >= FaucetClient.MEMBER_CAN_PAY_LAMPORTS
 
 /** Where a Holdout's sittings bank on this phone: per wallet, per cohort, per cohort day (data-model §4). */
 internal fun cohortScope(h: Holdout) = "cohort:${h.address.base58()}"
@@ -110,8 +120,10 @@ internal fun Shared.pendingTodayOf(h: Holdout, stage: Stage.Active): Int? {
 internal fun Shared.SendWaitingDay(key: Any? = null, whenFree: suspend () -> Unit = {}) {
     val (h, stage) = active() ?: return
     val pendingToday = pendingTodayOf(h, stage)
-    LaunchedEffect(h.address, pendingToday, stage.todayDone, chain.offline, chain.busy, chain.autoSubmit, key) {
-        if (pendingToday == null) return@LaunchedEffect
+    // Short of SOL the wallet is not opened by itself: Today says so, and the send goes once the wallet is funded.
+    val payable = canPayFees(view)
+    LaunchedEffect(h.address, pendingToday, stage.todayDone, chain.offline, chain.busy, chain.autoSubmit, payable, key) {
+        if (pendingToday == null || !payable) return@LaunchedEffect
         whenFree()
         if (holdouts.autoSubmitDue(h, pendingToday, stage.todayDone)) submitDayOf(h, pendingToday)
     }

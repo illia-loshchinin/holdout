@@ -1,10 +1,12 @@
 package holdout.app
 
 import android.animation.ValueAnimator
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.viewModels
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +19,19 @@ import java.time.Duration
 import java.time.Instant
 
 class MainActivity : ComponentActivity() {
+    // The same instance the screens get from `viewModel()`: it carries "the app was opened" to them.
+    private val main: MainViewModel by viewModels()
+
+    /**
+     * A reminder's tap (or the launcher) reaching an activity that is already
+     * up: the app opens on Today (FR-069). A fresh activity starts on Today anyway.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (AppOpen.opensToday(intent)) main.opens.opened()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
