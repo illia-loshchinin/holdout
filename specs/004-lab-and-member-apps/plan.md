@@ -70,9 +70,9 @@ No `NEEDS CLARIFICATION` items remain; see [research.md](research.md).
 | **IX. Every state has a screen** | Every state visible | PASS | No member state is removed. The walkthrough was not a state; About remains for Disconnect and the tour (R5). Lab's states: chooser, set, label |
 | **X. Camera frames never leave the device** (v2.1.0) | Recorder only in Holdout Lab; member builds can't contain it; build check | PASS | Lab-only code sits in `src/lab`, so member variants can't compile a reference (R2). `checkMemberHasNoLabCode` runs before every member assemble and bundle (R4). Video stays on-device, pulled by `pull-traces.sh` and deleted (R7) |
 | **XI. Weaknesses documented** | Named in the README | PASS | Weaknesses render to the README from `docs/weaknesses.json` (R6) |
-| **XII. The build demonstrates itself** | Live crowd; scripted members disclosed and labelled | PASS | First-run disclosure and SCRIPTED labels unchanged. The test lobby stays, open to anyone (FR-014) |
+| **XII. The build demonstrates itself** | Live crowd; scripted members disclosed and labelled | PASS | First-run disclosure and SCRIPTED labels unchanged. The test lobby stays, open to every wallet holding a Seeker Genesis Token (FR-014; 001 FR-003b) |
 | **XIII. Honest language** | — | PASS | Copy unchanged except removed judge text and "About Holdout" |
-| **Hackathon constraints** | Devnet only; signed APK; test lobby labelled and open to anyone | PASS | `memberRelease` is the signed APK. Lab is never distributed (FR-009) |
+| **Hackathon constraints** | Devnet only; signed APK; test lobby labelled and open to every wallet holding a Seeker Genesis Token | PASS | `memberRelease` is the signed APK. Lab is never distributed (FR-009) |
 | **Development workflow** | Spec changes through skills | PASS | Constitution v2.1.0 and 001/002/003 already amended through their skills. 001's plan, tasks and `contracts/android-app.md` follow in Polish |
 
 **Gate result: PASS.** No violations.

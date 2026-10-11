@@ -6,6 +6,7 @@ import holdout.core.CohortSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 
 /** 001 FR-024b, 2026-10-10: a day completed while the chain can't be reached says it is not sent yet, and how it gets sent. */
 class OfflineNoteTest {
@@ -60,5 +61,26 @@ class OfflineNoteTest {
                 "Open Holdout when it can be, before the deadline, and approve day 1 in your wallet.",
             sentence,
         )
+    }
+
+    @Test
+    fun `past that day's deadline the note says too late to send even when the chain answers, with no offer to submit`() {
+        val (title, sentence) = sittingNote(holdout, day = 2, nowSeconds = day3Deadline + 61, offline = false, network = "Devnet")!!
+        assertEquals("Done — too late to send", title)
+        assertEquals("Day 3's deadline has passed, so it can no longer be sent. Your 25 are saved on this phone.", sentence)
+    }
+
+    @Test
+    fun `before the deadline with the chain answering there is no note, so the day is submitted`() {
+        assertNull(sittingNote(holdout, day = 2, nowSeconds = day3Deadline - 30, offline = false, network = "Devnet"))
+        assertNull(sittingNote(holdout, day = 2, nowSeconds = null, offline = false, network = "Devnet"))
+    }
+
+    @Test
+    fun `an earlier day's deadline counts, not the current day's`() {
+        // Day 2 (index 1) is over once day 3 is running, whatever today's clock says.
+        val day2Deadline = start + 2 * 86_400 - 1
+        val (title, _) = sittingNote(holdout, day = 1, nowSeconds = day2Deadline + 5, offline = false, network = "Devnet")!!
+        assertEquals("Done — too late to send", title)
     }
 }

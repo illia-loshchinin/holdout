@@ -106,11 +106,11 @@ What has to be funded, and from which key:
 
 | What | From | How much |
 |---|---|---|
-| Deploy rent | `admin` | measured at the first deploy |
+| Deploy rent | `admin` | computed from the built binary with `solana rent <bytes>` before the deploy (quickstart §1, §6) |
 | Scripted wallets | `operator` | ~1.12 SOL, 0.02 each |
 | Sponsor float | `sponsor` | 0.05 SOL |
 | Faucet vault | `admin`, at `crank init` | **25 SOL** — it must last the whole judging period, to 11 November, with no top-up (FR-042a) |
-| Cohort rent | the crank payer (a key of its own, not `operator`) | the test lobby opens a cohort every 30 minutes, 0.0033 SOL each, about **0.16 SOL a day**: about 5 SOL to 11 November, about 8 SOL to 30 November. Nothing returns it on devnet (L14, H24) |
+| Cohort rent | the crank payer, which is the `operator` key (decided 2026-10-11, L14; its risk is a README weakness) | the test lobby opens a cohort every 30 minutes, 0.0033 SOL each, about **0.16 SOL a day**: about 5 SOL to 11 November, about 8 SOL to 30 November. Nothing returns it on devnet (L14, H24) |
 
 Devnet airdrops are rate-limited and often fail, which is the whole reason the
 faucet exists. Collect a bit at a time, from more than one source

@@ -110,6 +110,11 @@
       "what": "Reminders are on-device only — no push",
       "why": "No server knows anyone's deadlines. The phone schedules a reminder when a Holdout starts, halfway through each day (with sound) and before its deadline (silently), from chain time, and a day you have done that is not on chain yet stays in the notification shade and is re-posted silently every hour until it is submitted (FR-068); Android may deliver it a few minutes late, not at all after a restart until the app is opened, and never if notifications are declined. The deadline is the chain's, never the reminder's",
       "fix": "A push service fed by the chain, alongside the on-device reminders"
+    },
+    {
+      "what": "One key, `operator.json`, is both the crank's fee payer and the only key that can publish the chip set, and it sits as a hot secret on the Fly machine that runs the crank (and in the GitHub Actions fallback)",
+      "why": "Opening a cohort every 30 minutes needs a funded payer. A separate payer key was considered and the product owner decided against it (2026-10-11, L14), so this is an accepted risk of the devnet build, not an oversight. Whoever takes the key can re-price the stakes of every Holdout not yet open and spend its float. Worse, it can publish one chip set with an enormous top tier: the program keeps the highest top tier ever published (`max_top_tier` only rises) and the faucet mints exactly that much per claim, and `Config.operator` has no rotation instruction. The faucet then mints absurd amounts or fails, new wallets lose their way to SKR, and only a program upgrade undoes it. The same machine and the GitHub Actions fallback also hold the keypairs of the 56 scripted members (`HOLDOUT_SCRIPTED_KEYS_TGZ_B64`), so a compromise can stop their submissions (forfeits that move real pools), join or leave, and claim their payouts. What it cannot do is touch a real member's stake or a settled payout, which only the program moves",
+      "fix": "A payer key of its own holding only the float, an operator key kept off the machine (or a multisig), an operator rotation instruction and a cap on the top tier, and the scripted keys held apart, for the mainnet build"
     }
   ]
 }

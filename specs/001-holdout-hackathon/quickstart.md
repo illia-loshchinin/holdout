@@ -18,7 +18,7 @@
 | Android Studio / SDK | Current stable; compile/target SDK 37, min SDK 26 | Windows |
 | Devices | A Solana Seeker with Seed Vault Wallet; one ordinary Android phone with an MWA wallet | — |
 | Domain | One domain or subdomain for the MWA identity URI, with a Digital Asset Links file | — |
-| Devnet SOL | Program deploy rent (measured at the rehearsal deploy); ~1.12 SOL for the 56 scripted wallets by 22 Sep (R12); 25 SOL in the faucet vault by 8 Oct (R13) | — |
+| Devnet SOL | Program deploy rent (computed from the built `holdout.so` with `solana rent <bytes>` before the deploy; the program-data account is sized at about twice the binary and the deploy buffer is held temporarily); ~1.12 SOL for the 56 scripted wallets by 22 Sep (R12); 25 SOL in the faucet vault by 8 Oct (R13) | — |
 | GitHub | A repository judges can clone, pushed from the first commit (FR-066) | — |
 
 Commands in §3, §5 and §6 run inside WSL2. When an agent runs Anchor or Surfpool commands, prefix them with `NO_DNA=1`.
@@ -130,7 +130,7 @@ python scripts/design-book.py check
 
 **Expected:** `design-book check: 0 drift` — every token in `docs/design/tokens.json` has its twin in `ui/theme/*.kt` with the same value, except the tokens the script lists as having no twin by design (`NO_TWIN_OK`, skipped) or as added when a screen first needs one (`ADD_WHEN_NEEDED`, reported as notes). Notes, such as those and the fonts not bundled yet (T035), do not fail it. Dynamic colour is off by construction: `Theme.kt` has one dark `ColorScheme` and no `dynamicColor` parameter. The lobby card's "at stake" with the joined count, never the word "prize" before a Holdout starts (FR-053, spec §1a), has no unit test; it is checked on the screen (holdout-ui skill, `references/verify.md`).
 
-## 5. Full cycle on a compressed clock (spike S3 / rehearsal)
+## 5. Full cycle on a compressed clock (spike S3)
 
 LiteSVM with a test build (`test-leagues` feature) and a test league with `day_length = 60`, the clock advanced by the test:
 
@@ -140,7 +140,7 @@ npm --prefix tests test -- --grep "full cycle"
 
 **Expected:** open → join (with a lobby place) → lock → daily submits → forfeits → count → finalize (with remainder) → claim completes in minutes, and every INV holds at each step.
 
-### Beta test on the rehearsal deployment (24–26 Sep)
+### Beta test on the devnet program
 
 The same compressed idea, but on devnet with real testers and real phones: a test league of **three 10-minute days at 5 reps a day**, a new cohort every 30 minutes (FR-044a, H36) — so each tester, or a single judge, with a wallet holding a Seeker Genesis Token (FR-003b), runs faucet → join → sittings → a deliberate forfeit → settlement → claim in under an hour, and the lobby keeps opening cohorts through the live period.
 
@@ -206,8 +206,17 @@ mkdir -p target/deploy && cp ~/.config/solana/holdout-program-keypair.json targe
 
 **Expected:** `holdout: Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4`, matching `Anchor.toml` and `declare_id!`. Back that file up — losing it means a new address and a redeploy, and once judged cohorts are running that would strand them.
 
+The devnet program must carry the `test-leagues` feature: `programs/holdout/Cargo.toml` has `default = []`, so a plain `anchor build` omits it, and `crank init --test-league` is then refused with 6010. Build it with the feature, and check the deploy rent from the binary before funding it:
+
 ```bash
-NO_DNA=1 anchor deploy --provider.cluster devnet
+NO_DNA=1 anchor build -- --features test-leagues
+solana rent "$(stat -c %s target/deploy/holdout.so)"
+```
+
+Then deploy that binary, without building again in between. The `admin` wallet pays and becomes the upgrade authority, which `initialize` requires (R14); `Anchor.toml`'s default wallet, `~/.config/solana/id.json`, holds no SOL:
+
+```bash
+NO_DNA=1 anchor deploy --provider.cluster devnet --provider.wallet ~/.config/solana/holdout/admin.json
 ```
 
 Then, once:
@@ -293,8 +302,9 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 14 **[Phase 2]** | Leaderboard ranking | Devnet or *local* with seeded profiles | Ranking and "not ranked yet" as specified; no amounts; scripted labels |
 | 15 | Banked reps across sittings | Device: 10 + 10 + 5; stop at 17; kill app | Day lands only after rep 25; 10 kept at 17; blocks survive kill; late sitting allowed with warning |
 | 16 | Faucet from zero, and after a drained sponsor | Device with a brand-new wallet; then empty the sponsor's float with the bundled devnet key and try a second brand-new wallet before and after one `crank run` | One tap funds a full 7-day cycle; second tap the same day refused with the time it returns. With the float empty the claim fails as ES-0b and blames nobody; after the crank's `top_up_sponsor` the next brand-new wallet funds normally, and `crank status` shows the day's spend against `daily_lamport_cap` (AC-16, FR-042b) |
-| 17 | Start position | Device: with every gating pill green (five pills since 2026-10-10, Knees visible among them; 002 FR-024a), hold the top of a push-up; then drop out of it before the countdown ends | Counting starts on the hold alone, with no tap and a spoken countdown; dropping out restarts the hold; banked reps unchanged |
-| 18 | Offline completion | Device in airplane mode | Warning shown; the finished screen reads *"Done — not sent yet"* with the reps saved on the phone and the time left to that day's own deadline (past it, *"Done — too late to send"*), and *Back to today* sends nothing; the home reads *"Done — waiting for network"*; reconnect with the app open before the deadline + tap submit lands the day (automatic **[Phase 2]**, the wallet's approval opening by itself); after deadline, breach |
+| 17 | Start position | Device: with every gating pill green (five pills since 2026-10-10, Knees visible among them; 002 FR-024a), hold the top of a push-up; then drop out of it before the countdown ends | Counting starts on the hold alone, with no tap and a spoken countdown; dropping out restarts the hold; banked reps unchanged. Then send the app to the background during the countdown and again mid-set: each ends that sitting back at the checks, loose reps gone and banked blocks kept; on Hard, a countdown that ends with too little of the plank read goes back to the checks instead of counting (AC-17, §8.3) |
+| 18 | Offline completion | Device in airplane mode | Warning shown; the finished screen reads *"Done — not sent yet"* with the reps saved on the phone and the time left to that day's own deadline (past it, *"Done — too late to send"*, whether the phone is still offline or already back online, and never a *Submit day N* button), and *Back to today* sends nothing; the home reads *"Done — waiting for network"*; reconnect with the app open before the deadline + tap submit lands the day (automatic **[Phase 2]**, the wallet's approval opening by itself); with the app closed nothing is sent; reconnect after the deadline: the finished screen reads *"Done — too late to send"* with no submit offered, and the member is in breach (AC-18, FR-024b) |
 | 19 | Submission complete | By 12 Oct: install the final member APK (the signed `memberRelease` built and checked with `apksigner` as in section 7) on a Seeker and a plain phone; build from a clean clone on a machine that has never built the project, following only the README; review the demo video and deck (R18) | Both installs run; clean clone builds the app and the program; video ≈ 3 min shows join, sitting, forfeit, settlement and claim from a cohort of the short test lobby, labelled on screen as one (AC-19, FR-044); scripted members and the test network disclosed in app, README, video and deck; submitted before 13 Oct 01:59 CEST |
+| 20 | Reminders | Device with notifications allowed, on a Holdout of 24-hour days and on the short test lobby: join; leave one day undone; finish another with the chain unreachable, then reach it and submit | A reminder arrives when the Holdout starts. On a 24-hour day the halfway reminder arrives with sound (17:00–18:00 UTC) and the one before the deadline arrives silent; a shorter day gets one sounding reminder before its deadline. A day already on chain gets none. A day done on the phone and not on chain keeps a silent, ongoing *"Day N is done, but not on chain yet"* notice in the shade, re-posted silently every hour until the submit lands or the deadline passes (on a day of 12 hours or more it replaces that day's halfway and deadline reminders; a shorter day keeps its sounding deadline reminder beside it). After leaving, none arrives; a member who declined notifications joins, sits and submits as before (AC-20, FR-068, FR-068a, R21) |
 | 22 | Comeback offer right after a forfeit | *local* validator (section 5a) with a test league: join, miss day 1, do **not** run the crank; open the app; then join from the offer; run the crank through settlement of both cohorts and claim. `:core:test` (`ComebackTest`, `DailyHoldoutLineTest`) | Unit tests green, including the window's boundary seconds. On the device: the forfeit screen shows "up to" 20 % of the lost stake, the next round's start and time left to join, and the round after it; Today shows the nudge; Join opens the stake sheet on the lost chip with the per-chip amount; the join lands in one transaction with the forfeit record (ES-17); Today then says to finish it; the claim shows the Comeback row with the amount FR-037e computes, and the cohort detail keeps the breakdown after the claim. While the next round is not opened yet the offer stays with no Join and says when it opens ("shortly" if automation is late). A forfeit whose rounds have all closed shows no offer. *local* LiteSVM: `npx vitest run scenarios/comeback-join.spec.ts` from `tests/` — the record-and-join transaction (657 bytes, limit 1232) succeeds, frees the running slot without writing the old end back, and a bare join fails with `ObligationsOverlap` (ES-17) (AC-22, FR-037g) |
 | 21 | Seeker-exclusive staking | *local*: `cargo test` (the genesis helper) and `open-leagues.spec.ts` with `genesis_gate_enabled` on. Device: join from the Seeker's wallet; then from a wallet with no Seeker Genesis Token; then, with the names endpoint unreachable, from a wallet never confirmed on the phone and from the Seeker's | The helper passes the real group and refuses a fake group, no extension, amount 0, another owner and SPL-Token; with the flag on a join with the token succeeds and one without fails with `GenesisGateClosed`. On the device the Seeker joins; the other wallet does the Daily 25 and sees the Holdouts, but every join shows the Seeker-exclusive sheet with the store link and nothing is signed; unreachable mainnet refuses the unconfirmed wallet with the try-again message and lets the confirmed Seeker join (FR-003b–FR-003d, R17) |

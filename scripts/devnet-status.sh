@@ -6,7 +6,7 @@
 #   faucet vault       25 SOL by 8 Oct — from 9 October it must last to
 #                      11 November with no top-up (FR-042a)
 #   sponsor float      0.05 SOL, refilled permissionlessly by `top_up_sponsor`
-#   deploy rent        measured at the rehearsal deploy, held by `admin`
+#   deploy rent        computed from the built binary (`solana rent <bytes>`), held by `admin`
 #
 # Run it in WSL2. `--url` overrides the cluster (default devnet).
 
