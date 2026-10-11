@@ -16,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import holdout.app.chain.Holdout
 import holdout.app.ui.Body
+import holdout.app.ui.ChainCheckBox
+import holdout.app.ui.ChainUnreachable
 import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
 import holdout.app.ui.Notice
@@ -62,7 +64,7 @@ fun ForfeitScreen(
     stage: Stage.Forfeited,
     streak: Int,
     onDaily25: () -> Unit,
-    /** The same league's next Holdout's stake sheet; null when none is open to join. Used only with no [offer]. */
+    /** The same league's next Holdout's stake sheet; null when none is open to join. */
     onNextHoldout: (() -> Unit)?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -74,35 +76,43 @@ fun ForfeitScreen(
     joinBlocker: Journey.JoinBlocker? = null,
     /** Opens the stake sheet on the lost stake's tier, for the offer's next open round. */
     onJoin: () -> Unit = {},
+    /** The last chain read failed (spec 005): the line, Check again and the pull. */
+    offline: Boolean = false,
+    checking: Boolean = false,
+    stillUnreachable: Boolean = false,
+    onCheck: () -> Unit = {},
 ) {
     val c = h.cohort
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(HoldoutColors.Canvas)
-            .verticalScroll(rememberScrollState())
-            .padding(Spacing.screenGutter),
-        verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        TextButton(onClick = onBack, modifier = Modifier.align(Alignment.Start)) { Text("← Home", color = HoldoutColors.TextSecondary) }
-        if (h.isTest) TestCohortBadge(c.dayLength)
-        SectionLabel(Format.holdoutTitle(c))
-        Text("You missed day ${stage.daysLasted + 1}.", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.Warning)
-        HoldoutCard {
-            Body("You lasted ${stage.daysLasted} of ${c.durationDays} days. The deadline passed before day ${stage.daysLasted + 1} reached the chain, so your stake of ${h.membership?.let { Format.skr(it.stake) } ?: "—"} is lost. ${Format.lostStakeSplit(c, "this Holdout's prize pool")}")
-            if (!stage.recorded) Body("It is final from the deadline; the record catches up on the next automation pass.")
-        }
-        HoldoutCard {
-            Text(if (streak > 0) "Your $streak-day streak is still alive." else "Your streak is untouched.", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
-            Body("A forfeit ends a Holdout, never your streak. The Daily 25 keeps it going.")
-        }
-        if (offer != null) {
-            ComebackCard(offer, now, joinBlocker, onJoin, onDaily25)
-        } else {
-            SectionLabel("Two ways back")
-            PrimaryButton("Today's Daily 25", onDaily25)
-            onNextHoldout?.let { SecondaryButton(if (h.isTest) "The next short test cohort" else "The next ${c.durationDays}-day Holdout", it) }
+    ChainCheckBox(offline, checking, onCheck, modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HoldoutColors.Canvas)
+                .verticalScroll(rememberScrollState())
+                .padding(Spacing.screenGutter),
+            verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            TextButton(onClick = onBack, modifier = Modifier.align(Alignment.Start)) { Text("← Home", color = HoldoutColors.TextSecondary) }
+            if (h.isTest) TestCohortBadge(c.dayLength)
+            SectionLabel(Format.holdoutTitle(c))
+            if (offline) ChainUnreachable(checking, stillUnreachable, onCheck)
+            Text("You missed day ${stage.daysLasted + 1}.", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.Warning)
+            HoldoutCard {
+                Body("You lasted ${stage.daysLasted} of ${c.durationDays} days. The deadline passed before day ${stage.daysLasted + 1} reached the chain, so your stake of ${h.membership?.let { Format.skr(it.stake) } ?: "—"} is lost. ${Format.lostStakeSplit(c, "this Holdout's prize pool")}")
+                if (!stage.recorded) Body("It is final from the deadline; the record catches up on the next automation pass.")
+            }
+            HoldoutCard {
+                Text(if (streak > 0) "Your $streak-day streak is still alive." else "Your streak is untouched.", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
+                Body("A forfeit ends a Holdout, never your streak. The Daily 25 keeps it going.")
+            }
+            if (offer != null) {
+                ComebackCard(offer, now, joinBlocker, onJoin, onDaily25)
+            } else {
+                SectionLabel("Two ways back")
+                PrimaryButton("Today's Daily 25", onDaily25)
+                onNextHoldout?.let { SecondaryButton(if (h.isTest) "The next short test cohort" else "The next ${c.durationDays}-day Holdout", it) }
+            }
         }
     }
 }

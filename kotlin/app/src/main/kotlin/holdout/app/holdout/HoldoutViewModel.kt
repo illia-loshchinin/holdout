@@ -21,6 +21,7 @@ import holdout.core.Journey
 import holdout.core.Leaderboard
 import holdout.core.MembershipSnapshot
 import holdout.core.Rpc
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,6 +60,8 @@ class HoldoutViewModel(
         val lastClaim: Pair<SolanaPublicKey, String>? = null,
         /** The completed day last sent while the chain could be reached, by any path — kept in the store too (FR-024b, T098). */
         val autoSubmit: AutoSubmit = AutoSubmit(),
+        /** A member's "Check again" while the chain can't be reached (spec 005). */
+        val check: ChainCheck = ChainCheck(),
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -154,10 +157,46 @@ class HoldoutViewModel(
             if (view == null) {
                 it.copy(offline = true)
             } else {
-                it.copy(view = view, offline = false, autoSubmit = if (back) it.autoSubmit.answered() else it.autoSubmit)
+                it.copy(view = view, offline = false, autoSubmit = if (back) it.autoSubmit.answered() else it.autoSubmit, check = it.check.answered())
             }
         }
         if (view != null && back) keepAutoSubmit()
+    }
+
+    /**
+     * The member's "Check again", by the button or the pull (spec 005): while
+     * the last read failed, reads the chain now — the snapshot here and, at
+     * the same time, [alsoRead] (chain time, the roster on screen). A second
+     * ask while one is out joins it. Only while in front, as every read
+     * (FR-008). It sends nothing: a waiting day goes on as 001 FR-024b says
+     * once the chain answers (FR-004).
+     */
+    fun checkNow(alsoRead: suspend () -> Unit = {}) {
+        if (refresher == null) return
+        val step = _state.value.check.request(_state.value.offline)
+        if (!step.read) return
+        _state.update { it.copy(check = step.next) }
+        val wallet = address
+        viewModelScope.launch {
+            // A failing side read (chain time, the roster) must not end the check
+            // without its answer, or "Checking…" would stay on with nothing to clear it.
+            val also =
+                launch {
+                    try {
+                        alsoRead()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                    }
+                }
+            try {
+                refreshNow()
+                also.join()
+            } finally {
+                // Another wallet's check: its state was reset with the wallet's.
+                if (wallet == address) _state.update { it.copy(check = it.check.finished(answered = !it.offline)) }
+            }
+        }
     }
 
     /** Keeps the automatic send's state for the connected wallet, so it outlives the process (T098). */

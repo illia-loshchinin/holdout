@@ -54,9 +54,10 @@ object Comeback {
         val rounds: List<Round>,
         val held: Round?,
         /**
-         * The first round the program has not opened yet and that has not started (`entry == null`,
-         * `start > now`): still to come, so not closed, and it keeps the offer alive while the round
-         * before it is locked or running (FR-037g).
+         * The first round the program has not opened yet, that has not started and is not inside its
+         * own join lock (`entry == null`, `start > now`, `start - joinLock > now`): still to come and
+         * joinable once opened, so not closed, and it keeps the offer alive while the round before it
+         * is locked or running (FR-037g).
          */
         val upcoming: Round? = null,
     ) {
