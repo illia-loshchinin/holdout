@@ -108,7 +108,7 @@
     },
     {
       "what": "Reminders are on-device only — no push",
-      "why": "No server knows anyone's deadlines. The phone schedules a reminder when a Holdout starts, halfway through each day (with sound) and before its deadline (silently), from chain time, and a day you have done that is not on chain yet stays in the notification shade and is re-posted silently every hour until it is submitted (FR-068); Android may deliver it a few minutes late, not at all after a restart until the app is opened, and never if notifications are declined. The deadline is the chain's, never the reminder's",
+      "why": "No server knows anyone's deadlines. The phone schedules a reminder when a Holdout starts, halfway through each day (with sound) and before its deadline (silently), from chain time, and a day you have done that is not on chain yet stays in the notification shade and is re-posted silently every hour until it is submitted (FR-068). A Holdout you finished gets one notice 15 minutes after its end, when settlement usually has come; it does not check the chain, so it says your claim is *probably* ready (FR-068b). Android may deliver them a few minutes late, not at all after a restart until the app is opened, and never if notifications are declined. The deadline is the chain's, never the reminder's",
       "fix": "A push service fed by the chain, alongside the on-device reminders"
     },
     {
