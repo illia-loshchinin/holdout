@@ -50,7 +50,7 @@ Work follows the spec's phasing (spec §3a): **Phase 1** is the full loop and mu
 - **Price-free contract:** no instruction reads a price, and the contract stores no fiat figure.
 - **Chain time:** every deadline is judged by chain time, never the device clock.
 - **Offline:** sittings and banking work without a connection.
-- **Reminders:** on-device only — `AlarmManager` on chain-derived elapsed-realtime instants, no server or push service; `POST_NOTIFICATIONS` asked once at the first join (FR-068, R21).
+- **Reminders:** on-device only — `AlarmManager` on chain-derived elapsed-realtime instants, no server or push service; `POST_NOTIFICATIONS` asked once at the first join (FR-068, R21). A member who finished gets one more, the **finished notice**, 15 minutes after the end — no network, so it says the claim is *probably* ready (FR-068b, 2026-10-11) — and the settling screens count down to that usual 15 minutes (`Derive.settleUsuallyIn`, FR-035a), which follows the crank's 10-minute cadence (R12).
 - **Deadlines:** submission (APK, GitHub repository, demo video of about three minutes, pitch deck) before 13 October 2026, 01:59 CEST (FR-066; moved from 9 October, 08:59 CEST, constitution v2.0.1). Judging runs 13 October – 9 November.
 - **Live period:** no manual intervention from submission through the winners' announcement on 11 November 2026 (FR-042a, FR-043).
 - **Upgrades:** the contract stays upgradeable for defect fixes only (FR-007b, R14).
