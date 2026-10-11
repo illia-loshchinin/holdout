@@ -1,6 +1,7 @@
 package holdout.app.shell
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import holdout.app.about.AboutScreen
@@ -11,6 +12,7 @@ import holdout.app.me.MeState
 import holdout.app.nav.Badges
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Screen
+import holdout.app.nav.Sheet
 import holdout.app.storage.Store
 import holdout.app.ui.StreakState
 import holdout.core.HoldoutDay
@@ -64,6 +66,8 @@ internal fun Shared.AboutHost(modifier: Modifier = Modifier) {
 internal fun Shared.FaucetSheetHost() {
     val v = view
     val n = now
+    // A drag or a tap on the scrim closes the sheet without its buttons: the last tap's outcome goes with it.
+    DisposableEffect(Unit) { onDispose { holdouts.clearMessage() } }
     FaucetSheet(
         skr = v?.skr ?: 0uL,
         lamports = v?.lamports ?: 0,
@@ -77,5 +81,7 @@ internal fun Shared.FaucetSheetHost() {
             holdouts.clearMessage()
             dispatch(NavEvent.CloseSheet)
         },
+        // Opened from the stake sheet (ES-0a), it offers the way back to it; from Me, a drag or the scrim closes it.
+        backLabel = "Back to the stake sheet".takeIf { (nav.sheet as? Sheet.Faucet)?.returnTo != null },
     )
 }
