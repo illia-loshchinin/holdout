@@ -60,7 +60,8 @@ Material defaults (`Notice` currently does this).
 | `size-touch` | `Spacing.touchTarget` | 48 |
 | `size-button` | `Spacing.primaryButtonHeight` | 56 (buttons, roster rows) |
 | `size-nav` | — (64.dp, add `navHeight` with BottomNav) | 64 |
-| `size-ring-stroke`, `size-border` | — | 4dp, 1dp |
+| `size-ring-stroke` | `Spacing.ringStroke` | 4 |
+| `size-border` | `Spacing.border` | 1 |
 
 ## Shape — `MaterialTheme.shapes.*`
 
@@ -82,23 +83,45 @@ Material defaults (`Notice` currently does this).
 | Body copy | `Body(text, center)` | ✅ |
 | Loader | `HoldoutLoader(size = 24.dp)`, `Reading { … }` | ✅ |
 | Test cohort badge | `TestCohortBadge(dayLengthSeconds)` | ✅ text form (book's chip form: `ho-tag`) |
-| Countdown | `Format.countdown(seconds)` in `AmountStyle` + `Accent` (→ `Warning` in last 10 min) | ◻ no Composable yet |
-| Stat block | inline in `HomeScreen`, `CohortHome` (`CounterStyle` + caption) | ◻ extract `StatBlock(label?, value, of?, caption)` |
-| Quiet action | screens use `TextButton` "← Back" in `TextSecondary` | ◻ book: `bodyLarge` Medium in `Accent` (or `Warning`), ≥48dp |
-| Bank ring, Streak flame, Tier chips, Sheet, Roster row, Bottom nav, Camera sitting | partly inline in their screens (`sitting/SittingScreen.kt`, `stake/StakeSheet.kt`, `roster/RosterScreen.kt`, `faucet/FaucetSheet.kt`; no streak flame UI yet) | ◻ grep before building; extract to `ui/` on second use. ⚠ drift: the stake sheet's tier chips take `shapes.medium` (24dp) with `surface-1`/`surface-3` fills; book: `radius-chip` (`shapes.small`, 16dp), `surface-3`, `accent-tint` when picked. The sitting's coach cue sits on `shapes.large` (`radius-sheet`); book: the cue is the caption in the bottom scrim band |
+| Countdown | `CountdownText(seconds, modifier, style = AmountStyle)` | ✅ `ui/CountdownText.kt`: `accent`, `warning` in the last 10 minutes (`Derive.inWarningWindow`), named "4h 06m left" / "Under 10 minutes left, …"; text is `Format.countdown` |
+| Stat block | `StatBlock(value, caption, modifier, label = null, of = null, display = false, valueColor)` | ✅ `ui/StatBlock.kt`: `CounterStyle` (or `DisplayStyle`), denominator `of` in `TextTertiary`. Screens still inline their own in `HomeScreen`, `CohortHome`: swap on the next touch |
+| Quiet action | `QuietAction(text, onClick, modifier, warning = false, enabled = true)` | ✅ `ui/QuietAction.kt`: `bodyLarge` Medium, `Accent` or `Warning`, ≥48dp. Screens' `TextButton` "← Back" is the old form: use `ScreenHeader` |
+| Status chip | `StatusChip(word, modifier, tone = ChipTone.Neutral)`, `ScriptedChip()` | ✅ `ui/StatusChip.kt`: 24dp `Surface3` pill, `shapes.small`, word uppercased, `◇` before SCRIPTED, named "Status: running" / "Scripted member". `TestCohortBadge` keeps its own text form |
+| Notice card | `NoticeCard(title, text, modifier, warning = false, actionText = null, onAction = null)` | ✅ `ui/NoticeCard.kt`: a `HoldoutCard` with title, sentence and a `QuietAction`. `Notice(text)` is still the one-line notice |
+| Bank ring | `BankRing(reps, bankedBlocks, count, caption, modifier, size)`, `BlockBars(reps, bankedBlocks, modifier)`, `bankBlocks(reps)` | ✅ `ui/BankRing.kt`: segments proportional to the blocks (25 → 10/10/5), banked `Accent`, track `Hairline`, `Spacing.ringStroke`; the counting bars are `BlockBars`. The sitting still draws its own bars until its screen adopts these |
+| Streak flame | `StreakFlame(days, state: StreakState, modifier)` | ✅ `ui/StreakFlame.kt`: `Active` white · `ExtendedToday` success · `Broken` outlined tertiary · `PersonalBest` celebration + PB pill; the flame is the DS path drawn on a canvas |
+| Tier chips | `TierChips(tiers: List<TierChip(usd, skr)>, selected, onSelect, modifier)` | ✅ `ui/TierChips.kt`: `shapes.small`, `Surface3`, `AccentTint` + `Accent` when picked, radio group. ⚠ `stake/StakeSheet.kt` still draws its own chips (24dp, `Surface1`/`Surface3`): swap them for this |
+| Choice chips | `ChoiceChips(options, selected: Int?, onSelect: (Int?) -> Unit, modifier, allowEmpty = false)` | ✅ `ui/ChoiceChips.kt`: 36dp pills in 48dp targets, wrapping, radio group, `allowEmpty` for the label dialog. ⚠ neither Lab's `FilterChip`s nor the Leaderboards picker use it yet |
+| Roster row | `RosterRow(wallet, isYou, standing, days, scripted, modifier)` | ✅ `ui/RosterRow.kt`: `MemberIdentity` + "· you", "12 days ✓" in `Success` while standing, "lasted N days" tertiary when out, `◇ SCRIPTED`, no money. ⚠ `roster/RosterScreen.kt` still draws its own rows |
+| Key-value row | `KeyValueRow(label, value, modifier, success = false)` | ✅ `ui/KeyValueRow.kt`: label `TextSecondary`, value `AmountStyle` |
+| Screen header | `ScreenHeader(label, modifier, onBack, backDescription, onClose, closeDescription, trailing)` | ✅ `ui/ScreenHeader.kt`: 40dp round back button in a 48dp target, centred uppercase `LabelStyle` label, optional `StatusChip` (`trailing`) or ✕ (`onClose`). The label comes from `Format.headerLabel` / `lobbyHeaderLabel` / `finishedHeaderLabel` |
+| Pager dots | `PagerDots(count, current, modifier, noun = "Card")` | ✅ `ui/PagerDots.kt`: 22dp white pill + 7dp dots, named "Card 2 of 4" |
+| Checklist row | `ChecklistRow(text, state: StepState)` | ✅ `ui/ChecklistRow.kt`: `Done` success tick · `Active` accent spinner · `Pending` tertiary ring, named with the state |
+| Progress ring | `ProgressRing(description, modifier, done = false, size)` | ✅ `ui/ProgressRing.kt`: the 96dp confirming ring (accent arc turning; success ring + tick when `done`) |
+| Sheet, Bottom nav, Camera sitting | partly inline in their screens (`stake/StakeSheet.kt`, `faucet/FaucetSheet.kt`, `sitting/SittingScreen.kt`) | ◻ grep before building; extract to `ui/` on second use. ⚠ drift: the sitting's coach cue sits on `shapes.large` (`radius-sheet`); book: the cue is the caption in the bottom scrim band |
 | Leaderboard line | inline in `leaderboard/LeaderboardScreen.kt` (place + identity, rate, figures) | ✅ its own anatomy, described on the Roster row page; not a roster row |
-| Notice card | Lab's *Not saved* card in `LabApp.kt` | ◻ no shared Composable. `Notice(text)` is the one-line notice, a different component (the faucet's outcomes, Today's offline line) |
-| Status chip | `TestCohortBadge` (text form) | ◻ book's chip form `ho-tag`; Lab's `LAB` chip is not built yet |
-| Choice chips | Lab: M3 `FilterChip`s in `TraceLabelDialog`; member: the Leaderboards picker, a row of `TextButton`s | ⚠ drift: neither matches the book (36px pill, 48dp target, `accent-tint` when picked, one choice, arrow keys) |
 | Dialog | Lab: `TraceLabelDialog`, `TraceNotSavedDialog` in `src/lab/.../sitting/`; member: `SetupDialog` (*Before you get down*) in `sitting/PlacementGuide.kt` | ⚠ drift: no `hairline`, no width cap, title in M3 `titleLarge` (book: `title` = `titleMedium`). The book says the member app uses no dialog; `SetupDialog` is one |
 | Switch (Lab only) | `TestSwitch`, `RecordVideoSwitch` in `src/lab/.../ui/TestSwitch.kt` | ✅ M3 `Switch` with the book's labels and colours |
 | Stepper (Lab only) | the *Target* stepper in `LabApp.kt`; `Counter` in `TraceLabelDialog` | ⚠ drift: `Counter` shows its value in `CounterStyle`; book: `amount` |
 | Readouts (Lab only) | `LabReadouts` in `src/lab/.../sitting/LabReadouts.kt` | ✅ `LabelStyle`, not uppercased |
+
+## Copy — `Format` (in `ui/Components.kt`)
+
+| Need | Call |
+| --- | --- |
+| Level of a Holdout, `Spark · 7-day` / `Habit · 21-day` | `Format.level(c)`, `Format.levelName(form)`; the one-mention title is `Format.holdoutTitle(c)` |
+| Level tagline, `Light it up · knees allowed` / `Make it stick · toes only` | `Format.levelTagline(c)` |
+| Level rule sentence (G2), one source in `Stakes.EASY_RULE` / `STAKED_RULE` | `Format.levelRule(c)` — the Holdout's own, never the other level's |
+| Header label, no dates (G3) | `Format.headerLabel(c, day)`, `Format.lobbyHeaderLabel(c, secondsToStart)`, `Format.finishedHeaderLabel(c)` |
+| Fee sentence (G5) | `Format.lostStakeSplit(c)` (stake sheet); `Format.lostStakeSplitForfeit(c)` (forfeit, under **Stake lost**) |
+| Boost (G6) | `Format.boostLine(amount)` on an offer; `Format.runningBoostLine(amount)` on a running Holdout |
+| Comeback | `Format.comebackToday(amount, c, startsInSeconds)`, `Format.comebackForfeit(amount, c)`, `Format.COMEBACK_CLAIM_NOTE` |
+| Wallet wait (G7) | `Format.WAITING_FOR_WALLET` |
+| Amounts | `Format.skr(baseUnits)` (thousands grouped), `Format.tierUsd(tier)`, `Format.countdown(seconds)` |
 
 HTML reference implementations of every component are in `docs/design/components/bundle.css` (`ho-*`
 classes) — read the CSS for exact paddings, gaps and states when the README is not enough.
 
 ## Known copy drift (not fixed by this skill)
 
-- `home/HomeScreen.kt` label `TODAY'S CHALLENGE` — the book says *challenge* is never an in-app noun.
-  Raise it with the user rather than silently changing it.
+- None known. `HomeScreen` now reads *THE DAILY 25* (was *TODAY'S CHALLENGE*); check any new string against `copy-rules.md`.
