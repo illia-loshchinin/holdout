@@ -21,13 +21,19 @@
   `git diff --name-only origin/<base>...HEAD | bash scripts/needs-ci.sh` prints `false` —
   documentation alone, where the few docs files a job reads (the README's weaknesses table and
   its source, the program-instructions contract) count as code.
+- **Codex reviews only a pull request that is ready for review — so mark it ready to get one.**
+  A draft gets no Codex review. Once the spec-kit check and CI (local) are green on the head
+  commit (the two rules above), run `gh pr ready <PR number>` and comment `@codex review`, then
+  wait for Codex with the PR left ready. Do not keep a PR in draft while waiting for a review, and
+  do not start a stand-in review while Codex can still answer. Fix or answer every Codex finding on
+  the PR before merge.
 - **No Codex review means a stand-in review, before merge.** When `chatgpt-codex-connector[bot]`
   answers a pull request with "You have reached your Codex usage limits for code reviews" — or no
-  Codex review arrives — run a strong independent reviewer as a separate agent instead: not the
-  session that wrote the change, with no context from it, on Sonnet, at the highest effort
-  available (`/code-review xhigh <PR number> --comment`, which posts its findings on the PR). Fix or answer
-  every finding on the PR, and say in the PR that this review replaced Codex's. The PR is not
-  ready for review, and is not merged, until that review is done and answered.
+  Codex review arrives on a PR that is ready for review — run a strong independent reviewer as a
+  separate agent instead: not the session that wrote the change, with no context from it, on
+  Sonnet, at the highest effort available (`/code-review xhigh <PR number> --comment`, which posts
+  its findings on the PR). Fix or answer every finding on the PR, and say in the PR that this
+  review replaced Codex's. The PR is not merged until that review is done and answered.
 - **Agents run on Sonnet, code reviews included.** Subagents, agent-team teammates and workflow
   agents all run on Sonnet; Opus only for genuinely complex program or test work, by explicit
   choice. Reviews and checks (`/code-review`, `/speckit-analyze`) run inside whichever agent invokes
