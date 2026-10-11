@@ -38,42 +38,43 @@ class DailyHoldoutLineTest {
     private val unrecorded = entry(forfeitedCohort, MembershipSnapshot.State.Joined, days = 5)
     private val round1 = open(now + day)
     private val round2 = open(now + day + 7 * day)
+    private val round1Address = entry(round1, null).address
 
     private fun offers(vararg entries: Comeback.Entry, at: Long = now) = Comeback.offers(entries.toList(), listOf(league), at)
 
     @Test
     fun `given a forfeited membership not yet settled, then the line names the round, its start and the time left to join`() {
-        val line = DailyHoldoutLine.of(listOf(round1), offers(unrecorded, entry(round1, null)), now)
+        val line = DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null)), now)
         assertEquals("Get back up to 5 SKR of your lost stake: finish the Spark · 7-day starting in 1d 0h. Joining closes in 23h 00m.", line)
     }
 
     @Test
     fun `given a place held in the round, then the line says finishing it brings up to N back`() {
         val joined = entry(round1, MembershipSnapshot.State.Joined, tier = 2)
-        val line = DailyHoldoutLine.of(emptyList(), offers(unrecorded, joined), now)
-        assertEquals("You're in the Spark · 7-day Holdout. Finish it and up to 5 SKR of your lost stake comes back.", line)
+        val line = DailyHoldoutLine.comebackLine(offers(unrecorded, joined), now)
+        assertEquals("You're in the Spark · 7-day. Finish it and up to 5 SKR of your lost stake comes back.", line)
     }
 
     @Test
     fun `given every round closed without a place, then there is no comeback line`() {
         // Round 1 is running and round 2 locked: nothing is left to join.
         val at = round2.start - 1_000
-        val line = DailyHoldoutLine.of(listOf(open(at + 90_000)), offers(unrecorded, entry(round1, null), entry(round2, null), at = at), at)
-        assertEquals("Next: Spark · 7-day Holdout, starting in 1d 1h · 14 joined.", line)
+        val line = DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null), entry(round2, null), at = at), at)
+        assertNull(line)
     }
 
     @Test
     fun `given round 1 locked and the next not opened yet, then the line says when it opens and starts`() {
         val at = round1.start - 1_000
-        val line = DailyHoldoutLine.of(emptyList(), offers(unrecorded, entry(round1, null), at = at), at)
-        assertEquals("The next Spark · 7-day Holdout opens for joining in 16m 40s and starts in 7d 0h. Finish it and up to 5 SKR of your lost stake comes back.", line)
+        val line = DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null), at = at), at)
+        assertEquals("The next Spark · 7-day opens for joining in 16m 40s and starts in 7d 0h. Finish it and up to 5 SKR of your lost stake comes back.", line)
     }
 
     @Test
     fun `given the next round due but not opened by automation yet, then it opens shortly, never in 0m 00s`() {
         val at = round1.start + 60
-        val line = DailyHoldoutLine.of(emptyList(), offers(unrecorded, entry(round1, null), at = at), at)
-        assertEquals("The next Spark · 7-day Holdout opens for joining shortly and starts in 6d 23h. Finish it and up to 5 SKR of your lost stake comes back.", line)
+        val line = DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null), at = at), at)
+        assertEquals("The next Spark · 7-day opens for joining shortly and starts in 6d 23h. Finish it and up to 5 SKR of your lost stake comes back.", line)
         assertEquals(line, DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null), at = at), at))
     }
 
@@ -106,32 +107,21 @@ class DailyHoldoutLineTest {
     }
 
     @Test
-    fun `the line comes with a flag saying it is the comeback`() {
-        val comeback = assertNotNull(DailyHoldoutLine.line(listOf(round1), offers(unrecorded, entry(round1, null)), now))
-        assertTrue(comeback.comeback)
-        val plain = assertNotNull(DailyHoldoutLine.line(listOf(round1), emptyList(), now))
-        assertFalse(plain.comeback)
-        assertEquals(DailyHoldoutLine.of(listOf(round1), emptyList(), now), plain.text)
-        assertNull(DailyHoldoutLine.line(emptyList(), emptyList(), now))
-    }
-
-    @Test
-    fun `given no forfeit, then the line is the next Holdout to join`() {
-        val line = DailyHoldoutLine.of(listOf(open(now + 200_000, form = LeagueParams.FORM_TOES), open(now + 90_000)), emptyList(), now)
-        assertEquals("Next: Spark · 7-day Holdout, starting in 1d 1h · 14 joined.", line)
-    }
-
-    @Test
-    fun `given nothing open to join, then there is no line`() {
-        assertNull(DailyHoldoutLine.of(emptyList(), emptyList(), now))
+    fun `a round to join opens the stake sheet on the tier of the lost stake, anything else the Holdouts tab`() {
+        val toJoin = assertNotNull(DailyHoldoutLine.nudge(offers(unrecorded, entry(round1, null)), now))
+        assertEquals(round1Address, toJoin.joinAddress)
+        assertEquals(1, toJoin.tier)
+        val held = assertNotNull(DailyHoldoutLine.nudge(offers(unrecorded, entry(round1, MembershipSnapshot.State.Joined)), now))
+        assertNull(held.joinAddress)
+        assertNull(DailyHoldoutLine.nudge(emptyList(), now))
     }
 
     @Test
     fun `no member-facing line contains the word league (FR-041)`() {
         val lines = listOf(
-            DailyHoldoutLine.of(listOf(round1), offers(unrecorded, entry(round1, null)), now),
-            DailyHoldoutLine.of(emptyList(), offers(unrecorded, entry(round1, MembershipSnapshot.State.Joined)), now),
-            DailyHoldoutLine.of(listOf(round1), emptyList(), now),
+            DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null)), now),
+            DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, MembershipSnapshot.State.Joined)), now),
+            DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null), at = round1.start - 1_000), round1.start - 1_000),
         )
         assertTrue(lines.all { it != null && !it.contains("league", ignoreCase = true) })
         assertFalse(lines.any { it.isNullOrEmpty() })
