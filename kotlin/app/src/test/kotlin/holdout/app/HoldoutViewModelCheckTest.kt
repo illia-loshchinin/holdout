@@ -11,6 +11,7 @@ import holdout.app.storage.InMemoryStore
 import holdout.core.Leaderboard
 import holdout.core.MembershipSnapshot
 import holdout.core.Rpc
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -119,6 +120,54 @@ class HoldoutViewModelCheckTest {
         checkRead.complete(null)
         runCurrent()
         assertFalse(sideReadDone)
+        assertEquals(ChainCheck(), state.check)
+    }
+
+    @Test
+    fun `given a check under way, when its read throws, then the check still ends`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        vm.checkNow()
+        runCurrent()
+
+        chain.reads.last().completeExceptionally(IllegalStateException("read failed"))
+        runCurrent()
+
+        assertEquals(ChainCheck(stillUnreachable = true), state.check)
+    }
+
+    @Test
+    fun `given a check under way, when a read is cancelled inside while the check is live, then the check still ends`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        vm.checkNow()
+        runCurrent()
+
+        // Not [pause]: the check's own job is alive, so "Checking…" must not be left on.
+        chain.reads.last().completeExceptionally(CancellationException("engine cancelled the call"))
+        runCurrent()
+
+        assertEquals(ChainCheck(stillUnreachable = true), state.check)
+    }
+
+    @Test
+    fun `given a check under way, when the wallet changes and comes back, then the old check does not finish into it`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        vm.checkNow()
+        runCurrent()
+        val oldCheckRead = chain.reads.last()
+
+        vm.watch(walletB)
+        runCurrent()
+        vm.watch(walletA)
+        runCurrent()
+        chain.reads.last().complete(null)
+        runCurrent()
+        assertTrue(state.offline)
+        assertEquals(ChainCheck(), state.check)
+
+        oldCheckRead.complete(null)
+        runCurrent()
+
+        // No check was made for this wallet: nothing may say "still can't be reached".
         assertEquals(ChainCheck(), state.check)
     }
 

@@ -24,7 +24,9 @@ import holdout.core.MembershipSnapshot
 import holdout.core.Rpc
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -120,7 +122,12 @@ class HoldoutViewModel(
         // profile and balances. It is kept across failed reads of the same
         // wallet only, never shown as the new one's. Its automatic send starts
         // from what this phone kept for it, so a restart does not ask again (T098).
-        if (wallet != address) _state.value = UiState(autoSubmit = wallet?.let { AutoSubmit.restore(store, it.base58()) } ?: AutoSubmit())
+        if (wallet != address) {
+            // The previous wallet's check goes with its state: it must not finish into this one's.
+            checking?.cancel()
+            checking = null
+            _state.value = UiState(autoSubmit = wallet?.let { AutoSubmit.restore(store, it.base58()) } ?: AutoSubmit())
+        }
         address = wallet
         refresher?.cancel()
         refresher = viewModelScope.launch {
@@ -199,8 +206,9 @@ class HoldoutViewModel(
                 refreshNow()
                 also.join()
             } catch (e: CancellationException) {
-                // The app left the front: [pause] has cleared the check already.
-                throw e
+                // This check's own cancellation ([pause], another wallet) ends it here, its state already
+                // cleared. A cancellation inside a read, with the check still live, is a read that did not answer.
+                currentCoroutineContext().ensureActive()
             } catch (_: Exception) {
                 // A read that throws is a read that did not answer: the check still ends.
             }

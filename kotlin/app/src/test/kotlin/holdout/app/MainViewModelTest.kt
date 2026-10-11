@@ -39,6 +39,45 @@ class MainViewModelTest {
     }
 
     @Test
+    fun `given two reads out, when the earlier one answers first, then the later one's time replaces it`() = runTest(dispatcher) {
+        val vm = MainViewModel()
+        val early = CompletableDeferred<Rpc.ChainTime?>()
+        val late = CompletableDeferred<Rpc.ChainTime?>()
+        launch { vm.refreshChainTime(clock) { early.await() } }
+        runCurrent()
+        launch { vm.refreshChainTime(clock) { late.await() } }
+        runCurrent()
+
+        early.complete(Rpc.ChainTime(unixSeconds = 1_000, slot = 10))
+        runCurrent()
+        assertEquals(1_000L, clock.nowSeconds())
+        late.complete(Rpc.ChainTime(unixSeconds = 2_000, slot = 20))
+        runCurrent()
+
+        assertEquals(2_000L, clock.nowSeconds())
+        assertEquals(20L, clock.slot)
+    }
+
+    @Test
+    fun `given a later read that fails, when the earlier one answers after it, then the earlier answer is taken`() = runTest(dispatcher) {
+        val vm = MainViewModel()
+        val early = CompletableDeferred<Rpc.ChainTime?>()
+        val late = CompletableDeferred<Rpc.ChainTime?>()
+        launch { vm.refreshChainTime(clock) { early.await() } }
+        runCurrent()
+        launch { vm.refreshChainTime(clock) { late.await() } }
+        runCurrent()
+
+        late.complete(null)
+        runCurrent()
+        early.complete(Rpc.ChainTime(unixSeconds = 1_000, slot = 10))
+        runCurrent()
+
+        // A read that got no answer took nothing, so it cannot set the earlier answer aside.
+        assertEquals(1_000L, clock.nowSeconds())
+    }
+
+    @Test
     fun `given a read that answers, when it is the only one, then the clock takes it and the read counts as answered`() = runTest(dispatcher) {
         val vm = MainViewModel()
         var answered = false
