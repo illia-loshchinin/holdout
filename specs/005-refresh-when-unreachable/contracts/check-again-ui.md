@@ -14,7 +14,9 @@ Network name `N` = `Deployment.networkName` ("Devnet" on the devnet build).
 | A Holdout's details | *"N can't be reached right now."* (added, under the title) | yes | yes |
 | Forfeit | *"N can't be reached right now."* (added) | yes | yes |
 
-While the chain answers: none of the above; a pull shows no indicator and starts no read.
+While the chain can't be reached, the pull is also a *Check again* accessibility action on the screen, so TalkBack and switch users can run the check without the gesture.
+
+While the chain answers: none of the above. A pull shows no indicator and starts no read, and there is no accessibility action.
 
 ## States of the control
 

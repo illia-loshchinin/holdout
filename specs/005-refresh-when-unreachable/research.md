@@ -8,7 +8,7 @@
 
 ## R2 — What a check reads
 
-- **Decision**: the snapshot (`refreshNow()` in the view model), chain time (the body of the app's chain-time loop, factored into one suspend function so the check and the loop save the reading the same way), and the roster of the Holdout on screen (`loadRoster`). Started together. The check ends when the snapshot and chain time have answered; the roster load is fire-and-forget and is not awaited, since only the snapshot decides `offline`.
+- **Decision**: the snapshot (`refreshNow()` in the view model), chain time (the body of the app's chain-time loop, factored into one suspend function so the check and the loop save the reading the same way), and the roster of the Holdout on screen (`loadRoster`). Started together. The check ends when the snapshot and chain time have answered. The roster load is fire-and-forget and is not awaited, since only the snapshot decides `offline`. A side read that throws (chain time, the roster) is caught inside its own child and cannot cancel the check. `finished(answered = !offline)` runs in a `finally`, so `checking` always clears (the stand-in review, 5959873).
 - **Rationale**: these are the reads the screens are drawn from; the snapshot alone decides `offline`. Chain time matters when a start had no reading (the screens can't show a countdown without it).
 - **Alternatives**: `clockViewModel.retry.networkBack()` only — rejected, it ends the wait only when there is no reading yet; with one, chain time would wait up to 10 minutes.
 
