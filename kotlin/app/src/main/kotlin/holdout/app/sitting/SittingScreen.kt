@@ -86,9 +86,9 @@ import java.util.concurrent.Executors
 import kotlin.math.atan
 
 /**
- * The sitting, screen 8 of PRD §10.1: start card, four pre-flight pills, palm
- * liveness, a 3-second countdown, counting with the skeleton overlay and the
- * bank ring, then the day complete.
+ * The sitting, screen map S1–S6: the camera permission, four pre-flight pills
+ * and the held start position, a 3-second countdown, counting with the
+ * skeleton overlay and the bank ring, then the day complete.
  *
  * The camera runs only while this screen is on top, and every frame it produces
  * is analysed in process and dropped (FR-022).

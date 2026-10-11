@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** T046 — the four environment checks, and what each red pill says (FR-019, PRD §8.2). */
+/** T046 — the four environment checks, and what each red pill says (FR-019). */
 class PreflightTest {
 
     private val preflight = Preflight()
