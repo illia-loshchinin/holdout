@@ -41,7 +41,7 @@ Each `value` is null (no record: not a candidate) or an account whose data after
 | Destination | Purpose | Sends |
 |---|---|---|
 | The configured **devnet** RPC endpoint | Unchanged from 001 | Unchanged |
-| The configured **names** endpoint (mainnet) | Seeker ID lookups, §1.1 and §1.2 only | Wallet addresses and derived account addresses, all already public on chain. No signature, no transaction, no device data |
+| The configured **names** endpoint (mainnet) | Seeker ID lookups, §1.1 and §1.2 only from `SeekerNameReader`. It is one of the app's **two** mainnet reads: the other, the Seeker Genesis Token check before a join, is 001's (FR-003b, R17; `SeekerGenesisReader`, its own read-only client on the same endpoint) | Wallet addresses and derived account addresses, all already public on chain. No signature, no transaction, no device data |
 | Local MWA wallet app | Unchanged from 001 | Unchanged |
 
 ## 3. In-code interface
@@ -83,12 +83,12 @@ Each `value` is null (no record: not a candidate) or an account whose data after
 
 ## 4. Weaknesses entry (FR-010)
 
-Added to `docs/weaknesses.json` (its location since spec 004) and rendered into the README by `node scripts/render-weaknesses.mjs`. The app shows no weaknesses screen:
+Added to `docs/weaknesses.json` (its location since spec 004) and rendered into the README by `node scripts/render-weaknesses.mjs`. The app shows no weaknesses screen. The row below is the current one: this spec added it for the names, and 001 R17 (2026-10-10) widened it with the Seeker Genesis Token check, which gates every join (001 FR-003b) and is therefore not for display only:
 
 ```json
 {
-  "what": "Seeker ID names are read from Solana mainnet",
-  "why": "Seeker IDs (.skr names) exist only on mainnet; the app reads them, for display only, from the public mainnet RPC, while everything else runs on devnet. Members without one, scripted members included, are shown by shortened address",
-  "fix": "Nothing to fix for display: on mainnet the same lookup reads the same network. A dedicated RPC provider would make first-time lookups of large lists faster"
+  "what": "Seeker ID names and the Seeker Genesis Token are read from Solana mainnet",
+  "why": "Seeker IDs (.skr names) and Seeker Genesis Tokens exist only on mainnet. The app reads both from the public mainnet RPC: Seeker ID names for display only, and the wallet's Seeker Genesis Token before a join. Everything else runs on devnet. Members without a Seeker ID, scripted members included, are shown by shortened address",
+  "fix": "Nothing to fix for the names: on mainnet the same lookup reads the same network. At mainnet launch the contract checks the Seeker Genesis Token itself (see the Seeker-exclusive row). A dedicated RPC provider would make first-time lookups of large lists faster"
 }
 ```

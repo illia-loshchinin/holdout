@@ -51,7 +51,7 @@ interface Store {
     fun longestStreak(wallet: String): Int
     fun setLongestStreak(wallet: String, streak: Int)
 
-    /** Streak freezes held, 0–2: earned one per seven consecutive active days (H35). */
+    /** Streak freezes held, 0–2: earned when the streak reaches a multiple of seven (H35, FR-049). */
     fun streakFreezes(wallet: String): Int
 
     /** The toes meter (H35): a day's reps from the toes, and the reps measured at 45°. */

@@ -32,13 +32,17 @@ This feature amends:
 | Constitution X (recording exception) | A **debug build** may record video | **Holdout Lab** may record video; the member app never can, in any build |
 | 001 FR-001a | The walkthrough is the one thing usable before a wallet | Nothing is usable before a wallet but the connect screen and the no-wallet help |
 | 001 FR-044, FR-066, AC-19 | A recorded walkthrough inside the app | The full cycle is shown in the demo video, sent as a link with the submission |
-| 001 FR-044a | A short test lobby "kept running for judges" | A short test lobby kept running, labelled, open to anyone |
+| 001 FR-044a | A short test lobby "kept running for judges" | A short test lobby kept running, labelled, open to every wallet holding a Seeker Genesis Token (001 FR-003b) |
 | 002 FR-023, FR-025, FR-026 | Traces, labelling and video in debug builds | In Holdout Lab |
 | 003 FR-010 (on branch `003-seeker-id-names`) | The Seeker ID note shown in About and the README | In the README only |
 
 The constitution changes through `/speckit-constitution`; 001, 002 and 003 change through `/speckit-clarify` on each. Spec 003 is not on this branch: it lives on `003-seeker-id-names`, and its FR-010 amendment was made there (`5a2ad5b`). Nothing in this spec depends on it.
 
 ## Clarifications
+
+### Session 2026-10-11
+
+- Q: Is the short test lobby open to anyone, as FR-014 and the amendment table say? (FR-014; 001 FR-003b, FR-044a) → A: **No — to every wallet holding a Seeker Genesis Token.** Staking is Seeker-exclusive since 2026-10-10 (001 FR-003b, H38, constitution v2.3.0): joining any staked Holdout, the short test lobby included, needs one; anyone else sees it from Home's "Running now" list and does the Daily 25. The lobby is still labelled and still kept running. Found by the PR #46 `/speckit-analyze` (X2); no behaviour changes.
 
 ### Session 2026-10-09
 
@@ -160,7 +164,7 @@ The team finds a counting mistake in a Lab set and fixes it. The next build of e
   - the first-run note that some members are scripted;
   - the SCRIPTED label on every scripted member;
   - the TEST COHORT label, with its day length, on every short test Holdout.
-- **FR-014** The member app keeps the short test lobby: short test Holdouts open continuously, offered beside the 7-day and 21-day Holdouts to anyone, labelled as short test Holdouts and described without reference to judges (amends 001 FR-044a's wording only; its rules are unchanged).
+- **FR-014** The member app keeps the short test lobby: short test Holdouts open continuously, offered beside the 7-day and 21-day Holdouts to every wallet that may stake — one holding a Seeker Genesis Token (001 FR-003b, amended 2026-10-11; anyone else watches it from Home's "Running now" list, 001 FR-062a) — labelled as short test Holdouts and described without reference to judges (amends 001 FR-044a's wording only; its rules are unchanged).
 - **FR-015** Known weaknesses are documented in the README only, and the member app has no weaknesses screen (constitution XI requires the README only). Spec 003, on its own branch, makes the matching change to its FR-010.
 - **FR-016** Nothing a member uses changes beyond FR-010 and FR-012: every other screen, rule and transaction stays as it is.
 

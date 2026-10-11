@@ -16,9 +16,10 @@
 //!     exactly: a 24-hour day, a weekly cadence, an hour's join lock and a
 //!     Monday 05:00 UTC first start. A test league (`league_id >= 100`) takes
 //!     any timing, and **only in builds carrying the `test-leagues` feature** —
-//!     LiteSVM and the separate rehearsal deployment, never the judged program
-//!     (research R11, scope doc D-A). Without the feature the id alone is
-//!     refused, whatever timing came with it.
+//!     LiteSVM, the local validator and the devnet program, which carries the
+//!     short test lobby (FR-044a, T092); a mainnet build never does (research
+//!     R11). Without the feature the id alone is refused, whatever timing came
+//!     with it.
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
@@ -74,9 +75,10 @@ pub struct CreateLeague<'info> {
 }
 
 /// Whether this build may create a league with this id at all, and with this
-/// timing. The judged program is compiled without `test-leagues`, so the whole
-/// test-league branch is absent from the binary the judges run — the feature is
-/// what widens it, not a flag anyone can flip on chain (research R11).
+/// timing. A build without `test-leagues` (every mainnet build) has the whole
+/// test-league branch absent from its binary; the devnet program is built with
+/// it for the short test lobby (FR-044a). The feature is what widens it, not a
+/// flag anyone can flip on chain (research R11).
 fn timing_ok(
     league_id: u8,
     duration_days: u8,

@@ -16,8 +16,9 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
-# Test leagues with a non-default day_length: LiteSVM and the rehearsal
-# deployment only, never the judged program (research R11, scope doc D-A).
+# Test leagues with a non-default day_length: LiteSVM, the local validator and
+# the devnet program, which carries the short test lobby (FR-044a, T092); never
+# a mainnet build (research R11).
 test-leagues = []
 
 [dependencies]

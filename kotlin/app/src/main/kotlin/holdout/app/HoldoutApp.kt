@@ -459,11 +459,13 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                 )
             }
             DisposableEffect(vm) { onDispose { vm.release() } }
-            // The chain can't be reached: a submit would fail before the wallet, so the
-            // finished screen says the day is not sent yet and "Back to today" sends
-            // nothing — the day waits on the phone and goes when the chain answers
-            // (FR-024b, 2026-10-10). Fixed for this composition, so label and tap agree.
-            val note = if (chain.offline) offlineNote(h, s.day, chainNow) else null
+            // The chain can't be reached, or that day's deadline has passed: a submit would
+            // fail (before the wallet, or with DeadlinePassed), so the finished screen says
+            // the day is not sent yet, or too late to send, and "Back to today" sends
+            // nothing — an unsent day waits on the phone and goes when the chain answers
+            // (FR-024b, 2026-10-10; too late online or off, 2026-10-11). One value per
+            // composition, so label and tap agree.
+            val note = sittingNote(h, s.day, chainNow, chain.offline)
             val done = {
                 sitting = null
                 refreshToken += 1
@@ -843,14 +845,24 @@ private fun InFrontLoop(key: Any?, pass: suspend () -> Unit) {
  * deadline and approved in the wallet. Past the deadline the day can no longer
  * be sent, and it says so. [nowSeconds] is chain time, null when unknown.
  */
-internal fun offlineNote(h: Holdout, day: Int, nowSeconds: Long?, network: String = Deployment.networkName): Pair<String, String> {
+internal fun offlineNote(h: Holdout, day: Int, nowSeconds: Long?, network: String = Deployment.networkName): Pair<String, String> = sittingNote(h, day, nowSeconds, offline = true, network = network)!!
+
+/**
+ * The finished screen's note for a cohort day just completed, or null when the day
+ * can be sent now: the chain answers and that day's deadline has not passed. Past
+ * the deadline the note is "Done — too late to send" whether the chain answers or
+ * not — a submit would only fail with DeadlinePassed (001 FR-024b, AC-18).
+ */
+internal fun sittingNote(h: Holdout, day: Int, nowSeconds: Long?, offline: Boolean, network: String = Deployment.networkName): Pair<String, String>? {
     val n = day + 1
     val reps = h.cohort.repsPerDay
     val left = nowSeconds?.let { Derive.deadlineOf(h.cohort, day) - it }
     if (left != null && left <= 0) {
+        val reach = if (offline) "$network can't be reached, and day" else "Day"
         return "Done — too late to send" to
-            "$network can't be reached, and day $n's deadline has passed, so it can no longer be sent. Your $reps are saved on this phone."
+            "$reach $n's deadline has passed, so it can no longer be sent. Your $reps are saved on this phone."
     }
+    if (!offline) return null
     val deadline = left?.let { " (${Format.countdown(it)} left)" } ?: ""
     return "Done — not sent yet" to
         "$network can't be reached, so day $n isn't on chain yet. Your $reps are saved on this phone. " +

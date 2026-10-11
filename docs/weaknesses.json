@@ -115,6 +115,11 @@
       "what": "A comeback after a 21-day forfeit is not offered in time",
       "why": "The comeback record is written when the forfeited Holdout settles, 21 days after it started. The window to join the next Holdout is 14 days from the missed deadline and has mostly closed by then, so the Today nudge cannot show for most 21-day forfeits; a member who joins the next Holdout anyway still earns the refund. 7-day forfeits work: the Holdout settles in time",
       "fix": "Record the comeback when the forfeit is recorded, and tell the member on the forfeit screen how to join the next Holdout. Decided 2026-10-11 as a follow-up after the submission"
+    },
+    {
+      "what": "One key, `operator.json`, is both the crank's fee payer and the only key that can publish the chip set, and it sits as a hot secret on the Fly machine that runs the crank (and in the GitHub Actions fallback)",
+      "why": "Opening a cohort every 30 minutes needs a funded payer. A separate payer key was considered and the product owner decided against it (2026-10-11, L14), so this is an accepted risk of the devnet build, not an oversight. Whoever takes the key can re-price the stakes of every Holdout not yet open and spend its float. Worse, it can publish one chip set with an enormous top tier: the program keeps the highest top tier ever published (`max_top_tier` only rises) and the faucet mints exactly that much per claim, and `Config.operator` has no rotation instruction. The faucet then mints absurd amounts or fails, new wallets lose their way to SKR, and only a program upgrade undoes it. The same machine and the GitHub Actions fallback also hold the keypairs of the 56 scripted members (`HOLDOUT_SCRIPTED_KEYS_TGZ_B64`), so a compromise can stop their submissions (forfeits that move real pools), join or leave, and claim their payouts. What it cannot do is touch a real member's stake or a settled payout, which only the program moves",
+      "fix": "A payer key of its own holding only the float, an operator key kept off the machine (or a multisig), an operator rotation instruction and a cap on the top tier, and the scripted keys held apart, for the mainnet build"
     }
   ]
 }

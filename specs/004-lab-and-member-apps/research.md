@@ -126,7 +126,7 @@ Constitution X forbids the recorder, which is code that records, and the check e
 **Rationale**: It is a README source now, not an app asset, and keeping it in `assets` would ship an unused file in the APK. Spec 003's weaknesses entry (contracts §4) is added at the new path.
 
 **Found in implementation (2026-10-09)**: three rows described the removed parts, so they were corrected and the README table re-rendered (constitution XI: the README must stay true):
-- the short test lobby row: "for judges, from which the walkthrough … are recorded" → "labelled and open to anyone, from which the demo video is recorded";
+- the short test lobby row: "for judges, from which the walkthrough … are recorded" → "labelled and open to anyone, from which the demo video is recorded" *(since 2026-10-10 "open to every Seeker owner": staking is Seeker-exclusive, 001 FR-003b)*;
 - the wallet-first row's fix: "the connect screen plays the recorded walkthrough" → "says how to get a wallet; the demo video shows the whole product";
 - "The full cycle is shown as a recorded walkthrough in the app, for judges" → "The full cycle is shown in the demo video, not inside the app".
 

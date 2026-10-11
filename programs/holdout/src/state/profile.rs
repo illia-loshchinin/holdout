@@ -13,8 +13,8 @@ pub const PROFILE_SEED: &[u8] = b"profile";
 /// Progress slots: the 7-day league, the 21-day league, and one shared by every
 /// test league. The test slot exists in **both** builds on purpose — the layout
 /// must be identical whether or not `test-leagues` is compiled in, or the
-/// rehearsal and judged deployments would disagree about this account
-/// (constitution V, research R11).
+/// devnet program (built with it) and the mainnet program (built without it)
+/// would disagree about this account (constitution V, research R11).
 pub const LEAGUE_SLOTS: usize = 3;
 /// The slot every `league_id >= 100` shares.
 pub const TEST_LEAGUE_SLOT: usize = 2;
