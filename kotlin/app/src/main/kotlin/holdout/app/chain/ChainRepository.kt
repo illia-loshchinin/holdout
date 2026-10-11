@@ -4,6 +4,7 @@ import com.solana.publickey.SolanaPublicKey
 import holdout.app.BuildConfig
 import holdout.core.CohortSnapshot
 import holdout.core.CohortStatus
+import holdout.core.Comeback
 import holdout.core.ConfigSnapshot
 import holdout.core.Derive
 import holdout.core.Journey
@@ -76,6 +77,29 @@ data class ChainView(
 
     /** The end of the cohort in the profile's running slot, for the overlap check (FR-006b). */
     fun runningEnd(now: Long): Long? = Journey.runningCohortFor(profile, now)?.let { r -> holdouts.firstOrNull { it.address == r }?.cohort?.let(Derive::end) }
+
+    /** What a join at [now] sends for the profile's running slot: the record of an unrecorded breach first, or the running cohort to name (FR-037g, ES-17). */
+    fun joinPlan(now: Long): Journey.JoinPlan {
+        val running = Journey.runningCohortFor(profile, now)
+        val h = running?.let { r -> holdouts.firstOrNull { it.address == r } }
+        return Journey.joinPlan(profile, h?.let { Comeback.Entry(it.address, it.cohort, it.membership) }, now)
+    }
+
+    /**
+     * Whether the cohort in the profile's running slot is one the wallet is in breach of, its forfeit
+     * not recorded yet, which a join frees by sending the record with it (FR-037g, ES-17).
+     */
+    fun runningInBreach(now: Long): Boolean = joinPlan(now).runningInBreach
+
+    private fun comebackEntries(): List<Comeback.Entry> = holdouts.map { Comeback.Entry(it.address, it.cohort, it.membership) }
+
+    private fun comebackLeagues(): List<LeagueSnapshot> = holdouts.mapNotNull { it.league }.distinctBy { it.params.leagueId }
+
+    /** What the wallet can still win back of stakes it lost, per level and length (FR-037g); empty when nothing is offered. */
+    fun comebackOffers(now: Long): List<Comeback.Offer> = Comeback.offers(comebackEntries(), comebackLeagues(), now)
+
+    /** The comeback offer of the slot [leagueId] belongs to, if any. */
+    fun comebackOffer(now: Long, leagueId: Int): Comeback.Offer? = Comeback.offer(comebackEntries(), comebackLeagues(), now, leagueId)
 }
 
 /** The chain reads the staked side of the app makes: [ChainRepository] on a phone, a fake in the view model's tests (005 T019). */

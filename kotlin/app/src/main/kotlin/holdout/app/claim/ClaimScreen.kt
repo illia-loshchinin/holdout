@@ -81,14 +81,10 @@ fun ClaimScreen(
                     )
                 },
         )
-        ready?.let {
-            HoldoutCard {
-                Body("Your stake back: ${Format.skr(it.stake)}")
-                Body("Your share of the prize pool: ${Format.skr(it.share)}")
-                // A comeback refund (FR-037e, H35): part of the stake lost in this
-                // league's last Holdout, earned back by finishing this one.
-                if (it.comeback > 0uL) Body("Comeback — part of your last lost stake, back: ${Format.skr(it.comeback)}")
-            }
+        // What the amount is made of, before the claim and after it alike (H7, UC-10).
+        val breakdown = ready?.let { Triple(it.stake, it.share, it.comeback) } ?: claimed?.let { Triple(it.stake, it.share, it.comeback) }
+        breakdown?.takeIf { (stake) -> stake > 0uL }?.let { (stake, share, comeback) ->
+            HoldoutCard { PayoutBreakdown(stake, share, comeback) }
         }
         val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
         (lastClaimSignature ?: null)?.takeIf { claimed != null }?.let { signature ->
@@ -102,4 +98,17 @@ fun ClaimScreen(
         Notice(message, messageIsWarning)
         if (ready != null) PrimaryButton(if (busy) "Waiting for the wallet…" else "Claim ${Format.skr(ready.amount)}", onClaim, busy = busy)
     }
+}
+
+/**
+ * What a payout is made of (H7): the stake back, the share of the prize pool
+ * and, when owed, the comeback refund — part of the stake lost in the last
+ * Holdout of this level and length, earned back by finishing this one
+ * (FR-037e, H35). Shown before the claim and after it (UC-10).
+ */
+@Composable
+fun PayoutBreakdown(stake: ULong, share: ULong, comeback: ULong) {
+    Body("Your stake back: ${Format.skr(stake)}")
+    Body("Your share of the prize pool: ${Format.skr(share)}")
+    if (comeback > 0uL) Body("Comeback — part of your last lost stake, back: ${Format.skr(comeback)}")
 }

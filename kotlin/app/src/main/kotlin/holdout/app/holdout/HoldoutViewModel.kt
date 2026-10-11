@@ -253,9 +253,10 @@ class HoldoutViewModel(
         val me = address ?: return@act
         val view = _state.value.view ?: return@act
         val config = view.config ?: return@act
-        val running = Journey.runningCohortFor(view.profile, now)
-        val ix = Instructions.joinCohort(Deployment.programId, me, config.skrMint, h.address, tier, running)
-        describe(wallet.send(sender, listOf(ix)), "You're in. ${Format.skr(h.cohort.chips[tier])} staked.")
+        // A running cohort the member has missed a deadline in and nobody has recorded yet still holds the
+        // slot (ObligationsOverlap, 6026): its record goes first in the same transaction (FR-037g, ES-17).
+        val instructions = Journey.joinInstructions(Deployment.programId, me, config.skrMint, config.feeDestination, config.developerDestination, h.address, tier, view.joinPlan(now))
+        describe(wallet.send(sender, instructions), "You're in. ${Format.skr(h.cohort.chips[tier])} staked.")
     }
 
     fun leave(sender: ActivityResultSender, h: Holdout) = act {

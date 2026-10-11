@@ -78,6 +78,7 @@ fun CohortDetailScreen(
                 }
                 is Stage.Claimed -> HoldoutCard {
                     Text("Claimed · ${Format.skr(stage.amount)}", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
+                    if (stage.stake > 0uL) holdout.app.claim.PayoutBreakdown(stage.stake, stage.share, stage.comeback)
                     val uriHandler = LocalUriHandler.current
                     lastClaimSignature?.let { signature ->
                         val url = Format.explorer(signature)
