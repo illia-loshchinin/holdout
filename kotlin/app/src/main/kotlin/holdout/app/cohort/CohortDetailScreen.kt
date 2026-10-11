@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import holdout.app.chain.Holdout
 import holdout.app.ui.Body
+import holdout.app.ui.ChainCheckBox
+import holdout.app.ui.ChainUnreachable
 import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
 import holdout.app.ui.SecondaryButton
@@ -46,65 +48,73 @@ fun CohortDetailScreen(
     onRoster: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The last chain read failed (spec 005): the line, Check again and the pull. */
+    offline: Boolean = false,
+    checking: Boolean = false,
+    stillUnreachable: Boolean = false,
+    onCheck: () -> Unit = {},
 ) {
     val c = h.cohort
     val figures = members?.let { Derive.figures(c, it, now) }
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(HoldoutColors.Canvas)
-            .verticalScroll(rememberScrollState())
-            .padding(Spacing.screenGutter),
-        verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
-    ) {
-        TextButton(onClick = onBack) { Text("← Back", color = HoldoutColors.TextSecondary) }
-        if (h.isTest) TestCohortBadge(c.dayLength)
-        Text(Format.holdoutTitle(c), style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
+    ChainCheckBox(offline, checking, onCheck, modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HoldoutColors.Canvas)
+                .verticalScroll(rememberScrollState())
+                .padding(Spacing.screenGutter),
+            verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
+        ) {
+            TextButton(onClick = onBack) { Text("← Back", color = HoldoutColors.TextSecondary) }
+            if (h.isTest) TestCohortBadge(c.dayLength)
+            Text(Format.holdoutTitle(c), style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
+            if (offline) ChainUnreachable(checking, stillUnreachable, onCheck)
 
-        when (stage) {
-            Stage.Settling -> HoldoutCard {
-                Text(SettlingWords.CARD_TITLE, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
-                Body(SettlingWords.cardBody(Derive.sinceEnd(c, now), Derive.settleUsuallyIn(c, now)))
-                Body("Your claim opens the moment it's done.")
+            when (stage) {
+                Stage.Settling -> HoldoutCard {
+                    Text(SettlingWords.CARD_TITLE, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
+                    Body(SettlingWords.cardBody(Derive.sinceEnd(c, now), Derive.settleUsuallyIn(c, now)))
+                    Body("Your claim opens the moment it's done.")
+                }
+                is Stage.Claimed -> HoldoutCard {
+                    Text("Claimed · ${Format.skr(stage.amount)}", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
+                    val uriHandler = LocalUriHandler.current
+                    lastClaimSignature?.let { signature ->
+                        val url = Format.explorer(signature)
+                        // As on the claim screen: tapped, it opens in the browser; a phone with none leaves the address to read.
+                        Body(
+                            "Transaction (tap to open): $url",
+                            modifier = Modifier.clickable(onClickLabel = "Open the transaction in the explorer") { runCatching { uriHandler.openUri(url) } },
+                        )
+                    }
+                }
+                else -> Unit
             }
-            is Stage.Claimed -> HoldoutCard {
-                Text("Claimed · ${Format.skr(stage.amount)}", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
-                val uriHandler = LocalUriHandler.current
-                lastClaimSignature?.let { signature ->
-                    val url = Format.explorer(signature)
-                    // As on the claim screen: tapped, it opens in the browser; a phone with none leaves the address to read.
-                    Body(
-                        "Transaction (tap to open): $url",
-                        modifier = Modifier.clickable(onClickLabel = "Open the transaction in the explorer") { runCatching { uriHandler.openUri(url) } },
-                    )
+
+            val daysLeft = (c.durationDays - Derive.dayIndex(c, now)).coerceIn(0, c.durationDays)
+            HoldoutCard {
+                SectionLabel("Where it stands")
+                figures?.let { Text("${it.survivors.standing} still standing of ${c.memberCount}", style = AmountStyle, color = HoldoutColors.TextPrimary) }
+                Text("Prize pool: ${figures?.let { Format.skr(it.projectedPool) } ?: Format.skr(c.pool)}", style = AmountStyle, color = HoldoutColors.Accent)
+                if (now < Derive.end(c)) Body("$daysLeft day${if (daysLeft == 1) "" else "s"} to go.")
+            }
+
+            h.membership?.let { m ->
+                HoldoutCard {
+                    SectionLabel("Your record")
+                    Text("${m.daysCompleted} of ${c.durationDays} days · stake ${Format.skr(m.stake)}", style = AmountStyle, color = HoldoutColors.TextPrimary)
+                    if (figures != null && Derive.standing(m, c, now) && !c.settled) Body("Projected share if the crowd held here: ${Format.skr(figures.projectedShare(m))}")
                 }
             }
-            else -> Unit
-        }
 
-        val daysLeft = (c.durationDays - Derive.dayIndex(c, now)).coerceIn(0, c.durationDays)
-        HoldoutCard {
-            SectionLabel("Where it stands")
-            figures?.let { Text("${it.survivors.standing} still standing of ${c.memberCount}", style = AmountStyle, color = HoldoutColors.TextPrimary) }
-            Text("Prize pool: ${figures?.let { Format.skr(it.projectedPool) } ?: Format.skr(c.pool)}", style = AmountStyle, color = HoldoutColors.Accent)
-            if (now < Derive.end(c)) Body("$daysLeft day${if (daysLeft == 1) "" else "s"} to go.")
-        }
-
-        h.membership?.let { m ->
-            HoldoutCard {
-                SectionLabel("Your record")
-                Text("${m.daysCompleted} of ${c.durationDays} days · stake ${Format.skr(m.stake)}", style = AmountStyle, color = HoldoutColors.TextPrimary)
-                if (figures != null && Derive.standing(m, c, now) && !c.settled) Body("Projected share if the crowd held here: ${Format.skr(figures.projectedShare(m))}")
+            members?.let { list ->
+                HoldoutCard {
+                    SectionLabel("How the crowd thinned")
+                    survivorHistory(c, list, now).forEach { (day, standing) -> Body("After day ${day + 1}: $standing standing") }
+                }
             }
+            SecondaryButton("The roster", onRoster)
         }
-
-        members?.let { list ->
-            HoldoutCard {
-                SectionLabel("How the crowd thinned")
-                survivorHistory(c, list, now).forEach { (day, standing) -> Body("After day ${day + 1}: $standing standing") }
-            }
-        }
-        SecondaryButton("The roster", onRoster)
     }
 }
 

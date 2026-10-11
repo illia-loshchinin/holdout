@@ -6,6 +6,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -16,9 +17,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.pullToRefresh
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
@@ -27,13 +32,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import holdout.app.chain.Deployment
+import holdout.app.holdout.CheckAgainCopy
 import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
@@ -170,6 +180,59 @@ fun Reading(content: @Composable () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         BusyMark()
         content()
+    }
+}
+
+/**
+ * "Check again" while the chain can't be reached (spec 005,
+ * contracts/check-again-ui.md): a secondary button, busy while the check is
+ * out, and "Devnet still can't be reached." under it, in the warning colour of
+ * the line it answers, once a check found it so. Shown only while the last
+ * chain read failed; the caller decides that.
+ */
+@Composable
+fun CheckAgain(checking: Boolean, stillUnreachable: Boolean, onCheck: () -> Unit, modifier: Modifier = Modifier, network: String = Deployment.networkName) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.tight), horizontalAlignment = Alignment.CenterHorizontally) {
+        SecondaryButton(if (checking) CheckAgainCopy.checking(network) else CheckAgainCopy.BUTTON, onCheck, busy = checking)
+        if (stillUnreachable && !checking) Notice(CheckAgainCopy.stillUnreachable(network), warning = true)
+    }
+}
+
+/**
+ * A screen that says nothing else about the chain — the home showing an
+ * earlier read, a Holdout's details, the forfeit — says it can't be reached in
+ * one line above [CheckAgain] (spec 005 FR-002). The line itself answers a
+ * failed check ("…still can't be reached."), so nothing moves on the screen.
+ */
+@Composable
+fun ChainUnreachable(checking: Boolean, stillUnreachable: Boolean, onCheck: () -> Unit, network: String = Deployment.networkName) {
+    Notice(if (stillUnreachable) CheckAgainCopy.stillUnreachable(network) else CheckAgainCopy.unreachable(network), warning = true)
+    CheckAgain(checking, stillUnreachable = false, onCheck = onCheck, network = network)
+}
+
+/**
+ * Pull down to check the chain again (spec 005 FR-001): only while [offline]
+ * — the last chain read failed. While the chain answers the pull does nothing
+ * and shows nothing; the app's own 30-second reads keep the screen fresh.
+ * [content] scrolls as before; its overscroll drives the pull.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChainCheckBox(offline: Boolean, checking: Boolean, onCheck: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val state = rememberPullToRefreshState()
+    // The pull is a touch gesture only: TalkBack and switch users get the same check as an action.
+    val actions = if (offline) listOf(CustomAccessibilityAction(CheckAgainCopy.BUTTON) { onCheck().let { true } }) else emptyList()
+    Box(modifier.pullToRefresh(isRefreshing = checking, state = state, enabled = offline, onRefresh = onCheck).semantics { customActions = actions }) {
+        content()
+        if (offline) {
+            PullToRefreshDefaults.Indicator(
+                state = state,
+                isRefreshing = checking,
+                modifier = Modifier.align(Alignment.TopCenter),
+                containerColor = HoldoutColors.Surface2,
+                color = HoldoutColors.Accent,
+            )
+        }
     }
 }
 
