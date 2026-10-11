@@ -145,3 +145,8 @@ description: "Task list for 002 rep placement and form rules — as built, with 
 ## Implementation strategy
 
 The MVP — US1 and US2 on the counter — is built and on the phone. Since 2026-10-08 the Daily 25 rehearses the Easy set-up at 45° and the head-on path is gone (T040–T042). What remains: label what only today's counter sees and confirm Claude's labels so the ratchet holds real ground truth (T046, T047), check the Daily 25 at the front edge of its band (T048), then widen the evidence beyond one person (T033) before any classifier work (Phase 8).
+
+## Phase 9: Convergence
+
+- [X] T049 Give the near knee its own blocking pre-flight pill, Knees visible, between Whole body in frame and Camera view in `kotlin/repcounter/src/main/kotlin/holdout/repcounter/Preflight.kt` (`PreflightCheck.KNEES_VISIBLE`, `Preflight.kneesVisible()`), moving the near-knee checks and their three fixes out of Whole body in frame, red without a picture pose, and have `Coach.next` rank the knee turn fixes below a failing Whole body in frame pill per FR-024a (missing)
+- [X] T050 Make the set-up guide in `kotlin/app/src/main/kotlin/holdout/app/sitting/PlacementGuide.kt` say "Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone." under its title on every page, with the phone page's "From there it sees all of you, and the knee nearer to it." and the body page opening on the whole-body and knees lines, per FR-015 as amended (missing)

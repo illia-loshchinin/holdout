@@ -125,7 +125,8 @@ pub struct Config {
     /// The **developer** destination: the developer's SKR token account. The
     /// developer part of every forfeit and half of a no-finisher pool (H35).
     pub developer_destination: Pubkey,
-    /// `false` on devnet: testers have no Seeker (research R17).
+    /// `false` on devnet, where Seeker Genesis Tokens do not exist and the app
+    /// keeps staking Seeker-exclusive; turned on at mainnet launch (research R17).
     pub genesis_gate_enabled: bool,
     pub chip_set: ChipSet,
     pub faucet: Faucet,
