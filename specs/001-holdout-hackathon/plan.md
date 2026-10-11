@@ -234,7 +234,7 @@ Post-hackathon, outside this plan: a winning app must be published on the Solana
 | After the device run *(2026-10-11)* | Today's comeback line before the Daily 25 (`home/HomeScreen.kt` `holdoutLineIsComeback`, `DailyHoldoutLine.comebackLine`); "opens for joining shortly" (`ui/Components.kt` `Format.opensForJoining`); the offer's `upcoming` round (`Comeback.Offer.upcoming`); the payout breakdown after the claim (`core` `Stage.Claimed` carries stake, share and comeback; `claim/ClaimScreen.kt` `PayoutBreakdown`, used by `cohort/CohortDetailScreen.kt`); the record-and-join transaction on LiteSVM, `tests/scenarios/comeback-join.spec.ts` (ES-17) |
 | Docs (not spec-kit) | `docs/holdout_decisions.md` (L13 resolved, dated log row), `docs/weaknesses.json` → README table (the L13 row removed or reworded), `docs/holdout_screen_map.md` (H6 card, UC-9, UC-10, §8 item 13) |
 
-**Sequence.** `core` derivation and tests → join path (ES-17) → Forfeit screen and stake sheet → Today → docs → local validator run of quickstart scenario 23 → PR. Target: in the submission build, 12 October before 20:00 CEST; if it is not green by then, the submission ships without it and L13 stays in the weaknesses table.
+**Sequence.** `core` derivation and tests → join path (ES-17) → Forfeit screen and stake sheet → Today → docs → local validator run of quickstart scenario 23 → PR. Built and verified on 11 October (device run, LiteSVM, CI (local), stand-in review); L13 is resolved and out of the weaknesses table.
 
 **Risks.** The offer must agree with the program's rule to the second (`>` the missed deadline, `≤` the window's end): `ComebackTest` replays the program's boundary cases. Two instructions in one transaction must fit the legacy size limit; measured in the local run.
 
