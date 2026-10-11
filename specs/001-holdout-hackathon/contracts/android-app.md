@@ -77,6 +77,8 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 | A place held in a comeback round | Forfeit screen and Today — "finish it and up to N SKR of the stake you lost comes back", no Join (ES-18) |
 | No comeback round open, the next scheduled and not opened yet *(added 2026-10-11)* | Forfeit screen and Today — "The next … opens for joining in … and starts in …" ("opens for joining shortly" once automation is late), no Join (FR-037g) |
 | A lobby place held outside the comeback window | Forfeit screen — the offer, saying that place must be left first; no Join until it is (ES-18, FR-006a) |
+| An older forfeit's screen, after a later forfeit *(added 2026-10-11)* | Forfeit screen without the offer: the Daily 25 and, if one is open, the next Holdout of the same level and length; the offer belongs to the latest forfeit (FR-037g, ES-19) |
+| Several comeback offers (7-day and 21-day) *(added 2026-10-11)* | Today shows one line: a round to join now first, then a place held, then a round not opened yet (FR-037g) |
 | Every comeback round closed, no place held | Forfeit screen without the offer: the Daily 25 and, if one is open, the next Holdout of the same level and length (US-4) |
 | Cohort `Settling`, member finished | Cohort detail — "You finished · settlement in progress" |
 | `ReadyToClaim` | Claim screen |
