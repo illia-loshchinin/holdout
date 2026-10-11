@@ -35,6 +35,8 @@ Holdout Lab (spec 004) opens on the counting mode: **Daily 25**, **Easy Holdout*
 | US1-5 | Daily 25 at 45°, 5 push-ups from the knees | 5 counted; the toes meter says they were not from your toes |
 | US1-6 | Daily 25 at 45°, 5 half push-ups | 0 counted, "Go lower" |
 | Legs | Daily 25 at 45°, your knees outside the picture | no start: "Keep your knees in the picture — move the phone further away" |
+| Knees visible | Daily 25 at 45°, turned so the near knee is hidden behind your body (or before the camera has found your pose) | the Knees visible pill is red, never green, with "Turn your body slightly to your left (right), away from the phone, so it sees your knees" ("…a little away from the phone…" when the side is unclear); no countdown. With the head or feet out of the picture the coach says "Further" first, not "Turn slightly away" |
+| Guide | Open the set-up guide, then swipe through its three pages | every page, under the title, opens with "Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone." |
 | US2-2 | Hard Holdout, 45°, 5 from the knees (feet down, then raised) | 0 counted, "Knees off the floor" |
 | US2-3 | Hard Holdout, phone head-on | red: "Turn the phone to 45°", no countdown |
 | Cobra | 45°, lie flat, press only the chest up, 5 times | 0 counted (at most one slips through), "Keep your body straight" |

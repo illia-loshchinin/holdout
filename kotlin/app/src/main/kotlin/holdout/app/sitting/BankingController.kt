@@ -6,7 +6,7 @@ import holdout.app.streak.ToesMeter
 import holdout.repcounter.RepStance
 
 /**
- * Banked reps (T051, FR-024, FR-023, PRD §8.6).
+ * Banked reps (T051, FR-024, FR-023, AC-15).
  *
  * ```
  * morning   sitting 1:  17 reps  →  banks 10, the 7 extra are lost   banked 10

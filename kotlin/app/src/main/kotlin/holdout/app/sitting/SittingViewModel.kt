@@ -30,10 +30,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * One sitting, start to finish (T050, PRD §8, §10.1 screen 8).
+ * One sitting, start to finish (T050, FR-019–FR-024b, screen map S3–S6).
  *
  * ```
- * pre-flight (four pills) + held at the top of a push-up
+ * pre-flight (five pills) + held at the top of a push-up
  *            → "three, two, one, go" → counting (bank every 10) → day complete
  * ```
  *

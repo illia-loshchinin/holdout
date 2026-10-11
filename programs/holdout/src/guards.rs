@@ -48,7 +48,8 @@ pub fn require_tier(tier: u8) -> Result<()> {
     Ok(())
 }
 
-/// The genesis gate (research R17). `holds_genesis` is established by the
+/// The genesis gate (research R17). `holds_genesis` comes from
+/// `genesis::holds_seeker_genesis`, established by the
 /// instruction from the accounts it was passed; with the flag off, nothing is
 /// checked and no account is needed.
 pub fn genesis_gate_ok(enabled: bool, holds_genesis: bool) -> bool {
