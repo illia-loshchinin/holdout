@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import holdout.app.ui.Body
 import holdout.app.ui.Reading
 import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.CounterStyle
@@ -531,7 +532,7 @@ private fun DayComplete(state: SittingViewModel.UiState, label: String, note: Pa
     Text("done", style = LabelStyle, color = HoldoutColors.TextSecondary)
     note?.let { (title, sentence) ->
         Text(title, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Warning, textAlign = TextAlign.Center)
-        Text(sentence, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary, textAlign = TextAlign.Center)
+        Body(sentence, center = true)
     }
     PrimaryButton(label, onFinished)
 }

@@ -139,7 +139,7 @@ fun CohortHome(
                 Body(
                     if (offline) {
                         // Not "by itself": nothing is sent while the app is closed (FR-024b, 2026-10-10).
-                        "Your ${c.repsPerDay} are saved on this phone. It's sent when Holdout is open and back online, and you approve it in your wallet. Until then the day doesn't count."
+                        "Your ${c.repsPerDay} are saved on this phone. It only counts once it reaches the chain before the deadline: it's sent when Holdout is open and back online, and you approve it in your wallet."
                     } else {
                         "Your ${c.repsPerDay} are counted on this phone. It only counts once it reaches the chain before the deadline" + if (tap) "." else ": approve it in your wallet."
                     },
