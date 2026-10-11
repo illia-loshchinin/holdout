@@ -321,6 +321,16 @@ Staked Holdouts are Seeker-exclusive (spec FR-003b–FR-003d, constitution v2.3.
   - **Keeping the sounding halfway reminder for a day done here** *(2026-10-11)*: the owner asked for silence every hour, not a second sound; a day done here has already been acted on.
 - **Weakness, named in the README:** reminders can arrive a few minutes late, not at all after a reboot until the app is opened, and never if notifications are declined — the deadline is the chain's (constitution XI).
 
+## R22 · The comeback offer, derived on the phone (added 2026-10-11, FR-037g, open item L13)
+
+- **Decision:** the app works the comeback offer out from the member's forfeited membership the moment the deadline passes, and the program stays as it is. The missed deadline is `deadline_of(days_completed)` of that cohort — the instant `settle_count` later records as `comeback_from` — and the window is `(missed, missed + 14 × day_length]`, the exact test of `LeagueProgress::take_comeback`. The rounds are the league's scheduled starts `first_start + k × cadence` inside the window, so a round not yet opened is still named, with when it opens (at the previous round's start). With weekly cadence and a 14-day window there are always exactly two. A member who joins before automation has recorded the forfeit sends `record_forfeits` for their own pair ahead of `join_cohort` in one transaction, with no running cohort passed to the join.
+- **Rationale:** the refund was always earned by joining in time — `settle_count` of the comeback cohort runs after the forfeited cohort is settled (FR-061a), so the forfeit is counted and the window open by then; only the app could not see it, because `progress.comeback_*` is written at settlement, 21 days after a 21-day Holdout started. Deriving it needs no account or instruction change, so H24 is untouched and the fix lands before the submission. The offer and the payout follow one rule, written once in the program and mirrored once in `core`.
+- **Why the record goes with the join:** an unrecorded forfeit still holds the profile's running slot, and `join_cohort` refuses an overlap with a running cohort whose end is in the future (`ObligationsOverlap`, 6026). `record_forfeits` is permissionless and idempotent, so sending it first frees the slot in the same transaction; with no running cohort passed, `join_cohort` does not write the old cohort's end back into the cleared slot.
+- **Alternatives considered:**
+  - **Record the comeback in `record_forfeits`:** the fields exist, so no layout change, but a forfeit recorded mid-cohort and the same forfeit counted again at settlement would both write it, and a later forfeit in the comeback Holdout could be overwritten by the older one's count unless guarded; a program change with LiteSVM tests and a second review the day before the deploy and the submission. Rejected for the devnet build; not needed for the mainnet build either while the derived offer holds.
+  - **Wait for settlement, as built:** the offer shows only after joining has closed for most 21-day forfeits (L13).
+  - **A refund on any later Holdout, without the window:** changes FR-037e's economics (spec, 2026-10-09 session); rejected by the product owner, rules unchanged.
+
 ## Spikes that confirm this research
 
 | Spike | Confirms | Pass bar | If it fails |

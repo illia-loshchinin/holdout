@@ -212,6 +212,30 @@ Post-hackathon, outside this plan: a winning app must be published on the Solana
 - **Before spike S1:** set up WSL2 Ubuntu 24.04 with Rust, Solana CLI 3.1.10, Anchor 1.1.2 and Node 22; register a domain (or subdomain) for the MWA identity URI and host its Digital Asset Links file (R3).
 - **Agent tooling:** install the solana-dev skill in this repository and add the Solana MCP server (R19).
 
+## Amendment 2026-10-11 — the comeback offer (FR-037g, open item L13)
+
+**Summary.** After a forfeit the app offers the comeback of FR-037e at once, worked out on the phone from the member's forfeited membership, instead of waiting for the league progress record that the program writes only at settlement (research R22). **The program, its accounts, its instructions and the IDL are unchanged**, so H24 is untouched and the change needs no deploy; it ships in the app before the submission. Branch `feat/comeback-offer`, base `001-holdout-hackathon`.
+
+**Technical context, delta.** Kotlin only: `kotlin/core` (pure derivation, unit-tested on the JVM) and `kotlin/app` (Compose). No Rust, no TypeScript, no fixture regeneration. The join transaction gains one instruction already in `core` (`Instructions.recordForfeits`), sent ahead of `join_cohort` when the member's own forfeit is not yet recorded (ES-17).
+
+**Constitution check.** I: funds still move only by program rule; the app reads, it decides nothing — settlement still decides the refund. II: the offer is derived from the missed deadline and chain time, the same `deadline_of(days_completed)` the program records; the record the app sends is the permissionless one any caller may send. VI: chain time only. VII: the derivation is written test-first in `core` against the program's own window rule (`LeagueProgress::take_comeback`). IX: every new state has a screen — offer open, place held inside the window, place held outside it, no round left (ES-18). XIII: every amount is "up to", the reserve is named by level and length, never "league" (FR-039, FR-041). **Gate: PASS.**
+
+**Where it lands.**
+
+| Piece | Files |
+|---|---|
+| The offer, derived | `kotlin/core/src/main/kotlin/holdout/core/Comeback.kt` (new): the latest forfeit per progress slot (recorded `Forfeited`, or in breach and not yet recorded — `Derive.inBreach`), its missed deadline `Derive.deadlineOf(c, daysCompleted)`, the window `(missed, missed + 14 × dayLength]`, the rounds — every `firstStart + k × cadence` of the forfeit's league inside the window, each with its cohort if opened and its status — the member's place in one, and the amount `Settlement.comebackOwed(lost, chip)`; used up when a counted finish of a later cohort in the window exists. Tests in `kotlin/core/src/test/kotlin/holdout/core/ComebackTest.kt` |
+| Joining right after the loss | `Journey.joinBlocker` ignores a running cohort the member is in breach of; `HoldoutViewModel.join` sends `[recordForfeits(own pair), joinCohort(running = null)]` when that forfeit is unrecorded — `null` because the record has already cleared the running slot, and passing the old cohort would write its end back into a cleared slot. Its one caller is the stake sheet's wiring in `HoldoutApp.kt`; cases in `JourneyTest.kt` |
+| Forfeit screen (H6) | `kotlin/app/.../cohort/ForfeitScreen.kt`: the offer card, the Join into the stake sheet on the lost chip, the second-round line, the place-held and leave-first variants; wiring in `HoldoutApp.kt` (`Route.Forfeit`) |
+| Stake sheet (H2) | `kotlin/app/.../stake/StakeSheet.kt`: an initial tier, and the "up to N SKR of your lost stake comes back" line for the chip chosen, only when the Holdout is a comeback round |
+| Today (T1) | `kotlin/app/.../home/DailyHoldoutLine.kt`: the nudge from the derived offer (before joining: start and time left to join; after: finish it), replacing the read of `progress.comeback_*`; `DailyHoldoutLineTest.kt` |
+| Copy | `ui/Components.kt` `Format` helpers; the design book's rules through the `holdout-ui` skill |
+| Docs (not spec-kit) | `docs/holdout_decisions.md` (L13 resolved, dated log row), `docs/weaknesses.json` → README table (the L13 row removed or reworded), `docs/holdout_screen_map.md` (H6 card, UC-9, UC-10, §8 item 13) |
+
+**Sequence.** `core` derivation and tests → join path (ES-17) → Forfeit screen and stake sheet → Today → docs → local validator run of quickstart scenario 22 → PR. Target: in the submission build, 12 October before 20:00 CEST; if it is not green by then, the submission ships without it and L13 stays in the weaknesses table.
+
+**Risks.** The offer must agree with the program's rule to the second (`>` the missed deadline, `≤` the window's end): `ComebackTest` replays the program's boundary cases. Two instructions in one transaction must fit the legacy size limit; measured in the local run.
+
 ## Complexity Tracking
 
 No constitution violations to justify.
