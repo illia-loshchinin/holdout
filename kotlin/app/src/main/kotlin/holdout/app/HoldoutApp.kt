@@ -276,10 +276,11 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             val h = view.holdouts.first { it.cohort == c }
             store.isDayComplete(me.base58(), cohortScope(h), day.toLong()) || store.pendingCohortDay(me.base58(), h.address.base58()) == day
         }
+        val addressOf = { c: CohortSnapshot -> view.holdouts.first { it.cohort == c }.address }
         // A finish that should earn a comeback refund (FR-037e): the notice says so (FR-068b).
-        val comebackFor = { c: CohortSnapshot, m: MembershipSnapshot -> m.comebackEntitled > 0uL || view.profile?.progress(c.leagueId)?.comebackOpenFor(c.start) == true }
-        val schedule = Reminders.schedule(held, { c -> view.holdouts.first { it.cohort == c }.address }, chainNow, comebackFor = comebackFor, doneOnPhone = doneOnPhone)
-        reminders.sync(me.base58(), schedule, chainNow, elapsed)
+        val comebackFor = { c: CohortSnapshot, m: MembershipSnapshot -> Reminders.comebackExpected(c, m, view.profile, held) }
+        val schedule = Reminders.schedule(held, addressOf, chainNow, comebackFor = comebackFor, doneOnPhone = doneOnPhone)
+        reminders.sync(me.base58(), schedule, chainNow, elapsed, withdraw = Reminders.finishedToWithdraw(held, addressOf))
     }
 
     // Asked once, at the first join, with the reason (FR-068a); the join goes ahead either way.

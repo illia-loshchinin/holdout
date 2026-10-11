@@ -319,4 +319,30 @@ class RemindersTest {
         val ids = (0 until 40).flatMap { d -> listOf(Reminder.Kind.Start, Reminder.Kind.Deadline).map { Reminders.notificationId(address.base58(), it, d) } }.toSet()
         assertTrue(Reminders.notificationId(address.base58(), Reminder.Kind.Finished, 40) !in ids, "its own notification")
     }
+
+    @Test
+    fun `the comeback line - owed on the membership, or open in the progress and not used up by an earlier finish of the league`() {
+        val c = cohort()
+        val open = ProfileSnapshot.LeagueProgress(0, 1, 0, 0, 0, comebackStake = 100uL, comebackFrom = start - 10, comebackUntil = start + 30 * 86_400)
+        val none = ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0)
+        fun profile(p: ProfileSnapshot.LeagueProgress) = ProfileSnapshot(wallet, listOf(p, none, none), null, null, -1)
+        val m = member(days = 7)
+        assertTrue(Reminders.comebackExpected(c, m, profile(open), listOf(c to m)))
+        assertEquals(false, Reminders.comebackExpected(c, m, profile(none), listOf(c to m)))
+        assertEquals(false, Reminders.comebackExpected(c, m, null, listOf(c to m)))
+        assertTrue(Reminders.comebackExpected(c, m.copy(comebackEntitled = 5uL), profile(none), listOf(c to m)), "already counted with one")
+        // Two finished, unsettled Holdouts of one league: only the earlier uses the record.
+        val later = cohort().copy(index = 1, start = start + 7 * 86_400)
+        val both = listOf(c to m, later to m)
+        assertTrue(Reminders.comebackExpected(c, m, profile(open), both))
+        assertEquals(false, Reminders.comebackExpected(later, m, profile(open), both))
+    }
+
+    @Test
+    fun `a finished notice is withdrawn once the app sees the cohort settled or the payout claimed`() {
+        val id = Reminders.notificationId(address.base58(), Reminder.Kind.Finished, 7)
+        assertEquals(setOf(id), Reminders.finishedToWithdraw(listOf(cohort(settled = true) to member(days = 7, state = MembershipSnapshot.State.Finished)), { address }))
+        assertEquals(setOf(id), Reminders.finishedToWithdraw(listOf(cohort() to member(days = 7, state = MembershipSnapshot.State.Claimed)), { address }))
+        assertTrue(Reminders.finishedToWithdraw(listOf(cohort() to member(days = 7)), { address }).isEmpty(), "still settling: the notice stays")
+    }
 }

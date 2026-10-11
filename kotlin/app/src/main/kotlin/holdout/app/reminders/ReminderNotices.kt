@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import holdout.app.MainActivity
 import holdout.app.R
 import holdout.app.ui.Format
+import holdout.core.Derive
 
 /**
  * The notifications a reminder shows (FR-068): their channels, wording and
@@ -56,7 +57,7 @@ object ReminderNotices {
      * It reads no chain (FR-068a), so it says *probably*; the comeback line has
      * no amount, and says *should*, as the reserve may cut it (FR-037e).
      */
-    fun finishedText(comeback: Boolean): String = "Settlement usually comes within 15 minutes of the end, so your claim is probably ready: open Holdout to claim it." +
+    fun finishedText(comeback: Boolean): String = "Settlement usually comes within ${Derive.SETTLE_USUAL_SECONDS / 60} minutes of the end, so your claim is probably ready: open Holdout to claim it." +
         if (comeback) " It should include a comeback refund too." else ""
 
     fun notSentTitle(day: Int): String = "Day ${day + 1} is done, but not on chain yet"

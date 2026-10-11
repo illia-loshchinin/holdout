@@ -50,12 +50,17 @@ class ReminderScheduler(context: Context) {
      * reading taken together. With notifications off, nothing is scheduled —
      * and anything scheduled before is cancelled.
      */
-    fun sync(wallet: String, reminders: List<Reminder>, chainNow: Long, elapsedNow: Long = SystemClock.elapsedRealtime()) {
+    fun sync(wallet: String, reminders: List<Reminder>, chainNow: Long, elapsedNow: Long = SystemClock.elapsedRealtime(), withdraw: Set<Int> = emptySet()) {
         val wanted = if (NotificationManagerCompat.from(context).areNotificationsEnabled()) reminders else emptyList()
         val previous = ids(KEY_IDS)
         val cancelled = previous - wanted.map { it.id }.toSet()
         cancelled.forEach { cancel(it) }
         val posted = ids(KEY_POSTED)
+        // Finished notices (FR-068b): remembered when scheduled, so a disconnect can take
+        // them down, and taken out of the shade once the app sees the cohort settled or claimed.
+        withdraw.forEach { ReminderNotices.cancel(context, it) }
+        val finished = ids(KEY_FINISHED) - withdraw +
+            wanted.filter { it.kind == Reminder.Kind.Finished }.map { Reminders.notificationId(it.cohort.base58(), it.kind, it.dayIndex) }
         // The standing notices: posted when missing (a new one, a restart, a swipe on
         // Android 14), updated in place by the hourly re-posts, taken down when gone.
         val standing = wanted.filter { it.standing }
@@ -93,6 +98,7 @@ class ReminderScheduler(context: Context) {
         prefs.edit()
             .putStringSet(KEY_IDS, wanted.map { it.id.toString() }.toSet())
             .putStringSet(KEY_STANDING, standingIds.map { it.toString() }.toSet())
+            .putStringSet(KEY_FINISHED, finished.map { it.toString() }.toSet())
             .putStringSet(KEY_POSTED, (ids(KEY_POSTED) - cancelled).map { it.toString() }.toSet())
             .apply()
     }
@@ -100,8 +106,8 @@ class ReminderScheduler(context: Context) {
     /** Cancels every reminder — on disconnect. */
     fun clear() {
         ids(KEY_IDS).forEach { cancel(it) }
-        ids(KEY_STANDING).forEach { ReminderNotices.cancel(context, it) }
-        prefs.edit().remove(KEY_IDS).remove(KEY_POSTED).remove(KEY_STANDING).apply()
+        (ids(KEY_STANDING) + ids(KEY_FINISHED)).forEach { ReminderNotices.cancel(context, it) }
+        prefs.edit().remove(KEY_IDS).remove(KEY_POSTED).remove(KEY_STANDING).remove(KEY_FINISHED).apply()
     }
 
     private fun ids(key: String): Set<Int> = prefs.getStringSet(key, emptySet()).orEmpty().mapNotNull { it.toIntOrNull() }.toSet()
@@ -156,6 +162,9 @@ class ReminderScheduler(context: Context) {
 
         /** Notification ids of the standing not-sent notices posted, so one no longer wanted is taken down. */
         private const val KEY_STANDING = "standing_ids"
+
+        /** Notification ids of finished notices scheduled, so a disconnect takes them down too. */
+        private const val KEY_FINISHED = "finished_ids"
         private const val ACTION_ON_TIME = "holdout.app.reminder.ON_TIME"
         private const val ACTION_WHILE_IDLE = "holdout.app.reminder.WHILE_IDLE"
 

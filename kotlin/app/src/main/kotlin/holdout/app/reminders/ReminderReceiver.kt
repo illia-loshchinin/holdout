@@ -1,5 +1,6 @@
 package holdout.app.reminders
 
+import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -46,6 +47,9 @@ class ReminderReceiver : BroadcastReceiver() {
             // Every day was on chain when it was scheduled, and the app cancels it once it
             // has seen the cohort settled: it reads no chain itself (FR-068a, FR-068b).
             if (intent.hasExtra(EXTRA_ID) && !ReminderScheduler.markPosted(context, intent.getIntExtra(EXTRA_ID, 0))) return
+            // With the app on screen, its own card says where settlement stands — maybe
+            // "taking longer than usual" — and a "probably ready" over it would contradict it.
+            if (inForeground()) return
             val text = ReminderNotices.finishedText(intent.getBooleanExtra(EXTRA_COMEBACK, false))
             ReminderNotices.post(
                 context,
@@ -89,6 +93,8 @@ class ReminderReceiver : BroadcastReceiver() {
         }
         ReminderNotices.post(context, requestId, id, title, text, silent = Reminders.isSilent(kind, dayLength), ongoing = false, leftSeconds = left)
     }
+
+    private fun inForeground(): Boolean = ActivityManager.RunningAppProcessInfo().also { ActivityManager.getMyMemoryState(it) }.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
 
     companion object {
         const val EXTRA_ID = "id"

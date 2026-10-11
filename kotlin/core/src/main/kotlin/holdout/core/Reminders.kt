@@ -18,7 +18,11 @@ data class Reminder(
     val dayIndex: Int,
     /** When it fires, in chain seconds; for the standing [Kind.NotSent] notice (tick 0), the moment it was computed. */
     val at: Long,
-    /** The day's deadline in chain seconds (for a start reminder, the first day's). */
+    /**
+     * The day's deadline in chain seconds (for a start reminder, the first
+     * day's); for the finished notice, the last moment it is still worth
+     * posting, `at + FINISHED_HORIZON_SECONDS`. Past it the receiver posts nothing.
+     */
     val deadline: Long,
     val repsPerDay: Int,
     val durationDays: Int,
@@ -68,8 +72,8 @@ data class Reminder(
     private val slot: Int get() = if (kind == Kind.NotSent) NOT_SENT_FIRST_SLOT + tick else kind.ordinal
 
     private companion object {
-        /** The slots below this are the other kinds' ordinals. */
-        const val NOT_SENT_FIRST_SLOT = 5
+        /** The slots below this are the kinds' ordinals: a new kind moves the not-sent slots up by itself. */
+        val NOT_SENT_FIRST_SLOT = Kind.entries.size
     }
 }
 
@@ -139,12 +143,14 @@ object Reminders {
 
     /**
      * Every reminder still to come for one wallet at [now]: for each Holdout it
-     * holds and has not forfeited, finished or left — a start reminder while it
-     * has not started, and for every day not recorded on chain, one at
+     * holds, is still in and has days left in — a start reminder while it has
+     * not started, and for every day not recorded on chain, one at
      * `deadline − lead` and, for a day of 12 hours or more, one halfway through
-     * it. Nothing once the member is in breach. That is at most `1 + 2 × days`
-     * reminders a Holdout, each held as two alarms (ReminderScheduler): 43
-     * reminders and 86 alarms for a 21-day Holdout, against the 500 an app may hold.
+     * it. Nothing once the member is in breach or has left. That is at most
+     * `1 + 2 × days` reminders a Holdout, each held as two alarms
+     * (ReminderScheduler): 43 reminders and 86 alarms for a 21-day Holdout,
+     * against the 500 an app may hold; once every day is on chain, only the
+     * finished notice below.
      *
      * A reminder stays in the schedule until its delivery window has closed
      * (or its deadline passed), not merely until `at`: the phone may deliver
@@ -175,18 +181,8 @@ object Reminders {
         // Last, so a trailing lambda is still the day done on the phone.
         doneOnPhone: (CohortSnapshot, Int) -> Boolean = { _, _ -> false },
     ): List<Reminder> = memberships.flatMap { (c, m) ->
-        if (m.daysCompleted >= c.durationDays) {
-            // Finished: no day left to remind of, only the claim to come.
-            val at = Derive.end(c) + Derive.SETTLE_USUAL_SECONDS
-            val counting = m.state == MembershipSnapshot.State.Joined || m.state == MembershipSnapshot.State.Finished
-            if (!counting || c.settled || now >= at) return@flatMap emptyList()
-            return@flatMap listOf(
-                Reminder(
-                    Reminder.Kind.Finished, cohortAddress(c), c.leagueId, c.durationDays, at, at + FINISHED_HORIZON_SECONDS,
-                    c.repsPerDay, c.durationDays, c.dayLength, m.daysCompleted, comeback = comebackFor(c, m),
-                ),
-            )
-        }
+        // Finished: no day left to remind of, only the claim to come.
+        if (m.daysCompleted >= c.durationDays) return@flatMap listOfNotNull(finishedReminder(c, m, cohortAddress, now, comebackFor))
         if (m.state != MembershipSnapshot.State.Joined || c.settled || Derive.inBreach(m, c, now) || now >= Derive.end(c)) return@flatMap emptyList()
         val address = cohortAddress(c)
         val window = windowSeconds(c.dayLength)
@@ -223,6 +219,53 @@ object Reminders {
             }
         }
     }.sortedBy { it.at }
+
+    /** The finished notice of [m] in [c] (FR-068b), while its time is ahead and the cohort not settled; else null. */
+    private fun finishedReminder(
+        c: CohortSnapshot,
+        m: MembershipSnapshot,
+        cohortAddress: (CohortSnapshot) -> SolanaPublicKey,
+        now: Long,
+        comebackFor: (CohortSnapshot, MembershipSnapshot) -> Boolean,
+    ): Reminder? {
+        val at = Derive.end(c) + Derive.SETTLE_USUAL_SECONDS
+        val counting = m.state == MembershipSnapshot.State.Joined || m.state == MembershipSnapshot.State.Finished
+        if (!counting || c.settled || now >= at) return null
+        return Reminder(
+            Reminder.Kind.Finished, cohortAddress(c), c.leagueId, c.durationDays, at, at + FINISHED_HORIZON_SECONDS,
+            c.repsPerDay, c.durationDays, c.dayLength, m.daysCompleted, comeback = comebackFor(c, m),
+        )
+    }
+
+    /**
+     * Whether the finished notice of [m] in [c] should mention a comeback
+     * refund (FR-068b, FR-037e): the membership already carries one, or the
+     * league progress says finishing [c] earns one — and no earlier finished,
+     * unsettled Holdout of the same league would use the record up first
+     * (settlement counts them in order, FR-061a).
+     */
+    fun comebackExpected(
+        c: CohortSnapshot,
+        m: MembershipSnapshot,
+        profile: ProfileSnapshot?,
+        memberships: List<Pair<CohortSnapshot, MembershipSnapshot>>,
+    ): Boolean {
+        if (m.comebackEntitled > 0uL) return true
+        val progress = profile?.progress(c.leagueId) ?: return false
+        if (!progress.comebackOpenFor(c.start)) return false
+        return memberships.none { (o, om) ->
+            o.leagueId == c.leagueId && o.start < c.start && !o.settled && om.daysCompleted >= o.durationDays && progress.comebackOpenFor(o.start)
+        }
+    }
+
+    /**
+     * The finished notices to take out of the shade (FR-068b): those of every
+     * Holdout the app now sees settled or claimed, whose claim the app shows itself.
+     */
+    fun finishedToWithdraw(memberships: List<Pair<CohortSnapshot, MembershipSnapshot>>, cohortAddress: (CohortSnapshot) -> SolanaPublicKey): Set<Int> = memberships
+        .filter { (c, m) -> c.settled || m.state == MembershipSnapshot.State.Claimed }
+        .map { (c, _) -> notificationId(cohortAddress(c).base58(), Reminder.Kind.Finished, c.durationDays) }
+        .toSet()
 
     /**
      * How late the phone may deliver a reminder: a third of the lead, and never
