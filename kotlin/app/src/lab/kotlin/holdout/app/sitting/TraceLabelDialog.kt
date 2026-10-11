@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -57,7 +56,7 @@ fun TraceLabelDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(Spacing.screenGutter)
-                .background(HoldoutColors.Surface1, RoundedCornerShape(24.dp))
+                .background(HoldoutColors.Surface1, MaterialTheme.shapes.medium)
                 .verticalScroll(androidx.compose.foundation.rememberScrollState())
                 .padding(Spacing.cardPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -171,7 +170,7 @@ fun TraceNotSavedDialog(onOk: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(Spacing.screenGutter)
-                .background(HoldoutColors.Surface1, RoundedCornerShape(24.dp))
+                .background(HoldoutColors.Surface1, MaterialTheme.shapes.medium)
                 .padding(Spacing.cardPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Spacing.tight),
