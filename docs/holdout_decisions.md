@@ -639,7 +639,7 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 - **No finishers:** the whole pool still goes out (H34), a third to developer and the rest to operations. Its reserve shares are still credited to the league.
 - **The Daily 25 is never paid, on any network.** Its pull is the toes meter, the streak with earned freezes, and the money lines about Holdouts on its done screen.
 - **Form:**
-  - `LeagueConfig.form`, copied to each cohort at `open_cohort` (constitution V): 0 = from the toes (**Hard**, 21-day), 1 = knees allowed (**Easy**, 7-day).
+  - `LeagueConfig.form`, copied to each cohort at `open_cohort` (constitution V): 0 = from the toes (**Hard**, 21-day), 1 = knees allowed (**Easy**, 7-day). *Members read these as **Habit · 21-day** and **Spark · 7-day** since 2026-10-11 (constitution v2.3.1); Easy and Hard are internal names, and each level has its own rule sentence (spec 002 FR-014).*
   - Easy keeps every other check Hard makes: depth, body line, hip rise, legs and knees in view.
   - Easy refuses to start unless the phone reads 40–60° — the band in which no cobra counted on the recorded traces.
   - Easy and Hard clears never share a leaderboard.
