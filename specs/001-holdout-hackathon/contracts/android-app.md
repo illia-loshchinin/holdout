@@ -70,7 +70,7 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 | Membership `Active`, today not complete | Home — cohort variant; Sitting |
 | Sitting `Preflight` / `Countdown` / `Counting` | Sitting sub-screens; the hold's reason when it will not fill (002 FR-018a, `contracts/words.md`); last-10-minutes warning (FR-047); offline warning (FR-024b) |
 | Sitting ended part-way | Sitting — stopped part-way variant |
-| Day `Completed`, pending submission | Home — "Done — tap to submit" (Phase 1) |
+| Day `Completed`, pending submission | Home — "Done — tap to submit" (Phase 1); "Done — waiting for network" while the chain cannot be reached (Phase 2). Day-complete screen while the chain cannot be reached — "Done — not sent yet" with the time left to that day's own deadline, *Back to today*, no submit; past that deadline "Done — too late to send" |
 | Day `Submitted` | Home — cohort variant, day counter advanced |
 | Membership in breach (recorded or not) | Forfeit screen (US-4); roster shows member as out (FR-038a) |
 | Cohort `Settling`, member finished | Cohort detail — "You finished · settlement in progress" |

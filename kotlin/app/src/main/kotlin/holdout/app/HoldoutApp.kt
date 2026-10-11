@@ -449,11 +449,16 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                 )
             }
             DisposableEffect(vm) { onDispose { vm.release() } }
+            // The chain can't be reached: a submit would fail before the wallet, so the
+            // finished screen says the day is not sent yet and "Back to today" sends
+            // nothing — the day waits on the phone and goes when the chain answers
+            // (FR-024b, 2026-10-10). Fixed for this composition, so label and tap agree.
+            val note = if (chain.offline) offlineNote(h, s.day, chainNow) else null
             val done = {
                 sitting = null
                 refreshToken += 1
                 // The day it started on, or the next one if it ran across a boundary.
-                val today = clock.nowSeconds()?.let { Derive.dayIndex(h.cohort, it) }
+                val today = chainNow?.let { Derive.dayIndex(h.cohort, it) }
                 val completed = listOfNotNull(s.day, today).distinct().firstOrNull { store.isDayComplete(wallet, cohortScope, it.toLong()) }
                 if (completed != null) {
                     // A completed cohort day is that day's training for the streak too, so
@@ -461,7 +466,7 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                     // The day the reps were done on — the cohort day's own date — not the day
                     // this screen is left on: across 05:00 UTC those are two different days.
                     if (!h.isTest) streaks.recordCompletedDay(wallet, HoldoutDay.indexOf(h.cohort.start + completed * h.cohort.dayLength))
-                    holdouts.submitDay(sender, h, completed, h.cohort.repsPerDay)
+                    if (note == null) holdouts.submitDay(sender, h, completed, h.cohort.repsPerDay)
                 }
             }
             SittingScreen(
@@ -469,7 +474,8 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                 onFinished = done,
                 onCancelled = { done() },
                 modifier = modifier,
-                finishLabel = "Submit day ${s.day + 1} to the chain",
+                finishLabel = if (note == null) "Submit day ${s.day + 1} to the chain" else "Back to today",
+                finishNote = note,
             )
             return
         }
@@ -818,4 +824,25 @@ private fun InFrontLoop(key: Any?, pass: suspend () -> Unit) {
             while (true) pass()
         }
     }
+}
+
+/**
+ * What the finished screen says for a cohort day completed while the chain
+ * cannot be reached (001 FR-024b, decided 2026-10-10): not sent yet, saved on
+ * the phone, and how it gets on chain — opened again before **that day's**
+ * deadline and approved in the wallet. Past the deadline the day can no longer
+ * be sent, and it says so. [nowSeconds] is chain time, null when unknown.
+ */
+internal fun offlineNote(h: Holdout, day: Int, nowSeconds: Long?, network: String = Deployment.networkName): Pair<String, String> {
+    val n = day + 1
+    val reps = h.cohort.repsPerDay
+    val left = nowSeconds?.let { Derive.deadlineOf(h.cohort, day) - it }
+    if (left != null && left <= 0) {
+        return "Done — too late to send" to
+            "$network can't be reached, and day $n's deadline has passed, so it can no longer be sent. Your $reps are saved on this phone."
+    }
+    val deadline = left?.let { " (${Format.countdown(it)} left)" } ?: ""
+    return "Done — not sent yet" to
+        "$network can't be reached, so day $n isn't on chain yet. Your $reps are saved on this phone. " +
+        "Open Holdout when it can be, before the deadline$deadline, and approve day $n in your wallet."
 }
