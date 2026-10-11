@@ -36,7 +36,7 @@ The faucet figures above are **normative**: research R13 explains where they com
 
 | Field | Type | Rule |
 |---|---|---|
-| `league_id` | u8 | 0 = 7-day, 1 = 21-day; test leagues ≥ 100 (admin, `test-leagues` builds only: LiteSVM, the rehearsal deployment and the devnet program, which is built with the feature for the short test lobby — FR-044a, T092, constitution v2.3.0; a mainnet build never carries it) |
+| `league_id` | u8 | 0 = 7-day, 1 = 21-day; test leagues ≥ 100 (admin, `test-leagues` builds only: LiteSVM, the local validator and the devnet program, which is built with the feature for the short test lobby — FR-044a, T092, constitution v2.3.0; a mainnet build never carries it) |
 | `duration_days` | u8 | 7 for league 0, 21 for league 1, enforced by `create_league`; a test league's is free but never zero. `open_cohort` copies it into every cohort permanently, and a zero-day league would make every member who never sat a day a finisher |
 | `reps_per_day` | u16 | 25 for both judged leagues, enforced by `create_league`; a test league's is free but never zero. Copied into every cohort permanently, and a zero would be a daily obligation with nothing to do |
 | `exercise` | u8 | `0` = push-ups. `1` = negative (eccentric) push-ups and `2` = decline push-ups are **reserved and rejected** by `create_league` in this build, so a later exercise needs no new layout (H30, constitution V) |
