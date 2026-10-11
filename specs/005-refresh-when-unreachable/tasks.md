@@ -55,10 +55,10 @@ None: no new dependency (Material 3's `pullToRefresh` is in the existing BOM, re
 
 ## Phase 5: Polish
 
-- [ ] T013 Run the `holdout-ui` visual check on the five states of contracts/check-again-ui.md (screenshots on a phone or emulator)
+- [X] T013 Run the `holdout-ui` visual check on the five states of contracts/check-again-ui.md (screenshots on a phone or emulator) — *2026-10-11, Seeker against the localnet: the home over an earlier read, details, forfeit, the still line, the pull indicator while unreachable and none while answering. The waiting-day state was not on screen: no running Holdout on that ledger. The walk's fixes are in b66f751 and 0274804.*
 - [X] T014 Run `bash scripts/ci-local.sh --only kotlin` (ktlint, unit tests, both debug APKs) and fix what it finds
-- [ ] T015 Walk quickstart.md on a phone against a local validator
-- [ ] T016 Check SC-003: review that `HoldoutViewModel.checkNow` and `checkChain` in `kotlin/app/src/main/kotlin/holdout/app/` call no `submitDay` and do not touch `AutoSubmit`, and in T015's step 3 see the wallet's approval open by itself once, then *"Done — tap to submit"* after a decline (001 FR-024b)
+- [ ] T015 Walk quickstart.md on a phone against a local validator — *2026-10-11: steps 2, 4 and 5 walked. Steps 1 and 3 need a running Holdout with today's reps done, which that ledger lacked (no `localnet-crank.sh --loop` running), so this stays open.*
+- [ ] T016 Check SC-003: review that `HoldoutViewModel.checkNow` and `checkChain` in `kotlin/app/src/main/kotlin/holdout/app/` call no `submitDay` and do not touch `AutoSubmit`, and in T015's step 3 see the wallet's approval open by itself once, then *"Done — tap to submit"* after a decline (001 FR-024b) — *review half done 2026-10-11: `checkNow` and `checkChain` call no `submitDay` and do not touch `AutoSubmit`. The walk half waits on T015 step 3.*
 
 ## Dependencies
 
