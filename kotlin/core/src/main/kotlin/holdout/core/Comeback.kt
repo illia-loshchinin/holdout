@@ -121,9 +121,10 @@ object Comeback {
         // Used up: the member finished a Holdout that counts (settle_count takes the record then).
         if (inWindow.any { e -> e.member?.let { finished(it, e.cohort) } == true }) return null
 
-        // Every league of the slot schedules rounds (all test leagues share one slot), each by its own
-        // first start, cadence and join lock; an equal start goes to the forfeit's own league.
-        val slotLeagues = leagues.map { it.params }.filter { ProfileSnapshot.slotOf(it.leagueId) == slot }.sortedBy { it.leagueId != lost.cohort.leagueId }
+        // The league that schedules the rounds: the forfeit's own, or for the test slot, which every
+        // test league shares, the newest test league — the only one still opening cohorts (FR-044a);
+        // an older one winds down, and its schedule would name rounds that never open (FR-037g).
+        val slotLeagues = leagues.map { it.params }.filter { ProfileSnapshot.slotOf(it.leagueId) == slot }.maxByOrNull { it.leagueId }.let(::listOfNotNull)
         val scheduled = slotLeagues.flatMap { l -> scheduledStarts(l, missed, until).map { start -> start to l } }.distinctBy { it.first }.sortedBy { it.first }
         val rounds = scheduled.map { (start, l) ->
             val entry = inWindow.filter { it.cohort.start == start }.let { at -> at.firstOrNull { it.cohort.leagueId == lost.cohort.leagueId } ?: at.firstOrNull() }

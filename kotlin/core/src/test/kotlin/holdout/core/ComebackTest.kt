@@ -239,16 +239,18 @@ class ComebackTest {
     }
 
     @Test
-    fun `the shared test slot takes rounds from every test league, each by its own cadence`() {
+    fun `the shared test slot takes rounds from the newest test league only, the one still opening cohorts`() {
+        // FR-044a: one test league runs at a time; an older one opens no new cohorts and winds down,
+        // so its schedule would only name rounds that never open (FR-037g).
         val a = LeagueParams.TEST_LEAGUE_MIN
         fun testLeague(id: Int, first: Long, cadence: Long) = LeagueSnapshot(LeagueParams.judged(0, s0).copy(leagueId = id, durationDays = 2, dayLength = 600, firstStart = first, cadence = cadence, joinLock = 60), nextIndex = 5)
         val forfeit = entry(CohortSnapshot(a, 0, s0, s0 - 60, 2, 25, 600, 0, chips), State.Forfeited, days = 0)
         val missed = Derive.deadlineOf(forfeit.cohort, 0)
         val leagues = listOf(testLeague(a, s0, 3_600), testLeague(a + 1, s0 + 1_800, 1_800))
         val offer = assertNotNull(Comeback.offer(listOf(forfeit), leagues, missed + 10, a))
-        // Own league: 3600, 7200; other league: 1800, 3600, 5400, 7200 - the equal starts once.
+        // League a + 1 (the newest) every 1800 s from s0 + 1800; league a (retired) is left out.
         assertEquals(listOf(1_800L, 3_600L, 5_400L, 7_200L).map { s0 + it }, offer.rounds.map { it.start })
-        assertEquals(listOf(0L, 0L, 3_600L, 3_600L).map { s0 + it }, offer.rounds.map { it.opensAt }, "each opens one of its own league's cadences before")
+        assertEquals(listOf(0L, 1_800L, 3_600L, 5_400L).map { s0 + it }, offer.rounds.map { it.opensAt }, "each opens one cadence of the newest league before")
         assertEquals(s0 + 1_800, offer.upcoming?.start)
         // Same offer whichever test league asks.
         assertEquals(offer, Comeback.offer(listOf(forfeit), leagues, missed + 10, a + 1))
