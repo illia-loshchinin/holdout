@@ -1,6 +1,8 @@
 import java.io.File
+import java.io.StringReader
 import java.net.URI
 import java.security.MessageDigest
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -81,40 +83,84 @@ tasks.named("preBuild") { dependsOn(downloadMediaPipeModels) }
 // The release signing key (T115; constitution Hackathon Constraints, FR-066,
 // AC-19: the submitted APK is signed). The keystore and its passwords live
 // OUTSIDE the repository and reach the build only through four Gradle
-// properties — in `~/.gradle/gradle.properties`, as `-P` flags, or as
-// `ORG_GRADLE_PROJECT_holdout.keystore` etc. in the environment; the runbook
-// (docs/holdout_setup_runbook.md §4) has the keytool recipe and the backup
-// rule:
+// properties - preferably in `~/.gradle/gradle.properties`, or as `-P` flags
+// (which leave the passwords in shell history and the process list); the
+// runbook (docs/holdout_setup_runbook.md §4) has the keytool recipe and
+// the backup rule:
 //
-//   holdout.keystore          absolute path of the .jks
+//   holdout.keystore          absolute path of the keystore, forward slashes
 //   holdout.keystorePassword
 //   holdout.keyAlias
-//   holdout.keyPassword
+//   holdout.keyPassword       a PKCS12 keystore forces it equal to the store's
 //
-// All four set: `assembleMemberRelease` produces a signed
-// app-member-release.apk (labRelease shares the config — one key, two
-// package names). None set, which is CI and every machine without the
-// owner's keystore: the release still builds, unsigned, as
-// app-member-release-unsigned.apk, and assemble says so in one warning
-// (below, in `onVariants`). Some but not all is a slip the build refuses
-// rather than guesses around. Neither the path nor the passwords are printed.
+// All four set: the release variants are signed, and `assembleMemberRelease`
+// produces app-member-release.apk (labRelease shares the config - one key, two
+// package names). None set, which is CI and every machine without the owner's
+// keystore: the release still builds, unsigned, as
+// app-member-release-unsigned.apk, and the assemble and bundle tasks say so in
+// one warning (below, in `onVariants`). Some but not all, a path that is not
+// absolute or not a file, or a path inside the repository is a slip that
+// `checkReleaseSigning` refuses - and only the release assemble, bundle and
+// package tasks depend on it, so debug builds, tests, ktlint and an IDE sync
+// never look at the keystore. Only the tracked-file rule below is checked at
+// configuration time.
 val releaseSigningProperties = listOf(
     "holdout.keystore",
     "holdout.keystorePassword",
     "holdout.keyAlias",
     "holdout.keyPassword",
-).associateWith { providers.gradleProperty(it).orNull?.takeIf { value -> value.isNotBlank() } }
+).associateWith { providers.gradleProperty(it).orNull?.trim()?.takeIf { value -> value.isNotEmpty() } }
 val releaseSigningConfigured = releaseSigningProperties.values.all { it != null }
-if (!releaseSigningConfigured && releaseSigningProperties.values.any { it != null }) {
+
+// The one configuration-time check: the tracked `kotlin/gradle.properties` is
+// the file Android Studio opens as "Project Properties" and the one a generic
+// "put it in gradle.properties" instruction lands in; a signing property there
+// would publish the keystore password with the next `git commit -a`. It does not
+// depend on the machine, so it fails every build, not only a release.
+val trackedSigningProperties =
+    Properties().apply {
+        providers.fileContents(rootProject.layout.projectDirectory.file("gradle.properties"))
+            .asText.orNull?.let { load(StringReader(it)) }
+    }.stringPropertyNames().filter { it.startsWith("holdout.key") }
+if (trackedSigningProperties.isNotEmpty()) {
     throw GradleException(
-        "Release signing needs all four Gradle properties or none; missing: " +
-            releaseSigningProperties.filterValues { it == null }.keys.joinToString() +
-            " (docs/holdout_setup_runbook.md §4).",
+        "kotlin/gradle.properties is tracked by git and must not define the release signing properties " +
+            "(${trackedSigningProperties.joinToString()}); move them to ~/.gradle/gradle.properties (docs/holdout_setup_runbook.md §4).",
     )
 }
-val releaseKeystore = releaseSigningProperties["holdout.keystore"]?.let { file(it) }
-if (releaseKeystore != null && !releaseKeystore.isFile) {
-    throw GradleException("holdout.keystore does not name an existing file; check the path in ~/.gradle/gradle.properties (docs/holdout_setup_runbook.md §4).")
+
+// Plain values only (nothing from the script or the project), for the
+// configuration cache. The keystore file is looked at when the task runs, not
+// when it is configured.
+val checkReleaseSigning = tasks.register("checkReleaseSigning") {
+    description = "Fails if the release signing properties are partly set or name no usable keystore (T115)."
+    val names = releaseSigningProperties.keys.toList()
+    val missing = releaseSigningProperties.filterValues { it == null }.keys.toList()
+    val keystorePath = releaseSigningProperties["holdout.keystore"]
+    val repositoryRoot = rootDir.parentFile.canonicalPath
+    doLast {
+        if (missing.size == names.size) return@doLast // none set: an unsigned release is allowed
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "Release signing needs all four Gradle properties or none; missing: ${missing.joinToString()} " +
+                    "(docs/holdout_setup_runbook.md §4).",
+            )
+        }
+        val keystore = File(keystorePath!!)
+        if (!keystore.isAbsolute) {
+            throw GradleException(
+                "holdout.keystore must be an absolute path with forward slashes, e.g. C:/Users/<you>/holdout-release.jks " +
+                    "(a leading ~ is not expanded, backslashes are eaten by a .properties file, a relative path is not used) " +
+                    "(docs/holdout_setup_runbook.md §4).",
+            )
+        }
+        if (!keystore.isFile) {
+            throw GradleException("holdout.keystore does not name an existing file (docs/holdout_setup_runbook.md §4).")
+        }
+        if (keystore.canonicalFile.toPath().startsWith(File(repositoryRoot).toPath())) {
+            throw GradleException("holdout.keystore points inside the repository; keep the release keystore outside the clone (docs/holdout_setup_runbook.md §4).")
+        }
+    }
 }
 
 android {
@@ -158,14 +204,6 @@ android {
         buildConfigField("String", "SPONSOR_KEYPAIR_HEX", "\"$sponsorHex\"")
     }
 
-    if (releaseSigningConfigured) {
-        signingConfigs.create("release") {
-            storeFile = releaseKeystore
-            storePassword = releaseSigningProperties.getValue("holdout.keystorePassword")
-            keyAlias = releaseSigningProperties.getValue("holdout.keyAlias")
-            keyPassword = releaseSigningProperties.getValue("holdout.keyPassword")
-        }
-    }
     buildTypes {
         // Staked Holdouts are Seeker-exclusive (001 FR-003b, research R17): the
         // app checks the wallet's Seeker Genesis Token on mainnet before a join.
@@ -183,9 +221,18 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // Wired only when the owner's keystore is configured (above); an
-            // unset signingConfig is what makes the APK `-unsigned`.
-            if (releaseSigningConfigured) signingConfig = signingConfigs.getByName("release")
+            // Created and wired only when the owner's keystore is configured
+            // (above); an unset signingConfig is what makes the APK `-unsigned`.
+            // storeFile is not checked here - `checkReleaseSigning` does that.
+            if (releaseSigningConfigured) {
+                signingConfig =
+                    signingConfigs.create("release") {
+                        storeFile = File(releaseSigningProperties.getValue("holdout.keystore"))
+                        storePassword = releaseSigningProperties.getValue("holdout.keystorePassword")
+                        keyAlias = releaseSigningProperties.getValue("holdout.keyAlias")
+                        keyPassword = releaseSigningProperties.getValue("holdout.keyPassword")
+                    }
+            }
         }
     }
     // Two apps from one module (spec 004, research R1). `member` is the app
@@ -305,19 +352,32 @@ androidComponents {
         checkNoAudioPermission.configure { dependsOn(check) }
         tasks.matching { it.name == "assemble$name" }.configureEach { dependsOn(check) }
 
-        // T115: a release built without the owner's keystore says so, once,
-        // after it is assembled — rather than being found out at install time.
-        // Plain values only, for the configuration cache.
-        if (variant.buildType == "release" && !releaseSigningConfigured) {
-            val variantName = variant.name
-            val apkName = "app-${variant.flavorName}-release-unsigned.apk"
-            tasks.matching { it.name == "assemble$name" }.configureEach {
-                doLast {
-                    logger.warn(
-                        "WARNING: $variantName is UNSIGNED ($apkName): no release keystore is configured. " +
-                            "Set holdout.keystore, holdout.keystorePassword, holdout.keyAlias and holdout.keyPassword " +
-                            "in ~/.gradle/gradle.properties to sign it (docs/holdout_setup_runbook.md §4).",
-                    )
+        if (variant.buildType == "release") {
+            // T115: the signing rules are checked before anything is packaged
+            // or signed - and so before AGP's own errors, which print the path.
+            tasks.matching { it.name in setOf("assemble$name", "bundle$name", "package$name", "validateSigning$name") }
+                .configureEach { dependsOn(checkReleaseSigning) }
+
+            // A release built without a signing config says so, once, after it
+            // is assembled or bundled - rather than being found out at install
+            // time. Asked of the variant, not of the four properties: Android
+            // Studio's "Generate Signed App Bundle / APK" signs through
+            // `android.injected.signing.*` and must not see the warning.
+            // Plain values only, for the configuration cache.
+            val signed =
+                android.buildTypes.getByName("release").signingConfig != null ||
+                    variant.productFlavors.any { (_, flavor) -> android.productFlavors.findByName(flavor)?.signingConfig != null } ||
+                    providers.gradleProperty("android.injected.signing.store.file").isPresent
+            if (!signed) {
+                val propertyNames = releaseSigningProperties.keys.joinToString()
+                tasks.matching { it.name == "assemble$name" || it.name == "bundle$name" }.configureEach {
+                    val taskName = this.name
+                    doLast {
+                        logger.warn(
+                            "WARNING: $taskName is UNSIGNED: no release keystore is configured. " +
+                                "Set $propertyNames in ~/.gradle/gradle.properties to sign it (docs/holdout_setup_runbook.md §4).",
+                        )
+                    }
                 }
             }
         }
