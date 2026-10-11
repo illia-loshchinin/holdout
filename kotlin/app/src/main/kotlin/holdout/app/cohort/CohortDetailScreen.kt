@@ -1,42 +1,68 @@
 package holdout.app.cohort
 
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.style.TextAlign
 import holdout.app.chain.Holdout
+import holdout.app.claim.PayoutRows
 import holdout.app.ui.Body
 import holdout.app.ui.ChainCheckBox
 import holdout.app.ui.ChainUnreachable
 import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
+import holdout.app.ui.KeyValueRow
+import holdout.app.ui.NoticeCard
+import holdout.app.ui.QuietAction
+import holdout.app.ui.Reading
+import holdout.app.ui.ScreenHeader
 import holdout.app.ui.SecondaryButton
 import holdout.app.ui.SectionLabel
+import holdout.app.ui.StatBlock
 import holdout.app.ui.TestCohortBadge
-import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.HoldoutColors
+import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
-import holdout.core.CohortSnapshot
+import holdout.core.CohortStatus
 import holdout.core.Derive
 import holdout.core.MembershipSnapshot
 import holdout.core.Stage
 
 /**
- * Cohort detail (US-7, T075, T082): days remaining, the member's own record,
- * the projected share, and how the crowd thinned day by day. It also carries
- * the two quiet end states: **"You finished · settling"** until finalisation,
- * with how long it usually takes counted from the end (FR-035a, contracts §5),
- * and **claimed**.
+ * The Holdout detail (H4, board 13; US-7, FR-038, FR-062a): the Standing tab's
+ * root when the member has a Holdout, and the page a watcher reaches from
+ * "Running now". Days to go, the member's own record, the share they would get
+ * if the crowd held here, and how the crowd thinned day by day. It also carries
+ * the quiet end states: **You finished · settling** until finalisation, with
+ * how long that usually takes counted from the end (FR-035a), and **claimed**.
+ *
+ * ```
+ *  ‹  HABIT · 21-DAY · DAY 12 OF 21           ScreenHeader (no ‹ on the Standing root)
+ *  [You're watching this one]                  a watcher's note
+ *  ┌ You finished · settling … ┐               settling card, success border
+ *  189 / 312                                   StatBlock counter, rolls
+ *  STILL STANDING
+ *  ┌ HOW THE CROWD THINNED  ~chart~ ┐          ThinningChart
+ *  ┌ Prize pool  48,200 SKR         ┐          KeyValueRows
+ *  │ + about 1,200 SKR boost if anyone finishes
+ *  │ Days to go 9 · Days done 11 of 21 days · Your share now 255 SKR
+ *  [ The roster ] [ Leaderboards ]             SecondaryButtons
+ * ```
  */
 @Composable
 fun CohortDetailScreen(
@@ -56,9 +82,13 @@ fun CohortDetailScreen(
     onCheck: () -> Unit = {},
     /** L1, the leaderboards of this Holdout's level (Standing holds them); null shows no button. */
     onLeaderboards: (() -> Unit)? = null,
+    /** A member who is out reaches their forfeit screen from here; null shows no card. */
+    onForfeit: (() -> Unit)? = null,
 ) {
     val c = h.cohort
-    val figures = members?.let { Derive.figures(c, it, now) }
+    val figures = members?.let { Derive.figures(c, it, now, boostReserve = h.league?.boostReserve) }
+    val member = h.membership
+    val running = Derive.status(c, now) == CohortStatus.Running
     ChainCheckBox(offline, checking, onCheck, modifier) {
         Column(
             modifier = Modifier
@@ -68,67 +98,124 @@ fun CohortDetailScreen(
                 .padding(Spacing.screenGutter),
             verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
         ) {
-            if (onBack != null) TextButton(onClick = onBack) { Text("← Back", color = HoldoutColors.TextSecondary) }
-            if (h.isTest) TestCohortBadge(c.dayLength)
-            Text(Format.holdoutTitle(c), style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
+            ScreenHeader(DetailText.label(c, now), onBack = onBack)
+            if (h.isTest) TestCohortBadge(c.dayLength, Modifier.align(Alignment.CenterHorizontally))
+            if (member == null) Watching()
             if (offline) ChainUnreachable(checking, stillUnreachable, onCheck)
 
             when (stage) {
-                Stage.Settling -> HoldoutCard {
-                    Text(SettlingWords.CARD_TITLE, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
-                    Body(SettlingWords.cardBody(Derive.sinceEnd(c, now), Derive.settleUsuallyIn(c, now)))
-                    Body("Your claim opens the moment it's done.")
-                }
-                is Stage.Claimed -> HoldoutCard {
-                    Text("Claimed · ${Format.skr(stage.amount)}", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
-                    if (stage.stake > 0uL) holdout.app.claim.PayoutBreakdown(stage.stake, stage.share, stage.comeback)
-                    val uriHandler = LocalUriHandler.current
-                    lastClaimSignature?.let { signature ->
-                        val url = Format.explorer(signature)
-                        // As on the claim screen: tapped, it opens in the browser; a phone with none leaves the address to read.
-                        Body(
-                            "Transaction (tap to open): $url",
-                            modifier = Modifier.clickable(onClickLabel = "Open the transaction in the explorer") { runCatching { uriHandler.openUri(url) } },
-                        )
-                    }
+                Stage.Settling -> Settling(c, now)
+                is Stage.Claimed -> ClaimedCard(stage, lastClaimSignature)
+                is Stage.Forfeited -> if (onForfeit != null) {
+                    NoticeCard(DetailText.outTitle(stage.daysLasted), "Your run has ended. Your streak hasn't.", warning = true, actionText = "Your way back", onAction = onForfeit)
                 }
                 else -> Unit
             }
 
-            val daysLeft = (c.durationDays - Derive.dayIndex(c, now)).coerceIn(0, c.durationDays)
-            HoldoutCard {
-                SectionLabel("Where it stands")
-                figures?.let { Text("${it.survivors.standing} still standing of ${c.memberCount}", style = AmountStyle, color = HoldoutColors.TextPrimary) }
-                Text("Prize pool: ${figures?.let { Format.skr(it.projectedPool) } ?: Format.skr(c.pool)}", style = AmountStyle, color = HoldoutColors.Accent)
-                if (now < Derive.end(c)) Body("$daysLeft day${if (daysLeft == 1) "" else "s"} to go.")
-            }
+            Counter(figures?.survivors?.standing, c.memberCount)
 
-            h.membership?.let { m ->
-                HoldoutCard {
-                    SectionLabel("Your record")
-                    Text("${m.daysCompleted} of ${c.durationDays} days · stake ${Format.skr(m.stake)}", style = AmountStyle, color = HoldoutColors.TextPrimary)
-                    if (figures != null && Derive.standing(m, c, now) && !c.settled) Body("Projected share if the crowd held here: ${Format.skr(figures.projectedShare(m))}")
-                }
-            }
-
-            members?.let { list ->
+            val points = members?.let { DetailText.thinning(c, it, now) }
+            if (points != null && points.size >= 2) {
                 HoldoutCard {
                     SectionLabel("How the crowd thinned")
-                    survivorHistory(c, list, now).forEach { (day, standing) -> Body("After day ${day + 1}: $standing standing") }
+                    ThinningChart(points)
                 }
             }
-            SecondaryButton("The roster", onRoster)
-            onLeaderboards?.let { SecondaryButton("Leaderboards", it) }
+
+            HoldoutCard {
+                KeyValueRow("Prize pool", Format.skr(figures?.projectedPool ?: c.pool))
+                figures?.projectedBoost?.takeIf { running && it > 0uL }?.let {
+                    Text(Format.runningBoostLine(it), style = LabelStyle, color = HoldoutColors.Success)
+                }
+                if (running) KeyValueRow("Days to go", DetailText.daysToGo(c, now).toString())
+                HorizontalDivider(color = HoldoutColors.Hairline, thickness = Spacing.border)
+                if (member != null) {
+                    KeyValueRow("Days done", DetailText.daysDone(member.daysCompleted, c))
+                    if (figures != null && Derive.standing(member, c, now) && !c.settled) {
+                        KeyValueRow("Your share now", Format.skr(figures.projectedShare(member)), success = true)
+                        Text(DetailText.SHARE_NOTE, style = LabelStyle, color = HoldoutColors.TextTertiary, textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth())
+                    }
+                } else {
+                    KeyValueRow("Days done", DetailText.daysDone(DetailText.daysPassed(c, now), c))
+                    Text(DetailText.WATCHER_NOTE, style = LabelStyle, color = HoldoutColors.TextTertiary)
+                }
+            }
+            if (members == null) Reading { Body("Reading devnet…") }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+                SecondaryButton("The roster", onRoster, Modifier.weight(1f))
+                onLeaderboards?.let { SecondaryButton("Leaderboards", it, Modifier.weight(1f)) }
+            }
         }
     }
 }
 
-/**
- * Members still standing after each deadline that has passed: those who had
- * completed more than that day, or finished. Read from `days_completed` alone,
- * so it needs no history the chain does not keep.
- */
-internal fun survivorHistory(c: CohortSnapshot, members: List<MembershipSnapshot>, now: Long): List<Pair<Int, Int>> {
-    val passed = (0 until c.durationDays).filter { now > Derive.deadlineOf(c, it) }
-    return passed.map { day -> day to members.count { it.daysCompleted > day } }
+/** `189 / 312 · still standing`, the survivor count rolling, never cutting (design book, Stat block). */
+@Composable
+private fun Counter(standing: Int?, started: Long) {
+    if (standing == null) {
+        StatBlock(value = started.toString(), caption = "started", modifier = Modifier.fillMaxWidth())
+    } else {
+        val shown = animateIntAsState(standing, label = "still standing").value
+        StatBlock(value = shown.toString(), of = started.toString(), caption = "still standing", modifier = Modifier.fillMaxWidth())
+    }
 }
+
+@Composable
+private fun Watching() {
+    Text(
+        DetailText.WATCHING,
+        style = LabelStyle,
+        color = HoldoutColors.TextSecondary,
+        modifier = Modifier
+            .background(HoldoutColors.Surface3, MaterialTheme.shapes.extraLarge)
+            .padding(horizontal = Spacing.betweenItems, vertical = Spacing.base),
+    )
+}
+
+/** FR-035a: automation settles it on its next pass, usually within 15 minutes of the end — the time since the end and what is left of those 15. */
+@Composable
+private fun Settling(c: holdout.core.CohortSnapshot, now: Long) {
+    val usually = Derive.settleUsuallyIn(c, now)
+    SuccessCard {
+        Text(SettlingWords.CARD_TITLE, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
+        Body(SettlingWords.cardLead(usually))
+        Text(SettlingWords.cardDetail(Derive.sinceEnd(c, now), usually), style = LabelStyle, color = HoldoutColors.Accent)
+    }
+}
+
+@Composable
+private fun ClaimedCard(stage: Stage.Claimed, signature: String?) {
+    val uriHandler = LocalUriHandler.current
+    SuccessCard {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("Claimed", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
+            Text(Format.skr(stage.amount), style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
+        }
+        if (DetailText.hasBreakdown(stage.stake)) {
+            HorizontalDivider(color = HoldoutColors.Hairline, thickness = Spacing.border)
+            PayoutRows(stage.stake, stage.share, stage.comeback)
+        }
+        // The link exists in the session that claimed; tapped, it opens in the browser.
+        signature?.let { sig ->
+            QuietAction("${Format.short(sig)} · view on explorer →", { runCatching { uriHandler.openUri(Format.explorer(sig)) } })
+        }
+    }
+}
+
+/** A hairline card with the `success` border: good news (settling, claimed, the streak still alive). */
+@Composable
+internal fun SuccessCard(modifier: Modifier = Modifier, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    val shape = MaterialTheme.shapes.medium
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(HoldoutColors.Surface1, shape)
+            .border(Spacing.border, HoldoutColors.Success.copy(alpha = BORDER_ALPHA), shape)
+            .padding(Spacing.cardPadding),
+        verticalArrangement = Arrangement.spacedBy(Spacing.tight),
+        content = content,
+    )
+}
+
+private const val BORDER_ALPHA = 0.32f

@@ -42,19 +42,32 @@ data class YourHoldout(
     val test: Boolean,
     val go: NavEvent,
     val testDayLength: Long = 0,
+    /** The detail line's colour when it is not the chip's: a forfeit's way back is good news beside a warning chip. */
+    val detailTone: ChipTone = tone,
 )
 
 /** A Holdout open to join, with Join — greyed out with the reason when the member cannot (FR-006a, FR-006b). */
 data class OpenHoldout(
     val cohort: String,
     val name: String,
+    /** "9,000 SKR at stake · 9 joined": the stakes taken so far and how many joined. */
     val atStake: String,
     val boost: String?,
     val closesIn: String,
     val blocker: String?,
     val test: Boolean,
     val testDayLength: Long = 0,
-)
+) {
+    /** "9,000 SKR": the amount, which the card sets in the amount face. */
+    val amount: String get() = atStake.substringBefore(AT_STAKE).trim()
+
+    /** "at stake · 9 joined". */
+    val note: String get() = if (atStake.contains(AT_STAKE)) AT_STAKE.trim() + atStake.substringAfter(AT_STAKE) else ""
+
+    private companion object {
+        const val AT_STAKE = " at stake"
+    }
+}
 
 /** A Holdout the member is done with: one line, to its detail (claimed) or its forfeit. */
 data class FinishedHoldout(val cohort: String, val line: String, val go: NavEvent)
@@ -82,14 +95,15 @@ object MyHoldoutsModel {
             val m = h.membership ?: continue
             val c = h.cohort
             val id = h.address.base58()
-            val name = Format.level(c)
+            // A short test Holdout keeps its own name (G2); the badge on its card says why.
+            val name = if (h.isTest) TEST_NAME else Format.level(c)
             fun card(status: String, tone: ChipTone, line: String, detail: String?, go: NavEvent) = YourHoldout(id, name, status, tone, line, detail, h.isTest, go, c.dayLength)
             when (val stage = h.stage(now)) {
                 Stage.NotJoined -> Unit
                 Stage.Lobby, Stage.LobbyLocked -> yours += card(
-                    "lobby",
-                    ChipTone.Accent,
-                    if (stage == Stage.LobbyLocked) "Joining closed · ${Format.skr(m.stake)} staked" else "Joined · ${Format.skr(m.stake)} staked",
+                    if (stage == Stage.LobbyLocked) "locked" else "lobby",
+                    if (stage == Stage.LobbyLocked) ChipTone.Neutral else ChipTone.Accent,
+                    if (stage == Stage.LobbyLocked) "Joining closed · ${c.memberCount} in · ${Format.skr(m.stake)} staked" else "Joined · ${Format.skr(m.stake)} staked",
                     "starts in ${Format.countdown(c.start - now)}",
                     NavEvent.Open(Screen.Lobby(id)),
                 )
@@ -105,13 +119,15 @@ object MyHoldoutsModel {
                     yours += card("running", ChipTone.Success, "Day ${stage.dayIndex + 1} of ${c.durationDays} · $crowd", detail, NavEvent.SelectTab(Tab.Today))
                 }
                 is Stage.Forfeited -> {
-                    val wayBack = view.comebackOffer(now, c.leagueId).forScreenOf(h.address) != null
+                    val offer = view.comebackOffer(now, c.leagueId).forScreenOf(h.address)
                     val out = "out after ${stage.daysLasted} day${if (stage.daysLasted == 1) "" else "s"}"
                     // Kept under Yours while the Holdout runs or a way back is open; then it is finished (ruling D-D6).
-                    if (wayBack || Derive.status(c, now) in GOING) {
-                        yours += card("out", ChipTone.Warning, out.replaceFirstChar { it.uppercase() }, if (wayBack) "A way back is open" else null, NavEvent.Open(Screen.Forfeit(id)))
+                    if (offer != null || Derive.status(c, now) in GOING) {
+                        val winBack = offer?.let { "Win back up to ${Format.skr(it.amount(it.held?.entry?.member?.stake))}" }
+                        yours += card("out", ChipTone.Warning, out.replaceFirstChar { it.uppercase() }, winBack, NavEvent.Open(Screen.Forfeit(id)))
+                            .copy(detailTone = ChipTone.Success)
                     } else {
-                        finished += c.start to FinishedHoldout(id, "$name · $out", NavEvent.Open(Screen.Forfeit(id)))
+                        finished += c.start to FinishedHoldout(id, "$name · finished · $out", NavEvent.Open(Screen.Forfeit(id)))
                     }
                 }
                 Stage.Settling -> yours += card("settling", ChipTone.Success, SettlingWords.homeLine(Derive.settleUsuallyIn(c, now)), null, NavEvent.Open(Screen.Detail(id)))
@@ -122,7 +138,7 @@ object MyHoldoutsModel {
                     "${Format.skr(stage.amount)} waiting for you",
                     NavEvent.Open(Screen.Claim(id)),
                 )
-                is Stage.Claimed -> finished += c.start to FinishedHoldout(id, "$name · claimed ${Format.skr(stage.amount)}", NavEvent.Open(Screen.Detail(id)))
+                is Stage.Claimed -> finished += c.start to FinishedHoldout(id, "$name · finished · claimed ${Format.skr(stage.amount)}", NavEvent.Open(Screen.Detail(id)))
             }
         }
         val open = view.openToJoin(now).map { h ->
@@ -130,12 +146,12 @@ object MyHoldoutsModel {
             val blocker = Journey.joinBlocker(c, view.profile, view.runningEnd(now), now, runningInBreach = view.runningInBreach(now))
             OpenHoldout(
                 cohort = h.address.base58(),
-                name = Format.level(c),
+                name = if (h.isTest) TEST_NAME else Format.level(c),
                 atStake = "${Format.skr(Derive.atStake(c))} at stake · ${c.memberCount} joined",
                 boost = h.league?.boostReserve?.takeIf { it > 0uL }?.let(Format::boostLine),
-                closesIn = "joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))}",
+                closesIn = "Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))}",
                 blocker = when (blocker) {
-                    Journey.JoinBlocker.LobbyPlaceTaken -> "You already hold a place in one that hasn't started."
+                    Journey.JoinBlocker.LobbyPlaceTaken -> "You already hold a place in a Holdout that hasn't started."
                     Journey.JoinBlocker.Overlaps -> "Starts before your current one ends."
                     Journey.JoinBlocker.JoiningClosed -> "Joining has closed."
                     null -> null
@@ -166,7 +182,10 @@ object MyHoldoutsModel {
 
     /** The empty card's words (screen map H0; ES-12 holds in the worst case). */
     const val EMPTY_TITLE = "No Holdouts yet."
-    const val EMPTY_TEXT = "Leave any time before joining closes, for a full refund."
+    const val EMPTY_TEXT = "Stake on yourself for 7 or 21 days. Full refund until joining closes."
+
+    /** A short test Holdout's own name on a card (FR-044a, ruling G2); its badge says why. */
+    const val TEST_NAME = "Test Holdout"
 
     /** Staking is Seeker-exclusive, said up front (ruling G12). */
     const val SEEKER_LINE = "Holdouts need a Seeker."

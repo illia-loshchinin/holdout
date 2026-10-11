@@ -104,6 +104,7 @@ internal fun Shared.DetailHost(id: String, root: Boolean = false, modifier: Modi
         stillUnreachable = chain.check.stillUnreachable,
         onCheck = { checkChain(h.address) },
         onLeaderboards = { dispatch(NavEvent.Open(Screen.Leaderboards(Leaderboard.Board.of(h.cohort.leagueId)))) },
+        onForfeit = { dispatch(NavEvent.Open(Screen.Forfeit(id))) },
     )
 }
 
@@ -127,7 +128,16 @@ internal fun Shared.LeaderboardsHost(board: Leaderboard.Board, read: Leaderboard
     val boards = Leaderboard.Board.entries.filter { it != Leaderboard.Board.TEST || read?.cohortsAfter.orEmpty().any { c -> Leaderboard.Board.TEST.covers(c.leagueId) } }
     val n = now
     val shown = if (read == null || n == null) null else Leaderboard.view(board, read, n, ScriptedWallets::isScripted)
-    LeaderboardScreen(board, boards, shown, address, { dispatch(NavEvent.Swap(Screen.Leaderboards(it))) }, { dispatch(NavEvent.Back) }, modifier, onShowing = seekerNames::showing)
+    // The test board's badge names the day length of the newest test league (FR-044a).
+    val testDay = read?.cohortsAfter.orEmpty().filter { Leaderboard.Board.TEST.covers(it.leagueId) }.maxByOrNull { it.leagueId }?.dayLength
+    LeaderboardScreen(
+        board, boards, shown, address,
+        { dispatch(NavEvent.Swap(Screen.Leaderboards(it))) },
+        { dispatch(NavEvent.Back) },
+        modifier,
+        onShowing = seekerNames::showing,
+        testDayLengthSeconds = testDay ?: 600L,
+    )
 }
 
 /** A Holdout's roster, read now and every 30 s while it is on screen. */

@@ -118,6 +118,19 @@ internal fun Shared.ForfeitHost(id: String, modifier: Modifier = Modifier) {
         stillUnreachable = chain.check.stillUnreachable,
         onCheck = { checkChain(h.address) },
         offer = offer,
+        members = rosters[h.address],
+        // A place held in a round of the offer: its lobby, or Today once it runs.
+        onSeePlace = offer?.held?.entry?.let { place ->
+            {
+                dispatch(
+                    if (holdout.core.Derive.status(place.cohort, n) == holdout.core.CohortStatus.Running) {
+                        NavEvent.SelectTab(holdout.app.nav.Tab.Today)
+                    } else {
+                        NavEvent.Open(holdout.app.nav.Screen.Lobby(place.address.base58()))
+                    },
+                )
+            }
+        },
         now = n,
         joinBlocker = round?.entry?.let { e -> Journey.joinBlocker(e.cohort, v.profile, v.runningEnd(n), n, runningInBreach = v.runningInBreach(n)) },
         // The stake sheet on the lost stake's chip (FR-037g).
@@ -133,7 +146,15 @@ internal fun Shared.ClaimHost(id: String, modifier: Modifier = Modifier) {
     if (h == null || n == null) return Loading(modifier)
     RosterLoop(h)
     val claimSignature = chain.lastClaim?.takeIf { it.first == h.address }?.second
-    ClaimScreen(h, h.stage(n), chain.busy, chain.message, chain.messageIsWarning, claimSignature, { holdouts.claim(sender, h) }, { dispatch(NavEvent.Back) }, modifier)
+    ClaimScreen(
+        h, h.stage(n), chain.busy, chain.message, chain.messageIsWarning, claimSignature,
+        onClaim = { holdouts.claim(sender, h) },
+        onBack = { dispatch(NavEvent.Back) },
+        modifier = modifier,
+        // Too little SOL for the fee: the faucet sheet first, then back here (ES-0a).
+        shortOfSol = (view?.lamports ?: Long.MAX_VALUE) < holdout.app.faucet.FaucetClient.MEMBER_CAN_PAY_LAMPORTS,
+        onGetTokens = { dispatch(NavEvent.OpenFaucet) },
+    )
 }
 
 /**
