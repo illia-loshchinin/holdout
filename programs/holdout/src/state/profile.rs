@@ -1,8 +1,9 @@
 //! `Profile` (data-model §1.5). Task T024.
 //!
-//! One per wallet: per-league progress, and the two obligation slots that
-//! keep two daily obligations from ever overlapping (INV-4). Nothing here is
-//! written by a client — only by the instructions.
+//! One per wallet: per-league progress, the two obligation slots that keep
+//! two daily obligations from ever overlapping (INV-4), and the wallet's
+//! faucet record (`last_faucet_day`, R13). Nothing here is written by a
+//! client — only by the instructions.
 
 use anchor_lang::prelude::*;
 

@@ -38,7 +38,7 @@ Never in member copy: *cohort*, *league*, *challenge* (as an in-app noun), *surv
 - Stopped part-way: *17 done — 10 banked, 7 not kept. Come back any time before 5h 12m runs out.*
 - After a crash: *Your 10 banked reps are safe.*
 - Overnight drop: *Three dropped since yesterday. Your share went up 17 SKR.*
-- Forfeit: *You missed day 7.* → *Your 9-day streak is still alive.* → *Today's Daily 25* · *The next 7-day Holdout*.
+- Forfeit: *You missed day 7.* → *Your 9-day streak is still alive.* → *Today's Daily 25* · *The next {N}-day Holdout*, the same league as the one lost (a 21-day forfeit offers the next 21-day Holdout, never the 7-day one; US-4, H37).
 - Claim: *You held out 21 days.* above **Claim 1,560 SKR**.
 - Broken streak: *Your 14-day streak broke. Start a new one today.* (no save button)
 - Coach cues: *More light · Get in view · Phone to 45° · Arms straight · Hold*; refused reps: *Go lower · Keep your body straight · Slow down*.

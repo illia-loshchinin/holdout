@@ -375,6 +375,9 @@ class HoldoutViewModel(
 object ProgramErrors {
     fun explain(code: Int?): String? = when (code) {
         6021 -> "Joining for this Holdout has closed."
+        // The genesis gate is off on devnet and ships off; the app checks the Seeker itself (FR-003b–FR-003d), so
+        // this is the contract's own refusal if the admin ever turns it on.
+        6024 -> "Staking in a Holdout needs a Seeker. You can still do the Daily 25 and watch every Holdout."
         6025 -> "You already hold a place in a Holdout that hasn't started. Leave it first, or wait for it to start."
         6026 -> "This Holdout would start before your current one ends."
         6030 -> "This Holdout isn't running right now."
