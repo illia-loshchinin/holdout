@@ -133,13 +133,17 @@ class HoldoutViewModelCheckTest {
         runCurrent()
         val checkRead = chain.reads.last()
 
+        // The new wallet's own first read fails too, so its state is "can't be reached":
+        // were the old check's answer applied to it, it would read "still can't be reached".
         vm.watch(walletB)
         runCurrent()
+        chain.reads.last().complete(null)
+        runCurrent()
+        assertTrue(state.offline)
         checkRead.complete(null)
         runCurrent()
 
         assertEquals(ChainCheck(), state.check)
-        assertFalse(state.offline)
     }
 
     @Test
@@ -192,7 +196,7 @@ class HoldoutViewModelCheckTest {
     }
 
     @Test
-    fun `given a day waiting on the phone, when a check finds the chain, then the check itself sends nothing`() = runTest(dispatcher) {
+    fun `given a day waiting on the phone, when a check finds the chain, then the check records no send and leaves the day waiting`() = runTest(dispatcher) {
         val cohort = "cohort-1"
         store.setPendingCohortDay(walletA.base58(), cohort, 2)
         unreachableFor(walletA)
@@ -203,7 +207,9 @@ class HoldoutViewModelCheckTest {
         chain.reads.last().complete(answered)
         runCurrent()
 
-        // No send started: nothing recorded as sent, and the day still waits on the phone (SC-003).
+        // The view model starts no send of its own: nothing is recorded as sent, and the
+        // day still waits on the phone. Whether a waiting day then goes is the UI's automatic
+        // send (SendWaitingDay, 001 FR-024b), which this test does not drive (SC-003, in part).
         assertEquals(autoSubmit, state.autoSubmit)
         assertNull(state.autoSubmit.sentFor)
         assertEquals(2, store.pendingCohortDay(walletA.base58(), cohort))
