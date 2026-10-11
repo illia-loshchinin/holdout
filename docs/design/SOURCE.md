@@ -3,9 +3,9 @@
 | | |
 | --- | --- |
 | Artifact | https://claude.ai/artifact/XF5A1KCgH7WY9651C5ZXhs (Design System type, "Holdout"; also reachable as https://claude.ai/code/artifact/f4e92223-6e90-4e26-b194-3e2d69d87d9a) |
-| Version | 1791648372-c284 |
-| Synced | 2026-10-10 (Standing, Easy/Hard, the fee sentence, Holdout Lab, seven components; `tokens.json` names the theme as its source, not the archived PRD; the PR #34 review fixes: the reworded fee sentence and boost lines, the 10 % cap, surface-1 dialogs, token-only CSS, built-today notes, `launch.md` and the Logo README now mirrored) |
-| Components | BankRing, BottomNav, CameraSitting, Card, ChoiceChips, Countdown, Dialog, NoticeCard, PrimaryButton, QuietAction, Readouts, RosterRow, SecondaryButton, Sheet, StatBlock, StatusChip, Stepper, StreakFlame, Switch, TierChips |
+| Version | 1791737808-971e |
+| Synced | 2026-10-11 (the Tour figure component: body colour 568AA4, shorts, arm band and the 12 s tour motion; earlier, 2026-10-10: Standing, Easy/Hard, the fee sentence, Holdout Lab, seven components; `tokens.json` names the theme as its source, not the archived PRD; the PR #34 review fixes: the reworded fee sentence and boost lines, the 10 % cap, surface-1 dialogs, token-only CSS, built-today notes, `launch.md` and the Logo README now mirrored) |
+| Components | BankRing, BottomNav, CameraSitting, Card, ChoiceChips, Countdown, Dialog, NoticeCard, PrimaryButton, QuietAction, Readouts, RosterRow, SecondaryButton, Sheet, StatBlock, StatusChip, Stepper, StreakFlame, Switch, TierChips, TourFigure |
 
 `docs/design/` mirrors the artifact and is never edited by hand. To refresh it, follow
 `.claude/skills/holdout-ui/references/sync.md`.
