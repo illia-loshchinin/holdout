@@ -36,7 +36,7 @@ fun RunningHoldoutCard(
     val day = (Derive.dayIndex(h.cohort, now) + 1).coerceIn(1, h.cohort.durationDays)
     HoldoutCard(if (onClick != null) modifier.clickable(onClickLabel = "Watch this Holdout", onClick = onClick) else modifier) {
         if (h.isTest) TestCohortBadge(h.cohort.dayLength)
-        Text("${Format.holdoutTitle(h.cohort)} · day $day of ${h.cohort.durationDays}", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+        Text("${Format.level(h.cohort)} · day $day of ${h.cohort.durationDays}", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
         Text(
             figures?.let { "${it.survivors.standing} still standing of ${it.survivors.starters} · prize pool ${Format.skr(it.projectedPool)}" }
                 ?: "${h.cohort.memberCount} started · prize pool ${Format.skr(h.cohort.pool)}",

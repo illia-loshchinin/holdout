@@ -2,7 +2,10 @@ package holdout.app.shell
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import holdout.app.chain.Deployment
@@ -12,6 +15,7 @@ import holdout.app.holdouts.MyHoldoutsModel
 import holdout.app.holdouts.MyHoldoutsScreen
 import holdout.app.lobby.LobbyScreen
 import holdout.app.nav.NavEvent
+import holdout.app.nav.Screen
 import holdout.app.nav.Sheet
 import holdout.app.nav.Sitting
 import holdout.app.stake.SeekerGate
@@ -19,7 +23,9 @@ import holdout.app.stake.SeekerGateSheet
 import holdout.app.stake.SeekerStatus
 import holdout.app.stake.StakeSheet
 import holdout.app.ui.ChainUnreachable
+import holdout.app.ui.Format
 import holdout.app.ui.SectionLabel
+import holdout.core.CohortStatus
 import holdout.core.Comeback.forScreenOf
 import holdout.core.Journey
 import holdout.core.Stage
@@ -67,12 +73,17 @@ internal fun Shared.LobbyHost(id: String, modifier: Modifier = Modifier) {
     val n = now
     if (h == null || n == null) return Loading(modifier)
     RosterLoop(h)
+    // The stake held while the member was in: what "You left" says came back, if the chain shows the leave before the screen goes.
+    var held by remember(id) { mutableStateOf<ULong?>(null) }
+    h.membership?.let { held = it.stake }
     LobbyScreen(
         h, n, chain.busy, chain.message, chain.messageIsWarning,
         onLeave = { holdouts.leave(sender, h) },
-        onRoster = { dispatch(NavEvent.Open(holdout.app.nav.Screen.Roster(id))) },
+        onRoster = { dispatch(NavEvent.Open(Screen.Roster(id))) },
         onBack = { dispatch(NavEvent.Back) },
         modifier = modifier,
+        leftStake = held.takeIf { h.membership == null }?.let(Format::skr),
+        notificationsOn = notificationsOn,
     )
 }
 
@@ -143,7 +154,7 @@ internal fun Shared.StakeSheetHost(sheet: Sheet.Stake, seekerGate: SeekerGate) {
             status = sheet.gate,
             onGetSeeker = { runCatching { uriHandler.openUri(SeekerGate.SEEKER_STORE_URL) } },
             onRetry = { dispatch(NavEvent.SeekerRetry) },
-            onBack = { dispatch(NavEvent.CloseSheet) },
+            onNotNow = { dispatch(NavEvent.CloseSheet) },
         )
         return
     }
@@ -164,8 +175,15 @@ internal fun Shared.StakeSheetHost(sheet: Sheet.Stake, seekerGate: SeekerGate) {
         messageIsWarning = chain.messageIsWarning,
         onStake = { tier -> joinAsking { holdouts.join(sender, h, tier, n) } },
         onGetTokens = { dispatch(NavEvent.OpenFaucet) },
-        onBack = { dispatch(NavEvent.CloseSheet) },
         initialTier = sheet.tier,
         comeback = v.comebackOffer(n, h.cohort.leagueId),
+        // "See your lobby": the sheet closes, then the lobby the member already holds a place in opens.
+        onSeeLobby = v.mine(n).firstOrNull { it.status(n) == CohortStatus.Open || it.status(n) == CohortStatus.Locked }?.let { lobby ->
+            {
+                dispatch(NavEvent.CloseSheet)
+                dispatch(NavEvent.Open(Screen.Lobby(lobby.address.base58())))
+            }
+        },
+        showNotificationReason = !notificationsOn,
     )
 }
