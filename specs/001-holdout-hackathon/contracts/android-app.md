@@ -73,13 +73,14 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 | Day `Completed`, pending submission | Home — "Done — tap to submit" (Phase 1); "Done — waiting for network" while the chain cannot be reached (Phase 2). Day-complete screen while the chain cannot be reached — "Done — not sent yet" with the time left to that day's own deadline, *Back to today*, no submit; past that deadline "Done — too late to send" |
 | Day `Submitted` | Home — cohort variant, day counter advanced |
 | Membership in breach (recorded or not) | Forfeit screen (US-4); roster shows member as out (FR-038a) |
-| A comeback round open to join, no place held *(added 2026-10-11, FR-037g)* | Forfeit screen — **offer card**: up to N SKR back, the next round's level and length, start and time left to join, **Join** → Stake confirm on the lost chip (with the per-chip "up to" line), and the round after it; Today — the comeback nudge line. Joining before the forfeit is recorded sends the record with the join (ES-17) |
+| A comeback round open to join, no place held *(added 2026-10-11, FR-037g)* | Forfeit screen — **offer card**: up to N SKR back, the next round's level and length, start and time left to join, **Join** → Stake confirm on the lost chip (with the per-chip "up to" line), and the round after it; Today — the comeback nudge line, shown at once, before the Daily 25 is done (FR-037g). Joining before the forfeit is recorded sends the record with the join (ES-17) |
 | A place held in a comeback round | Forfeit screen and Today — "finish it and up to N SKR of the stake you lost comes back", no Join (ES-18) |
+| No comeback round open, the next scheduled and not opened yet *(added 2026-10-11)* | Forfeit screen and Today — "The next … opens for joining in … and starts in …" ("opens for joining shortly" once automation is late), no Join (FR-037g) |
 | A lobby place held outside the comeback window | Forfeit screen — the offer, saying that place must be left first; no Join until it is (ES-18, FR-006a) |
 | Every comeback round closed, no place held | Forfeit screen without the offer: the Daily 25 and, if one is open, the next Holdout of the same level and length (US-4) |
 | Cohort `Settling`, member finished | Cohort detail — "You finished · settlement in progress" |
 | `ReadyToClaim` | Claim screen |
-| `Claimed` | Cohort detail — claimed |
+| `Claimed` | Cohort detail — claimed, with the payout's breakdown: stake back, share of the prize pool and, when owed, the Comeback row (FR-037g, UC-10) |
 | Any running cohort | Roster (FR-062) |
 | **[Phase 2]** League leaderboard | Leaderboards screen (US-10) |
 | About Holdout | The test network, one line on scripted members, the tour again, and Disconnect wallet. For every member; nothing in it is addressed to judges, and the known weaknesses are in the README only (spec 004, amended 2026-10-09). There is no walkthrough in the app: the full cycle is in the demo video, sent as a link (FR-044) |
