@@ -223,6 +223,21 @@ object Derive {
     /** The instant after the final deadline: `start + duration_days × day_length`. */
     fun end(c: CohortSnapshot): Long = c.start + c.durationDays * c.dayLength
 
+    /**
+     * How long after the end a finished cohort is *usually* settled (FR-035a):
+     * the crank passes every 10 minutes and settles a finished cohort in one
+     * pass (research R12), plus 5 minutes for the pass itself. A usual time,
+     * never a promise — settlement is permissionless and waits for the
+     * league's earlier cohort (FR-030a, FR-061a). Change it with the cadence.
+     */
+    const val SETTLE_USUAL_SECONDS = 15 * 60L
+
+    /** `now − end`, `0` before the end: "Ended 4m ago" on the settling card. */
+    fun sinceEnd(c: CohortSnapshot, now: Long): Long = (now - end(c)).coerceAtLeast(0)
+
+    /** `end + SETTLE_USUAL_SECONDS − now`, never negative: what is left of the usual wait (data-model §5). */
+    fun settleUsuallyIn(c: CohortSnapshot, now: Long): Long = (end(c) + SETTLE_USUAL_SECONDS - now).coerceAtLeast(0)
+
     fun deadlineOf(c: CohortSnapshot, dayIndex: Int): Long = Schedule.deadlineOf(c.start, c.dayLength, dayIndex)
 
     /** The current zero-based day while `Running`, clamped outside it. */

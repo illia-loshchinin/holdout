@@ -14,7 +14,7 @@ data class Reminder(
     val kind: Kind,
     val cohort: SolanaPublicKey,
     val leagueId: Int,
-    /** The cohort day a deadline reminder is for; the first day for a start reminder. */
+    /** The cohort day a deadline reminder is for; the first day for a start reminder; `durationDays` for the finished notice. */
     val dayIndex: Int,
     /** When it fires, in chain seconds; for the standing [Kind.NotSent] notice (tick 0), the moment it was computed. */
     val at: Long,
@@ -31,6 +31,8 @@ data class Reminder(
      * hourly re-post `k` hours before the deadline.
      */
     val tick: Int = 0,
+    /** Only for [Kind.Finished]: this finish should earn a comeback refund (FR-037e), so the notice says so. */
+    val comeback: Boolean = false,
 ) {
     enum class Kind {
         Start,
@@ -41,6 +43,13 @@ data class Reminder(
 
         /** A day done on the phone and not yet on chain (FR-068, 2026-10-11): kept in the shade, silently re-posted every hour. */
         NotSent,
+
+        /**
+         * Every day on chain and the cohort not yet settled (FR-068b, 2026-10-11):
+         * one notice when settlement usually has come, saying the claim is
+         * probably ready. It reads no chain when it fires (FR-068a).
+         */
+        Finished,
     }
 
     /** The standing not-sent notice: shown at once rather than set as an alarm. */
@@ -60,7 +69,7 @@ data class Reminder(
 
     private companion object {
         /** The slots below this are the other kinds' ordinals. */
-        const val NOT_SENT_FIRST_SLOT = 4
+        const val NOT_SENT_FIRST_SLOT = 5
     }
 }
 
@@ -89,18 +98,35 @@ object Reminders {
     fun hasMidday(dayLength: Long): Boolean = dayLength >= MIDDAY_MIN_DAY_SECONDS
 
     /**
-     * The one rule for sound: the reminder before a long day's deadline (it may
-     * fall at night) and every not-sent notice are posted silently; the start,
-     * halfway and a short day's deadline reminder sound (FR-068).
+     * The one rule for sound: the reminder before a long day's deadline and the
+     * finished notice of a Holdout of long days (both may fall at night), and
+     * every not-sent notice, are posted silently; the start, halfway, a short
+     * day's deadline reminder and the test lobby's finished notice sound
+     * (FR-068, FR-068b).
      */
-    fun isSilent(kind: Reminder.Kind, dayLength: Long): Boolean = kind == Reminder.Kind.NotSent || (kind == Reminder.Kind.Deadline && hasMidday(dayLength))
+    fun isSilent(kind: Reminder.Kind, dayLength: Long): Boolean = when (kind) {
+        Reminder.Kind.NotSent -> true
+        Reminder.Kind.Deadline, Reminder.Kind.Finished -> hasMidday(dayLength)
+        else -> false
+    }
 
     /**
      * One notification per Holdout day: its halfway, deadline and not-sent
      * notices replace one another instead of stacking, so the shade shows the
-     * latest time left; the start keeps its own.
+     * latest time left; the start and the finished notice keep their own.
      */
-    fun notificationId(cohortBase58: String, kind: Reminder.Kind, dayIndex: Int): Int = 31 * cohortBase58.hashCode() + if (kind == Reminder.Kind.Start) -1 else dayIndex
+    fun notificationId(cohortBase58: String, kind: Reminder.Kind, dayIndex: Int): Int = 31 * cohortBase58.hashCode() + when (kind) {
+        Reminder.Kind.Start -> -1
+        Reminder.Kind.Finished -> -2
+        else -> dayIndex
+    }
+
+    /**
+     * How long after its time a finished notice held by an idle phone is still
+     * worth posting (FR-068b): later than that the member has most likely
+     * opened the app, and a stale "probably ready" says nothing.
+     */
+    const val FINISHED_HORIZON_SECONDS = 6 * 3_600L
 
     /** The hourly not-sent re-posts (FR-068, 2026-10-11) are this far apart, counted back from the deadline. */
     const val NOT_SENT_INTERVAL_SECONDS = 3_600L
@@ -134,13 +160,33 @@ object Reminders {
      * at most 48), instead of its halfway reminder and, on a long day, its
      * deadline reminder (FR-068, 2026-10-11, research R21). A short day keeps its
      * deadline reminder, which says to submit it.
+     *
+     * A member with every day on chain in a cohort not yet settled gets one
+     * [Reminder.Kind.Finished] notice at `end + SETTLE_USUAL_SECONDS` (FR-068b),
+     * kept only while that time is ahead: a read after it that finds the cohort
+     * still unsettled drops it, as does one that finds it settled. [comebackFor]
+     * says whether this finish should earn a comeback refund (FR-037e).
      */
     fun schedule(
         memberships: List<Pair<CohortSnapshot, MembershipSnapshot>>,
         cohortAddress: (CohortSnapshot) -> SolanaPublicKey,
         now: Long,
+        comebackFor: (CohortSnapshot, MembershipSnapshot) -> Boolean = { _, _ -> false },
+        // Last, so a trailing lambda is still the day done on the phone.
         doneOnPhone: (CohortSnapshot, Int) -> Boolean = { _, _ -> false },
     ): List<Reminder> = memberships.flatMap { (c, m) ->
+        if (m.daysCompleted >= c.durationDays) {
+            // Finished: no day left to remind of, only the claim to come.
+            val at = Derive.end(c) + Derive.SETTLE_USUAL_SECONDS
+            val counting = m.state == MembershipSnapshot.State.Joined || m.state == MembershipSnapshot.State.Finished
+            if (!counting || c.settled || now >= at) return@flatMap emptyList()
+            return@flatMap listOf(
+                Reminder(
+                    Reminder.Kind.Finished, cohortAddress(c), c.leagueId, c.durationDays, at, at + FINISHED_HORIZON_SECONDS,
+                    c.repsPerDay, c.durationDays, c.dayLength, m.daysCompleted, comeback = comebackFor(c, m),
+                ),
+            )
+        }
         if (m.state != MembershipSnapshot.State.Joined || c.settled || Derive.inBreach(m, c, now) || now >= Derive.end(c)) return@flatMap emptyList()
         val address = cohortAddress(c)
         val window = windowSeconds(c.dayLength)

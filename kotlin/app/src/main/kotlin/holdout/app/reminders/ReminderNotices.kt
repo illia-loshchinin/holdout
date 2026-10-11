@@ -36,18 +36,29 @@ object ReminderNotices {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL, "Holdout reminders", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "When a Holdout starts, and halfway through a day that is not done yet"
+                description = "When a Holdout starts, halfway through a day that is not done yet, and when a short test Holdout you finished has probably settled"
             },
         )
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_QUIET, "Holdout reminders, silent", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Before a day's deadline, which may fall at night, and every hour while a day you've done isn't on chain yet: shown without sound or vibration"
+                description = "Before a day's deadline, which may fall at night, every hour while a day you've done isn't on chain yet, and when a Holdout you finished has probably settled: shown without sound or vibration"
             },
         )
     }
 
     /** "7-day Holdout", and for the short test cohort its day length too. */
     fun holdoutLabel(days: Int, test: Boolean, dayLength: Long): String = "$days-day Holdout" + if (test) " · short test cohort, ${Format.dayLength(dayLength)} days" else ""
+
+    /** The finished notice (FR-068b): *"You finished your 7-day Holdout"*, with the test cohort's label. */
+    fun finishedTitle(days: Int, test: Boolean, dayLength: Long): String = "You finished your ${holdoutLabel(days, test, dayLength)}"
+
+    /**
+     * It reads no chain (FR-068a), so it says *probably*; the comeback line has
+     * no amount, and says *should*, as the reserve may cut it (FR-037e).
+     */
+    fun finishedText(comeback: Boolean): String =
+        "Settlement usually comes within 15 minutes of the end, so your claim is probably ready: open Holdout to claim it." +
+            if (comeback) " It should include a comeback refund too." else ""
 
     fun notSentTitle(day: Int): String = "Day ${day + 1} is done, but not on chain yet"
 

@@ -16,7 +16,9 @@ import holdout.core.Reminders
  * hour until the chain has it (FR-068, 2026-10-11); a day that reached the
  * chain was cancelled by the app's next sync. Names the Holdout, labels the
  * short test cohort, and says the reps still needed and the time left; never an
- * amount. Nothing is sent anywhere: the notification is the whole of it.
+ * amount. A finished Holdout gets one notice that its claim is probably ready
+ * (FR-068b), with no chain read. Nothing is sent anywhere: the notification is
+ * the whole of it.
  */
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -40,6 +42,17 @@ class ReminderReceiver : BroadcastReceiver() {
         // A deadline already gone: a late alarm (Doze) says nothing rather than something wrong.
         val left = (deadline - SystemClock.elapsedRealtime()) / 1_000
         if (left <= 0) return
+        if (kind == Reminder.Kind.Finished) {
+            // Every day was on chain when it was scheduled, and the app cancels it once it
+            // has seen the cohort settled: it reads no chain itself (FR-068a, FR-068b).
+            if (intent.hasExtra(EXTRA_ID) && !ReminderScheduler.markPosted(context, intent.getIntExtra(EXTRA_ID, 0))) return
+            val text = ReminderNotices.finishedText(intent.getBooleanExtra(EXTRA_COMEBACK, false))
+            ReminderNotices.post(
+                context, intent.hashCode(), Reminders.notificationId(cohort, kind, day), ReminderNotices.finishedTitle(days, test, dayLength), text,
+                silent = Reminders.isSilent(kind, dayLength), ongoing = false, leftSeconds = left,
+            )
+            return
+        }
         // A member who missed the day before is out, recorded yet or not, and the
         // app may not have run since to cancel what it scheduled: no reminder to
         // go on. Only the chain says a day is done: one done on this phone and
@@ -83,5 +96,6 @@ class ReminderReceiver : BroadcastReceiver() {
         const val EXTRA_DAYS_ON_CHAIN = "days_on_chain"
         const val EXTRA_TEST = "test"
         const val EXTRA_DEADLINE_ELAPSED = "deadline_elapsed"
+        const val EXTRA_COMEBACK = "comeback"
     }
 }

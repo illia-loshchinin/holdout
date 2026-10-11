@@ -119,12 +119,13 @@ class RemindersTest {
     }
 
     @Test
-    fun `nothing once forfeited, finished, settled, ended or in breach`() {
+    fun `nothing once forfeited, settled, ended or in breach - and once finished, only the finished notice`() {
         val c = cohort()
         assertTrue(schedule(c, member(state = MembershipSnapshot.State.Forfeited), start).isEmpty())
-        assertTrue(schedule(c, member(days = 7, state = MembershipSnapshot.State.Finished), start).isEmpty())
+        assertEquals(listOf(Reminder.Kind.Finished), schedule(c, member(days = 7, state = MembershipSnapshot.State.Finished), start).map { it.kind })
         assertTrue(schedule(cohort(settled = true), member(), start).isEmpty())
-        assertTrue(schedule(c, member(days = 7), start + 7 * 86_400).isEmpty())
+        assertEquals(listOf(Reminder.Kind.Finished), schedule(c, member(days = 7), start + 7 * 86_400).map { it.kind })
+        assertTrue(schedule(c, member(days = 7), start + 7 * 86_400 + Derive.SETTLE_USUAL_SECONDS).isEmpty())
         assertTrue(schedule(c, member(days = 0), start + 86_400).isEmpty(), "day 0's deadline passed: in breach")
     }
 
@@ -266,5 +267,57 @@ class RemindersTest {
     @Test
     fun `a chain instant becomes a moment on the monotonic clock`() {
         assertEquals(5_000_000L + 900_000, Reminders.elapsedMillisAt(atChainSeconds = start + 900, chainNowSeconds = start, elapsedNowMillis = 5_000_000))
+    }
+
+    // ---- the finished notice (FR-068b, 2026-10-11) -------------------------------
+
+    private fun finished(c: CohortSnapshot, m: MembershipSnapshot, now: Long, comeback: Boolean = false) =
+        Reminders.schedule(listOf(c to m), { address }, now, comebackFor = { _, _ -> comeback }).filter { it.kind == Reminder.Kind.Finished }
+
+    @Test
+    fun `a member with every day on chain gets one finished notice 15 minutes after the end`() {
+        val c = cohort()
+        val end = Derive.end(c)
+        for (state in listOf(MembershipSnapshot.State.Joined, MembershipSnapshot.State.Finished)) {
+            for (now in listOf(end - 3_600, end, end + 899)) {
+                val r = finished(c, member(days = 7, state = state), now)
+                assertEquals(1, r.size, "$state at ${now - end}")
+                assertEquals(end + Derive.SETTLE_USUAL_SECONDS, r.single().at)
+                assertEquals(r.single().at + 6 * 3_600, r.single().deadline)
+                assertEquals(7, r.single().dayIndex)
+                assertEquals(false, r.single().comeback)
+            }
+        }
+        assertEquals(true, finished(c, member(days = 7), end, comeback = true).single().comeback)
+    }
+
+    @Test
+    fun `no finished notice once its time has come, the cohort settled, the payout claimed, a forfeit or a day missing`() {
+        val c = cohort()
+        val end = Derive.end(c)
+        assertTrue(finished(c, member(days = 7), end + 900).isEmpty(), "a read after its time finds it still unsettled: dropped")
+        assertTrue(finished(cohort(settled = true), member(days = 7, state = MembershipSnapshot.State.Finished), end).isEmpty())
+        assertTrue(finished(cohort(settled = true), member(days = 7, state = MembershipSnapshot.State.Claimed), end).isEmpty())
+        assertTrue(finished(c, member(days = 7, state = MembershipSnapshot.State.Claimed), end).isEmpty())
+        assertTrue(finished(c, member(days = 5, state = MembershipSnapshot.State.Forfeited), end).isEmpty())
+        assertTrue(finished(c, member(days = 6), end).isEmpty())
+        assertTrue(finished(c, member(days = 6), end - 3_600).isEmpty(), "still running, a day to go")
+    }
+
+    @Test
+    fun `the finished notice is silent for long days and sounds for the test lobby, with ids of its own`() {
+        assertTrue(Reminders.isSilent(Reminder.Kind.Finished, 86_400))
+        assertTrue(Reminders.isSilent(Reminder.Kind.Finished, 43_200))
+        assertEquals(false, Reminders.isSilent(Reminder.Kind.Finished, 600))
+        val c = cohort(days = 40)
+        val all = Reminders.schedule(listOf(c to member()), { address }, start - 60, doneOnPhone = { _, _ -> false }) +
+            finished(c, member(days = 40), Derive.end(c)) +
+            Reminders.schedule(listOf(c to member(days = 3)), { address }, Derive.deadlineOf(c, 3) - 10 * 3_600, doneOnPhone = { _, d -> d == 3 })
+        val distinct = all.distinctBy { Triple(it.kind, it.dayIndex, it.tick) }
+        assertEquals(distinct.size, distinct.map { it.id }.toSet().size, "every alarm id distinct")
+        val notSent = all.filter { it.kind == Reminder.Kind.NotSent }
+        assertTrue(notSent.isNotEmpty())
+        val ids = (0 until 40).flatMap { d -> listOf(Reminder.Kind.Start, Reminder.Kind.Deadline).map { Reminders.notificationId(address.base58(), it, d) } }.toSet()
+        assertTrue(Reminders.notificationId(address.base58(), Reminder.Kind.Finished, 40) !in ids, "its own notification")
     }
 }
