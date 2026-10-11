@@ -16,6 +16,15 @@ The phone does not always report the chain coming back. In the owner's local tes
 
 It changes no rule of spec 001. A check is the same read the app already makes on its schedule, made at the member's request; what the app does when the chain answers — offering *"Done — tap to submit"*, or the wallet opening by itself under FR-024b's Phase 2 — is unchanged. It adds to 001 FR-024b and ES-3b; AC-18 is unchanged.
 
+## Clarifications
+
+### Session 2026-10-11
+
+- Q: Where can a member make the app check the chain again? → A: Both: pull-to-refresh on the home (every state), a Holdout's details and the forfeit screen, and a visible **Check again** button on every "can't be reached" line.
+- Q: Does the pull work all the time, or only while the chain can't be reached? → A: Only while the chain can't be reached. While it answers, the pull does nothing and the 30-second schedule keeps the screens fresh.
+- Q: What does the screen say when a check ends and Devnet still can't be reached? → A: *"Devnet still can't be reached."*, until the chain answers; the Check again button stays.
+- Q: Do a Holdout's details and the forfeit screen say the chain can't be reached? → A: Yes: while it can't, they show the same one line, *"Devnet can't be reached right now."*, with Check again, as well as the pull.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Check again from the waiting day (Priority: P1)
@@ -36,17 +45,18 @@ A member finished today's reps while Devnet could not be reached. The home reads
 
 ### User Story 2 - Check again from any screen that shows the chain (Priority: P2)
 
-A member is on a screen built from chain data — the home with or without a running Holdout, a Holdout's details, the forfeit screen — and the data may be stale. They pull down to refresh it, whether or not the app knows the chain is unreachable.
+Devnet can't be reached and the member is on a screen built from chain data — the home with or without a running Holdout, a Holdout's details, the forfeit screen. The screen says so in one line with **Check again**, and they can also pull the screen down to check.
 
-**Why this priority**: the same need outside the waiting day: standings, the prize pool and the forfeit's next Holdout are read from the chain and the member cannot tell how old they are.
+**Why this priority**: the same need outside the waiting day: standings, the prize pool and the forfeit's next Holdout come from the chain, and while it can't be reached the member sees the last answer and wants to know when it is back.
 
-**Independent Test**: on each listed screen, pull down; the app reads the chain at once and the screen redraws from the answer.
+**Independent Test**: with the chain unreachable, on each listed screen, see the line, then pull down and tap Check again; each reads the chain at once and the screen redraws from the answer. With the chain answering, a pull does nothing.
 
 **Acceptance Scenarios**:
 
-1. **Given** the home of a running Holdout, **When** the member pulls down, **Then** the app reads the chain snapshot, chain time and that Holdout's roster at once, and the counter and pool redraw from the answer.
-2. **Given** the home with no Holdout reading *"Devnet unreachable — the Daily 25 still works"*, **When** the member pulls down and the chain answers, **Then** the Holdouts open to join and running now appear.
-3. **Given** a Holdout's details or the forfeit screen, **When** the member pulls down, **Then** the same read is made and that screen redraws.
+1. **Given** the home of a running Holdout while Devnet can't be reached, **When** the member pulls down or taps Check again, **Then** the app reads the chain snapshot, chain time and that Holdout's roster at once, and the counter and pool redraw from the answer.
+2. **Given** the home with no Holdout reading *"Devnet unreachable — the Daily 25 still works"*, **When** the member checks again and the chain answers, **Then** the Holdouts open to join and running now appear.
+3. **Given** a Holdout's details or the forfeit screen while Devnet can't be reached, **Then** it shows *"Devnet can't be reached right now."* with Check again; **When** the member checks and the chain answers, **Then** the line goes and the screen redraws.
+4. **Given** any of these screens while the chain answers, **When** the member pulls down, **Then** nothing happens: no indicator and no read.
 
 ---
 
@@ -58,6 +68,7 @@ A member is on a screen built from chain data — the home with or without a run
 - **A check races the scheduled read.** Both may run; the newer answer wins, as today.
 - **An action is under way** (the wallet is open for a join, a submit or a claim). The check reads only; it does not cancel or repeat the action.
 - **The deadline passes while the day waits.** A check that finds the chain answering past that day's deadline leads to *"Done — too late to send"* wherever 001 FR-024b shows it; the check never offers a submit FR-024b would not.
+- **The chain answers again by itself** (the 30-second read, or the network's return) while the member is on the screen: the line, the button and the pull go away, with no check needed.
 - **Repeated pulls.** The member can check as often as they like; a pull while a check is under way joins it rather than starting another.
 - **The Daily 25** needs no connection; its screens gain no check.
 
@@ -65,8 +76,8 @@ A member is on a screen built from chain data — the home with or without a run
 
 ### Functional Requirements
 
-- **FR-001** A member can ask the app to read the chain now from: the home in every state that shows chain data (no Holdout, a running Holdout, the waiting day), a Holdout's details, and the forfeit screen, by pulling the screen down.
-- **FR-002** While the app is in its *"the chain can't be reached"* state, the place that says so — the home's *"Done — waiting for network"*, its *"Devnet can't be reached right now…"* notice, and *"Devnet unreachable — the Daily 25 still works"* — also carries a visible **Check again** action, so the check does not depend on knowing the pull gesture.
+- **FR-001** While the app is in its *"the chain can't be reached"* state, a member can ask it to read the chain now by pulling down: the home in every state that shows chain data (no Holdout, a running Holdout, the waiting day), a Holdout's details, and the forfeit screen. While the chain answers, the pull does nothing — no indicator, no read — and the app's own schedule keeps these screens fresh.
+- **FR-002** In the same state, the place that says so carries a visible **Check again** button, so the check does not depend on knowing the gesture: the home's *"Done — waiting for network"*, its *"Devnet can't be reached right now…"* notice, and *"Devnet unreachable — the Daily 25 still works"*. A Holdout's details and the forfeit screen, which say nothing about it today, show one line, *"Devnet can't be reached right now."*, with the same button. The line, the button and the pull go once the chain answers, by a check or by itself.
 - **FR-003** A check reads what the app's own schedule reads for that screen — the chain snapshot and chain time, and the roster of the Holdout shown — at once, and applies the answer exactly as a scheduled read's (newest answer wins, never another wallet's). It changes no schedule and no rule of 001 FR-024b.
 - **FR-004** A check never submits anything by itself. If the chain answers and a completed day is waiting, the screen shows what 001 FR-024b shows once the chain answers; in Phase 1 the day is submitted only by the member's tap, and any send FR-024b's Phase 2 makes is unchanged by this feature.
 - **FR-005** While a check is under way the screen shows that it is checking, and a second request joins it rather than starting another read.
@@ -83,7 +94,7 @@ A member is on a screen built from chain data — the home with or without a run
 ### Measurable Outcomes
 
 - **SC-001** With a finished day waiting and the chain back, a member sees the day move past *"Done — waiting for network"* within 5 seconds of asking, instead of up to 30.
-- **SC-002** Every screen listed in FR-001 responds to a pull with a visible checking state within half a second.
+- **SC-002** While Devnet can't be reached, every screen listed in FR-001 responds to a pull or a Check again tap with a visible checking state within half a second; while it answers, a pull shows nothing.
 - **SC-003** No check ever submits a day: in tests, a check with a waiting day and the chain answering opens no wallet in Phase 1 beyond what FR-024b already does.
 - **SC-004** No member-facing string this feature adds contains "offline", "internet" or "error".
 
