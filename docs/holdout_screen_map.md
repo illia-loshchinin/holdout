@@ -384,7 +384,7 @@ Every sentence above is the code's (`tour/TourScreen.kt`); the footer reads `TES
 | Part-way (drawn) | ring 1/3 · *10 banked today* | **Do 15 more** |
 | Last 10 min | time in warning colour + *"Under 10 minutes left. You can still start — the deadline is the chain's"* | Start (never blocked) |
 | Offline, not done | warning card: reps can be done, the day counts only once submitted before the deadline | Start |
-| Done, not submitted | ring full · *"Done — tap to submit"* · time left | **Submit day 12** → N1 |
+| Done, not submitted | ring full · offline: *"Done — waiting for network"* · *"…It only counts once it reaches the chain before the deadline: it's sent when Holdout is open and back online, and you approve it in your wallet."*; online the wallet opens by itself (T098), and *"Done — tap to submit"* only if that send failed · time left | **Submit day 12** → N1 (only after a failed send) |
 | Short of SOL to submit | notice + **Get test tokens** | → W1 sheet |
 | Submitted | ring full in green · *"Today is done and on chain."* · *"Next day opens in …"* | — |
 
@@ -441,6 +441,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 **On screen:** **25** in green · `DONE` · gradient sweep · one button:
 - Daily 25 → **Done** → T1 (streak +1, *NICE:* flame flourish *"13-day streak"*)
 - Holdout day → **Submit day 12 to the chain** → N1 → T2 *"on chain"*
+- Holdout day, **offline** (2026-10-10, FR-024b): *"Done — not sent yet"* · *"Devnet can't be reached, so day 12 isn't on chain yet. Your 25 are saved on this phone. Open Holdout when it can be, before the deadline (4h 06m left), and approve day 12 in your wallet."* · **Back to today** → T2 (sends nothing; the day waits on the phone). The time left is that day's own deadline; past it: *"Done — too late to send"* · *"Devnet can't be reached, and day 12's deadline has passed, so it can no longer be sent. Your 25 are saved on this phone."*
 
 *NICE, not built:* after a Daily 25 with no Holdout → *"Want money on it? Join a 7-day Holdout."* → H2 (PRD §10.2)
 
@@ -626,7 +627,7 @@ Only a confirmed absence of the token shows *Not a Seeker*; no network, a rate l
 | ID | Moment | Tier · Status | From → to |
 |---|---|---|---|
 | **N1** | **Wallet app signs** (Mobile Wallet Adapter): connect, join, leave, submit day, claim, faucet | MUST · ✅ · 🎨 | A1, H2, H3, T2/S6, H7, W1 → back with the result in a notice line; the calling button reads *"Waiting for the wallet…"* |
-| **N2** | **Reminder notification** (on-device): the Holdout starts; before each deadline not yet met; *"submit your day"* when done but not on chain | SHOULD · ✅ | OS → T2 |
+| **N2** | **Reminder notification** (on-device): the Holdout starts; on a day of 12 hours or more, one at its midpoint (17:00–18:00 UTC for a 24-hour day) with sound and one 3 hours before the deadline, silent (2026-10-10, FR-068); on a shorter test day, one before each deadline; when a day is done but not on chain, a silent, ongoing *"Day N is done, but not on chain yet"* notice that stays until it is submitted or the deadline passes, re-posted silently every hour (2026-10-11, FR-068) | SHOULD · ✅ | OS → T2 |
 | **N3** | **Notification permission**, asked once at the first join with the reason shown on H2; the join goes ahead either way | SHOULD · ✅ | H2 → N1 |
 | **N4** | **Camera permission**: the OS dialog behind S1 | MUST · ✅ | S1 → S2/S3 |
 | **N5** | **"Dropped since yesterday"**, once per new day | SHOULD · 🎨 drawn on T2, ⬜ not built | T2 line (and ∿ badge); tap → H4 |
@@ -772,7 +773,7 @@ The paths design has to make smooth, with the screens they cross. Times are PRD 
 - **J5 — Miss a day, and the way back:** `T2` → *(deadline)* → `H6` → **Today's Daily 25** (`S1…`) or **the same league's next Holdout** (`H2` → J2); for 14 days `T1` carries the comeback nudge, and finishing that Holdout pays the comeback with the claim (`H7`)
 - **J6 — Finish and get paid:** `T2` (last day) → `∿ H4` *settlement in progress* → *(settled)* → `H7` → **Claim** ✍ → claimed → `☰ H0` *Finished*
 - **J7 — Anyone, a judge included, sees the whole cycle:** the demo video (sent with the submission) · or, connected with a wallet holding a Seeker Genesis Token, `T1` → a short test Holdout → `H2` (Seeker gate, then the stake confirm) → its 10-minute days → settlement → `H7` claim, in about half an hour (FR-044a, FR-003b) · or, without one, `T1` **Running now** → `H4` → `H5`, watching a Holdout thin (FR-062a)
-- **J8 — Offline:** `T1` the Daily 25 works with no network. `T2` warns before starting; afterwards **Done — tap to submit** once online, and only before the deadline.
+- **J8 — Offline:** `T1` the Daily 25 works with no network. `T2` warns before starting; at the end *"Done — not sent yet"* · **Back to today** (nothing is sent while the chain can't be reached); `T1` shows *"Done — waiting for network"*; the day is sent, with the wallet's approval, once Holdout is open and the chain answers again — and only before the deadline (*"Done — tap to submit"* only if that send was declined or failed).
 - **J9 — Where do I stand:** `∿ H4` → **Leaderboards** → `L1` (Easy · 7-day) → *You're 2 Holdouts away from being ranked* → back. In the 13 Oct build: Home → **Leaderboards** → `L1` → ← Home.
 
 ---

@@ -43,7 +43,7 @@ Client: `com.solanamobile:mobile-wallet-adapter-clientlib-ktx` 2.2.0, used as in
 
 | Item | Contract |
 |---|---|
-| Theme | **A single dark theme** built from the tokens in `docs/design/` (`tokens.json`, transcribed into `ui/theme/`) — black canvas, Solana-palette accents. No light variant |
+| Theme | **A single dark theme** in `ui/theme/`, its tokens the design book's (`docs/design/tokens.json`; direction and the hand-run check in research R20) — black canvas, Solana-palette accents. No light variant |
 | Dynamic colour | **Disabled.** Material You never recolours the app; brand colours are fixed |
 | Fonts | System Roboto / Roboto Flex for UI, JetBrains Mono (bundled, open licence) for amounts and countdowns. **No licensed brand font ships in the APK** (`docs/design/README.md`, Type) |
 | Camera screens | Designed for black: full-bleed preview, with a scrim behind any text |
@@ -70,7 +70,7 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 | Membership `Active`, today not complete | Home — cohort variant; Sitting |
 | Sitting `Preflight` / `Countdown` / `Counting` | Sitting sub-screens; the hold's reason when it will not fill (002 FR-018a, `contracts/words.md`); last-10-minutes warning (FR-047); offline warning (FR-024b) |
 | Sitting ended part-way | Sitting — stopped part-way variant |
-| Day `Completed`, pending submission | Home — "Done — tap to submit" (Phase 1) |
+| Day `Completed`, pending submission | Home — "Done — tap to submit" (Phase 1); "Done — waiting for network" while the chain cannot be reached (Phase 2). Day-complete screen while the chain cannot be reached — "Done — not sent yet" with the time left to that day's own deadline, *Back to today*, no submit; past that deadline "Done — too late to send" |
 | Day `Submitted` | Home — cohort variant, day counter advanced |
 | Membership in breach (recorded or not) | Forfeit screen (US-4); roster shows member as out (FR-038a) |
 | Cohort `Settling`, member finished | Cohort detail — "You finished · settlement in progress" |
