@@ -102,9 +102,18 @@ data class ChainView(
     fun comebackOffer(now: Long, leagueId: Int): Comeback.Offer? = Comeback.offer(comebackEntries(), comebackLeagues(), now, leagueId)
 }
 
-class ChainRepository(private val rpc: Rpc = Rpc(Deployment.rpcUrl), private val programId: SolanaPublicKey = Deployment.programId) {
+/** The chain reads the staked side of the app makes: [ChainRepository] on a phone, a fake in the view model's tests (005 T019). */
+interface ChainReads {
     /** Null when the cluster cannot be reached — unknown, never empty (R8). */
-    suspend fun load(wallet: SolanaPublicKey?): ChainView? {
+    suspend fun load(wallet: SolanaPublicKey?): ChainView?
+
+    suspend fun roster(cohort: SolanaPublicKey): List<MembershipSnapshot>?
+
+    suspend fun leaderboard(): Leaderboard.Snapshot?
+}
+
+class ChainRepository(private val rpc: Rpc = Rpc(Deployment.rpcUrl), private val programId: SolanaPublicKey = Deployment.programId) : ChainReads {
+    override suspend fun load(wallet: SolanaPublicKey?): ChainView? {
         val config =
             when (val read = rpc.account(Pdas.config(programId))) {
                 // No account at all: Holdout is not live here. An account that
@@ -130,7 +139,7 @@ class ChainRepository(private val rpc: Rpc = Rpc(Deployment.rpcUrl), private val
     }
 
     /** The roster of one cohort (FR-062), for the roster screen. */
-    suspend fun roster(cohort: SolanaPublicKey): List<MembershipSnapshot>? = rpc.memberships(programId, cohort)
+    override suspend fun roster(cohort: SolanaPublicKey): List<MembershipSnapshot>? = rpc.memberships(programId, cohort)
 
     /**
      * What the league leaderboards read (FR-060, R8): every cohort, every
@@ -138,7 +147,7 @@ class ChainRepository(private val rpc: Rpc = Rpc(Deployment.rpcUrl), private val
      * count or forfeit landing between the calls is seen rather than mixed
      * into the board. Null when any read failed.
      */
-    suspend fun leaderboard(): Leaderboard.Snapshot? {
+    override suspend fun leaderboard(): Leaderboard.Snapshot? {
         val before = rpc.cohorts(programId) ?: return null
         val profiles = rpc.profiles(programId) ?: return null
         val forfeits = rpc.uncountedForfeits(programId) ?: return null
