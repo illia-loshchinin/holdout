@@ -64,7 +64,7 @@ class MyHoldoutsModelTest {
         val oldOut = holdout(2, start - 30 * day, member(2, MembershipSnapshot.State.Forfeited))
         val s = MyHoldoutsModel.build(view(claimed, oldOut), start)
         assertTrue(s.yours.isEmpty())
-        assertEquals(listOf("Spark · 7-day · claimed 15 SKR", "Spark · 7-day · out after 2 days"), s.finished.map { it.line })
+        assertEquals(listOf("Spark · 7-day · finished · claimed 15 SKR", "Spark · 7-day · finished · out after 2 days"), s.finished.map { it.line })
         assertEquals(NavEvent.Open(Screen.Detail(claimed.id)), s.finished[0].go)
         assertEquals(NavEvent.Open(Screen.Forfeit(oldOut.id)), s.finished[1].go)
     }
@@ -76,7 +76,7 @@ class MyHoldoutsModelTest {
         val s = MyHoldoutsModel.build(view(open, joined), start)
         assertEquals(listOf(open.id), s.open.map { it.cohort })
         assertEquals("9,000 SKR at stake · 9 joined", s.open[0].atStake)
-        assertEquals("joining closes in 1d 23h", s.open[0].closesIn)
+        assertEquals("Joining closes in 1d 23h", s.open[0].closesIn)
         assertNull(s.open[0].blocker)
     }
 

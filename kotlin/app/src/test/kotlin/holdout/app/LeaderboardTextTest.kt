@@ -21,7 +21,7 @@ class LeaderboardTextTest {
     }
 
     @Test
-    fun `given a member below the minimum, when shown, then the line says how many more cohorts they need`() {
+    fun `given a member below the minimum, when shown, then the line says how many more Holdouts they need`() {
         assertEquals("2 of 2 cleared · streak 2 · best 2 · 1 more to be ranked", LeaderboardText.figures(row(2, 0, current = 2)))
     }
 
@@ -35,7 +35,7 @@ class LeaderboardTextTest {
         assertEquals("You're ranked #2", LeaderboardText.standing(Standing.Ranked(2)))
         assertEquals("You're 1 Holdout away from being ranked", LeaderboardText.standing(Standing.NotRanked(1)))
         assertEquals("You're 2 Holdouts away from being ranked", LeaderboardText.standing(Standing.NotRanked(2)))
-        assertEquals("Finish 3 of these Holdouts to be ranked", LeaderboardText.standing(Standing.Absent()))
+        assertEquals("Play 3 of these Holdouts to be ranked", LeaderboardText.standing(Standing.Absent()))
     }
 
     @Test

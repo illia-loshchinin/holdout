@@ -176,6 +176,6 @@ class MemberJourneyEndToEndTest {
         // H0 lists it under Finished.
         val h0 = MyHoldoutsModel.build(chain.view(), now + 660)
         assertTrue(h0.yours.isEmpty())
-        assertEquals(listOf("Spark · 7-day · claimed 11.62 SKR"), h0.finished.map { it.line })
+        assertEquals(listOf("Spark · 7-day · finished · claimed 11.62 SKR"), h0.finished.map { it.line })
     }
 }
