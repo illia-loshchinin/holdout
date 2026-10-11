@@ -68,7 +68,7 @@ fun TierChips(tiers: List<TierChip>, selected: Int, onSelect: (Int) -> Unit, mod
                     .background(if (picked) HoldoutColors.AccentTint else HoldoutColors.Surface3, shape)
                     .border(Spacing.border, if (picked) HoldoutColors.Accent else HoldoutColors.Hairline, shape)
                     .selectable(selected = picked, role = Role.RadioButton, onClick = { onSelect(i) })
-                    .padding(horizontal = Spacing.tight, vertical = Spacing.betweenItems)
+                    .padding(horizontal = Spacing.base, vertical = Spacing.betweenItems)
                     .semantics { contentDescription = "${tier.usd}, ${tier.skr}" },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(Spacing.base, Alignment.CenterVertically),
@@ -85,6 +85,9 @@ fun TierChips(tiers: List<TierChip>, selected: Int, onSelect: (Int) -> Unit, mod
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Normal,
                     color = if (picked) HoldoutColors.Accent else HoldoutColors.TextSecondary,
+                    // Four chips share a phone's width: the amount stays on one line ("1,250 SKR" does not wrap).
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
         }

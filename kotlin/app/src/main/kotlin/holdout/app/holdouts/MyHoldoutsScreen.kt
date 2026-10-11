@@ -123,7 +123,7 @@ private fun YourCard(card: YourHoldout, onClick: () -> Unit) {
             StatusChip(card.status, tone = card.tone)
         }
         Body(card.line)
-        card.detail?.let { Text(it, style = AmountStyle, color = card.detailTone.color()) }
+        card.detail?.let { Text(it, style = AmountStyle.copy(fontSize = LabelStyle.fontSize, lineHeight = LabelStyle.lineHeight), color = card.detailTone.color()) }
     }
 }
 
@@ -137,18 +137,17 @@ private fun OfferCard(offer: OpenHoldout, onJoin: () -> Unit) {
     HoldoutCard {
         if (offer.test) TestCohortBadge(offer.testDayLength)
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
-                Text(offer.name, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.tight), verticalAlignment = Alignment.Bottom) {
-                    Text(offer.amount, style = AmountStyle, color = HoldoutColors.TextPrimary)
-                    Text(offer.note, style = LabelStyle, color = HoldoutColors.TextSecondary)
-                }
-                offer.boost?.let { Text(it, style = LabelStyle, color = HoldoutColors.Success) }
-                Text(offer.closesIn, style = LabelStyle, color = HoldoutColors.Accent)
-                offer.blocker?.let { Text(it, style = LabelStyle, color = HoldoutColors.TextTertiary) }
-            }
+            Text(offer.name, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary, modifier = Modifier.weight(1f))
             JoinPill(enabled = offer.blocker == null, onClick = onJoin)
         }
+        // Under the title row, not beside the Join: the stake line gets the card's whole width and stays on one line.
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.tight), verticalAlignment = Alignment.Bottom) {
+            Text(offer.amount, style = AmountStyle, color = HoldoutColors.TextPrimary)
+            Text(offer.note, style = LabelStyle, color = HoldoutColors.TextSecondary)
+        }
+        offer.boost?.let { Text(it, style = LabelStyle, color = HoldoutColors.Success) }
+        Text(offer.closesIn, style = LabelStyle, color = HoldoutColors.Accent)
+        offer.blocker?.let { Text(it, style = LabelStyle, color = HoldoutColors.TextTertiary) }
     }
 }
 
