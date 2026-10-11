@@ -41,7 +41,7 @@ Each `value` is null (no record: not a candidate) or an account whose data after
 | Destination | Purpose | Sends |
 |---|---|---|
 | The configured **devnet** RPC endpoint | Unchanged from 001 | Unchanged |
-| The configured **names** endpoint (mainnet) | Seeker ID lookups, §1.1 and §1.2 only | Wallet addresses and derived account addresses, all already public on chain. No signature, no transaction, no device data |
+| The configured **names** endpoint (mainnet) | Seeker ID lookups, §1.1 and §1.2 only from `SeekerNameReader`. It is one of the app's **two** mainnet reads: the other, the Seeker Genesis Token check before a join, is 001's (FR-003b, R17; `SeekerGenesisReader`, its own read-only client on the same endpoint) | Wallet addresses and derived account addresses, all already public on chain. No signature, no transaction, no device data |
 | Local MWA wallet app | Unchanged from 001 | Unchanged |
 
 ## 3. In-code interface
@@ -87,7 +87,7 @@ Added to `docs/weaknesses.json` (its location since spec 004) and rendered into 
 
 ```json
 {
-  "what": "Seeker ID names are read from Solana mainnet",
+  "what": "Seeker ID names (and, since 001 R17, the wallet's Seeker Genesis Token) are read from Solana mainnet",
   "why": "Seeker IDs (.skr names) exist only on mainnet; the app reads them, for display only, from the public mainnet RPC, while everything else runs on devnet. Members without one, scripted members included, are shown by shortened address",
   "fix": "Nothing to fix for display: on mainnet the same lookup reads the same network. A dedicated RPC provider would make first-time lookups of large lists faster"
 }

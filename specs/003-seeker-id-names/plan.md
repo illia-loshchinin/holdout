@@ -81,14 +81,14 @@ No `NEEDS CLARIFICATION` items remain; all are resolved in [research.md](researc
 | **VIII. Idempotent automation** | Automation safe twice and paged | PASS | No automation. The lookup is a read and safe to repeat |
 | **IX. Every state has a screen** | Every state visible | PASS | One visible form per state: a name, or the shortened address. Not looked up, failed and none all show the address (FR-006); found shows the name |
 | **X. Camera frames never leave the device** | No camera data off the device | PASS | Only wallet addresses already public on chain are sent, to the names endpoint (contracts §2) |
-| **XI. Weaknesses documented** | Anything outside the stated setup is named | PASS, **action required** | One weaknesses entry for the mainnet read (FR-010, contracts §4), in `docs/weaknesses.json` and rendered to the README. Since spec 004 the app shows no weaknesses screen. A keyed endpoint, if configured, is named the same way (R4) |
+| **XI. Weaknesses documented** | Anything outside the stated setup is named | PASS, **action required** | One weaknesses entry for the mainnet reads — the Seeker ID names (FR-010, contracts §4) and, since 001 R17, the Seeker Genesis Token check, which the README's row names beside them, in `docs/weaknesses.json` and rendered to the README. Since spec 004 the app shows no weaknesses screen. A keyed endpoint, if configured, is named the same way (R4) |
 | **XII. The build demonstrates itself** | Live, populated, labelled crowd | PASS | Scripted members keep their label (FR-011). The fallback looks deliberate (FR-003), so a crowd of addresses still reads as a crowd |
 | **XIII. Honest language** | No money on boards; honest wording | PASS | No amounts added. Rows show only an identity |
-| **Hackathon constraints: devnet only** | The program and all value on devnet | PASS, **justified** | The program, every transaction and every token stay on devnet. The one mainnet contact is a read of public name records through a read-only client that cannot send (R5). See Complexity Tracking |
+| **Hackathon constraints: devnet only** | The program and all value on devnet | PASS, **justified** | The program, every transaction and every token stay on devnet. The mainnet contact is two reads — public name records (this spec) and, since 2026-10-10, the wallet's Seeker Genesis Token before a join (001 FR-003b, R17) — each through a read-only client that cannot send (R5; `SeekerGenesisReader`). See Complexity Tracking |
 | **Hackathon constraints: leaderboards on chain only** | No server or device figure feeds a ranking | PASS | Rankings are unchanged and computed before names are attached (FR-008) |
 | **Development workflow** | Stack in the plan; spec amended through the skills | PASS, **follow-up** | Amendments went through the skills, all done 2026-10-09: 001 FR-063 and FR-062 via `/speckit-clarify` on 001 (`9973a19`); 001 `contracts/android-app.md` §2 egress via `/speckit-plan` on 001 (`ec25e91`); SC-002 wording via `/speckit-clarify` on 003. The one follow-up is the Roster row wording in the claude.ai design system artifact, which has no local mirror (tasks T022) |
 
-**Gate result: PASS.** The only item outside the plain reading of a constraint is the read-only mainnet contact, justified below and disclosed (XI).
+**Gate result: PASS.** The only item outside the plain reading of a constraint is the read-only mainnet contact (the names, and the Genesis Token check 001 added), justified below and disclosed (XI).
 
 ## Project Structure
 
@@ -130,7 +130,7 @@ kotlin/app/src/main/kotlin/holdout/app/
 ├── ui/ShownWallets.kt            # NEW — ReportShownWallets: visible rows → showing(), empty when stopped or gone (R11)
 ├── roster/RosterScreen.kt        # Format.short → MemberIdentity; rosterRowWallet(key)
 ├── leaderboard/LeaderboardScreen.kt  # Format.short → MemberIdentity; leaderboardRowWallet(key) drops the r/n prefix
-├── about/AboutScreen.kt          # the "test network" line names the one mainnet read (FR-009, FR-010)
+├── about/AboutScreen.kt          # the "test network" line names the mainnet reads (FR-009, FR-010; both since 001 R17)
 ├── MainViewModel.kt              # comment only: no value touches mainnet; the names read does
 └── HoldoutApp.kt                 # the connected-wallet line → MemberIdentity; one repository per process, provided
                                   # through LocalSeekerNames; connected(address) on every change, null on disconnect
@@ -146,7 +146,7 @@ kotlin/app/src/test/kotlin/holdout/app/names/
 
 kotlin/app/build.gradle.kts           # + NAMES_RPC_URL from holdout.namesRpcUrl, in defaultConfig (both flavours)
 docs/weaknesses.json                  # + one entry; README re-rendered (spec 004 moved it here)
-README.md                             # the opening "devnet only" line names the one mainnet read
+README.md                             # the opening "devnet only" line names the mainnet reads (two since 001 R17)
 ```
 
 **Structure Decision**: The pure, network-free logic goes in `kotlin/core`, next to `Pdas.kt` and `Rpc.kt`, where every rule in this codebase is unit-tested on the JVM. The read-only network client also goes there, beside `Rpc`, so the two drivers sit side by side and a review sees that only one of them can send. The cache, pacing and Compose pieces go in `kotlin/app`, beside the screens that use them. Program, crank and tests under `tests/` are untouched.

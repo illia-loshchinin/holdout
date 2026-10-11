@@ -47,7 +47,7 @@ Legs above hands through the countdown, from frames with the arms straight, the 
 
 ## Rep verdict order
 
-legs in the picture → too shallow → knees (Hard: push, way down, own plank) → body held → hip rise → face down → tempo → **counted**. Each refusal carries a `RepHint` shown and spoken ("Keep your legs in the picture", "Go lower", "Knees off the floor", "Keep your body straight", "Slow down"); a rep not face down, and a rep slower than 6 s, are refused in silence. Depth comes before knees (3 Oct): a half push-up on the toes reads the legs lower and the knee more bent than a full one. Face down comes after the other body checks, so a rep any of them refuses keeps its words. The order picks the words only; a rep counts when it passes every check.
+face down → legs in the picture → too shallow → knees (Hard: push, way down, own plank) → body held → hip rise → tempo → **counted**. Each refusal carries a `RepHint` shown and spoken ("Keep your legs in the picture", "Go lower", "Knees off the floor", "Keep your body straight", "Slow down"); a rep not face down, and a rep slower than 6 s, are refused in silence. Depth comes before knees (3 Oct): a half push-up on the toes reads the legs lower and the knee more bent than a full one. Face down comes first *(since 8 Oct, `6894c3c`; it was last on 7 Oct)*, so a rep that is not a push-up at all is refused in silence whatever else it got wrong; every other refusal keeps the order above and its words. The order picks the words only; a rep counts when it passes every check.
 
 ## RepStance (`RepEvent.Counted.stance`)
 
