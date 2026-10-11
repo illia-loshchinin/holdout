@@ -2826,7 +2826,8 @@
           {
             "name": "genesis_gate_enabled",
             "docs": [
-              "`false` on devnet: testers have no Seeker (research R17)."
+              "`false` on devnet, where Seeker Genesis Tokens do not exist and the app",
+              "keeps staking Seeker-exclusive; turned on at mainnet launch (research R17)."
             ],
             "type": "bool"
           },

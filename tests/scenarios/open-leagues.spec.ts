@@ -18,7 +18,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   DEFAULT_CHIPS,
   FIRST_START,
+  SEEKER_GENESIS_GROUP,
   SKR,
+  TOKEN_2022_PROGRAM,
   createHarness,
   expectProgramError,
   type Harness,
@@ -32,7 +34,7 @@ import {
   submitDayIx,
   type FeeDestinations,
 } from '../helpers/instructions.js';
-import { associatedTokenPda, cohortPda } from '../helpers/pdas.js';
+import { SYSTEM_PROGRAM, TOKEN_PROGRAM, associatedTokenPda, cohortPda } from '../helpers/pdas.js';
 
 const LEAGUE_7D = 0;
 const LEAGUE_21D = 1;
@@ -177,5 +179,102 @@ describe('both leagues open to every member (AC-1, FR-002, FR-003)', () => {
 
     await h.sendOrThrow([await setFlagsIx(admin.address, false)], admin);
     expect((await h.readConfig()).genesisGateEnabled).toBe(false);
+  });
+
+  describe('with the Seeker Genesis Token gate on (FR-003b, AC-21, research R17)', () => {
+    /** A Token-2022 account of `owner` holding `amount` of a mint in `group`. */
+    const genesisToken = async (owner: Address, amount = 1n, group?: Address) => {
+      const mint = h.injectGroupMemberMint((await generateKeyPairSigner()).address, group);
+      const token = h.injectToken2022Account((await generateKeyPairSigner()).address, mint, owner, amount);
+      return { token, mint };
+    };
+
+    const gateOn = async () => {
+      const admin = h.upgradeAuthority;
+      await h.sendOrThrow([await setFlagsIx(admin.address, true)], admin);
+    };
+
+    const join = async (genesis?: { token: Address; mint: Address }) =>
+      h.send([await joinCohortIx(member.address, mint, LEAGUE_21D, 0, 1, undefined, genesis)], member);
+
+    it('takes a member who shows a Seeker Genesis Token', async () => {
+      await gateOn();
+      const joined = await join(await genesisToken(member.address));
+      expect(joined.ok, joined.logs.join('\n')).toBe(true);
+      expect((await h.readCohort(LEAGUE_21D, 0)).memberCount).toBe(1);
+    });
+
+    it('refuses a member who shows nothing', async () => {
+      await gateOn();
+      expectProgramError(await join(), 'GenesisGateClosed');
+    });
+
+    it('refuses an emptied account, someone else\'s token, and a mint of another group', async () => {
+      await gateOn();
+      expectProgramError(await join(await genesisToken(member.address, 0n)), 'GenesisGateClosed');
+      const stranger = await h.newWallet();
+      expectProgramError(await join(await genesisToken(stranger.address)), 'GenesisGateClosed');
+      const fake = (await generateKeyPairSigner()).address;
+      expectProgramError(await join(await genesisToken(member.address, 1n, fake)), 'GenesisGateClosed');
+      expect((await h.readCohort(LEAGUE_21D, 0)).memberCount, 'nothing was taken').toBe(0);
+    });
+
+    /**
+     * A token shaped as a real Seeker Genesis Token: a frozen associated
+     * token account with ImmutableOwner, of a mint carrying five extensions.
+     * Each account is owned by the given program.
+     */
+    const realShapedToken = async (
+      owner: Address,
+      programs: { token?: Address; mint?: Address } = {},
+    ) => {
+      const mint = h.injectSeekerGenesisMint(
+        (await generateKeyPairSigner()).address,
+        SEEKER_GENESIS_GROUP,
+        programs.mint ?? TOKEN_2022_PROGRAM,
+      );
+      const token = h.injectFrozenAta(
+        (await generateKeyPairSigner()).address,
+        mint,
+        owner,
+        1n,
+        programs.token ?? TOKEN_2022_PROGRAM,
+      );
+      return { token, mint };
+    };
+
+    it('takes a member whose token is shaped as on mainnet — frozen, ImmutableOwner, a five-extension mint', async () => {
+      await gateOn();
+      const joined = await join(await realShapedToken(member.address));
+      expect(joined.ok, joined.logs.join('\n')).toBe(true);
+      expect((await h.readCohort(LEAGUE_21D, 0)).memberCount).toBe(1);
+    });
+
+    it('refuses the same bytes owned by SPL Token or the System program', async () => {
+      await gateOn();
+      const owners = [
+        { token: TOKEN_PROGRAM },
+        { mint: TOKEN_PROGRAM },
+        { token: SYSTEM_PROGRAM, mint: SYSTEM_PROGRAM },
+      ];
+      for (const programs of owners) {
+        expectProgramError(await join(await realShapedToken(member.address, programs)), 'GenesisGateClosed');
+      }
+      expect((await h.readCohort(LEAGUE_21D, 0)).memberCount, 'nothing was taken').toBe(0);
+    });
+
+    it('refuses the two remaining accounts in the wrong order', async () => {
+      await gateOn();
+      const { token, mint: genesisMint } = await realShapedToken(member.address);
+      expectProgramError(await join({ token: genesisMint, mint: token }), 'GenesisGateClosed');
+      expect((await h.readCohort(LEAGUE_21D, 0)).memberCount, 'nothing was taken').toBe(0);
+      const joined = await join({ token, mint: genesisMint });
+      expect(joined.ok, `the right order takes the same token\n${joined.logs.join('\n')}`).toBe(true);
+    });
+
+    it('reads nothing while the flag is off, so a join without the token still lands', async () => {
+      const joined = await join();
+      expect(joined.ok, joined.logs.join('\n')).toBe(true);
+    });
   });
 });

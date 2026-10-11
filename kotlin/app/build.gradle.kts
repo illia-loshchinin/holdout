@@ -120,7 +120,16 @@ android {
     }
 
     buildTypes {
+        // Staked Holdouts are Seeker-exclusive (001 FR-003b, research R17): the
+        // app checks the wallet's Seeker Genesis Token on mainnet before a join.
+        // A debug build may turn that off with -Pholdout.seekerGate=off, so the
+        // emulator, a local validator (quickstart §5a) and a phone without a
+        // Seeker can still reach the stake confirm. A release build always checks.
+        debug {
+            buildConfigField("boolean", "SEEKER_GATE", "${providers.gradleProperty("holdout.seekerGate").orNull != "off"}")
+        }
         release {
+            buildConfigField("boolean", "SEEKER_GATE", "true")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

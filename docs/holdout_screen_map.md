@@ -1,6 +1,6 @@
 # Holdout — screen map (hackathon build)
 
-**Version:** 2.1 · **Date:** 2026-10-10 (cards describe the code as built: tour copy, set-up guide, the streak and its freezes, the lobby rule gap, streak milestones parked; v2.0 the same day: the tab is *Standing*; Easy and Hard; leaderboards L1; the boost, comeback and fee lines; use cases in §11) · **Scope:** the devnet hackathon build only. Post-hackathon screens are parked in §9. Holdout Lab, the tester app, has its own map: `holdout_lab_screen_map.md`.
+**Version:** 2.2 · **Date:** 2026-10-10 (staking is Seeker-exclusive, H38: the Seeker gate before H2's stake confirm, Home's *Running now* list, UC-17; v2.1 the same day: cards describe the code as built: tour copy, set-up guide, the streak and its freezes, the lobby rule gap, streak milestones parked; v2.0 the same day: the tab is *Standing*; Easy and Hard; leaderboards L1; the boost, comeback and fee lines; use cases in §11) · **Scope:** the devnet hackathon build only. Post-hackathon screens are parked in §9. Holdout Lab, the tester app, has its own map: `holdout_lab_screen_map.md`.
 
 **Purpose.** One place that lists every screen the app needs, what each one shows, and where a member can go from it. It is the brief for visual design: each card in §5 is one frame (or one set of frames) to draw.
 
@@ -286,7 +286,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 **Exits:** Connect → N1 → B1 (first time) or T1 · *No wallet yet?* → A3
 
 #### ~~A2 · Walkthrough — a full cycle~~ — removed 9 Oct
-The submission is the app's final state, so nothing in it is for judges only (spec 004, constitution v2.1.0). The full cycle is shown in the demo video, sent as a link with the submission, and anyone can run it on a labelled short test Holdout (FR-044a). `WalkthroughScreen` is deleted.
+The submission is the app's final state, so nothing in it is for judges only (spec 004, constitution v2.1.0). The full cycle is shown in the demo video, sent as a link with the submission, and any wallet holding a Seeker Genesis Token can run it on a labelled short test Holdout (FR-044a, FR-003b; H38). Anyone else can watch one thin from T1's *Running now* list (FR-062a). `WalkthroughScreen` is deleted.
 
 #### A3 · No wallet on this phone
 **MUST · ✅ Built** (a variant of A1) **· 🎨 Drawn** (board *21*) · ES-0
@@ -346,8 +346,9 @@ Every sentence above is the code's (`tour/TourScreen.kt`); the footer reads `TES
    - **7-day** · from 12 Oct · `12,500 SKR` at stake · 14 joined · `closes in 6h 12m`
    - **21-day** · from 12 Oct · `9,000 SKR` at stake · 9 joined · **extra line** (green): `+2,400 SKR` *added to the prize pool*
      - **The extra line shows only the amount, never its source.** It covers any money added to a Holdout's prize beyond its members' stakes: today that's only carry-over (`carry_over_received`). Treasury top-ups and sponsorships are parked (§9). The board's *showExtra* tweak hides the line when there's nothing extra. If the source is ever shown, it belongs on the stake sheet (H2) or the detail screen (H4), not on this card.
-5. Row link: ⓘ **How Holdout works** · *4 cards*
-6. Bottom bar, ⌂ active
+5. ➕ Section label `RUNNING NOW` (added 2026-10-10, FR-062a, H38; ✅ built — `home/RunningHoldoutCard.kt`, the same card as the connect screen's *Live now*; not drawn on the canvas yet; T161): a read-only list of the running Holdouts the member is not in, one row each with the length, the day and how many are still standing (*21-day · day 12 of 21 · 189 standing*). A row opens that Holdout's detail (H4) and from there its roster (H5). It is shown to every connected wallet, with or without a Seeker, so anyone can watch a Holdout thin. No Join on it.
+6. Row link: ⓘ **How Holdout works** · *4 cards*
+7. Bottom bar, ⌂ active
 
 **Variants** (🎨 drawn as Tweaks on board 3; holdouts-not-live, none-open and new-phone are text-only and not drawn)
 - **Part-way:** *15* · *to go · 10 banked* · **Keep going** (the bank ring from T2 fits here too)
@@ -358,7 +359,7 @@ Every sentence above is the code's (`tour/TourScreen.kt`); the footer reads `TES
 - **None open in a league:** *"The next Holdout opens soon."* (ES-15)
 - *SHOULD, not built:* **yesterday missed** → *"Yesterday ended at 20 of 25. Today starts fresh."* (ES-3) · **new phone** → *"No banked reps on this device today. 25 to go."* (ES-3a)
 
-**Exits:** Start / Keep going → S1 · Join → H2 sheet · How Holdout works → B1 · nudge → ☰ H0 / H3 / H7
+**Exits:** Start / Keep going → S1 · Join → H2 sheet (through the Seeker gate, H2) · Running now row → H4 → H5 · How Holdout works → B1 · nudge → ☰ H0 / H3 / H7
 
 #### T2 · Today — in a Holdout
 **MUST · ✅ Built · ✏️ Drawn** (board *5 · Home — in a Holdout*; the *today* tweak shows every state in the table below; copy fixes in §7) · `home/CohortHome.kt` · PRD §10.1a, FR-038, FR-047, FR-024b
@@ -478,6 +479,16 @@ The ladder screen and the **Human Flag** rung are out of the app. The open Holdo
 **MUST · ✅ Built · ✏️ Drawn** (board *4 · Stake confirm*, interactive chips; §7) · `stake/StakeSheet.kt` · PRD #6, US-6, FR-041, FR-021a
 
 **Job:** everything a member must know before money moves, including the counting rule, so it isn't discovered at the first sitting.
+
+**➕ The Seeker gate, before the stake confirm** (added 2026-10-10, H38; FR-003b–FR-003d, ES-0c, ES-0d; not drawn; `stake/SeekerGateSheet.kt`, `stake/SeekerGate.kt`). Staking is Seeker-exclusive: every Join — T1, H0, H6's way back, a short test Holdout — first checks that the connected wallet holds a Seeker Genesis Token, read from Solana mainnet. A wallet already confirmed on this phone goes straight to the stake confirm; otherwise a sheet shows one of three variants, with `← Back` and `SEEKER ONLY` on top. Nothing on it is signed. Leave, submit and claim never pass through it.
+
+| Variant | Shows | Buttons |
+|---|---|---|
+| Checking | loader · *Checking your Seeker…* | — (opens the stake confirm once the token is found) |
+| Not a Seeker | **Holdouts are for Seeker owners** · card: *Staking in a Holdout needs a Seeker. You can still do the Daily 25 and watch every Holdout.* | **Get a Seeker** (opens `store.solanamobile.com` in the browser) · **Not now** (back) |
+| Couldn't check | warning notice: *We couldn't check your Seeker — try again.* | **Try again** |
+
+Only a confirmed absence of the token shows *Not a Seeker*; no network, a rate limit or a mainnet outage shows *Couldn't check* (FR-003d). Debug builds can skip the gate with `-Pholdout.seekerGate=off`.
 
 **On screen (as drawn, plus what the spec requires — ➕)**
 1. Grab handle · **Join the 7-day Holdout** · *25 push-ups a day · from 12 Oct, 05:00 UTC*
@@ -727,6 +738,7 @@ Still to draw:
 | 13 | The comeback line on Forfeit | NICE | H6 | The moment the member most needs the way back (FR-037e) |
 | 14 | The lobby's rule sentence is the level's: Easy *push-ups from the knees count*, Hard *from your toes* | SHOULD | H3 | `LobbyScreen.kt` prints the Hard sentence for every Holdout (002 FR-014) |
 | 15 | **Streak milestones** (decided 2026-10-10, for after the submission): at 7, 14, 21 and 28 days, a month, 50 days, two months and so on, a one-time flourish on day complete (S6) and on Today (T1) with a motivating line, Duolingo-style; the design book needs the copy set and a *milestone* state of the Streak flame | NICE | S6, T1 | The daily streak is the free product's only reward; today it is a number and a flame with no moment at the milestones |
+| 16 | ✅ **Built 10 Oct (T161).** ~~**Running now** on Home~~ (decided 2026-10-10, H38): a read-only list of the running Holdouts the member is not in, each opening H4 and H5, for every connected wallet | MUST | T1 | A wallet without a Seeker can join nothing, and Home listed only open lobbies, which never thin (FR-062a, constitution XII; T161) |
 
 ---
 
@@ -739,7 +751,8 @@ Out of scope for this build. Listed so the design system leaves room for them. S
 - **Personal stats / profile**: total reps, longest streak, Holdouts cleared. Would grow ◯ Me.
 - **Share cards**: workout, streak, cohort recap. Swelfie capture and compose.
 - **Settings**: notifications, help and FAQ, terms, privacy.
-- **Seeker Genesis gate, geo check, terms acceptance**: mainnet onboarding.
+- ~~**Seeker Genesis gate**~~ — built 10 Oct (H38): staking is Seeker-exclusive, checked by the app on devnet before the stake confirm (H2) and by the contract once `genesis_gate_enabled` is turned on at mainnet launch.
+- **Geo check, terms acceptance**: mainnet onboarding.
 - **Automatic offline submission** (Phase 2): T2 *"Done — waiting for network"* replaces *"tap to submit"*.
 - **Other exercises** beyond push-ups (the exercise is already a cohort parameter, H30). The Human Flag rung was dropped on 6 Oct.
 - **Prize extras beyond carry-over:** a treasury top-up (cold-start bonus matching in the full-vision PRD §6.5) and sponsorships from Solana ecosystem projects. The design already has the slot: T1's extra line shows the amount without the source (§5). The contract needs an instruction that lets an outside wallet add to a cohort's pool, with the source recorded so the app can name it. **Decided 2026-10-05:** extras can be added only **until joining closes**, so members see the whole prize before they commit and nothing changes the pool after the cutoff. Still open: who may pay in, and how the source is recorded. Not in spec-kit yet, because the 5 October freeze and the defect-fixes-only upgrade rule keep it out of the judged build.
@@ -756,7 +769,7 @@ The paths design has to make smooth, with the screens they cross. Times are PRD 
 - **J4 — Change your mind before the start:** `☰ H0` → `H3` → **Leave — full refund** ✍ → `H0`. After the cutoff `H3` is locked.
 - **J5 — Miss a day, and the way back:** `T2` → *(deadline)* → `H6` → **Today's Daily 25** (`S1…`) or **the same league's next Holdout** (`H2` → J2); for 14 days `T1` carries the comeback nudge, and finishing that Holdout pays the comeback with the claim (`H7`)
 - **J6 — Finish and get paid:** `T2` (last day) → `∿ H4` *settlement in progress* → *(settled)* → `H7` → **Claim** ✍ → claimed → `☰ H0` *Finished*
-- **J7 — Anyone, a judge included, sees the whole cycle:** the demo video (sent with the submission) · or, connected, `T1` → a short test Holdout → `H2` → its 10-minute days → settlement → `H7` claim, in about half an hour (FR-044a)
+- **J7 — Anyone, a judge included, sees the whole cycle:** the demo video (sent with the submission) · or, connected with a wallet holding a Seeker Genesis Token, `T1` → a short test Holdout → `H2` (Seeker gate, then the stake confirm) → its 10-minute days → settlement → `H7` claim, in about half an hour (FR-044a, FR-003b) · or, without one, `T1` **Running now** → `H4` → `H5`, watching a Holdout thin (FR-062a)
 - **J8 — Offline:** `T1` the Daily 25 works with no network. `T2` warns before starting; afterwards **Done — tap to submit** once online, and only before the deadline.
 - **J9 — Where do I stand:** `∿ H4` → **Leaderboards** → `L1` (Easy · 7-day) → *You're 2 Holdouts away from being ranked* → back. In the 13 Oct build: Home → **Leaderboards** → `L1` → ← Home.
 
@@ -771,7 +784,7 @@ The member's goals, each with its entry point, its exit and the screens it cross
 | UC-1 | Get in with a wallet, understand the two products, do the first free reps | launch → A1 | T1 with a streak of 1 | A1 → N1 → B1 → B2 → T1 → S1…S6 → T1 | FR-001a, FR-067, US-5A, PRD §10.2 |
 | UC-2 | Get in with no wallet app on the phone | launch → A1 | A1, wallet installed | A1 → A3 → wallet store → A1 | ES-0 |
 | UC-3 | Get test SKR and SOL when short | H2 / T2 / H7 notice | back where it started | → W1 as a sheet → N1 → back | FR-042a, ES-0a, ES-0b |
-| UC-4 | Join a Holdout, knowing the rules, the level and the fee before money moves | T1 or H0 offer | H3 lobby | H2 (chips, rule sentence, fee sentence, boost line) → N3 → N1 → H3 | US-6, FR-021a, FR-041, FR-053, 002 FR-012 |
+| UC-4 | Join a Holdout, knowing the rules, the level and the fee before money moves | T1 or H0 offer | H3 lobby | H2 Seeker gate (*checking*; *not a Seeker* or *couldn't check* end here) → H2 (chips, rule sentence, fee sentence, boost line) → N3 → N1 → H3 | US-6, FR-003b–FR-003d, FR-021a, FR-041, FR-053, 002 FR-012 |
 | UC-5 | Change your mind before the start | H0 / T1 nudge | H0, stake back | H3 → **Leave — full refund** → N1 → H0 | FR-009, US-2 |
 | UC-6 | Do today's reps in a Holdout and get the day on chain | N2 or launch → T2 | T2 *on chain* | T2 → S1…S6 → **Submit** → N1 → T2 | US-3, FR-038, FR-047 |
 | UC-7 | Do today's reps in two or three sittings | T2 / T1 part-way | T2 / T1 done | S5 → ✕ → S7 → later S1… | FR-024b, ES-1, ES-2 |
@@ -779,8 +792,9 @@ The member's goals, each with its entry point, its exit and the screens it cross
 | UC-9 | Miss a day and find the way back | T2 (deadline) | S1 or H2 | H6 (fee sentence, streak alive) → **Today's Daily 25** or **The next 7-day** | US-4, FR-027, FR-037e |
 | UC-10 | Come back after a forfeit and earn part of the lost stake back | T1 nudge | H7 claimed | T1 (comeback nudge) → H2 → … → H7 (**Comeback** row) | FR-037e |
 | UC-11 | Finish, wait for settlement, claim | T2 last day | H0 *Finished* | T2 → H4 *settling* → H7 → **Claim** → N1 → H4 *claimed* | US-8, FR-034, FR-035 |
-| UC-12 | Run the whole cycle alone in about half an hour | T1 short test offer | H7 claimed | H2 (TEST COHORT) → H3 → T2 ×3 → H4 → H7 | FR-044a, spec 004 FR-014 |
+| UC-12 | Run the whole cycle alone in about half an hour, with a wallet holding a Seeker Genesis Token | T1 short test offer | H7 claimed | H2 Seeker gate → H2 (TEST COHORT) → H3 → T2 ×3 → H4 → H7 | FR-044a, FR-003b, spec 004 FR-014 |
 | UC-13 | See where you stand against everyone in a league | ∿ H4 (Home today) | back | L1 | US-10, FR-060 |
 | UC-14 | Keep the Daily 25 going with no network | T1 | T1 done | S1…S6 offline | US-5A, ES-3 |
 | UC-15 | Know what the app runs on and who is scripted | ◯ W1 (Home today) | back | X1 | spec 004 FR-012, FR-013 |
 | UC-16 | Switch wallets or networks | W1 / X1 | A1 | **Disconnect wallet** → A1 | FR-001b |
+| UC-17 | Watch a Holdout thin without joining one, Seeker or not | T1 **Running now** | back | T1 → H4 → H5 | FR-062a, FR-003c, US-9 |

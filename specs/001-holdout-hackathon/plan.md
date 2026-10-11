@@ -75,10 +75,10 @@ No `NEEDS CLARIFICATION` items remain — all are resolved in [research.md](rese
 | **VIII. Idempotent, chunkable automation** | Safe twice, safe paged, two callers harmless | PASS | Per-membership state and `counted` flags; pages in any order; permissionless (R9, FR-030a) |
 | **IX. Every state has a screen** | Each state reachable in UI or provably unreachable | PASS | State → screen table in contracts/android-app §5, first-run tour (FR-067) and the About/judges route included |
 | **X. Camera frames never leave the device** | No upload, persistence or server inference | PASS | Network egress limited to RPC and the local wallet (contracts/android-app §2); no `RECORD_AUDIO`; AC-10 traffic check |
-| **XI. Weaknesses documented** | Everything faked, stubbed, flagged or trusting is named in the README | PASS — **action required** | Two trust gaps the README must name, with their fixes: the faucet's fee **sponsor key ships in the APK** (R13), and the **program upgrade authority** is kept (R14). The demo video and pitch deck must not hide them (follow-ups below) |
-| **XII. The build demonstrates itself** | Live populated cohort any day of the live period; free challenge immediately; scripting disclosed in app, README, demo video and deck | PASS | Permissionless weekly opening; crank every 10 min; real members first, with scripted wallets filling each cohort only to its floor (R12); faucet funded to 11 November (R13); the full cycle shown in the demo video, sent as a link, and runnable by anyone on the short test lobby (R18, FR-044, FR-044a; amended 2026-10-09) |
+| **XI. Weaknesses documented** | Everything faked, stubbed, flagged or trusting is named in the README | PASS — **action required** | Two trust gaps the README must name, with their fixes: the faucet's fee **sponsor key ships in the APK** (R13), and the **program upgrade authority** is kept (R14). A third since 2026-10-10 (constitution v2.3.0, R17): on devnet the **Seeker-exclusive gate is the app's**, not the contract's, until the flag is turned on at mainnet. The demo video and pitch deck must not hide them (follow-ups below) |
+| **XII. The build demonstrates itself** | Live populated cohort any day of the live period; free challenge immediately; scripting disclosed in app, README, demo video and deck | PASS | Permissionless weekly opening; crank every 10 min; real members first, with scripted wallets filling each cohort only to its floor (R12); faucet funded to 11 November (R13); the full cycle shown in the demo video, sent as a link, and runnable by anyone with a Seeker on the short test lobby (R18, FR-044, FR-044a; amended 2026-10-09). Since v2.3.0 a wallet without a Seeker Genesis Token still sees every live Holdout thin and does the Daily 25 at once; only joining is refused, with the reason and the Seeker store link (FR-003c, R17) |
 | **XIII. Honest language** | "Prize"; no money on leaderboards; fiat approximate; test network stated | PASS | Copy per PRD §13; roster and boards carry no amounts (contracts/android-app §6) |
-| **Hackathon constraints** | Devnet only; signed APK, no store listing; named flags; submission deliverables by 13 October 01:59 CEST; upgrade authority for defect fixes only; out-of-scope list; leaderboards on-chain only | PASS | Flags in `Config`; Phase 2 built after Phase 1, no date gate; test leagues confined to `test-leagues` builds and a separate rehearsal deployment; GitHub repository judges can clone, pushed from the first commit; deliverables and final APK in the delivery sequence; upgrade rule in R14 |
+| **Hackathon constraints** | Devnet only; signed APK, no store listing; named flags; submission deliverables by 13 October 01:59 CEST; upgrade authority for defect fixes only; out-of-scope list; leaderboards on-chain only | PASS | Flags in `Config`; `genesis_gate_enabled` now has its check written behind it (R17, v2.3.0), off on devnet, where staking is kept Seeker-exclusive by the app; Phase 2 built after Phase 1, no date gate; test leagues confined to `test-leagues` builds and a separate rehearsal deployment; GitHub repository judges can clone, pushed from the first commit; deliverables and final APK in the delivery sequence; upgrade rule in R14 |
 | **Development workflow** | Stack in the plan, not the spec; risk spikes before implementation | PASS | Spec unchanged; spikes S1–S3 are the first delivery step |
 
 **Gate result: PASS.** No violations; nothing needs complexity justification.
@@ -120,6 +120,7 @@ programs/holdout/
     │                               # top_up_sponsor, join_cohort, leave_cohort,
     │                               # submit_day, claim_payout
     ├── math/                       # settlement.rs, schedule.rs — pure, no Anchor types
+    ├── genesis.rs                  # SEEKER_GENESIS_GROUP, Seeker Genesis Token check over account bytes (R17)
     ├── guards.rs                   # in_breach, status, slot normalisation, gates
     ├── events.rs
     └── errors.rs
@@ -147,12 +148,14 @@ kotlin/                             # Gradle root generated by `npx solana-mobil
 ├── settings.gradle.kts             # include(":app", ":core", ":repcounter", ":crank")
 ├── gradle/libs.versions.toml       # the only place versions live
 ├── core/                           # JVM: account codecs, PDAs, instruction builders,
-│                                   # Derive.kt, RPC reads, scripted-wallets.json
+│                                   # Derive.kt, RPC reads, scripted-wallets.json,
+│                                   # SeekerGenesisReader.kt — mainnet Seeker Genesis Token read (R17)
 ├── repcounter/                     # JVM: pre-flight checks, ready hold, push-up state machine
 ├── app/                            # Android: Compose UI, CameraX + MediaPipe, MWA, MMKV
 │   └── src/main/kotlin/…/
 │       ├── wallet/  faucet/  home/  lobby/  sitting/
 │       ├── cohort/  roster/  claim/  streak/
+│       ├── stake/                    # SeekerGate.kt, SeekerGateSheet.kt, StakeSheet.kt — the Seeker gate before the stake confirm (FR-003b)
 │       ├── tour/                     # first-run cards, FR-067
 │       ├── about/                    # About Holdout: test network, tour again, disconnect (spec 004)
 │       ├── ui/theme/                 # Color.kt, Type.kt, Shape.kt, Theme.kt — docs/design tokens

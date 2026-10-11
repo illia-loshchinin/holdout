@@ -34,9 +34,9 @@ Judges score completion from the demo video and technical depth from the GitHub 
 |---|---|
 | **Daily challenge** | 25 push-ups, every day, free, for everyone. No cohort, no stake, no prize. Builds a cosmetic streak. |
 | **7-day league** | Staked, 25 reps/day, Easy. **Never closes** — not on a clear, not on a forfeit. |
-| **21-day league** | Staked, 25 reps/day, Hard. Open to every member, always. |
+| **21-day league** | Staked, 25 reps/day, Hard. ~~Open to every member, always.~~ **Amended by H38 (2026-10-10):** open at all times to every member whose wallet holds a Seeker Genesis Token. |
 
-~~Clearing a 7-day cohort permanently records the 21-day unlock, behind a gate flag that is off for the hackathon.~~ **Superseded by H37 (2026-10-10):** there is no ladder, no unlock and no gate flag; both leagues are open to every member at all times.
+~~Clearing a 7-day cohort permanently records the 21-day unlock, behind a gate flag that is off for the hackathon.~~ **Superseded by H37 (2026-10-10):** there is no ladder, no unlock and no gate flag; both leagues are open to every member at all times. *(Amended by H38, 2026-10-10: "every member" means every member whose wallet holds a Seeker Genesis Token; the daily challenge stays open to everyone.)*
 
 **Why:** a free loop anyone can run on day one, forever, is a far stronger stickiness story than a cohort you must pay to enter. The 7-day league must never close because with no free cohort it is the only short way back after a forfeit. *(The gate reasoning that stood here — off for judges, kept as a flag to show the designed ladder — is withdrawn by H37.)*
 
@@ -258,9 +258,9 @@ Judges score completion from the demo video and technical depth from the GitHub 
 
 ### H15. Deliberately cut for the demo
 
-**Decided:** no minimum cohort size and no cancellation path (`min_cohort_size` effectively 1, scope doc D-H); the Genesis Token gate is written but off (`genesis_gate_enabled = false`, scope doc D-D) because testers have no Seeker; notifications are manual.
+**Decided:** no minimum cohort size and no cancellation path (`min_cohort_size` effectively 1, scope doc D-H); ~~the Genesis Token gate is written but off (`genesis_gate_enabled = false`, scope doc D-D) because testers have no Seeker;~~ **Superseded by H38 (2026-10-10):** staking is Seeker-exclusive — the flag stays off on devnet but the app checks the wallet's Seeker Genesis Token on mainnet, and the contract's check (written only now) is turned on at mainnet launch; notifications are manual.
 
-**Why:** cancellation with auto-enrolment needs a cohort that may not exist yet and a rent payer for the new accounts — neither on the critical path. Without the Genesis flag off, the demo plan dies at the first join.
+**Why:** cancellation with auto-enrolment needs a cohort that may not exist yet and a rent payer for the new accounts — neither on the critical path. ~~Without the Genesis flag off, the demo plan dies at the first join.~~ *(Withdrawn by H38: testers without a Seeker can no longer stake.)*
 
 **Source:** spec §3; constitution Hackathon Constraints.
 
@@ -270,7 +270,7 @@ Judges score completion from the demo video and technical depth from the GitHub 
 
 | Weakness | Real fix |
 |---|---|
-| `genesis_gate_enabled = false` | Flip the flag on mainnet |
+| ~~`genesis_gate_enabled = false`~~ **Superseded by H38 (2026-10-10):** staking is Seeker-exclusive, but on devnet the app enforces it, not the contract | ~~Flip the flag on mainnet~~ At mainnet launch, turn the flag on **and** have the app send the member's Seeker Genesis Token account and its mint as `join_cohort`'s remaining accounts; the contract check is written and tested |
 | Non-default `day_seconds` for test cohorts | Admin-guarded; mainnet cohorts cannot use it |
 | Client-signed completed-day attestation (scope doc D-E) | Server-side attestation signer, pinned traces |
 | Banked reps stored on the device, editable on a rooted phone, lost with the phone (H18) | Covered by the attestation fix; cross-device progress post-hackathon (L9) |
@@ -665,7 +665,7 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 - **One labelled board for the short test league.** Every test league shares one progress slot, so it is one combined board. No member can finish three judged cohorts before 9 October, so it is where ranking can be seen during judging.
 - **The ranking rules live once, in Kotlin core**, with given-when-then tests for AC-14. The contract suite checks the on-chain progress figures the board reads, not a second copy of the ranking.
 - **Automatic offline submission** (T098, PR #16): the wallet opens on its own once the phone is back online.
-- **A short test lobby, kept running on devnet for judges** (FR-044a): the devnet build carries a test league whose labelled cohorts keep opening alongside the real 7-day and 21-day lobbies through the live period, so **a single judge can run the whole cycle alone**. **Three 10-minute days at 5 reps, a new cohort every 30 minutes**, joinable right up to each start (join lock 0 since 2026-10-07; it was 5 minutes, which left a gap with no cohort to join; before that, seven 10-minute days, H32). The presentation video shows the cycle on a test cohort and says so.
+- **A short test lobby, kept running on devnet for judges** (FR-044a): the devnet build carries a test league whose labelled cohorts keep opening alongside the real 7-day and 21-day lobbies through the live period, so **a single judge can run the whole cycle alone**. *(Amended by H38, 2026-10-10: only with a wallet holding a Seeker Genesis Token, as for every staked Holdout; a judge without one watches a test Holdout thin from Home's "Running now" list, FR-062a.)* **Three 10-minute days at 5 reps, a new cohort every 30 minutes**, joinable right up to each start (join lock 0 since 2026-10-07; it was 5 minutes, which left a gap with no cohort to join; before that, seven 10-minute days, H32). The presentation video shows the cycle on a test cohort and says so.
 
 **Why:** the leaderboards and offline auto-submit are client and crank only, and their data has been recorded since the first cohort (H23). A judge installing the app on any day of judging must be able to see the whole loop by themselves, which a real 7-day Holdout cannot give in one sitting.
 
@@ -682,6 +682,18 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
 **Supersedes:** the unlock and the gate of H2; the `ladder_gate_enabled` weakness of H16; US-5, FR-003a and FR-004 of the spec.
 
 **Source:** spec clarifications, session 2026-10-10; constitution v2.2.0; tasks T137–T151.
+
+### H38. Staking is Seeker-exclusive
+
+**Decided (2026-10-10, product owner; constitution v2.3.0):** joining any staked Holdout — 7-day, 21-day and the short test lobby — needs a wallet holding a **Seeker Genesis Token**. It is part of the hackathon pitch and of Holdout's marketing. The contract's check (research R17: a Token-2022 account owned by the member, holding one token whose mint is a member of the Seeker Genesis Token group) is written in `join_cohort` behind `genesis_gate_enabled`, and the flag is turned on at mainnet launch. Seeker Genesis Tokens exist only on mainnet, so on devnet the flag stays off and **the app** checks the connected wallet's token on mainnet before it signs a join. A wallet without one keeps the Daily 25 and can watch every Holdout; joining shows that staked Holdouts are Seeker-exclusive, with a link to the Seeker store. If mainnet cannot be reached, joining is refused with a try-again message, and a wallet once confirmed is remembered on the phone.
+
+**Why:** Holdout is built for the Seeker community the hackathon judges. Until now the flag existed but the check had never been written (`join_cohort` passed `holds_genesis = false`), so turning it on would have closed joining to everyone, which broke the rule that flags never delete the logic behind them.
+
+**Trade-off:** on devnet the gate is the app's, not the contract's, so a wallet that signs a join without the app is not stopped. It is named in the README as a known weakness, and the fix is the contract check at mainnet launch: turning the flag on **and** having the app send the member's Seeker Genesis Token account and its mint as `join_cohort`'s remaining accounts. Every beta tester of H14's real-members-first plan now needs a wallet holding a Seeker Genesis Token, or a debug build with the gate off (`-Pholdout.seekerGate=off`).
+
+**Supersedes:** H15's genesis reasoning (the gate off because testers have no Seeker) and H16's `genesis_gate_enabled = false` row. **Amends:** H2's "open to every member, always" and H36's "a single judge can run the whole cycle alone", both now for wallets holding a Seeker Genesis Token.
+
+**Source:** spec clarifications, session 2026-10-10 (FR-003b–FR-003d, ES-0c, ES-0d, AC-21); constitution v2.3.0.
 
 ---
 
@@ -852,3 +864,4 @@ By decision, not by omission.
 | 2026-10-10 | **Chip set published in the 4 hours before the cohorts open** (FR-056, T125). `crank chips publish --auto` still runs hourly, but publishes only inside Monday 01:00–05:00 UTC, once per window, by chain time. Publishing on the first run after 05:00 came after that week's cohorts had already opened, so every lobby locked a rate about a week old (two by its join cutoff), and a run at `:00` raced the opening. Now a new lobby locks a rate at most 4 hours old and keeps it for every joiner; a window with no rate leaves the previous set (FR-057). Supersedes the 2026-10-07 "first run after the boundary". |
 | 2026-10-10 | **Docs pruned to the product being shipped.** The specs are the only source of rules. `docs/holdout_v1_prd.md` (v2.7, last revised 18 September) is archived as `docs/archive/holdout_v1_prd_hackathon-build_2026-09-18.md` and no longer maintained; `holdout_scope_and_state_machines.md`, `holdout_spike_s1.md`, `_source_constitution_draft.md` and the two 2026-09-15 full-vision files are deleted, with git history keeping them and the bounded-oracle note moved to research R7; the setup runbook is trimmed to what still has to be done by hand. The spec, data model, Android contract, README and the `holdout-ui` skill now point at the specs, the screen maps and `docs/design/` instead of the PRD. |
 | 2026-10-10 | **Constitution v2.2.0 and H37: no ladder.** The 7-day and 21-day leagues are separate products, both open to every member at all times. The ladder gate, its flag, `Profile.qualified` and error 6023 (retired, not reused) are deleted from the program, IDL, client, fixtures, Kotlin and crank; `qualify.spec.ts` becomes `open-leagues.spec.ts`; the README weakness row is gone. Spec FR-003 amended, FR-003a/FR-004 and US-5 removed; after a forfeit the way back is the same league (US-4). Removed outright, not as reserved bytes, because nothing was on devnet yet. |
+| 2026-10-10 | **Constitution v2.3.0 (minor) and H38: staking is Seeker-exclusive.** Joining any staked Holdout needs a wallet holding a Seeker Genesis Token: the contract checks it at mainnet (R17, flag turned on at launch), and on devnet the app checks the wallet's token on mainnet. Without one, the Daily 25 and watching stay open and joining shows the Seeker-exclusive notice with a Seeker store link. Spec FR-002, FR-003, FR-044a, US-1, US-6 and US-9 amended; FR-003b–FR-003d, ES-0c, ES-0d and AC-21 added. |
