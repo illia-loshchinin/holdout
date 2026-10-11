@@ -28,4 +28,4 @@ While the chain answers: none of the above; a pull shows no indicator and starts
 ## Never
 
 - The words "offline", "internet", "error" or "connection error" in any of these strings.
-- A submit, a wallet opening, or any write from a check.
+- A submit or any write by the check itself. The only wallet that may open after a check is 001 FR-024b's automatic send for a waiting day, the same one that opens when the chain answers by itself.
