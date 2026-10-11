@@ -56,9 +56,8 @@ object ReminderNotices {
      * It reads no chain (FR-068a), so it says *probably*; the comeback line has
      * no amount, and says *should*, as the reserve may cut it (FR-037e).
      */
-    fun finishedText(comeback: Boolean): String =
-        "Settlement usually comes within 15 minutes of the end, so your claim is probably ready: open Holdout to claim it." +
-            if (comeback) " It should include a comeback refund too." else ""
+    fun finishedText(comeback: Boolean): String = "Settlement usually comes within 15 minutes of the end, so your claim is probably ready: open Holdout to claim it." +
+        if (comeback) " It should include a comeback refund too." else ""
 
     fun notSentTitle(day: Int): String = "Day ${day + 1} is done, but not on chain yet"
 

@@ -271,8 +271,7 @@ class RemindersTest {
 
     // ---- the finished notice (FR-068b, 2026-10-11) -------------------------------
 
-    private fun finished(c: CohortSnapshot, m: MembershipSnapshot, now: Long, comeback: Boolean = false) =
-        Reminders.schedule(listOf(c to m), { address }, now, comebackFor = { _, _ -> comeback }).filter { it.kind == Reminder.Kind.Finished }
+    private fun finished(c: CohortSnapshot, m: MembershipSnapshot, now: Long, comeback: Boolean = false) = Reminders.schedule(listOf(c to m), { address }, now, comebackFor = { _, _ -> comeback }).filter { it.kind == Reminder.Kind.Finished }
 
     @Test
     fun `a member with every day on chain gets one finished notice 15 minutes after the end`() {

@@ -48,8 +48,14 @@ class ReminderReceiver : BroadcastReceiver() {
             if (intent.hasExtra(EXTRA_ID) && !ReminderScheduler.markPosted(context, intent.getIntExtra(EXTRA_ID, 0))) return
             val text = ReminderNotices.finishedText(intent.getBooleanExtra(EXTRA_COMEBACK, false))
             ReminderNotices.post(
-                context, intent.hashCode(), Reminders.notificationId(cohort, kind, day), ReminderNotices.finishedTitle(days, test, dayLength), text,
-                silent = Reminders.isSilent(kind, dayLength), ongoing = false, leftSeconds = left,
+                context,
+                intent.hashCode(),
+                Reminders.notificationId(cohort, kind, day),
+                ReminderNotices.finishedTitle(days, test, dayLength),
+                text,
+                silent = Reminders.isSilent(kind, dayLength),
+                ongoing = false,
+                leftSeconds = left,
             )
             return
         }
