@@ -106,7 +106,7 @@ What has to be funded, and from which key:
 
 | What | From | How much |
 |---|---|---|
-| Deploy rent | `admin` | measured at the first deploy |
+| Deploy rent | `admin` | computed from the built binary with `solana rent <bytes>` before the deploy (quickstart §1, §6) |
 | Scripted wallets | `operator` | ~1.12 SOL, 0.02 each |
 | Sponsor float | `sponsor` | 0.05 SOL |
 | Faucet vault | `admin`, at `crank init` | **25 SOL** — it must last the whole judging period, to 11 November, with no top-up (FR-042a) |

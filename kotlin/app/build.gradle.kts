@@ -177,7 +177,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // The deployment this build talks to — devnet, always (README). Both
-        // can be overridden with Gradle properties for a rehearsal deployment.
+        // can be overridden with Gradle properties for the local validator (quickstart §5a).
         buildConfigField("String", "RPC_URL", "\"${providers.gradleProperty("holdout.rpcUrl").getOrElse("https://api.devnet.solana.com")}\"")
         buildConfigField("String", "PROGRAM_ID", "\"${providers.gradleProperty("holdout.programId").getOrElse("Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4")}\"")
 

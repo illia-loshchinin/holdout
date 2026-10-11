@@ -18,7 +18,7 @@
 | Android Studio / SDK | Current stable; compile/target SDK 37, min SDK 26 | Windows |
 | Devices | A Solana Seeker with Seed Vault Wallet; one ordinary Android phone with an MWA wallet | — |
 | Domain | One domain or subdomain for the MWA identity URI, with a Digital Asset Links file | — |
-| Devnet SOL | Program deploy rent (measured at the rehearsal deploy); ~1.12 SOL for the 56 scripted wallets by 22 Sep (R12); 25 SOL in the faucet vault by 8 Oct (R13) | — |
+| Devnet SOL | Program deploy rent (computed from the built `holdout.so` with `solana rent <bytes>` before the deploy; the program-data account is sized at about twice the binary and the deploy buffer is held temporarily); ~1.12 SOL for the 56 scripted wallets by 22 Sep (R12); 25 SOL in the faucet vault by 8 Oct (R13) | — |
 | GitHub | A repository judges can clone, pushed from the first commit (FR-066) | — |
 
 Commands in §3, §5 and §6 run inside WSL2. When an agent runs Anchor or Surfpool commands, prefix them with `NO_DNA=1`.
@@ -130,7 +130,7 @@ python scripts/design-book.py check
 
 **Expected:** `design-book check: 0 drift` — every token in `docs/design/tokens.json` has its twin in `ui/theme/*.kt` with the same value, except the tokens the script lists as having no twin by design (`NO_TWIN_OK`, skipped) or as added when a screen first needs one (`ADD_WHEN_NEEDED`, reported as notes). Notes, such as those and the fonts not bundled yet (T035), do not fail it. Dynamic colour is off by construction: `Theme.kt` has one dark `ColorScheme` and no `dynamicColor` parameter. The lobby card's "at stake" with the joined count, never the word "prize" before a Holdout starts (FR-053, spec §1a), has no unit test; it is checked on the screen (holdout-ui skill, `references/verify.md`).
 
-## 5. Full cycle on a compressed clock (spike S3 / rehearsal)
+## 5. Full cycle on a compressed clock (spike S3)
 
 LiteSVM with a test build (`test-leagues` feature) and a test league with `day_length = 60`, the clock advanced by the test:
 
@@ -140,7 +140,7 @@ npm --prefix tests test -- --grep "full cycle"
 
 **Expected:** open → join (with a lobby place) → lock → daily submits → forfeits → count → finalize (with remainder) → claim completes in minutes, and every INV holds at each step.
 
-### Beta test on the rehearsal deployment (24–26 Sep)
+### Beta test on the devnet program
 
 The same compressed idea, but on devnet with real testers and real phones: a test league of **three 10-minute days at 5 reps a day**, a new cohort every 30 minutes (FR-044a, H36) — so each tester, or a single judge, with a wallet holding a Seeker Genesis Token (FR-003b), runs faucet → join → sittings → a deliberate forfeit → settlement → claim in under an hour, and the lobby keeps opening cohorts through the live period.
 
@@ -206,8 +206,17 @@ mkdir -p target/deploy && cp ~/.config/solana/holdout-program-keypair.json targe
 
 **Expected:** `holdout: Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4`, matching `Anchor.toml` and `declare_id!`. Back that file up — losing it means a new address and a redeploy, and once judged cohorts are running that would strand them.
 
+The devnet program must carry the `test-leagues` feature: `programs/holdout/Cargo.toml` has `default = []`, so a plain `anchor build` omits it, and `crank init --test-league` is then refused with 6010. Build it with the feature, and check the deploy rent from the binary before funding it:
+
 ```bash
-NO_DNA=1 anchor deploy --provider.cluster devnet
+NO_DNA=1 anchor build -- --features test-leagues
+solana rent "$(stat -c %s target/deploy/holdout.so)"
+```
+
+Then deploy that binary, without building again in between. The `admin` wallet pays and becomes the upgrade authority, which `initialize` requires (R14); `Anchor.toml`'s default wallet, `~/.config/solana/id.json`, holds no SOL:
+
+```bash
+NO_DNA=1 anchor deploy --provider.cluster devnet --provider.wallet ~/.config/solana/holdout/admin.json
 ```
 
 Then, once:
