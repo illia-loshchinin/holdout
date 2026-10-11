@@ -96,6 +96,13 @@ class SittingViewModel(
 
     private val trace = recorder
 
+    /**
+     * `sitting:{wallet}:{scope}`, set when counting starts and cleared on every
+     * clean exit (ES-1, ES-2). Holdout Lab, which has a recorder and no wallet,
+     * keeps none.
+     */
+    private val marker: SittingMarker? = if (recorder == null) SittingMarker(store, wallet, scope) else null
+
     enum class Step {
         PREFLIGHT,
         COUNTDOWN,
@@ -169,6 +176,8 @@ class SittingViewModel(
         val recordingVideo: Boolean? = null,
         /** Reps the counter credited in this sitting — shown next to the member's own count. */
         val repsCounted: Int = 0,
+        /** The Daily 25 just finished: the streak after it, and whether this day grew it. Null otherwise. */
+        val streak: StreakAfter? = null,
     ) {
         val doneToday: Int get() = banked + looseReps
         val remaining: Int get() = (target - doneToday).coerceAtLeast(0)
@@ -230,6 +239,19 @@ class SittingViewModel(
 
     /** Seconds to this Holdout day's deadline; null for the Daily 25, or while the chain is unread. */
     fun deadlineSecondsLeft(): Long? = timeLeftAt?.let { at -> chainSecondsNow()?.let(at) }
+
+    /** A Holdout day (it has a deadline) rather than the Daily 25 or a Lab set. */
+    val isHoldoutDay: Boolean get() = timeLeftAt != null
+
+    /** The Holdout day's number as the member counts it (day 12), or null for the Daily 25 and Lab. */
+    val dayNumber: Int? get() = if (isHoldoutDay) (banking.dayIndex + 1).toInt() else null
+
+    /**
+     * The time under the sitting's bar: a Holdout day's seconds to its deadline,
+     * the Daily 25's seconds left today. Null while the chain is unread, and in
+     * Holdout Lab, which has no clock.
+     */
+    fun timeLeftSeconds(): Long? = if (isHoldoutDay) deadlineSecondsLeft() else secondsLeftToday()
 
     /** Seconds left in today, for the header. Null while the chain is unread. */
     fun secondsLeftToday(): Long? = chainSecondsNow()?.let { now ->
@@ -444,6 +466,8 @@ class SittingViewModel(
                 return
             }
             _uiState.update { it.copy(step = Step.COUNTING, hint = null, looseReps = 0) }
+            // From here a crash loses the loose reps, and the next open says what was kept.
+            marker?.start()
         }
         _cues.tryEmit(Cue.Counting)
     }
@@ -477,7 +501,8 @@ class SittingViewModel(
                 // Only the real Daily 25 extends the streak — never a test run.
                 // A day done before chain time was known has no date yet;
                 // OfflineDays records the streak once it has one.
-                if (scope == Store.CHALLENGE && banking.dayIndex != Store.UNKNOWN_DAY) streaks.recordCompletedDay(wallet, banking.dayIndex)
+                val streak = if (scope == Store.CHALLENGE && banking.dayIndex != Store.UNKNOWN_DAY) StreakAfter.record(streaks, wallet, banking.dayIndex) else null
+                marker?.clear()
                 trace?.close()
                 _cues.tryEmit(Cue.DayComplete)
                 _uiState.update {
@@ -486,6 +511,7 @@ class SittingViewModel(
                         banked = outcome.total,
                         looseReps = 0,
                         hint = null,
+                        streak = streak,
                     )
                 }
             }
@@ -504,6 +530,7 @@ class SittingViewModel(
     fun onLeftForeground() {
         synchronized(countdownLock) {
             if (stopped || !_uiState.value.step.inSet) return
+            marker?.clear()
             banking.endSitting()
             backToChecks()
             _uiState.update { it.copy(looseReps = 0, hint = null) }
@@ -513,6 +540,7 @@ class SittingViewModel(
     /** The member stopped, or the screen went away. Loose reps go; blocks stay. */
     fun endSitting(): Int {
         stopped = true
+        marker?.clear()
         trace?.close()
         return banking.endSitting()
     }
@@ -574,6 +602,7 @@ class SittingViewModel(
      * `ViewModelProvider`, so [onCleared] alone would never run.
      */
     fun release() {
+        marker?.clear()
         trace?.close()
     }
 

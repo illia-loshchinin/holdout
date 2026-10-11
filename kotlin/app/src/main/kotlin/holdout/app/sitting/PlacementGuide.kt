@@ -5,26 +5,26 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -39,11 +39,20 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import holdout.app.ui.HoldoutSheet
+import holdout.app.ui.PrimaryButton
+import holdout.app.ui.SecondaryButton
+import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.HoldoutColors
+import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 import holdout.repcounter.CameraView
@@ -55,123 +64,131 @@ import holdout.repcounter.Stakes
  *
  * An earlier version drew this over the camera until the body was detected on
  * the floor, which put a card of instructions in front of somebody already in a
- * plank who could neither read it nor dismiss it. So it is a dialog now, read
- * at the start and closed with a tap: three short pages — the phone, the body,
- * how the count starts — and a "don't show this again" that is remembered per
- * wallet and per stakes, because a staked sitting has different rules to read.
+ * plank who could neither read it nor dismiss it. So it is read at the start and
+ * closed with a tap: three short pages — the phone, the body, how the count
+ * starts — and a "don't show this again" that is remembered per wallet and per
+ * stakes, because a Holdout has a different rule to read.
  *
- * The placement the camera currently sees is ticked on the first page, so the
- * member sees the app agree with where they just stood the phone.
+ * It is the shared bottom sheet (board 16, `HoldoutSheet`) over the dimmed
+ * camera. Under its title, on every page, it says the two things that decide
+ * whether a rep counts ([GUIDE_HEADLINE], 002 FR-015); the Phone page ends with
+ * the level's own rule sentence, or for the Daily 25 that it is counted as the
+ * Spark (002 FR-014).
  */
 @Composable
-fun SetupDialog(
+fun BoxScope.SetupSheet(
     stakes: Stakes,
     detected: CameraView?,
     onDone: (dontShowAgain: Boolean) -> Unit,
+    levelLabel: String = SittingCopy.levelLabel(stakes),
 ) {
-    var page by remember { mutableStateOf(0) }
-    var dontShowAgain by remember { mutableStateOf(false) }
-    val pages = listOf("Phone", "Body", "Start")
+    HoldoutSheet(onDismiss = { onDone(false) }, dismissLabel = "Close the set-up guide") {
+        SetupGuide(
+            stakes = stakes,
+            detected = detected,
+            levelLabel = levelLabel,
+            onDone = onDone,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
 
-    // One scroll offset for the whole card would carry a page's scroll to the next page, and the title and
-    // headline (FR-015, first on every page) would be off the top of it: every page opens at the top.
+/** The sheet's content: title with the level, the three tabs, the page, "Don't show this again" and the buttons. */
+@Composable
+internal fun SetupGuide(
+    stakes: Stakes,
+    detected: CameraView?,
+    levelLabel: String,
+    onDone: (dontShowAgain: Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var page by remember { mutableIntStateOf(0) }
+    var dontShowAgain by remember { mutableStateOf(false) }
+    val pages = listOf("1. Phone", "2. Body", "3. Start")
+
+    // One scroll offset for the whole sheet would carry a page's scroll to the next page: every page opens at the top.
     val scroll = rememberScrollState()
     LaunchedEffect(page) { scroll.scrollTo(0) }
 
-    Dialog(
-        onDismissRequest = { onDone(dontShowAgain) },
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = Spacing.screenGutter, end = Spacing.screenGutter, top = Spacing.tight, bottom = Spacing.betweenSections),
+        verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
     ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+            Text("Before you get down", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+            Text(levelLabel, style = AmountStyle.copy(fontSize = LabelStyle.fontSize), color = HoldoutColors.TextTertiary)
+        }
+        // What decides whether a rep counts, first and on every page (002 FR-015, 2026-10-10).
+        Text(GUIDE_HEADLINE, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextPrimary)
+
+        Tabs(pages, page) { page = it }
+
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(Spacing.screenGutter)
-                .background(HoldoutColors.Surface1, RoundedCornerShape(24.dp))
-                .padding(Spacing.cardPadding),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .weight(1f, fill = false)
+                .verticalScroll(scroll),
             verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
         ) {
-            // A small phone may not fit every line of a page: this part scrolls rather than clips, and the
-            // checkbox and the buttons below it stay where they are, as the design book's Dialog has them.
-            Column(
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .verticalScroll(scroll),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
-            ) {
-                Text("Before you get down", style = MaterialTheme.typography.titleLarge, color = HoldoutColors.TextPrimary)
-                // What decides whether a rep counts, first and on every page (002 FR-015, 2026-10-10).
-                Text(GUIDE_HEADLINE, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Accent, textAlign = TextAlign.Center)
-
-                // The tabs: tap any, or walk through with Next.
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
-                    pages.forEachIndexed { i, title ->
-                        val selected = i == page
-                        TextButton(onClick = { page = i }) {
-                            Text(
-                                "${i + 1}. $title",
-                                style = LabelStyle,
-                                color = if (selected) HoldoutColors.Accent else HoldoutColors.TextTertiary,
-                                modifier = Modifier
-                                    .border(
-                                        width = if (selected) 1.dp else 0.dp,
-                                        color = if (selected) HoldoutColors.Accent else Color.Transparent,
-                                        shape = RoundedCornerShape(12.dp),
-                                    )
-                                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                            )
-                        }
-                    }
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 300.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
-                ) {
-                    when (page) {
-                        0 -> PhonePage(stakes, detected)
-                        1 -> BodyPage(stakes)
-                        else -> StartPage(stakes)
-                    }
-                }
+            when (page) {
+                0 -> PhonePage(stakes, detected)
+                1 -> BodyPage(stakes)
+                else -> StartPage()
             }
+        }
 
-            Row(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { dontShowAgain = !dontShowAgain },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(
+                checked = dontShowAgain,
+                onCheckedChange = { dontShowAgain = it },
+                colors = CheckboxDefaults.colors(checkedColor = HoldoutColors.Accent),
+            )
+            Text("Don't show this again", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
+        }
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
+            SecondaryButton(if (page > 0) "Back" else "Skip", { if (page > 0) page -= 1 else onDone(dontShowAgain) }, Modifier.weight(1f))
+            PrimaryButton(if (page < pages.lastIndex) "Next" else "Got it", { if (page < pages.lastIndex) page += 1 else onDone(dontShowAgain) }, Modifier.weight(1f))
+        }
+    }
+}
+
+/** The three tabs as a segmented pill: the open one white with black text. Tap any, or walk through with Next. */
+@Composable
+private fun Tabs(titles: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(HoldoutColors.Surface1, CircleShape)
+            .padding(Spacing.base),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.base),
+    ) {
+        titles.forEachIndexed { i, title ->
+            val open = i == selected
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { dontShowAgain = !dontShowAgain },
-                verticalAlignment = Alignment.CenterVertically,
+                    .weight(1f)
+                    .height(TabHeight)
+                    .background(if (open) HoldoutColors.TextPrimary else Color.Transparent, CircleShape)
+                    .clickable { onSelect(i) }
+                    .semantics {
+                        role = Role.Tab
+                        this.selected = open
+                    },
+                contentAlignment = Alignment.Center,
             ) {
-                Checkbox(
-                    checked = dontShowAgain,
-                    onCheckedChange = { dontShowAgain = it },
-                    colors = CheckboxDefaults.colors(checkedColor = HoldoutColors.Accent),
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = if (open) HoldoutColors.OnLight else HoldoutColors.TextSecondary,
                 )
-                Text("Don't show this again", style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.TextSecondary)
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = { if (page > 0) page -= 1 else onDone(dontShowAgain) }) {
-                    Text(if (page > 0) "Back" else "Skip", color = HoldoutColors.TextSecondary)
-                }
-                Button(
-                    onClick = { if (page < pages.lastIndex) page += 1 else onDone(dontShowAgain) },
-                    shape = MaterialTheme.shapes.extraLarge,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = HoldoutColors.TextPrimary,
-                        contentColor = HoldoutColors.OnLight,
-                    ),
-                ) {
-                    Text(if (page < pages.lastIndex) "Next" else "Got it", style = MaterialTheme.typography.titleMedium)
-                }
             }
         }
     }
@@ -179,125 +196,107 @@ fun SetupDialog(
 
 @Composable
 private fun PhonePage(stakes: Stakes, detected: CameraView?) {
-    Text(
-        "Stand the phone up on the floor, screen facing where you will be. Lean it on something if it will not stand.",
-        style = MaterialTheme.typography.bodyLarge,
-        color = HoldoutColors.TextPrimary,
-        textAlign = TextAlign.Center,
+    GuideLine("Stand the phone on the floor, facing where you'll be. Lean it on something.")
+    Placement(
+        title = "At 45°",
+        caption = "Ahead of your shoulder, about 1.5 m away.",
+        highlighted = detected == CameraView.OBLIQUE,
     )
-    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
-        Placement(
-            title = "At 45°",
-            caption = "Ahead of your shoulder, ~1.5 m away, looking at you at 45°.",
-            highlighted = detected == CameraView.OBLIQUE,
-        )
-    }
-    Text(
-        "From there it sees all of you, and the knee nearer to it.",
-        style = MaterialTheme.typography.bodyLarge,
-        color = HoldoutColors.TextSecondary,
-        textAlign = TextAlign.Center,
-    )
-    Text(
-        when (stakes) {
-            Stakes.STAKED -> "Habit: at 45° only — not in front, not straight beside you."
-            Stakes.EASY -> "Spark: at 45° only — turned well to the side of you, not in front, not straight beside you."
-            // The Daily 25 practises the Easy set-up (002 FR-001).
-            Stakes.DAILY -> "At 45° only, as in a Holdout — turned well to the side of you, not in front, not straight beside you."
-        },
-        style = MaterialTheme.typography.bodyMedium,
-        color = HoldoutColors.Accent,
-        textAlign = TextAlign.Center,
-    )
+    GuideLine("From there it sees all of you, and the knee nearer to it.")
+    // After FR-015's lines: the level's own sentence, never the other's; the Daily 25 is counted as the Spark (002 FR-014).
+    GuideLine(SittingCopy.ruleCaption(stakes), strong = true)
 }
 
 @Composable
 private fun BodyPage(stakes: Stakes) {
+    // The two things that decide whether a rep counts come first, then the position and the outline (002 FR-015, 2026-10-10).
+    GuideLine("Your whole body in the picture, head to feet.")
+    GuideLine("Your knees clearly visible to the phone.")
+    GuideLine("Top of a push-up: arms straight, hands under your shoulders.")
+    GuideLine("Line up with the outline on screen.")
+    GuideLine(
+        when (stakes) {
+            Stakes.STAKED -> "On your toes, down to just above the floor. Knee push-ups don't count."
+            Stakes.EASY -> "Aim for your toes — knees still count in a Spark."
+            Stakes.DAILY -> "Aim for your toes — knees still count in the Daily 25."
+        },
+        strong = true,
+    )
+    GuideLine("Turn a little away, so the phone sees your near knee.", strong = true)
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
-            .height(120.dp),
+            .height(FigureHeight),
     ) {
         val box = Rect(size.width * 0.1f, size.height * 0.1f, size.width * 0.9f, size.height * 0.95f)
         drawPlankFigure(box, HoldoutColors.Accent)
     }
-    Bullets(
-        buildList {
-            // The two things that decide whether a rep counts come first (002 FR-015, 2026-10-10).
-            add("Your whole body in the picture — head to feet. Move back if it is not.")
-            add("The phone must see your knees: turn your body a little away from it, so the leg nearer the phone shows clearly.")
-            add("Get into the top of a push-up: arms straight, hands under your shoulders.")
-            add("Line your body up with the outline on the screen.")
-            when (stakes) {
-                Stakes.STAKED -> add("On your toes, and stop just above the floor. Push-ups from the knees, or resting on the floor at the bottom, do not count.")
-                Stakes.EASY -> add("From your toes or from your knees — both count in a Spark. Keep your body straight from shoulders to knees.")
-                Stakes.DAILY -> add("Body straight from shoulders to heels — or from the knees if you are building up. Both count for the Daily 25.")
-            }
-        },
-    )
 }
 
 @Composable
-private fun StartPage(stakes: Stakes) {
-    Bullets(
-        listOf(
-            "Hold the top of a push-up for a second. A ring fills, then you hear “three, two, one, go”.",
-            "Nothing to tap: each counted rep beeps, and every 10 are banked for good.",
-            "Go all the way down and all the way up. A rep that is too short is skipped with a hint.",
-            "Stop at any time with the button in the corner.",
-        ),
-    )
-    if (stakes.staked) {
-        Text(if (stakes == Stakes.EASY) Stakes.EASY_RULE else Stakes.STAKED_RULE, style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.Accent, textAlign = TextAlign.Center)
-    }
+private fun StartPage() {
+    GuideLine("Hold the top for a second. A ring fills, then “three, two, one, go”.")
+    GuideLine("Nothing to tap. Each rep beeps; every 10 bank for good.")
+    GuideLine("All the way down and up — short reps are skipped.")
+    GuideLine("Stop any time with ✕ in the corner.")
 }
 
+/** One line of the guide, led by an accent tick: the board's check-circle. */
 @Composable
-private fun Bullets(lines: List<String>) {
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
-        lines.forEach {
-            Text("•  $it", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextPrimary)
+private fun GuideLine(text: String, strong: Boolean = false) {
+    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
+        Canvas(
+            Modifier
+                .padding(top = Spacing.base)
+                .size(TickSize),
+        ) {
+            val stroke = 1.3.dp.toPx()
+            drawCircle(HoldoutColors.Accent, radius = size.minDimension / 2 - stroke, style = Stroke(stroke))
+            drawLine(HoldoutColors.Accent, Offset(size.width * 0.31f, size.height * 0.51f), Offset(size.width * 0.44f, size.height * 0.64f), stroke, StrokeCap.Round)
+            drawLine(HoldoutColors.Accent, Offset(size.width * 0.44f, size.height * 0.64f), Offset(size.width * 0.7f, size.height * 0.36f), stroke, StrokeCap.Round)
         }
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (strong) HoldoutColors.TextPrimary else HoldoutColors.TextSecondary,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
+/** The placement, drawn from above and ticked once the camera sees the phone there. */
 @Composable
 private fun Placement(title: String, caption: String, highlighted: Boolean) {
     val accent = if (highlighted) HoldoutColors.Success else HoldoutColors.Accent
     Column(
         modifier = Modifier
-            .width(150.dp)
-            .border(
-                width = if (highlighted) 2.dp else 1.dp,
-                color = accent.copy(alpha = if (highlighted) 1f else 0.4f),
-                shape = RoundedCornerShape(16.dp),
-            )
-            .padding(Spacing.tight),
+            .fillMaxWidth()
+            .background(HoldoutColors.Surface1, MaterialTheme.shapes.medium)
+            .border(Spacing.border, HoldoutColors.Hairline, MaterialTheme.shapes.medium)
+            .padding(Spacing.cardPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(Spacing.tight),
     ) {
         Text(
             text = if (highlighted) "$title ✓" else title,
-            style = LabelStyle,
-            color = accent,
+            style = MaterialTheme.typography.titleMedium,
+            color = if (highlighted) HoldoutColors.Success else HoldoutColors.TextPrimary,
         )
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp),
+                .height(PlacementHeight),
         ) {
             planAngled(accent)
         }
         Text(
             caption,
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyLarge,
             color = HoldoutColors.TextSecondary,
             textAlign = TextAlign.Center,
         )
     }
 }
-
-private val BODY = Color(0xFFE8E8E8)
 
 /** At 45°, from above: the member lying across, the phone ahead of and beside the shoulders. */
 private fun DrawScope.planAngled(accent: Color) {
@@ -305,11 +304,12 @@ private fun DrawScope.planAngled(accent: Color) {
     val h = size.height
     val bodyY = h * 0.3f
     val stroke = 6f
-    drawCircle(BODY, radius = w * 0.05f, center = Offset(w * 0.34f, bodyY))
-    drawLine(BODY, Offset(w * 0.41f, bodyY), Offset(w * 0.98f, bodyY), stroke, StrokeCap.Round)
-    drawLine(BODY, Offset(w * 0.45f, bodyY - h * 0.1f), Offset(w * 0.45f, bodyY + h * 0.1f), stroke, StrokeCap.Round)
-    drawCircle(BODY, radius = 5f, center = Offset(w * 0.47f, bodyY - h * 0.15f))
-    drawCircle(BODY, radius = 5f, center = Offset(w * 0.47f, bodyY + h * 0.15f))
+    val body = HoldoutColors.TextPrimary
+    drawCircle(body, radius = h * 0.09f, center = Offset(w * 0.34f, bodyY))
+    drawLine(body, Offset(w * 0.41f, bodyY), Offset(w * 0.98f, bodyY), stroke, StrokeCap.Round)
+    drawLine(body, Offset(w * 0.45f, bodyY - h * 0.1f), Offset(w * 0.45f, bodyY + h * 0.1f), stroke, StrokeCap.Round)
+    drawCircle(body, radius = 5f, center = Offset(w * 0.47f, bodyY - h * 0.15f))
+    drawCircle(body, radius = 5f, center = Offset(w * 0.47f, bodyY + h * 0.15f))
 
     // Ahead of the head and off to the side, looking back along the body at 45°.
     val phone = Offset(w * 0.14f, h * 0.84f)
@@ -360,3 +360,20 @@ fun DrawScope.drawPlankFigure(box: Rect, color: Color) {
 /** The guide's first line on every page: what decides whether a rep counts (002 FR-015). */
 internal const val GUIDE_HEADLINE =
     "Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone."
+
+private val TabHeight = 40.dp
+private val TickSize = 16.dp
+private val PlacementHeight = 140.dp
+private val FigureHeight = 96.dp
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000, widthDp = 390, heightDp = 844)
+@Composable
+private fun SetupPhonePreview() {
+    HoldoutTheme { Box(Modifier.fillMaxSize()) { SetupSheet(Stakes.STAKED, CameraView.OBLIQUE, {}) } }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000, widthDp = 390, heightDp = 844)
+@Composable
+private fun SetupDailyPreview() {
+    HoldoutTheme { Box(Modifier.fillMaxSize()) { SetupSheet(Stakes.DAILY, null, {}) } }
+}

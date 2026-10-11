@@ -68,6 +68,16 @@ interface Store {
     fun hideSetupGuide(wallet: String, stakes: String)
 
     /**
+     * `sitting:{wallet}:{scope}` (data-model §4, ES-1, ES-2): when counting started
+     * (epoch millis), or null. Written when counting starts and removed on every
+     * clean exit of the sitting; found set when that sitting's screen is next
+     * opened, the app died mid-sitting. [scope] is a cohort or [CHALLENGE]. It
+     * never changes a banked figure and the counter never reads it.
+     */
+    fun sittingStartedAt(wallet: String, scope: String): Long?
+    fun setSittingStartedAt(wallet: String, scope: String, startedAtMillis: Long?)
+
+    /**
      * When the last Daily 25 sitting started while chain time was unknown, on
      * this boot's monotonic clock — so the reps it banked under [UNKNOWN_DAY]
      * can be put on their real day once the chain answers (`OfflineDays`).
@@ -322,6 +332,12 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         kv.encode("setup_hidden:$wallet:$stakes", true)
     }
 
+    override fun sittingStartedAt(wallet: String, scope: String): Long? = kv.decodeLong("sitting:$wallet:$scope", NO_MARKER).takeIf { it != NO_MARKER }
+
+    override fun setSittingStartedAt(wallet: String, scope: String, startedAtMillis: Long?) {
+        if (startedAtMillis == null) kv.removeValueForKey("sitting:$wallet:$scope") else kv.encode("sitting:$wallet:$scope", startedAtMillis)
+    }
+
     override fun setSeenTour(wallet: String) {
         kv.encode("tour:$wallet", true)
     }
@@ -489,6 +505,12 @@ class InMemoryStore : Store {
         values["setup_hidden:$wallet:$stakes"] = true
     }
 
+    override fun sittingStartedAt(wallet: String, scope: String): Long? = values["sitting:$wallet:$scope"] as? Long
+
+    override fun setSittingStartedAt(wallet: String, scope: String, startedAtMillis: Long?) {
+        if (startedAtMillis == null) values.remove("sitting:$wallet:$scope") else values["sitting:$wallet:$scope"] = startedAtMillis
+    }
+
     override fun setSeenTour(wallet: String) {
         values["tour:$wallet"] = true
     }
@@ -563,6 +585,9 @@ class InMemoryStore : Store {
 }
 
 /** Key prefix of a kept Seeker ID entry: `seekerName:<wallet base58>` (spec 003 data-model §2). */
+/** What MMKV reads for a key never written: no sitting marker (a real start time is never negative). */
+private const val NO_MARKER = -1L
+
 private const val SEEKER_NAME = "seekerName:"
 
 /** Key prefix of a Seeker Genesis Token confirmation: `seeker:<wallet base58>` (001 data-model §4). */
