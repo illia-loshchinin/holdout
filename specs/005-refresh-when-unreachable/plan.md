@@ -12,11 +12,11 @@ While the app is in its *"the chain can't be reached"* state (`HoldoutViewModel.
 
 **Language/Version**: Kotlin 2.x, Android (minSdk 26), Jetpack Compose (BOM 2026.08.00, Material 3)
 
-**Primary Dependencies**: existing only — `androidx.compose.material3` (its `pullToRefresh` modifier and `PullToRefreshDefaults.Indicator`), `kotlinx.coroutines`, the app's `Rpc`/`ChainRepository`
+**Primary Dependencies**: existing only — `androidx.compose.material3` (its `pullToRefresh` modifier and `PullToRefreshDefaults.Indicator`), `kotlinx.coroutines`, the app's `Rpc`/`ChainRepository`. Since T019, a test-only `kotlinx-coroutines-test` at 1.9.0, the coroutines version the app resolves.
 
 **Storage**: none; a check is not kept on the phone
 
-**Testing**: JUnit 4 + `kotlin.test` unit tests in `kotlin/app/src/test` (the gate and the copy), as `AutoSubmitTest` and `OfflineNoteTest`
+**Testing**: JUnit 4 + `kotlin.test` unit tests in `kotlin/app/src/test`, as `AutoSubmitTest` and `OfflineNoteTest`. They cover the gate, the copy, and the view model's wiring of a check (T019), through a fake `ChainReads` and `kotlinx-coroutines-test`.
 
 **Target Platform**: Android, Solana Seeker; the member app (`member` flavour) and Holdout Lab share the code but Lab shows no chain screens
 
@@ -64,9 +64,13 @@ specs/005-refresh-when-unreachable/
 
 ```text
 kotlin/app/src/main/kotlin/holdout/app/
+├── chain/
+│   └── ChainRepository.kt       # ChainReads interface, implemented by ChainRepository (T019)
+├── wallet/
+│   └── WalletRepository.kt      # the wallet adapter is made on first use, so the view model builds on the JVM (T019)
 ├── holdout/
 │   ├── ChainCheck.kt            # new: the gate (idle / checking / still unreachable)
-│   └── HoldoutViewModel.kt      # checkNow(); UiState.check; a successful read clears it
+│   └── HoldoutViewModel.kt      # checkNow(); UiState.check; a successful read clears it; takes ChainReads (T019)
 ├── ui/
 │   └── Components.kt            # new: CheckAgain(checking, stillUnreachable, onCheck); ChainUnreachable(...) — the line + CheckAgain for details and forfeit; ChainCheckBox (pull, enabled only while unreachable)
 ├── home/
@@ -78,7 +82,8 @@ kotlin/app/src/main/kotlin/holdout/app/
 
 kotlin/app/src/test/kotlin/holdout/app/
 ├── ChainCheckTest.kt            # new
-└── CheckAgainCopyTest.kt        # new: the lines name the network, no banned words
+├── CheckAgainCopyTest.kt        # new: the lines name the network, no banned words
+└── HoldoutViewModelCheckTest.kt # new (T019): checkNow's wiring, with a fake chain
 ```
 
 **Structure Decision**: the existing single Android app module; the gate is plain Kotlin beside `AutoSubmit` so it is tested on the JVM, and the UI goes through the `holdout-ui` skill's components and tokens.

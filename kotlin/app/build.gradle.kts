@@ -313,6 +313,8 @@ dependencies {
     // `kotlin.test` onto it, so these read like the tests in the JVM modules.
     testImplementation(libs.junit)
     testImplementation(kotlin("test-junit"))
+    // The view model's chain check runs on viewModelScope; a test Main dispatcher drives it (005 T019).
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
