@@ -95,6 +95,7 @@ Material defaults (`Notice` currently does this).
 | Roster row | `RosterRow(wallet, isYou, standing, days, scripted, modifier)` | ✅ `ui/RosterRow.kt`: `MemberIdentity` + "· you", "12 days ✓" in `Success` while standing, "lasted N days" tertiary when out, `◇ SCRIPTED`, no money. ⚠ `roster/RosterScreen.kt` still draws its own rows |
 | Key-value row | `KeyValueRow(label, value, modifier, success = false)` | ✅ `ui/KeyValueRow.kt`: label `TextSecondary`, value `AmountStyle` |
 | Screen header | `ScreenHeader(label, modifier, onBack, backDescription, onClose, closeDescription, trailing)` | ✅ `ui/ScreenHeader.kt`: 40dp round back button in a 48dp target, centred uppercase `LabelStyle` label, optional `StatusChip` (`trailing`) or ✕ (`onClose`). The label comes from `Format.headerLabel` / `lobbyHeaderLabel` / `finishedHeaderLabel` |
+| Menu row | `MenuRow(title, caption = null, modifier, onClick)` | ✅ `ui/MenuRow.kt`: outlined pill, ≥48dp, title `text-primary`, caption `text-tertiary`, chevron; Me's *About Holdout* / *How Holdout works*, About's tour row |
 | Pager dots | `PagerDots(count, current, modifier, noun = "Card")` | ✅ `ui/PagerDots.kt`: 22dp white pill + 7dp dots, named "Card 2 of 4" |
 | Checklist row | `ChecklistRow(text, state: StepState)` | ✅ `ui/ChecklistRow.kt`: `Done` success tick · `Active` accent spinner · `Pending` tertiary ring, named with the state |
 | Progress ring | `ProgressRing(description, modifier, done = false, size)` | ✅ `ui/ProgressRing.kt`: the 96dp confirming ring (accent arc turning; success ring + tick when `done`) |

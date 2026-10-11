@@ -2,6 +2,7 @@ package holdout.app.shell
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import holdout.app.chain.ChainView
 import holdout.app.chain.Holdout
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Sitting
@@ -73,13 +74,15 @@ internal fun Shared.signingState(tx: TxFlow, h: Holdout, n: Long): SigningState 
 /**
  * After a claim, the next step up that the member can take now (G7): from a
  * Spark, "Make it a Habit · 21-day"; from a Habit, the next Habit. Only a
- * Holdout open to join that nothing blocks; never the short test league.
+ * Holdout open to join that nothing blocks; never the short test league. The
+ * length in the words is the open Habit's own, never typed here.
  */
-private fun Shared.upsell(h: Holdout, n: Long): Pair<String, NavEvent>? {
-    val v = view ?: return null
+private fun Shared.upsell(h: Holdout, n: Long): Pair<String, NavEvent>? = view?.let { claimUpsell(h, it, n, seekerKnown) }
+
+internal fun claimUpsell(h: Holdout, v: ChainView, n: Long, seekerKnown: Boolean): Pair<String, NavEvent>? {
     if (h.isTest) return null
     val habit = v.openToJoin(n)
-        .filter { !it.isTest && it.cohort.form == LeagueParams.FORM_TOES && it.cohort.durationDays == HABIT_DAYS }
+        .filter { !it.isTest && it.cohort.form == LeagueParams.FORM_TOES }
         .filter { Journey.joinBlocker(it.cohort, v.profile, v.runningEnd(n), n, runningInBreach = v.runningInBreach(n)) == null }
         .minByOrNull { it.cohort.start } ?: return null
     val text = if (h.cohort.form == LeagueParams.FORM_TOES) "Join the next ${Format.level(habit.cohort)}" else "Make it a ${Format.level(habit.cohort)}"
@@ -100,5 +103,3 @@ private fun Shared.youreIn(h: Holdout, n: Long, tier: Int): YoureInState {
         testDayLength = c.dayLength,
     )
 }
-
-private const val HABIT_DAYS = 21
