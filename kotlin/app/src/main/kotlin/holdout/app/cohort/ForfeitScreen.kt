@@ -99,7 +99,7 @@ fun ForfeitScreen(
             if (offline) ChainUnreachable(checking, stillUnreachable, onCheck)
             Text("You missed day ${stage.daysLasted + 1}.", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.Warning)
             HoldoutCard {
-                Body("You lasted ${stage.daysLasted} of ${c.durationDays} days. The deadline passed before day ${stage.daysLasted + 1} reached the chain, so your stake of ${h.membership?.let { Format.skr(it.stake) } ?: "—"} is lost. ${Format.lostStakeSplit(c, "this Holdout's prize pool")}")
+                Body("You lasted ${stage.daysLasted} of ${c.durationDays} days. The deadline passed before day ${stage.daysLasted + 1} reached the chain, so your stake of ${h.membership?.let { Format.skr(it.stake) } ?: "—"} is lost. ${Format.lostStakeSplitForfeit(c)}")
                 if (!stage.recorded) Body("It is final from the deadline; the record catches up on the next automation pass.")
             }
             HoldoutCard {
@@ -111,7 +111,7 @@ fun ForfeitScreen(
             } else {
                 SectionLabel("Two ways back")
                 PrimaryButton("Today's Daily 25", onDaily25)
-                onNextHoldout?.let { SecondaryButton(if (h.isTest) "The next short test cohort" else "The next ${c.durationDays}-day Holdout", it) }
+                onNextHoldout?.let { SecondaryButton(if (h.isTest) "The next short test Holdout" else "The next ${c.durationDays}-day Holdout", it) }
             }
         }
     }
@@ -136,19 +136,19 @@ private fun ColumnScope.ComebackCard(offer: Comeback.Offer, now: Long, joinBlock
                 Text("up to ${Format.skr(back)} back", style = AmountStyle, color = HoldoutColors.Accent)
                 val timing = if (Derive.status(place.cohort, now) == CohortStatus.Running) "running now" else "starting in ${Format.countdown(place.cohort.start - now)}"
                 Body("You hold a place in the ${Format.holdoutTitle(place.cohort)}, $timing.")
-                Body("Finish it and up to ${Format.skr(back)} of the stake you lost comes back.")
+                Body("Finish it and up to ${Format.skr(back)} of your lost stake comes back.")
             }
             next == null && offer.upcoming != null -> {
                 // The round before it is locked or running and the next is not opened yet: nothing to join, not closed (FR-037g).
                 val upcoming = offer.upcoming!!
                 val back = offer.amount()
                 Text("up to ${Format.skr(back)} back", style = AmountStyle, color = HoldoutColors.Accent)
-                Body("The next ${Format.holdoutTitle(offer.forfeited.cohort)} ${Format.opensForJoining(upcoming.opensAt, now)} and starts in ${Format.countdown(upcoming.start - now)}. Finish it and up to ${Format.skr(back)} of the stake you lost comes back.")
+                Body("The next ${Format.holdoutTitle(offer.forfeited.cohort)} ${Format.opensForJoining(upcoming.opensAt, now)} and starts in ${Format.countdown(upcoming.start - now)}. Finish it and up to ${Format.skr(back)} of your lost stake comes back.")
             }
             next != null && nextCohort != null -> {
                 val back = offer.amount()
                 Text("up to ${Format.skr(back)} back", style = AmountStyle, color = HoldoutColors.Accent)
-                Body("Finish the ${Format.holdoutTitle(nextCohort)} starting in ${Format.countdown(next.start - now)} and up to ${Format.skr(back)} of the stake you lost comes back.")
+                Body(Format.comebackToday(back, nextCohort, next.start - now))
                 Body("Joining stays open for ${Format.countdown(Derive.timeUntilJoiningCloses(nextCohort, now))}.")
                 offer.after(next)?.let { after ->
                     val open = after.entry != null && after.status == CohortStatus.Open

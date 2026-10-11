@@ -200,8 +200,8 @@ private fun PhonePage(stakes: Stakes, detected: CameraView?) {
     )
     Text(
         when (stakes) {
-            Stakes.STAKED -> "Staked: at 45° only — not in front, not straight beside you."
-            Stakes.EASY -> "Easy: at 45° only — turned well to the side of you, not in front, not straight beside you."
+            Stakes.STAKED -> "Habit: at 45° only — not in front, not straight beside you."
+            Stakes.EASY -> "Spark: at 45° only — turned well to the side of you, not in front, not straight beside you."
             // The Daily 25 practises the Easy set-up (002 FR-001).
             Stakes.DAILY -> "At 45° only, as in a Holdout — turned well to the side of you, not in front, not straight beside you."
         },
@@ -230,7 +230,7 @@ private fun BodyPage(stakes: Stakes) {
             add("Line your body up with the outline on the screen.")
             when (stakes) {
                 Stakes.STAKED -> add("On your toes, and stop just above the floor. Push-ups from the knees, or resting on the floor at the bottom, do not count.")
-                Stakes.EASY -> add("From your toes or from your knees — both count in an Easy Holdout. Keep your body straight from shoulders to knees.")
+                Stakes.EASY -> add("From your toes or from your knees — both count in a Spark. Keep your body straight from shoulders to knees.")
                 Stakes.DAILY -> add("Body straight from shoulders to heels — or from the knees if you are building up. Both count for the Daily 25.")
             }
         },

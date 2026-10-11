@@ -44,14 +44,14 @@ class DailyHoldoutLineTest {
     @Test
     fun `given a forfeited membership not yet settled, then the line names the round, its start and the time left to join`() {
         val line = DailyHoldoutLine.of(listOf(round1), offers(unrecorded, entry(round1, null)), now)
-        assertEquals("Finish the Easy · 7-day Holdout starting in 1d 0h and up to 5 SKR of the stake you lost comes back. Joining closes in 23h 00m.", line)
+        assertEquals("Get back up to 5 SKR of your lost stake: finish the Spark · 7-day starting in 1d 0h. Joining closes in 23h 00m.", line)
     }
 
     @Test
     fun `given a place held in the round, then the line says finishing it brings up to N back`() {
         val joined = entry(round1, MembershipSnapshot.State.Joined, tier = 2)
         val line = DailyHoldoutLine.of(emptyList(), offers(unrecorded, joined), now)
-        assertEquals("You're in the Easy · 7-day Holdout. Finish it and up to 5 SKR of the stake you lost comes back.", line)
+        assertEquals("You're in the Spark · 7-day Holdout. Finish it and up to 5 SKR of your lost stake comes back.", line)
     }
 
     @Test
@@ -59,21 +59,21 @@ class DailyHoldoutLineTest {
         // Round 1 is running and round 2 locked: nothing is left to join.
         val at = round2.start - 1_000
         val line = DailyHoldoutLine.of(listOf(open(at + 90_000)), offers(unrecorded, entry(round1, null), entry(round2, null), at = at), at)
-        assertEquals("Next: Easy · 7-day Holdout, starting in 1d 1h · 14 joined.", line)
+        assertEquals("Next: Spark · 7-day Holdout, starting in 1d 1h · 14 joined.", line)
     }
 
     @Test
     fun `given round 1 locked and the next not opened yet, then the line says when it opens and starts`() {
         val at = round1.start - 1_000
         val line = DailyHoldoutLine.of(emptyList(), offers(unrecorded, entry(round1, null), at = at), at)
-        assertEquals("The next Easy · 7-day Holdout opens for joining in 16m 40s and starts in 7d 0h. Finish it and up to 5 SKR of the stake you lost comes back.", line)
+        assertEquals("The next Spark · 7-day Holdout opens for joining in 16m 40s and starts in 7d 0h. Finish it and up to 5 SKR of your lost stake comes back.", line)
     }
 
     @Test
     fun `given the next round due but not opened by automation yet, then it opens shortly, never in 0m 00s`() {
         val at = round1.start + 60
         val line = DailyHoldoutLine.of(emptyList(), offers(unrecorded, entry(round1, null), at = at), at)
-        assertEquals("The next Easy · 7-day Holdout opens for joining shortly and starts in 6d 23h. Finish it and up to 5 SKR of the stake you lost comes back.", line)
+        assertEquals("The next Spark · 7-day Holdout opens for joining shortly and starts in 6d 23h. Finish it and up to 5 SKR of your lost stake comes back.", line)
         assertEquals(line, DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null), at = at), at))
     }
 
@@ -91,18 +91,18 @@ class DailyHoldoutLineTest {
         val both = twoSlots(unrecorded, held, hardUnrecorded, hardRound)
         assertEquals(2, both.size)
         val line = assertNotNull(DailyHoldoutLine.comebackLine(both, now))
-        assertTrue(line.startsWith("Finish the Hard"), line)
+        assertTrue("finish the Habit" in line, line)
     }
 
     @Test
     fun `given two offers to join, then the soonest start is shown, and a round to join beats one not opened yet`() {
         // Slot 0 has round 1 open at now + 1 day, slot 1 a round at now + 2 days: the soonest.
         val bothOpen = twoSlots(unrecorded, entry(round1, null), hardUnrecorded, hardRound)
-        assertTrue(assertNotNull(DailyHoldoutLine.comebackLine(bothOpen, now)).startsWith("Finish the Easy"))
+        assertTrue(assertNotNull(DailyHoldoutLine.comebackLine(bothOpen, now)).contains("finish the Spark"))
         // Round 1 locked and the next not opened (upcoming) in slot 0; slot 1 still joinable: the joinable one.
         val at = round1.start - 1_000
         val mixed = twoSlots(unrecorded, entry(round1, null), hardUnrecorded, hardRound, at = at)
-        assertTrue(assertNotNull(DailyHoldoutLine.comebackLine(mixed, at)).startsWith("Finish the Hard"))
+        assertTrue(assertNotNull(DailyHoldoutLine.comebackLine(mixed, at)).contains("finish the Habit"))
     }
 
     @Test
@@ -118,7 +118,7 @@ class DailyHoldoutLineTest {
     @Test
     fun `given no forfeit, then the line is the next Holdout to join`() {
         val line = DailyHoldoutLine.of(listOf(open(now + 200_000, form = LeagueParams.FORM_TOES), open(now + 90_000)), emptyList(), now)
-        assertEquals("Next: Easy · 7-day Holdout, starting in 1d 1h · 14 joined.", line)
+        assertEquals("Next: Spark · 7-day Holdout, starting in 1d 1h · 14 joined.", line)
     }
 
     @Test

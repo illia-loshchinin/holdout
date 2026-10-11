@@ -44,15 +44,14 @@ object DailyHoldoutLine {
         if (toJoin == null) {
             held?.let { offer ->
                 val place = offer.held?.entry ?: return null
-                return "You're in the ${Format.holdoutTitle(place.cohort)}. Finish it and up to ${Format.skr(offer.amount(place.member?.stake))} of the stake you lost comes back."
+                return "You're in the ${Format.holdoutTitle(place.cohort)}. Finish it and up to ${Format.skr(offer.amount(place.member?.stake))} of your lost stake comes back."
             }
             val offer = waiting ?: return null
             val up = offer.upcoming ?: return null
-            return "The next ${Format.holdoutTitle(offer.forfeited.cohort)} ${Format.opensForJoining(up.opensAt, now)} and starts in ${Format.countdown(up.start - now)}. Finish it and up to ${Format.skr(offer.amount())} of the stake you lost comes back."
+            return "The next ${Format.holdoutTitle(offer.forfeited.cohort)} ${Format.opensForJoining(up.opensAt, now)} and starts in ${Format.countdown(up.start - now)}. Finish it and up to ${Format.skr(offer.amount())} of your lost stake comes back."
         }
         val round = toJoin.next ?: return null
         val c = round.entry?.cohort ?: return null
-        return "Finish the ${Format.holdoutTitle(c)} starting in ${Format.countdown(round.start - now)} and up to ${Format.skr(toJoin.amount())} of the stake you lost comes back. " +
-            "Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))}."
+        return Format.comebackToday(toJoin.amount(), c, round.start - now) + " Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))}."
     }
 }

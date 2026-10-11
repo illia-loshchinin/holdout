@@ -15,15 +15,15 @@ Run every user-facing string through this list, then `bash scripts/check-wording
 | do your reps, 10 banked, 15 to go | bet, wager, gamble, odds, luck, jackpot, pot |
 | `≈ $25` beside a tier | a dollar figure presented as what you receive |
 
-Never in member copy: *cohort*, *league*, *challenge* (as an in-app noun), *survivors*, a Holdout numbered like *cohort 14*. A league's reserves are named by their Holdouts' level and length: *the reserve of Easy · 7-day Holdouts*.
+Never in member copy: *cohort*, *league*, *challenge* (as an in-app noun), *earn*, *survivors*, *Easy*, *Hard*, a Holdout numbered like *cohort 14*. A level's reserves are named by its level and length: *Spark · 7-day boosts and comebacks*.
 
 ## Naming
 - **Holdout** — one word, capital H. Once per screen; after that the length and dates name it.
-- A specific Holdout: level and length, then the date: **Hard · 21-day** · from 21 Sep; header label `HARD · 21-DAY · FROM 21 SEP · DAY 12 OF 21`.
+- A specific Holdout: level and length, then its state, never a calendar date or a clock time (constitution VI): **Habit · 21-day**; header label `HABIT · 21-DAY · DAY 12 OF 21`, lobby `SPARK · 7-DAY · STARTS IN 2D 4H`, finished `SPARK · 7-DAY · FINISHED` (`Format.headerLabel`, `lobbyHeaderLabel`, `finishedHeaderLabel`).
 - The one mention on a screen: *Join the 7-day Holdout*.
 - No noun for the group: *still standing*, *everyone who started with you*, *3 dropped since yesterday*.
 - *Hold out* (verb) only at the payoff: *You held out 21 days.* · *Held out 7 of 7*.
-- Levels come first: **Easy · 7-day** (knees count) and **Hard · 21-day** (from the toes); header label `EASY · 7-DAY · FROM 12 OCT · DAY 3 OF 7`. Each level has one rule sentence, read the same everywhere; never the Hard sentence on an Easy screen. *Staked* is never a member's word.
+- Levels come first: **Spark · 7-day** (*Light it up · knees allowed*) and **Habit · 21-day** (*Make it stick · toes only*); grammar *a Spark*, *a Habit*. Each level has one rule sentence, read the same everywhere (`Format.levelRule(c)`, from `Stakes`); never the Habit sentence on a Spark screen. *Staked*, *Easy* and *Hard* are the code's words and never a member's.
 - Tabs: **Today · Standing · Holdouts · Me**. The tagline never appears inside the app.
 
 ## Always, word for word
@@ -31,7 +31,7 @@ Never in member copy: *cohort*, *league*, *challenge* (as an in-app noun), *surv
 - *If nobody drops out, you get exactly your stake back.* — before every join.
 - *Stakes and payouts are in SKR; dollar values are approximate.* — wherever a USD label appears.
 - *Some members in these Holdouts are scripted.* — first run; label each scripted member `◇ SCRIPTED`.
-- *Miss one and you lose your stake. 80 % of it stays with members: 70 % to the prize pool and 10 % to the boost and comeback reserves of Easy · 7-day Holdouts. 20 % goes to the project, and so does the prize pool if nobody finishes.* — the stake sheet and the forfeit screen (*…so your stake of 1,250 SKR is lost. 80 % of it stays with members: 70 % to this Holdout's prize pool and 10 % …*), nowhere else, with the Holdout's own level and length and a no-break space before every % (`Format.lostStakeSplit`; decided 2026-10-10, reworded the same day).
+- *Miss a day and you lose your stake: 70 % to the prize pool, 10 % to Spark · 7-day boosts and comebacks, 20 % to the project. If nobody finishes, the pool goes to the project too.* — the stake sheet (`Format.lostStakeSplit(c)`); the forfeit screen says *It goes 70 % to this Holdout's prize pool, 10 % to Habit · 21-day boosts and comebacks, 20 % to the project. If nobody finishes, the pool goes to the project too.* under a **Stake lost** row (`Format.lostStakeSplitForfeit(c)`). Nowhere else, with the Holdout's own level and length and a no-break space before every %.
 
 ## Moments (reuse these shapes)
 - Obligation: *15 to go · 5h 12m left today* — reps and time remaining, never a clock time or date.
@@ -42,7 +42,7 @@ Never in member copy: *cohort*, *league*, *challenge* (as an in-app noun), *surv
 - Claim: *You held out 21 days.* above **Claim 1,560 SKR**.
 - Broken streak: *Your 14-day streak broke. Start a new one today.* (no save button)
 - Coach cues: *More light · Get in view · Phone to 45° · Arms straight · Hold*; refused reps: *Go lower · Keep your body straight · Slow down*.
-- Boost, on an offer: *Prize boost: up to 480 SKR from the reserve of Easy · 7-day Holdouts when it settles* (only while the reserve holds more than 0; "up to", never a promise; capped at 10 % of the pool). On a running Holdout: *+ about 1,200 SKR boost from the reserve of Hard · 21-day Holdouts if anyone finishes*.
-- Comeback, on Today: *Finish the Easy · 7-day Holdout starting in 2d 4h and up to 250 SKR of the stake you lost comes back.*; on the claim, a **Comeback** row: *part of your last lost stake, back*.
+- Boost, on an offer: *Prize boost: up to 480 SKR* (`Format.boostLine`; only while the reserve holds more than 0; "up to", never a promise). On a running Holdout: *+ about 1,200 SKR boost if anyone finishes* (`Format.runningBoostLine`).
+- Comeback, on Today: *Get back up to 250 SKR of your lost stake: finish the Spark · 7-day starting in 2d 4h.* (`Format.comebackToday`); on the forfeit screen *Finish a Habit · 21-day starting within 14 days: up to 250 SKR comes back.* (`Format.comebackForfeit`); on the claim, a **Comeback** row: *part of your last lost stake, back*.
 - Holdout Lab (testers only): say *set*, *trace*, *video*; every switch label starts `TEST ·`; the consent sentence word for word: *only people who agreed in writing to be filmed*.
 - A roster never shows a stake, prize or payout amount.

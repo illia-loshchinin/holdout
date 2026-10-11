@@ -39,7 +39,6 @@ import holdout.app.ui.theme.Spacing
 import holdout.core.Comeback
 import holdout.core.Derive
 import holdout.core.Journey
-import holdout.repcounter.Stakes
 
 /**
  * Stake confirm (US-6, FR-041, FR-059, T059): the four chips with their exact
@@ -111,13 +110,13 @@ fun StakeSheet(
         }
         Body("Dollar figures are approximate. Everything is staked and paid in SKR, on a test network with a test token.")
         if (comeback != null && comeback.rounds.any { it.entry?.address == h.address }) {
-            Text("Finish it and up to ${Format.skr(comeback.amount(chip))} of the stake you lost comes back.", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Success)
+            Text("Finish it and up to ${Format.skr(comeback.amount(chip))} of your lost stake comes back.", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Success)
         }
 
         HoldoutCard {
             SectionLabel("Every day")
             Text("${c.repsPerDay} push-ups before each day's deadline, for ${c.durationDays} days", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
-            Body("Miss one and you lose your stake. ${Format.lostStakeSplit(c, "the prize pool")}")
+            Body(Format.lostStakeSplit(c))
             Body("Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))} · starts in ${Format.countdown(c.start - now)}")
             Body("You can leave for a full refund until joining closes.")
             Body("If you allow notifications, this phone reminds you when it starts, halfway through each day and before each deadline you haven't met yet, and every hour, silently, once you've done a day that isn't on chain yet — and once more when your claim is probably ready. The reminders never leave the phone.")
@@ -133,7 +132,7 @@ fun StakeSheet(
         HoldoutCard {
             SectionLabel("How reps are counted here")
             Text(
-                if (Stakes.ofForm(c.form) == Stakes.EASY) Stakes.EASY_RULE else Stakes.STAKED_RULE,
+                Format.levelRule(c) ?: Format.levelRule(holdout.core.LeagueParams.FORM_TOES)!!,
                 style = MaterialTheme.typography.bodyLarge,
                 color = HoldoutColors.TextPrimary,
             )
@@ -162,7 +161,7 @@ fun StakeSheet(
         }
         Notice(message, messageIsWarning)
         PrimaryButton(
-            text = if (busy) "Waiting for the wallet…" else "Stake ${Format.skr(chip)}",
+            text = if (busy) Format.WAITING_FOR_WALLET else "Stake ${Format.skr(chip)}",
             onClick = { onStake(tier) },
             enabled = joinBlocker == null && !short && !noFees,
             busy = busy,

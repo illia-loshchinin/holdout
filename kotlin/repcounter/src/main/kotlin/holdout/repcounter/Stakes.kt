@@ -55,20 +55,22 @@ enum class Stakes {
         /**
          * The rule a member must read **before** they stake anything — on the
          * join screen, beside the stake chips — and again on the camera check if
-         * the phone is in the wrong place. One sentence, one source: every
-         * screen that states it reads it from here.
+         * the phone is in the wrong place. One sentence per level, one source:
+         * every screen that states it reads it from here (through
+         * `Format.levelRule`). A Habit · 21-day Holdout counts push-ups from the
+         * toes only; the words are the design book's, word for word
+         * (`docs/design/README.md`, Levels).
          */
         const val STAKED_RULE =
-            "Staked Holdouts are counted at 45°: stand the phone on the floor ahead of your shoulder, " +
-                "turned to look at you at about 45° — not in front, not straight beside you — " +
-                "and do full push-ups from your toes. Push-ups from the knees, or with the hips resting on the floor " +
-                "at the bottom, do not count."
+            "At 45° only: phone on the floor ahead of your shoulder. " +
+                "Full push-ups from your toes — push-ups from the knees don't count."
 
-        /** The Easy rule, read on the join screen of a 7-day Holdout (H35). */
+        /**
+         * The rule of a Spark · 7-day Holdout (H35): inform, never encourage —
+         * the toes come first, the knees are a permitted fallback.
+         */
         const val EASY_RULE =
-            "Easy Holdouts are counted at 45°: stand the phone on the floor ahead of your shoulder, " +
-                "turned to look at you at about 45° — not in front, not straight beside you. " +
-                "Push-ups from the knees count; keep your body in one straight line from the knees."
+            "At 45° only. Aim for full push-ups from your toes; push-ups from the knees still count."
 
         /**
          * The Easy placement guard (H35): at a placement ratio this high or

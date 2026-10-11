@@ -113,13 +113,13 @@ object LeaderboardText {
     const val UPDATING = "Updating — a Holdout's results are being counted. The board is back once it settles."
 
     fun tab(b: Board): String = when (b) {
-        Board.EASY_7D -> "Easy · 7-day"
-        Board.HARD_21D -> "Hard · 21-day"
+        Board.EASY_7D -> "Spark · 7-day"
+        Board.HARD_21D -> "Habit · 21-day"
         Board.TEST -> "Short test"
     }
 
     fun about(b: Board): String = when (b) {
-        Board.TEST -> "Every short test cohort on devnet, counted together. Ranked by the share of Holdouts survived, after ${Leaderboard.RANKED_AFTER} finished."
+        Board.TEST -> "Every short test Holdout on devnet, counted together. Ranked by the share of Holdouts survived, after ${Leaderboard.RANKED_AFTER} finished."
         else -> "All-time, from the chain. Ranked by the share of Holdouts survived, after ${Leaderboard.RANKED_AFTER} finished."
     }
 

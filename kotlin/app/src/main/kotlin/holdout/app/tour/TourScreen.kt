@@ -64,7 +64,7 @@ private val TOUR = listOf(
     Card(
         "A Holdout",
         listOf(
-            "Put SKR on yourself with everyone who starts that Monday: Easy, 7 days, push-ups from the knees count; Hard, 21 days, from your toes.",
+            "Put SKR on yourself with everyone who starts that Monday: Spark, 7 days, knees allowed; Habit, 21 days, toes only.",
             "Miss a day and your stake goes to the prize pool. Finish, and take back your stake plus a share of what the others left.",
             "Leave any time before joining closes, for a full refund.",
             "Some members are scripted: real wallets under the same rules, labelled SCRIPTED wherever they appear.",
@@ -74,8 +74,8 @@ private val TOUR = listOf(
         "How reps are counted",
         listOf(
             "The Daily 25: the phone at 45°, as in a Holdout. Push-ups from the knees are welcome — it tells you how many came from your toes.",
-            "Easy Holdouts: the phone at 45°, push-ups from the knees count.",
-            Stakes.STAKED_RULE.replace("Staked Holdouts", "Hard Holdouts"),
+            "Spark · 7-day: ${Stakes.EASY_RULE}",
+            "Habit · 21-day: ${Stakes.STAKED_RULE}",
             "The camera never leaves the phone — no video, no landmarks, nothing uploaded.",
         ),
     ),

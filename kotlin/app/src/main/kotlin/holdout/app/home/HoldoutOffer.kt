@@ -33,7 +33,7 @@ fun HoldoutOffer(h: Holdout, now: Long, onClick: (() -> Unit)?, modifier: Modifi
         )
         Text("${Format.skr(Derive.atStake(c))} at stake · ${c.memberCount} joined", style = AmountStyle, color = HoldoutColors.Accent)
         Body("Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))} · starts in ${Format.countdown(c.start - now)}")
-        boostLine(h.league?.boostReserve, Format.level(c))?.let { Text(it, style = AmountStyle, color = HoldoutColors.Success) }
+        boostLine(h.league?.boostReserve)?.let { Text(it, style = AmountStyle, color = HoldoutColors.Success) }
     }
 }
 
@@ -41,7 +41,7 @@ fun HoldoutOffer(h: Holdout, now: Long, onClick: (() -> Unit)?, modifier: Modifi
  * What the league's boost reserve can add to this Holdout's prize pool when it
  * settles (FR-053, FR-037d), or nothing while the reserve is empty or unread.
  * "Up to": the draw is capped at 10% of the pool and paid only if someone
- * forfeits, so it is never a promised amount. The reserve is named by its
- * Holdouts' [level] ("Easy · 7-day"), never "league" (FR-041).
+ * forfeits, so it is never a promised amount. The offer card already names the
+ * level, so the line does not (ruling G6; `Format.boostLine`).
  */
-internal fun boostLine(boostReserve: ULong?, level: String): String? = boostReserve?.takeIf { it > 0uL }?.let { "Prize boost: up to ${Format.skr(it)} from the reserve of $level Holdouts when it settles" }
+internal fun boostLine(boostReserve: ULong?): String? = boostReserve?.takeIf { it > 0uL }?.let { Format.boostLine(it) }

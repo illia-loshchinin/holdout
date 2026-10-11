@@ -73,10 +73,10 @@ fun LobbyScreen(
             } else {
                 Body("Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))}. Until then you can leave with your full stake back.")
             }
-            Body("From the start: ${c.repsPerDay} push-ups before each day's deadline, at 45°, from your toes.")
+            Body("From the start: ${c.repsPerDay} push-ups before each day's deadline. ${Format.levelRule(c).orEmpty()}".trim())
         }
         SecondaryButton("See who's in", onRoster)
         Notice(message, messageIsWarning)
-        if (!locked) SecondaryButton(if (busy) "Waiting for the wallet…" else "Leave — full refund", onLeave, busy = busy)
+        if (!locked) SecondaryButton(if (busy) Format.WAITING_FOR_WALLET else "Leave — full refund", onLeave, busy = busy)
     }
 }

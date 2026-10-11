@@ -18,6 +18,7 @@ import holdout.app.chain.Holdout
 import holdout.app.home.HoldoutOffer
 import holdout.app.home.RunningHoldoutCard
 import holdout.app.ui.Body
+import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
 import holdout.app.ui.Notice
 import holdout.app.ui.PrimaryButton
@@ -71,7 +72,7 @@ fun ConnectScreen(
             textAlign = TextAlign.Center,
         )
         Body("The Daily 25 — 25 push-ups, free, counted on this phone.", center = true)
-        Body("A Holdout — put SKR on it and finish with the cohort.", center = true)
+        Body("A Holdout — put SKR on it and finish with everyone who started with you.", center = true)
 
         if (now != null && live.isNotEmpty()) {
             SectionLabel("Live now")
@@ -92,7 +93,7 @@ fun ConnectScreen(
             }
         }
 
-        PrimaryButton(if (busy) "Waiting for the wallet…" else "Connect wallet", onConnect, busy = busy)
+        PrimaryButton(if (busy) Format.WAITING_FOR_WALLET else "Connect wallet", onConnect, busy = busy)
         Text("TEST NETWORK · TEST TOKEN", style = LabelStyle, color = HoldoutColors.TextTertiary)
         Notice(message, warning = true)
     }

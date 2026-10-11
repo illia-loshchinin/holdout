@@ -699,9 +699,11 @@ class StakesTest {
     @Test
     fun `the rule a member reads before staking names the placement and the knees`() {
         val rule = Stakes.STAKED_RULE.lowercase()
-        assertTrue("45" in rule && "not in front" in rule, "the placement")
+        assertTrue("45" in rule && "phone on the floor ahead of your shoulder" in rule, "the placement")
         assertTrue("toes" in rule && "knees" in rule, "the knees")
-        assertTrue("resting on the floor" in rule, "the floor: a rep resting on it does not count")
+        assertTrue("don't count" in rule, "a Habit rep from the knees does not count")
+        val spark = Stakes.EASY_RULE.lowercase()
+        assertTrue("45" in spark && "toes" in spark && "still count" in spark, "a Spark rep from the knees still counts")
     }
 
     private companion object {

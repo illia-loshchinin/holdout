@@ -49,6 +49,7 @@ import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
+import holdout.repcounter.Stakes
 import java.math.BigDecimal
 
 /** Amounts, times and the shared pieces every Holdout screen is built from. */
@@ -56,26 +57,96 @@ object Format {
     /** The mock SKR mint's decimals — `SKR_DECIMALS` in `initialize` (decision H31). */
     const val SKR_DECIMALS = 6
 
-    /** "Easy · 7-day Holdout", "Hard · 21-day Holdout": a Holdout's level is its form (H35). */
+    /** "Waiting for your wallet…": every button that is out with the wallet says so, in these words (ruling G7). */
+    const val WAITING_FOR_WALLET = "Waiting for your wallet…"
+
+    /** The level a form is read as: **Spark** (knees allowed) or **Habit** (toes only). The code's Easy/Hard stay internal (H35). */
+    fun levelName(form: Int): String = when (form) {
+        holdout.core.LeagueParams.FORM_KNEES_ALLOWED -> "Spark"
+        holdout.core.LeagueParams.FORM_TOES -> "Habit"
+        else -> holdout.core.LeagueParams.formName(form)
+    }
+
+    /**
+     * "Spark · 7-day Holdout", "Habit · 21-day Holdout": a Holdout's level is
+     * its form, and this is the one mention of it on a screen (design book, Naming).
+     */
     fun holdoutTitle(c: holdout.core.CohortSnapshot): String = "${level(c)} Holdout"
 
     /**
-     * "Easy · 7-day", "Hard · 21-day": the level and the length. Member copy
+     * "Spark · 7-day", "Habit · 21-day": the level and the length. Member copy
      * names a league's reserves by these, never by the word "league" (FR-041).
      */
-    fun level(c: holdout.core.CohortSnapshot): String = "${holdout.core.LeagueParams.formName(c.form)} · ${c.durationDays}-day"
+    fun level(c: holdout.core.CohortSnapshot): String = "${levelName(c.form)} · ${c.durationDays}-day"
+
+    /** "Light it up · knees allowed" / "Make it stick · toes only": the level's tagline, or null for a form this build does not know. */
+    fun levelTagline(form: Int): String? = when (form) {
+        holdout.core.LeagueParams.FORM_KNEES_ALLOWED -> "Light it up · knees allowed"
+        holdout.core.LeagueParams.FORM_TOES -> "Make it stick · toes only"
+        else -> null
+    }
+
+    fun levelTagline(c: holdout.core.CohortSnapshot): String? = levelTagline(c.form)
 
     /**
-     * Where a lost stake goes, in the sentence the stake sheet and the forfeit
-     * screen share (FR-027, FR-037, FR-041; decided 2026-10-10). [pool] names
-     * the prize pool as that screen sees it. A no-break space keeps every "%"
-     * on its number's line.
+     * The level's rule sentence, read the same everywhere it appears (design
+     * book, Levels; ruling G2). A Spark screen never shows the Habit sentence:
+     * the Holdout's own form picks it. Null for a form this build does not know.
+     * The words live once, in [Stakes].
      */
-    fun lostStakeSplit(c: holdout.core.CohortSnapshot, pool: String): String = "80 % of it stays with members: 70 % to $pool and 10 % to the boost and comeback reserves of ${level(c)} Holdouts. " +
-        "20 % goes to the project, and so does the prize pool if nobody finishes."
+    fun levelRule(form: Int): String? = when (Stakes.ofForm(form)) {
+        Stakes.EASY -> Stakes.EASY_RULE
+        Stakes.STAKED -> Stakes.STAKED_RULE
+        else -> null
+    }
 
-    /** `46 SKR`, `12.5 SKR`: every amount a member stakes or receives, in SKR (FR-059). */
-    fun skr(baseUnits: ULong): String = BigDecimal(baseUnits.toString()).movePointLeft(SKR_DECIMALS).stripTrailingZeros().toPlainString() + " SKR"
+    fun levelRule(c: holdout.core.CohortSnapshot): String? = levelRule(c.form)
+
+    /** `SPARK · 7-DAY · DAY 3 OF 7`: a running Holdout's header label (no calendar dates, constitution VI; ruling G3). */
+    fun headerLabel(c: holdout.core.CohortSnapshot, day: Int): String = "${level(c)} · day $day of ${c.durationDays}".uppercase()
+
+    /** `SPARK · 7-DAY · STARTS IN 2D 4H`: a Holdout in its lobby. */
+    fun lobbyHeaderLabel(c: holdout.core.CohortSnapshot, secondsToStart: Long): String = "${level(c)} · starts in ${countdown(secondsToStart)}".uppercase()
+
+    /** `SPARK · 7-DAY · FINISHED`: a Holdout that has run its length. */
+    fun finishedHeaderLabel(c: holdout.core.CohortSnapshot): String = "${level(c)} · finished".uppercase()
+
+    /**
+     * Where a lost stake goes, in the sentence the stake sheet shows (FR-027,
+     * FR-037, FR-041; decided 2026-10-10, shortened 2026-10-11; ruling G5).
+     * The level and length are the Holdout's own, and a no-break space keeps
+     * every "%" on its number's line.
+     */
+    fun lostStakeSplit(c: holdout.core.CohortSnapshot): String = "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% to ${level(c)} boosts and comebacks, " +
+        "20\u00a0% to the project. If nobody finishes, the pool goes to the project too."
+
+    /** The same split on the forfeit screen, under its **Stake lost** row (ruling G5). */
+    fun lostStakeSplitForfeit(c: holdout.core.CohortSnapshot): String = "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% to ${level(c)} boosts and comebacks, " +
+        "20\u00a0% to the project. If nobody finishes, the pool goes to the project too."
+
+    /** "Prize boost: up to 480 SKR", on an offer: "up to", never a promise (ruling G6). The card already names the level. */
+    fun boostLine(amount: ULong): String = "Prize boost: up to ${skr(amount)}"
+
+    /** "+ about 1,200 SKR boost if anyone finishes", on a running Holdout (design book, Real copy by moment). */
+    fun runningBoostLine(amount: ULong): String = "+ about ${skr(amount)} boost if anyone finishes"
+
+    /** On Today while a lost stake's 14-day window is open: "Get back up to 250 SKR of your lost stake: finish the Spark · 7-day starting in 2d 4h." */
+    fun comebackToday(amount: ULong, c: holdout.core.CohortSnapshot, startsInSeconds: Long): String = "Get back up to ${skr(amount)} of your lost stake: finish the ${level(c)} starting in ${countdown(startsInSeconds)}."
+
+    /** On the forfeit screen: "Finish a Habit · 21-day starting within 14 days: up to 250 SKR comes back." */
+    fun comebackForfeit(amount: ULong, c: holdout.core.CohortSnapshot): String = "Finish a ${level(c)} starting within 14 days: up to ${skr(amount)} comes back."
+
+    /** The claim's **Comeback** row note, under the amount. */
+    const val COMEBACK_CLAIM_NOTE = "part of your last lost stake, back"
+
+    /** `46 SKR`, `12.5 SKR`, `1,560 SKR`: every amount a member stakes or receives, in SKR, thousands grouped (FR-059). */
+    fun skr(baseUnits: ULong): String {
+        val plain = BigDecimal(baseUnits.toString()).movePointLeft(SKR_DECIMALS).stripTrailingZeros().toPlainString()
+        val whole = plain.substringBefore('.')
+        val fraction = plain.substringAfter('.', "")
+        val grouped = whole.reversed().chunked(3).joinToString(",").reversed()
+        return (if (fraction.isEmpty()) grouped else "$grouped.$fraction") + " SKR"
+    }
 
     /** The fiat label a chip carries — always approximate, never on-chain (FR-059, constitution XIII). */
     val TIER_USD = listOf(10, 25, 50, 100)

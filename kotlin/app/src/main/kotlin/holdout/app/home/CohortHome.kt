@@ -116,7 +116,7 @@ fun CohortHome(
             // drawn only at settlement and only if someone finishes.
             figures?.projectedBoost?.takeIf { it > 0uL }?.let {
                 Text(
-                    "+ about ${Format.skr(it)} boost from the reserve of ${Format.level(c)} Holdouts if anyone finishes",
+                    Format.runningBoostLine(it),
                     style = MaterialTheme.typography.bodyMedium,
                     color = HoldoutColors.TextSecondary,
                 )
@@ -166,7 +166,7 @@ fun CohortHome(
                     if (tap) {
                         PrimaryButton("Submit day ${stage.dayIndex + 1}", { onSubmit(stage.dayIndex) })
                     } else if (!offline) {
-                        PrimaryButton("Waiting for the wallet…", {}, busy = true)
+                        PrimaryButton(Format.WAITING_FOR_WALLET, {}, busy = true)
                     }
                 }
                 else -> {

@@ -90,7 +90,7 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems, Alignment.CenterVertically),
     ) {
         Text(
-            text = if (state.completedToday) "TODAY" else "TODAY'S CHALLENGE",
+            text = if (state.completedToday) "TODAY" else "THE DAILY 25",
             style = LabelStyle,
             color = HoldoutColors.TextTertiary,
         )
@@ -155,7 +155,7 @@ fun HomeScreen(
         if (state.streak > 0) {
             Text(
                 text = when (state.freezes) {
-                    0 -> "Seven days in a row earn a freeze for a missed day"
+                    0 -> "Seven days in a row give you a freeze for a missed day"
                     1 -> "1 freeze held — a missed day won't break the streak"
                     else -> "${state.freezes} freezes held — two missed days won't break the streak"
                 },
@@ -236,7 +236,7 @@ private fun ToesMeterCard(meter: ToesMeter.Meter, target: Int) {
             color = if (meter.hardDay(target)) HoldoutColors.Success else HoldoutColors.TextPrimary,
         )
         if (meter.hardDay(target)) {
-            Text("That's a Hard day.", style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.Success)
+            Text("That's a Habit day.", style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.Success)
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(4.dp),

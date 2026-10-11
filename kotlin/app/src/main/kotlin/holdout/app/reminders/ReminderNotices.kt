@@ -48,7 +48,7 @@ object ReminderNotices {
     }
 
     /** "7-day Holdout", and for the short test cohort its day length too. */
-    fun holdoutLabel(days: Int, test: Boolean, dayLength: Long): String = "$days-day Holdout" + if (test) " · short test cohort, ${Format.dayLength(dayLength)} days" else ""
+    fun holdoutLabel(days: Int, test: Boolean, dayLength: Long): String = "$days-day Holdout" + if (test) " · short test Holdout, ${Format.dayLength(dayLength)} days" else ""
 
     /** The finished notice (FR-068b): *"You finished your 7-day Holdout"*, with the test cohort's label. */
     fun finishedTitle(days: Int, test: Boolean, dayLength: Long): String = "You finished your ${holdoutLabel(days, test, dayLength)}"
