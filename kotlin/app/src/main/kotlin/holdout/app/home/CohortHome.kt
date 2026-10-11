@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import holdout.app.chain.Holdout
 import holdout.app.ui.Body
 import holdout.app.ui.ChainCheckBox
+import holdout.app.ui.ChainUnreachable
 import holdout.app.ui.CheckAgain
 import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
@@ -136,6 +137,8 @@ fun CohortHome(
             }
             when {
                 stage.todayDone -> {
+                    // Nothing else here says so: the counter and pool are an earlier read (spec 005 US2).
+                    if (offline) ChainUnreachable(checking, stillUnreachable, onCheck)
                     Text("Today is done and on chain.", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
                     timeLeft?.let { Body("Next day opens in ${Format.countdown(it)}.") }
                 }

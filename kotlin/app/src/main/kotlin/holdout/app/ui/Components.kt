@@ -183,25 +183,28 @@ fun Reading(content: @Composable () -> Unit) {
 /**
  * "Check again" while the chain can't be reached (spec 005,
  * contracts/check-again-ui.md): a secondary button, busy while the check is
- * out, and "Devnet still can't be reached." under it once a check found it so.
- * Shown only while the last chain read failed; the caller decides that.
+ * out, and "Devnet still can't be reached." under it, in the warning colour of
+ * the line it answers, once a check found it so. Shown only while the last
+ * chain read failed; the caller decides that.
  */
 @Composable
 fun CheckAgain(checking: Boolean, stillUnreachable: Boolean, onCheck: () -> Unit, modifier: Modifier = Modifier, network: String = Deployment.networkName) {
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.tight), horizontalAlignment = Alignment.CenterHorizontally) {
         SecondaryButton(if (checking) CheckAgainCopy.checking(network) else CheckAgainCopy.BUTTON, onCheck, busy = checking)
-        if (stillUnreachable && !checking) Notice(CheckAgainCopy.stillUnreachable(network))
+        if (stillUnreachable && !checking) Notice(CheckAgainCopy.stillUnreachable(network), warning = true)
     }
 }
 
 /**
- * A screen that says nothing else about the chain — a Holdout's details, the
- * forfeit — says it can't be reached in one line, with [CheckAgain] (spec 005 FR-002).
+ * A screen that says nothing else about the chain — the home showing an
+ * earlier read, a Holdout's details, the forfeit — says it can't be reached in
+ * one line above [CheckAgain] (spec 005 FR-002). The line itself answers a
+ * failed check ("…still can't be reached."), so nothing moves on the screen.
  */
 @Composable
 fun ChainUnreachable(checking: Boolean, stillUnreachable: Boolean, onCheck: () -> Unit, network: String = Deployment.networkName) {
-    if (!stillUnreachable || checking) Notice(CheckAgainCopy.unreachable(network), warning = true)
-    CheckAgain(checking, stillUnreachable, onCheck, network = network)
+    Notice(if (stillUnreachable) CheckAgainCopy.stillUnreachable(network) else CheckAgainCopy.unreachable(network), warning = true)
+    CheckAgain(checking, stillUnreachable = false, onCheck = onCheck, network = network)
 }
 
 /**

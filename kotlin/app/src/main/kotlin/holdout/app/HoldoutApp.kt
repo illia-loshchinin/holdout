@@ -56,6 +56,7 @@ import holdout.app.streak.OfflineDays
 import holdout.app.streak.StreakStore
 import holdout.app.tour.TourScreen
 import holdout.app.ui.ChainCheckBox
+import holdout.app.ui.ChainUnreachable
 import holdout.app.ui.CheckAgain
 import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
@@ -803,6 +804,8 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                     }
                     return@HomeScreen
                 }
+                // An earlier read, shown while the chain can't be reached: said so, with Check again (spec 005 US2).
+                if (chain.offline) ChainUnreachable(chain.check.checking, chain.check.stillUnreachable, { checkChain(null) })
                 if (view.config == null) {
                     SectionLabel("Holdouts are not live on devnet yet")
                     return@HomeScreen
