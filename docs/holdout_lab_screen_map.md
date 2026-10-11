@@ -6,6 +6,8 @@
 
 **Visual base (decided 2026-10-10):** the same design system as the member app, the same sitting screen, plus an explicit **LAB marker** so a tester always knows which app is open: the name *Holdout Lab*, its own icon, and a `LAB` chip on the Choose screen. Lab is never shown to members, so nothing here changes what a member sees.
 
+> **Naming (2026-10-11).** Lab is a tester tool, so its rows keep the testers' wording: **Easy Holdout** and **Hard Holdout** name the two counting rules (`Stakes.EASY`, `Stakes.STAKED`). **Members read Spark · 7-day and Habit · 21-day**, never Easy or Hard (constitution 2.3.1); the member app's map `holdout_screen_map.md` is where those names live.
+
 > **Precedence.** This file describes screens; it decides no mechanic. Where it disagrees with spec 004, spec 002 (FR-023, FR-025, FR-026) or constitution X, they are right and this file is a bug. Behaviour is checked against `kotlin/app/src/lab/` and `kotlin/app/src/main/kotlin/holdout/app/sitting/` at commit `478cd44`.
 
 ## Contents

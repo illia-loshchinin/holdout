@@ -1,10 +1,12 @@
 # Holdout — demo video, recording workflow and beta test
 
-**Version:** 1.0 · **Date:** 2026-09-17 · **Status:** production companion to the spec
+**Version:** 1.1 · **Date:** 2026-10-11 (shot list and screen coverage moved to the four-tab app as built; v1.0 2026-09-17) · **Status:** production companion to the spec
 
 Companion to `specs/001-holdout-hackathon/spec.md` (FR-044, FR-066), research R18 and the plan's delivery sequence. The spec says *what* the walkthrough is; this file says *what is in it, how it is filmed, and who is in the cohort while it is filmed*.
 
-**Everything here is filmed on cohort #3** — the first judged 7-day cohort, 28 September to 5 October 2026, on the judged devnet program. No rehearsal footage, no shortened days, no mock-ups (H14).
+> **What changed on 11 October.** §1–§3 now follow the app as built: the bottom bar *Today · Standing · Holdouts · Me*, the four-card tour, Holdout's own signing screens, *You're in*, the stake sheet with the Seeker check, and the levels **Spark · 7-day** and **Habit · 21-day**. Screen IDs (T1, H2, N1 …) are the cards of `docs/holdout_screen_map.md`. **§4–§10 still describe the 17 September plan** (a judged cohort #3 from 28 September, a 9 October submission, nothing shortened); the submission is now **13 October 2026, 01:59 CEST**, the in-app walkthrough is gone (spec 004), and the video may be recorded from the short test lobby (constitution 2.0.2, FR-044a). Those sections need the owner's call and are left as they were.
+
+**Everything here was planned to be filmed on cohort #3** — the first judged 7-day cohort, 28 September to 5 October 2026, on the judged devnet program. No rehearsal footage, no shortened days, no mock-ups (H14).
 
 ---
 
@@ -12,56 +14,54 @@ Companion to `specs/001-holdout-hackathon/spec.md` (FR-044, FR-066), research R1
 
 | Output | Format | Where it goes |
 |---|---|---|
-| **Demo video** | 16:9, 1080p, about 3:00 | The submission, due 9 October 08:59 CEST. Judges score completion from it (FR-066) |
-| **In-app walkthrough — for judges** | 9:16, 720×1280, ~1.5 Mbps, ≈ 34 MB | Bundled in the final APK, played with Media3 ExoPlayer. Lives in About plus a quiet connect-screen link, and plays **without a wallet** (FR-001a, H29) |
-| **Short explainer** | 9:16, ≤ 45 s, cut from the same footage | Card 2 of the first-run tour (FR-067). Ships in the same 7 October video drop; until then the tour is cards only |
-
-Both are cut from the same footage. Until they exist, the app says "Walkthrough recording in progress".
+| **Demo video** | 16:9, 1080p, about 3:00 | The submission, sent as a link. Judges score completion from it (FR-066) |
+| ~~**In-app walkthrough — for judges**~~ | — | Removed 9 October (spec 004, constitution 2.1.0): nothing in the app is for judges only, and the app plays no video |
+| **Short explainer** | 9:16, ≤ 45 s, cut from the same footage | Joins the tour once it exists (FR-067); until then the four cards carry it alone, and no mock-up footage is ever used (FR-044) |
 
 ## 2. Storyboard — 3:00
 
-Screen numbers are the hackathon PRD's screen inventory (§10.1 of `docs/archive/holdout_v1_prd_hackathon-build_2026-09-18.md`, archived); the same screens as built are the cards in `docs/holdout_screen_map.md`.
+Screen IDs are the cards in `docs/holdout_screen_map.md` (§5), as built; the old PRD numbers they replace are in brackets.
 
 | Time | Beat | On screen | Filmed |
 |---|---|---|---|
-| 0:00–0:08 | **Cold open** | Split screen: real push-ups beside the counting screen (8), a block banking | A sitting, 30 Sep – 3 Oct |
-| 0:08–0:20 | **The number** | Home (4): "14 / 20 still standing", prize rising | Home screen, day 4 |
-| 0:20–0:32 | **Open it cold** | App icon tapped → Welcome (1) → Connect wallet (2), with a glimpse of the no-wallet variant → Disclosure (3) | Fresh install, any day |
-| 0:32–0:44 | **Funding from zero** | Get test tokens (3a): one tap, test SKR and fee SOL arrive | A brand-new wallet |
-| 0:44–0:56 | **The free tier** | Ladder (5): Daily 25 as the primary action, streak, two staked leagues | 27 Sep |
-| 0:56–1:12 | **Stake** | Stake confirm (6): chips $10–$100 with their SKR amounts, "if nobody drops out you get exactly your stake back", wallet approval | 27 Sep |
-| 1:12–1:22 | **Lobby and lock** | Lobby (7) counting down → locked variant, roster final | 27 Sep, then 28 Sep 04:00–05:00 UTC |
-| 1:22–1:52 | **A day's reps** | Sitting (8) end to end: home → five pre-flight pills → the start position held → countdown → counting, with one rep rejected → "20 banked" → day complete → submitted | The best sitting, 28 Sep – 4 Oct |
-| 1:52–2:06 | **The crowd thins** | Day-by-day time-lapse of Home (4); Roster (12) with scripted members labelled; Cohort detail (11) | Daily captures at about 05:05 UTC |
-| 2:06–2:16 | **A forfeit** | Forfeit screen (9) on the second phone: stake gone, streak alive, two ways back | 30 Sep, after the day-2 deadline |
-| 2:16–2:36 | **Settle and claim** | Settlement at 05:00 UTC → Claim (10) → wallet approval → SKR balance rises → the transaction in a block explorer | 5 Oct |
+| 0:00–0:08 | **Cold open** | Split screen: real push-ups beside the counting screen (S5), a block banking | A sitting |
+| 0:08–0:20 | **The number** | Today in a Holdout (T2, was Home 4): "14 / 20 still standing", prize rising, *▲ 3 dropped since yesterday* | The Today tab, day 4 |
+| 0:20–0:32 | **Open it cold** | App icon tapped → Connect wallet (A1, with a glimpse of the no-wallet variant A3) → the wallet's approval → the tour, four cards, ending on card 4 *Scripted members* (B1, B2) | Fresh install, any day |
+| 0:32–0:44 | **Funding from zero** | Me (W1) → **Get test tokens** → the faucet sheet (W1a): one tap, test SKR and fee SOL arrive | A brand-new wallet |
+| 0:44–0:56 | **The free tier** | Today with no Holdout (T1, was Ladder 5): the Daily 25 as the primary action, the streak flame, **Spark · 7-day** and **Habit · 21-day** open to join | The day before a Holdout starts |
+| 0:56–1:12 | **Stake** | **Join** → the stake sheet over Today (H2): the Seeker check, chips ≈ $10–≈ $100 with their SKR amounts, "If nobody drops out, you get exactly your stake back.", the fee sentence → **Stake** → *Waiting for your wallet…* (N1) → the checklist → **You're in** (H2a) | The day before a Holdout starts |
+| 1:12–1:22 | **Lobby and lock** | **See the lobby** (H3) counting down → the locked variant, roster final (H5) | The day before the start, then the last hour |
+| 1:22–1:52 | **A day's reps** | Today (T2) → **Start today's 25** → camera permission (S1) → set-up guide (S2) → five pre-flight pills and the start position held (S3) → countdown (S4) → counting, with one rep refused (S5) → "20 banked" → day complete (S6) → **Submit day N** → *Waiting for your wallet…* → confirming → Today, *Today is done and on chain.* | The best sitting |
+| 1:52–2:06 | **The crowd thins** | Day-by-day time-lapse of Today (T2); the Standing tab (H4) with the thinning chart; the roster (H5) with scripted members labelled | Daily captures at about 05:05 UTC |
+| 2:06–2:16 | **A forfeit** | The forfeit screen (H6) on the second phone: stake lost, streak alive, the way back | After a missed deadline |
+| 2:16–2:36 | **Settle and claim** | Standing → *You finished · settling* (H4) → Holdouts tab card → Claim (H7) → *Waiting for your wallet…* → **CLAIMED** (N1) → SKR balance rises (Me) → the transaction in a block explorer | The settlement |
 | 2:36–2:48 | **Why it holds** | Diagram card: the program decides, deadlines from chain time, anyone can run settlement, pose detection on the phone | Card |
-| 2:48–3:00 | **Honest close** | End card: devnet and test SKR, scripted members labelled, weaknesses in the README, the real tester count and survival rate, next cohort Monday | Card |
+| 2:48–3:00 | **Honest close** | End card: devnet and test SKR, scripted members labelled, weaknesses in the README, the real tester count and survival rate | Card |
 
 ## 3. Screen coverage
 
-Every Phase 1 screen appears at least once. Tick each one before the edit is locked.
+Every screen appears at least once. Tick each one before the edit is locked.
 
-| Screen (PRD §10.1) | Where |
+| Screen (map ID) | Where |
 |---|---|
-| 1 Welcome | 0:20 |
-| 2 Connect wallet, incl. no-wallet variant | 0:20 |
-| 3 Disclosure of scripted members | 0:28 |
-| 3a Get test tokens | 0:32 |
-| 4 Home — challenge variant | 0:44 |
-| 4 Home — cohort variant | 0:08, 1:52 |
-| 4 Home — "Done — tap to submit" | 1:48, a short cut |
-| 5 League ladder | 0:44 |
-| 6 Stake confirm | 0:56 |
-| 7 Lobby, and the locked variant | 1:12 |
-| 8 Sitting — all sub-states | 1:22–1:52 |
-| 9 Forfeit | 2:06 |
-| 10 Claim, and claimed | 2:16–2:36 |
-| 11 Cohort detail | 2:00 |
-| 12 Roster with labels | 1:56 |
-| Daily 25 and streak | 0:44 |
-
-Screen 13 is the walkthrough player itself and is not filmed.
+| A1 Connect wallet, incl. the no-wallet variant A3 | 0:20 |
+| B1 Tour, four cards, B2 Scripted members (card 4) | 0:26 |
+| W1 Me, W1a test tokens sheet | 0:32 |
+| T1 Today — Daily 25 and Holdouts to join | 0:44 |
+| T2 Today — in a Holdout | 0:08, 1:52 |
+| T2 — "Done — tap to submit" | 1:48, a short cut |
+| H2 Stake sheet with the Seeker check | 0:56 |
+| N1 Waiting for your wallet → confirming → result (join, submit, claim) | 1:04, 1:48, 2:20 |
+| H2a You're in | 1:08 |
+| H3 Lobby, and the locked variant | 1:12 |
+| S1–S6 Sitting — all sub-states | 1:22–1:52 |
+| H4 Holdout detail (Standing), thinning chart and *settling* | 2:00, 2:16 |
+| H5 Roster with labels | 1:56 |
+| H0 My Holdouts | 2:20 |
+| H6 Forfeit | 2:06 |
+| H7 Claim, and claimed | 2:16–2:36 |
+| L1 Leaderboards (optional) | 2:00 |
+| Daily 25 and streak (T1, S6) | 0:44 |
 
 ## 4. Filming method
 
