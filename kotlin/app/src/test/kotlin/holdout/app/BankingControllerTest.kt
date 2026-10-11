@@ -11,7 +11,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
-/** T051 — banking in blocks of ten (FR-024, FR-023, PRD §8.6). */
+/** T051 — banking in blocks of ten (FR-024, FR-023, AC-15). */
 class BankingControllerTest {
 
     private val wallet = "Ho5vmods3ZvjAegHJ8mZTnDa1zbp2Rw4HDNy8Ni2bjfU"

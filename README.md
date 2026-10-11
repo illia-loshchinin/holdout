@@ -4,7 +4,7 @@
 
 Solana Mobile fitness commitment dApp. Built for the CLOCK IN hackathon, submission due 13 Oct 2026, 01:59 CEST (12 Oct, 23:59 UTC); judging runs 13 Oct – 9 Nov 2026.
 
-**Devnet only, mock SKR mint — a test network with a test token.** No stake, prize or token touches mainnet or real value; the one mainnet contact is a read of members' public Seeker ID names, for display only (see Known weaknesses).
+**Devnet only, mock SKR mint — a test network with a test token.** No stake, prize or token touches mainnet or real value; the app's only mainnet contact is two reads: members' public Seeker ID names, for display only, and the connected wallet's Seeker Genesis Token, before a join (see Known weaknesses).
 
 ## What it is
 
@@ -13,8 +13,10 @@ Solana Mobile fitness commitment dApp. Built for the CLOCK IN hackathon, submiss
 | Layer | |
 |---|---|
 | The Daily 25 | Free, every day, for everyone. Builds a personal streak. Unlocks nothing, pays nothing, and a forfeit doesn't break it. |
-| 7-day Holdout | Staked, **Easy**: seven days, knee push-ups count. Open to everyone, always. |
-| 21-day Holdout | Staked, **Hard**: twenty-one days, from the toes. Open to everyone, always. |
+| 7-day Holdout | Staked, **Easy**: seven days, knee push-ups count. Open at all times to any wallet holding a Seeker Genesis Token. |
+| 21-day Holdout | Staked, **Hard**: twenty-one days, from the toes. Open at all times to any wallet holding a Seeker Genesis Token. |
+
+Staking is Seeker-exclusive (FR-003b). The Daily 25 stays open to everyone.
 
 The two Holdouts are separate leagues for different people, not rungs of a ladder: neither unlocks the other, and nothing earned in one is needed for the other (FR-003).
 
@@ -33,10 +35,10 @@ Named here on purpose (constitution XI). Each has its real fix beside it.
 | What | Why it is like this | Real fix |
 |---|---|---|
 | Devnet with a mock SKR mint | Hackathon build; no real value at stake | Mainnet with real SKR |
-| Seeker ID names are read from Solana mainnet | Seeker IDs (.skr names) exist only on mainnet; the app reads them, for display only, from the public mainnet RPC, while everything else runs on devnet. Members without one, scripted members included, are shown by shortened address | Nothing to fix for display: on mainnet the same lookup reads the same network. A dedicated RPC provider would make first-time lookups of large lists faster |
+| Seeker ID names and the Seeker Genesis Token are read from Solana mainnet | Seeker IDs (.skr names) and Seeker Genesis Tokens exist only on mainnet. The app reads both from the public mainnet RPC: Seeker ID names for display only, and the wallet's Seeker Genesis Token before a join. Everything else runs on devnet. Members without a Seeker ID, scripted members included, are shown by shortened address | Nothing to fix for the names: on mainnet the same lookup reads the same network. At mainnet launch the contract checks the Seeker Genesis Token itself (see the Seeker-exclusive row). A dedicated RPC provider would make first-time lookups of large lists faster |
 | "Stake back" is true in SKR, not in dollars | Everything is SKR-denominated with no oracle in the contract | A known property of SKR-native staking, stated in the app |
-| `genesis_gate_enabled = false` | Testers have no Seeker | Flip the flag on mainnet |
-| Non-default `day_seconds` for test cohorts — a **short test lobby kept running on devnet**, labelled and open to anyone, from which the demo video is recorded | Lets a single person run a whole cycle alone: three 10-minute days, a new cohort every 30 minutes (FR-044a, H36). Only one test league runs at a time, since streaks are written when a cohort is counted and two test leagues of different lengths could count a member's outcomes out of order on the combined test board | Admin-guarded; real cohorts always use 24 hours |
+| Staking is Seeker-exclusive, but on devnet the app enforces it, not the contract (`genesis_gate_enabled = false`) | Seeker Genesis Tokens exist only on mainnet, so the app checks the wallet's token on mainnet before it offers a join; a wallet that signs a join without the app is not stopped, and a wallet confirmed once is remembered on that phone | Two steps at mainnet launch: turn the flag on, and have the app send the member's Seeker Genesis Token account and its mint as `join_cohort`'s remaining accounts. The contract then checks the token on every join; that check is already written and tested |
+| Non-default `day_seconds` for test cohorts — a **short test lobby kept running on devnet**, labelled and open to every Seeker owner, from which the demo video is recorded | Lets a single person run a whole cycle alone: three 10-minute days, a new cohort every 30 minutes (FR-044a, H36). Only one test league runs at a time, since streaks are written when a cohort is counted and two test leagues of different lengths could count a member's outcomes out of order on the combined test board | Admin-guarded; real cohorts always use 24 hours |
 | A completed day's proof is client-signed | No backend in the build | Server-side attestation signer with pinned traces |
 | Reps banked during the day (in blocks of 10), and a completed day waiting for network, live only on the phone | No wallet prompt mid-workout; a lost phone loses that day's partial progress, and a rooted phone could edit it. A day finished offline counts only if it reaches the network before the deadline | Covered by the attestation fix; cross-device progress later |
 | Knee push-ups count in the Daily 25 and in Easy Holdouts, by design | The Daily 25 and Easy Holdouts **count push-ups from the knees on purpose** — a free habit, and a 7-day Holdout, for building strength; only Hard Holdouts refuse them. Every sitting is counted at 45° since 8 Oct, and the Daily 25 is held to the Easy set-up: until then it also accepted the phone head-on, where the legs and hips point into the lens and knee angle, knee and ankle height, hip height, torso angle and body line all read the same for knee push-ups as for honest ones (`fixtures/rep-traces/front-knees-01`), so it counted there what a Holdout refuses | Nothing to fix for the knees: the Daily 25 shows how many of the day's reps came from the toes, so a member can see how far they are from Hard |
@@ -47,7 +49,7 @@ Named here on purpose (constitution XI). Each has its real fix beside it.
 | Stake chips (≈ $10 / $25 / $50 / $100) are priced in SKR by the Operator from an off-chain rate — **a trusted input**: by hand at launch, then re-priced every week, in the 4 hours before the week's cohorts open, by the Operator's `crank chips publish --auto`, which reads the **Jupiter Price API** (mainnet SKR mint) | The contract must never read a price | On-chain chip governance before real value is at stake |
 | Cohorts are filled by real members first; scripted members — real wallets under the same contract rules, whose forfeits fund real prizes and whose completed days are **not camera-verified** — top a cohort up only to a minimum (20 members in a 7-day cohort, 12 in a 21-day one) | A cohort must never be empty when someone installs the app during judging | Disclosed here, in the app, in the demo video and in the pitch deck; their addresses are published in the build and every scripted member is labelled wherever it appears |
 | A wallet is required before anything, even the Daily 25 | One identity from the first tap; guest mode was considered and dropped | The connect screen says how to get a wallet; the demo video, sent with the submission, shows the whole product without one |
-| The full cycle is shown in the demo video, not inside the app | Nobody can wait 7 days to see a settlement; the submission is the app's final state, so it carries no recording or section for judges | The video is a recording of the real app against the real devnet contract, on a labelled short test Holdout, which anyone can also join and run in about half an hour |
+| The full cycle is shown in the demo video, not inside the app | Nobody can wait 7 days to see a settlement; the submission is the app's final state, so it carries no recording or section for judges | The video is a recording of the real app against the real devnet contract, on a labelled short test Holdout, which any wallet holding a Seeker Genesis Token can also join and run in about half an hour |
 | The faucet's fee sponsor key ships inside the app | A wallet with zero SOL cannot pay for its own first transaction, and there is no server to sign for it | Anyone can extract the key, and empty the 0.05 SOL float it holds, so the contract bounds that instead of assuming it will not happen: one claim per wallet a day, a single daily budget of 0.72 SOL covering **every** lamport that leaves the faucet — top-ups and reimbursements alike — and a permissionless refill, so a drained sponsor is restored by the next crank pass rather than ending onboarding. Real fix: no faucet on mainnet, or a rate-limited relayer |
 | The program keeps its upgrade authority during judging | A defect found while cohort #3 holds real test stakes must be fixable | Used only for defect fixes that change no existing cohort, account layout or fund movement. Real fix: revoke the authority once the contract is final |
 | The fee funds reserves, a developer share and operations by rule, but the developer and operations shares are ordinary wallets | Of every forfeited stake, 5% and 5% go to the league's boost and comeback reserves, which only the program can move, and 10% and 10% to the developer and operations wallets named in this README (H35; re-split 2026-10-09). What those two wallets then do with it is not enforced by the contract | Publish both wallets' addresses and their spending; later, move operations spending on chain or under a multisig |
@@ -59,16 +61,16 @@ Named here on purpose (constitution XI). Each has its real fix beside it.
 
 | Path | |
 |---|---|
-| `.specify/memory/constitution.md` | The principles every phase is checked against (v1.3.1). Read first. |
-| `specs/001-holdout-hackathon/spec.md` | The feature spec — what and why, no stack. Clarified; ready for planning. |
-| `docs/holdout_decisions.md` | Decision record H1–H30: why the build is what it is, what was rejected, what is still open. Read before changing the mechanic. |
-| `docs/holdout_demo_video.md` | The demo video and in-app walkthrough: storyboard, screen checklist, recording workflow, filming calendar and the beta-test plan. |
-| `docs/holdout_setup_runbook.md` | The steps only a human can do: toolchain, keys, devnet SOL, the domain, the two hardware spikes and the beta testers. Start here to unblock the app. |
-| `docs/holdout_scope_and_state_machines.md` | Scope cut, decisions D-A…D-I, state machines and edge cases, synced to the spec. Read before coding. |
-| `docs/holdout_v1_prd.md` | Product requirements for this build: screens, copy, verification rules, settlement math and test vectors. Adds detail to the spec, never scope. |
-| `docs/archive/` | The full post-hackathon vision — the original PRD and its decision record — kept for the pitch. Not the build. |
+| `.specify/memory/constitution.md` | The principles every phase is checked against (v2.2.0). Read first. |
+| `specs/001-holdout-hackathon/spec.md` | The product spec: what and why, no stack. With `002-rep-placement-rules`, `003-seeker-id-names` and `004-lab-and-member-apps` it is the only description of what is built. Changed only through the `/speckit-*` skills. |
+| `docs/holdout_decisions.md` | Decision record H1–H37: why the build is what it is, what was rejected, what is still open. Read before changing the mechanic. |
+| `docs/holdout_screen_map.md` · `docs/holdout_lab_screen_map.md` | Every screen of the member app and of Holdout Lab as built: what it shows, where it leads, what is still to draw or to build. |
+| `docs/design/` | The design book: tokens, components and copy rules, mirrored from the design-system artifact. The Compose rules that use it are the `holdout-ui` skill. |
+| `docs/holdout_setup_runbook.md` | The steps only a human can do: toolchain, keys, devnet SOL, the domain and the release keystore, labelled rep-counter sets on real video, testers. |
+| `docs/holdout_demo_video.md` | The demo video for the submission: storyboard, shot list and recording workflow, and the testers' onboarding note (§9). |
+| `docs/archive/` | The hackathon PRD (v2.7, 18 September), kept unmaintained because the screen maps cite its screen numbers. Not a source. |
 
-When documents disagree: constitution → spec → decision record → scope doc → PRD.
+When documents disagree: constitution → spec → decision record. The screen maps, the design book and the runbook describe; they decide nothing.
 
 ## Workflow
 

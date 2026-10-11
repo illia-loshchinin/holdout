@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import holdout.app.chain.Holdout
 import holdout.app.ui.Body
@@ -86,6 +87,7 @@ fun StakeSheet(
                 Column(
                     modifier = Modifier
                         .weight(1f)
+                        .clip(MaterialTheme.shapes.medium)
                         .background(if (selected) HoldoutColors.Surface3 else HoldoutColors.Surface1, MaterialTheme.shapes.medium)
                         .border(BorderStroke(1.dp, if (selected) HoldoutColors.Accent else HoldoutColors.Hairline), MaterialTheme.shapes.medium)
                         .clickable { tier = i }

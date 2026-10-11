@@ -19,7 +19,7 @@ Work follows the spec's phasing (spec §3a): **Phase 1** is the full loop and mu
 - **Android app** — generated from the Solana Mobile CLI's **Kotlin Compose Minimal** template (R3):
   - **Build:** AGP 9.3.2 with Gradle 9.7.1; Compose BOM 2026.08.00.
   - **Solana:** `mobile-wallet-adapter-clientlib-ktx` 2.2.0, `web3-solana` 0.3.1, `multimult` 0.2.6, plus `rpc-core` (version pinned at scaffold).
-  - **Camera and device:** MediaPipe Tasks Vision (Pose Landmarker, Hand Landmarker), CameraX, MMKV for Android (R4–R6). *(Media3 ExoPlayer dropped 2026-10-09 with the in-app walkthrough, R18.)*
+  - **Camera and device:** MediaPipe Tasks Vision (Pose Landmarker), CameraX, MMKV for Android (R4–R6). *(Hand Landmarker dropped 2026-09-22 with the palm check, T047, R5.)* *(Media3 ExoPlayer dropped 2026-10-09 with the in-app walkthrough, R18.)*
 - **Tests:** `@solana/kit` with `@solana/kit-plugin-litesvm` (LiteSVM 1.3.x) and a Codama-generated Kit client; a Surfpool smoke suite before deploys (R2).
 - **Crank:** `kotlin/core` (`web3-solana`, `rpc-core`) plus a CLI argument parser (R12).
 
@@ -28,7 +28,7 @@ Work follows the spec's phasing (spec §3a): **Phase 1** is the full loop and mu
 - **Device:** MMKV key-value records for banked reps, pending submissions, streak and cached chain time (data-model §4). No server database.
 
 **Testing**:
-- **Program:** `cargo test` for the pure settlement math (PRD §19 vectors V1–V22 plus property tests); Kit + LiteSVM integration tests for every scenario, including the randomised INV-1…INV-9 suite at 1,000 members; a Surfpool smoke run (`anchor test`) with time travel before each devnet deploy.
+- **Program:** `cargo test` for the pure settlement math (the vectors V1–V22 and the reserve vectors in `fixtures/settlement-vectors.json`, which govern, first drawn from the archived PRD §19, plus property tests); Kit + LiteSVM integration tests for every scenario, including the randomised INV-1…INV-9 suite at 1,000 members; a Surfpool smoke run (`anchor test`) with time travel before each devnet deploy.
 - **Kotlin:** JUnit 5 for `core` (golden fixture replay) and `repcounter` (recorded landmark traces, including cheats); Compose UI tests for key screens.
 - **Manual device checks:** quickstart §8.
 
@@ -75,10 +75,10 @@ No `NEEDS CLARIFICATION` items remain — all are resolved in [research.md](rese
 | **VIII. Idempotent, chunkable automation** | Safe twice, safe paged, two callers harmless | PASS | Per-membership state and `counted` flags; pages in any order; permissionless (R9, FR-030a) |
 | **IX. Every state has a screen** | Each state reachable in UI or provably unreachable | PASS | State → screen table in contracts/android-app §5, first-run tour (FR-067) and the About/judges route included |
 | **X. Camera frames never leave the device** | No upload, persistence or server inference | PASS | Network egress limited to RPC and the local wallet (contracts/android-app §2); no `RECORD_AUDIO`; AC-10 traffic check |
-| **XI. Weaknesses documented** | Everything faked, stubbed, flagged or trusting is named in the README | PASS — **action required** | Two trust gaps the README must name, with their fixes: the faucet's fee **sponsor key ships in the APK** (R13), and the **program upgrade authority** is kept (R14). The demo video and pitch deck must not hide them (follow-ups below) |
-| **XII. The build demonstrates itself** | Live populated cohort any day of the live period; free challenge immediately; scripting disclosed in app, README, demo video and deck | PASS | Permissionless weekly opening; crank every 10 min; real members first, with scripted wallets filling each cohort only to its floor (R12); faucet funded to 11 November (R13); the full cycle shown in the demo video, sent as a link, and runnable by anyone on the short test lobby (R18, FR-044, FR-044a; amended 2026-10-09) |
+| **XI. Weaknesses documented** | Everything faked, stubbed, flagged or trusting is named in the README | PASS — **action required** | Two trust gaps the README must name, with their fixes: the faucet's fee **sponsor key ships in the APK** (R13), and the **program upgrade authority** is kept (R14). A third since 2026-10-10 (constitution v2.3.0, R17): on devnet the **Seeker-exclusive gate is the app's**, not the contract's, until the flag is turned on at mainnet. The demo video and pitch deck must not hide them (follow-ups below) |
+| **XII. The build demonstrates itself** | Live populated cohort any day of the live period; free challenge immediately; scripting disclosed in app, README, demo video and deck | PASS | Permissionless weekly opening; crank every 10 min; real members first, with scripted wallets filling each cohort only to its floor (R12); faucet funded to 11 November (R13); the full cycle shown in the demo video, sent as a link, and runnable by anyone with a Seeker on the short test lobby (R18, FR-044, FR-044a; amended 2026-10-09). Since v2.3.0 a wallet without a Seeker Genesis Token still sees every live Holdout thin and does the Daily 25 at once; only joining is refused, with the reason and the Seeker store link (FR-003c, R17) |
 | **XIII. Honest language** | "Prize"; no money on leaderboards; fiat approximate; test network stated | PASS | Copy per PRD §13; roster and boards carry no amounts (contracts/android-app §6) |
-| **Hackathon constraints** | Devnet only; signed APK, no store listing; named flags; submission deliverables by 13 October 01:59 CEST; upgrade authority for defect fixes only; out-of-scope list; leaderboards on-chain only | PASS | Flags in `Config`; Phase 2 built after Phase 1, no date gate; test leagues confined to `test-leagues` builds and a separate rehearsal deployment; GitHub repository judges can clone, pushed from the first commit; deliverables and final APK in the delivery sequence; upgrade rule in R14 |
+| **Hackathon constraints** | Devnet only; signed APK, no store listing; named flags; submission deliverables by 13 October 01:59 CEST; upgrade authority for defect fixes only; out-of-scope list; leaderboards on-chain only | PASS | Flags in `Config`; `genesis_gate_enabled` now has its check written behind it (R17, v2.3.0), off on devnet, where staking is kept Seeker-exclusive by the app; Phase 2 built after Phase 1, no date gate; test leagues confined to `test-leagues` builds and a separate rehearsal deployment; GitHub repository judges can clone, pushed from the first commit; deliverables and final APK in the delivery sequence; upgrade rule in R14 |
 | **Development workflow** | Stack in the plan, not the spec; risk spikes before implementation | PASS | Spec unchanged; spikes S1–S3 are the first delivery step |
 
 **Gate result: PASS.** No violations; nothing needs complexity justification.
@@ -120,6 +120,7 @@ programs/holdout/
     │                               # top_up_sponsor, join_cohort, leave_cohort,
     │                               # submit_day, claim_payout
     ├── math/                       # settlement.rs, schedule.rs — pure, no Anchor types
+    ├── genesis.rs                  # SEEKER_GENESIS_GROUP, Seeker Genesis Token check over account bytes (R17)
     ├── guards.rs                   # in_breach, status, slot normalisation, gates
     ├── events.rs
     └── errors.rs
@@ -147,15 +148,17 @@ kotlin/                             # Gradle root generated by `npx solana-mobil
 ├── settings.gradle.kts             # include(":app", ":core", ":repcounter", ":crank")
 ├── gradle/libs.versions.toml       # the only place versions live
 ├── core/                           # JVM: account codecs, PDAs, instruction builders,
-│                                   # Derive.kt, RPC reads, scripted-wallets.json
-├── repcounter/                     # JVM: pre-flight checks, palm rule, push-up state machine
+│                                   # Derive.kt, RPC reads, scripted-wallets.json,
+│                                   # SeekerGenesisReader.kt — mainnet Seeker Genesis Token read (R17)
+├── repcounter/                     # JVM: pre-flight checks, ready hold, push-up state machine
 ├── app/                            # Android: Compose UI, CameraX + MediaPipe, MWA, MMKV
 │   └── src/main/kotlin/…/
 │       ├── wallet/  faucet/  home/  lobby/  sitting/
 │       ├── cohort/  roster/  claim/  streak/
+│       ├── stake/                    # SeekerGate.kt, SeekerGateSheet.kt, StakeSheet.kt — the Seeker gate before the stake confirm (FR-003b)
 │       ├── tour/                     # first-run cards, FR-067
 │       ├── about/                    # About Holdout: test network, tour again, disconnect (spec 004)
-│       ├── ui/theme/                 # Color.kt, Type.kt, Shape.kt, Theme.kt — PRD §11 tokens
+│       ├── ui/theme/                 # Color.kt, Type.kt, Shape.kt, Theme.kt — docs/design tokens
 │       └── leaderboard/            # [Phase 2]
 └── crank/                          # JVM CLI: run, scripted, chips, init, status
 
@@ -179,10 +182,10 @@ fly.toml                            # crank scheduled machine
 | **21–22 Sep** | *(Superseded 2026-09-26: the devnet program itself carries `test-leagues` and hosts the one disclosed short test cohort, FR-044a; the judged leagues start 5 Oct, and the freeze moves with them. Superseded again 2026-10-06: no freeze, and a test lobby kept running for judges.)* **Rehearsal deployment:** a separate program ID with a test league; Surfpool smoke suite | A compressed cycle runs on devnet; deploy rent measured for the SOL budget |
 | **22–23 Sep** | **Devnet launch of the judged program:**<br>• Deploy, keeping the upgrade authority (R14).<br>• `crank init` with leagues starting **28 Sep 05:00 UTC**; `crank chips publish`.<br>• Faucet vault part-funded (topped up to 25 SOL by 8 Oct, R13).<br>• Cohort #3 opened so its lobby is live; crank scheduled on Fly.io.<br>• The 56 scripted wallets funded, filling cohort #3 to half its floor (R12). | `crank status` shows cohort #3 `Open` with scripted members joining; a second `crank run` changes nothing |
 | **by 21 Sep** | **Recruit 5–7 beta testers** (Android phone, devnet-capable wallet per spike S1); group chat opened; consent asked from anyone who may appear in the footage (`docs/holdout_demo_video.md`) | Testers confirmed for both the rehearsal run and cohort #3 |
-| **21–26 Sep** | **App, Phase 1 vertical slice** (in parallel from 21 Sep): wallet-first connect → faucet → ladder → stake → lobby (lock) → sitting with pre-flight, palm, counting, banking, offline warning → submit / tap-to-submit → home counters and roster → forfeit → claim; streak; walkthrough placeholder, reachable from the connect screen | Device scenarios 15–18 pass on a Seeker and a plain Android phone; a full compressed cycle passes on the rehearsal deployment |
+| **21–26 Sep** | **App, Phase 1 vertical slice** (in parallel from 21 Sep): wallet-first connect → faucet → ~~ladder~~ *(removed: the screen 2026-10-09, the gate 2026-10-10, H37)* → stake → lobby (lock) → sitting with pre-flight, palm *(dropped 2026-09-22 for the held start position, T047)*, counting, banking, offline warning → submit / tap-to-submit → home counters and roster → forfeit → claim; streak; walkthrough placeholder, reachable from the connect screen | Device scenarios 15–18 pass on a Seeker and a plain Android phone; a full compressed cycle passes on the rehearsal deployment |
 | **24–26 Sep** | **Beta test on the rehearsal deployment:** a test league of seven 10-minute days at 5 reps (H32), so a tester runs faucet → join → sittings → forfeit → settlement → claim in about 70 minutes. *(Superseded 2026-10-06: the test lobby runs three 10-minute days, a new cohort every 30 minutes, for judges through the live period — FR-044a.)* Bugs fixed the same day. Nothing filmed here is ever used (H14) | Every tester completes a full cycle; their findings are logged and triaged |
 | **26–27 Sep** | **Phase 2, only if every Phase 1 check is green:** automatic offline submission → carry-over delivery → league leaderboards → weekly chip tooling (in that order — smallest first). With the compressed calendar, expect most to be cut | Each item either lands with its acceptance scenario, or is cut and logged in the decision record |
-| **27 Sep → 28 Sep 04:00 UTC** | **Release candidate APK.** Testers install it and join cohort #3; the finisher (Seeker) and forfeiter (second phone) wallets join on camera, and the onboarding shots — app icon, connect, faucet, ladder, stake — are filmed with a brand-new wallet (R18) | Every tester's membership plus both filming wallets on-chain before the join cutoff; locked hour filmed |
+| **27 Sep → 28 Sep 04:00 UTC** | **Release candidate APK.** Testers install it and join cohort #3; the finisher (Seeker) and forfeiter (second phone) wallets join on camera, and the onboarding shots — app icon, connect, faucet, ~~ladder~~ *(removed, H37)*, stake — are filmed with a brand-new wallet (R18) | Every tester's membership plus both filming wallets on-chain before the join cutoff; locked hour filmed |
 | **28 Sep** | *(Superseded: the freeze moved to 5 Oct, then was removed 2026-10-06.)* Cohort #3 starts at 05:00 UTC | Release candidate tagged |
 | **28 Sep – 4 Oct** | **Bug fixes only:**<br>• Contract defects fixed by upgrade (FR-007b).<br>• Daily sitting footage; the home screen captured at about 05:05 UTC each day for the time-lapse; the forfeiter misses a day and its forfeit screen is filmed (shot list in `docs/holdout_demo_video.md`).<br>• Tester feedback collected after day 1 and at the end.<br>• README: clone-and-run steps checked on a clean WSL2 + Android Studio machine; known weaknesses final, including the sponsor key and upgrade authority.<br>• Pitch deck drafted. | A clean clone builds the app and the program from the README alone |
 | **5 Oct** | Cohort #3 settles at 05:00 UTC → the crank settles it → the finisher claims on camera | Scenario 4 recorded |
@@ -201,7 +204,7 @@ Post-hackathon, outside this plan: a winning app must be published on the Solana
 - **GitHub:** create the repository and push the existing history now; judges score technical depth from the commit history (FR-066).
 - **Beta testers (by 21 Sep):** recruit 5–7, open a group chat, write the one-page onboarding note (install, devnet wallet, faucet, what each day asks) and collect written consent from anyone who may appear in the footage — `docs/holdout_demo_video.md`.
 - **Filming kit (before spike S1):** `scrcpy` installed and checked against the wallet's approval screen, a tripod for the second phone, and the shot log started.
-- **Scope doc D-F and D-G:** note the Kotlin crank and MMKV for Android.
+- ~~**Scope doc D-F and D-G:** note the Kotlin crank and MMKV for Android.~~ *(Moot 2026-10-10: the scope document is retired; the crank is research R12 and MMKV research R6.)*
 - **Devnet SOL, gathered on this schedule:**
   - Rehearsal and judged program deploys by 21–22 Sep (rent measured at the rehearsal deploy; the rehearsal program can be closed afterwards to reclaim it).
   - About 1.12 SOL for the 56 scripted wallets by 22 Sep (R12).
