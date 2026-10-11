@@ -70,11 +70,11 @@ kotlin/app/src/main/kotlin/holdout/app/
 ├── ui/
 │   └── Components.kt            # new: CheckAgain(checking, stillUnreachable, onCheck); ChainUnreachable(...) — the line + CheckAgain for details and forfeit; ChainCheckBox (pull, enabled only while unreachable)
 ├── home/
-│   └── CohortHome.kt            # checking/stillUnreachable/onCheck params; waiting day and pre-sitting notice carry CheckAgain; pull
+│   └── CohortHome.kt            # checking/stillUnreachable/onCheck params; waiting day and pre-sitting notice carry CheckAgain; a done day gets ChainUnreachable; pull
 ├── cohort/
 │   ├── CohortDetailScreen.kt    # offline/checking/stillUnreachable/onCheck params; ChainUnreachable + pull
 │   └── ForfeitScreen.kt         # the same
-└── HoldoutApp.kt                # readChainTime() shared with the chain-time loop; checkChain(roster) wires every screen; no-Holdout home line
+└── HoldoutApp.kt                # readChainTime() shared with the chain-time loop; checkChain(roster) wires every screen; no-Holdout home: CheckAgain under its label, ChainUnreachable over an earlier read
 
 kotlin/app/src/test/kotlin/holdout/app/
 ├── ChainCheckTest.kt            # new

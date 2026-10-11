@@ -29,3 +29,4 @@ Then use `adb reverse --remove tcp:8898` to cut the link and `adb reverse tcp:88
 3. Restore the reverse. Tap **Check again**: within 5 s the waiting line goes and the wallet's approval for the day opens by itself (001 FR-024b's automatic send), once. Decline it: the home reads *"Done — tap to submit"*. Nothing is submitted without the member's approval.
 4. With the chain answering, pull down on the home: no indicator.
 5. Open a Holdout's details and, in a forfeited Holdout, the forfeit screen, with the reverse removed: each shows *"Devnet can't be reached right now."* with **Check again** and the pull.
+6. With the reverse removed, look at the home with no Holdout running after an earlier read (above its Holdout cards), and at the home of a running Holdout whose day is done. Each shows *"Devnet can't be reached right now."* with **Check again**. A failed check turns that line into *"Devnet still can't be reached."* in place.
