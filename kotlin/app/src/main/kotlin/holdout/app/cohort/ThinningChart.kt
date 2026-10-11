@@ -86,7 +86,13 @@ fun ThinningChart(points: List<Int>, modifier: Modifier = Modifier) {
         drawCircle(HoldoutColors.Canvas, 5.dp.toPx(), Offset(x(last), y(points[last])))
         drawCircle(HoldoutColors.Accent, 5.dp.toPx(), Offset(x(last), y(points[last])), style = Stroke(width = 2.dp.toPx()))
         label(measurer, points[last].toString(), strong, Offset(x(last) + 10.dp.toPx(), y(points[last])), centreY = true)
-        label(measurer, points[0].toString(), labels, Offset(left + 6.dp.toPx(), y(points[0]) + 12.dp.toPx()), centreY = true)
+        // The first value sits under the line's start; where the line drops away steeply it would cross the label, so it moves right of the line.
+        val drop = if (points.size > 1) (y(points[1]) - y(points[0])) / (x(1) - x(0)) else 0f
+        if (drop >= STEEP) {
+            label(measurer, points[0].toString(), labels, Offset(left + (LABEL_HALF_HEIGHT.toPx() / drop + 4.dp.toPx()).coerceAtMost(x(1) - left), y(points[0])), centreY = true)
+        } else {
+            label(measurer, points[0].toString(), labels, Offset(left + 6.dp.toPx(), y(points[0]) + 12.dp.toPx()), centreY = true)
+        }
     }
 }
 
@@ -115,6 +121,10 @@ private val END_PAD = 28.dp
 private val TOP_PAD = Spacing.tight
 private val LABEL_BAND = 20.dp
 private const val FILL_ALPHA = 0.28f
+
+/** A line that falls this many pixels per pixel across would run through a label set just under its start. */
+private const val STEEP = 0.25f
+private val LABEL_HALF_HEIGHT = 7.dp
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
