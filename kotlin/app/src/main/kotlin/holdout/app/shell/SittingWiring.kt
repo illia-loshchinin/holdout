@@ -27,8 +27,7 @@ internal fun dayOnChain(live: Holdout?, day: Int): Boolean = (live?.membership?.
  * a finished day that came too late to send goes on to the Forfeit of that
  * Holdout, as "Back to today" would otherwise leave the member guessing why.
  */
-internal fun holdoutDayEndEvents(cohort: String, completed: Boolean, tooLate: Boolean): List<NavEvent> =
-    if (completed && tooLate) listOf(NavEvent.SittingEnded, NavEvent.Open(Screen.Forfeit(cohort))) else listOf(NavEvent.SittingEnded)
+internal fun holdoutDayEndEvents(cohort: String, completed: Boolean, tooLate: Boolean): List<NavEvent> = if (completed && tooLate) listOf(NavEvent.SittingEnded, NavEvent.Open(Screen.Forfeit(cohort))) else listOf(NavEvent.SittingEnded)
 
 /**
  * The crash variant of the Stopped page (ES-1, ES-2) for every sitting that
@@ -40,14 +39,22 @@ internal fun interruptedSittings(store: Store, wallet: String, dayIndex: Long, c
     running?.let { (h, stage) ->
         val target = h.cohort.repsPerDay
         InterruptedSitting.consume(
-            store, wallet, cohortScope(h), stage.dayIndex.toLong(), target,
+            store,
+            wallet,
+            cohortScope(h),
+            stage.dayIndex.toLong(),
+            target,
             header = SittingCopy.countingLabel(stage.dayIndex + 1, target),
             secondsLeft = chainNow?.let { Derive.timeLeftToday(h.cohort, it) },
         )?.let(::add)
     }
     if (dayIndex != Store.UNKNOWN_DAY) {
         InterruptedSitting.consume(
-            store, wallet, Store.CHALLENGE, dayIndex, DAILY_25,
+            store,
+            wallet,
+            Store.CHALLENGE,
+            dayIndex,
+            DAILY_25,
             header = SittingCopy.countingLabel(null, DAILY_25),
             secondsLeft = chainNow?.let { HoldoutDay.secondsLeftIn(it) },
         )?.let(::add)

@@ -201,7 +201,7 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
 
         /** Said when the wallet authorized another network — nothing was signed. */
         const val WRONG_NETWORK =
-            "Your wallet is not on devnet, so nothing was signed. Holdout runs on devnet only: switch the wallet to devnet, then connect again (About · wallet → Disconnect)."
+            "Your wallet isn't on devnet, so nothing was signed. Switch it to devnet, then connect again (Me → Disconnect wallet)."
 
         private const val CONFIRM_ATTEMPTS = 30
         private const val CONFIRM_PAUSE_MILLIS = 1_000L
