@@ -34,7 +34,7 @@ class ChainCheckTest {
         assertTrue(fromIdle.read)
         assertTrue(fromIdle.next.checking)
 
-        // The "still can't be reached" line stays while the next check is out, rather than flickering away.
+        // The state keeps "still can't be reached" through the next check; the screen hides its line while that check is out.
         val fromStill = still.request(offline = true)
         assertTrue(fromStill.read)
         assertEquals(ChainCheck(checking = true, stillUnreachable = true), fromStill.next)
