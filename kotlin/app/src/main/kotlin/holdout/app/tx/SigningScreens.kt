@@ -6,11 +6,13 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -266,13 +268,20 @@ private fun SigningColumn(label: String, modifier: Modifier, content: @Composabl
         modifier = modifier
             .fillMaxSize()
             .background(HoldoutColors.Canvas)
-            .verticalScroll(rememberScrollState())
             .padding(Spacing.screenGutter),
         verticalArrangement = Arrangement.spacedBy(Spacing.betweenSections),
     ) {
         ScreenHeader(label)
-        content()
-        Text("TEST NETWORK · TEST TOKEN", style = LabelStyle, color = HoldoutColors.TextTertiary, modifier = Modifier.align(Alignment.CenterHorizontally))
+        // The step sits in the middle of what is left of the screen (as the boards draw it), and scrolls when it is taller.
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            Column(
+                modifier = Modifier.fillMaxWidth().heightIn(min = maxHeight).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(Spacing.betweenSections, Alignment.CenterVertically),
+            ) {
+                content()
+                Text("TEST NETWORK · TEST TOKEN", style = LabelStyle, color = HoldoutColors.TextTertiary, modifier = Modifier.align(Alignment.CenterHorizontally))
+            }
+        }
     }
 }
 
