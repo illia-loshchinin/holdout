@@ -73,8 +73,9 @@ class HoldoutViewModel(
 
     /**
      * One signature's progress: [id] tells a second attempt from the first,
-     * [phase] is what its screen shows. Set once the wallet is asked — a devnet
-     * that does not answer before then opens no signing screen, only a notice.
+     * [phase] is what its screen shows — from the tap to its outcome, a devnet
+     * that does not answer before the wallet opens included (a failure that
+     * moved nothing).
      */
     data class Signing(val id: Int, val action: SignAction, val cohort: SolanaPublicKey, val phase: TxPhase, val tier: Int = 0, val day: Int = 0)
 
@@ -232,16 +233,12 @@ class HoldoutViewModel(
      */
     private suspend fun signing(action: SignAction, cohort: SolanaPublicKey, tier: Int = 0, day: Int = 0, send: suspend (onPhase: (SendPhase) -> Unit) -> SendResult): SendResult {
         val id = ++signings
-        var asked = false
-        val result = send { phase ->
-            asked = true
-            _state.update { it.copy(signing = Signing(id, action, cohort, TxPhase.of(phase), tier, day)) }
-        }
-        if (asked) {
-            val lowOnSol = (_state.value.view?.lamports ?: Long.MAX_VALUE) < holdout.app.faucet.FaucetClient.MEMBER_CAN_PAY_LAMPORTS
-            val outcome = TxOutcome.of(action, result, lowOnSol)
-            _state.update { s -> s.copy(signing = s.signing?.takeIf { it.id == id }?.copy(phase = TxPhase.Done(outcome)) ?: s.signing) }
-        }
+        val started = Signing(id, action, cohort, TxPhase.WaitingForWallet, tier, day)
+        _state.update { it.copy(signing = started) }
+        val result = send { phase -> _state.update { s -> s.copy(signing = s.signing?.takeIf { it.id == id }?.copy(phase = TxPhase.of(phase)) ?: s.signing) } }
+        val lowOnSol = (_state.value.view?.lamports ?: Long.MAX_VALUE) < holdout.app.faucet.FaucetClient.MEMBER_CAN_PAY_LAMPORTS
+        val outcome = TxOutcome.of(action, result, lowOnSol)
+        _state.update { s -> s.copy(signing = (s.signing?.takeIf { it.id == id } ?: started).copy(phase = TxPhase.Done(outcome))) }
         return result
     }
 

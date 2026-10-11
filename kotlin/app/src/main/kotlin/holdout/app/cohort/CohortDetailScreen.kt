@@ -46,13 +46,16 @@ fun CohortDetailScreen(
     now: Long,
     lastClaimSignature: String?,
     onRoster: () -> Unit,
-    onBack: () -> Unit,
+    /** Null on the Standing tab, where this is the root: no back arrow, the bar instead. */
+    onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
     /** The last chain read failed (spec 005): the line, Check again and the pull. */
     offline: Boolean = false,
     checking: Boolean = false,
     stillUnreachable: Boolean = false,
     onCheck: () -> Unit = {},
+    /** L1, the leaderboards of this Holdout's level (Standing holds them); null shows no button. */
+    onLeaderboards: (() -> Unit)? = null,
 ) {
     val c = h.cohort
     val figures = members?.let { Derive.figures(c, it, now) }
@@ -65,7 +68,7 @@ fun CohortDetailScreen(
                 .padding(Spacing.screenGutter),
             verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
         ) {
-            TextButton(onClick = onBack) { Text("← Back", color = HoldoutColors.TextSecondary) }
+            if (onBack != null) TextButton(onClick = onBack) { Text("← Back", color = HoldoutColors.TextSecondary) }
             if (h.isTest) TestCohortBadge(c.dayLength)
             Text(Format.holdoutTitle(c), style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
             if (offline) ChainUnreachable(checking, stillUnreachable, onCheck)
@@ -115,6 +118,7 @@ fun CohortDetailScreen(
                 }
             }
             SecondaryButton("The roster", onRoster)
+            onLeaderboards?.let { SecondaryButton("Leaderboards", it) }
         }
     }
 }
