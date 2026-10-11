@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
@@ -62,6 +63,8 @@ fun BankRing(
     caption: String,
     modifier: Modifier = Modifier,
     size: Dp = RING_SIZE,
+    /** The banked arcs' colour: `accent`, or `warning` inside the last 10 minutes of a Holdout day. */
+    bankedColor: Color = HoldoutColors.Accent,
 ) {
     val blocks = bankBlocks(reps)
     val banked = bankedBlocks.coerceIn(0, blocks.size)
@@ -84,7 +87,7 @@ fun BankRing(
                 // A lone block closes the circle; several leave a gap between them.
                 val single = blocks.size == 1
                 drawArc(
-                    color = if (i < banked) HoldoutColors.Accent else HoldoutColors.Hairline,
+                    color = if (i < banked) bankedColor else HoldoutColors.Hairline,
                     startAngle = if (single) start else start + gapDegrees / 2,
                     sweepAngle = if (single) full else (full - gapDegrees).coerceAtLeast(MIN_SWEEP),
                     useCenter = false,

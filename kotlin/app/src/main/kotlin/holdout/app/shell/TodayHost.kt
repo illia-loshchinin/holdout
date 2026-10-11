@@ -4,27 +4,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import holdout.app.chain.Deployment
-import holdout.app.holdouts.MyHoldoutsModel
+import holdout.app.faucet.FaucetClient
 import holdout.app.home.CohortHome
-import holdout.app.home.DailyHoldoutLine
-import holdout.app.home.HoldoutOffer
 import holdout.app.home.HomeScreen
 import holdout.app.home.HomeState
-import holdout.app.home.RunningHoldoutCard
+import holdout.app.home.NudgeRow
+import holdout.app.home.TodayModel
 import holdout.app.nav.NavEvent
-import holdout.app.nav.Screen
 import holdout.app.nav.Sitting
 import holdout.app.nav.Tab
 import holdout.app.sitting.BankingController
 import holdout.app.storage.Store
 import holdout.app.streak.ToesMeter
 import holdout.app.ui.ChainCheckBox
-import holdout.app.ui.ChainUnreachable
-import holdout.app.ui.CheckAgain
-import holdout.app.ui.QuietAction
-import holdout.app.ui.Reading
-import holdout.app.ui.SectionLabel
 import holdout.core.HoldoutDay
 import holdout.core.LeagueParams
 import holdout.repcounter.Stakes
@@ -33,8 +25,9 @@ import kotlinx.coroutines.delay
 /**
  * The Today tab root (screen map T1/T2, ruling G1): T2 while a Holdout runs
  * with the member standing in it — its day only, with one nudge line per other
- * Holdout needing a tap (B-D1) — else T1, the Daily 25 with the Holdouts open
- * to join and the ones running now.
+ * Holdout needing a tap (B-D1) — else T1, the Daily 25 with the nudges, the
+ * comeback card and the Holdouts open to join. Running now is not here: it
+ * lives on Holdouts and Standing's empty state (ruling G14).
  */
 @Composable
 internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
@@ -80,15 +73,14 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
             onSubmit = { day -> submitDayOf(h, day) },
             // Its standing is the Standing tab's root.
             onDetail = { dispatch(NavEvent.SelectTab(Tab.Standing)) },
-            onAbout = { dispatch(NavEvent.Open(Screen.About)) },
-            onRoster = { dispatch(NavEvent.Open(Screen.Roster(h.address.base58()))) },
-            onDaily25 = { dispatch(NavEvent.StartSitting(Sitting.Daily25(dayIndex))) },
             onGetTokens = { dispatch(NavEvent.OpenFaucet) },
             modifier = modifier,
+            streak = streaks.read(wallet, dayIndex).current,
+            canPayFees = (view?.lamports ?: Long.MAX_VALUE) >= FaucetClient.MEMBER_CAN_PAY_LAMPORTS,
             checking = chain.check.checking,
             stillUnreachable = chain.check.stillUnreachable,
             onCheck = { checkChain(h.address) },
-            otherHoldouts = { Nudges(exceptCohort = h.address.base58()) },
+            otherHoldouts = { TodayModel.nudges(view, chainNow, exceptCohort = h.address.base58()).forEach { NudgeRow(it) { dispatch(it.go) } } },
         )
         return
     }
@@ -96,21 +88,29 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
     val banked = remember(wallet, dayIndex, refreshToken) { store.bankedReps(wallet, Store.CHALLENGE, dayIndex) }
     val complete = remember(wallet, dayIndex, refreshToken) { store.isDayComplete(wallet, Store.CHALLENGE, dayIndex) }
     val streak = remember(wallet, dayIndex, refreshToken) { streaks.read(wallet, dayIndex) }
+    // Yesterday's count is still on the phone: a day short of 25 says so, once (ES-3, B-D6).
+    val yesterday = remember(wallet, dayIndex, refreshToken) {
+        if (dayIndex == Store.UNKNOWN_DAY) {
+            null
+        } else {
+            TodayModel.yesterdayNote(
+                banked = store.bankedReps(wallet, Store.CHALLENGE, dayIndex - 1),
+                completed = store.isDayComplete(wallet, Store.CHALLENGE, dayIndex - 1),
+                streakAlive = streak.current > 0,
+                target = DAILY_25,
+                todayBanked = banked,
+                todayDone = complete,
+            )
+        }
+    }
     val view = view
-    // The Daily 25's line and whether it is the comeback nudge, worked out once for Today.
-    val holdoutLine = remember(view, chainNow) {
-        chainNow?.let { n -> view?.let { v -> DailyHoldoutLine.line(v.openToJoin(n).map { it.cohort }, v.comebackOffers(n), n) } }
-    }
-    // "Running now" shows figures derived from rosters, as the connect screen's
-    // live list does — read here, and kept fresh (FR-062a).
-    val watching = chainNow?.let { n -> view?.runningNotMine(n)?.map { it.address } }.orEmpty()
-    InFrontLoop(watching) {
-        if (watching.isEmpty()) kotlinx.coroutines.awaitCancellation()
-        watching.forEach { holdouts.loadRoster(it) }
-        delay(ROSTER_REFRESH_MILLIS)
-    }
+    val offline = chain.offline
+    val holdoutsBlock = TodayModel.holdouts(view, chainNow, offline)
+    // The nudges and the comeback card come from the chain read; with none they are empty.
+    val nudges = remember(view, chainNow?.div(60), rosters) { TodayModel.nudges(view, chainNow) }
+    val comeback = remember(view, chainNow?.div(60), seekerKnown) { TodayModel.comeback(view, chainNow, seekerKnown) }
 
-    ChainCheckBox(chain.offline, chain.check.checking, { checkChain(null) }, modifier) {
+    ChainCheckBox(offline, chain.check.checking, { checkChain(null) }, modifier) {
         HomeScreen(
             state = HomeState(
                 remainingToday = (DAILY_25 - banked).coerceAtLeast(0),
@@ -120,63 +120,22 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
                 streak = streak.current,
                 freezes = streak.freezes,
                 toes = ToesMeter(store, DAILY_25).read(wallet, dayIndex),
-                holdoutLine = holdoutLine?.text,
-                holdoutLineIsComeback = holdoutLine?.comeback == true,
-                secondsLeftToday = chainNow?.let { HoldoutDay.secondsLeftIn(it) },
+                yesterdayNote = yesterday,
+                secondsLeftToday = if (offline) null else chainNow?.let { HoldoutDay.secondsLeftIn(it) },
+                nudges = nudges,
+                comeback = comeback,
+                holdouts = holdoutsBlock,
+                checking = chain.check.checking,
+                stillUnreachable = chain.check.stillUnreachable,
             ),
             onStart = {
                 if (dayIndex == Store.UNKNOWN_DAY) offlineDays.sittingStarted(wallet, boot, android.os.SystemClock.elapsedRealtime())
                 dispatch(NavEvent.StartSitting(Sitting.Daily25(dayIndex)))
             },
+            onEvent = dispatch,
+            onJoin = { cohort -> dispatch(NavEvent.OpenStake(cohort, seekerKnown = seekerKnown)) },
+            onCheck = { checkChain(null) },
             modifier = Modifier,
-            below = { TodayBelow() },
         )
-    }
-}
-
-/** T1 under the hero: the chain's state, one nudge per Holdout of the member's, the offers, Running now, the tour. */
-@Composable
-private fun Shared.TodayBelow() {
-    val chainNow = now
-    val view = view
-    if (chainNow == null || view == null) {
-        if (chain.offline) {
-            SectionLabel("${Deployment.networkName} unreachable — the Daily 25 still works")
-            CheckAgain(chain.check.checking, chain.check.stillUnreachable, { checkChain(null) })
-        } else {
-            Reading { SectionLabel("Reading the chain…") }
-        }
-        QuietAction("How Holdout works →", { dispatch(NavEvent.OpenTour) })
-        return
-    }
-    // An earlier read, shown while the chain can't be reached: said so, with Check again (spec 005 US2).
-    if (chain.offline) ChainUnreachable(chain.check.checking, chain.check.stillUnreachable, { checkChain(null) })
-    if (view.config == null) {
-        SectionLabel("Holdouts are not live on devnet yet")
-    } else {
-        Nudges(exceptCohort = null)
-        val open = view.openToJoin(chainNow)
-        if (open.isNotEmpty()) SectionLabel("Holdouts open to join")
-        open.forEach { h -> HoldoutOffer(h, chainNow, onClick = { dispatch(NavEvent.OpenStake(h.address.base58(), seekerKnown = seekerKnown)) }) }
-        // Watched from outside, by every wallet, with or without a Seeker (FR-062a).
-        val running = view.runningNotMine(chainNow)
-        if (running.isNotEmpty()) SectionLabel("Running now")
-        running.forEach { h -> RunningHoldoutCard(h, chainNow, rosters[h.address], onClick = { dispatch(NavEvent.Open(Screen.Detail(h.address.base58()))) }) }
-    }
-    QuietAction("How Holdout works →", { dispatch(NavEvent.OpenTour) })
-}
-
-/**
- * One line per Holdout of the member's that needs a tap — a lobby, a forfeit,
- * settling, a claim — opening its screen (screen map §3 rule 4, B-D1). The full
- * cards live on H0.
- */
-@Composable
-internal fun Shared.Nudges(exceptCohort: String?) {
-    val chainNow = now ?: return
-    val view = view ?: return
-    val yours = remember(view, chainNow / 60, rosters) { MyHoldoutsModel.build(view, chainNow, rosters).yours }
-    yours.filter { it.cohort != exceptCohort && it.status != "running" }.forEach { y ->
-        QuietAction("${y.name}: ${y.detail ?: y.line} →", { dispatch(y.go) }, warning = y.status == "out")
     }
 }

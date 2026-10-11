@@ -238,8 +238,9 @@ fun YoureInScreen(state: YoureInState, onDaily25: () -> Unit, onEvent: (NavEvent
         HoldoutCard {
             KeyValueRow("Members now", state.members.toString())
             KeyValueRow("At stake now", state.atStake)
+            Caption("total staked")
             KeyValueRow("Your stake", state.stake)
-            Text("held by the contract, not by us", style = LabelStyle, color = HoldoutColors.TextTertiary)
+            Caption("held by the contract, not by us")
             HorizontalDivider(thickness = Spacing.border, color = HoldoutColors.Hairline)
             KeyValueRow("Joining closes in", state.joiningClosesIn)
             Body("Until then, leaving refunds it all.")
@@ -251,6 +252,12 @@ fun YoureInScreen(state: YoureInState, onDaily25: () -> Unit, onEvent: (NavEvent
             SecondaryButton("See the lobby", { onEvent(NavEvent.SeeLobby) })
         }
     }
+}
+
+/** The small line under a row's value, on the value's side (board 12). */
+@Composable
+private fun ColumnScope.Caption(text: String) {
+    Text(text, style = LabelStyle, color = HoldoutColors.TextTertiary, modifier = Modifier.align(Alignment.End))
 }
 
 @Composable
