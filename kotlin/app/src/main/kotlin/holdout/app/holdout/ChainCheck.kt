@@ -31,7 +31,8 @@ data class ChainCheck(
 object CheckAgainCopy {
     const val BUTTON = "Check again"
 
-    fun checking(network: String) = "Checking $network…"
+    // Mid-sentence, a local build's "The local validator" drops its capital; "Devnet" keeps its own.
+    fun checking(network: String) = "Checking ${network.replaceFirst(Regex("^The "), "the ")}…"
 
     fun stillUnreachable(network: String) = "$network still can't be reached."
 

@@ -25,6 +25,13 @@ class CheckAgainCopyTest {
     }
 
     @Test
+    fun `a local build's network reads right mid-sentence and at the start`() {
+        val local = "The local validator"
+        assertEquals("Checking the local validator…", CheckAgainCopy.checking(local))
+        assertEquals("The local validator still can't be reached.", CheckAgainCopy.stillUnreachable(local))
+    }
+
+    @Test
     fun `every line about the chain names the network`() {
         all.drop(1).forEach { assertTrue(network in it, it) }
     }
