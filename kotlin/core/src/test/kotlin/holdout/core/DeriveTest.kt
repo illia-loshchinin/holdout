@@ -175,7 +175,7 @@ class DeriveTest {
     // ---- the settlement vectors, as projections ---------------------------
 
     /**
-     * Every PRD §19 vector, replayed as a cohort at its end before anyone has
+     * Every settlement vector, replayed as a cohort at its end before anyone has
      * run settlement: the forfeits are breaches nobody has recorded yet, and the
      * finishers have every day done. The projected pool and each finisher's
      * projected share must already be exactly what settlement will pay — and

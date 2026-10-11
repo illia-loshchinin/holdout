@@ -17,12 +17,17 @@ import kotlin.test.assertTrue
  */
 class StakesTest {
 
-    private fun input(shoulderSpan: Float) = PreflightInput(
-        brightness = 0.5f,
-        backgroundMotion = 0f,
-        world = Traces.frame(0, elbowDegrees = 175f, bodyLineDegrees = 180f),
-        image = Traces.imageFrame(shoulderSpan = shoulderSpan),
-    )
+    private fun input(shoulderSpan: Float): PreflightInput {
+        val image = Traces.imageFrame(shoulderSpan = shoulderSpan)
+        return PreflightInput(
+            brightness = 0.5f,
+            backgroundMotion = 0f,
+            world = Traces.frame(0, elbowDegrees = 175f, bodyLineDegrees = 180f),
+            image = image,
+            // The knees pill is red without the picture's pose.
+            imagePose = Traces.imagePoseWithNearKnee(image),
+        )
+    }
 
     private val sideOn = input(shoulderSpan = 0.05f)
     private val atFortyFive = input(shoulderSpan = 0.3f)
@@ -37,11 +42,15 @@ class StakesTest {
 
     @Test
     fun `a staked sitting will not start head-on or square side-on, and says turn to 45`() {
+        val staked = Preflight(stakes = Stakes.STAKED)
         for (frame in listOf(headOn, sideOn)) {
-            val report = Preflight(stakes = Stakes.STAKED).evaluate(frame)
+            val report = staked.evaluate(frame)
             assertFalse(report.canStart, "${report.view} must not start a staked sitting")
-            assertEquals(listOf(Stakes.STAKED.cameraFix), report.fixes)
+            assertEquals(1, report.fixes.size, "only the camera pill is red")
         }
+        // Square head-on neither side is nearer: only the phone moving will do. Beside the member, which way to turn.
+        assertEquals(listOf(Stakes.STAKED.cameraFix), staked.evaluate(headOn).fixes)
+        assertTrue(staked.evaluate(sideOn).fixes.single() in listOf(Preflight.TOO_SIDE_TURN_LEFT_FIX, Preflight.TOO_SIDE_TURN_RIGHT_FIX))
     }
 
     @Test
@@ -51,8 +60,10 @@ class StakesTest {
         for (frame in listOf(headOn, sideOn)) {
             val report = Preflight(stakes = Stakes.DAILY).evaluate(frame)
             assertFalse(report.canStart, "${report.view} must not start the Daily 25")
-            assertEquals(listOf(Stakes.DAILY.cameraFix), report.fixes)
+            assertEquals(1, report.fixes.size, "only the camera pill is red")
         }
+        // Square head-on neither side is nearer: only the phone moving will do.
+        assertEquals(listOf(Stakes.DAILY.cameraFix), Preflight(stakes = Stakes.DAILY).evaluate(headOn).fixes)
         assertEquals(Stakes.EASY.allowedViews, Stakes.DAILY.allowedViews)
     }
 

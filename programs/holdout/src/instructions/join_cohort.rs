@@ -23,7 +23,7 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use crate::{
     errors::HoldoutError,
     events::MemberJoined,
-    guards,
+    genesis, guards,
     state::{
         cohort::{Cohort, VAULT_SEED},
         config::{Config, CONFIG_SEED},
@@ -130,10 +130,20 @@ pub(crate) fn handler(ctx: Context<JoinCohort>, tier: u8) -> Result<()> {
         profile.running.end = account.end();
     }
 
-    // Both leagues are open to every member (FR-003); the genesis gate ships
-    // off in this build (research R17).
+    // Staked Holdouts are Seeker-exclusive (FR-003b, research R17). With the
+    // flag on, the member shows a Seeker Genesis Token as the remaining
+    // accounts `[token account, mint]`; with it off — devnet, where the app
+    // keeps staking Seeker-exclusive instead — nothing is read.
+    let enabled = ctx.accounts.config.genesis_gate_enabled;
     require!(
-        guards::genesis_gate_ok(ctx.accounts.config.genesis_gate_enabled, false),
+        guards::genesis_gate_ok(
+            enabled,
+            enabled
+                && genesis::holds_seeker_genesis(
+                    &ctx.accounts.member.key(),
+                    ctx.remaining_accounts
+                ),
+        ),
         HoldoutError::GenesisGateClosed
     );
 

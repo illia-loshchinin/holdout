@@ -9,9 +9,12 @@ package holdout.repcounter
  * The app adapts MediaPipe's `PoseLandmarkerResult` into these types at the
  * edge; everything below is arithmetic.
  *
- * Coordinates are **3D world landmarks** — metres, origin at the hip midpoint —
- * not image coordinates, so an angle does not change when the phone moves
- * (PRD §8.4, research R4).
+ * A [PoseFrame] holds either MediaPipe's **3D world landmarks** — metres,
+ * origin at the hip midpoint — or, wrapped in [ImagePose], its image
+ * landmarks. On a phone the angles are read from the image (`ViewReading`):
+ * the world estimate's depth is the model's weakest output (002 research D1,
+ * superseding research R4's world-landmark bullet). World landmarks alone are
+ * what the synthetic traces carry.
  */
 data class Landmark(
     val x: Float,

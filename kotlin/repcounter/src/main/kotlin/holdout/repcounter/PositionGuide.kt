@@ -8,7 +8,7 @@ import kotlin.math.min
  * The outline the member lies into, and the one thing to tell them next
  * (T046, T050).
  *
- * The four pre-flight checks say *what is wrong*. They never said *where to
+ * The pre-flight checks say *what is wrong*. They never said *where to
  * put your body*, which is the question somebody standing over a phone on the
  * floor is actually asking. This answers it with a shape on the floor and a
  * single correction at a time.
