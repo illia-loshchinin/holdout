@@ -14,8 +14,7 @@ object Badges {
      * when there is one (done on chain, or done on this phone and waiting to be
      * sent), else the Daily 25. A Holdout day is the day's training (FR-050).
      */
-    fun today(running: Stage.Active?, holdoutDayDoneOnPhone: Boolean, daily25Done: Boolean): Boolean =
-        if (running != null) !(running.todayDone || holdoutDayDoneOnPhone) else !daily25Done
+    fun today(running: Stage.Active?, holdoutDayDoneOnPhone: Boolean, daily25Done: Boolean): Boolean = if (running != null) !(running.todayDone || holdoutDayDoneOnPhone) else !daily25Done
 
     /**
      * Standing: how many dropped since the member last looked at this Holdout's

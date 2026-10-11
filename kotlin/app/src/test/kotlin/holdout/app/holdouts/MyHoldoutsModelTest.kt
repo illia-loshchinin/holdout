@@ -81,6 +81,17 @@ class MyHoldoutsModelTest {
     }
 
     @Test
+    fun `running now - running Holdouts the wallet is not in, read-only, each opening H4`() {
+        val watched = holdout(1, start - 2 * day, null)
+        val mine = holdout(2, start - 2 * day, member(2))
+        val s = MyHoldoutsModel.build(view(watched, mine), start)
+        assertEquals(listOf(watched.id), s.running.map { it.cohort })
+        assertEquals("Spark · 7-day · day 3 of 7", s.running[0].name)
+        assertEquals("12 started · prize pool 0 SKR", s.running[0].line)
+        assertEquals(NavEvent.Open(Screen.Detail(watched.id)), s.running[0].go)
+    }
+
+    @Test
     fun `empty - no Holdouts yet, the offers still listed`() {
         val s = MyHoldoutsModel.build(view(holdout(1, start + 2 * day, null)), start)
         assertTrue(s.empty)
@@ -89,8 +100,7 @@ class MyHoldoutsModelTest {
 
     private val Holdout.id get() = address.base58()
 
-    private fun member(daysCompleted: Int, state: MembershipSnapshot.State = MembershipSnapshot.State.Joined) =
-        MembershipSnapshot(me, 0, 10_000_000uL, start - 10 * day, daysCompleted, state)
+    private fun member(daysCompleted: Int, state: MembershipSnapshot.State = MembershipSnapshot.State.Joined) = MembershipSnapshot(me, 0, 10_000_000uL, start - 10 * day, daysCompleted, state)
 
     private fun holdout(
         n: Int,

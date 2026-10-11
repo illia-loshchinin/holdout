@@ -21,6 +21,8 @@ data class MyHoldoutsState(
     val yours: List<YourHoldout> = emptyList(),
     val open: List<OpenHoldout> = emptyList(),
     val finished: List<FinishedHoldout> = emptyList(),
+    /** Running Holdouts the wallet is not in, to watch — every wallet, Seeker or not (FR-062a, ruling G14). */
+    val running: List<RunningHoldout> = emptyList(),
 ) {
     /** Nothing of the member's own yet: the empty card shows, the offers still under it. */
     val empty: Boolean get() = yours.isEmpty() && finished.isEmpty()
@@ -57,6 +59,11 @@ data class OpenHoldout(
 /** A Holdout the member is done with: one line, to its detail (claimed) or its forfeit. */
 data class FinishedHoldout(val cohort: String, val line: String, val go: NavEvent)
 
+/** A running Holdout to watch, read-only: its day and how many still stand; it opens H4 (then H5). */
+data class RunningHoldout(val cohort: String, val name: String, val line: String, val test: Boolean, val testDayLength: Long = 0) {
+    val go: NavEvent get() = NavEvent.Open(Screen.Detail(cohort))
+}
+
 object MyHoldoutsModel {
     /**
      * H0 from the chain [view] at chain time [now]. [rosters] give a running
@@ -76,8 +83,7 @@ object MyHoldoutsModel {
             val c = h.cohort
             val id = h.address.base58()
             val name = Format.level(c)
-            fun card(status: String, tone: ChipTone, line: String, detail: String?, go: NavEvent) =
-                YourHoldout(id, name, status, tone, line, detail, h.isTest, go, c.dayLength)
+            fun card(status: String, tone: ChipTone, line: String, detail: String?, go: NavEvent) = YourHoldout(id, name, status, tone, line, detail, h.isTest, go, c.dayLength)
             when (val stage = h.stage(now)) {
                 Stage.NotJoined -> Unit
                 Stage.Lobby, Stage.LobbyLocked -> yours += card(
@@ -138,7 +144,22 @@ object MyHoldoutsModel {
                 testDayLength = c.dayLength,
             )
         }
-        return MyHoldoutsState(yours, open, finished.sortedByDescending { it.first }.map { it.second })
+        val running = view.runningNotMine(now).map { h -> runningRow(h, now, rosters[h.address]) }
+        return MyHoldoutsState(yours, open, finished.sortedByDescending { it.first }.map { it.second }, running)
+    }
+
+    /**
+     * "Spark · 7-day · day 3 of 7" over "9 still standing of 12 · prize pool 2,400 SKR":
+     * a running Holdout watched from outside, its figures from the roster once read
+     * (FR-062a), the account's own count until then.
+     */
+    fun runningRow(h: Holdout, now: Long, roster: List<MembershipSnapshot>?): RunningHoldout {
+        val c = h.cohort
+        val day = (Derive.dayIndex(c, now) + 1).coerceIn(1, c.durationDays)
+        val figures = roster?.let { Derive.figures(c, it, now) }
+        val line = figures?.let { "${it.survivors.standing} still standing of ${it.survivors.starters} · prize pool ${Format.skr(it.projectedPool)}" }
+            ?: "${c.memberCount} started · prize pool ${Format.skr(c.pool)}"
+        return RunningHoldout(h.address.base58(), "${Format.level(c)} · day $day of ${c.durationDays}", line, h.isTest, c.dayLength)
     }
 
     private val GOING = setOf(CohortStatus.Open, CohortStatus.Locked, CohortStatus.Running)
