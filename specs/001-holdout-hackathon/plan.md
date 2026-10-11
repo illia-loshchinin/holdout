@@ -253,9 +253,9 @@ Post-hackathon, outside this plan: a winning app must be published on the Solana
 
 | Piece | Files / artifacts |
 |---|---|
-| Shell and tabs | `kotlin/app/.../nav/` (reducer, state, events), the bar and tab hosts in `HoldoutApp.kt`; the design system's BottomNav component |
-| Tab roots | `holdouts/` (H0), `standing/` (the detail H4 or its empty state), `me/` (W1), Today = the existing `home/` T1 / T2 |
-| Signing | `signing/` (flow screens and result mapping); `wallet/` supplies the outcomes; stake confirm and faucet become sheets over their opener |
+| Shell and tabs | `kotlin/app/.../nav/` (reducer `Nav.kt`, `Badges.kt`, `NavSaved.kt`), `shell/AppShell.kt` (stateless) with a host per tab and flow in `shell/` (`TodayHost`, `HoldoutsHost`, `StandingHost`, `MeHost`, `SittingHost`, `TxFlowHost`, `Shared`, `TabRoots`), `HoldoutApp.kt` (state, loops, router); the design system's BottomNav component |
+| Tab roots | `holdouts/` (H0), `standing/` (the empty state; the detail H4 is `cohort/CohortDetailScreen.kt` hosted by `shell/StandingHost.kt`), `me/` (W1), Today = the existing `home/` T1 / T2 |
+| Signing | `tx/` (`SigningScreens.kt`: the flow screens and *You're in*) and `wallet/Signing.kt` (the pure outcome → result mapping); `wallet/WalletRepository.kt` supplies the outcomes; stake confirm and faucet become sheets over their opener |
 | Copy and levels | `ui/Components.kt` `Format` level and fee helpers, `Stakes` rule sentences per level (replacing `Stakes.STAKED_RULE` and the string replace in `TourScreen`), tour card 4 |
 | Storage | `storage/Store.kt`: `looked:`, `sitting:` |
 | Tests | reducer transitions, wallet-outcome mapping, Robolectric shell and per-screen tests, a copy-rule string test, an end-to-end journey test (quickstart 24a–24c) |
