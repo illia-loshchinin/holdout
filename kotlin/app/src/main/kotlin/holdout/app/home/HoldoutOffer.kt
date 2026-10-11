@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -58,16 +57,6 @@ fun OfferCard(offer: OfferCardState, onJoin: (() -> Unit)?, modifier: Modifier =
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
                 Text(offer.title, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
                 Text(offer.tagline, style = LabelStyle, color = HoldoutColors.TextSecondary)
-                Row(
-                    modifier = Modifier.padding(top = Spacing.tight),
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.tight),
-                ) {
-                    Text(offer.atStake, style = AmountStyle, color = HoldoutColors.TextPrimary)
-                    Text(offer.joined, style = LabelStyle, color = HoldoutColors.TextSecondary)
-                }
-                Text(offer.timing, style = LabelStyle, color = HoldoutColors.Accent)
-                offer.boost?.let { Text(it, style = LabelStyle, color = HoldoutColors.Success) }
             }
             if (onJoin != null) {
                 OutlinedButton(
@@ -83,6 +72,13 @@ fun OfferCard(offer: OfferCardState, onJoin: (() -> Unit)?, modifier: Modifier =
                 }
             }
         }
+        // Under the title row, not beside the button: the stake line gets the card's whole width and stays on one line.
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+            Text(offer.atStake, style = AmountStyle, color = HoldoutColors.TextPrimary)
+            Text(offer.joined, style = LabelStyle, color = HoldoutColors.TextSecondary)
+        }
+        Text(offer.timing, style = LabelStyle, color = HoldoutColors.Accent)
+        offer.boost?.let { Text(it, style = LabelStyle, color = HoldoutColors.Success) }
     }
 }
 

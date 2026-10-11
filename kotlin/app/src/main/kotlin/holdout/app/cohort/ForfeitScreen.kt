@@ -174,7 +174,7 @@ private fun OfferCard(copy: ForfeitText.OfferCopy) {
         Text(copy.label.uppercase(), style = LabelStyle, color = HoldoutColors.Success)
         copy.headline?.let { Text(it, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary) }
         Body(copy.body)
-        copy.timing?.let { Text(it, style = AmountStyle, color = HoldoutColors.Accent) }
+        copy.timing?.let { Text(it, style = AmountStyle.copy(fontSize = LabelStyle.fontSize, lineHeight = LabelStyle.lineHeight), color = HoldoutColors.Accent) }
         copy.after?.let { Text(it, style = LabelStyle, color = HoldoutColors.TextTertiary) }
         copy.notice?.let { Notice(it, warning = true) }
     }

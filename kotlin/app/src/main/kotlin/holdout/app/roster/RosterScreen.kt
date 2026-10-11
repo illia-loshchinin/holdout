@@ -88,7 +88,7 @@ fun RosterScreen(
     ) {
         item { ScreenHeader("roster", onBack = onBack, modifier = Modifier.padding(top = Spacing.screenGutter)) }
         if (h.isTest) item { TestCohortBadge(c.dayLength, Modifier.padding(top = Spacing.tight)) }
-        item { Text(RosterText.title(c, now), style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary, modifier = Modifier.padding(top = Spacing.betweenItems)) }
+        item { Text(RosterText.title(c, now), style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary, modifier = Modifier.padding(top = Spacing.betweenItems)) }
         item { Text(RosterText.NOTE, style = LabelStyle, color = HoldoutColors.TextTertiary, modifier = Modifier.padding(top = Spacing.tight, bottom = Spacing.betweenItems)) }
         if (roster == null) {
             item { Reading { SectionLabel("Reading the roster…") } }
