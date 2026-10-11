@@ -28,11 +28,13 @@ const val TALL = 2200
  * Renders [content] inside the app theme and, when recording is on
  * (`-Proborazzi.test.record=true`), writes it to `build/screens/<area>/<name>.png`.
  * With recording off it only renders, so the normal test run writes nothing.
- * [heightDp] stretches the screen so a scrolling one is drawn whole.
+ * [heightDp] stretches the screen so a scrolling one is drawn whole; [after] acts on the screen (a tap on Next) before it is captured.
  */
-internal fun ComposeContentTestRule.shoot(area: String, name: String, heightDp: Int? = null, content: @Composable () -> Unit) {
+internal fun ComposeContentTestRule.shoot(area: String, name: String, heightDp: Int? = null, after: ComposeContentTestRule.() -> Unit = {}, content: @Composable () -> Unit) {
     if (heightDp != null) RuntimeEnvironment.setQualifiers("+h${heightDp}dp")
     setContent { HoldoutTheme { Box(Modifier.fillMaxSize().background(HoldoutColors.Canvas)) { content() } } }
+    waitForIdle()
+    after()
     waitForIdle()
     onRoot().captureRoboImage("build/screens/$area/$name.png")
 }
