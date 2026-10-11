@@ -22,12 +22,12 @@ None: no new dependency (Material 3's `pullToRefresh` is in the existing BOM, re
 
 ## Phase 2: Foundational (blocks both stories)
 
-- [ ] T001 [P] Write failing `ChainCheckTest` in `kotlin/app/src/test/kotlin/holdout/app/ChainCheckTest.kt` covering every row of data-model.md's transition table: `request` while the chain answers starts nothing; `request` while `checking` joins (no read); `request` from idle or `stillUnreachable` with `offline == true` → `checking`, read started; `finished(answered = false)` → `stillUnreachable`; `finished(answered = true)` → idle; `answered()` from any state → idle
-- [ ] T002 [P] Write failing `CheckAgainCopyTest` in `kotlin/app/src/test/kotlin/holdout/app/CheckAgainCopyTest.kt`: the strings of contracts/check-again-ui.md built for a given network name — *"Check again"*, *"Checking N…"*, *"N still can't be reached."*, *"N can't be reached right now."* — name the network and contain none of "offline", "internet", "error" (SC-004, FR-007)
-- [ ] T003 Implement `ChainCheck` (fields `checking`, `stillUnreachable`; `request(offline): Pair<ChainCheck, Boolean>`-style step, `finished(answered)`, `answered()`) and a `CheckAgainCopy` object holding the T002 strings in `kotlin/app/src/main/kotlin/holdout/app/holdout/ChainCheck.kt`; T001 and T002 pass
-- [ ] T004 Add `check: ChainCheck` to `HoldoutViewModel.UiState` and `checkNow(alsoRead: suspend () -> Unit)` in `kotlin/app/src/main/kotlin/holdout/app/holdout/HoldoutViewModel.kt`: gated by `ChainCheck.request(offline)`; starts `refreshNow()` and `alsoRead()` together; ends with `finished(answered = !offline)`; any successful `refreshNow()` applies `answered()`; reads only while `refresher != null` (in front, FR-008); never calls `submitDay` or touches `autoSubmit` (FR-004)
-- [ ] T005 In `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt`, factor the chain-time loop body into one suspend function (read `refreshChainTime(clock)` and save the reading) used by the loop and by checks, and one `onCheck(roster: SolanaPublicKey?)` that calls `holdouts.checkNow { readChainTime(); roster?.let { holdouts.loadRoster(it) } }` (research R2)
-- [ ] T006 Add to `kotlin/app/src/main/kotlin/holdout/app/ui/Components.kt`, via the `holdout-ui` skill: `CheckAgain(check, onCheck)` — a secondary button *Check again* / busy *Checking N…*, and *"N still can't be reached."* under it when `stillUnreachable`; `ChainCheckBox(offline, checking, onCheck, content)` — `Modifier.pullToRefresh(enabled = offline)` with `PullToRefreshDefaults.Indicator` in design tokens
+- [X] T001 [P] Write failing `ChainCheckTest` in `kotlin/app/src/test/kotlin/holdout/app/ChainCheckTest.kt` covering every row of data-model.md's transition table: `request` while the chain answers starts nothing; `request` while `checking` joins (no read); `request` from idle or `stillUnreachable` with `offline == true` → `checking`, read started; `finished(answered = false)` → `stillUnreachable`; `finished(answered = true)` → idle; `answered()` from any state → idle
+- [X] T002 [P] Write failing `CheckAgainCopyTest` in `kotlin/app/src/test/kotlin/holdout/app/CheckAgainCopyTest.kt`: the strings of contracts/check-again-ui.md built for a given network name — *"Check again"*, *"Checking N…"*, *"N still can't be reached."*, *"N can't be reached right now."* — name the network and contain none of "offline", "internet", "error" (SC-004, FR-007)
+- [X] T003 Implement `ChainCheck` (fields `checking`, `stillUnreachable`; `request(offline): Pair<ChainCheck, Boolean>`-style step, `finished(answered)`, `answered()`) and a `CheckAgainCopy` object holding the T002 strings in `kotlin/app/src/main/kotlin/holdout/app/holdout/ChainCheck.kt`; T001 and T002 pass
+- [X] T004 Add `check: ChainCheck` to `HoldoutViewModel.UiState` and `checkNow(alsoRead: suspend () -> Unit)` in `kotlin/app/src/main/kotlin/holdout/app/holdout/HoldoutViewModel.kt`: gated by `ChainCheck.request(offline)`; starts `refreshNow()` and `alsoRead()` together; ends with `finished(answered = !offline)`; any successful `refreshNow()` applies `answered()`; reads only while `refresher != null` (in front, FR-008); never calls `submitDay` or touches `autoSubmit` (FR-004)
+- [X] T005 In `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt`, factor the chain-time loop body into one suspend function (read `refreshChainTime(clock)` and save the reading) used by the loop and by checks, and one `onCheck(roster: SolanaPublicKey?)` that calls `holdouts.checkNow { readChainTime(); roster?.let { holdouts.loadRoster(it) } }` (research R2)
+- [X] T006 Add to `kotlin/app/src/main/kotlin/holdout/app/ui/Components.kt`, via the `holdout-ui` skill: `CheckAgain(check, onCheck)` — a secondary button *Check again* / busy *Checking N…*, and *"N still can't be reached."* under it when `stillUnreachable`; `ChainCheckBox(offline, checking, onCheck, content)` — `Modifier.pullToRefresh(enabled = offline)` with `PullToRefreshDefaults.Indicator` in design tokens
 
 **Checkpoint**: the gate and the copy are tested; the view model can check; the components exist.
 
@@ -37,8 +37,8 @@ None: no new dependency (Material 3's `pullToRefresh` is in the existing BOM, re
 
 **Independent Test**: quickstart steps 1–3.
 
-- [ ] T007 [US1] In `kotlin/app/src/main/kotlin/holdout/app/home/CohortHome.kt`, add `check: ChainCheck` and `onCheck` parameters; under the *"Done — waiting for network"* body and under the *"N can't be reached right now…"* notice, show `CheckAgain` while `offline`; wrap the screen's scrolling column in `ChainCheckBox(offline, …)`
-- [ ] T008 [US1] Wire `CohortHome` in `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt` with `check = chain.check` and `onCheck = { onCheck(h.address) }`
+- [X] T007 [US1] In `kotlin/app/src/main/kotlin/holdout/app/home/CohortHome.kt`, add `check: ChainCheck` and `onCheck` parameters; under the *"Done — waiting for network"* body and under the *"N can't be reached right now…"* notice, show `CheckAgain` while `offline`; wrap the screen's scrolling column in `ChainCheckBox(offline, …)`
+- [X] T008 [US1] Wire `CohortHome` in `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt` with `check = chain.check` and `onCheck = { onCheck(h.address) }`
 
 **Checkpoint**: US1 works alone: quickstart 1–3 on a phone.
 
@@ -48,15 +48,15 @@ None: no new dependency (Material 3's `pullToRefresh` is in the existing BOM, re
 
 **Independent Test**: quickstart steps 4–5.
 
-- [ ] T009 [US2] In `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt`, under *"N unreachable — the Daily 25 still works"* on the no-Holdout home, show `CheckAgain` (`onCheck(null)`), and wrap that home in `ChainCheckBox`
-- [ ] T010 [P] [US2] In `kotlin/app/src/main/kotlin/holdout/app/cohort/CohortDetailScreen.kt`, add `offline`, `check`, `onCheck`; while `offline` show *"N can't be reached right now."* under the title with `CheckAgain`, and wrap in `ChainCheckBox`
-- [ ] T011 [P] [US2] Same in `kotlin/app/src/main/kotlin/holdout/app/cohort/ForfeitScreen.kt`
-- [ ] T012 [US2] Wire T010 and T011 in `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt` with `chain.offline`, `chain.check`, `onCheck(h.address)`
+- [X] T009 [US2] In `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt`, under *"N unreachable — the Daily 25 still works"* on the no-Holdout home, show `CheckAgain` (`onCheck(null)`), and wrap that home in `ChainCheckBox`
+- [X] T010 [P] [US2] In `kotlin/app/src/main/kotlin/holdout/app/cohort/CohortDetailScreen.kt`, add `offline`, `check`, `onCheck`; while `offline` show *"N can't be reached right now."* under the title with `CheckAgain`, and wrap in `ChainCheckBox`
+- [X] T011 [P] [US2] Same in `kotlin/app/src/main/kotlin/holdout/app/cohort/ForfeitScreen.kt`
+- [X] T012 [US2] Wire T010 and T011 in `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt` with `chain.offline`, `chain.check`, `onCheck(h.address)`
 
 ## Phase 5: Polish
 
 - [ ] T013 Run the `holdout-ui` visual check on the five states of contracts/check-again-ui.md (screenshots on a phone or emulator)
-- [ ] T014 Run `bash scripts/ci-local.sh --only kotlin` (ktlint, unit tests, both debug APKs) and fix what it finds
+- [X] T014 Run `bash scripts/ci-local.sh --only kotlin` (ktlint, unit tests, both debug APKs) and fix what it finds
 - [ ] T015 Walk quickstart.md on a phone against a local validator
 
 ## Dependencies
