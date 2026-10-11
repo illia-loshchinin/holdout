@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import com.solana.publickey.SolanaPublicKey
+import holdout.app.chain.ChainReads
 import holdout.app.chain.ChainRepository
 import holdout.app.chain.ChainView
 import holdout.app.chain.Deployment
@@ -41,7 +42,7 @@ import java.security.MessageDigest
 class HoldoutViewModel(
     private val store: Store,
     private val rpc: Rpc = Rpc(Deployment.rpcUrl),
-    private val chain: ChainRepository = ChainRepository(rpc),
+    private val chain: ChainReads = ChainRepository(rpc),
     val wallet: WalletRepository = WalletRepository(store, rpc),
     private val faucet: FaucetClient = FaucetClient(rpc, wallet, Deployment.programId),
 ) : ViewModel() {

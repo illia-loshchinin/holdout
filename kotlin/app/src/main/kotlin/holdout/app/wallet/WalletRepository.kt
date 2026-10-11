@@ -45,7 +45,9 @@ sealed interface SendResult {
  * wallet issues is kept, so a restart reconnects without asking again.
  */
 class WalletRepository(private val store: Store, private val rpc: Rpc) {
-    private val adapter =
+    // Made on first use, not with the repository: it needs Android's Uri, and the
+    // view model that holds this repository is built in JVM tests too (005 T019).
+    private val adapter by lazy {
         MobileWalletAdapter(
             connectionIdentity =
             ConnectionIdentity(
@@ -59,6 +61,7 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
             blockchain = Solana.Devnet
             authToken = store.walletSession()?.authToken
         }
+    }
 
     /** The wallet a previous run connected, if any — restored without a prompt. */
     val restored: SolanaPublicKey? get() = store.walletSession()?.address?.let { runCatching { SolanaPublicKey.from(it) }.getOrNull() }
