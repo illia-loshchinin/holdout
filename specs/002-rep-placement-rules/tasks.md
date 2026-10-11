@@ -58,7 +58,7 @@ description: "Task list for 002 rep placement and form rules — as built, with 
 - [X] T016 [P] [US1] Cobra refused in both stakes by push-phase body line ≥ 145° (FR-008, SC-002b), fixtures `angled-knees-cobra-01`, `angled-right-cobra-01`
 - [X] T017 [US1] Record a head-on cobra set (5 reps, Daily 25), label it, commit as `fixtures/rep-traces/front-cobra-01.trace.csv`; if any rep counts, add a head-on cobra rule in `RepCounter.kt` with the failing fixture first — **Dropped 2026-10-08, not done**: no sitting is counted head-on (FR-006 retired)
 - [X] T018 [US1] State in the tour's counting card that the Daily 25 accepts the phone in front or at 45° and welcomes knee push-ups (FR-013) — owned by `specs/001-holdout-hackathon` T042, `kotlin/app/src/main/kotlin/holdout/app/tour/TourScreen.kt` **Done 2026-09-26 with 001's T042.** *Wording revised 2026-10-08 in T041: the phone at 45°, as in a Holdout.*
-- [X] T040 [US1] *(Added 2026-10-08, FR-008a, SC-002c; commit `19f773a`.)* Refuse, in silence, a rep done on the back or standing: `Angles.kneeAboveHipInImage` and `Angles.ankleBelowHandInImage` in `kotlin/repcounter/src/main/kotlin/holdout/repcounter/Angles.kt`; `kneeAboveHip` / `ankleBelowHand` on `ViewReading.Angled` in `ViewReading.kt`; `RepRules.maxKneeAboveHip` 0.3 and `maxAnkleBelowHand` 0.6, with `RepCounter.notFaceDown` judged after every other body check, in `RepCounter.kt`; test "the Daily 25 counts nothing done on the back or standing up - in silence" in `kotlin/repcounter/src/test/kotlin/holdout/repcounter/StakesTest.kt`. Measured: every labelled push-up knee −0.59..0.02, ankle ≤ 0.04; crunches knee 0.51–0.81; standing ankle 1.87–1.94. The 7 Oct Daily 25 sittings go 25 → 22 and 25 → 7, as on video
+- [X] T040 [US1] *(Added 2026-10-08, FR-008a, SC-002c; commit `19f773a`.)* Refuse, in silence, a rep done on the back or standing: `Angles.kneeAboveHipInImage` and `Angles.ankleBelowHandInImage` in `kotlin/repcounter/src/main/kotlin/holdout/repcounter/Angles.kt`; `kneeAboveHip` / `ankleBelowHand` on `ViewReading.Angled` in `ViewReading.kt`; `RepRules.maxKneeAboveHip` 0.3 and `maxAnkleBelowHand` 0.6, with `RepCounter.notFaceDown` judged first *(since `6894c3c`, 8 Oct; at first after every other body check)*, in `RepCounter.kt`; test "the Daily 25 counts nothing done on the back or standing up - in silence" in `kotlin/repcounter/src/test/kotlin/holdout/repcounter/StakesTest.kt`. Measured: every labelled push-up knee −0.59..0.02, ankle ≤ 0.04; crunches knee 0.51–0.81; standing ankle 1.87–1.94. The 7 Oct Daily 25 sittings go 25 → 22 and 25 → 7, as on video
 - [X] T041 [US1] *(Added 2026-10-08, FR-001, FR-004, FR-007; commit `cdc4c1a`.)* Hold the Daily 25 to the Easy set-up at 45°: `Stakes.allowedViews` OBLIQUE and one `cameraFix` for every stakes in `Stakes.kt`; the Daily 25 takes Easy's front line (0.90), the which-way-to-turn fixes and the near knee and foot clear of the edges to start, in `Preflight.kt`; an unreadable knee holds the Daily 25 in `ReadyGate.kt`; legs watched in every sitting at 45° (`watchLegs`) in `RepCounter.kt`; the guide, tour and view-model copy in `kotlin/app/src/main/kotlin/holdout/app/sitting/PlacementGuide.kt`, `tour/TourScreen.kt`, `sitting/SittingViewModel.kt`; the head-on and cobra rows in `kotlin/app/src/main/assets/weaknesses.json` and the README table rendered from it. Tests moved with the rule in `PreflightTest.kt` and `StakesTest.kt`
 - [X] T042 [US1] *(Added 2026-10-08, FR-006 retired; commit `8e8b346`.)* Remove the head-on reading: `ViewReading.HeadOn`, the torso and head-on depth rules and their `RepRules`, `Angles.torsoElevation`, `shoulderHeightInImage` and the both-arms elbow; `RepCounter` cannot be built head-on; the guide's "In front" card and the head-on plank figure in `PlacementGuide.kt` and `SittingScreen.kt`; `FrontViewTest.kt` and the head-on frame builders in `Traces.kt` deleted. The `front-*` fixtures stay as evidence: `Trace.Recording.startsToday` in `TestBench.kt` leaves out a sitting today's app would not start (head-on, or in front of its stakes' band); baseline 285 → 260 labelled reps (the 25 of `front-honest-05` and `front-honest-knees-04`), 0 better, 0 worse
 
@@ -127,6 +127,13 @@ description: "Task list for 002 rep placement and form rules — as built, with 
 
 ---
 
+## Phase 9: Convergence
+
+- [X] T049 Give the near knee its own blocking pre-flight pill, Knees visible, between Whole body in frame and Camera view in `kotlin/repcounter/src/main/kotlin/holdout/repcounter/Preflight.kt` (`PreflightCheck.KNEES_VISIBLE`, `Preflight.kneesVisible()`), moving the near-knee checks and their three fixes out of Whole body in frame, red without a picture pose, and have `Coach.next` rank the knee turn fixes below a failing Whole body in frame pill per FR-024a (missing)
+- [X] T050 Make the set-up guide in `kotlin/app/src/main/kotlin/holdout/app/sitting/PlacementGuide.kt` say "Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone." under its title on every page, with the phone page's "From there it sees all of you, and the knee nearer to it." and the body page opening on the whole-body and knees lines, per FR-015 as amended (missing)
+
+---
+
 ## Dependencies
 
 - Phase 1 → Phase 2 → US1, US2 (both P1, independent of each other) → US3 → US4.
@@ -136,6 +143,7 @@ description: "Task list for 002 rep placement and form rules — as built, with 
 - T028 and T033 wait on 001 T095 (beta testers).
 - T034 waits on T033 (it writes T033's results into the weaknesses rows).
 - Phase 8 waits on T033 and T035.
+- Phase 9 (T049, T050) follows Phase 7 and is independent of Phase 8; T050 follows T049 (the guide's knees line names the pill).
 
 ## Parallel execution examples
 
@@ -145,8 +153,3 @@ description: "Task list for 002 rep placement and form rules — as built, with 
 ## Implementation strategy
 
 The MVP — US1 and US2 on the counter — is built and on the phone. Since 2026-10-08 the Daily 25 rehearses the Easy set-up at 45° and the head-on path is gone (T040–T042). What remains: label what only today's counter sees and confirm Claude's labels so the ratchet holds real ground truth (T046, T047), check the Daily 25 at the front edge of its band (T048), then widen the evidence beyond one person (T033) before any classifier work (Phase 8).
-
-## Phase 9: Convergence
-
-- [X] T049 Give the near knee its own blocking pre-flight pill, Knees visible, between Whole body in frame and Camera view in `kotlin/repcounter/src/main/kotlin/holdout/repcounter/Preflight.kt` (`PreflightCheck.KNEES_VISIBLE`, `Preflight.kneesVisible()`), moving the near-knee checks and their three fixes out of Whole body in frame, red without a picture pose, and have `Coach.next` rank the knee turn fixes below a failing Whole body in frame pill per FR-024a (missing)
-- [X] T050 Make the set-up guide in `kotlin/app/src/main/kotlin/holdout/app/sitting/PlacementGuide.kt` say "Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone." under its title on every page, with the phone page's "From there it sees all of you, and the knee nearer to it." and the body page opening on the whole-body and knees lines, per FR-015 as amended (missing)
