@@ -28,4 +28,9 @@
   (`/code-review xhigh <PR number> --comment`, which posts its findings on the PR). Fix or answer
   every finding on the PR, and say in the PR that this review replaced Codex's. The PR is not
   ready for review, and is not merged, until that review is done and answered.
+- **For Kotlin code, use the `LSP` tool** (outline, hover, go-to-definition, find-references)
+  before `Grep`/`Read` sweeps. The server needs a warm Gradle daemon to start inside the harness's
+  30 s limit; a `SessionStart` hook in `.claude/settings.json` warms it. If `LSP` still times out
+  during initialization, run `./gradlew :core:dependencies --configuration compileClasspath -q`
+  from `kotlin/` and retry.
 - Do not use `archive` folder for development or implementation. The data source inside the archive folder must be treated as deprecated.
