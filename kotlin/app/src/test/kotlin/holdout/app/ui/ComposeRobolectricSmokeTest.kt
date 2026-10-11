@@ -31,7 +31,7 @@ class ComposeRobolectricSmokeTest {
         }
 
         compose.onNodeWithText("About Holdout").assertExists()
-        compose.onNodeWithText("The three-card tour again").performClick()
+        compose.onNodeWithText("How Holdout works").performClick()
 
         assertEquals(1, tours)
     }
