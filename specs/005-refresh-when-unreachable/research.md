@@ -16,7 +16,7 @@
 
 - **Decision**: a plain-Kotlin gate `ChainCheck` (data-model) with `request(offline)` → whether to start a read, `finished(answered)` and `answered()` for any successful read. A request while one is under way, or while the chain answers, starts nothing.
 - **Rationale**: one rule, unit-testable on the JVM like `AutoSubmit`; the view model's overlapping-read guard (`newestApplied`) already keeps the newest answer, so a check racing the 30-second read needs nothing more.
-- **Alternatives**: a `Job` check in the view model alone — rejected, it hides the rule from tests.
+- **Alternatives**: a `Job` check in the view model alone, rejected because it hides the rule from tests. The view model's own wiring is tested too, through the `ChainReads` seam (T019, `HoldoutViewModelCheckTest`).
 
 ## R4 — The pull gesture
 
