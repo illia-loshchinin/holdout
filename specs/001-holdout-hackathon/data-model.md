@@ -235,5 +235,7 @@ Computed in `kotlin/core` (`Derive.kt`) from chain accounts and chain time only,
 | **At stake** (a Holdout open for joining) | `held_stake` — the sum of the stakes taken so far. Shown on the lobby card with the joined count (FR-053). Labelled "at stake", never "prize": an open cohort has no forfeits yet |
 | **Carry-over received** | *(Removed 2026-10-05: always zero, no longer shown.)* |
 | Time until joining closes | `join_cutoff − chainNow` (FR-008) |
+| **Since the end** *(added 2026-10-11)* | `chainNow − end`, while the cohort is not settled: *"Ended 4m ago"* on the settling card (FR-035a) |
+| **Usually settled in** *(added 2026-10-11)* | `max(0, end + SETTLE_USUAL_SECONDS − chainNow)`, `SETTLE_USUAL_SECONDS = 900` — the crank's 10-minute pass plus 5 minutes for the pass itself (R12). Shown as *"usually within 11m"*; at `0`, *"any moment"* on Home/H0 and *"taking longer than usual"* on H4. Never a promise (FR-035a); the finished notice is set for the same instant (FR-068b) |
 
 `member_count_at_start` = `member_count` read at or after `start` (the roster is final from the join cutoff, FR-010).

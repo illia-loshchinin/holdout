@@ -446,4 +446,17 @@ class DeriveTest {
         assertEquals(Derive.timeUntilJoiningCloses(c, now), f.timeUntilJoiningCloses)
         members.forEach { assertEquals(Derive.projectedShare(it, c, members, now), f.projectedShare(it)) }
     }
+
+    @Test
+    fun `settlement usually comes within 15 minutes of the end, counted from it (FR-035a)`() {
+        val c = cohort()
+        val end = Derive.end(c)
+        assertEquals(900L, Derive.SETTLE_USUAL_SECONDS)
+        assertEquals(0L, Derive.sinceEnd(c, end - 5))
+        assertEquals(660L, Derive.sinceEnd(c, end + 660))
+        assertEquals(900L, Derive.settleUsuallyIn(c, end))
+        assertEquals(240L, Derive.settleUsuallyIn(c, end + 660))
+        assertEquals(0L, Derive.settleUsuallyIn(c, end + 900))
+        assertEquals(0L, Derive.settleUsuallyIn(c, end + 5_000))
+    }
 }

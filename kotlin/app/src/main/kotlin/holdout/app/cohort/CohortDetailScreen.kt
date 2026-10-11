@@ -34,8 +34,9 @@ import holdout.core.Stage
 /**
  * Cohort detail (US-7, T075, T082): days remaining, the member's own record,
  * the projected share, and how the crowd thinned day by day. It also carries
- * the two quiet end states: **"You finished · settlement in progress"** until
- * finalisation (contracts §5), and **claimed**.
+ * the two quiet end states: **"You finished · settling"** until finalisation,
+ * with how long it usually takes counted from the end (FR-035a, contracts §5),
+ * and **claimed**.
  */
 @Composable
 fun CohortDetailScreen(
@@ -71,8 +72,9 @@ fun CohortDetailScreen(
 
             when (stage) {
                 Stage.Settling -> HoldoutCard {
-                    Text("You finished · settlement in progress", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
-                    Body("Every member is being counted on chain. Your claim opens the moment it's done — nobody can change what you're owed.")
+                    Text(SettlingWords.CARD_TITLE, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
+                    Body(SettlingWords.cardBody(Derive.sinceEnd(c, now), Derive.settleUsuallyIn(c, now)))
+                    Body("Your claim opens the moment it's done.")
                 }
                 is Stage.Claimed -> HoldoutCard {
                     Text("Claimed · ${Format.skr(stage.amount)}", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)

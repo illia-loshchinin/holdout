@@ -30,6 +30,7 @@ import holdout.app.chain.Holdout
 import holdout.app.claim.ClaimScreen
 import holdout.app.cohort.CohortDetailScreen
 import holdout.app.cohort.ForfeitScreen
+import holdout.app.cohort.SettlingWords
 import holdout.app.faucet.FaucetSheet
 import holdout.app.holdout.HoldoutViewModel
 import holdout.app.home.CohortHome
@@ -76,6 +77,7 @@ import holdout.core.HoldoutDay
 import holdout.core.Journey
 import holdout.core.Leaderboard
 import holdout.core.LeagueParams
+import holdout.core.MembershipSnapshot
 import holdout.core.Reminders
 import holdout.core.ScriptedWallets
 import holdout.core.SeekerGenesisReader
@@ -283,8 +285,11 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             val h = view.holdouts.first { it.cohort == c }
             store.isDayComplete(me.base58(), cohortScope(h), day.toLong()) || store.pendingCohortDay(me.base58(), h.address.base58()) == day
         }
-        val schedule = Reminders.schedule(held, { c -> view.holdouts.first { it.cohort == c }.address }, chainNow, doneOnPhone)
-        reminders.sync(me.base58(), schedule, chainNow, elapsed)
+        val addressOf = { c: CohortSnapshot -> view.holdouts.first { it.cohort == c }.address }
+        // A finish that should earn a comeback refund (FR-037e): the notice says so (FR-068b).
+        val comebackFor = { c: CohortSnapshot, m: MembershipSnapshot -> Reminders.comebackExpected(c, m, view.profile, held) }
+        val schedule = Reminders.schedule(held, addressOf, chainNow, comebackFor = comebackFor, doneOnPhone = doneOnPhone)
+        reminders.sync(me.base58(), schedule, chainNow, elapsed, withdraw = Reminders.finishedToWithdraw(held, addressOf))
     }
 
     // Asked once, at the first join, with the reason (FR-068a); the join goes ahead either way.
@@ -696,7 +701,7 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             val (label, next) = when (stage) {
                 Stage.Lobby, Stage.LobbyLocked -> "In the lobby · starts in ${Format.countdown(h.cohort.start - now)}" to Route.Lobby(h.address)
                 is Stage.Forfeited -> "Out after ${stage.daysLasted} day${if (stage.daysLasted == 1) "" else "s"}" to Route.Forfeit(h.address)
-                Stage.Settling -> "You finished · settlement in progress" to Route.Detail(h.address)
+                Stage.Settling -> SettlingWords.homeLine(Derive.settleUsuallyIn(h.cohort, now)) to Route.Detail(h.address)
                 is Stage.ReadyToClaim -> "You finished · claim ${Format.skr(stage.amount)}" to Route.Claim(h.address)
                 else -> null to null
             }
