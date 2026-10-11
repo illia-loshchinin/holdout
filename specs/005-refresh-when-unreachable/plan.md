@@ -71,7 +71,7 @@ kotlin/app/src/main/kotlin/holdout/app/
 │   └── WalletRepository.kt      # the wallet adapter is made on first use, so the view model builds on the JVM (T019)
 ├── holdout/
 │   ├── ChainCheck.kt            # new: the gate (idle / checking / still unreachable)
-│   └── HoldoutViewModel.kt      # checkNow() keeps its job, pause() cancels it and clears the check; UiState.check; a successful read clears it; takes ChainReads (T019)
+│   └── HoldoutViewModel.kt      # checkNow() keeps its job, pause() cancels it and clears the check; loadRoster(cohort, scope) lets a check own its roster read; UiState.check; a successful read clears it; takes ChainReads (T019)
 ├── ui/
 │   └── Components.kt            # new: CheckAgain(checking, stillUnreachable, onCheck); ChainUnreachable(...) — the line + CheckAgain for details and forfeit; ChainCheckBox (pull, enabled only while unreachable)
 ├── home/
