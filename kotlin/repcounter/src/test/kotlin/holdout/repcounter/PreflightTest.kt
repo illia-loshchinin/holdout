@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** T046 — the four environment checks, and what each red pill says (FR-019, PRD §8.2). */
+/** T046 — the environment checks (five pills), and what each red pill says (FR-019, PRD §8.2). */
 class PreflightTest {
 
     private val preflight = Preflight()
@@ -17,7 +17,9 @@ class PreflightTest {
         // 45°, inside the Easy band (ratio about 0.75): the Daily 25's placement,
         // which `Preflight()` checks for, as every sitting's since 8 Oct.
         image: PoseFrame? = Traces.imageFrame(shoulderSpan = 0.3f),
-    ) = PreflightInput(brightness, backgroundMotion, world, image)
+        // The knees pill reads the near knee from the picture's pose; without one it is red.
+        imagePose: ImagePose? = image?.let(Traces::imagePoseWithNearKnee),
+    ) = PreflightInput(brightness, backgroundMotion, world, image, imagePose)
 
     @Test
     fun `five checks, no more - the knees have their own, there is no audio check`() {
@@ -33,6 +35,17 @@ class PreflightTest {
             ),
             report.statuses.map { it.check }.toSet(),
         )
+    }
+
+    @Test
+    fun `a frame without the picture's pose has not shown a knee, so the pill is red`() {
+        val withoutPose = PreflightInput(0.5f, 0f, Traces.frame(0, elbowDegrees = 175f, bodyLineDegrees = 180f), Traces.imageFrame(shoulderSpan = 0.3f))
+        val report = preflight.evaluate(withoutPose)
+        assertFalse(knees(report).passing)
+        assertEquals(Preflight.KNEES_TURN_FIX, knees(report).fix)
+        assertFalse(report.canStart)
+        // And the same frame with its pose passes: the missing data is what made it red.
+        assertTrue(preflight.evaluate(good()).canStart)
     }
 
     @Test
@@ -127,7 +140,10 @@ class PreflightTest {
         for (span in listOf(0.05f, 0.4f, 0.7f)) {
             val report = preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = span)))
             assertFalse(report.canStart, "shoulder span $span")
-            assertEquals(listOf("Turn the phone to 45°"), report.fixes, "shoulder span $span")
+            // The synthetic body shows its left side to the lens, so the pill may say which way to turn.
+            val fix = report.statuses.single { it.check == PreflightCheck.CAMERA_ANGLE }.fix
+            assertEquals(listOf(fix), report.fixes, "only the camera pill is red at shoulder span $span")
+            assertTrue(fix!!.contains("turn", ignoreCase = true), "shoulder span $span: $fix")
         }
     }
 

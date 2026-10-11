@@ -52,6 +52,27 @@ class CoachTest {
     }
 
     @Test
+    fun `getting the whole body into the picture comes before turning for the knees`() {
+        // 002 FR-018: view first, then the turns. A knee that cannot be found while the body is not
+        // whole in the picture says "Further" (or the head's fix), never which way to turn.
+        fun both(wholeBodyFix: String?, kneesFix: String) = PreflightReport(
+            statuses = PreflightCheck.entries.map {
+                when (it) {
+                    PreflightCheck.WHOLE_BODY -> PreflightStatus(it, passing = false, specificFix = wholeBodyFix)
+                    PreflightCheck.KNEES_VISIBLE -> PreflightStatus(it, passing = false, specificFix = kneesFix)
+                    else -> PreflightStatus(it, passing = true)
+                }
+            },
+            view = CameraView.OBLIQUE,
+        )
+        for (wholeBodyFix in listOf(null, Preflight.HEAD_FIX, Preflight.FEET_FIX)) {
+            for (kneesFix in listOf(Preflight.KNEES_TURN_LEFT_FIX, Preflight.KNEES_TURN_RIGHT_FIX, Preflight.KNEES_TURN_FIX, Preflight.KNEES_FIX)) {
+                assertEquals(Coach.FURTHER, Coach.next(both(wholeBodyFix, kneesFix), guidance(null)), "whole body $wholeBodyFix, knees $kneesFix")
+            }
+        }
+    }
+
+    @Test
     fun `a hidden knee asks the member to turn away, a knee at the edge asks for the phone further off`() {
         fun kneesReport(fix: String) = PreflightReport(
             statuses = PreflightCheck.entries.map { if (it == PreflightCheck.KNEES_VISIBLE) PreflightStatus(it, passing = false, specificFix = fix) else PreflightStatus(it, passing = true) },

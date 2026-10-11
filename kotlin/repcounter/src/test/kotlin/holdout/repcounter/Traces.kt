@@ -192,6 +192,17 @@ object Traces {
         return PoseFrame(timestampMillis, landmarks)
     }
 
+    /**
+     * [imageFrame] as the picture's pose with a near knee, found and well inside the picture, for the knees
+     * pill, which is red without one. The knee stands off the line from hip to ankle so the left leg is the
+     * longer in the picture, and the left is the near side whatever the shoulders do.
+     */
+    fun imagePoseWithNearKnee(frame: PoseFrame): ImagePose = ImagePose(
+        PoseFrame(frame.timestampMillis, frame.landmarks.mapIndexed { i, l -> if (i == PoseIndex.LEFT_KNEE) Landmark(0.5f, 0.45f, 0f, 1f) else l }),
+        IMAGE_WIDTH,
+        IMAGE_HEIGHT,
+    )
+
     /** A portrait 9:16 picture, so a measurement that forgets to un-squash the axes reads wrong. */
     const val IMAGE_WIDTH = 900
     const val IMAGE_HEIGHT = 1600

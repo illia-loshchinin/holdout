@@ -86,7 +86,7 @@ import java.util.concurrent.Executors
 import kotlin.math.atan
 
 /**
- * The sitting, screen 8 of PRD §10.1: start card, four pre-flight pills, palm
+ * The sitting, screen 8 of PRD §10.1: start card, five pre-flight pills, palm
  * liveness, a 3-second countdown, counting with the skeleton overlay and the
  * bank ring, then the day complete.
  *

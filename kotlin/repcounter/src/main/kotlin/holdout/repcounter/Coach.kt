@@ -4,7 +4,7 @@ package holdout.repcounter
  * The one thing to do next while getting into position — **three short words at most**,
  * shown big enough to read from the floor two metres away, and spoken.
  *
- * The four pre-flight pills and the guide each have their own full sentence;
+ * The five pre-flight pills and the guide each have their own full sentence;
  * nobody lying on the floor can read those. This picks the single most useful
  * correction, in the order they have to happen: light before anything the
  * model reads, the phone before the body, the body down before it is lined up,
@@ -45,7 +45,10 @@ enum class Coach(val words: String) {
         fun next(report: PreflightReport?, guidance: Guidance?, hold: HoldBlocker? = null): Coach {
             if (report == null || guidance == null) return GET_IN_VIEW
             fun failing(check: PreflightCheck) = report.statuses.any { it.check == check && !it.passing }
-            val kneesFix = report.statuses.firstOrNull { it.check == PreflightCheck.KNEES_VISIBLE && !it.passing }?.fix
+            // Getting into view comes before turning (002 FR-018): while the whole body (or the head, or
+            // a foot) is out of the picture, "Further" is the correction, not which way to turn the knees.
+            val kneesFix = report.statuses
+                .firstOrNull { it.check == PreflightCheck.KNEES_VISIBLE && !it.passing && !failing(PreflightCheck.WHOLE_BODY) }?.fix
             val cameraFix = report.statuses.firstOrNull { it.check == PreflightCheck.CAMERA_ANGLE && !it.passing }?.fix
 
             return when {

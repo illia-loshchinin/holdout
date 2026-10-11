@@ -1,7 +1,7 @@
 package holdout.repcounter
 
 /**
- * What starts a sitting: the four pre-flight pills green **and** the member
+ * What starts a sitting: the gating pre-flight pills green **and** the member
  * held at the top of a push-up, together, for about a second. No tap.
  *
  * **This replaces the palm liveness check** (was FR-020, PRD §8.3). The palm
