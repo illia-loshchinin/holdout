@@ -95,3 +95,10 @@ None: no new dependency (Material 3's `pullToRefresh` is in the existing BOM, re
 ## Implementation Strategy
 
 MVP = Phase 2 + US1: the owner's case (the waiting day after `adb reverse` dropped). US2 then extends the same component to the other screens. One PR into `001-holdout-hackathon`.
+
+## Phase 6: Convergence
+
+- [X] T020 [US1] Fixes from the Codex review of PR #57 (PR #61, commit 8c26e91) per FR-008 and FR-003 (partial). Supersedes the wording of T004, T018 and T019 where it differs:
+  - In `kotlin/app/src/main/kotlin/holdout/app/MainViewModel.kt`, `refreshChainTime(clock, read)` applies only the answer of the latest started chain-time read, so an earlier read landing last cannot rewind `ChainClock` (research R3; a slot comparison in `ChainClock.observe` was rejected, since slots restart after a local validator reset).
+  - In `kotlin/app/src/main/kotlin/holdout/app/holdout/HoldoutViewModel.kt`, `checkNow` keeps its job in `checking`; `pause()` cancels it and resets `check` to `ChainCheck()`, so no read goes on and no "Checking…" stays once the app leaves the front. `finished` no longer runs in a `finally` (T004, T018): it runs straight after a `try`/`catch`, so a throwing read still ends the check, and a cancellation is rethrown and skips it, so a cancelled check never ends as "still can't be reached".
+  - Tests: new `kotlin/app/src/test/kotlin/holdout/app/MainViewModelTest.kt` (3 tests: the earlier read answering last, a lone answer, a failed read) and a pause-during-check case in `HoldoutViewModelCheckTest` — 11 tests there now, not the 10 of T019. Passing with `ChainCheckTest`.
