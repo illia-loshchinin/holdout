@@ -2,17 +2,23 @@
 
 Source of truth is the code named beside each group; this list is for review and for the tour and stake sheet in `specs/001-holdout-hackathon` (T042, T059), which must reuse the same sentences.
 
-## The staked rule — one sentence, everywhere (FR-012, FR-014)
+## The rule sentence — one per level, word for word, everywhere (FR-012, FR-014; amended 2026-10-11)
 
-`Stakes.STAKED_RULE`:
+Members read the two staked levels as **Spark · 7-day** and **Habit · 21-day**; `Easy`, `Hard` and `staked` are the code's internal names and are never member copy. Each level has one rule sentence, held once in `kotlin/repcounter` and read by `Format.levelRule`:
 
-> Staked Holdouts are counted at 45°: stand the phone on the floor ahead of your shoulder, turned to look at you at about 45° — not in front, not straight beside you — and do full push-ups from your toes. Push-ups from the knees, or with the hips resting on the floor at the bottom, do not count.
+**Spark · 7-day** — `Stakes.EASY_RULE`:
 
-Shown today in the set-up guide for staked sittings. Must appear on the stake sheet (001 T059) and the tour's counting card (001 T042).
+> At 45° only. Aim for full push-ups from your toes; push-ups from the knees still count.
+
+**Habit · 21-day** — `Stakes.STAKED_RULE`:
+
+> At 45° only: phone on the floor ahead of your shoulder. Full push-ups from your toes — push-ups from the knees don't count.
+
+Each is shown on the stake sheet of that level (001 T059, T228), and on the set-up guide and the pre-flight page of a sitting in that Holdout, after FR-015's opening lines. A Spark screen never shows the Habit sentence, nor the reverse. The tour's counting card (card 3 of 4, FR-013) states the placement and the knee rule in its own words, not by quoting a sentence. The Daily 25 shows the caption "counted as the Spark" instead of a level sentence (FR-014). The hips-resting rule (FR-008, 2026-10-04) is applied by the counter and is not part of either sentence. *(Until 2026-10-11 one sentence, "Staked Holdouts are counted at 45° …", served every Holdout.)*
 
 ## Refused placement (FR-004) — `Stakes.cameraFix`, `Preflight`
 
-Every sitting is at 45° *(since 2026-10-08; the Daily 25 said "Put the phone in front of you, or at 45°" until then)*. The band's front edge is about 35° for a Hard Holdout and about 40° for an Easy Holdout and the Daily 25.
+Every sitting is at 45° *(since 2026-10-08; the Daily 25 said "Put the phone in front of you, or at 45°" until then)*. The band's front edge is about 35° for a Hard Holdout (members read Habit · 21-day) and about 40° for an Easy Holdout (Spark · 7-day) and the Daily 25.
 
 - "Turn the phone to 45°" — square head-on, where no side of the body is nearer the phone
 - The phone a little too far in front *(added 2026-10-02 for staked; every sitting since 2026-10-08)*: "The phone is too far in front of you: turn your body slightly to your left (right), away from it" — the coach says "Turn slightly left" or "Turn slightly right"
