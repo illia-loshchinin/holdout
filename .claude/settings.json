@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR/kotlin\" && ./gradlew :core:dependencies --configuration compileClasspath -q >\"${TMPDIR:-/tmp}/holdout-gradle-warmup.log\" 2>&1 || true",
+            "command": "cd \"$CLAUDE_PROJECT_DIR/kotlin\" && ./gradlew :core:dependencies --configuration compileClasspath >\"${TMPDIR:-/tmp}/holdout-gradle-warmup.log\" 2>&1",
             "shell": "bash",
             "async": true
           }
