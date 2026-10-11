@@ -253,15 +253,29 @@ Post-hackathon, outside this plan: a winning app must be published on the Solana
 
 | Piece | Files / artifacts |
 |---|---|
-| Shell and tabs | `kotlin/app/.../nav/` (reducer, state, events), the bar and tab hosts in `HoldoutApp.kt`; the design system's BottomNav component |
-| Tab roots | `holdouts/` (H0), `standing/` (the detail H4 or its empty state), `me/` (W1), Today = the existing `home/` T1 / T2 |
-| Signing | `signing/` (flow screens and result mapping); `wallet/` supplies the outcomes; stake confirm and faucet become sheets over their opener |
+| Shell and tabs | `kotlin/app/.../nav/` (reducer `Nav.kt`, `Badges.kt`, `NavSaved.kt`), `shell/AppShell.kt` (stateless) with a host per tab and flow in `shell/` (`TodayHost`, `HoldoutsHost`, `StandingHost`, `MeHost`, `SittingHost`, `TxFlowHost`, `Shared`, `TabRoots`), `HoldoutApp.kt` (state, loops, router); the design system's BottomNav component |
+| Tab roots | `holdouts/` (H0), `standing/` (the empty state; the detail H4 is `cohort/CohortDetailScreen.kt` hosted by `shell/StandingHost.kt`), `me/` (W1), Today = the existing `home/` T1 / T2 |
+| Signing | `tx/` (`SigningScreens.kt`: the flow screens and *You're in*) and `wallet/Signing.kt` (the pure outcome → result mapping); `wallet/WalletRepository.kt` supplies the outcomes; stake confirm and faucet become sheets over their opener |
 | Copy and levels | `ui/Components.kt` `Format` level and fee helpers, `Stakes` rule sentences per level (replacing `Stakes.STAKED_RULE` and the string replace in `TourScreen`), tour card 4 |
 | Storage | `storage/Store.kt`: `looked:`, `sitting:` |
 | Tests | reducer transitions, wallet-outcome mapping, Robolectric shell and per-screen tests, a copy-rule string test, an end-to-end journey test (quickstart 24a–24c) |
 | Docs (not spec-kit) | `docs/holdout_screen_map.md` (tabs, J9, W1, H0), `docs/design/` compose map |
 
-**Risks.** Robolectric cannot show the wallet's own sheet: the signing flow is tested up to the outcome, and the real approval stays a device check (quickstart 24b). A tab's back stack must survive activity recreation (reducer state saved with the activity).
+**Risks.** Robolectric cannot show the wallet's own sheet: the signing flow is tested up to the outcome, and the real approval stays a device check (quickstart 24b). A tab's back stack must survive the process dying behind the app (the reducer state is saved as plain strings, `nav/NavSaved.kt`; sheets, signing, sitting and the tour are not).
+
+### Integration pass (clarification 2026-10-11, evening; FR-053a, FR-069, FR-069e, FR-024b, FR-001b, ES-1)
+
+**Summary.** The sitting, the reminder and the saved navigation are wired into the shell by five small, pure pieces, each unit-tested on the JVM; no program, counting or fixture change and no new storage key (`sitting:` of the amendment above is now read at Today).
+
+| Piece | Files / artifacts |
+|---|---|
+| The offer after a Daily 25 (FR-053a) | `shell/SittingOffers.kt` — pure `SittingOffers.of(view, now, seekerKnown, knownNotSeeker)`: nothing while a Holdout is running or in a lobby, nothing for a wallet known not to hold a Seeker, a comeback (`TodayModel.comeback`) before the soonest-closing open Holdout (`OfferCardState`); `shell/SittingHost.kt` passes it to the day-complete page |
+| Too late to send → forfeit (FR-024b) | `shell/SittingWiring.kt` — `tooLateToSend` (chain time known and the day's deadline passed) and `holdoutDayEndEvents` (`SittingEnded`, then `Open(Forfeit)` only for a finished, too-late day) |
+| Crash page at Today (ES-1) | `shell/SittingWiring.kt` `interruptedSittings` reading `InterruptedSitting.consume` (`sitting/SittingMarker.kt`) for the running Holdout's today, then the Daily 25's; `shell/TodayHost.kt` shows `StoppedScreen` once per marker |
+| Reminder and restore (FR-069, FR-069e) | `AppOpen.kt` (the launcher or a reminder, also a new intent for a running activity → `NavEvent.AppOpened`: Today selected, its stack and any sheet dropped, a sitting or signature untouched); `nav/NavSaved.kt` (`encode`/`decode` of tab and pushed screens, version `v1`, unreadable → Today) held with `rememberSaveable` in `HoldoutApp.kt` |
+| Wrong-network sentence (FR-001b) | `wallet/WalletRepository.WRONG_NETWORK` (with the Me path); `wallet/ConnectScreen.kt` maps it to the same sentence without the parenthesis |
+
+**Constitution check.** Unchanged: VII (each piece is pure and has a test), VI (no date or clock time), X (nothing new leaves the device), XIII (copy). **Risks.** The crash page is checked on the next Today, not on the sitting's screen: a member killed mid-sitting who never returns to Today sees it later, as the marker stays until read.
 
 ## Complexity Tracking
 

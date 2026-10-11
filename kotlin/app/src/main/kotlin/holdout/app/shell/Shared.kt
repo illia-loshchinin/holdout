@@ -71,7 +71,7 @@ internal class Shared(
     fun holdout(id: String): Holdout? = view?.holdouts?.firstOrNull { it.address.base58() == id }
 
     /** The member's Holdout running today with them standing in it, if any (T2). */
-    fun active(): Pair<Holdout, Stage.Active>? = now?.let { n -> view?.mine(n)?.firstNotNullOfOrNull { h -> (h.stage(n) as? Stage.Active)?.let { h to it } } }
+    fun active(): Pair<Holdout, Stage.Active>? = TabRoots.active(view, now)
 }
 
 /**
