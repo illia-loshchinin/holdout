@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-11
 
-**Status**: In review (implemented; the phone checks T013 and T015 are open)
+**Status**: In review (implemented; the waiting-day walk, T015 and T016, is open)
 
 **Input**: User description: "Refresh while the chain can't be reached. Product owner's request (2026-10-11): when a member's app cannot reach the chain (the app's own "the chain can't be reached" state — the last chain read failed), they must be able to refresh the screen they are on to see whether the network is available again. Context: during a local test the Today/Home screen showed "Done — waiting for network" (spec 001 FR-024b, ES-3b) after `adb reverse` to the local validator dropped; the app re-polls on its own schedule and the member had nothing to tap to re-check. Scope to decide: pull-to-refresh on Home/Today, cohort detail and forfeit screens, and/or a "Check again" action on the "waiting for network"/"can't be reached" states. The refresh does an immediate chain read; when the chain answers and a completed day is waiting, the existing "Done — tap to submit" appears; it never submits without the member's tap in Phase 1. Member copy follows the design book's copy rules: never "You're offline"; name the network, as the existing "Devnet can't be reached" wording does. Extends spec 001 (FR-024b, ES-3b, AC-18); base branch 001-holdout-hackathon."
 
@@ -25,7 +25,7 @@ It changes no rule of spec 001. A check is the same read the app already makes o
 - Q: What does the screen say when a check ends and Devnet still can't be reached? → A: *"Devnet still can't be reached."*, until the chain answers; the Check again button stays.
 - Q: Do a Holdout's details and the forfeit screen say the chain can't be reached? → A: Yes: while it can't, they show the same one line, *"Devnet can't be reached right now."*, with Check again, as well as the pull.
 - Q: When a member's check finds Devnet back and a finished day is waiting, does the wallet open by itself or does "Done — tap to submit" wait for a tap? → A: **The wallet opens by itself**, as 001 FR-024b's automatic send (Phase 2, built 2026-10-05) does whenever the chain answers again; after a decline, *"Done — tap to submit"*. A check adds no send of its own and changes none. *(After `/speckit-analyze`: the earlier wording expected the tap first, which the built app does not do. The same pass also fixed FR-007's source, SC-003's method and the unknown-chain-time edge case.)*
-- Q: Does the home say Devnet can't be reached when it shows an earlier read and none of its three existing lines applies (no Holdout shown from a fresh read, or a running Holdout whose day is done)? → A: **Yes**, as User Story 2 already says. The phone walk found it silent there, with only the pull, which nobody would find. It shows *"Devnet can't be reached right now."* with Check again, the same line as details and forfeit. Where that line is used, a failed check changes the line itself to *"Devnet still can't be reached."*, so there is one line and nothing moves. *(Consistency fix from the phone walk; no new decision.)*
+- Q: Does the home say Devnet can't be reached when it shows an earlier read and none of its three existing lines applies (an earlier read with no Holdout running, or a running Holdout whose day is done)? → A: **Yes**, as User Story 2 already says. The phone walk found it silent there, with only the pull, which nobody would find. It shows *"Devnet can't be reached right now."* with Check again, the same line as details and forfeit. Where that line is used, a failed check changes the line itself to *"Devnet still can't be reached."*, so there is one line and nothing moves. *(Consistency fix from the phone walk; no new decision.)*
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -102,6 +102,7 @@ Devnet can't be reached and the member is on a screen built from chain data — 
 
 ## Assumptions
 
+- The day-complete screen, the lobby, the roster, the claim screen and the stake sheet carry no check. The day-complete screen already says the day is not sent yet, and *Back to today* lands on the home, which has one. The others are short visits from the home or details, which have one, and their own actions report a chain that does not answer.
 - The refresh covers the chain only. Seeker ID names, the leaderboards and the faucet keep their own reads; the leaderboards already redraw on open.
 - *"Devnet"* is the network's name from the deployment, as in today's copy; a local or another cluster's build shows its own name.
 - Pull-to-refresh is the platform's standard gesture and indicator, styled with the design book's tokens.
