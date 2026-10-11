@@ -71,6 +71,8 @@ internal fun CountdownContent(ui: CountdownUi, onStop: () -> Unit, modifier: Mod
                     contentAlignment = Alignment.Center,
                 ) {
                     Canvas(Modifier.size(RingSize)) {
+                        // A dim disc under the digit and the ring: white on a bright floor needs a scrim too.
+                        drawCircle(HoldoutColors.Canvas.copy(alpha = DISC_ALPHA))
                         val stroke = Spacing.ringStroke.toPx()
                         val inset = stroke / 2
                         val arc = Size(size.width - stroke, size.height - stroke)
@@ -117,6 +119,7 @@ private val DigitStyle = TextStyle(
 )
 
 private val RingSize = 220.dp
+private const val DISC_ALPHA = 0.45f
 private const val FULL_TURN = 360f
 private const val START_DEGREES = -90f
 private const val FROM = 3

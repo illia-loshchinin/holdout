@@ -151,7 +151,7 @@ internal fun TopScrim(modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .height(TopScrimHeight)
-            .background(Brush.verticalGradient(listOf(HoldoutColors.Canvas.copy(alpha = TOP_SCRIM), Color.Transparent))),
+            .background(Brush.verticalGradient(0f to HoldoutColors.Canvas.copy(alpha = TOP_SCRIM), TOP_SCRIM_STOP to HoldoutColors.Canvas.copy(alpha = TOP_SCRIM_MID), 1f to Color.Transparent)),
     )
 }
 
@@ -233,6 +233,10 @@ private val TopScrimHeight = 140.dp
 private val BottomScrimHeight = 320.dp
 private const val OVER_CAMERA = 0.7f
 private const val TOP_SCRIM = 0.85f
+
+/** The scrim holds most of its strength down to the time line under the bar, then fades: text there sits on a bright room too. */
+private const val TOP_SCRIM_STOP = 0.5f
+private const val TOP_SCRIM_MID = 0.65f
 private const val BOTTOM_SCRIM = 0.92f
 private const val BOTTOM_SCRIM_STOP = 0.55f
 private const val CHIP_FILL = 0.9f
