@@ -57,8 +57,7 @@ class HoldoutViewModelCheckTest {
 
         val rosterReads = mutableListOf<CompletableDeferred<List<MembershipSnapshot>?>>()
 
-        override suspend fun roster(cohort: SolanaPublicKey): List<MembershipSnapshot>? =
-            CompletableDeferred<List<MembershipSnapshot>?>().also { rosterReads += it }.await()
+        override suspend fun roster(cohort: SolanaPublicKey): List<MembershipSnapshot>? = CompletableDeferred<List<MembershipSnapshot>?>().also { rosterReads += it }.await()
 
         override suspend fun leaderboard(): Leaderboard.Snapshot? = null
     }
