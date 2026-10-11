@@ -1,11 +1,13 @@
 //! `set_flags` (contracts/program-instructions §1). Task T028.
 //!
-//! The genesis gate ships off in this build because testers have no Seeker
-//! (research R17), and the README says so. The check is still written, so
-//! flipping the flag is the only difference between this build and an enforced
-//! gate — which is what makes this instruction worth having rather than a
-//! redeploy. There is no ladder gate: both leagues are open to every member
-//! (FR-003, 2026-10-10).
+//! Staked Holdouts are Seeker-exclusive (FR-003b, research R17). The Seeker
+//! Genesis Token check is written (`genesis::holds_seeker_genesis`): with the
+//! flag on, `join_cohort` needs the member's token account and its mint as
+//! remaining accounts. It ships off on devnet, where those tokens do not exist
+//! and the app keeps staking Seeker-exclusive instead, and the README says so;
+//! it is turned on at mainnet launch, which is what makes this instruction
+//! worth having rather than a redeploy. There is no ladder gate: both leagues
+//! are open to every member (FR-003, 2026-10-10).
 //!
 //! It moves no money. Nothing here, and nothing the admin can call, touches a
 //! held stake or a pool (constitution I).

@@ -32,7 +32,7 @@ import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 
 /**
- * Home, with no cohort running: **the Daily 25 is the hero** (PRD §10.1a,
+ * Home, with no cohort running: **the Daily 25 is the hero** (screen map T1,
  * FR-053, T053).
  *
  * ```
@@ -166,7 +166,7 @@ fun HomeScreen(
     }
 }
 
-/** `4h 06m`, or `12m 30s` in the last hour — the shape PRD §10.1a shows. */
+/** `4h 06m`, the shape screen map T1 and T2 show, or `12m 30s` in the last hour. */
 internal fun formatCountdown(seconds: Long): String {
     val hours = seconds / 3_600
     val minutes = (seconds % 3_600) / 60

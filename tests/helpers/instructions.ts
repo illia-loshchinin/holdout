@@ -217,10 +217,11 @@ export const createLeagueIx = async (
 const bool = (v: boolean) => new Uint8Array([v ? 1 : 0]);
 
 /**
- * `set_flags(genesis_gate_enabled)` — admin only. The genesis gate ships off in
- * this build, and flipping it is the *only* difference between it and an
- * enforced gate, which is why it is an instruction rather than a redeploy.
- * There is no ladder gate (FR-003).
+ * `set_flags(genesis_gate_enabled)` — admin only. The Seeker Genesis Token gate
+ * ships off on devnet, where those tokens do not exist and the app keeps
+ * staking Seeker-exclusive; it is turned on at mainnet launch, after which a
+ * join needs the token as its remaining accounts (`joinCohortIx`'s `genesis`,
+ * research R17). There is no ladder gate (FR-003).
  */
 export const setFlagsIx = async (admin: Address, genesisGateEnabled: boolean): Promise<Instruction> => ({
   programAddress: PROGRAM_ID,
@@ -291,6 +292,11 @@ export const openCohortIx = async (
  * `running.end`, so the overlap rule is checked against that cohort's own
  * account rather than a cached figure. Omitted — the program's own ID in the
  * slot, Anchor's convention for "none" — for a member with no running cohort.
+ *
+ * `genesis` is the member's Seeker Genesis Token — their Token-2022 token
+ * account and its mint — appended as the remaining accounts the program reads
+ * when `genesis_gate_enabled` is on (research R17). With the flag off it is
+ * never read, so it is omitted.
  */
 export const joinCohortIx = async (
   member: Address,
@@ -299,6 +305,7 @@ export const joinCohortIx = async (
   index: number,
   tier: number,
   runningCohort?: Address,
+  genesis?: { token: Address; mint: Address },
 ): Promise<Instruction> => {
   const cohort = await cohortPda(leagueId, index);
   return {
@@ -315,6 +322,7 @@ export const joinCohortIx = async (
       ro(skrMint),
       ro(SYSTEM_PROGRAM),
       ro(TOKEN_PROGRAM),
+      ...(genesis ? [ro(genesis.token), ro(genesis.mint)] : []),
     ],
     data: concat(instructionDiscriminator('join_cohort'), u8(tier)),
   };

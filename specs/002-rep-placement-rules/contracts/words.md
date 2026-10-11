@@ -20,7 +20,9 @@ Every sitting is at 45° *(since 2026-10-08; the Daily 25 said "Put the phone in
 
 ## Getting into position (FR-018, FR-019) — `Coach`, in priority order, shown large and spoken
 
-More light · Stand phone up · Get in view · Phone to 45° · Get down · Further · Closer · Move left · Move right · Arms straight · Knees up · Can't see knees · Body straight · Hold
+More light · Stand phone up · Get in view · Phone to 45° · Get down · Turn slightly left / right / away · Further · Closer · Move left · Move right · Arms straight · Knees up · Can't see knees · Body straight · Hold
+
+"Turn slightly left", "right" and "away" *(added 2026-10-10, FR-018, FR-024a)* sit after "Get down": they turn the body so the phone sees the near knee (the Knees visible pill's fixes below), and are shown only while the Whole body in frame pill passes; while it fails, "Further" comes first. "Turn slightly left" and "right" are also said earlier, with the phone's placement, when a staked phone stands a little too far in front of or beside the member (the Camera view pill's turn fixes).
 
 The last four before "Hold" *(added 2026-10-02)* come only once every pill is green: they say what the position itself still lacks, and each has its sentence under it (`HoldBlocker.fix`):
 
@@ -43,13 +45,25 @@ Every refused rep's reason is said aloud at once *(2026-10-04; it was said only 
 - *(nothing)* — a rep done on the back or standing up *(added 2026-10-07, FR-008a)*: there is nothing to coach, so nothing is said
 - "Hips off the floor" *(added 2026-10-04)* — staked only: the hips or thighs rested on the floor at the bottom, carrying weight, and the body was pushed back up. Resting, not a chest brushing the floor. **Not said yet**: no check can see it until the knee-on-the-floor image classifier judges the hips too; until then such reps count (`angled40-right-floor-20`), and the rule sentence says they do not
 
-## Framing (FR-024, FR-010) — the whole-body check, before the hold
+## The set-up guide's headline (FR-015) — `GUIDE_HEADLINE`, on every page of the guide
+
+- "Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone." *(added 2026-10-10)* — under the guide's title, before anything else on each page. The phone page then says "From there it sees all of you, and the knee nearer to it."; the body page opens with the whole-body and knees lines.
+
+## Framing (FR-024, FR-010) — the Whole body in frame pill, before the hold
 
 - "Keep your head in the picture" — the head at or past an edge
-- "Keep your knees in the picture — move the phone further away" — every sitting *(the Daily 25 since 2026-10-08)*: the near knee at or past an edge
 - "Keep your feet in the picture — move the phone further away" *(added 2026-10-02)* — every sitting: the near foot within 6 % of an edge
-- "Turn your body slightly to your left (right), away from the phone, so it sees your knees" — every sitting: the near knee hidden behind the body; the coach says "Turn slightly left" or "Turn slightly right" by the side the phone is on ("Turn slightly away" when that is unclear)
 - While counting nothing is said about the head *(revised 2026-09-29)*
+
+## Knees visible (FR-024a) — its own pill between Whole body in frame and Camera view, blocking *(added 2026-10-10; before it these lines sat under the whole-body check)*
+
+Three fixes, `Preflight.KNEES_FIX`, `KNEES_TURN_LEFT_FIX`, `KNEES_TURN_RIGHT_FIX` and `KNEES_TURN_FIX`; every sitting *(the Daily 25 since 2026-10-08)*:
+
+- "Keep your knees in the picture — move the phone further away" — the near knee at or past an edge
+- "Turn your body slightly to your left (right), away from the phone, so it sees your knees" — the near knee hidden behind the body and the side facing the phone known; the coach says "Turn slightly left" or "Turn slightly right" by the side the phone is on
+- "Turn your body a little away from the phone, so it sees your knees" — the near knee hidden and that side not known, or no picture pose in the frame (the pill is red, never green); the coach says "Turn slightly away"
+
+The coach ranks the two turn fixes below a failing Whole body in frame pill, so a body partly out of the picture says "Further" (or the head's fix) first.
 
 ## Feedback (FR-021)
 

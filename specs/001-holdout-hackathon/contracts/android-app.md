@@ -19,7 +19,8 @@
 | Destination | Purpose |
 |---|---|
 | The configured devnet RPC endpoint | Account reads, Clock sysvar, sending signed transactions |
-| The configured **names** endpoint (Solana mainnet, `holdout.namesRpcUrl`; spec 003) | Seeker ID lookups for display only (001 FR-063): `getProgramAccounts` and `getMultipleAccounts` on public name records, nothing else. Sends wallet addresses already public on chain; never a signature, a transaction or device data. A read-only client that cannot send (003 research R5) |
+| The configured **names** endpoint (Solana mainnet, `holdout.namesRpcUrl`; spec 003) | Seeker ID lookups for display only (001 FR-063): `getProgramAccounts` and `getMultipleAccounts` on public name records. **And the Seeker Genesis Token check before a join** (FR-003b, R17): `getTokenAccountsByOwner` (Token-2022, `jsonParsed`) for the connected wallet, then `getMultipleAccounts` (`jsonParsed`) on those mints. Nothing else. Sends wallet addresses already public on chain; never a signature, a transaction or device data. Read-only clients that cannot send (003 research R5; `SeekerGenesisReader`) |
+| `https://store.solanamobile.com/`, opened in the browser by the member's tap | The Seeker store, linked from the Seeker-exclusive notice (FR-003c). The app makes no request to it itself |
 | Local MWA wallet app (Android intents / local websocket) | Authorisation and signing |
 
 Nothing else: the names endpoint is the app's only contact with mainnet, and it only reads. Reminders (FR-068) are scheduled and shown on the device and use no network. Only **Holdout Lab**, the separate tester app (`holdout.app.lab`, spec 004), may save a set's camera as video in its private storage for rep-recognition testing (constitution X v2.1.0, spec 002 FR-026); it never sends it anywhere, and has no network permission at all. The member app contains no recorder in any build. **Camera frames, landmarks and rep traces are never sent anywhere** (FR-022, constitution X); the only rep-derived data leaving the device is the 32-byte `proof_hash` inside `submit_day`. Acceptance criterion 10 is checked by capturing all outbound traffic during a sitting and finding only RPC calls.
@@ -58,12 +59,16 @@ MMKV only, as specified in `data-model.md` §4. Keys are scoped per wallet; swit
 | No wallet | Connect wallet — no-wallet variant (ES-0): what a wallet is and how to get one; nothing else is reachable before a wallet (FR-001a, amended 2026-10-09) |
 | Wallet without test SKR or fee SOL | Faucet sheet; used-today and can't-pay-out variants (ES-0a, ES-0b) |
 | Wallet just connected, first run | Tour — three cards, skippable, re-openable (FR-067) |
+| Running Holdouts the member is not in | Home — **Running now** list (FR-062a): read-only, every connected wallet with or without a Seeker; each row opens that Holdout's cohort detail and roster; no join |
 | No Holdout running, Daily 25 available | Home — Daily 25 variant, with the Holdouts open to join and what is at stake in each (FR-053) |
-| Cohort `Open`, member not joined | Home or Forfeit offer → Stake confirm (no ladder screen since 2026-10-09; Forfeit's "next Holdout" — the same league's (US-4) — opens the stake confirm directly) |
+| Cohort `Open`, member not joined | Home or Forfeit offer → Stake confirm (no ladder screen since 2026-10-09; Forfeit's "next Holdout" — the same league's (US-4) — opens the stake confirm directly). Before the stake confirm opens, the Seeker check (FR-003b, R17): a wallet remembered or found to hold a Seeker Genesis Token goes on; the two variants below otherwise |
+| Joining, wallet holds no Seeker Genesis Token (checked: None) | **Seeker-exclusive sheet** (FR-003c, ES-0c): *"Holdouts are for Seeker owners"* · *"Staking in a Holdout needs a Seeker. You can still do the Daily 25 and watch every Holdout."* · **Get a Seeker** (opens `https://store.solanamobile.com/`) · **Not now**. No join is offered and nothing is signed |
+| Joining, the check in progress | **Seeker sheet — checking** variant: *Checking your Seeker…* with the loader, until mainnet answers (FR-003b, R17). Every first join of a wallet not yet confirmed on this phone passes through it |
+| Joining, the check could not be made (Unknown) | **Seeker sheet — couldn't-check** variant (FR-003d, ES-0d): *"We couldn't check your Seeker — try again."* · **Try again**. Never the Seeker-exclusive wording; nothing is signed |
 | Membership `Pending` in `Open` cohort | Lobby (with leave) |
 | Membership `Pending` in `Locked` cohort | Lobby — locked variant (ES-12a) |
 | Membership `Active`, today not complete | Home — cohort variant; Sitting |
-| Sitting `Preflight` / `Liveness` / `Countdown` / `Counting` | Sitting sub-screens; palm-timeout variant (FR-020); last-10-minutes warning (FR-047); offline warning (FR-024b) |
+| Sitting `Preflight` / `Countdown` / `Counting` | Sitting sub-screens; the hold's reason when it will not fill (002 FR-018a, `contracts/words.md`); last-10-minutes warning (FR-047); offline warning (FR-024b) |
 | Sitting ended part-way | Sitting — stopped part-way variant |
 | Day `Completed`, pending submission | Home — "Done — tap to submit" (Phase 1) |
 | Day `Submitted` | Home — cohort variant, day counter advanced |
