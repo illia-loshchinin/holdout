@@ -64,13 +64,14 @@ specs/005-refresh-when-unreachable/
 
 ```text
 kotlin/app/src/main/kotlin/holdout/app/
+├── MainViewModel.kt             # changed: refreshChainTime applies only the latest started read (overlapping reads cannot rewind ChainClock)
 ├── chain/
 │   └── ChainRepository.kt       # ChainReads interface, implemented by ChainRepository (T019)
 ├── wallet/
 │   └── WalletRepository.kt      # the wallet adapter is made on first use, so the view model builds on the JVM (T019)
 ├── holdout/
 │   ├── ChainCheck.kt            # new: the gate (idle / checking / still unreachable)
-│   └── HoldoutViewModel.kt      # checkNow(); UiState.check; a successful read clears it; takes ChainReads (T019)
+│   └── HoldoutViewModel.kt      # checkNow() keeps its job, pause() cancels it and clears the check; UiState.check; a successful read clears it; takes ChainReads (T019)
 ├── ui/
 │   └── Components.kt            # new: CheckAgain(checking, stillUnreachable, onCheck); ChainUnreachable(...) — the line + CheckAgain for details and forfeit; ChainCheckBox (pull, enabled only while unreachable)
 ├── home/
@@ -83,6 +84,7 @@ kotlin/app/src/main/kotlin/holdout/app/
 kotlin/app/src/test/kotlin/holdout/app/
 ├── ChainCheckTest.kt            # new
 ├── CheckAgainCopyTest.kt        # new: the lines name the network, no banned words
+├── MainViewModelTest.kt         # new: chain-time reads overlap, the newest answer stands
 └── HoldoutViewModelCheckTest.kt # new (T019): checkNow's wiring, with a fake chain
 ```
 
