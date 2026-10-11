@@ -72,6 +72,15 @@ Product owner decision with spec 004 (Holdout Lab and the member app) and consti
 
 - Q: Is the face-down check judged after every other body check, as FR-008a, research D11 and the data model say, or first, as the code does? (FR-008a, D11) → A: **First.** The 7 October sit-ups were each told "Go lower" or "Knees off the floor" aloud because the checks that speak came first; since `6894c3c` (8 October, a reviewer's finding) `RepCounter.notFaceDown` is the first verdict, and an abandoned descent is told "Go lower" only if the rep is face down (`StakesTest`: the Daily 25 counts nothing done on the back or standing up, in silence; a face-down half rep is told to go lower). FR-008a, research D11 and the data model's verdict order now say so. Found by the PR #41 `/speckit-analyze` (F1); no behaviour changes. *(Corrected 2026-10-11: the second spoken line is the `RepHint` message "Knees off the floor" — `UP_ON_YOUR_TOES` is only the constant's name, and "Up on your toes" is a code comment, never said aloud.)*
 
+### Session 2026-10-11 (evening)
+
+Decided on the design review of the hero screens, for the product owner's review, with `specs/001-holdout-hackathon` Session 2026-10-11 (evening) and constitution v2.3.1. In this spec "staked", "Easy" and "Hard" remain the names of the rules and of the code; **what a member reads** is Spark · 7-day and Habit · 21-day. No counting rule, threshold or verdict changes.
+
+- Q: What do the stake sheet and every other place that states how a Holdout is counted read, now that the two levels are named Spark · 7-day and Habit · 21-day and the Spark counts push-ups from the knees? (FR-012, FR-014, Stakes) → A: **One rule sentence per level, word for word, the same wherever it appears.** Spark: *"At 45° only. Aim for full push-ups from your toes; push-ups from the knees still count."* Habit: *"At 45° only: phone on the floor ahead of your shoulder. Full push-ups from your toes — push-ups from the knees don't count."* The stake sheet shows the sentence of the level it offers and never the other's. The hips-resting rule of FR-012 (2026-10-04) stays in the counting itself and is not part of the sentence. Replaces the single staked sentence; the placement and the knee rule themselves are unchanged.
+- Q: Besides the stake sheet, where must a Holdout sitting show its level's rule sentence, given that FR-015 already fixes the set-up guide's opening lines? (FR-015, FR-014) → A: **On the set-up guide and on the pre-flight page of a sitting in that Holdout, in addition to FR-015's lines, which stay as they are and in their order.** The guide still opens, on every page, with "Two things decide whether a rep counts…", and the sentence follows them. The Daily 25's guide and pre-flight page show no level sentence but the caption **"counted as the Spark"** (the Daily 25 is counted exactly as a Spark: 45°, knees allowed), which links to nothing and gates nothing.
+- Q: Which card of the first-run tour explains how reps are counted, and what does it say about the two levels? (FR-013) → A: **Card 3 of 4** (the tour has four cards since 001 FR-067; the fourth is the scripted-member disclosure). It states the placement and the knee rule: every sitting at 45°; push-ups from the knees count in the Daily 25 and in a Spark; a Habit counts from the toes only. Its figure shows the check pills ticking green, five of them (next answer).
+- Q: Does the pre-flight page still show five pills, with *Knees visible* among them? (FR-018, FR-024a) → A: **Yes — Lighting · Whole body in frame · Knees visible · Camera view · Background still**, only the last advisory. The design canvas, which drew four, is redrawn with the fifth. FR-024a is unchanged.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Daily 25 counts at 45°, the placement a Holdout is counted at (Priority: P1)
@@ -182,9 +191,9 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 
 **Stating the rule**
 
-- **FR-012**: Before staking, the stake sheet MUST state in one sentence that a Holdout is counted at 45° only — not in front, not straight beside — with full push-ups from the toes, and that push-ups from the knees do not count — nor, *(amended 2026-10-04)*, push-ups with the hips resting on the floor at the bottom.
-- **FR-013** *(amended 2026-10-07)*: The first-run tour's card on how reps are counted MUST state the placement and the knee rule: every sitting at 45°; the Daily 25 and an Easy Holdout welcome knee push-ups, a Hard Holdout counts from the toes only.
-- **FR-014**: The sentence stating the staked rule MUST read the same everywhere it appears.
+- **FR-012** *(amended 2026-10-11)*: Before staking, the stake sheet MUST state the rule of the level it offers in that level's one sentence (FR-014): Spark · 7-day, that push-ups from the knees still count; Habit · 21-day, that they do not. *(Until 2026-10-11 one sentence said so for every Holdout: at 45° only — not in front, not straight beside — with full push-ups from the toes. Push-ups with the hips resting on the floor at the bottom never count, FR-008, amended 2026-10-04.)*
+- **FR-013** *(amended 2026-10-07; 2026-10-11)*: The first-run tour's card on how reps are counted — **card 3 of 4** — MUST state the placement and the knee rule: every sitting at 45°; push-ups from the knees count in the Daily 25 and in a Spark · 7-day, a Habit · 21-day counts from the toes only.
+- **FR-014** *(amended 2026-10-11)*: Each level's rule sentence MUST read the same, word for word, everywhere it appears, and the other level's sentence MUST NOT appear on its screens. **Spark · 7-day**: "At 45° only. Aim for full push-ups from your toes; push-ups from the knees still count." **Habit · 21-day**: "At 45° only: phone on the floor ahead of your shoulder. Full push-ups from your toes — push-ups from the knees don't count." It appears on the stake sheet (FR-012) and on the set-up guide and the pre-flight page of a sitting in that Holdout, after FR-015's opening lines. The Daily 25 shows the caption "counted as the Spark" instead, because it is counted exactly as a Spark.
 
 **Setting up**
 
@@ -217,7 +226,7 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 
 ### Key Entities
 
-- **Stakes**: what a sitting has riding on it — the free Daily 25, an Easy Holdout or a Hard Holdout. Decides how far round the phone may stand, whether knees are judged, and which rule sentence is shown.
+- **Stakes**: what a sitting has riding on it — the free Daily 25 (read as "counted as the Spark"), an Easy Holdout (members read **Spark · 7-day**) or a Hard Holdout (**Habit · 21-day**). Decides how far round the phone may stand, whether knees are judged, and which rule sentence is shown (FR-014). `Easy` and `Hard` are internal names, never member copy.
 - **Placement**: where the phone stands relative to the member — head-on, 45°, or square side-on — recognised from the picture while the member holds the ready position. Only 45° is accepted, by every sitting *(since 2026-10-07)*; the others are recognised so the camera check can say which way to turn.
 - **Set-up guide preference**: per wallet and per stakes, whether the member asked not to see the guide again.
 
@@ -233,7 +242,7 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 - **SC-003**: A phone correctly placed at 45° is recognised as 45° in at least 99% of frames while the member holds the top of a push-up.
 - **SC-004**: A member can go from opening a sitting to the countdown without reading anything on the screen after putting the phone down.
 - **SC-005**: A first-time member places the phone correctly on their first attempt in at least 8 of 10 tries with the set-up guide.
-- **SC-006**: 100% of members who stake have been shown the staked rule sentence before the stake is taken.
+- **SC-006**: 100% of members who stake have been shown their level's rule sentence (FR-014) before the stake is taken.
 
 ## Assumptions
 
