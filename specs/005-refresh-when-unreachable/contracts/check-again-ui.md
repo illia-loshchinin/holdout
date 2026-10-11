@@ -8,7 +8,9 @@ Network name `N` = `Deployment.networkName` ("Devnet" on the devnet build).
 |---|---|---|---|
 | Home, running Holdout, day waiting | *"Done — waiting for network"* + its body (existing) | yes, under the body | yes |
 | Home, running Holdout, day not done | *"N can't be reached right now. You can still do today's reps…"* notice (existing) | yes, under the notice | yes |
-| Home, no Holdout shown | *"N unreachable — the Daily 25 still works"* (existing) | yes, under the label | yes |
+| Home, no Holdout shown (no read yet) | *"N unreachable — the Daily 25 still works"* (existing) | yes, under the label | yes |
+| Home, no Holdout running, an earlier read shown | *"N can't be reached right now."* (added, above the Holdout cards) | yes | yes |
+| Home, running Holdout, today done | *"N can't be reached right now."* (added, above *"Today is done and on chain."*) | yes | yes |
 | A Holdout's details | *"N can't be reached right now."* (added, under the title) | yes | yes |
 | Forfeit | *"N can't be reached right now."* (added) | yes | yes |
 
@@ -20,7 +22,7 @@ While the chain answers: none of the above; a pull shows no indicator and starts
 |---|---|---|
 | idle | *Check again* (secondary button) | — |
 | checking | *Checking N…*, busy, not tappable | — |
-| still unreachable | *Check again* | *"N still can't be reached."* |
+| still unreachable | *Check again* | *"N still can't be reached."*, warning colour, centred. On the screens with an added line, that line itself turns into *"N still can't be reached."* and nothing is added under the button, so the screen does not move. |
 | chain answered | gone | gone; the screen shows what it shows online |
 
 ## Never
