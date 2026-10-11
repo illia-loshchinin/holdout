@@ -89,7 +89,6 @@ interface ChainReads {
 }
 
 class ChainRepository(private val rpc: Rpc = Rpc(Deployment.rpcUrl), private val programId: SolanaPublicKey = Deployment.programId) : ChainReads {
-    /** Null when the cluster cannot be reached — unknown, never empty (R8). */
     override suspend fun load(wallet: SolanaPublicKey?): ChainView? {
         val config =
             when (val read = rpc.account(Pdas.config(programId))) {

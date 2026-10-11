@@ -1,5 +1,6 @@
 package holdout.app
 
+import androidx.lifecycle.viewModelScope
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.chain.ChainReads
 import holdout.app.chain.ChainView
@@ -13,6 +14,7 @@ import holdout.core.Rpc
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -25,7 +27,6 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -60,14 +61,15 @@ class HoldoutViewModelCheckTest {
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        // Nothing here reaches a network: every chain read goes to the fake.
+        // Every chain read goes to the fake. The Rpc (and the faucet built on it) is never
+        // called by a check; it points at a closed local port so a stray call fails, not hangs.
         vm = HoldoutViewModel(store, rpc = Rpc("http://127.0.0.1:1"), chain = chain)
     }
 
     @AfterTest
     fun tearDown() {
-        vm.pause()
-        chain.reads.forEach { it.complete(null) }
+        // Everything the view model started, the checks included, ends with the test.
+        vm.viewModelScope.cancel()
         Dispatchers.resetMain()
     }
 
@@ -183,7 +185,26 @@ class HoldoutViewModelCheckTest {
     }
 
     @Test
-    fun `given a side read that throws, when the check ends, then it still ends`() = runTest(dispatcher) {
+    fun `given a side read that throws, when the chain answers the check, then the answer still counts`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        var sideRead = false
+
+        vm.checkNow {
+            sideRead = true
+            error("chain time failed")
+        }
+        runCurrent()
+        assertTrue(sideRead)
+        // Had the throw cancelled the check, this answer would never be applied.
+        chain.reads.last().complete(answered)
+        runCurrent()
+
+        assertFalse(state.offline)
+        assertEquals(ChainCheck(), state.check)
+    }
+
+    @Test
+    fun `given a side read that throws, when the chain stays silent, then the check still ends`() = runTest(dispatcher) {
         unreachableFor(walletA)
 
         vm.checkNow { error("chain time failed") }
@@ -191,28 +212,40 @@ class HoldoutViewModelCheckTest {
         chain.reads.last().complete(null)
         runCurrent()
 
-        assertFalse(state.check.checking)
-        assertTrue(state.check.stillUnreachable)
+        assertEquals(ChainCheck(stillUnreachable = true), state.check)
     }
 
     @Test
-    fun `given a day waiting on the phone, when a check finds the chain, then the check records no send and leaves the day waiting`() = runTest(dispatcher) {
+    fun `given a side read still out, when the snapshot answers, then the check waits for it`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        val chainTime = CompletableDeferred<Unit>()
+
+        vm.checkNow { chainTime.await() }
+        runCurrent()
+        chain.reads.last().complete(null)
+        runCurrent()
+        assertTrue(state.check.checking)
+
+        chainTime.complete(Unit)
+        runCurrent()
+        assertEquals(ChainCheck(stillUnreachable = true), state.check)
+    }
+
+    @Test
+    fun `given a day waiting on the phone, when a check finds the chain, then the automatic send's record and the day are untouched`() = runTest(dispatcher) {
         val cohort = "cohort-1"
         store.setPendingCohortDay(walletA.base58(), cohort, 2)
         unreachableFor(walletA)
-        val autoSubmit = state.autoSubmit
 
         vm.checkNow()
         runCurrent()
         chain.reads.last().complete(answered)
         runCurrent()
 
-        // The view model starts no send of its own: nothing is recorded as sent, and the
-        // day still waits on the phone. Whether a waiting day then goes is the UI's automatic
-        // send (SendWaitingDay, 001 FR-024b), which this test does not drive (SC-003, in part).
-        assertEquals(autoSubmit, state.autoSubmit)
-        assertNull(state.autoSubmit.sentFor)
-        assertEquals(2, store.pendingCohortDay(walletA.base58(), cohort))
+        // Only that: the view model records no send, and the day still waits on the phone.
+        // Whether a waiting day then goes is the UI's automatic send (SendWaitingDay, 001
+        // FR-024b), which these tests do not drive, so SC-003 is covered here in part only.
         assertEquals(AutoSubmit(), state.autoSubmit)
+        assertEquals(2, store.pendingCohortDay(walletA.base58(), cohort))
     }
 }
