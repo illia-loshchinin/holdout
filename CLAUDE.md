@@ -28,6 +28,10 @@
   (`/code-review xhigh <PR number> --comment`, which posts its findings on the PR). Fix or answer
   every finding on the PR, and say in the PR that this review replaced Codex's. The PR is not
   ready for review, and is not merged, until that review is done and answered.
+- **Subagents run on Sonnet, code reviews included.** That covers stand-in reviews,
+  `/speckit-analyze` runs and every other review or check an agent does; `.claude/settings.json`
+  sets `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` as the default. Pass `model: "opus"` only for genuinely
+  complex program or test work, and never run a subagent on a larger model by inheritance.
 - **For Kotlin code, use the `LSP` tool when it is available** (the `kotlin-lsp` plugin, installed
   per user, not by this repo) for outline, hover, go-to-definition and find-references before
   `Grep`/`Read` sweeps. The server needs a warm Gradle daemon to start inside the harness's 30 s
