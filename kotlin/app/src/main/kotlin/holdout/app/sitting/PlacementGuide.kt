@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,6 +73,11 @@ fun SetupDialog(
     var dontShowAgain by remember { mutableStateOf(false) }
     val pages = listOf("Phone", "Body", "Start")
 
+    // One scroll offset for the whole card would carry a page's scroll to the next page, and the title and
+    // headline (FR-015, first on every page) would be off the top of it: every page opens at the top.
+    val scroll = rememberScrollState()
+    LaunchedEffect(page) { scroll.scrollTo(0) }
+
     Dialog(
         onDismissRequest = { onDone(dontShowAgain) },
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -81,48 +87,56 @@ fun SetupDialog(
                 .fillMaxWidth()
                 .padding(Spacing.screenGutter)
                 .background(HoldoutColors.Surface1, RoundedCornerShape(24.dp))
-                // A small phone may not fit every line of a page: it scrolls rather than clips.
-                .verticalScroll(rememberScrollState())
                 .padding(Spacing.cardPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
         ) {
-            Text("Before you get down", style = MaterialTheme.typography.titleLarge, color = HoldoutColors.TextPrimary)
-            // What decides whether a rep counts, first and on every page (002 FR-015, 2026-10-10).
-            Text(GUIDE_HEADLINE, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Accent, textAlign = TextAlign.Center)
-
-            // The tabs: tap any, or walk through with Next.
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
-                pages.forEachIndexed { i, title ->
-                    val selected = i == page
-                    TextButton(onClick = { page = i }) {
-                        Text(
-                            "${i + 1}. $title",
-                            style = LabelStyle,
-                            color = if (selected) HoldoutColors.Accent else HoldoutColors.TextTertiary,
-                            modifier = Modifier
-                                .border(
-                                    width = if (selected) 1.dp else 0.dp,
-                                    color = if (selected) HoldoutColors.Accent else Color.Transparent,
-                                    shape = RoundedCornerShape(12.dp),
-                                )
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
-                        )
-                    }
-                }
-            }
-
+            // A small phone may not fit every line of a page: this part scrolls rather than clips, and the
+            // checkbox and the buttons below it stay where they are, as the design book's Dialog has them.
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 300.dp),
+                    .weight(1f, fill = false)
+                    .verticalScroll(scroll),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
             ) {
-                when (page) {
-                    0 -> PhonePage(stakes, detected)
-                    1 -> BodyPage(stakes)
-                    else -> StartPage(stakes)
+                Text("Before you get down", style = MaterialTheme.typography.titleLarge, color = HoldoutColors.TextPrimary)
+                // What decides whether a rep counts, first and on every page (002 FR-015, 2026-10-10).
+                Text(GUIDE_HEADLINE, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Accent, textAlign = TextAlign.Center)
+
+                // The tabs: tap any, or walk through with Next.
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+                    pages.forEachIndexed { i, title ->
+                        val selected = i == page
+                        TextButton(onClick = { page = i }) {
+                            Text(
+                                "${i + 1}. $title",
+                                style = LabelStyle,
+                                color = if (selected) HoldoutColors.Accent else HoldoutColors.TextTertiary,
+                                modifier = Modifier
+                                    .border(
+                                        width = if (selected) 1.dp else 0.dp,
+                                        color = if (selected) HoldoutColors.Accent else Color.Transparent,
+                                        shape = RoundedCornerShape(12.dp),
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 300.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
+                ) {
+                    when (page) {
+                        0 -> PhonePage(stakes, detected)
+                        1 -> BodyPage(stakes)
+                        else -> StartPage(stakes)
+                    }
                 }
             }
 
