@@ -75,8 +75,8 @@ None: no new dependency (Material 3's `pullToRefresh` is in the existing BOM, re
     - a check's stale read set aside;
     - a scheduled read mid-check clearing it;
     - a throwing side read still ending the check;
-    - a check never submitting: `autoSubmit` untouched and no pending day written (SC-003).
-  - *Done in 119c5f6: 8 tests pass; removing the in-front guard or the side-read catch makes them fail.*
+    - the view model recording no send of its own and leaving the waiting day on the phone (part of SC-003). The UI's automatic send (`SendWaitingDay`) is not driven by these tests.
+  - *Done in 119c5f6 and 730cf3f: 8 tests pass. Each of these breaks makes them fail: removing the in-front guard, the side-read catch or the wallet guard, or recording a send in `checkNow`.*
 - [ ] T015 Walk quickstart.md (steps 1–6) on a phone against a local validator — *2026-10-11: steps 2, 4 and 5 walked. Steps 1 and 3 need a running Holdout with today's reps done, which that ledger lacked (no `localnet-crank.sh --loop` running), so this stays open.*
 - [ ] T016 Check SC-003: review that `HoldoutViewModel.checkNow` and `checkChain` in `kotlin/app/src/main/kotlin/holdout/app/` call no `submitDay` and do not touch `AutoSubmit`, and in T015's step 3 see the wallet's approval open by itself once, then *"Done — tap to submit"* after a decline (001 FR-024b) — *review half done 2026-10-11: `checkNow` and `checkChain` call no `submitDay` and do not touch `AutoSubmit`. The walk half waits on T015 step 3.*
 
