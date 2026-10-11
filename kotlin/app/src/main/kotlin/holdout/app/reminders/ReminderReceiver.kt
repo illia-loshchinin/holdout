@@ -1,19 +1,9 @@
 package holdout.app.reminders
 
-import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.SystemClock
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
-import holdout.app.MainActivity
-import holdout.app.R
 import holdout.app.storage.MmkvStore
 import holdout.app.ui.Format
 import holdout.core.Reminder
@@ -22,10 +12,11 @@ import holdout.core.Reminders
 /**
  * Posts a reminder when the first of its alarms fires (FR-068), and nothing
  * once the deadline has passed. A day done on the phone but not on chain is
- * reminded to be submitted; a day that reached the chain was cancelled by the
- * app's next sync. Names the Holdout, labels the short test cohort, and says
- * the reps still needed and the time left; never an amount. Nothing is sent
- * anywhere: the notification is the whole of it.
+ * kept in the shade as a silent, ongoing notice to submit it, re-posted every
+ * hour until the chain has it (FR-068, 2026-10-11); a day that reached the
+ * chain was cancelled by the app's next sync. Names the Holdout, labels the
+ * short test cohort, and says the reps still needed and the time left; never an
+ * amount. Nothing is sent anywhere: the notification is the whole of it.
  */
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -57,56 +48,30 @@ class ReminderReceiver : BroadcastReceiver() {
         // reschedules them — and a day past those stays quiet.
         val daysOnChain = intent.getIntExtra(EXTRA_DAYS_ON_CHAIN, 0)
         if (kind != Reminder.Kind.Start && day > daysOnChain) return
-        // Each reminder has two alarms (ReminderScheduler); only the first to fire posts.
-        if (intent.hasExtra(EXTRA_ID) && !ReminderScheduler.markPosted(context, intent.getIntExtra(EXTRA_ID, 0))) return
         // Done on this phone is not done: only the chain counts it, so say to submit it.
         val doneHere = store.isDayComplete(wallet, scope, day.toLong()) || store.pendingCohortDay(wallet, cohort) == day
-        val owed = (reps - store.bankedReps(wallet, scope, day.toLong())).coerceAtLeast(0)
+        // The hourly notice is for a day done here; one the phone no longer holds as done has nothing to say.
+        if (kind == Reminder.Kind.NotSent && !doneHere) return
+        // Each reminder has two alarms (ReminderScheduler); only the first to fire posts.
+        if (intent.hasExtra(EXTRA_ID) && !ReminderScheduler.markPosted(context, intent.getIntExtra(EXTRA_ID, 0))) return
 
-        val holdout = "$days-day Holdout" + if (test) " · short test cohort, ${Format.dayLength(dayLength)} days" else ""
-        val (title, text) = when {
-            kind == Reminder.Kind.Start -> "Your $holdout has started" to "Day 1 is open: $reps push-ups before the deadline, ${Format.countdown(left)} from now."
-            doneHere -> "Day ${day + 1} is done, but not on chain yet" to "Open Holdout and submit it: about ${Format.countdown(left)} left in your $holdout. Only the chain counts it."
-            else -> "Day ${day + 1}: $owed push-ups still to do" to "About ${Format.countdown(left)} left in your $holdout. The deadline is the chain's, not this reminder's."
-        }
-        // A long day's reminder before its deadline may fall at night: it is posted silently (FR-068).
-        val silent = kind == Reminder.Kind.Deadline && Reminders.hasMidday(dayLength)
-        post(context, requestId = intent.hashCode(), id = 31 * cohort.hashCode() + day * 3 + kind.ordinal, title = title, text = text, silent = silent)
-    }
-
-    private fun post(context: Context, requestId: Int, id: Int, title: String, text: String, silent: Boolean) {
-        if (android.os.Build.VERSION.SDK_INT >= 33 &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
+        val requestId = intent.hashCode()
+        val id = Reminders.notificationId(cohort, kind, day)
+        if (doneHere && kind != Reminder.Kind.Start) {
+            // Whichever reminder of the day arrives, a day done here and not on chain keeps the standing notice.
+            ReminderNotices.postNotSent(context, requestId, id, day, days, dayLength, test, left, silent = Reminders.isSilent(kind, dayLength))
             return
         }
-        ensureChannel(context)
-        val open = PendingIntent.getActivity(
-            context,
-            requestId,
-            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val notification =
-            NotificationCompat
-                .Builder(context, if (silent) CHANNEL_QUIET else CHANNEL)
-                .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-                .setContentIntent(open)
-                .setAutoCancel(true)
-                .setPriority(if (silent) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH)
-                .setSilent(silent)
-                .build()
-        runCatching { NotificationManagerCompat.from(context).notify(id, notification) }
+        val owed = (reps - store.bankedReps(wallet, scope, day.toLong())).coerceAtLeast(0)
+        val holdout = ReminderNotices.holdoutLabel(days, test, dayLength)
+        val (title, text) = when (kind) {
+            Reminder.Kind.Start -> "Your $holdout has started" to "Day 1 is open: $reps push-ups before the deadline, ${Format.countdown(left)} from now."
+            else -> "Day ${day + 1}: $owed push-ups still to do" to "About ${Format.countdown(left)} left in your $holdout. The deadline is the chain's, not this reminder's."
+        }
+        ReminderNotices.post(context, requestId, id, title, text, silent = Reminders.isSilent(kind, dayLength), ongoing = false, leftSeconds = left)
     }
 
     companion object {
-        const val CHANNEL = "holdout_reminders"
-
-        /** The silent channel: a long day's reminder before its deadline, shown in the shade without sound or vibration. */
-        const val CHANNEL_QUIET = "holdout_reminders_quiet"
         const val EXTRA_ID = "id"
         const val EXTRA_WALLET = "wallet"
         const val EXTRA_COHORT = "cohort"
@@ -118,23 +83,5 @@ class ReminderReceiver : BroadcastReceiver() {
         const val EXTRA_DAYS_ON_CHAIN = "days_on_chain"
         const val EXTRA_TEST = "test"
         const val EXTRA_DEADLINE_ELAPSED = "deadline_elapsed"
-
-        fun ensureChannel(context: Context) {
-            val manager = context.getSystemService(NotificationManager::class.java)
-            if (manager.getNotificationChannel(CHANNEL) == null) {
-                manager.createNotificationChannel(
-                    NotificationChannel(CHANNEL, "Holdout reminders", NotificationManager.IMPORTANCE_HIGH).apply {
-                        description = "When a Holdout starts, and during a day that is not done yet"
-                    },
-                )
-            }
-            if (manager.getNotificationChannel(CHANNEL_QUIET) == null) {
-                manager.createNotificationChannel(
-                    NotificationChannel(CHANNEL_QUIET, "Holdout reminders, silent", NotificationManager.IMPORTANCE_LOW).apply {
-                        description = "Before a day's deadline, which may fall at night: shown without sound or vibration"
-                    },
-                )
-            }
-        }
     }
 }

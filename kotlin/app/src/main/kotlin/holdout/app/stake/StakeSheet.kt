@@ -107,7 +107,7 @@ fun StakeSheet(
             Body("Miss one and you lose your stake. ${Format.lostStakeSplit(c, "the prize pool")}")
             Body("Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))} · starts in ${Format.countdown(c.start - now)}")
             Body("You can leave for a full refund until joining closes.")
-            Body("If you allow notifications, this phone reminds you when it starts and before each deadline you haven't met yet. The reminders never leave the phone.")
+            Body("If you allow notifications, this phone reminds you when it starts, halfway through each day and before each deadline you haven't met yet, and every hour, silently, once you've done a day that isn't on chain yet. The reminders never leave the phone.")
         }
 
         HoldoutCard {
