@@ -268,8 +268,8 @@ fun CohortHome(
             Notice(message, messageIsWarning)
             otherHoldouts()
 
-            Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.base), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                StreakFlame(streak, if (stage.todayDone) StreakState.ExtendedToday else StreakState.Active)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                StreakFlame(streak, if (stage.todayDone) StreakState.ExtendedToday else StreakState.Active, chip = true)
                 timeLeft?.let {
                     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.base), verticalAlignment = Alignment.Bottom) {
                         CountdownText(it)

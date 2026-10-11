@@ -123,6 +123,7 @@ fun HomeScreen(
                     state.streak > 0 -> StreakState.Active
                     else -> StreakState.Broken
                 },
+                chip = true,
             )
         }
 
