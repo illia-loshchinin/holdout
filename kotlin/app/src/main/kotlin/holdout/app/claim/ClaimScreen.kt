@@ -36,10 +36,11 @@ import holdout.app.ui.theme.Spacing
 import holdout.core.Stage
 
 /**
- * The claim (PRD §10.1 screen 10, §11.5, T081): the amount, the breakdown —
- * stake plus share — and one deliberate tap. On success, **the single gradient
- * sweep** (one of the two moments the gradient is reserved for) and the
- * settled transaction's link. Claimable indefinitely (FR-035).
+ * The claim (screen map H7, US-8, T081): the amount, the breakdown — stake
+ * plus share — and one deliberate tap. On success, **the single gradient
+ * sweep** (one of the two moments the gradient is reserved for: design book,
+ * principle 4) and the settled transaction's link. Claimable indefinitely
+ * (FR-035).
  */
 @Composable
 fun ClaimScreen(

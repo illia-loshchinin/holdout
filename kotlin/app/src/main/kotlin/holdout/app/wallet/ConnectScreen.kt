@@ -34,7 +34,7 @@ import holdout.core.Derive
 
 /**
  * Connect wallet — required before anything else, **even for the free Daily 25**
- * (FR-001a, PRD §10.1 screen 2, T039, T041).
+ * (FR-001a, screen map A1, T039, T041).
  *
  * The wordmark, the promise in two lines, one line each for the Daily 25 and a Holdout, and
  * the Holdouts live right now — still standing and prize pool for the running
