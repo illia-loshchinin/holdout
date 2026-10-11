@@ -32,8 +32,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -217,7 +220,9 @@ fun ChainUnreachable(checking: Boolean, stillUnreachable: Boolean, onCheck: () -
 @Composable
 fun ChainCheckBox(offline: Boolean, checking: Boolean, onCheck: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val state = rememberPullToRefreshState()
-    Box(modifier.pullToRefresh(isRefreshing = checking, state = state, enabled = offline, onRefresh = onCheck)) {
+    // The pull is a touch gesture only: TalkBack and switch users get the same check as an action.
+    val actions = if (offline) listOf(CustomAccessibilityAction(CheckAgainCopy.BUTTON) { onCheck().let { true } }) else emptyList()
+    Box(modifier.pullToRefresh(isRefreshing = checking, state = state, enabled = offline, onRefresh = onCheck).semantics { customActions = actions }) {
         content()
         if (offline) {
             PullToRefreshDefaults.Indicator(

@@ -21,6 +21,7 @@ import holdout.core.Journey
 import holdout.core.Leaderboard
 import holdout.core.MembershipSnapshot
 import holdout.core.Rpc
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -177,11 +178,24 @@ class HoldoutViewModel(
         _state.update { it.copy(check = step.next) }
         val wallet = address
         viewModelScope.launch {
-            val also = launch { alsoRead() }
-            refreshNow()
-            also.join()
-            // Another wallet's check: its state was reset with the wallet's.
-            if (wallet == address) _state.update { it.copy(check = it.check.finished(answered = !it.offline)) }
+            // A failing side read (chain time, the roster) must not end the check
+            // without its answer, or "Checking…" would stay on with nothing to clear it.
+            val also =
+                launch {
+                    try {
+                        alsoRead()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                    }
+                }
+            try {
+                refreshNow()
+                also.join()
+            } finally {
+                // Another wallet's check: its state was reset with the wallet's.
+                if (wallet == address) _state.update { it.copy(check = it.check.finished(answered = !it.offline)) }
+            }
         }
     }
 
