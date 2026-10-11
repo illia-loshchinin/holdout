@@ -115,6 +115,11 @@
       "what": "A comeback after a 21-day forfeit is not offered in time",
       "why": "The comeback record is written when the forfeited Holdout settles, 21 days after it started. The window to join the next Holdout is 14 days from the missed deadline and has mostly closed by then, so the Today nudge cannot show for most 21-day forfeits; a member who joins the next Holdout anyway still earns the refund. 7-day forfeits work: the Holdout settles in time",
       "fix": "Record the comeback when the forfeit is recorded, and tell the member on the forfeit screen how to join the next Holdout. Decided 2026-10-11 as a follow-up after the submission"
+    },
+    {
+      "what": "One key, `operator.json`, is both the crank's fee payer and the only key that can publish the chip set, and it sits as a hot secret on the Fly machine that runs the crank",
+      "why": "Opening a cohort every 30 minutes needs a funded payer, and a second key was not set up for the devnet build. Whoever takes the key can re-price the stakes of every Holdout not yet open and spend its float. It cannot touch a member's stake or a settled payout, which only the program moves",
+      "fix": "A payer key of its own holding only the float, and an operator key kept off the machine (or a multisig), for the mainnet build"
     }
   ]
 }
