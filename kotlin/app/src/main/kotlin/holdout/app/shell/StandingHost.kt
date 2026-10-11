@@ -32,14 +32,7 @@ import kotlinx.coroutines.delay
  * member standing in it, else the last one they ran — started, whatever came
  * of it. A lobby place alone is not one: there is no crowd yet (D-D9).
  */
-internal fun Shared.standingHoldout(): Holdout? {
-    val n = now ?: return null
-    val v = view ?: return null
-    active()?.let { return it.first }
-    return v.holdouts
-        .filter { it.membership != null && it.cohort.start <= n && it.stage(n) != Stage.NotJoined }
-        .maxByOrNull { it.cohort.start }
-}
+internal fun Shared.standingHoldout(): Holdout? = TabRoots.standing(view, now)
 
 /** The Standing dot: how many dropped since the member last looked at that Holdout (DS BottomNav). */
 internal fun Shared.standingDropped(): Int {
