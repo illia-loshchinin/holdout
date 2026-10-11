@@ -3,12 +3,13 @@ package holdout.repcounter
 import kotlin.math.hypot
 
 /**
- * The five environment pills of every sitting (FR-019, PRD §8.2; the knees
- * got their own on 2026-10-10, 002 FR-024a).
+ * The five environment pills shown before every sitting (FR-019; the knees got
+ * their own on 2026-10-10, 002 FR-024a).
  *
  * They run before **every** sitting, not only the day's first, and the sitting
  * cannot start until the four gating ones are green — lighting, whole body,
- * knees, camera view; the fifth, background still, is advisory. Each failure
+ * knees, camera view; the background check is shown with its fix but never
+ * blocks ([PreflightCheck.advisory], [PreflightReport.canStart]). Each failure
  * says exactly what to fix rather than that something is wrong.
  *
  * **No audio.** There is no audio check and there never was one here: the app

@@ -39,7 +39,10 @@ feeDestination: Address;
  * developer part of every forfeit and half of a no-finisher pool (H35).
  */
 developerDestination: Address; 
-/** `false` on devnet: testers have no Seeker (research R17). */
+/**
+ * `false` on devnet, where Seeker Genesis Tokens do not exist and the app
+ * keeps staking Seeker-exclusive; turned on at mainnet launch (research R17).
+ */
 genesisGateEnabled: boolean; chipSet: ChipSet; faucet: Faucet; bump: number;  };
 
 export type ConfigArgs = { 
@@ -68,7 +71,10 @@ feeDestination: Address;
  * developer part of every forfeit and half of a no-finisher pool (H35).
  */
 developerDestination: Address; 
-/** `false` on devnet: testers have no Seeker (research R17). */
+/**
+ * `false` on devnet, where Seeker Genesis Tokens do not exist and the app
+ * keeps staking Seeker-exclusive; turned on at mainnet launch (research R17).
+ */
 genesisGateEnabled: boolean; chipSet: ChipSetArgs; faucet: FaucetArgs; bump: number;  };
 
 /** Gets the encoder for {@link ConfigArgs} account data. */

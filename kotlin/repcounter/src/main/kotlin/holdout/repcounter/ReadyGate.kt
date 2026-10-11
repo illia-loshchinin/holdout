@@ -1,14 +1,16 @@
 package holdout.repcounter
 
 /**
- * What starts a sitting: the gating pre-flight pills green **and** the member
- * held at the top of a push-up, together, for about a second. No tap.
+ * What starts a sitting: the pre-flight pills that gate it green (the
+ * background pill only advises, FR-019) **and** the member held at the top of
+ * a push-up, together, for about a second. No tap.
  *
- * **This replaces the palm liveness check** (was FR-020, PRD §8.3). The palm
+ * **This replaces the palm liveness check** (FR-020, amended 2026-09-22). The palm
  * asked someone already face-down on the floor to lift a hand off it, which is
  * the same mistake as the "I'm ready" button it followed. Being in position is
  * a better readiness signal than a gesture, because it is the position the
- * counting is about to measure.
+ * counting is about to measure. It is a readiness check, not a liveness check
+ * (FR-020).
  *
  * **What that costs is written down, not glossed over.** The palm was a
  * liveness check: it confirmed a live person was present at the start of every
@@ -18,13 +20,14 @@ package holdout.repcounter
  * member from another. Audio anti-spoofing in a later phase is the real fix
  * (spec OD-3, README known weaknesses).
  *
- * **The ready position is the rule's own top**, from the same [RepRules] the
- * counter uses: elbow past `topTriggerDegrees`, body line within
- * `bodyLineToleranceDegrees` of straight — or, head-on, where the body line
- * cannot be seen, arms straight in the picture and the torso down
- * (`ViewReading`). There is deliberately no second idea of what a plank is — spike S2 retunes both at once, and they can never drift
- * apart. It also means [RepCounter] begins already at the top rather than
- * hunting for one.
+ * **The ready position is the counter's own top**, from the same [RepRules]
+ * the counter uses, read in the picture on the near side (`ViewReading`, 002
+ * research D1): at 45°, every sitting, the elbow past `obliqueTopDegrees`
+ * (148°, the floor of the 45° top, 002 FR-008) and the body line held as the
+ * counter holds it; elsewhere, in the synthetic tests only, the elbow past
+ * `topTriggerDegrees`. There is deliberately no second idea of what a plank
+ * is — retuning one retunes both, and they can never drift apart. It also
+ * means [RepCounter] begins already at the top rather than hunting for one.
  */
 class ReadyGate(
     /** How long the pills and the position must hold together. */
@@ -35,9 +38,9 @@ class ReadyGate(
 ) {
     /**
      * The rules in force for the view the camera currently has. Goes through
-     * [forView] rather than using [rules] directly, so that when spike S2 gives
-     * the front view its own trigger set, the ready position moves with the
-     * counting rule instead of drifting away from it.
+     * [forView] rather than using [rules] directly, so the ready position
+     * moves with the counting rule's per-view triggers instead of drifting
+     * away from them.
      */
     private fun rulesFor(view: CameraView?) = rules.forView(view ?: CameraView.SIDE)
 
@@ -66,15 +69,17 @@ class ReadyGate(
         private set
 
     /**
-     * One frame. [frame] is the **world** landmarks, as every angle is.
-     * Returns true on the frame the sitting should start.
+     * One frame. [frame] is the **world** landmarks, read only when [image]
+     * is missing (the synthetic traces); on a phone the angles come from
+     * [image] (002 research D1). Returns true on the frame the sitting should
+     * start.
      *
      * Frames the model could not read neither advance the hold nor break it:
      * the same drop-don't-score rule [RepCounter] follows, so somebody walking
      * past the camera costs a frame rather than the whole countdown.
      *
-     * [image] is the same frame as the picture saw it, which a head-on view
-     * reads the elbow from — exactly as [RepCounter] will once counting starts.
+     * [image] is the same frame as the picture saw it, read exactly as
+     * [RepCounter] will read it once counting starts.
      */
     fun onFrame(
         frame: PoseFrame,

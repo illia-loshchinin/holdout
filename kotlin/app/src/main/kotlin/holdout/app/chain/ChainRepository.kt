@@ -58,6 +58,13 @@ data class ChainView(
     /** Cohorts taking members now — what home and the connect screen offer (FR-053). */
     fun openToJoin(now: Long): List<Holdout> = holdouts.filter { it.status(now) == CohortStatus.Open && it.membership == null }
 
+    /**
+     * Running Holdouts the wallet is not in — Home's read-only "Running now"
+     * list, so any connected wallet, with or without a Seeker, can watch a
+     * Holdout thin (FR-062a, FR-003c, constitution XII).
+     */
+    fun runningNotMine(now: Long): List<Holdout> = holdouts.filter { it.status(now) == CohortStatus.Running && it.membership == null }
+
     /** Cohorts the wallet is in and has not claimed out of — what home leads with. */
     fun mine(now: Long): List<Holdout> = holdouts.filter { h -> h.membership != null && h.stage(now) !is Stage.Claimed }
 
