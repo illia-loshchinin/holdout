@@ -73,6 +73,23 @@ class JourneyTest {
     }
 
     @Test
+    fun `a running cohort the member is in breach of does not block a join, one they are standing in still does (ES-17, ES-18)`() {
+        val other = SolanaPublicKey(ByteArray(32) { 2 })
+        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending, -1)
+        val lobby = start - day
+        val overlapping = profile(running = ProfileSnapshot.Running(other, start + 1))
+        // Unrecorded or recorded, the breach is read by the caller from chain time; the slot is freed by the join's own record.
+        assertNull(Journey.joinBlocker(c, overlapping, start + 1, lobby, runningInBreach = true))
+        assertNull(Journey.joinBlocker(c, profile(), null, lobby, runningInBreach = true))
+        assertEquals(Journey.JoinBlocker.Overlaps, Journey.joinBlocker(c, overlapping, start + 1, lobby, runningInBreach = false))
+        assertEquals(Journey.JoinBlocker.Overlaps, Journey.joinBlocker(c, overlapping, start + 1, lobby))
+        // The rest is unchanged: a held lobby place and closed joining still block.
+        val pending = profile(running = ProfileSnapshot.Running(other, start + 1), pending = ProfileSnapshot.Pending(other, start + 7 * day, start + 14 * day))
+        assertEquals(Journey.JoinBlocker.LobbyPlaceTaken, Journey.joinBlocker(c, pending, start + 1, lobby, runningInBreach = true))
+        assertEquals(Journey.JoinBlocker.JoiningClosed, Journey.joinBlocker(c, overlapping, start + 1, start - 3_600, runningInBreach = true))
+    }
+
+    @Test
     fun `after a forfeit the way back is the same league's next Holdout, never another league's (US-4)`() {
         fun open(leagueId: Int, weeks: Int) = c.copy(leagueId = leagueId, start = start + weeks * 7 * day)
         val sevenSoon = open(LeagueParams.LEAGUE_7D, 1)

@@ -36,6 +36,7 @@ import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
+import holdout.core.Comeback
 import holdout.core.Derive
 import holdout.core.Journey
 import holdout.repcounter.Stakes
@@ -48,6 +49,11 @@ import holdout.repcounter.Stakes
  * **The counting rule is read here, before anything is staked** (FR-021a,
  * 002 FR-012/FR-014): at 45° only, full push-ups from the toes — not
  * discovered at the first sitting.
+ *
+ * **A comeback round** (FR-037g, T182): opened from the forfeit screen, the
+ * sheet starts on [initialTier], the tier of the lost stake, and under the chips
+ * says what finishing it brings back for the chip chosen — "up to", capped at the
+ * new stake (FR-037e). Only when [comeback] names this Holdout as a round.
  */
 @Composable
 fun StakeSheet(
@@ -64,9 +70,13 @@ fun StakeSheet(
     onGetTokens: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The chip the sheet starts on: the lost stake's, when opened from the comeback offer (0..3). */
+    initialTier: Int = 0,
+    /** The member's comeback offer, if any; its amount shows only when [h] is one of its rounds. */
+    comeback: Comeback.Offer? = null,
 ) {
     val c = h.cohort
-    var tier by remember(h.address) { mutableIntStateOf(0) }
+    var tier by remember(h.address) { mutableIntStateOf(initialTier.coerceIn(0, c.chips.lastIndex)) }
     val chip = c.chips[tier]
     Column(
         modifier = modifier
@@ -100,6 +110,9 @@ fun StakeSheet(
             }
         }
         Body("Dollar figures are approximate. Everything is staked and paid in SKR, on a test network with a test token.")
+        if (comeback != null && comeback.rounds.any { it.entry?.address == h.address }) {
+            Text("Finish it and up to ${Format.skr(comeback.amount(chip))} of the stake you lost comes back.", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Success)
+        }
 
         HoldoutCard {
             SectionLabel("Every day")

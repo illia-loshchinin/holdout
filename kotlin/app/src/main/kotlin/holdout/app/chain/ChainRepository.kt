@@ -4,6 +4,7 @@ import com.solana.publickey.SolanaPublicKey
 import holdout.app.BuildConfig
 import holdout.core.CohortSnapshot
 import holdout.core.CohortStatus
+import holdout.core.Comeback
 import holdout.core.ConfigSnapshot
 import holdout.core.Derive
 import holdout.core.Journey
@@ -76,6 +77,22 @@ data class ChainView(
 
     /** The end of the cohort in the profile's running slot, for the overlap check (FR-006b). */
     fun runningEnd(now: Long): Long? = Journey.runningCohortFor(profile, now)?.let { r -> holdouts.firstOrNull { it.address == r }?.cohort?.let(Derive::end) }
+
+    /**
+     * Whether the cohort in the profile's running slot is one the wallet is in breach of — its
+     * forfeit recorded or not — which a join frees by sending the record with it (FR-037g, ES-17).
+     */
+    fun runningInBreach(now: Long): Boolean {
+        val running = Journey.runningCohortFor(profile, now) ?: return false
+        val h = holdouts.firstOrNull { it.address == running } ?: return false
+        return h.membership?.let { Derive.inBreach(it, h.cohort, now) } == true
+    }
+
+    /** What the wallet can still win back of stakes it lost, per level and length (FR-037g); empty when nothing is offered. */
+    fun comebackOffers(now: Long): List<Comeback.Offer> = Comeback.offers(holdouts.map { Comeback.Entry(it.address, it.cohort, it.membership) }, holdouts.mapNotNull { it.league }.distinctBy { it.params.leagueId }, now)
+
+    /** The comeback offer of the slot [leagueId] belongs to, if any. */
+    fun comebackOffer(now: Long, leagueId: Int): Comeback.Offer? = comebackOffers(now).firstOrNull { it.slot == Comeback.slotOf(leagueId) }
 }
 
 class ChainRepository(private val rpc: Rpc = Rpc(Deployment.rpcUrl), private val programId: SolanaPublicKey = Deployment.programId) {

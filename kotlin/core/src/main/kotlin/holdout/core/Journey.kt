@@ -95,12 +95,16 @@ object Journey {
      * tell before asking the program: joining open, no lobby place held, and
      * no running cohort ending after [c] starts (FR-006a, FR-006b). The
      * program re-checks all of it.
+     *
+     * A running cohort the member is in breach of ([runningInBreach]) does not
+     * block, recorded or not: the join then carries the record of that forfeit,
+     * which frees the slot in the same transaction (FR-037g, ES-17, research R22).
      */
-    fun joinBlocker(c: CohortSnapshot, profile: ProfileSnapshot?, runningCohortEnd: Long?, now: Long): JoinBlocker? {
+    fun joinBlocker(c: CohortSnapshot, profile: ProfileSnapshot?, runningCohortEnd: Long?, now: Long, runningInBreach: Boolean = false): JoinBlocker? {
         if (Derive.status(c, now) != CohortStatus.Open) return JoinBlocker.JoiningClosed
         val p = profile?.normalised(now) ?: return null
         if (p.pending != null) return JoinBlocker.LobbyPlaceTaken
-        if (runningCohortEnd != null && runningCohortEnd > now && c.start < runningCohortEnd) return JoinBlocker.Overlaps
+        if (!runningInBreach && runningCohortEnd != null && runningCohortEnd > now && c.start < runningCohortEnd) return JoinBlocker.Overlaps
         return null
     }
 

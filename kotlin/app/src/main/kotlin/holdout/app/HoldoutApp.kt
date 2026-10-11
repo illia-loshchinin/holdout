@@ -90,7 +90,10 @@ private sealed interface Route {
     data object About : Route
     data object Tour : Route
     data class Leaderboards(val board: Leaderboard.Board) : Route
-    data class Stake(val cohort: SolanaPublicKey) : Route
+
+    /** [tier] is the chip the sheet opens on: the lost stake's, from the comeback offer (FR-037g). */
+    data class Stake(val cohort: SolanaPublicKey, val tier: Int = 0) : Route
+
     data class Lobby(val cohort: SolanaPublicKey) : Route
     data class Detail(val cohort: SolanaPublicKey) : Route
     data class Roster(val cohort: SolanaPublicKey) : Route
@@ -568,7 +571,8 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                     skrBalance = view?.skr ?: 0uL,
                     lamports = view?.lamports ?: 0L,
                     now = chainNow,
-                    joinBlocker = Journey.joinBlocker(target.cohort, view?.profile, view?.runningEnd(chainNow), chainNow),
+                    // A running Holdout the member has missed a deadline in does not block: the join sends its record too (ES-17).
+                    joinBlocker = Journey.joinBlocker(target.cohort, view?.profile, view?.runningEnd(chainNow), chainNow, runningInBreach = view?.runningInBreach(chainNow) == true),
                     busy = chain.busy,
                     message = chain.message,
                     messageIsWarning = chain.messageIsWarning,
@@ -576,25 +580,37 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                     onGetTokens = { route = Route.Faucet },
                     onBack = goHome,
                     modifier = modifier,
+                    initialTier = routed.tier,
+                    comeback = view?.comebackOffer(chainNow, target.cohort.leagueId),
                 )
             }
             is Route.Lobby -> LobbyScreen(target, chainNow, chain.busy, chain.message, chain.messageIsWarning, { holdouts.leave(sender, target) }, { route = Route.Roster(target.address) }, goHome, modifier)
             is Route.Detail -> CohortDetailScreen(target, members, stage, chainNow, claimSignature, { route = Route.Roster(target.address) }, goHome, modifier)
             is Route.Roster -> RosterScreen(target, members, wallet, chainNow, goHome, modifier, onShowing = seekerNames::showing)
-            is Route.Forfeit -> ForfeitScreen(
-                h = target,
-                stage = stage as? Stage.Forfeited ?: Stage.Forfeited(target.membership?.daysCompleted ?: 0, recorded = false),
-                streak = streaks.read(wallet, dayIndex).current,
-                onDaily25 = goHome,
-                // The way back is the same league's next Holdout, its stake sheet straight
-                // (US-4; the test lobby for a test cohort); none open to join right now, and
-                // the button is not shown.
-                onNextHoldout = chainNow?.let { now -> view?.openToJoin(now) }
-                    ?.let { open -> Journey.wayBack(target.cohort, open) { it.cohort } }
-                    ?.let { next -> { route = Route.Stake(next.address) } },
-                onBack = goHome,
-                modifier = modifier,
-            )
+            is Route.Forfeit -> {
+                // What finishing a later Holdout of this level and length brings back, from the forfeit itself (FR-037g).
+                val offer = view?.comebackOffer(chainNow, target.cohort.leagueId)
+                val offerRound = offer?.next
+                ForfeitScreen(
+                    h = target,
+                    stage = stage as? Stage.Forfeited ?: Stage.Forfeited(target.membership?.daysCompleted ?: 0, recorded = false),
+                    streak = streaks.read(wallet, dayIndex).current,
+                    onDaily25 = goHome,
+                    // The way back is the same league's next Holdout, its stake sheet straight
+                    // (US-4; the test lobby for a test cohort); none open to join right now, and
+                    // the button is not shown.
+                    onNextHoldout = chainNow?.let { now -> view?.openToJoin(now) }
+                        ?.let { open -> Journey.wayBack(target.cohort, open) { it.cohort } }
+                        ?.let { next -> { route = Route.Stake(next.address) } },
+                    onBack = goHome,
+                    modifier = modifier,
+                    offer = offer,
+                    now = chainNow,
+                    joinBlocker = offerRound?.entry?.let { e -> Journey.joinBlocker(e.cohort, view?.profile, view?.runningEnd(chainNow), chainNow, runningInBreach = view?.runningInBreach(chainNow) == true) },
+                    // The stake sheet on the lost stake's chip (FR-037g).
+                    onJoin = { offerRound?.entry?.let { e -> route = Route.Stake(e.address, offer?.tier ?: 0) } },
+                )
+            }
             is Route.Claim -> ClaimScreen(target, stage, chain.busy, chain.message, chain.messageIsWarning, claimSignature, { holdouts.claim(sender, target) }, goHome, modifier)
             else -> Unit
         }
@@ -754,7 +770,7 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             streak = streak.current,
             freezes = streak.freezes,
             toes = holdout.app.streak.ToesMeter(store, DAILY_25).read(wallet, dayIndex),
-            holdoutLine = chainNow?.let { n -> view?.let { v -> holdout.app.home.DailyHoldoutLine.of(v.openToJoin(n).map { it.cohort }, v.profile, n) } },
+            holdoutLine = chainNow?.let { n -> view?.let { v -> holdout.app.home.DailyHoldoutLine.of(v.openToJoin(n).map { it.cohort }, v.comebackOffers(n), n) } },
             secondsLeftToday = chainNow?.let { HoldoutDay.secondsLeftIn(it) },
         ),
         onStart = {
