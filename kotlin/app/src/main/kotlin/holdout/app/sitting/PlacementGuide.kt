@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -21,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,6 +73,11 @@ fun SetupDialog(
     var dontShowAgain by remember { mutableStateOf(false) }
     val pages = listOf("Phone", "Body", "Start")
 
+    // One scroll offset for the whole card would carry a page's scroll to the next page, and the title and
+    // headline (FR-015, first on every page) would be off the top of it: every page opens at the top.
+    val scroll = rememberScrollState()
+    LaunchedEffect(page) { scroll.scrollTo(0) }
+
     Dialog(
         onDismissRequest = { onDone(dontShowAgain) },
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -83,40 +91,52 @@ fun SetupDialog(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
         ) {
-            Text("Before you get down", style = MaterialTheme.typography.titleLarge, color = HoldoutColors.TextPrimary)
-
-            // The tabs: tap any, or walk through with Next.
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
-                pages.forEachIndexed { i, title ->
-                    val selected = i == page
-                    TextButton(onClick = { page = i }) {
-                        Text(
-                            "${i + 1}. $title",
-                            style = LabelStyle,
-                            color = if (selected) HoldoutColors.Accent else HoldoutColors.TextTertiary,
-                            modifier = Modifier
-                                .border(
-                                    width = if (selected) 1.dp else 0.dp,
-                                    color = if (selected) HoldoutColors.Accent else Color.Transparent,
-                                    shape = RoundedCornerShape(12.dp),
-                                )
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
-                        )
-                    }
-                }
-            }
-
+            // A small phone may not fit every line of a page: this part scrolls rather than clips, and the
+            // checkbox and the buttons below it stay where they are, as the design book's Dialog has them.
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 300.dp),
+                    .weight(1f, fill = false)
+                    .verticalScroll(scroll),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
             ) {
-                when (page) {
-                    0 -> PhonePage(stakes, detected)
-                    1 -> BodyPage(stakes)
-                    else -> StartPage(stakes)
+                Text("Before you get down", style = MaterialTheme.typography.titleLarge, color = HoldoutColors.TextPrimary)
+                // What decides whether a rep counts, first and on every page (002 FR-015, 2026-10-10).
+                Text(GUIDE_HEADLINE, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Accent, textAlign = TextAlign.Center)
+
+                // The tabs: tap any, or walk through with Next.
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+                    pages.forEachIndexed { i, title ->
+                        val selected = i == page
+                        TextButton(onClick = { page = i }) {
+                            Text(
+                                "${i + 1}. $title",
+                                style = LabelStyle,
+                                color = if (selected) HoldoutColors.Accent else HoldoutColors.TextTertiary,
+                                modifier = Modifier
+                                    .border(
+                                        width = if (selected) 1.dp else 0.dp,
+                                        color = if (selected) HoldoutColors.Accent else Color.Transparent,
+                                        shape = RoundedCornerShape(12.dp),
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 300.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
+                ) {
+                    when (page) {
+                        0 -> PhonePage(stakes, detected)
+                        1 -> BodyPage(stakes)
+                        else -> StartPage(stakes)
+                    }
                 }
             }
 
@@ -173,6 +193,12 @@ private fun PhonePage(stakes: Stakes, detected: CameraView?) {
         )
     }
     Text(
+        "From there it sees all of you, and the knee nearer to it.",
+        style = MaterialTheme.typography.bodyLarge,
+        color = HoldoutColors.TextSecondary,
+        textAlign = TextAlign.Center,
+    )
+    Text(
         when (stakes) {
             Stakes.STAKED -> "Staked: at 45° only — not in front, not straight beside you."
             Stakes.EASY -> "Easy: at 45° only — turned well to the side of you, not in front, not straight beside you."
@@ -197,18 +223,15 @@ private fun BodyPage(stakes: Stakes) {
     }
     Bullets(
         buildList {
-            add("Get into the top of a push-up: arms straight, hands under your shoulders.")
+            // The two things that decide whether a rep counts come first (002 FR-015, 2026-10-10).
             add("Your whole body in the picture — head to feet. Move back if it is not.")
+            add("The phone must see your knees: turn your body a little away from it, so the leg nearer the phone shows clearly.")
+            add("Get into the top of a push-up: arms straight, hands under your shoulders.")
             add("Line your body up with the outline on the screen.")
-            if (stakes == Stakes.STAKED) {
-                add("On your toes, and stop just above the floor. Push-ups from the knees, or resting on the floor at the bottom, do not count.")
-                add("The phone must see your knees: turn your body a little away from it, so the leg nearer the phone shows clearly.")
-            } else if (stakes == Stakes.EASY) {
-                add("From your toes or from your knees — both count in an Easy Holdout.")
-                add("Body straight from shoulders to knees, and the phone must see your knees: turn a little away from it.")
-            } else {
-                add("Body straight from shoulders to heels — or from the knees if you are building up. Both count for the Daily 25.")
-                add("The phone must see your knees: turn your body a little away from it, so the leg nearer the phone shows clearly.")
+            when (stakes) {
+                Stakes.STAKED -> add("On your toes, and stop just above the floor. Push-ups from the knees, or resting on the floor at the bottom, do not count.")
+                Stakes.EASY -> add("From your toes or from your knees — both count in an Easy Holdout. Keep your body straight from shoulders to knees.")
+                Stakes.DAILY -> add("Body straight from shoulders to heels — or from the knees if you are building up. Both count for the Daily 25.")
             }
         },
     )
@@ -333,3 +356,7 @@ fun DrawScope.drawPlankFigure(box: Rect, color: Color) {
     // A straight arm down to the floor.
     drawLine(color, p(0.18f, 0.37f), p(0.2f, 0.98f), stroke, StrokeCap.Round)
 }
+
+/** The guide's first line on every page: what decides whether a rep counts (002 FR-015). */
+internal const val GUIDE_HEADLINE =
+    "Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone."

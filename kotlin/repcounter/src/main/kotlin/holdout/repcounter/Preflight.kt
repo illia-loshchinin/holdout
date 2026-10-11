@@ -3,15 +3,16 @@ package holdout.repcounter
 import kotlin.math.hypot
 
 /**
- * The four environment checks shown before every sitting (FR-019).
+ * The five environment pills shown before every sitting (FR-019; the knees got
+ * their own on 2026-10-10, 002 FR-024a).
  *
  * They run before **every** sitting, not only the day's first, and the sitting
- * cannot start until lighting, whole body and camera view are green; the
- * background check is shown with its fix but never blocks
- * ([PreflightCheck.advisory], [PreflightReport.canStart]). Each failure says
- * exactly what to fix rather than that something is wrong.
+ * cannot start until the four gating ones are green — lighting, whole body,
+ * knees, camera view; the background check is shown with its fix but never
+ * blocks ([PreflightCheck.advisory], [PreflightReport.canStart]). Each failure
+ * says exactly what to fix rather than that something is wrong.
  *
- * **No audio.** There is no fifth check and there never was one here: the app
+ * **No audio.** There is no audio check and there never was one here: the app
  * does not request the microphone at all (FR-022a), and the missing
  * anti-spoofing filter is named in the README as a known weakness.
  */
@@ -32,6 +33,12 @@ enum class PreflightCheck(
     WHOLE_BODY(
         label = "Whole body in frame",
         fix = "Step back so your whole body is visible",
+    ),
+
+    /** The near knee, found and clear of the picture's edges (002 FR-024a, 2026-10-10). */
+    KNEES_VISIBLE(
+        label = "Knees visible",
+        fix = Preflight.KNEES_TURN_FIX,
     ),
     CAMERA_ANGLE(
         label = "Camera view",
@@ -95,7 +102,10 @@ data class PreflightInput(
     val world: PoseFrame?,
     /** Image landmarks: normalised 0..1. Null when the model found nobody. */
     val image: PoseFrame? = world,
-    /** [image] with the picture's size, which the near side is read from. Without it the staked knee check is skipped. */
+    /**
+     * [image] with the picture's size, which the near side is read from. The
+     * knees pill reads the near knee from it, so without it that pill is red.
+     */
     val imagePose: ImagePose? = null,
 )
 
@@ -149,13 +159,16 @@ class Preflight(
     fun evaluate(input: PreflightInput): PreflightReport {
         val xScale = input.imagePose?.let { Aspect.xScale(it.width, it.height) } ?: 1f
         val view = classifyView(input.image, xScale)
+        // Which side faces the phone: read once a frame and handed to the three checks that need it.
+        val nearSide = input.imagePose?.let(Angles::nearSide)
         return PreflightReport(
             statuses = listOf(
                 PreflightStatus(
                     PreflightCheck.LIGHTING,
                     input.brightness in minBrightness..maxBrightness,
                 ),
-                wholeBody(input),
+                wholeBody(input, nearSide),
+                kneesVisible(input, nearSide),
                 // 45°, whatever the stakes ([Stakes]). Anywhere else, the pill says
                 // which way to turn.
                 PreflightStatus(
@@ -163,7 +176,7 @@ class Preflight(
                     passing = stakes.accepts(view),
                     specificFix = when {
                         view == null -> null
-                        else -> cameraFixFor(view, placementRatio(input.image, xScale), input.imagePose)
+                        else -> cameraFixFor(view, placementRatio(input.image, xScale), nearSide)
                     },
                 ),
                 PreflightStatus(
@@ -183,21 +196,18 @@ class Preflight(
      * front, **towards** it when it is beside them. Square head-on neither side
      * is nearer, and only the phone moving will do.
      */
-    private fun cameraFixFor(view: CameraView, ratio: Float?, pose: ImagePose?): String {
-        val phoneOn = pose?.let(Angles::nearSide)
-        return when {
-            view == CameraView.FRONT && ratio != null && ratio < frontRatio -> when (phoneOn) {
-                Side.RIGHT -> TOO_FRONT_TURN_LEFT_FIX
-                Side.LEFT -> TOO_FRONT_TURN_RIGHT_FIX
-                null -> stakes.cameraFix
-            }
-            view == CameraView.SIDE -> when (phoneOn) {
-                Side.RIGHT -> TOO_SIDE_TURN_RIGHT_FIX
-                Side.LEFT -> TOO_SIDE_TURN_LEFT_FIX
-                null -> stakes.cameraFix
-            }
-            else -> stakes.cameraFix
+    private fun cameraFixFor(view: CameraView, ratio: Float?, phoneOn: Side?): String = when {
+        view == CameraView.FRONT && ratio != null && ratio < frontRatio -> when (phoneOn) {
+            Side.RIGHT -> TOO_FRONT_TURN_LEFT_FIX
+            Side.LEFT -> TOO_FRONT_TURN_RIGHT_FIX
+            null -> stakes.cameraFix
         }
+        view == CameraView.SIDE -> when (phoneOn) {
+            Side.RIGHT -> TOO_SIDE_TURN_RIGHT_FIX
+            Side.LEFT -> TOO_SIDE_TURN_LEFT_FIX
+            null -> stakes.cameraFix
+        }
+        else -> stakes.cameraFix
     }
 
     /**
@@ -207,32 +217,42 @@ class Preflight(
      * - **the head clearly inside the picture** — the entry is held with the
      *   head in frame. Once counting starts the head is not read at all: a head
      *   that dips out at the bottom of a rep costs nothing;
-     * - **the near knee clear of the edges** by the counter's own
-     *   margin. A knee out of frame is placed just inside the edge at full
-     *   confidence, and a rep read from it is refused ([RepHint.LEGS_IN_VIEW]),
-     *   so the sitting does not start that way;
-     * - **the near foot clear of the edges** by [FEET_EDGE_MARGIN], for
-     *   the same reason: a foot at the edge drops out of frames mid-rep.
+     * - **the near foot clear of the edges** by [FEET_EDGE_MARGIN]: a foot at
+     *   the edge drops out of frames mid-rep.
+     *
+     * The near knee has its own pill since 2026-10-10 ([kneesVisible]).
      */
-    private fun wholeBody(input: PreflightInput): PreflightStatus {
+    private fun wholeBody(input: PreflightInput, side: Side?): PreflightStatus {
         fun failing(fix: String? = null) = PreflightStatus(PreflightCheck.WHOLE_BODY, passing = false, specificFix = fix)
         if (!wholeBodyVisible(input.world, input.image)) return failing()
         if (input.image != null && !Angles.headInFrame(input.image)) return failing(HEAD_FIX)
         val pose = input.imagePose
-        if (pose != null) {
-            // Two different problems, two different fixes: a knee the model
-            // cannot find is hidden behind the body — turning a little away from
-            // the phone shows it; one at the picture's edge needs more room.
-            val side = Angles.nearSide(pose) ?: return failing(KNEES_TURN_FIX)
-            // The side facing the phone is the side the phone is on; turning the
-            // other way opens the angle and brings the near knee out.
-            if (!Angles.kneeSeen(pose, side)) return failing(if (side == Side.RIGHT) KNEES_TURN_LEFT_FIX else KNEES_TURN_RIGHT_FIX)
-            if (!Angles.kneeClearOfEdge(pose, side, legEdgeMargin)) return failing(KNEES_FIX)
-            // The foot too, with room to spare: at the very edge the model loses it
-            // every few frames, and each of those frames is a leg not seen.
-            if (!Angles.ankleClearOfEdge(pose, side, FEET_EDGE_MARGIN)) return failing(FEET_FIX)
-        }
+        // The foot, with room to spare: at the very edge the model loses it
+        // every few frames, and each of those frames is a leg not seen.
+        if (pose != null && side != null && !Angles.ankleClearOfEdge(pose, side, FEET_EDGE_MARGIN)) return failing(FEET_FIX)
         return PreflightStatus(PreflightCheck.WHOLE_BODY, passing = true)
+    }
+
+    /**
+     * The knees pill (002 FR-024a), which the ready hold and the countdown also
+     * need green: the near knee found and **clear of the edges** by the
+     * counter's own margin. A knee out of frame is placed just inside the edge
+     * at full confidence, and a rep read from it is refused
+     * ([RepHint.LEGS_IN_VIEW]), so the sitting does not start that way.
+     * A frame without the picture's pose has not shown a knee: the pill is red.
+     */
+    private fun kneesVisible(input: PreflightInput, nearSide: Side?): PreflightStatus {
+        fun failing(fix: String) = PreflightStatus(PreflightCheck.KNEES_VISIBLE, passing = false, specificFix = fix)
+        val pose = input.imagePose ?: return failing(KNEES_TURN_FIX)
+        // Two different problems, two different fixes: a knee the model
+        // cannot find is hidden behind the body — turning a little away from
+        // the phone shows it; one at the picture's edge needs more room.
+        val side = nearSide ?: return failing(KNEES_TURN_FIX)
+        // The side facing the phone is the side the phone is on; turning the
+        // other way opens the angle and brings the near knee out.
+        if (!Angles.kneeSeen(pose, side)) return failing(if (side == Side.RIGHT) KNEES_TURN_LEFT_FIX else KNEES_TURN_RIGHT_FIX)
+        if (!Angles.kneeClearOfEdge(pose, side, legEdgeMargin)) return failing(KNEES_FIX)
+        return PreflightStatus(PreflightCheck.KNEES_VISIBLE, passing = true)
     }
 
     /**

@@ -31,7 +31,7 @@ Screen numbers are the hackathon PRD's screen inventory (§10.1 of `docs/archive
 | 0:44–0:56 | **The free tier** | Ladder (5): Daily 25 as the primary action, streak, two staked leagues | 27 Sep |
 | 0:56–1:12 | **Stake** | Stake confirm (6): chips $10–$100 with their SKR amounts, "if nobody drops out you get exactly your stake back", wallet approval | 27 Sep |
 | 1:12–1:22 | **Lobby and lock** | Lobby (7) counting down → locked variant, roster final | 27 Sep, then 28 Sep 04:00–05:00 UTC |
-| 1:22–1:52 | **A day's reps** | Sitting (8) end to end: home → four pre-flight checks → the start position held → countdown → counting, with one rep rejected → "20 banked" → day complete → submitted | The best sitting, 28 Sep – 4 Oct |
+| 1:22–1:52 | **A day's reps** | Sitting (8) end to end: home → five pre-flight pills → the start position held → countdown → counting, with one rep rejected → "20 banked" → day complete → submitted | The best sitting, 28 Sep – 4 Oct |
 | 1:52–2:06 | **The crowd thins** | Day-by-day time-lapse of Home (4); Roster (12) with scripted members labelled; Cohort detail (11) | Daily captures at about 05:05 UTC |
 | 2:06–2:16 | **A forfeit** | Forfeit screen (9) on the second phone: stake gone, streak alive, two ways back | 30 Sep, after the day-2 deadline |
 | 2:16–2:36 | **Settle and claim** | Settlement at 05:00 UTC → Claim (10) → wallet approval → SKR balance rises → the transaction in a block explorer | 5 Oct |
