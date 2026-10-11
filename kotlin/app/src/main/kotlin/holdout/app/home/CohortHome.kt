@@ -35,7 +35,7 @@ import holdout.core.MembershipSnapshot
 import holdout.core.Stage
 
 /**
- * Home, with a Holdout running (PRD §10.1a, FR-038, T073, T067): **the survivor
+ * Home, with a Holdout running (screen map T2, FR-038, T073, T067): **the survivor
  * counter and the prize pool are the screen**, and both come from `Derive`
  * over chain accounts and chain time, so they move at the deadline itself,
  * not when a crank gets round to recording it (FR-038a). The counter rolls

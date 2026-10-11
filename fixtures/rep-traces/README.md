@@ -226,16 +226,16 @@ A v1 file (`t,label,note`) still reads, as the reviewer's labels and notes.
 - `RecordedTracesTest` replays every trace with `expectedReps` to within one;
   a labelled trace is held rep by rep by the ratchet instead.
 
-## What the suite must hold — 10 honest, 3 cheats, **in each placement**
+## What the suite must hold
 
-The spike's pass bar is the test's pass bar: every `honest` trace counted within
-**1 rep** of its `expectedReps`, and every `cheat-*` trace rejected — **for the
-phone in front and for the phone to the side**.
-
-The `cheat-sag` traces matter most head-on. That is the measurement expected to
-be weakest there, and these traces are what decides whether the front view needs
-its own trigger set (`RepRules.forView`) or whether staked cohorts should
-require the side view.
+Spike S2's bar was ten honest traces counted within **1 rep** and three cheats
+rejected, for the phone in front and for the phone to the side. It was met
+differently (T012b, spec 002): since 7 October every sitting is at about 45°,
+the Daily 25 included (spec 002 FR-001, FR-002), so a head-on or square
+side-on trace is evidence, not a test. What holds the counter now is
+`RecordedTracesTest` (every counted, unlabelled trace today's app would start,
+within one rep), the ratchet (`RepRatchetTest`, every labelled rep) and the
+test bench's gate (honest reps counted 98 % or more, each cheat 2 % or less).
 
 **T049 asserts the rule, never the trigger values.** The rule is FR-021 and
 PRD §8 — top above 160°, bottom below 90°, body line held, cycle 0.8–6 s. The
@@ -246,16 +246,15 @@ evidence and starts being a chore.
 
 ## Palm liveness
 
-The 30-second timeout (T047, FR-020) needs no video: it is a clock, and the test
-drives the clock. What S2 does have to answer is whether an open palm is
-detected at all in normal indoor light — record that in the runbook's spike
-table, not here.
+Dropped on 22 September with palm liveness (T047, FR-020): holding the top of a
+push-up for about a second (`ReadyGate`) starts a sitting, and no palm is looked
+for, so there is nothing to record about it.
 
 ## Recording
 
-`docs/holdout_setup_runbook.md` step 7 has the procedure. Ten honest videos need
-ten sets of 25; spread them over people and light if you can, since one person
-in one room is one set of angles, not a sample.
+`docs/holdout_setup_runbook.md` step 7 has the loop: record in Holdout Lab at
+about 45°, pull, label, promote. Spread the sets over people and light if you
+can, since one person in one room is one set of angles, not a sample.
 
 ## Calibration session — the 4:3 picture, 30–60° (2026-09-29, spec 002 T034c)
 

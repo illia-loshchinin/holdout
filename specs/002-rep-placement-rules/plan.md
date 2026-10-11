@@ -1,6 +1,6 @@
 # Implementation Plan: Rep Placement and Form Rules
 
-**Branch**: `002-rep-placement-rules` | **Date**: 2026-09-26 (as built); refreshed 2026-10-08 | **Spec**: [spec.md](spec.md)
+**Branch**: `002-rep-placement-rules` | **Date**: 2026-09-26 (as built); refreshed 2026-10-08; source paths refreshed 2026-10-10 (spec 004's weaknesses file and Lab sources) | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `specs/002-rep-placement-rules/spec.md`
 
@@ -16,7 +16,7 @@ The evidence is the phone's own: Holdout Lab (spec 004; debug builds before 2026
 
 **Language/Version**: Kotlin 2.4.10, Java 17 bytecode (as `specs/001-holdout-hackathon/plan.md`). Node 22 for the labelling tool.
 
-**Primary Dependencies**: MediaPipe Tasks Vision Pose Landmarker (full model, GPU, live stream), CameraX (preview, analysis and — debug only — `VideoCapture` in one 3:4 `UseCaseGroup`), Jetpack Compose, MMKV, Android `TextToSpeech` and `ToneGenerator`. No new dependency.
+**Primary Dependencies**: MediaPipe Tasks Vision Pose Landmarker (full model, GPU, live stream), CameraX (preview, analysis and — Holdout Lab only — `VideoCapture` in one 3:4 `UseCaseGroup`), Jetpack Compose, MMKV, Android `TextToSpeech` and `ToneGenerator`. No new dependency.
 
 **Storage**: MMKV for the set-up guide preference (`setup_hidden:<wallet>:<stakes>`). Holdout Lab only (`holdout.app.lab`, the `labDebug` build; spec 004): trace files and videos in Lab's private `files/traces/`, pulled over USB into git-ignored `phone_traces/`; labels files beside them; promoted sittings committed to `fixtures/rep-traces/` as trace (gzip) and labels, never video.
 
@@ -28,9 +28,9 @@ The evidence is the phone's own: Holdout Lab (spec 004; debug builds before 2026
 
 **Performance Goals**: Pose inference ≥ 15 FPS (unchanged from 001; 22–25 FPS measured with debug video on); a counted rep's tone within 300 ms of the top.
 
-**Constraints**: Camera frames never leave the device (constitution X) — traces hold landmark numbers only, and debug video stays on the phone until pulled over USB, of people who agreed in writing. No microphone permission. Every threshold is stated with the measurements behind it (constitution XI).
+**Constraints**: Camera frames never leave the device (constitution X) — traces hold landmark numbers only, and Holdout Lab's video stays on the phone until pulled over USB, of people who agreed in writing. No microphone permission. Every threshold is stated with the measurements behind it (constitution XI).
 
-**Scale/Scope**: One exercise (push-ups), three stakes, one accepted placement (45°, with a band per stakes). 74 committed traces; 27 labelled sittings from at least three people; the 8 head-on traces (`front-*`) kept as evidence only.
+**Scale/Scope**: One exercise (push-ups), three stakes, one accepted placement (45°, with a band per stakes). 46 committed traces; 27 labelled sittings from at least three people; the 8 head-on traces (`front-*`) kept as evidence only.
 
 ## Constitution Check
 
@@ -42,7 +42,7 @@ The evidence is the phone's own: Holdout Lab (spec 004; debug builds before 2026
 | VII. Tests precede logic | Pass | Every threshold change landed with a synthetic test or a labelled phone trace that failed first; since 4 Oct the ratchet makes a regression on any confirmed labelled rep fail the build. |
 | IX. Every state has a screen | Pass | Refused placement (with which way to turn), knees down, legs out of the picture, cobra, too shallow and an unreadable knee each have a shown and spoken hint. A rep on the back or standing is refused in silence on purpose: there is nothing to coach. |
 | X. Camera frames never leave the device | Pass | Traces are landmark numbers; video is the recording exception (v1.5.0, moved to Holdout Lab in v2.1.0) — Holdout Lab only, no audio, on the device until pulled over USB, consenting people only, and `checkMemberHasNoLabCode` fails any member-app build that contains the recorder. |
-| XI. Weaknesses documented | Pass | README table rendered from `kotlin/app/src/main/assets/weaknesses.json`: one-person tuning, the coarse 45° body line, cobras and hips resting on the floor not always caught, knee push-ups counting in the Daily 25 and Easy by design. The head-on rows left with the placement. |
+| XI. Weaknesses documented | Pass | README table rendered by `scripts/render-weaknesses.mjs` from `docs/weaknesses.json` (the app's assets until spec 004): one-person tuning, the coarse 45° body line, cobras and hips resting on the floor not always caught, knee push-ups counting in the Daily 25 and Easy by design, loose trousers hiding the knees. The head-on rows left with the placement. |
 | XIII. Honest language | Pass | The Hard and Easy rule sentences (`Stakes.STAKED_RULE`, `EASY_RULE`) are plain and shown before staking; the tour states one placement for every sitting. |
 
 Post-design re-check (2026-10-08): no change. Dropping head-on removes a placement whose limits had to be excused; it adds no new exception.
@@ -72,7 +72,7 @@ kotlin/repcounter/src/main/kotlin/holdout/repcounter/
 ├── ViewReading.kt    # Angled reading (none head-on); kneesOffFloor, postureHeld
 ├── Placement.kt      # CameraView classification (span / torso ratio)
 ├── Stakes.kt         # DAILY / STAKED / EASY: one placement, judgesKnees, rule sentences, ofForm
-├── Preflight.kt      # camera checks: light, whole body (head, near knee and foot clear of the edges), placement band per stakes, which way to turn
+├── Preflight.kt      # camera checks: light, whole body (head and near foot clear of the edges), knees visible (its own pill: near knee found and clear of the edges, three fixes), placement band per stakes, which way to turn
 ├── PositionGuide.kt  # where to move
 ├── Coach.kt          # one ≤3-word correction at a time
 ├── ReadyGate.kt      # ready position held; what it still lacks (HoldBlocker)
@@ -94,10 +94,18 @@ kotlin/app/src/main/kotlin/holdout/app/
 ├── sitting/SittingScreen.kt     # camera, skeleton, +1, clean screen
 ├── sitting/PlacementGuide.kt    # SetupDialog: Phone / Body / Start, the 45° band per stakes
 ├── sitting/SittingCues.kt       # rep tone, banked chime, speech
-├── sitting/TraceRecorder.kt     # writes the trace, debug only
+├── sitting/SittingRecorder.kt   # the trace seam: Lab passes a recorder, the member app none
+├── sitting/SittingVideo.kt      # the video seam, bound with the preview and the analysis
+├── sitting/LabSittingTools.kt   # what Lab adds to a sitting (readouts, label prompt, video); the member app passes none
+└── streak/ToesMeter.kt          # how many of the Daily 25's reps Hard would have counted
+
+kotlin/app/src/lab/kotlin/holdout/app/   # Holdout Lab only (spec 004)
+├── sitting/TraceRecorder.kt     # writes the trace
 ├── sitting/TraceLabelDialog.kt  # "What did you just do?"
-├── streak/ToesMeter.kt          # how many of the Daily 25's reps Hard would have counted
-└── assets/weaknesses.json       # the known weaknesses, rendered into README.md
+├── sitting/LabReadouts.kt       # under the count: analysis FPS, elbow, body line, knee
+└── sitting/SittingVideoFactory.kt  # CameraX VideoCapture beside the trace; the member flavour's copy in src/member returns null
+
+docs/weaknesses.json    # the known weaknesses, rendered into README.md by scripts/render-weaknesses.mjs
 
 scripts/
 ├── pull-traces.sh      # adb pull of traces and videos; videos deleted from the phone once copied

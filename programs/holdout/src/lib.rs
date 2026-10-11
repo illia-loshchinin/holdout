@@ -18,6 +18,7 @@ declare_id!("Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4");
 
 pub mod errors;
 pub mod events;
+pub mod genesis;
 pub mod guards;
 pub mod instructions;
 pub mod math;

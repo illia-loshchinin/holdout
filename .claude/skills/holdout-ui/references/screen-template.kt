@@ -29,7 +29,7 @@ import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 
 /**
- * <What this screen is for, in one sentence. Cite the spec/PRD/screen-map entry.>
+ * <What this screen is for, in one sentence. Cite the spec requirement and the screen-map card.>
  *
  * ```
  *     21-DAY · FROM 21 SEP · DAY 12 OF 21      ← SectionLabel
