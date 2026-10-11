@@ -258,6 +258,19 @@ cd kotlin && ./gradlew :app:installMemberDebug
 
 **Expected:** the app opens on the connect-wallet screen, with the test-network notice.
 
+### The signed release (the APK that is submitted)
+
+With the release keystore outside the clone and its four Gradle properties (`holdout.keystore`, `holdout.keystorePassword`, `holdout.keyAlias`, `holdout.keyPassword`) set in `~/.gradle/gradle.properties` (`docs/holdout_setup_runbook.md` §4):
+
+```bash
+cd kotlin && ./gradlew :app:assembleMemberRelease
+"$SDK/build-tools/36.0.0/apksigner.bat" verify --print-certs app/build/outputs/apk/member/release/app-member-release.apk
+```
+
+`SDK` is `sdk.dir` from `kotlin/local.properties`; the runbook has the PowerShell form.
+
+**Expected:** `app-member-release.apk` exists and `apksigner` exits 0 (`--verbose`: `Verifies`, v2 scheme), printing the signer's certificate SHA-256, which is the fingerprint in `assetlinks.json`. A build with no keystore writes `app-member-release-unsigned.apk` and a `WARNING: assembleMemberRelease is UNSIGNED` line; that file is not submittable (FR-066, AC-19).
+
 ## 8. Acceptance scenarios
 
 Run on devnet with real cohorts unless marked *local* (compressed clock, section 5). **[Phase 2]** scenarios are validated once their Phase 2 item is built.
@@ -282,5 +295,5 @@ Run on devnet with real cohorts unless marked *local* (compressed clock, section
 | 16 | Faucet from zero, and after a drained sponsor | Device with a brand-new wallet; then empty the sponsor's float with the bundled devnet key and try a second brand-new wallet before and after one `crank run` | One tap funds a full 7-day cycle; second tap the same day refused with the time it returns. With the float empty the claim fails as ES-0b and blames nobody; after the crank's `top_up_sponsor` the next brand-new wallet funds normally, and `crank status` shows the day's spend against `daily_lamport_cap` (AC-16, FR-042b) |
 | 17 | Start position | Device: with every gating pill green (five pills since 2026-10-10, Knees visible among them; 002 FR-024a), hold the top of a push-up; then drop out of it before the countdown ends | Counting starts on the hold alone, with no tap and a spoken countdown; dropping out restarts the hold; banked reps unchanged |
 | 18 | Offline completion | Device in airplane mode | Warning shown; the finished screen reads *"Done — not sent yet"* with the reps saved on the phone and the time left to that day's own deadline (past it, *"Done — too late to send"*), and *Back to today* sends nothing; the home reads *"Done — waiting for network"*; reconnect with the app open before the deadline + tap submit lands the day (automatic **[Phase 2]**, the wallet's approval opening by itself); after deadline, breach |
-| 19 | Submission complete | By 12 Oct: install the final member APK on a Seeker and a plain phone; build from a clean clone on a machine that has never built the project, following only the README; review the demo video and deck (R18) | Both installs run; clean clone builds the app and the program; video ≈ 3 min shows join, sitting, forfeit, settlement and claim from a cohort of the short test lobby, labelled on screen as one (AC-19, FR-044); scripted members and the test network disclosed in app, README, video and deck; submitted before 13 Oct 01:59 CEST |
+| 19 | Submission complete | By 12 Oct: install the final member APK (the signed `memberRelease` built and checked with `apksigner` as in section 7) on a Seeker and a plain phone; build from a clean clone on a machine that has never built the project, following only the README; review the demo video and deck (R18) | Both installs run; clean clone builds the app and the program; video ≈ 3 min shows join, sitting, forfeit, settlement and claim from a cohort of the short test lobby, labelled on screen as one (AC-19, FR-044); scripted members and the test network disclosed in app, README, video and deck; submitted before 13 Oct 01:59 CEST |
 | 21 | Seeker-exclusive staking | *local*: `cargo test` (the genesis helper) and `open-leagues.spec.ts` with `genesis_gate_enabled` on. Device: join from the Seeker's wallet; then from a wallet with no Seeker Genesis Token; then, with the names endpoint unreachable, from a wallet never confirmed on the phone and from the Seeker's | The helper passes the real group and refuses a fake group, no extension, amount 0, another owner and SPL-Token; with the flag on a join with the token succeeds and one without fails with `GenesisGateClosed`. On the device the Seeker joins; the other wallet does the Daily 25 and sees the Holdouts, but every join shows the Seeker-exclusive sheet with the store link and nothing is signed; unreachable mainnet refuses the unconfirmed wallet with the try-again message and lets the confirmed Seeker join (FR-003b–FR-003d, R17) |
