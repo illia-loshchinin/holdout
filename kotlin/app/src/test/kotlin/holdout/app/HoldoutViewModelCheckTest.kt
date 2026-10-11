@@ -55,7 +55,10 @@ class HoldoutViewModelCheckTest {
 
         override suspend fun load(wallet: SolanaPublicKey?): ChainView? = CompletableDeferred<ChainView?>().also { reads += it }.await()
 
-        override suspend fun roster(cohort: SolanaPublicKey): List<MembershipSnapshot>? = null
+        val rosterReads = mutableListOf<CompletableDeferred<List<MembershipSnapshot>?>>()
+
+        override suspend fun roster(cohort: SolanaPublicKey): List<MembershipSnapshot>? =
+            CompletableDeferred<List<MembershipSnapshot>?>().also { rosterReads += it }.await()
 
         override suspend fun leaderboard(): Leaderboard.Snapshot? = null
     }
@@ -121,6 +124,36 @@ class HoldoutViewModelCheckTest {
         runCurrent()
         assertFalse(sideReadDone)
         assertEquals(ChainCheck(), state.check)
+    }
+
+    @Test
+    fun `given a check's roster read still out, when the app leaves the front, then the roster is not stored`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        vm.checkNow { check -> vm.loadRoster(walletB, check) }
+        runCurrent()
+        assertEquals(1, chain.rosterReads.size)
+
+        vm.pause()
+        runCurrent()
+        chain.rosterReads.single().complete(emptyList())
+        runCurrent()
+
+        assertTrue(vm.rosters.value.isEmpty())
+    }
+
+    @Test
+    fun `given a check's roster read still out, when the snapshot answers, then the check ends without waiting for it`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        vm.checkNow { check -> vm.loadRoster(walletB, check) }
+        runCurrent()
+
+        chain.reads.last().complete(answered)
+        runCurrent()
+        assertEquals(ChainCheck(), state.check)
+
+        chain.rosterReads.single().complete(emptyList())
+        runCurrent()
+        assertEquals(setOf(walletB), vm.rosters.value.keys)
     }
 
     @Test

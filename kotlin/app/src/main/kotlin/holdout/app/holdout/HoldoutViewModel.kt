@@ -23,6 +23,7 @@ import holdout.core.Leaderboard
 import holdout.core.MembershipSnapshot
 import holdout.core.Rpc
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -79,12 +80,15 @@ class HoldoutViewModel(
     /** Rosters read so far, by cohort — what the survivor counter, roster and detail screens derive from. */
     val rosters: StateFlow<Map<SolanaPublicKey, List<MembershipSnapshot>>> = _rosters.asStateFlow()
 
-    /** Reads [cohort]'s roster (one `getProgramAccounts`, sliced — R8); a failed read keeps the last one. */
-    fun loadRoster(cohort: SolanaPublicKey) {
+    /**
+     * Reads [cohort]'s roster (one `getProgramAccounts`, sliced — R8); a failed read keeps the last one.
+     * It runs in [scope]: a check's roster read is a child of the check, so leaving the front cancels it.
+     */
+    fun loadRoster(cohort: SolanaPublicKey, scope: CoroutineScope = viewModelScope) {
         // Loads overlap — the 30-second pass, a screen opened twice — and a slow
         // early one must not put an older roster back over a newer one.
         val started = ++rosterLoadsStarted
-        viewModelScope.launch {
+        scope.launch {
             val roster = chain.roster(cohort) ?: return@launch
             if (started < (newestRoster[cohort] ?: 0)) return@launch
             newestRoster[cohort] = started
@@ -184,19 +188,23 @@ class HoldoutViewModel(
      * (FR-008). It sends nothing: a waiting day goes on as 001 FR-024b says
      * once the chain answers (FR-004).
      */
-    fun checkNow(alsoRead: suspend () -> Unit = {}) {
+    fun checkNow(alsoRead: suspend (CoroutineScope) -> Unit = {}) {
         if (refresher == null) return
         val step = _state.value.check.request(_state.value.offline)
         if (!step.read) return
         _state.update { it.copy(check = step.next) }
         val wallet = address
+        // Any earlier check has finished (a request while one is out joins it); what it left running goes too.
+        checking?.cancel()
         checking = viewModelScope.launch {
+            val check = this
             // A failing side read (chain time, the roster) must not end the check
             // without its answer, or "Checking…" would stay on with nothing to clear it.
             val also =
                 launch {
                     try {
-                        alsoRead()
+                        // [check] lets a read that is not awaited (the roster) stop with the check.
+                        alsoRead(check)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (_: Exception) {
