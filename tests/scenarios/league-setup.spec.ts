@@ -356,8 +356,8 @@ describe('create_league (data-model §1.2, H30, H35)', () => {
     // wrong figure here can never be corrected. Zero is the dangerous one:
     // `settle_count` calls a member finished when
     // `days_completed == duration_days`, so in a zero-day league everyone who
-    // never sat a single day is a finisher — an immediate clear, a payout and
-    // the 21-day unlock, with no push-ups at all.
+    // never sat a single day is a finisher — an immediate clear and a payout,
+    // with no push-ups at all.
     it.each([
       ['a zero-day league 0', { durationDays: 0 }],
       ['a one-day league 0', { durationDays: 1 }],

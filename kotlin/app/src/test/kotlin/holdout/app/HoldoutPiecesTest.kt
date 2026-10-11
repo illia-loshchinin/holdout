@@ -69,6 +69,10 @@ class HoldoutPiecesTest {
         // A refusal came back through the wallet: the member was asked.
         assertFalse(WalletRepository.failure("Transaction simulation failed: custom program error: 0x1785").beforeWallet)
         assertEquals("Joining for this Holdout has closed.", ProgramErrors.explain(6021))
+        assertEquals(
+            "Staking in a Holdout needs a Seeker. You can still do the Daily 25 and watch every Holdout.",
+            ProgramErrors.explain(6024),
+        )
         assertNull(ProgramErrors.explain(null))
     }
 

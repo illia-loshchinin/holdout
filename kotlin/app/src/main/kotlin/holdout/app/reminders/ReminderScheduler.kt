@@ -27,11 +27,23 @@ import holdout.core.Reminders
  * - **while idle** — `setAndAllowWhileIdle`, which Doze lets through, though
  *   later: without the exact-alarm permission nothing can promise an idle
  *   phone a reminder before the deadline.
+ *
+ * A day done on the phone and not on chain (FR-068, 2026-10-11) also has a
+ * standing, ongoing notice — the schedule's tick 0, posted here rather than by
+ * an alarm, so it is there as soon as the day is done and again after a
+ * restart — which the hourly NotSent alarms re-post silently. [sync] takes it
+ * down when the schedule no longer has it: the day reached the chain, or its
+ * deadline passed (the notice also times out at the deadline by itself).
  */
 class ReminderScheduler(context: Context) {
     private val context = context.applicationContext
     private val alarms = context.getSystemService(AlarmManager::class.java)
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    // Both channels exist, with their current descriptions, from the app's start.
+    init {
+        ReminderNotices.ensureChannels(this.context)
+    }
 
     /**
      * Schedules [reminders] for [wallet]. [chainNow] and [elapsedNow] must be one
@@ -44,7 +56,18 @@ class ReminderScheduler(context: Context) {
         val cancelled = previous - wanted.map { it.id }.toSet()
         cancelled.forEach { cancel(it) }
         val posted = ids(KEY_POSTED)
-        wanted.forEach { r ->
+        // The standing notices: posted when missing (a new one, a restart, a swipe on
+        // Android 14), updated in place by the hourly re-posts, taken down when gone.
+        val standing = wanted.filter { it.standing }
+        val standingIds = standing.map { Reminders.notificationId(it.cohort.base58(), it.kind, it.dayIndex) }.toSet()
+        (ids(KEY_STANDING) - standingIds).forEach { ReminderNotices.cancel(context, it) }
+        standing.forEach { r ->
+            val id = Reminders.notificationId(r.cohort.base58(), r.kind, r.dayIndex)
+            if (!ReminderNotices.isShown(context, id)) {
+                ReminderNotices.postNotSent(context, r.id, id, r.dayIndex, r.durationDays, r.dayLength, Deployment.isTestLeague(r.leagueId), r.deadline - chainNow)
+            }
+        }
+        wanted.filterNot { it.standing }.forEach { r ->
             // Due and already said: nothing left to fire.
             if (r.at <= chainNow && r.id in posted) return@forEach
             val at = Reminders.elapsedMillisAt(r.at, chainNow, elapsedNow)
@@ -62,13 +85,14 @@ class ReminderScheduler(context: Context) {
                 pending(r.id, intent(ACTION_WHILE_IDLE, wallet, r, deadline))
                 return@forEach
             }
-            alarms.setWindow(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, Reminders.windowMillis(r.dayLength), pending(r.id, intent(ACTION_ON_TIME, wallet, r, deadline)))
+            alarms.setWindow(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, Reminders.windowMillis(r), pending(r.id, intent(ACTION_ON_TIME, wallet, r, deadline)))
             alarms.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pending(r.id, intent(ACTION_WHILE_IDLE, wallet, r, deadline)))
         }
         // A cancelled reminder has no alarm left to fire, so its "posted" mark is
         // no longer needed; one still in its window keeps the mark, so its second alarm stays quiet.
         prefs.edit()
             .putStringSet(KEY_IDS, wanted.map { it.id.toString() }.toSet())
+            .putStringSet(KEY_STANDING, standingIds.map { it.toString() }.toSet())
             .putStringSet(KEY_POSTED, (ids(KEY_POSTED) - cancelled).map { it.toString() }.toSet())
             .apply()
     }
@@ -76,7 +100,8 @@ class ReminderScheduler(context: Context) {
     /** Cancels every reminder — on disconnect. */
     fun clear() {
         ids(KEY_IDS).forEach { cancel(it) }
-        prefs.edit().remove(KEY_IDS).remove(KEY_POSTED).apply()
+        ids(KEY_STANDING).forEach { ReminderNotices.cancel(context, it) }
+        prefs.edit().remove(KEY_IDS).remove(KEY_POSTED).remove(KEY_STANDING).apply()
     }
 
     private fun ids(key: String): Set<Int> = prefs.getStringSet(key, emptySet()).orEmpty().mapNotNull { it.toIntOrNull() }.toSet()
@@ -127,6 +152,9 @@ class ReminderScheduler(context: Context) {
     companion object {
         const val PREFS = "reminders"
         private const val KEY_IDS = "scheduled_ids"
+
+        /** Notification ids of the standing not-sent notices posted, so one no longer wanted is taken down. */
+        private const val KEY_STANDING = "standing_ids"
         private const val ACTION_ON_TIME = "holdout.app.reminder.ON_TIME"
         private const val ACTION_WHILE_IDLE = "holdout.app.reminder.WHILE_IDLE"
 

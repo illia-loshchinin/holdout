@@ -67,6 +67,7 @@ import holdout.app.ui.theme.HoldoutColors
 import holdout.app.wallet.ConnectScreen
 import holdout.app.wallet.WalletRepository
 import holdout.core.ChainClock
+import holdout.core.CohortSnapshot
 import holdout.core.Derive
 import holdout.core.HoldoutDay
 import holdout.core.Journey
@@ -241,6 +242,9 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
         }
     }
 
+    // Bumped when a sitting ends or the phone settles a day on its own; the reminders read it too.
+    var refreshToken by remember { mutableStateOf(0) }
+
     // On-device reminders (FR-068): the whole schedule, recomputed from each
     // chain read and handed to the alarm service. A day done on this phone but
     // not on chain is still reminded — to submit it (ReminderReceiver).
@@ -257,13 +261,20 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
         notificationsOn = androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
         onPauseOrDispose { }
     }
-    LaunchedEffect(address, chain.view, inBreach, notificationsAnswered, notificationsOn) {
+    // And when a day is done on this phone (a sitting ends) or its send settles: the
+    // not-sent notice (FR-068, 2026-10-11) starts or stops with them.
+    LaunchedEffect(address, chain.view, inBreach, notificationsAnswered, notificationsOn, refreshToken, chain.busy) {
         val me = address ?: return@LaunchedEffect
         val view = chain.view ?: return@LaunchedEffect
         val chainNow = clock.nowSeconds() ?: return@LaunchedEffect
         val elapsed = android.os.SystemClock.elapsedRealtime()
         val held = view.holdouts.mapNotNull { h -> h.membership?.let { h.cohort to it } }
-        val schedule = Reminders.schedule(held, { c -> view.holdouts.first { it.cohort == c }.address }, chainNow)
+        // Done on this phone, whether or not it was sent: the day's record, or a send waiting.
+        val doneOnPhone = { c: CohortSnapshot, day: Int ->
+            val h = view.holdouts.first { it.cohort == c }
+            store.isDayComplete(me.base58(), cohortScope(h), day.toLong()) || store.pendingCohortDay(me.base58(), h.address.base58()) == day
+        }
+        val schedule = Reminders.schedule(held, { c -> view.holdouts.first { it.cohort == c }.address }, chainNow, doneOnPhone)
         reminders.sync(me.base58(), schedule, chainNow, elapsed)
     }
 
@@ -298,7 +309,6 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
 
     var route by remember { mutableStateOf<Route>(Route.Home) }
     var sitting by remember { mutableStateOf<Sitting?>(null) }
-    var refreshToken by remember { mutableStateOf(0) }
 
     val me = address
     if (me == null) {

@@ -108,8 +108,13 @@
     },
     {
       "what": "Reminders are on-device only — no push",
-      "why": "No server knows anyone's deadlines. The phone schedules a reminder when a Holdout starts and before each day's deadline (FR-068), from chain time; Android may deliver it a few minutes late, not at all after a restart until the app is opened, and never if notifications are declined. The deadline is the chain's, never the reminder's",
+      "why": "No server knows anyone's deadlines. The phone schedules a reminder when a Holdout starts, halfway through each day (with sound) and before its deadline (silently), from chain time, and a day you have done that is not on chain yet stays in the notification shade and is re-posted silently every hour until it is submitted (FR-068); Android may deliver it a few minutes late, not at all after a restart until the app is opened, and never if notifications are declined. The deadline is the chain's, never the reminder's",
       "fix": "A push service fed by the chain, alongside the on-device reminders"
+    },
+    {
+      "what": "A comeback after a 21-day forfeit is not offered in time",
+      "why": "The comeback record is written when the forfeited Holdout settles, 21 days after it started. The window to join the next Holdout is 14 days from the missed deadline and has mostly closed by then, so the Today nudge cannot show for most 21-day forfeits; a member who joins the next Holdout anyway still earns the refund. 7-day forfeits work: the Holdout settles in time",
+      "fix": "Record the comeback when the forfeit is recorded, and tell the member on the forfeit screen how to join the next Holdout. Decided 2026-10-11 as a follow-up after the submission"
     }
   ]
 }
