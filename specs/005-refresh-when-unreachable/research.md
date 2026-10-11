@@ -8,7 +8,7 @@
 
 ## R2 — What a check reads
 
-- **Decision**: the snapshot (`refreshNow()` in the view model), chain time (the body of the app's chain-time loop, factored into one suspend function so the check and the loop save the reading the same way), and the roster of the Holdout on screen (`loadRoster`). Started together.
+- **Decision**: the snapshot (`refreshNow()` in the view model), chain time (the body of the app's chain-time loop, factored into one suspend function so the check and the loop save the reading the same way), and the roster of the Holdout on screen (`loadRoster`). Started together. The check ends when the snapshot and chain time have answered; the roster load is fire-and-forget and is not awaited, since only the snapshot decides `offline`.
 - **Rationale**: these are the reads the screens are drawn from; the snapshot alone decides `offline`. Chain time matters when a start had no reading (the screens can't show a countdown without it).
 - **Alternatives**: `clockViewModel.retry.networkBack()` only — rejected, it ends the wait only when there is no reading yet; with one, chain time would wait up to 10 minutes.
 
@@ -20,14 +20,14 @@
 
 ## R4 — The pull gesture
 
-- **Decision**: Material 3's `Modifier.pullToRefresh(isRefreshing, state, enabled, onRefresh)` with `PullToRefreshDefaults.Indicator`, wrapped once in `ui/Components.kt` as `ChainCheckBox`, `enabled = offline`. The indicator uses the design tokens (`Surface`, `Accent`).
+- **Decision**: Material 3's `Modifier.pullToRefresh(isRefreshing, state, enabled, onRefresh)` with `PullToRefreshDefaults.Indicator`, wrapped once in `ui/Components.kt` as `ChainCheckBox`, `enabled = offline`. The indicator uses the design tokens (`Surface2`, `Accent`).
 - **Rationale**: the modifier has an `enabled` flag, which the owner's answer needs (no pull while the chain answers); the screens already scroll with `verticalScroll`, which nests under it.
 - **Alternatives**: `PullToRefreshBox` — no `enabled` in this BOM's signature; a hand-made drag detector — more code, worse feel.
 
-## R5 — Nothing is sent by a check
+## R5 — A check sends nothing of its own
 
 - **Decision**: the check does not call `submitDay` or touch `AutoSubmit`. When its read answers, `refreshNow()` applies it as any read, and `SendWaitingDay` / `CohortHome` decide what the waiting day shows, as today.
-- **Rationale**: FR-004; 001 FR-024b is unchanged. In Phase 1 the tap; the Phase 2 automatic send (T098) re-arms only on a network loss, which a check does not create.
+- **Rationale**: FR-004; 001 FR-024b is unchanged. `AutoSubmit.step` resets its gate while `offline`, so the first answer after an unreachable spell — by a check or by the schedule — makes the Phase 2 automatic send (T098) due: the wallet's approval opens by itself, and *"Done — tap to submit"* follows a decline. The owner chose to keep that (spec Clarifications, 2026-10-11).
 
 ## R6 — Copy
 

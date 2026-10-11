@@ -6,7 +6,7 @@
 
 ## Summary
 
-While the app is in its *"the chain can't be reached"* state (`HoldoutViewModel.UiState.offline`, the last snapshot read failed), a member can ask it to read the chain now: a **Check again** button on every "can't be reached" line, and a pull-down on the home, a Holdout's details and the forfeit screen. A check is the read the app already makes every 30 seconds — the snapshot (`ChainRepository.load`), chain time, and the roster of the Holdout shown — started at once. A small plain-Kotlin gate, `ChainCheck`, holds whether a check is under way and whether the last one found the chain still silent; the view model joins a second request to the first, and a successful read, by a check or by the schedule, clears it. Nothing is submitted by a check: the automatic send and the tap of 001 FR-024b run exactly as before, off the same `offline` flag.
+While the app is in its *"the chain can't be reached"* state (`HoldoutViewModel.UiState.offline`, the last snapshot read failed), a member can ask it to read the chain now: a **Check again** button on every "can't be reached" line, and a pull-down on the home, a Holdout's details and the forfeit screen. A check is the read the app already makes every 30 seconds — the snapshot (`ChainRepository.load`), chain time, and the roster of the Holdout shown — started at once. A small plain-Kotlin gate, `ChainCheck`, holds whether a check is under way and whether the last one found the chain still silent; the view model joins a second request to the first, and a successful read, by a check or by the schedule, clears it. A check sends nothing of its own: once it finds the chain answering, 001 FR-024b's automatic send opens the wallet's approval for a waiting day exactly as when the chain comes back by itself, and the tap follows a decline (spec Clarifications, 2026-10-11).
 
 ## Technical Context
 
@@ -24,7 +24,7 @@ While the app is in its *"the chain can't be reached"* state (`HoldoutViewModel.
 
 **Performance Goals**: the checking state shows within 0.5 s of the gesture (SC-002); the answer is one RPC round trip
 
-**Constraints**: reads only while in front (FR-008); never a submit (FR-004); copy per constitution XIII and the design book
+**Constraints**: reads only while in front (FR-008); no send of its own (FR-004); copy per the design book's voice and 001 FR-024b's wording rule
 
 **Scale/Scope**: one gate class, one view-model entry point, one shared UI component, five screens touched (`CohortHome`, the no-Holdout home's `below`, `CohortDetailScreen`, `ForfeitScreen`, and the home state wiring in `HoldoutApp`)
 
@@ -41,7 +41,7 @@ While the app is in its *"the chain can't be reached"* state (`HoldoutViewModel.
 | X Camera frames | Not touched | Pass |
 | XI Weaknesses documented | No new weakness; the README's weaknesses table is not touched | Pass |
 | XII The build demonstrates itself | Not touched | Pass |
-| XIII Honest Language | Copy names the network (`Deployment.networkName`), never "offline", "internet" or "error" (SC-004, tested) | Pass |
+| XIII Honest Language | No prize, stake or payout wording is added. The "never offline" rule comes from the design book and 001 FR-024b, not XIII: copy names the network (`Deployment.networkName`) and never says "offline", "internet" or "error" (FR-007, SC-004, tested) | Pass |
 
 Post-design re-check: unchanged, all pass. No complexity to justify.
 
@@ -68,13 +68,13 @@ kotlin/app/src/main/kotlin/holdout/app/
 │   ├── ChainCheck.kt            # new: the gate (idle / checking / still unreachable)
 │   └── HoldoutViewModel.kt      # checkNow(); UiState.check; a successful read clears it
 ├── ui/
-│   └── Components.kt            # new: Unreachable(...) line + Check again; ChainCheckBox (pull, enabled only while unreachable)
+│   └── Components.kt            # new: CheckAgain(checking, stillUnreachable, onCheck); ChainUnreachable(...) — the line + CheckAgain for details and forfeit; ChainCheckBox (pull, enabled only while unreachable)
 ├── home/
-│   └── CohortHome.kt            # waiting day and pre-sitting notice carry Check again; pull
+│   └── CohortHome.kt            # checking/stillUnreachable/onCheck params; waiting day and pre-sitting notice carry CheckAgain; pull
 ├── cohort/
-│   ├── CohortDetailScreen.kt    # the unreachable line + pull
-│   └── ForfeitScreen.kt         # the unreachable line + pull
-└── HoldoutApp.kt                # wires onCheck: snapshot + chain time + roster; no-Holdout home line
+│   ├── CohortDetailScreen.kt    # offline/checking/stillUnreachable/onCheck params; ChainUnreachable + pull
+│   └── ForfeitScreen.kt         # the same
+└── HoldoutApp.kt                # readChainTime() shared with the chain-time loop; checkChain(roster) wires every screen; no-Holdout home line
 
 kotlin/app/src/test/kotlin/holdout/app/
 ├── ChainCheckTest.kt            # new

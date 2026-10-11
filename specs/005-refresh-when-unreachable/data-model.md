@@ -23,5 +23,5 @@ Nothing is stored on the phone or on chain. One in-memory value, held in `Holdou
 ### Rules
 
 - A check exists only for the wallet being watched; a wallet change resets `UiState`, and with it the check.
-- `stillUnreachable` is shown only while `offline` is true.
+- `stillUnreachable` is shown only while `offline` is true, and not while `checking`: the state keeps it through the next check (so a check that fails again does not change it), but the line is hidden while that check is out (contracts/check-again-ui.md).
 - While `checking`, the button shows its busy state and the pull its indicator.
