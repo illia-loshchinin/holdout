@@ -10,9 +10,9 @@ import holdout.app.storage.Store
  * - **+1 on a completed day, from either source.** A cohort day counts as that
  *   day's Daily 25 — nobody trains twice to hold both (FR-050).
  * - **Broken by a day with none** — unless a **freeze** covers it (H35): one
- *   is earned for every seven consecutive active days, at most two are held,
- *   and they are used automatically. A frozen day keeps the streak without
- *   adding to it. Freezes cover the Daily 25 streak only; a Holdout day has no
+ *   is earned for every seventh day of the streak (7, 14, 21 …), at most two
+ *   are held, and they are used automatically. A frozen day keeps the streak
+ *   without adding to it. Freezes cover the Daily 25 streak only; a Holdout day has no
  *   grace (FR-016). Banked reps short of the target do not keep it alive
  *   (FR-049).
  * - **A forfeit does not touch it** (FR-052). Losing a stake and losing a habit
@@ -86,7 +86,7 @@ class StreakStore(private val store: Store) {
         } else {
             0
         }
-        // One freeze per seven consecutive active days, never more than two held.
+        // One freeze whenever the streak reaches a multiple of seven, never more than two held.
         if (current % FREEZE_EVERY_DAYS == 0) freezes = minOf(MAX_FREEZES, freezes + 1)
         // One write: the day and its freezes can never be saved apart, and a
         // second call for this day returns above without writing anything.
@@ -99,7 +99,7 @@ class StreakStore(private val store: Store) {
     }
 
     companion object {
-        /** Active days in a row that earn one freeze (H35). */
+        /** The streak length, and each multiple of it, that earns one freeze (H35). */
         const val FREEZE_EVERY_DAYS = 7
 
         /** The most freezes held at once (H35). */
