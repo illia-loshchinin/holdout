@@ -626,7 +626,7 @@ Only a confirmed absence of the token shows *Not a Seeker*; no network, a rate l
 | ID | Moment | Tier · Status | From → to |
 |---|---|---|---|
 | **N1** | **Wallet app signs** (Mobile Wallet Adapter): connect, join, leave, submit day, claim, faucet | MUST · ✅ · 🎨 | A1, H2, H3, T2/S6, H7, W1 → back with the result in a notice line; the calling button reads *"Waiting for the wallet…"* |
-| **N2** | **Reminder notification** (on-device): the Holdout starts; on a 24-hour day, one at its midpoint (17:00 UTC) with sound and one 3 hours before the deadline, silent (2026-10-10, FR-068); on a shorter test day, one before each deadline; *"submit your day"* when done but not on chain | SHOULD · ✅ | OS → T2 |
+| **N2** | **Reminder notification** (on-device): the Holdout starts; on a day of 12 hours or more, one at its midpoint (17:00–18:00 UTC for a 24-hour day) with sound and one 3 hours before the deadline, silent (2026-10-10, FR-068); on a shorter test day, one before each deadline; when a day is done but not on chain, a silent, ongoing *"Day N is done, but not on chain yet"* notice that stays until it is submitted or the deadline passes, re-posted silently every hour (2026-10-11, FR-068) | SHOULD · ✅ | OS → T2 |
 | **N3** | **Notification permission**, asked once at the first join with the reason shown on H2; the join goes ahead either way | SHOULD · ✅ | H2 → N1 |
 | **N4** | **Camera permission**: the OS dialog behind S1 | MUST · ✅ | S1 → S2/S3 |
 | **N5** | **"Dropped since yesterday"**, once per new day | SHOULD · 🎨 drawn on T2, ⬜ not built | T2 line (and ∿ badge); tap → H4 |
