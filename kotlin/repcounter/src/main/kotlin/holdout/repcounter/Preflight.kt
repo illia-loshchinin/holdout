@@ -3,11 +3,13 @@ package holdout.repcounter
 import kotlin.math.hypot
 
 /**
- * The four environment checks that gate every sitting (FR-019, PRD §8.2).
+ * The four environment checks shown before every sitting (FR-019).
  *
  * They run before **every** sitting, not only the day's first, and the sitting
- * cannot start until all four are green. Each failure says exactly what to fix
- * rather than that something is wrong.
+ * cannot start until lighting, whole body and camera view are green; the
+ * background check is shown with its fix but never blocks
+ * ([PreflightCheck.advisory], [PreflightReport.canStart]). Each failure says
+ * exactly what to fix rather than that something is wrong.
  *
  * **No audio.** There is no fifth check and there never was one here: the app
  * does not request the microphone at all (FR-022a), and the missing

@@ -666,7 +666,7 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
         }
     }
 
-    // A Holdout running with the member standing in it leads home (PRD §10.1a).
+    // A Holdout running with the member standing in it leads home (FR-038, screen map T2).
     val active = chainNow?.let { n -> view?.mine(n)?.firstNotNullOfOrNull { h -> (h.stage(n) as? Stage.Active)?.let { h to it } } }
     if (active != null && chainNow != null) {
         val (h, stage) = active
