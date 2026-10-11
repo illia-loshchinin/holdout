@@ -126,7 +126,7 @@ class BankingControllerTest {
     @Test
     fun `a cohort's own target is used, not 25`() {
         val store = InMemoryStore()
-        // The rehearsal test league runs 5 reps a day (quickstart §5).
+        // A test league runs 5 reps a day (quickstart §5).
         val banking = BankingController(store, wallet, "cohort-test", day, target = 5)
         val outcomes = banking.doReps(5)
         assertIs<BankingController.Outcome.DayComplete>(outcomes.last())
