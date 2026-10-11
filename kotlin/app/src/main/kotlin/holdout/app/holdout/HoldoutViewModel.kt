@@ -23,8 +23,11 @@ import holdout.core.Leaderboard
 import holdout.core.MembershipSnapshot
 import holdout.core.Rpc
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -70,19 +73,31 @@ class HoldoutViewModel(
 
     private var address: SolanaPublicKey? = null
     private var refresher: Job? = null
+    private var checking: Job? = null
 
     private val _rosters = MutableStateFlow<Map<SolanaPublicKey, List<MembershipSnapshot>>>(emptyMap())
 
     /** Rosters read so far, by cohort — what the survivor counter, roster and detail screens derive from. */
     val rosters: StateFlow<Map<SolanaPublicKey, List<MembershipSnapshot>>> = _rosters.asStateFlow()
 
-    /** Reads [cohort]'s roster (one `getProgramAccounts`, sliced — R8); a failed read keeps the last one. */
-    fun loadRoster(cohort: SolanaPublicKey) {
+    /**
+     * Reads [cohort]'s roster (one `getProgramAccounts`, sliced — R8); a failed read keeps the last one.
+     * It runs in [scope]: a check's roster read is a child of the check, so leaving the front cancels it.
+     */
+    fun loadRoster(cohort: SolanaPublicKey, scope: CoroutineScope = viewModelScope) {
         // Loads overlap — the 30-second pass, a screen opened twice — and a slow
         // early one must not put an older roster back over a newer one.
         val started = ++rosterLoadsStarted
-        viewModelScope.launch {
-            val roster = chain.roster(cohort) ?: return@launch
+        scope.launch {
+            // Its own failure ends only this read: as a child of a check it must not cancel the check.
+            val roster =
+                try {
+                    chain.roster(cohort)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                } ?: return@launch
             if (started < (newestRoster[cohort] ?: 0)) return@launch
             newestRoster[cohort] = started
             _rosters.update { it + (cohort to roster) }
@@ -119,7 +134,12 @@ class HoldoutViewModel(
         // profile and balances. It is kept across failed reads of the same
         // wallet only, never shown as the new one's. Its automatic send starts
         // from what this phone kept for it, so a restart does not ask again (T098).
-        if (wallet != address) _state.value = UiState(autoSubmit = wallet?.let { AutoSubmit.restore(store, it.base58()) } ?: AutoSubmit())
+        if (wallet != address) {
+            // The previous wallet's check goes with its state: it must not finish into this one's.
+            checking?.cancel()
+            checking = null
+            _state.value = UiState(autoSubmit = wallet?.let { AutoSubmit.restore(store, it.base58()) } ?: AutoSubmit())
+        }
         address = wallet
         refresher?.cancel()
         refresher = viewModelScope.launch {
@@ -134,6 +154,10 @@ class HoldoutViewModel(
     fun pause() {
         refresher?.cancel()
         refresher = null
+        // A check's reads are foreground-only too (FR-008): none goes on, and none is left "Checking…".
+        checking?.cancel()
+        checking = null
+        _state.update { it.copy(check = ChainCheck()) }
     }
 
     /** Reads started, and the latest one whose answer was taken — both on the main thread. */
@@ -172,19 +196,23 @@ class HoldoutViewModel(
      * (FR-008). It sends nothing: a waiting day goes on as 001 FR-024b says
      * once the chain answers (FR-004).
      */
-    fun checkNow(alsoRead: suspend () -> Unit = {}) {
+    fun checkNow(alsoRead: suspend (CoroutineScope) -> Unit = {}) {
         if (refresher == null) return
         val step = _state.value.check.request(_state.value.offline)
         if (!step.read) return
         _state.update { it.copy(check = step.next) }
         val wallet = address
-        viewModelScope.launch {
+        // Any earlier check has finished (a request while one is out joins it); what it left running goes too.
+        checking?.cancel()
+        checking = viewModelScope.launch {
+            val check = this
             // A failing side read (chain time, the roster) must not end the check
             // without its answer, or "Checking…" would stay on with nothing to clear it.
             val also =
                 launch {
                     try {
-                        alsoRead()
+                        // [check] lets a read that is not awaited (the roster) stop with the check.
+                        alsoRead(check)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (_: Exception) {
@@ -193,10 +221,15 @@ class HoldoutViewModel(
             try {
                 refreshNow()
                 also.join()
-            } finally {
-                // Another wallet's check: its state was reset with the wallet's.
-                if (wallet == address) _state.update { it.copy(check = it.check.finished(answered = !it.offline)) }
+            } catch (e: CancellationException) {
+                // This check's own cancellation ([pause], another wallet) ends it here, its state already
+                // cleared. A cancellation inside a read, with the check still live, is a read that did not answer.
+                currentCoroutineContext().ensureActive()
+            } catch (_: Exception) {
+                // A read that throws is a read that did not answer: the check still ends.
             }
+            // Another wallet's check: its state was reset with the wallet's.
+            if (wallet == address) _state.update { it.copy(check = it.check.finished(answered = !it.offline)) }
         }
     }
 

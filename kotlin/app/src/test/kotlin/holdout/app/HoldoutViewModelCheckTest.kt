@@ -11,10 +11,12 @@ import holdout.app.storage.InMemoryStore
 import holdout.core.Leaderboard
 import holdout.core.MembershipSnapshot
 import holdout.core.Rpc
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -53,7 +55,9 @@ class HoldoutViewModelCheckTest {
 
         override suspend fun load(wallet: SolanaPublicKey?): ChainView? = CompletableDeferred<ChainView?>().also { reads += it }.await()
 
-        override suspend fun roster(cohort: SolanaPublicKey): List<MembershipSnapshot>? = null
+        val rosterReads = mutableListOf<CompletableDeferred<List<MembershipSnapshot>?>>()
+
+        override suspend fun roster(cohort: SolanaPublicKey): List<MembershipSnapshot>? = CompletableDeferred<List<MembershipSnapshot>?>().also { rosterReads += it }.await()
 
         override suspend fun leaderboard(): Leaderboard.Snapshot? = null
     }
@@ -94,6 +98,122 @@ class HoldoutViewModelCheckTest {
         runCurrent()
 
         assertEquals(before, chain.reads.size)
+        assertEquals(ChainCheck(), state.check)
+    }
+
+    @Test
+    fun `given a check under way, when the app leaves the front, then it ends with nothing left on screen`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        var sideReadDone = false
+        vm.checkNow {
+            delay(10_000)
+            sideReadDone = true
+        }
+        runCurrent()
+        val checkRead = chain.reads.last()
+        assertTrue(state.check.checking)
+
+        vm.pause()
+        runCurrent()
+        assertEquals(ChainCheck(), state.check)
+
+        // Nothing it had out goes on: the side read never finishes, the late answer is not shown.
+        advanceTimeBy(10_001)
+        checkRead.complete(null)
+        runCurrent()
+        assertFalse(sideReadDone)
+        assertEquals(ChainCheck(), state.check)
+    }
+
+    @Test
+    fun `given a check's roster read still out, when the app leaves the front, then the roster is not stored`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        vm.checkNow { check -> vm.loadRoster(walletB, check) }
+        runCurrent()
+        assertEquals(1, chain.rosterReads.size)
+
+        vm.pause()
+        runCurrent()
+        chain.rosterReads.single().complete(emptyList())
+        runCurrent()
+
+        assertTrue(vm.rosters.value.isEmpty())
+    }
+
+    @Test
+    fun `given a check's roster read, when it throws, then the check still ends and the last roster stays`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        vm.checkNow { check -> vm.loadRoster(walletB, check) }
+        runCurrent()
+
+        chain.rosterReads.single().completeExceptionally(IllegalStateException("roster failed"))
+        chain.reads.last().complete(null)
+        runCurrent()
+
+        assertEquals(ChainCheck(stillUnreachable = true), state.check)
+        assertTrue(vm.rosters.value.isEmpty())
+    }
+
+    @Test
+    fun `given a check's roster read still out, when the snapshot answers, then the check ends without waiting for it`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        vm.checkNow { check -> vm.loadRoster(walletB, check) }
+        runCurrent()
+
+        chain.reads.last().complete(answered)
+        runCurrent()
+        assertEquals(ChainCheck(), state.check)
+
+        chain.rosterReads.single().complete(emptyList())
+        runCurrent()
+        assertEquals(setOf(walletB), vm.rosters.value.keys)
+    }
+
+    @Test
+    fun `given a check under way, when its read throws, then the check still ends`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        vm.checkNow()
+        runCurrent()
+
+        chain.reads.last().completeExceptionally(IllegalStateException("read failed"))
+        runCurrent()
+
+        assertEquals(ChainCheck(stillUnreachable = true), state.check)
+    }
+
+    @Test
+    fun `given a check under way, when a read is cancelled inside while the check is live, then the check still ends`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        vm.checkNow()
+        runCurrent()
+
+        // Not [pause]: the check's own job is alive, so "Checking…" must not be left on.
+        chain.reads.last().completeExceptionally(CancellationException("engine cancelled the call"))
+        runCurrent()
+
+        assertEquals(ChainCheck(stillUnreachable = true), state.check)
+    }
+
+    @Test
+    fun `given a check under way, when the wallet changes and comes back, then the old check does not finish into it`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        vm.checkNow()
+        runCurrent()
+        val oldCheckRead = chain.reads.last()
+
+        vm.watch(walletB)
+        runCurrent()
+        vm.watch(walletA)
+        runCurrent()
+        chain.reads.last().complete(null)
+        runCurrent()
+        assertTrue(state.offline)
+        assertEquals(ChainCheck(), state.check)
+
+        oldCheckRead.complete(null)
+        runCurrent()
+
+        // No check was made for this wallet: nothing may say "still can't be reached".
         assertEquals(ChainCheck(), state.check)
     }
 
