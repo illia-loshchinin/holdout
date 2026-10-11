@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** T046 — the four environment checks, and what each red pill says (FR-019, PRD §8.2). */
+/** T046 — the environment checks (five pills), and what each red pill says (FR-019). */
 class PreflightTest {
 
     private val preflight = Preflight()
@@ -17,21 +17,35 @@ class PreflightTest {
         // 45°, inside the Easy band (ratio about 0.75): the Daily 25's placement,
         // which `Preflight()` checks for, as every sitting's since 8 Oct.
         image: PoseFrame? = Traces.imageFrame(shoulderSpan = 0.3f),
-    ) = PreflightInput(brightness, backgroundMotion, world, image)
+        // The knees pill reads the near knee from the picture's pose; without one it is red.
+        imagePose: ImagePose? = image?.let(Traces::imagePoseWithNearKnee),
+    ) = PreflightInput(brightness, backgroundMotion, world, image, imagePose)
 
     @Test
-    fun `four checks, no more - there is no audio check`() {
+    fun `five checks, no more - the knees have their own, there is no audio check`() {
         val report = preflight.evaluate(good())
-        assertEquals(4, report.statuses.size)
+        assertEquals(5, report.statuses.size)
         assertEquals(
             setOf(
                 PreflightCheck.LIGHTING,
                 PreflightCheck.WHOLE_BODY,
+                PreflightCheck.KNEES_VISIBLE,
                 PreflightCheck.CAMERA_ANGLE,
                 PreflightCheck.BACKGROUND_STILL,
             ),
             report.statuses.map { it.check }.toSet(),
         )
+    }
+
+    @Test
+    fun `a frame without the picture's pose has not shown a knee, so the pill is red`() {
+        val withoutPose = PreflightInput(0.5f, 0f, Traces.frame(0, elbowDegrees = 175f, bodyLineDegrees = 180f), Traces.imageFrame(shoulderSpan = 0.3f))
+        val report = preflight.evaluate(withoutPose)
+        assertFalse(knees(report).passing)
+        assertEquals(Preflight.KNEES_TURN_FIX, knees(report).fix)
+        assertFalse(report.canStart)
+        // And the same frame with its pose passes: the missing data is what made it red.
+        assertTrue(preflight.evaluate(good()).canStart)
     }
 
     @Test
@@ -126,7 +140,10 @@ class PreflightTest {
         for (span in listOf(0.05f, 0.4f, 0.7f)) {
             val report = preflight.evaluate(good(image = Traces.imageFrame(shoulderSpan = span)))
             assertFalse(report.canStart, "shoulder span $span")
-            assertEquals(listOf("Turn the phone to 45°"), report.fixes, "shoulder span $span")
+            // The synthetic body shows its left side to the lens, so the pill may say which way to turn.
+            val fix = report.statuses.single { it.check == PreflightCheck.CAMERA_ANGLE }.fix
+            assertEquals(listOf(fix), report.fixes, "only the camera pill is red at shoulder span $span")
+            assertTrue(fix!!.contains("turn", ignoreCase = true), "shoulder span $span: $fix")
         }
     }
 
@@ -178,6 +195,7 @@ class PreflightTest {
     }
 
     private fun wholeBody(report: PreflightReport) = report.statuses.single { it.check == PreflightCheck.WHOLE_BODY }
+    private fun knees(report: PreflightReport) = report.statuses.single { it.check == PreflightCheck.KNEES_VISIBLE }
 
     @Test
     fun `the hold starts only with the head clearly in the picture`() {
@@ -204,20 +222,23 @@ class PreflightTest {
             return ImagePose(PoseFrame(0, landmarks), base.width, base.height)
         }
         fun report(kneeX: Float) = pose(kneeX).let { p -> staked.evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), p.frame, p)) }
-        assertTrue(wholeBody(report(0.5f)).passing)
+        assertTrue(knees(report(0.5f)).passing)
         // Where the model puts a knee that has left the frame: just inside the edge.
-        val guessed = wholeBody(report(0.05f))
+        val guessed = knees(report(0.05f))
         assertFalse(guessed.passing)
         assertEquals(Preflight.KNEES_FIX, guessed.fix)
+        // The knee is its own pill now (002 FR-024a): the rest of the body is still in frame, and the sitting still cannot start.
+        assertTrue(wholeBody(report(0.05f)).passing)
+        assertFalse(report(0.05f).canStart)
         // A knee the model cannot find at all is hidden behind the body: turning shows it.
         val hidden = pose(0.5f).let { p ->
             ImagePose(PoseFrame(0, p.frame.landmarks.mapIndexed { i, l -> if (i == PoseIndex.LEFT_KNEE) l.copy(presence = 0.2f) else l }), p.width, p.height)
         }
         // This synthetic body shows its left side to the lens: the phone is on its left, so it turns right.
-        assertEquals(Preflight.KNEES_TURN_RIGHT_FIX, wholeBody(staked.evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), hidden.frame, hidden))).fix)
+        assertEquals(Preflight.KNEES_TURN_RIGHT_FIX, knees(staked.evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), hidden.frame, hidden))).fix)
         // The Daily 25 and Easy count push-ups from the knees, but still need the knee seen (002 FR-007).
         for (stakes in listOf(Stakes.DAILY, Stakes.EASY)) {
-            assertEquals(Preflight.KNEES_FIX, wholeBody(Preflight(stakes = stakes).evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), pose(0.05f).frame, pose(0.05f)))).fix, "$stakes")
+            assertEquals(Preflight.KNEES_FIX, knees(Preflight(stakes = stakes).evaluate(PreflightInput(0.5f, 0f, Traces.frame(0, 175f, 180f), pose(0.05f).frame, pose(0.05f)))).fix, "$stakes")
         }
     }
 

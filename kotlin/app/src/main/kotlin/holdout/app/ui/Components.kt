@@ -24,6 +24,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -113,11 +114,15 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
 /** A hairline card — the only separation on black; there are no shadows (design book, Depth). */
 @Composable
 fun HoldoutCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    val shape = MaterialTheme.shapes.medium
     Column(
-        modifier = modifier
+        // Clipped outside the caller's modifier, so a card made clickable ripples inside its corners.
+        modifier = Modifier
+            .clip(shape)
+            .then(modifier)
             .fillMaxWidth()
-            .background(HoldoutColors.Surface1, MaterialTheme.shapes.large)
-            .border(BorderStroke(1.dp, HoldoutColors.Hairline), MaterialTheme.shapes.large)
+            .background(HoldoutColors.Surface1, shape)
+            .border(BorderStroke(1.dp, HoldoutColors.Hairline), shape)
             .padding(Spacing.cardPadding),
         verticalArrangement = Arrangement.spacedBy(Spacing.tight),
         content = content,

@@ -734,6 +734,8 @@ dependencies = [
  "anchor-spl",
  "serde",
  "serde_json",
+ "solana-program-pack",
+ "spl-token-group-interface",
 ]
 
 [[package]]

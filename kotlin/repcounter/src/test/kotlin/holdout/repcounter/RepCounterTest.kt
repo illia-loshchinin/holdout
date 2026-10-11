@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 /**
  * T049. **These assert the rule, never the trigger values.**
  *
- * The rule is FR-021 and PRD §8.4: top above 160°, bottom below 90°, body line
+ * The rule is FR-021 and research R4: top above 160°, bottom below 90°, body line
  * within ±10° of straight, cycle between 0.8 and 6 seconds. The triggers (165°
  * / 85°) are an implementation detail that spike S2 is expected to move once it
  * has measured a real model on a real Seeker. A test that pinned 165 would have

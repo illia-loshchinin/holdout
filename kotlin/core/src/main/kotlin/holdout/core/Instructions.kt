@@ -146,7 +146,7 @@ object Instructions {
         )
     }
 
-    /** `set_flags(genesis_gate_enabled)` — admin only; the only difference between this build and an enforced genesis gate (R17). */
+    /** `set_flags(genesis_gate_enabled)` — admin only. Off on devnet, where the app keeps staking Seeker-exclusive; on at mainnet launch, after which `join_cohort` needs the member's Seeker Genesis Token account and its mint as remaining accounts (R17). */
     suspend fun setFlags(programId: SolanaPublicKey, admin: SolanaPublicKey, genesisGateEnabled: Boolean): TransactionInstruction = TransactionInstruction(
         programId,
         listOf(AccountMeta(admin, true, false), AccountMeta(Pdas.config(programId), false, true)),

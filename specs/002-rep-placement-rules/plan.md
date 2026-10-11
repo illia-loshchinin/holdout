@@ -72,7 +72,7 @@ kotlin/repcounter/src/main/kotlin/holdout/repcounter/
 ├── ViewReading.kt    # Angled reading (none head-on); kneesOffFloor, postureHeld
 ├── Placement.kt      # CameraView classification (span / torso ratio)
 ├── Stakes.kt         # DAILY / STAKED / EASY: one placement, judgesKnees, rule sentences, ofForm
-├── Preflight.kt      # camera checks: light, whole body (head, near knee and foot clear of the edges), placement band per stakes, which way to turn
+├── Preflight.kt      # camera checks: light, whole body (head and near foot clear of the edges), knees visible (its own pill: near knee found and clear of the edges, three fixes), placement band per stakes, which way to turn
 ├── PositionGuide.kt  # where to move
 ├── Coach.kt          # one ≤3-word correction at a time
 ├── ReadyGate.kt      # ready position held; what it still lacks (HoldBlocker)
