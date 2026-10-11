@@ -55,6 +55,8 @@ import holdout.app.storage.Store
 import holdout.app.streak.OfflineDays
 import holdout.app.streak.StreakStore
 import holdout.app.tour.TourScreen
+import holdout.app.ui.ChainCheckBox
+import holdout.app.ui.CheckAgain
 import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
 import holdout.app.ui.LocalSeekerNames
@@ -200,16 +202,22 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                 store.chainReading()?.takeIf { boot >= 0 && it.boot == boot }?.let { c.restore(it.chainSeconds, it.slot, it.elapsedMillis) }
             }
         }
+
+    // Chain time, read and saved the same way by the loop below and by a member's "Check again" (spec 005).
+    suspend fun readChainTime() {
+        if (clockViewModel.refreshChainTime(clock)) {
+            val elapsed = android.os.SystemClock.elapsedRealtime()
+            val chainNow = clock.nowSeconds()
+            val slot = clock.slot
+            if (boot >= 0 && chainNow != null && slot != null) store.setChainReading(SavedChainReading(chainNow, slot, boot, elapsed))
+        }
+    }
+
     // Nothing is read from the chain while the app is not in front: every loop
     // below runs only while started, and starts again on return.
     InFrontLoop(Unit) {
         run {
-            if (clockViewModel.refreshChainTime(clock)) {
-                val elapsed = android.os.SystemClock.elapsedRealtime()
-                val chainNow = clock.nowSeconds()
-                val slot = clock.slot
-                if (boot >= 0 && chainNow != null && slot != null) store.setChainReading(SavedChainReading(chainNow, slot, boot, elapsed))
-            }
+            readChainTime()
             // With no reading yet, the network's return asks again at once (below).
             if (clock.hasReading) delay(CHAIN_REFRESH_MILLIS) else clockViewModel.retry.await(CHAIN_RETRY_MILLIS)
         }
@@ -383,6 +391,13 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
         // the streak as well. Recording the same date twice changes nothing.
         if (!h.isTest) streaks.recordCompletedDay(wallet, HoldoutDay.indexOf(h.cohort.start + day * h.cohort.dayLength))
         holdouts.submitDay(sender, h, day, h.cohort.repsPerDay)
+    }
+
+    // A member's "Check again" while the chain can't be reached (spec 005): the
+    // snapshot, chain time and the roster on screen, read now. Nothing is sent.
+    fun checkChain(roster: SolanaPublicKey?) = holdouts.checkNow {
+        roster?.let(holdouts::loadRoster)
+        readChainTime()
     }
 
     /**
@@ -581,7 +596,13 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                 )
             }
             is Route.Lobby -> LobbyScreen(target, chainNow, chain.busy, chain.message, chain.messageIsWarning, { holdouts.leave(sender, target) }, { route = Route.Roster(target.address) }, goHome, modifier)
-            is Route.Detail -> CohortDetailScreen(target, members, stage, chainNow, claimSignature, { route = Route.Roster(target.address) }, goHome, modifier)
+            is Route.Detail -> CohortDetailScreen(
+                target, members, stage, chainNow, claimSignature, { route = Route.Roster(target.address) }, goHome, modifier,
+                offline = chain.offline,
+                checking = chain.check.checking,
+                stillUnreachable = chain.check.stillUnreachable,
+                onCheck = { checkChain(target.address) },
+            )
             is Route.Roster -> RosterScreen(target, members, wallet, chainNow, goHome, modifier, onShowing = seekerNames::showing)
             is Route.Forfeit -> ForfeitScreen(
                 h = target,
@@ -596,6 +617,10 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                     ?.let { next -> { route = Route.Stake(next.address) } },
                 onBack = goHome,
                 modifier = modifier,
+                offline = chain.offline,
+                checking = chain.check.checking,
+                stillUnreachable = chain.check.stillUnreachable,
+                onCheck = { checkChain(target.address) },
             )
             is Route.Claim -> ClaimScreen(target, stage, chain.busy, chain.message, chain.messageIsWarning, claimSignature, { holdouts.claim(sender, target) }, goHome, modifier)
             else -> Unit
@@ -729,6 +754,9 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             onDaily25 = { sitting = Sitting.Daily25(dayIndex) },
             onGetTokens = { route = Route.Faucet },
             modifier = modifier,
+            checking = chain.check.checking,
+            stillUnreachable = chain.check.stillUnreachable,
+            onCheck = { checkChain(h.address) },
             otherHoldouts = { ownHoldoutCards(chainNow) },
         )
         return
@@ -747,69 +775,72 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
         delay(ROSTER_REFRESH_MILLIS)
     }
 
-    HomeScreen(
-        state = HomeState(
-            remainingToday = (DAILY_25 - banked).coerceAtLeast(0),
-            bankedToday = banked,
-            target = DAILY_25,
-            completedToday = complete,
-            streak = streak.current,
-            freezes = streak.freezes,
-            toes = holdout.app.streak.ToesMeter(store, DAILY_25).read(wallet, dayIndex),
-            holdoutLine = chainNow?.let { n -> view?.let { v -> holdout.app.home.DailyHoldoutLine.of(v.openToJoin(n).map { it.cohort }, v.profile, n) } },
-            secondsLeftToday = chainNow?.let { HoldoutDay.secondsLeftIn(it) },
-        ),
-        onStart = {
-            if (dayIndex == Store.UNKNOWN_DAY) offlineDays.sittingStarted(wallet, boot, android.os.SystemClock.elapsedRealtime())
-            sitting = Sitting.Daily25(dayIndex)
-        },
-        modifier = modifier,
-        below = {
-            if (chainNow == null || view == null) {
-                if (chain.offline) {
-                    SectionLabel("${Deployment.networkName} unreachable — the Daily 25 still works")
-                } else {
-                    Reading { SectionLabel("Reading the chain…") }
+    ChainCheckBox(chain.offline, chain.check.checking, { checkChain(null) }, modifier) {
+        HomeScreen(
+            state = HomeState(
+                remainingToday = (DAILY_25 - banked).coerceAtLeast(0),
+                bankedToday = banked,
+                target = DAILY_25,
+                completedToday = complete,
+                streak = streak.current,
+                freezes = streak.freezes,
+                toes = holdout.app.streak.ToesMeter(store, DAILY_25).read(wallet, dayIndex),
+                holdoutLine = chainNow?.let { n -> view?.let { v -> holdout.app.home.DailyHoldoutLine.of(v.openToJoin(n).map { it.cohort }, v.profile, n) } },
+                secondsLeftToday = chainNow?.let { HoldoutDay.secondsLeftIn(it) },
+            ),
+            onStart = {
+                if (dayIndex == Store.UNKNOWN_DAY) offlineDays.sittingStarted(wallet, boot, android.os.SystemClock.elapsedRealtime())
+                sitting = Sitting.Daily25(dayIndex)
+            },
+            modifier = Modifier,
+            below = {
+                if (chainNow == null || view == null) {
+                    if (chain.offline) {
+                        SectionLabel("${Deployment.networkName} unreachable — the Daily 25 still works")
+                        CheckAgain(chain.check.checking, chain.check.stillUnreachable, { checkChain(null) })
+                    } else {
+                        Reading { SectionLabel("Reading the chain…") }
+                    }
+                    return@HomeScreen
                 }
-                return@HomeScreen
-            }
-            if (view.config == null) {
-                SectionLabel("Holdouts are not live on devnet yet")
-                return@HomeScreen
-            }
-            ownHoldoutCards(chainNow)
-            val past = view.claimed(chainNow)
-            if (past.isNotEmpty()) SectionLabel("Past Holdouts")
-            past.forEach { h ->
-                val claimed = h.stage(chainNow) as? Stage.Claimed ?: return@forEach
-                HoldoutCard(Modifier.clickable { route = Route.Detail(h.address) }) {
-                    if (h.isTest) TestCohortBadge(h.cohort.dayLength)
-                    Text(Format.holdoutTitle(h.cohort), style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
-                    Text("Finished · claimed ${Format.skr(claimed.amount)}", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
+                if (view.config == null) {
+                    SectionLabel("Holdouts are not live on devnet yet")
+                    return@HomeScreen
                 }
-            }
-            val open = view.openToJoin(chainNow)
-            if (open.isNotEmpty()) SectionLabel("Holdouts open to join")
-            open.forEach { h -> HoldoutOffer(h, chainNow, onClick = { route = Route.Stake(h.address) }) }
-            // Watched from outside, by every wallet, with or without a Seeker (FR-062a).
-            val running = view.runningNotMine(chainNow)
-            if (running.isNotEmpty()) SectionLabel("Running now")
-            running.forEach { h -> RunningHoldoutCard(h, chainNow, rosters[h.address], onClick = { route = Route.Detail(h.address) }) }
-            SecondaryButton("Leaderboards", { route = Route.Leaderboards(Leaderboard.Board.EASY_7D) })
-            SecondaryButton("Get test tokens · ${Format.skr(view.skr)} held", { route = Route.Faucet })
-            TextButton(onClick = { route = Route.About }) { Text("About Holdout", color = HoldoutColors.TextTertiary) }
-            TextButton(onClick = {
-                scope.launch {
-                    holdouts.wallet.disconnect(sender)
-                    reminders.clear()
-                    address = null
+                ownHoldoutCards(chainNow)
+                val past = view.claimed(chainNow)
+                if (past.isNotEmpty()) SectionLabel("Past Holdouts")
+                past.forEach { h ->
+                    val claimed = h.stage(chainNow) as? Stage.Claimed ?: return@forEach
+                    HoldoutCard(Modifier.clickable { route = Route.Detail(h.address) }) {
+                        if (h.isTest) TestCohortBadge(h.cohort.dayLength)
+                        Text(Format.holdoutTitle(h.cohort), style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+                        Text("Finished · claimed ${Format.skr(claimed.amount)}", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
+                    }
                 }
-            }) {
-                Text("Disconnect ", color = HoldoutColors.TextTertiary)
-                MemberIdentity(wallet, isYou = false, budget = 28, color = HoldoutColors.TextTertiary, style = LocalTextStyle.current)
-            }
-        },
-    )
+                val open = view.openToJoin(chainNow)
+                if (open.isNotEmpty()) SectionLabel("Holdouts open to join")
+                open.forEach { h -> HoldoutOffer(h, chainNow, onClick = { route = Route.Stake(h.address) }) }
+                // Watched from outside, by every wallet, with or without a Seeker (FR-062a).
+                val running = view.runningNotMine(chainNow)
+                if (running.isNotEmpty()) SectionLabel("Running now")
+                running.forEach { h -> RunningHoldoutCard(h, chainNow, rosters[h.address], onClick = { route = Route.Detail(h.address) }) }
+                SecondaryButton("Leaderboards", { route = Route.Leaderboards(Leaderboard.Board.EASY_7D) })
+                SecondaryButton("Get test tokens · ${Format.skr(view.skr)} held", { route = Route.Faucet })
+                TextButton(onClick = { route = Route.About }) { Text("About Holdout", color = HoldoutColors.TextTertiary) }
+                TextButton(onClick = {
+                    scope.launch {
+                        holdouts.wallet.disconnect(sender)
+                        reminders.clear()
+                        address = null
+                    }
+                }) {
+                    Text("Disconnect ", color = HoldoutColors.TextTertiary)
+                    MemberIdentity(wallet, isYou = false, budget = 28, color = HoldoutColors.TextTertiary, style = LocalTextStyle.current)
+                }
+            },
+        )
+    }
 }
 
 /** Where a Holdout's sittings bank on this phone: per wallet, per cohort, per cohort day (data-model §4). */

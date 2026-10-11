@@ -18,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import holdout.app.chain.Holdout
 import holdout.app.ui.Body
+import holdout.app.ui.ChainCheckBox
+import holdout.app.ui.CheckAgain
 import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
 import holdout.app.ui.Notice
@@ -46,6 +48,8 @@ import holdout.core.Stage
  * start (FR-047) — then Start, or a completed day waiting to reach the chain:
  * "Done — waiting for network" while it cannot, sent by itself once it can, and
  * "Done — tap to submit" only if that send did not land (FR-024b, T098).
+ * While the chain can't be reached, "Check again" sits under what says so,
+ * and a pull down checks too (spec 005).
  */
 @Composable
 fun CohortHome(
@@ -73,6 +77,12 @@ fun CohortHome(
     /** The faucet: a member whose SOL has run out cannot pay to submit a day. */
     onGetTokens: () -> Unit,
     modifier: Modifier = Modifier,
+    /** A member's "Check again" is out (spec 005). */
+    checking: Boolean = false,
+    /** The last "Check again" found the chain still silent. */
+    stillUnreachable: Boolean = false,
+    /** Reads the chain now; offered only while [offline]. */
+    onCheck: () -> Unit = {},
     /** The member's other Holdouts — a lobby joined for later, a claim waiting — as cards. */
     otherHoldouts: @Composable () -> Unit = {},
 ) {
@@ -83,92 +93,98 @@ fun CohortHome(
     val warning = Derive.inWarningWindow(timeLeft)
     // The member's own days still to do: a day already on chain is not one to go.
     val daysLeft = c.durationDays - (h.membership?.daysCompleted ?: 0)
+    val waiting = pendingDay != null && pendingDay == stage.dayIndex
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(HoldoutColors.Canvas)
-            .verticalScroll(rememberScrollState())
-            .padding(Spacing.screenGutter),
-        verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        if (h.isTest) TestCohortBadge(c.dayLength)
-        SectionLabel("${Format.holdoutTitle(c)} · day ${stage.dayIndex + 1} of ${c.durationDays}")
-        Text("$standing", style = CounterStyle, color = HoldoutColors.TextPrimary)
-        Text("still standing of ${c.memberCount}", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
-        Text(figures?.let { Format.skr(it.projectedPool) } ?: Format.skr(c.pool), style = DisplayStyle, color = HoldoutColors.Accent)
-        Text("prize pool, running", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
-        // The league's boost, as its reserve stands today (FR-037d): an estimate,
-        // drawn only at settlement and only if someone finishes.
-        figures?.projectedBoost?.takeIf { it > 0uL }?.let {
-            Text(
-                "+ about ${Format.skr(it)} boost from the reserve of ${Format.level(c)} Holdouts if anyone finishes",
-                style = MaterialTheme.typography.bodyMedium,
-                color = HoldoutColors.TextSecondary,
-            )
-        }
-
-        HoldoutCard {
-            h.membership?.let { m ->
-                Text("Your record: ${m.daysCompleted} of ${c.durationDays} days · $daysLeft to go", style = AmountStyle, color = HoldoutColors.TextPrimary)
-                figures?.let { Body("If today's standing held to the end, your share: ${Format.skr(it.projectedShare(m))} on top of your ${Format.skr(m.stake)} stake.") }
-            }
-        }
-
-        // Offline, a sitting can still be done, but not submitted: said before it starts, not after the set.
-        if (offline && !stage.todayDone) {
-            Notice("${holdout.app.chain.Deployment.networkName} can't be reached right now. You can still do today's reps, but the day only counts once it is submitted before the deadline, so check the connection first.", warning = true)
-        }
-        when {
-            stage.todayDone -> {
-                Text("Today is done and on chain.", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
-                timeLeft?.let { Body("Next day opens in ${Format.countdown(it)}.") }
-            }
-            pendingDay != null && pendingDay == stage.dayIndex -> {
-                val tap = !offline && !busy && autoSendTried
+    ChainCheckBox(offline, checking, onCheck, modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HoldoutColors.Canvas)
+                .verticalScroll(rememberScrollState())
+                .padding(Spacing.screenGutter),
+            verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (h.isTest) TestCohortBadge(c.dayLength)
+            SectionLabel("${Format.holdoutTitle(c)} · day ${stage.dayIndex + 1} of ${c.durationDays}")
+            Text("$standing", style = CounterStyle, color = HoldoutColors.TextPrimary)
+            Text("still standing of ${c.memberCount}", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
+            Text(figures?.let { Format.skr(it.projectedPool) } ?: Format.skr(c.pool), style = DisplayStyle, color = HoldoutColors.Accent)
+            Text("prize pool, running", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
+            // The league's boost, as its reserve stands today (FR-037d): an estimate,
+            // drawn only at settlement and only if someone finishes.
+            figures?.projectedBoost?.takeIf { it > 0uL }?.let {
                 Text(
-                    when {
-                        offline -> "Done — waiting for network"
-                        tap -> "Done — tap to submit"
-                        else -> "Done — sending to the chain"
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    color = HoldoutColors.Success,
+                    "+ about ${Format.skr(it)} boost from the reserve of ${Format.level(c)} Holdouts if anyone finishes",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = HoldoutColors.TextSecondary,
                 )
-                Body(
-                    if (offline) {
-                        // Not "by itself": nothing is sent while the app is closed (FR-024b, 2026-10-10).
-                        "Your ${c.repsPerDay} are saved on this phone. It only counts once it reaches the chain before the deadline: it's sent when Holdout is open and back online, and you approve it in your wallet."
-                    } else {
-                        "Your ${c.repsPerDay} are counted on this phone. It only counts once it reaches the chain before the deadline" + if (tap) "." else ": approve it in your wallet."
-                    },
-                )
-                timeLeft?.let { Body("${Format.countdown(it)} left.") }
-                if (tap) {
-                    PrimaryButton("Submit day ${stage.dayIndex + 1}", { onSubmit(stage.dayIndex) })
-                } else if (!offline) {
-                    PrimaryButton("Waiting for the wallet…", {}, busy = true)
+            }
+
+            HoldoutCard {
+                h.membership?.let { m ->
+                    Text("Your record: ${m.daysCompleted} of ${c.durationDays} days · $daysLeft to go", style = AmountStyle, color = HoldoutColors.TextPrimary)
+                    figures?.let { Body("If today's standing held to the end, your share: ${Format.skr(it.projectedShare(m))} on top of your ${Format.skr(m.stake)} stake.") }
                 }
             }
-            else -> {
-                val owed = (c.repsPerDay - banked).coerceAtLeast(0)
-                Text(
-                    "$owed push-ups still needed today" + (timeLeft?.let { " · ${Format.countdown(it)} left" } ?: ""),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = if (warning) HoldoutColors.Warning else HoldoutColors.TextPrimary,
-                )
-                if (warning) Body("Under 10 minutes left. You can still start — the deadline is the chain's, not this phone's.")
-                if (banked > 0) Body("$banked banked on this phone.")
-                PrimaryButton(if (banked > 0) "Keep going" else "Start today's ${c.repsPerDay}", onStart)
+
+            // Offline, a sitting can still be done, but not submitted: said before it starts, not after the set.
+            if (offline && !stage.todayDone) {
+                Notice("${holdout.app.chain.Deployment.networkName} can't be reached right now. You can still do today's reps, but the day only counts once it is submitted before the deadline, so check the connection first.", warning = true)
+                // A waiting day has its own, under its line.
+                if (!waiting) CheckAgain(checking, stillUnreachable, onCheck)
             }
+            when {
+                stage.todayDone -> {
+                    Text("Today is done and on chain.", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
+                    timeLeft?.let { Body("Next day opens in ${Format.countdown(it)}.") }
+                }
+                waiting -> {
+                    val tap = !offline && !busy && autoSendTried
+                    Text(
+                        when {
+                            offline -> "Done — waiting for network"
+                            tap -> "Done — tap to submit"
+                            else -> "Done — sending to the chain"
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        color = HoldoutColors.Success,
+                    )
+                    Body(
+                        if (offline) {
+                            // Not "by itself": nothing is sent while the app is closed (FR-024b, 2026-10-10).
+                            "Your ${c.repsPerDay} are saved on this phone. It only counts once it reaches the chain before the deadline: it's sent when Holdout is open and back online, and you approve it in your wallet."
+                        } else {
+                            "Your ${c.repsPerDay} are counted on this phone. It only counts once it reaches the chain before the deadline" + if (tap) "." else ": approve it in your wallet."
+                        },
+                    )
+                    timeLeft?.let { Body("${Format.countdown(it)} left.") }
+                    if (offline) CheckAgain(checking, stillUnreachable, onCheck)
+                    if (tap) {
+                        PrimaryButton("Submit day ${stage.dayIndex + 1}", { onSubmit(stage.dayIndex) })
+                    } else if (!offline) {
+                        PrimaryButton("Waiting for the wallet…", {}, busy = true)
+                    }
+                }
+                else -> {
+                    val owed = (c.repsPerDay - banked).coerceAtLeast(0)
+                    Text(
+                        "$owed push-ups still needed today" + (timeLeft?.let { " · ${Format.countdown(it)} left" } ?: ""),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (warning) HoldoutColors.Warning else HoldoutColors.TextPrimary,
+                    )
+                    if (warning) Body("Under 10 minutes left. You can still start — the deadline is the chain's, not this phone's.")
+                    if (banked > 0) Body("$banked banked on this phone.")
+                    PrimaryButton(if (banked > 0) "Keep going" else "Start today's ${c.repsPerDay}", onStart)
+                }
+            }
+            Notice(message, messageIsWarning)
+            otherHoldouts()
+            SecondaryButton("Who's still standing", onRoster)
+            TextButton(onClick = onDetail) { Text("Holdout details", color = HoldoutColors.TextSecondary) }
+            TextButton(onClick = onGetTokens) { Text("Get test tokens", color = HoldoutColors.TextTertiary) }
+            TextButton(onClick = onAbout) { Text("About Holdout", color = HoldoutColors.TextTertiary) }
+            TextButton(onClick = onDaily25) { Text("The Daily 25", color = HoldoutColors.TextTertiary) }
         }
-        Notice(message, messageIsWarning)
-        otherHoldouts()
-        SecondaryButton("Who's still standing", onRoster)
-        TextButton(onClick = onDetail) { Text("Holdout details", color = HoldoutColors.TextSecondary) }
-        TextButton(onClick = onGetTokens) { Text("Get test tokens", color = HoldoutColors.TextTertiary) }
-        TextButton(onClick = onAbout) { Text("About Holdout", color = HoldoutColors.TextTertiary) }
-        TextButton(onClick = onDaily25) { Text("The Daily 25", color = HoldoutColors.TextTertiary) }
     }
 }
