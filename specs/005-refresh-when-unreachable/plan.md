@@ -12,7 +12,7 @@ While the app is in its *"the chain can't be reached"* state (`HoldoutViewModel.
 
 **Language/Version**: Kotlin 2.x, Android (minSdk 26), Jetpack Compose (BOM 2026.08.00, Material 3)
 
-**Primary Dependencies**: existing only — `androidx.compose.material3` (its `pullToRefresh` modifier and `PullToRefreshDefaults.Indicator`), `kotlinx.coroutines`, the app's `Rpc`/`ChainRepository`
+**Primary Dependencies**: existing only — `androidx.compose.material3` (its `pullToRefresh` modifier and `PullToRefreshDefaults.Indicator`), `kotlinx.coroutines`, the app's `Rpc`/`ChainRepository` Since T019, a test-only `kotlinx-coroutines-test` at 1.9.0, the coroutines version the app already uses.
 
 **Storage**: none; a check is not kept on the phone
 
