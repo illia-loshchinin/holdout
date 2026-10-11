@@ -52,12 +52,16 @@ None: no new dependency (Material 3's `pullToRefresh` is in the existing BOM, re
 - [X] T010 [P] [US2] In `kotlin/app/src/main/kotlin/holdout/app/cohort/CohortDetailScreen.kt`, add `offline`, `checking`, `stillUnreachable`, `onCheck` parameters; while `offline` show `ChainUnreachable(checking, stillUnreachable, onCheck)` under the title, and wrap in `ChainCheckBox`
 - [X] T011 [P] [US2] Same in `kotlin/app/src/main/kotlin/holdout/app/cohort/ForfeitScreen.kt`
 - [X] T012 [US2] Wire T010 and T011 in `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt` with `chain.offline`, `chain.check.checking`, `chain.check.stillUnreachable`, `checkChain(target.address)`
+- [X] T017 [US2] Fixes from the 2026-10-11 phone walk (commits b66f751, 0274804):
+  - `ChainUnreachable` on the no-Holdout home over an earlier read, in `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt`, and on the `todayDone` branch in `kotlin/app/src/main/kotlin/holdout/app/home/CohortHome.kt`.
+  - `ChainUnreachable` keeps one steady line that turns into *"N still can't be reached."*; `CheckAgain`'s still line is centred and in the warning colour, in `kotlin/app/src/main/kotlin/holdout/app/ui/Components.kt`.
+  - `CheckAgainCopy.checking` lowercases a leading "The" mid-sentence, in `kotlin/app/src/main/kotlin/holdout/app/holdout/ChainCheck.kt`, tested in `CheckAgainCopyTest`.
 
 ## Phase 5: Polish
 
 - [X] T013 Run the `holdout-ui` visual check on the five states of contracts/check-again-ui.md (screenshots on a phone or emulator) — *2026-10-11, Seeker against the localnet: the home over an earlier read, details, forfeit, the still line, the pull indicator while unreachable and none while answering. The waiting-day state was not on screen: no running Holdout on that ledger. The walk's fixes are in b66f751 and 0274804.*
 - [X] T014 Run `bash scripts/ci-local.sh --only kotlin` (ktlint, unit tests, both debug APKs) and fix what it finds
-- [ ] T015 Walk quickstart.md on a phone against a local validator — *2026-10-11: steps 2, 4 and 5 walked. Steps 1 and 3 need a running Holdout with today's reps done, which that ledger lacked (no `localnet-crank.sh --loop` running), so this stays open.*
+- [ ] T015 Walk quickstart.md (steps 1–6) on a phone against a local validator — *2026-10-11: steps 2, 4 and 5 walked. Steps 1 and 3 need a running Holdout with today's reps done, which that ledger lacked (no `localnet-crank.sh --loop` running), so this stays open.*
 - [ ] T016 Check SC-003: review that `HoldoutViewModel.checkNow` and `checkChain` in `kotlin/app/src/main/kotlin/holdout/app/` call no `submitDay` and do not touch `AutoSubmit`, and in T015's step 3 see the wallet's approval open by itself once, then *"Done — tap to submit"* after a decline (001 FR-024b) — *review half done 2026-10-11: `checkNow` and `checkChain` call no `submitDay` and do not touch `AutoSubmit`. The walk half waits on T015 step 3.*
 
 ## Dependencies
