@@ -31,9 +31,17 @@ sealed interface SendResult {
     /**
      * Declined, refused by the program, or never confirmed. [message] is said to
      * the member as is. [beforeWallet]: devnet did not answer before the wallet
-     * could open, so the member was asked nothing.
+     * could open, so the member was asked nothing. [declined]: the member said
+     * no in the wallet, so nothing was signed or sent. [mayStillLand]: it left
+     * the wallet and devnet has not confirmed it either way (see [TxOutcome]).
      */
-    data class Failed(val message: String, val programError: Int? = null, val beforeWallet: Boolean = false) : SendResult
+    data class Failed(
+        val message: String,
+        val programError: Int? = null,
+        val beforeWallet: Boolean = false,
+        val declined: Boolean = false,
+        val mayStillLand: Boolean = false,
+    ) : SendResult
 }
 
 /**
@@ -128,12 +136,15 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
     /**
      * Builds [instructions] into one transaction — the member first, as fee
      * payer — has the wallet sign and send it, and waits for devnet to confirm.
+     * [onPhase] hears where it stands, for the signing screens (rulings G7):
+     * the wallet holds the screen, then — approved and sent — devnet confirms.
      */
-    suspend fun send(sender: ActivityResultSender, instructions: List<TransactionInstruction>): SendResult {
+    suspend fun send(sender: ActivityResultSender, instructions: List<TransactionInstruction>, onPhase: (SendPhase) -> Unit = {}): SendResult {
         val blockhash = rpc.latestBlockhash() ?: return SendResult.Failed("${Deployment.networkName} did not answer. Check the connection and try again.", beforeWallet = true)
         // Never Message.Builder directly: it miscounts an account with mixed flags (see Transactions).
         val transaction = Transactions.message(instructions, blockhash).toUnsignedTransaction()
-        if (signOnly) return signThenSend(sender, transaction)
+        onPhase(SendPhase.WaitingForWallet)
+        if (signOnly) return signThenSend(sender, transaction, onPhase)
         // Checked inside the session, on the authorization the wallet has just
         // confirmed, before anything is signed.
         val result = adapter.transact(sender) { auth -> if (Network.of(auth) == Network.Other) null else signAndSendTransactions(transaction) }
@@ -142,8 +153,9 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
             when (result) {
                 is TransactionResult.Success -> result.payload?.signatures?.firstOrNull()?.let { Base58.encodeToString(it) } ?: return wrongNetworkOr("The wallet returned no signature.", result.payload == null)
                 is TransactionResult.NoWalletFound -> return SendResult.NoWallet
-                is TransactionResult.Failure -> return failure(result.message)
+                is TransactionResult.Failure -> return WalletFailures.of(result.message, result.e)
             }
+        onPhase(SendPhase.Confirming)
         return confirm(rpc, signature)
     }
 
@@ -154,15 +166,16 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
      */
     private val signOnly: Boolean = BuildConfig.DEBUG && Deployment.rpcUrl != Rpc.DEVNET
 
-    private suspend fun signThenSend(sender: ActivityResultSender, transaction: com.solana.transaction.Transaction): SendResult {
+    private suspend fun signThenSend(sender: ActivityResultSender, transaction: com.solana.transaction.Transaction, onPhase: (SendPhase) -> Unit): SendResult {
         val result = adapter.transact(sender) { auth -> if (Network.of(auth) == Network.Other) null else signTransactions(arrayOf(transaction.serialize())) }
         store.walletSession()?.let { store.setWalletSession(it.copy(authToken = adapter.authToken)) }
         val signed =
             when (result) {
                 is TransactionResult.Success -> result.payload?.signedPayloads?.firstOrNull() ?: return wrongNetworkOr("The wallet returned no signed transaction.", result.payload == null)
                 is TransactionResult.NoWalletFound -> return SendResult.NoWallet
-                is TransactionResult.Failure -> return failure(result.message)
+                is TransactionResult.Failure -> return WalletFailures.of(result.message, result.e)
             }
+        onPhase(SendPhase.Confirming)
         return when (val answer = rpc.send(signed)) {
             is Rpc.Answer.Ok -> confirm(rpc, answer.value)
             is Rpc.Answer.Refused -> failure(answer.message)
@@ -170,7 +183,7 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
             is Rpc.Answer.Unanswered ->
                 com.solana.transaction.Transaction.from(signed).signatures.firstOrNull()
                     ?.let { confirm(rpc, Base58.encodeToString(it)) }
-                    ?: SendResult.Failed("${Deployment.networkName} did not answer: ${answer.message}")
+                    ?: SendResult.Failed("${Deployment.networkName} did not answer: ${answer.message}", mayStillLand = true)
         }
     }
 
@@ -202,7 +215,7 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
                     Rpc.Landing.Pending, null -> delay(CONFIRM_PAUSE_MILLIS)
                 }
             }
-            return SendResult.Failed("Sent, but devnet has not confirmed it yet. It may still land — pull to refresh in a minute.")
+            return SendResult.Failed("Sent, but devnet has not confirmed it yet. It may still land — pull to refresh in a minute.", mayStillLand = true)
         }
 
         fun failure(message: String): SendResult.Failed = SendResult.Failed(message, ProgramErrorCode.of(message))

@@ -1,0 +1,81 @@
+package holdout.app.shell
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import holdout.app.about.AboutScreen
+import holdout.app.chain.Deployment
+import holdout.app.faucet.FaucetSheet
+import holdout.app.me.MeScreen
+import holdout.app.me.MeState
+import holdout.app.nav.Badges
+import holdout.app.nav.NavEvent
+import holdout.app.nav.Screen
+import holdout.app.storage.Store
+import holdout.app.ui.StreakState
+import holdout.core.HoldoutDay
+
+/** The Me dot: SKR or SOL too low to stake or submit (DS BottomNav); false before the chain is read. */
+internal fun Shared.lowOnFunds(): Boolean {
+    val v = view ?: return false
+    val n = now ?: return false
+    val cheapest = v.openToJoin(n).mapNotNull { it.cohort.chips.minOrNull() }.minOrNull()
+    return Badges.me(v.skr, v.lamports, cheapest)
+}
+
+/** The Me tab root, W1 (screen map W1, board 26; FR-069). */
+@Composable
+internal fun Shared.MeRoot(modifier: Modifier = Modifier) {
+    val streak = remember(wallet, dayIndex, refreshToken) { streaks.read(wallet, dayIndex) }
+    val doneToday = remember(wallet, dayIndex, refreshToken) { store.isDayComplete(wallet, Store.CHALLENGE, dayIndex) }
+    val v = view
+    MeScreen(
+        state = MeState(
+            wallet = wallet,
+            skr = v?.skr,
+            lamports = v?.lamports,
+            faucetSkr = v?.config?.maxTopTier,
+            streak = streak.current,
+            streakState = when {
+                streak.current == 0 -> StreakState.Broken
+                doneToday -> StreakState.ExtendedToday
+                else -> StreakState.Active
+            },
+            freezes = streak.freezes,
+            lowOnFunds = lowOnFunds(),
+            network = Deployment.networkName.lowercase(),
+        ),
+        onGetTokens = { dispatch(NavEvent.OpenFaucet) },
+        onAbout = { dispatch(NavEvent.Open(Screen.About)) },
+        onTour = { dispatch(NavEvent.OpenTour) },
+        onDisconnect = disconnect,
+        modifier = modifier,
+    )
+}
+
+/** X1 About Holdout, pushed from Me. */
+@Composable
+internal fun Shared.AboutHost(modifier: Modifier = Modifier) {
+    AboutScreen(onTour = { dispatch(NavEvent.OpenTour) }, onBack = { dispatch(NavEvent.Back) }, modifier = modifier, onDisconnect = disconnect)
+}
+
+/** The faucet in its sheet (G8): from Me, or from any short-of-funds moment, back where it was opened (ES-0a). */
+@Composable
+internal fun Shared.FaucetSheetHost() {
+    val v = view
+    val n = now
+    FaucetSheet(
+        skr = v?.skr ?: 0uL,
+        lamports = v?.lamports ?: 0,
+        maxTopTier = v?.config?.maxTopTier ?: 0uL,
+        claimedToday = n != null && v?.profile?.claimedFaucetOn(HoldoutDay.indexOf(n)) == true,
+        now = n ?: 0,
+        busy = chain.busy,
+        outcome = chain.lastFaucet,
+        onClaim = { n?.let { holdouts.claimFaucet(sender, it) } },
+        onBack = {
+            holdouts.clearMessage()
+            dispatch(NavEvent.CloseSheet)
+        },
+    )
+}

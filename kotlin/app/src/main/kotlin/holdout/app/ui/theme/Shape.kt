@@ -6,10 +6,9 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Shape and spacing, from the design book's `radius` and `spacing` tokens and
- * four of its `size` tokens (`size-touch`, `size-button`, `size-ring-stroke`,
- * `size-border`) in `docs/design/tokens.json` (Visual foundations → Shape,
- * Spacing and layout, Depth in `docs/design/README.md`). `size-nav` is not
- * named here yet.
+ * five of its `size` tokens (`size-touch`, `size-button`, `size-ring-stroke`,
+ * `size-border`, `size-nav`) in `docs/design/tokens.json` (Visual foundations
+ * → Shape, Spacing and layout, Depth in `docs/design/README.md`).
  *
  * **Depth: none.** No shadows anywhere on black — a surface level plus a
  * hairline does all the separating.
@@ -44,4 +43,7 @@ object Spacing {
 
     /** `size-border`: every hairline border. */
     val border = 1.dp
+
+    /** `size-nav`: the bottom bar's height. */
+    val navHeight = 64.dp
 }

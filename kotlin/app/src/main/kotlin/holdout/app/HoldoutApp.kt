@@ -1,14 +1,7 @@
 package holdout.app
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -18,113 +11,92 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import com.solana.publickey.SolanaPublicKey
-import holdout.app.about.AboutScreen
 import holdout.app.chain.Deployment
 import holdout.app.chain.Holdout
-import holdout.app.claim.ClaimScreen
-import holdout.app.cohort.CohortDetailScreen
-import holdout.app.cohort.ForfeitScreen
-import holdout.app.cohort.SettlingWords
-import holdout.app.faucet.FaucetSheet
 import holdout.app.holdout.HoldoutViewModel
-import holdout.app.home.CohortHome
-import holdout.app.home.HoldoutOffer
-import holdout.app.home.HomeScreen
-import holdout.app.home.HomeState
-import holdout.app.home.RunningHoldoutCard
-import holdout.app.leaderboard.LeaderboardScreen
-import holdout.app.lobby.LobbyScreen
 import holdout.app.names.SeekerNameRepository
+import holdout.app.nav.Badges
+import holdout.app.nav.Nav
+import holdout.app.nav.NavEvent
+import holdout.app.nav.NavState
+import holdout.app.nav.Screen
+import holdout.app.nav.Sheet
+import holdout.app.nav.Tab
+import holdout.app.nav.TabBadges
+import holdout.app.nav.TxKind
+import holdout.app.nav.stages
+import holdout.app.nav.then
 import holdout.app.reminders.ReminderScheduler
-import holdout.app.roster.RosterScreen
-import holdout.app.sitting.BankingController
-import holdout.app.sitting.SittingScreen
-import holdout.app.sitting.SittingViewModel
+import holdout.app.shell.AboutHost
+import holdout.app.shell.AppShell
+import holdout.app.shell.CHAIN_REFRESH_MILLIS
+import holdout.app.shell.CHAIN_RETRY_MILLIS
+import holdout.app.shell.ClaimHost
+import holdout.app.shell.DetailHost
+import holdout.app.shell.FaucetSheetHost
+import holdout.app.shell.ForfeitHost
+import holdout.app.shell.HoldoutsRoot
+import holdout.app.shell.InFrontLoop
+import holdout.app.shell.LeaderboardsHost
+import holdout.app.shell.LobbyHost
+import holdout.app.shell.MeRoot
+import holdout.app.shell.ROSTER_REFRESH_MILLIS
+import holdout.app.shell.RosterHost
+import holdout.app.shell.SendWaitingDay
+import holdout.app.shell.Shared
+import holdout.app.shell.SittingHost
+import holdout.app.shell.StakeSheetHost
+import holdout.app.shell.StandingRoot
+import holdout.app.shell.TodayRoot
+import holdout.app.shell.TxFlowHost
+import holdout.app.shell.cohortScope
+import holdout.app.shell.lowOnFunds
+import holdout.app.shell.pendingTodayOf
+import holdout.app.shell.resend
+import holdout.app.shell.standingDropped
+import holdout.app.shell.standingHoldout
 import holdout.app.stake.SeekerGate
-import holdout.app.stake.SeekerGateSheet
-import holdout.app.stake.SeekerStatus
-import holdout.app.stake.StakeSheet
 import holdout.app.storage.MmkvStore
 import holdout.app.storage.SavedChainReading
 import holdout.app.storage.Store
 import holdout.app.streak.OfflineDays
 import holdout.app.streak.StreakStore
 import holdout.app.tour.TourScreen
-import holdout.app.ui.ChainCheckBox
-import holdout.app.ui.ChainUnreachable
-import holdout.app.ui.CheckAgain
 import holdout.app.ui.Format
-import holdout.app.ui.HoldoutCard
 import holdout.app.ui.LocalSeekerNames
-import holdout.app.ui.MemberIdentity
-import holdout.app.ui.Reading
-import holdout.app.ui.SecondaryButton
-import holdout.app.ui.SectionLabel
-import holdout.app.ui.TestCohortBadge
-import holdout.app.ui.theme.HoldoutColors
 import holdout.app.wallet.ConnectScreen
+import holdout.app.wallet.SignAction
+import holdout.app.wallet.TxPhase
 import holdout.app.wallet.WalletRepository
 import holdout.core.ChainClock
 import holdout.core.CohortSnapshot
-import holdout.core.Comeback.forScreenOf
 import holdout.core.Derive
 import holdout.core.HoldoutDay
-import holdout.core.Journey
-import holdout.core.Leaderboard
-import holdout.core.LeagueParams
 import holdout.core.MembershipSnapshot
 import holdout.core.Reminders
-import holdout.core.ScriptedWallets
 import holdout.core.SeekerGenesisReader
 import holdout.core.SeekerNameReader
-import holdout.core.Stage
-import holdout.repcounter.Stakes
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-/** Every screen past the connect screen (contracts/android-app §5). Holdouts are named by cohort address. */
-private sealed interface Route {
-    data object Home : Route
-    data object Faucet : Route
-    data object About : Route
-    data object Tour : Route
-    data class Leaderboards(val board: Leaderboard.Board) : Route
-
-    /** [tier] is the chip the sheet opens on: the lost stake's, from the comeback offer (FR-037g). */
-    data class Stake(val cohort: SolanaPublicKey, val tier: Int = 0) : Route
-
-    data class Lobby(val cohort: SolanaPublicKey) : Route
-    data class Detail(val cohort: SolanaPublicKey) : Route
-    data class Roster(val cohort: SolanaPublicKey) : Route
-    data class Forfeit(val cohort: SolanaPublicKey) : Route
-    data class Claim(val cohort: SolanaPublicKey) : Route
-}
-
-/** A sitting in progress: the free Daily 25, or one day of a Holdout (T065). */
-private sealed interface Sitting {
-    /** Filed under the global day fixed when it started. */
-    data class Daily25(val day: Long) : Sitting
-
-    /** One cohort day: target and exercise read from the cohort, never constants (FR-014, H30). */
-    data class CohortDay(val holdout: Holdout, val day: Int) : Sitting
-}
-
 /**
- * The shell.
+ * The app: shared state, the loops that keep it fresh, and the router.
  *
  * ```
- * connect wallet → (tour, first run) → home ─┬─ the Daily 25 ─→ sitting
- *                                            ├─ a Holdout open to join → stake → lobby
- *                                            ├─ Holdout running → cohort day sitting → submit
- *                                            └─ forfeit · settling · claim · roster · about
+ * connect wallet → (tour, first run) → the 4-tab shell (rulings G1, FR-069)
+ *   Today · Standing · Holdouts · Me      roots with the bottom bar   shell/TodayHost, StandingHost, HoldoutsHost, MeHost
+ *   pushed screens                         back arrow, no bar          the same hosts
+ *   stake confirm · faucet                 sheets over their opener    HoldoutsHost, MeHost
+ *   sitting · signing flow · tour          full screen                 shell/SittingHost, TxFlowHost
  * ```
+ *
+ * Where the member is lives in one [NavState], changed only by
+ * [Nav.reduce] (`holdout.app.nav`, tested on the JVM); [AppShell] draws it.
  *
  * **A wallet comes first, even for the free Daily 25** (FR-001a): before it,
  * only the connect screen and no-wallet help. Everything the Daily 25 does after
@@ -177,7 +149,7 @@ private object ProcessSeekerGenesis {
 private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNames: SeekerNameRepository, modifier: Modifier) {
     val context = LocalContext.current
     val streaks = remember { StreakStore(store) }
-    val offlineDays = remember { OfflineDays(store, streaks, DAILY_25) }
+    val offlineDays = remember { OfflineDays(store, streaks, holdout.app.shell.DAILY_25) }
     val boot = remember { bootCount(context) }
     val scope = rememberCoroutineScope()
 
@@ -185,7 +157,6 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     val holdouts: HoldoutViewModel = viewModel { HoldoutViewModel(store) }
     // Every join passes the Seeker check before the stake confirm opens (FR-003b).
     val seekerGate = remember { SeekerGate(store, check = { w -> ProcessSeekerGenesis.reader.check(SolanaPublicKey.from(w)) }, enabled = BuildConfig.SEEKER_GATE) }
-    val uriHandler = LocalUriHandler.current
     val chain by holdouts.state.collectAsStateWithLifecycle()
     val rosters by holdouts.rosters.collectAsStateWithLifecycle()
     val leaderboardRead by holdouts.leaderboard.collectAsStateWithLifecycle()
@@ -199,6 +170,9 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     var connecting by remember { mutableStateOf(false) }
     var connectMessage by remember { mutableStateOf<String?>(null) }
     var noWallet by remember { mutableStateOf(false) }
+
+    // Where the member is. The app opens on Today (G1); a restored wallet skips the connect screen.
+    var nav by remember { mutableStateOf(address?.let { NavState().then(NavEvent.Connected(tourSeen = store.hasSeenTour(it.base58()))) } ?: NavState()) }
 
     // Chain time, never the wall clock (research R7). The last answer is saved,
     // so a restart offline still knows the day — on the same boot only, since
@@ -258,7 +232,7 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     }
 
     // Bumped when a sitting ends or the phone settles a day on its own; the reminders read it too.
-    var refreshToken by remember { mutableStateOf(0) }
+    var refreshToken by remember { mutableIntStateOf(0) }
 
     // On-device reminders (FR-068): the whole schedule, recomputed from each
     // chain read and handed to the alarm service. A day done on this phone but
@@ -268,7 +242,7 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     // deadline until the crank records it, but every later reminder must go at once.
     val inBreach = now?.let { n -> chain.view?.holdouts?.count { h -> h.membership?.let { Derive.inBreach(it, h.cohort, n) } == true } }
     // And when the notification prompt is answered: until then nothing could be scheduled.
-    var notificationsAnswered by remember { mutableStateOf(0) }
+    var notificationsAnswered by remember { mutableIntStateOf(0) }
     // And when notifications are switched on or off in the phone's settings: read
     // again every time the app comes back to the front.
     var notificationsOn by remember { mutableStateOf(androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) }
@@ -308,9 +282,9 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     // A member already in a Holdout — joined before reminders existed, or on
     // another install — is asked the first time the app finds them in one.
     LaunchedEffect(address, chain.view) {
-        val now = clock.nowSeconds() ?: return@LaunchedEffect
+        val chainNow = clock.nowSeconds() ?: return@LaunchedEffect
         if (address == null || android.os.Build.VERSION.SDK_INT < 33 || store.askedForNotifications()) return@LaunchedEffect
-        if (chain.view?.mine(now).isNullOrEmpty()) return@LaunchedEffect
+        if (chain.view?.mine(chainNow).isNullOrEmpty()) return@LaunchedEffect
         store.setAskedForNotifications()
         askForNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
     }
@@ -324,9 +298,6 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             join()
         }
     }
-
-    var route by remember { mutableStateOf<Route>(Route.Home) }
-    var sitting by remember { mutableStateOf<Sitting?>(null) }
 
     val me = address
     if (me == null) {
@@ -354,6 +325,7 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                         is WalletRepository.ConnectResult.Connected -> {
                             noWallet = false
                             address = result.address
+                            nav = Nav.reduce(nav, NavEvent.Connected(tourSeen = store.hasSeenTour(result.address.base58())))
                         }
                         WalletRepository.ConnectResult.NoWallet -> noWallet = true
                         is WalletRepository.ConnectResult.Failed -> connectMessage = result.message
@@ -367,32 +339,14 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     }
     val wallet = me.base58()
 
-    // Compose state, not a storage read: storage is not observed, so finishing the
-    // tour must change something this composition reads or the screen never leaves it.
-    var tourSeen by remember(wallet) { mutableStateOf(store.hasSeenTour(wallet)) }
-
-    val dayIndex = now?.let { HoldoutDay.indexOf(it) } ?: Store.UNKNOWN_DAY
-
     // The chain has answered: a Daily 25 done before it did moves onto the day
     // it was really done (FR-024b). Never mid-sitting.
     val known = now != null
-    val idle = sitting == null
+    val idle = nav.sitting == null
     LaunchedEffect(wallet, known, idle) {
         if (!idle) return@LaunchedEffect
         val chainNow = now ?: return@LaunchedEffect
         if (offlineDays.settle(wallet, boot, android.os.SystemClock.elapsedRealtime(), chainNow) != null) refreshToken += 1
-    }
-
-    val chainNow = now
-    val view = chain.view
-    fun holdout(address: SolanaPublicKey): Holdout? = view?.holdouts?.firstOrNull { it.address == address }
-
-    /** Today's day of [h] done on this phone and not yet on chain, if any. Only today's counts: an older one left behind must not hide it. */
-    @Composable
-    fun pendingTodayOf(h: Holdout, stage: Stage.Active): Int? {
-        val pending = remember(wallet, h.address, refreshToken, chain.busy) { holdouts.pendingDay(h) }
-        val locallyDone = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.isDayComplete(wallet, cohortScope(h), stage.dayIndex.toLong()) }
-        return pending?.takeIf { it == stage.dayIndex } ?: stage.dayIndex.takeIf { locallyDone && !stage.todayDone }
     }
 
     fun submitDayOf(h: Holdout, day: Int) {
@@ -410,496 +364,147 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
         readChainTime()
     }
 
-    /**
-     * A day waiting for the network sends itself once the chain answers again
-     * (FR-024b Phase 2, T098) — on whichever screen the member is, the tour and
-     * the Daily 25 included, short of a cohort sitting, and again after the
-     * system reports the network lost and the chain answers once more.
-     * [whenFree] returns once the screen may give way to the wallet; [key] is
-     * what it waits on.
-     */
-    @Composable
-    fun SendWaitingDay(key: Any? = null, whenFree: suspend () -> Unit = {}) {
-        val running = chainNow?.let { n -> view?.mine(n)?.firstNotNullOfOrNull { h -> (h.stage(n) as? Stage.Active)?.let { h to it } } } ?: return
-        val (h, stage) = running
-        val pendingToday = pendingTodayOf(h, stage)
-        LaunchedEffect(h.address, pendingToday, stage.todayDone, chain.offline, chain.busy, chain.autoSubmit, key) {
-            if (pendingToday == null) return@LaunchedEffect
-            whenFree()
-            if (holdouts.autoSubmitDue(h, pendingToday, stage.todayDone)) submitDayOf(h, pendingToday)
-        }
-    }
+    lateinit var shared: Shared
 
-    // ---- a sitting -------------------------------------------------------------
-    when (val s = sitting) {
-        is Sitting.Daily25 -> {
-            val vm = remember(wallet, s.day, refreshToken) {
-                SittingViewModel(
-                    store = store,
-                    streaks = streaks,
-                    wallet = wallet,
-                    scope = Store.CHALLENGE,
-                    dayIndex = s.day,
-                    target = DAILY_25,
-                    chainSecondsNow = { clock.nowSeconds() },
-                    stakes = Stakes.DAILY,
-                )
-            }
-            DisposableEffect(vm) { onDispose { vm.release() } }
-            // A cohort day waiting for the network goes over the Daily 25 too: a sitting
-            // has no pause limit, and the day's deadline must not pass with the app open
-            // and connected. Never mid-set, though — leaving for the wallet then would
-            // cost the set's loose reps; it opens once the set ends. Out of a set the
-            // wallet's round trip costs nothing: banked blocks are stored, and this
-            // sitting, held in the composition, is where the member comes back to.
-            SendWaitingDay(vm) { vm.uiState.first { !it.step.inSet } }
-            val done = {
-                sitting = null
-                refreshToken += 1
-            }
-            SittingScreen(viewModel = vm, onFinished = done, onCancelled = { done() }, modifier = modifier)
-            return
-        }
-        is Sitting.CohortDay -> {
-            val h = s.holdout
-            val cohortScope = cohortScope(h)
-            val vm = remember(wallet, h.address, s.day, refreshToken) {
-                SittingViewModel(
-                    store = store,
-                    streaks = streaks,
-                    wallet = wallet,
-                    scope = cohortScope,
-                    dayIndex = s.day.toLong(),
-                    target = h.cohort.repsPerDay,
-                    chainSecondsNow = { clock.nowSeconds() },
-                    // The cohort's own form (H35): Hard from the toes, Easy with knees
-                    // allowed — 45° only either way (FR-021a). An unknown form never
-                    // reaches here: Start refuses it.
-                    stakes = Stakes.ofForm(h.cohort.form) ?: Stakes.STAKED,
-                    // The cohort's own days — ten minutes each in the short test cohort.
-                    dayOf = { Derive.dayIndex(h.cohort, it).toLong() },
-                    // A Holdout day ends at its deadline: no rolling into the next (a missed day is a breach).
-                    rollsOver = false,
-                    timeLeftAt = { Derive.timeLeftToday(h.cohort, it) },
-                )
-            }
-            DisposableEffect(vm) { onDispose { vm.release() } }
-            // The chain can't be reached, or that day's deadline has passed: a submit would
-            // fail (before the wallet, or with DeadlinePassed), so the finished screen says
-            // the day is not sent yet, or too late to send, and "Back to today" sends
-            // nothing — an unsent day waits on the phone and goes when the chain answers
-            // (FR-024b, 2026-10-10; too late online or off, 2026-10-11). One value per
-            // composition, so label and tap agree.
-            val note = sittingNote(h, s.day, chainNow, chain.offline)
-            val done = {
-                sitting = null
-                refreshToken += 1
-                // The day it started on, or the next one if it ran across a boundary.
-                val today = chainNow?.let { Derive.dayIndex(h.cohort, it) }
-                val completed = listOfNotNull(s.day, today).distinct().firstOrNull { store.isDayComplete(wallet, cohortScope, it.toLong()) }
-                if (completed != null) {
-                    // A completed cohort day is that day's training for the streak too, so
-                    // nobody trains twice (FR-050) — judged leagues only, whose days are real days.
-                    // The day the reps were done on — the cohort day's own date — not the day
-                    // this screen is left on: across 05:00 UTC those are two different days.
-                    if (!h.isTest) streaks.recordCompletedDay(wallet, HoldoutDay.indexOf(h.cohort.start + completed * h.cohort.dayLength))
-                    if (note == null) holdouts.submitDay(sender, h, completed, h.cohort.repsPerDay)
-                }
-            }
-            SittingScreen(
-                viewModel = vm,
-                onFinished = done,
-                onCancelled = { done() },
-                modifier = modifier,
-                finishLabel = if (note == null) "Submit day ${s.day + 1} to the chain" else "Back to today",
-                finishNote = note,
-            )
-            return
-        }
-        null -> Unit
-    }
-
-    SendWaitingDay()
-
-    // The tour — first run, or opened again from About — shows only after the
-    // automatic send above is composed, so a reconnect during it still sends.
-    if (!tourSeen || route == Route.Tour) {
-        TourScreen(
-            onDone = {
-                store.setSeenTour(wallet)
-                tourSeen = true
-                route = Route.Home
-            },
-            modifier = modifier,
-        )
-        return
-    }
-
-    BackHandler(enabled = route != Route.Home) { route = Route.Home }
-    val goHome = { route = Route.Home }
-
-    // ---- routes that need a Holdout and chain time -----------------------------
-    val routed = route
-    val target = when (routed) {
-        is Route.Stake -> holdout(routed.cohort)
-        is Route.Lobby -> holdout(routed.cohort)
-        is Route.Detail -> holdout(routed.cohort)
-        is Route.Roster -> holdout(routed.cohort)
-        is Route.Forfeit -> holdout(routed.cohort)
-        is Route.Claim -> holdout(routed.cohort)
-        else -> null
-    }
-    if (target != null && chainNow != null) {
-        InFrontLoop(target.address) {
-            run {
-                holdouts.loadRoster(target.address)
-                delay(ROSTER_REFRESH_MILLIS)
-            }
-        }
-        val members = rosters[target.address]
-        val stage = target.stage(chainNow)
-        // Only the claim made from this cohort: another cohort's transaction is never shown as this one's.
-        val claimSignature = chain.lastClaim?.takeIf { it.first == target.address }?.second
-        // A join that landed moves the stake sheet on to the lobby. The lobby lasts
-        // until the start: a leave, or the Holdout starting, takes it home, where
-        // the day's sitting is (or the forfeit, or the claim).
-        LaunchedEffect(routed, stage) {
-            if (routed is Route.Stake && (stage == Stage.Lobby || stage == Stage.LobbyLocked)) route = Route.Lobby(target.address)
-            if (routed is Route.Lobby && stage != Stage.Lobby && stage != Stage.LobbyLocked) route = Route.Home
-        }
-        when (routed) {
-            is Route.Stake -> {
-                // Staked Holdouts are Seeker-exclusive (FR-003b–FR-003d): a wallet
-                // confirmed on this phone goes straight on; otherwise mainnet is
-                // asked, and a no or no answer shows its own variant instead.
-                var seeker by remember(wallet) { mutableStateOf(if (seekerGate.remembered(wallet)) SeekerStatus.Confirmed else SeekerStatus.Checking) }
-                var attempt by remember(wallet) { mutableIntStateOf(0) }
-                LaunchedEffect(wallet, attempt) {
-                    if (seeker != SeekerStatus.Confirmed) {
-                        seeker = SeekerStatus.Checking
-                        seeker = seekerGate.status(wallet)
-                    }
-                }
-                if (seeker != SeekerStatus.Confirmed) {
-                    SeekerGateSheet(
-                        status = seeker,
-                        onGetSeeker = { runCatching { uriHandler.openUri(SeekerGate.SEEKER_STORE_URL) } },
-                        onRetry = { attempt += 1 },
-                        onBack = goHome,
-                        modifier = modifier,
-                    )
-                    return
-                }
-                StakeSheet(
-                    h = target,
-                    skrBalance = view?.skr ?: 0uL,
-                    lamports = view?.lamports ?: 0L,
-                    now = chainNow,
-                    // A running Holdout the member has missed a deadline in does not block: the join sends its record too (ES-17).
-                    joinBlocker = Journey.joinBlocker(target.cohort, view?.profile, view?.runningEnd(chainNow), chainNow, runningInBreach = view?.runningInBreach(chainNow) == true),
-                    busy = chain.busy,
-                    message = chain.message,
-                    messageIsWarning = chain.messageIsWarning,
-                    onStake = { tier -> joinAsking { holdouts.join(sender, target, tier, chainNow) } },
-                    onGetTokens = { route = Route.Faucet },
-                    onBack = goHome,
-                    modifier = modifier,
-                    initialTier = routed.tier,
-                    comeback = view?.comebackOffer(chainNow, target.cohort.leagueId),
-                )
-            }
-            is Route.Lobby -> LobbyScreen(target, chainNow, chain.busy, chain.message, chain.messageIsWarning, { holdouts.leave(sender, target) }, { route = Route.Roster(target.address) }, goHome, modifier)
-            is Route.Detail -> CohortDetailScreen(
-                target, members, stage, chainNow, claimSignature, { route = Route.Roster(target.address) }, goHome, modifier,
-                offline = chain.offline,
-                checking = chain.check.checking,
-                stillUnreachable = chain.check.stillUnreachable,
-                onCheck = { checkChain(target.address) },
-            )
-            is Route.Roster -> RosterScreen(target, members, wallet, chainNow, goHome, modifier, onShowing = seekerNames::showing)
-            is Route.Forfeit -> {
-                // What finishing a later Holdout of this level and length brings back, from the forfeit itself (FR-037g).
-                // Only the screen of the latest forfeit carries it; an older forfeit's screen keeps the plain ways back.
-                val offer = view?.comebackOffer(chainNow, target.cohort.leagueId).forScreenOf(target.address)
-                val offerRound = offer?.next
-                ForfeitScreen(
-                    h = target,
-                    stage = stage as? Stage.Forfeited ?: Stage.Forfeited(target.membership?.daysCompleted ?: 0, recorded = false),
-                    streak = streaks.read(wallet, dayIndex).current,
-                    onDaily25 = goHome,
-                    // The way back is the same league's next Holdout, its stake sheet straight
-                    // (US-4; the test lobby for a test cohort); none open to join right now, and
-                    // the button is not shown.
-                    onNextHoldout = chainNow?.let { now -> view?.openToJoin(now) }
-                        ?.let { open -> Journey.wayBack(target.cohort, open) { it.cohort } }
-                        ?.let { next -> { route = Route.Stake(next.address) } },
-                    onBack = goHome,
-                    modifier = modifier,
-                    offline = chain.offline,
-                    checking = chain.check.checking,
-                    stillUnreachable = chain.check.stillUnreachable,
-                    onCheck = { checkChain(target.address) },
-                    offer = offer,
-                    now = chainNow,
-                    joinBlocker = offerRound?.entry?.let { e -> Journey.joinBlocker(e.cohort, view?.profile, view?.runningEnd(chainNow), chainNow, runningInBreach = view?.runningInBreach(chainNow) == true) },
-                    // The stake sheet on the lost stake's chip (FR-037g).
-                    onJoin = { offerRound?.entry?.let { e -> route = Route.Stake(e.address, offer?.tier ?: 0) } },
-                )
-            }
-            is Route.Claim -> ClaimScreen(target, stage, chain.busy, chain.message, chain.messageIsWarning, claimSignature, { holdouts.claim(sender, target) }, goHome, modifier)
+    // Every move goes through the navigation model; the few with work outside it do it here.
+    fun dispatch(e: NavEvent) {
+        val before = nav
+        nav = Nav.reduce(before, e)
+        when (e) {
+            NavEvent.TourDone -> store.setSeenTour(wallet)
+            // "Try again": the same signature, asked of the wallet again.
+            NavEvent.TxRetry -> before.tx?.kind?.let { shared.resend(it) }
             else -> Unit
         }
-        return
+        // The signing flow closed: its last outcome is no longer shown anywhere.
+        if (before.tx != null && nav.tx == null) holdouts.clearSigning()
     }
 
-    when (routed) {
-        Route.Faucet -> {
-            FaucetSheet(
-                skr = view?.skr ?: 0uL,
-                lamports = view?.lamports ?: 0,
-                maxTopTier = view?.config?.maxTopTier ?: 0uL,
-                claimedToday = chainNow != null && view?.profile?.claimedFaucetOn(HoldoutDay.indexOf(chainNow)) == true,
-                now = chainNow ?: 0,
-                busy = chain.busy,
-                outcome = chain.lastFaucet,
-                onClaim = { chainNow?.let { holdouts.claimFaucet(sender, it) } },
-                onBack = {
-                    holdouts.clearMessage()
-                    route = Route.Home
-                },
-                modifier = modifier,
+    shared = Shared(
+        sender = sender,
+        store = store,
+        streaks = streaks,
+        offlineDays = offlineDays,
+        holdouts = holdouts,
+        seekerNames = seekerNames,
+        clock = clock,
+        boot = boot,
+        wallet = wallet,
+        address = me,
+        chain = chain,
+        rosters = rosters,
+        now = now,
+        nav = nav,
+        refreshToken = refreshToken,
+        bumpRefresh = { refreshToken += 1 },
+        dispatch = ::dispatch,
+        checkChain = ::checkChain,
+        submitDayOf = ::submitDayOf,
+        joinAsking = ::joinAsking,
+        disconnect = {
+            scope.launch {
+                holdouts.wallet.disconnect(sender)
+                reminders.clear()
+                address = null
+                nav = Nav.reduce(nav, NavEvent.Disconnected)
+            }
+        },
+        seekerKnown = seekerGate.remembered(wallet),
+        notificationsOn = notificationsOn,
+    )
+
+    // The chain moving a Holdout's stage moves the member (screen map §4, dotted arrows).
+    val view = chain.view
+    val chainNow = now
+    val stages = remember(view, chainNow) { if (view == null || chainNow == null) null else view.stages(chainNow) }
+    LaunchedEffect(stages) { stages?.let { dispatch(NavEvent.ChainMoved(it)) } }
+
+    // A join, a day or a claim the wallet is asked to sign shows Holdout's own flow (G7, FR-070).
+    var lastSigning by remember { mutableIntStateOf(0) }
+    LaunchedEffect(chain.signing) {
+        val signing = chain.signing ?: return@LaunchedEffect
+        if (signing.id != lastSigning) {
+            lastSigning = signing.id
+            val cohort = signing.cohort.base58()
+            dispatch(
+                NavEvent.TxStarted(
+                    when (signing.action) {
+                        SignAction.Join -> TxKind.Join(cohort, signing.tier)
+                        SignAction.Submit -> TxKind.Submit(cohort, signing.day)
+                        SignAction.Claim -> TxKind.Claim(cohort)
+                    },
+                ),
             )
-            return
         }
-        Route.About -> {
-            AboutScreen(
-                onTour = { route = Route.Tour },
-                onBack = goHome,
-                modifier = modifier,
-                onDisconnect = {
-                    scope.launch {
-                        holdouts.wallet.disconnect(sender)
-                        reminders.clear()
-                        route = Route.Home
-                        address = null
-                    }
-                },
-            )
-            return
-        }
-        is Route.Leaderboards -> {
-            InFrontLoop(Unit) {
-                holdouts.loadLeaderboard()
-                delay(ROSTER_REFRESH_MILLIS)
-            }
-            val read = leaderboardRead
-            // The test board exists only where a test league does (FR-044a).
-            val boards = Leaderboard.Board.entries.filter { it != Leaderboard.Board.TEST || read?.cohortsAfter.orEmpty().any { c -> Leaderboard.Board.TEST.covers(c.leagueId) } }
-            val board = routed.board
-            val shown = if (read == null || chainNow == null) null else Leaderboard.view(board, read, chainNow, ScriptedWallets::isScripted)
-            LeaderboardScreen(board, boards, shown, address, { route = Route.Leaderboards(it) }, goHome, modifier, onShowing = seekerNames::showing)
-            return
-        }
-        else -> Unit
+        if (signing.phase != TxPhase.WaitingForWallet) dispatch(NavEvent.TxProgress(signing.phase))
     }
 
-    // ---- home --------------------------------------------------------------------
-    // Finish anything a killed process left half-written, then read the day again.
-    LaunchedEffect(wallet, dayIndex) {
-        if (dayIndex != Store.UNKNOWN_DAY && BankingController.recover(store, streaks, wallet, Store.CHALLENGE, dayIndex, DAILY_25)) refreshToken += 1
-    }
-
-    // The member's own Holdouts that are not running today: lobby, forfeit, settling, claim.
-    // Shown under a running one too: a lobby joined for later must stay reachable, or
-    // its Leave — the whole stake back — could not be had before joining closes.
-    @Composable
-    fun ownHoldoutCards(now: Long) {
-        view?.mine(now)?.forEach { h ->
-            val stage = h.stage(now)
-            val (label, next) = when (stage) {
-                Stage.Lobby, Stage.LobbyLocked -> "In the lobby · starts in ${Format.countdown(h.cohort.start - now)}" to Route.Lobby(h.address)
-                is Stage.Forfeited -> "Out after ${stage.daysLasted} day${if (stage.daysLasted == 1) "" else "s"}" to Route.Forfeit(h.address)
-                Stage.Settling -> SettlingWords.homeLine(Derive.settleUsuallyIn(h.cohort, now)) to Route.Detail(h.address)
-                is Stage.ReadyToClaim -> "You finished · claim ${Format.skr(stage.amount)}" to Route.Claim(h.address)
-                else -> null to null
-            }
-            if (label != null && next != null) {
-                HoldoutCard(Modifier.clickable { route = next }) {
-                    if (h.isTest) TestCohortBadge(h.cohort.dayLength)
-                    Text(Format.holdoutTitle(h.cohort), style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
-                    Text(label, style = MaterialTheme.typography.bodyLarge, color = if (stage is Stage.Forfeited) HoldoutColors.Warning else HoldoutColors.Success)
-                }
-            }
-        }
-    }
-
-    // A Holdout running with the member standing in it leads home (FR-038, screen map T2).
-    val active = chainNow?.let { n -> view?.mine(n)?.firstNotNullOfOrNull { h -> (h.stage(n) as? Stage.Active)?.let { h to it } } }
-    if (active != null && chainNow != null) {
-        val (h, stage) = active
-        InFrontLoop(h.address) {
-            run {
-                holdouts.loadRoster(h.address)
-                delay(ROSTER_REFRESH_MILLIS)
-            }
-        }
-        val cohortScope = cohortScope(h)
-        // A process killed between banking the last block and marking the day done
-        // leaves the target banked and no marker: finish it, as for the Daily 25,
-        // or the day could be neither trained again nor submitted.
-        LaunchedEffect(wallet, h.address, stage.dayIndex) {
-            if (BankingController.recover(store, streaks, wallet, cohortScope, stage.dayIndex.toLong(), h.cohort.repsPerDay)) refreshToken += 1
-        }
-        val banked = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.bankedReps(wallet, cohortScope, stage.dayIndex.toLong()) }
-        val pendingToday = pendingTodayOf(h, stage)
-        val submit = { day: Int -> submitDayOf(h, day) }
-        CohortHome(
-            h = h,
-            members = rosters[h.address],
-            stage = stage,
-            now = chainNow,
-            banked = banked,
-            pendingDay = pendingToday,
-            autoSendTried = pendingToday != null && chain.autoSubmit.tried(h.address.base58(), pendingToday),
-            offline = chain.offline,
-            busy = chain.busy,
-            message = chain.message,
-            messageIsWarning = chain.messageIsWarning,
-            onStart = {
-                // An exercise or a form this build does not know is refused, never guessed (FR-014, H30, H35).
-                if (h.cohort.exercise != LeagueParams.EXERCISE_PUSHUP) return@CohortHome
-                if (Stakes.ofForm(h.cohort.form) == null) return@CohortHome
-                sitting = Sitting.CohortDay(h, stage.dayIndex)
-            },
-            onSubmit = submit,
-            onDetail = { route = Route.Detail(h.address) },
-            onAbout = { route = Route.About },
-            onRoster = { route = Route.Roster(h.address) },
-            onDaily25 = { sitting = Sitting.Daily25(dayIndex) },
-            onGetTokens = { route = Route.Faucet },
-            modifier = modifier,
-            checking = chain.check.checking,
-            stillUnreachable = chain.check.stillUnreachable,
-            onCheck = { checkChain(h.address) },
-            otherHoldouts = { ownHoldoutCards(chainNow) },
-        )
-        return
-    }
-
-    val banked = remember(wallet, dayIndex, refreshToken) { store.bankedReps(wallet, Store.CHALLENGE, dayIndex) }
-    val complete = remember(wallet, dayIndex, refreshToken) { store.isDayComplete(wallet, Store.CHALLENGE, dayIndex) }
-    val streak = remember(wallet, dayIndex, refreshToken) { streaks.read(wallet, dayIndex) }
-
-    // The Daily 25's line and whether it is the comeback nudge, worked out once for Home.
-    val holdoutLine = remember(view, chainNow) {
-        chainNow?.let { n -> view?.let { v -> holdout.app.home.DailyHoldoutLine.line(v.openToJoin(n).map { it.cohort }, v.comebackOffers(n), n) } }
-    }
-
-    // Home's "Running now" list shows figures derived from rosters, as the
-    // connect screen's live list does — read here, and kept fresh (FR-062a).
-    val watching = chainNow?.let { n -> view?.runningNotMine(n)?.map { it.address } }.orEmpty()
-    InFrontLoop(watching) {
-        if (watching.isEmpty()) kotlinx.coroutines.awaitCancellation()
-        watching.forEach { holdouts.loadRoster(it) }
+    // The Standing dot needs the roster of the Holdout Standing is about, wherever the member is.
+    val standingAbout = shared.standingHoldout()?.address
+    InFrontLoop(standingAbout) {
+        if (standingAbout == null) kotlinx.coroutines.awaitCancellation()
+        holdouts.loadRoster(standingAbout)
         delay(ROSTER_REFRESH_MILLIS)
     }
 
-    ChainCheckBox(chain.offline, chain.check.checking, { checkChain(null) }, modifier) {
-        HomeScreen(
-            state = HomeState(
-                remainingToday = (DAILY_25 - banked).coerceAtLeast(0),
-                bankedToday = banked,
-                target = DAILY_25,
-                completedToday = complete,
-                streak = streak.current,
-                freezes = streak.freezes,
-                toes = holdout.app.streak.ToesMeter(store, DAILY_25).read(wallet, dayIndex),
-                holdoutLine = holdoutLine?.text,
-                holdoutLineIsComeback = holdoutLine?.comeback == true,
-                secondsLeftToday = chainNow?.let { HoldoutDay.secondsLeftIn(it) },
-            ),
-            onStart = {
-                if (dayIndex == Store.UNKNOWN_DAY) offlineDays.sittingStarted(wallet, boot, android.os.SystemClock.elapsedRealtime())
-                sitting = Sitting.Daily25(dayIndex)
-            },
-            modifier = Modifier,
-            below = {
-                if (chainNow == null || view == null) {
-                    if (chain.offline) {
-                        SectionLabel("${Deployment.networkName} unreachable — the Daily 25 still works")
-                        CheckAgain(chain.check.checking, chain.check.stillUnreachable, { checkChain(null) })
-                    } else {
-                        Reading { SectionLabel("Reading the chain…") }
-                    }
-                    return@HomeScreen
-                }
-                // An earlier read, shown while the chain can't be reached: said so, with Check again (spec 005 US2).
-                if (chain.offline) ChainUnreachable(chain.check.checking, chain.check.stillUnreachable, { checkChain(null) })
-                if (view.config == null) {
-                    SectionLabel("Holdouts are not live on devnet yet")
-                    return@HomeScreen
-                }
-                ownHoldoutCards(chainNow)
-                val past = view.claimed(chainNow)
-                if (past.isNotEmpty()) SectionLabel("Past Holdouts")
-                past.forEach { h ->
-                    val claimed = h.stage(chainNow) as? Stage.Claimed ?: return@forEach
-                    HoldoutCard(Modifier.clickable { route = Route.Detail(h.address) }) {
-                        if (h.isTest) TestCohortBadge(h.cohort.dayLength)
-                        Text(Format.holdoutTitle(h.cohort), style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
-                        Text("Finished · claimed ${Format.skr(claimed.amount)}", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
-                    }
-                }
-                val open = view.openToJoin(chainNow)
-                if (open.isNotEmpty()) SectionLabel("Holdouts open to join")
-                open.forEach { h -> HoldoutOffer(h, chainNow, onClick = { route = Route.Stake(h.address) }) }
-                // Watched from outside, by every wallet, with or without a Seeker (FR-062a).
-                val running = view.runningNotMine(chainNow)
-                if (running.isNotEmpty()) SectionLabel("Running now")
-                running.forEach { h -> RunningHoldoutCard(h, chainNow, rosters[h.address], onClick = { route = Route.Detail(h.address) }) }
-                SecondaryButton("Leaderboards", { route = Route.Leaderboards(Leaderboard.Board.EASY_7D) })
-                SecondaryButton("Get test tokens · ${Format.skr(view.skr)} held", { route = Route.Faucet })
-                TextButton(onClick = { route = Route.About }) { Text("About Holdout", color = HoldoutColors.TextTertiary) }
-                TextButton(onClick = {
-                    scope.launch {
-                        holdouts.wallet.disconnect(sender)
-                        reminders.clear()
-                        address = null
-                    }
-                }) {
-                    Text("Disconnect ", color = HoldoutColors.TextTertiary)
-                    MemberIdentity(wallet, isYou = false, budget = 28, color = HoldoutColors.TextTertiary, style = LocalTextStyle.current)
-                }
-            },
-        )
-    }
+    // A day waiting for the network sends itself once the chain answers again, on
+    // whichever screen the member is (T098) — the sitting composes its own.
+    if (nav.sitting == null) shared.SendWaitingDay()
+
+    val running = shared.active()
+    val badges = TabBadges(
+        today = Badges.today(
+            running = running?.second,
+            holdoutDayDoneOnPhone = running?.let { (h, stage) -> shared.pendingTodayOf(h, stage) != null } == true,
+            daily25Done = remember(wallet, shared.dayIndex, refreshToken) { store.isDayComplete(wallet, Store.CHALLENGE, shared.dayIndex) },
+        ),
+        standingDropped = shared.standingDropped(),
+        holdouts = Badges.holdouts(nav.stages.values),
+        me = shared.lowOnFunds(),
+    )
+
+    AppShell(
+        nav = nav,
+        badges = badges,
+        onEvent = ::dispatch,
+        connect = {},
+        tour = { TourScreen(onDone = { dispatch(NavEvent.TourDone) }) },
+        sitting = { shared.SittingHost(it) },
+        signing = { shared.TxFlowHost(it) },
+        root = { tab ->
+            when (tab) {
+                Tab.Today -> shared.TodayRoot()
+                Tab.Standing -> shared.StandingRoot()
+                Tab.Holdouts -> shared.HoldoutsRoot()
+                Tab.Me -> shared.MeRoot()
+            }
+        },
+        screen = { screen ->
+            when (screen) {
+                is Screen.Lobby -> shared.LobbyHost(screen.cohort)
+                is Screen.Detail -> shared.DetailHost(screen.cohort)
+                is Screen.Roster -> shared.RosterHost(screen.cohort)
+                is Screen.Forfeit -> shared.ForfeitHost(screen.cohort)
+                is Screen.Claim -> shared.ClaimHost(screen.cohort)
+                is Screen.Leaderboards -> shared.LeaderboardsHost(screen.board, leaderboardRead)
+                Screen.About -> shared.AboutHost()
+            }
+        },
+        sheet = { sheet ->
+            when (sheet) {
+                is Sheet.Stake -> shared.StakeSheetHost(sheet, seekerGate)
+                is Sheet.Faucet -> shared.FaucetSheetHost()
+            }
+        },
+        modifier = modifier,
+    )
 }
-
-/** Where a Holdout's sittings bank on this phone: per wallet, per cohort, per cohort day (data-model §4). */
-private fun cohortScope(h: Holdout) = "cohort:${h.address.base58()}"
-
-private const val DAILY_25 = 25
-
-private const val CHAIN_RETRY_MILLIS = 30_000L
-private const val CHAIN_REFRESH_MILLIS = 600_000L
-private const val ROSTER_REFRESH_MILLIS = 30_000L
 
 /**
  * Which boot of the phone this is, to tell whether a monotonic-clock reading
  * saved earlier still means anything. -1 when the platform will not say.
  */
 private fun bootCount(context: android.content.Context): Int = android.provider.Settings.Global.getInt(context.contentResolver, android.provider.Settings.Global.BOOT_COUNT, -1)
-
-/** Repeats [pass] for as long as the app is in front; stops when it is not, and starts again on return. */
-@Composable
-private fun InFrontLoop(key: Any?, pass: suspend () -> Unit) {
-    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    LaunchedEffect(key, owner) {
-        owner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-            while (true) pass()
-        }
-    }
-}
 
 /**
  * What the finished screen says for a cohort day completed while the chain
