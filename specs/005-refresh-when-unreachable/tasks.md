@@ -46,7 +46,7 @@ None: no new dependency (Material 3's `pullToRefresh` is in the existing BOM, re
 
 **Goal**: the no-Holdout home, a Holdout's details and the forfeit screen offer the same check while the chain can't be reached.
 
-**Independent Test**: quickstart steps 4–5.
+**Independent Test**: quickstart steps 4–6.
 
 - [X] T009 [US2] In `kotlin/app/src/main/kotlin/holdout/app/HoldoutApp.kt`, under *"N unreachable — the Daily 25 still works"* on the no-Holdout home, show `CheckAgain` (`checkChain(null)`), and wrap that home in `ChainCheckBox`
 - [X] T010 [P] [US2] In `kotlin/app/src/main/kotlin/holdout/app/cohort/CohortDetailScreen.kt`, add `offline`, `checking`, `stillUnreachable`, `onCheck` parameters; while `offline` show `ChainUnreachable(checking, stillUnreachable, onCheck)` under the title, and wrap in `ChainCheckBox`
@@ -78,7 +78,7 @@ None: no new dependency (Material 3's `pullToRefresh` is in the existing BOM, re
     - the check waiting for its side read;
     - the view model recording no send of its own and leaving the waiting day on the phone (part of SC-003). The UI's automatic send (`SendWaitingDay`) is not driven by these tests.
   - *Done in 119c5f6, 730cf3f and c87b0f2: 10 tests pass. Each of these breaks makes them fail: removing the in-front guard, the side-read catch or the wallet guard, or recording a send in `checkNow`.*
-- [ ] T015 Walk quickstart.md (steps 1–6) on a phone against a local validator — *2026-10-11: steps 2, 4 and 5 walked. Steps 1 and 3 need a running Holdout with today's reps done, which that ledger lacked (no `localnet-crank.sh --loop` running), so this stays open.*
+- [ ] T015 Walk quickstart.md (steps 1–7) on a phone against a local validator — *2026-10-11: steps 2, 4 and 5 walked. Steps 1 and 3 need a running Holdout with today's reps done, which that ledger lacked (no `localnet-crank.sh --loop` running), so this stays open. Step 7 (the app sent to the background mid-check: no "Checking…" left) is unwalked; it covers T020's pause behaviour.*
 - [ ] T016 Check SC-003: review that `HoldoutViewModel.checkNow` and `checkChain` in `kotlin/app/src/main/kotlin/holdout/app/` call no `submitDay` and do not touch `AutoSubmit`, and in T015's step 3 see the wallet's approval open by itself once, then *"Done — tap to submit"* after a decline (001 FR-024b) — *review half done 2026-10-11: `checkNow` and `checkChain` call no `submitDay` and do not touch `AutoSubmit`. The walk half waits on T015 step 3.*
 
 ## Dependencies
@@ -99,6 +99,6 @@ MVP = Phase 2 + US1: the owner's case (the waiting day after `adb reverse` dropp
 ## Phase 6: Convergence
 
 - [X] T020 [US1] Fixes from the Codex review of PR #57 (PR #61, commit 8c26e91) per FR-008 and FR-003 (partial). Supersedes the wording of T004, T018 and T019 where it differs:
-  - In `kotlin/app/src/main/kotlin/holdout/app/MainViewModel.kt`, `refreshChainTime(clock, read)` applies only the answer of the latest started chain-time read, so an earlier read landing last cannot rewind `ChainClock` (research R3; a slot comparison in `ChainClock.observe` was rejected, since slots restart after a local validator reset).
+  - In `kotlin/app/src/main/kotlin/holdout/app/MainViewModel.kt`, `refreshChainTime(clock, read)` applies an answer only if its read started after the newest read whose answer was already applied (newest wins): an earlier read that lands first is applied and then replaced by the later one, one that lands last is set aside, so `ChainClock` cannot be rewound (research R3; a slot comparison in `ChainClock.observe` was rejected, since slots restart after a local validator reset).
   - In `kotlin/app/src/main/kotlin/holdout/app/holdout/HoldoutViewModel.kt`, `checkNow` keeps its job in `checking`; `pause()` cancels it and resets `check` to `ChainCheck()`, so no read goes on and no "Checking…" stays once the app leaves the front. `finished` no longer runs in a `finally` (T004, T018): it runs straight after a `try`/`catch`, so a throwing read still ends the check, and a cancellation is rethrown and skips it, so a cancelled check never ends as "still can't be reached".
   - Tests: new `kotlin/app/src/test/kotlin/holdout/app/MainViewModelTest.kt` (3 tests: the earlier read answering last, a lone answer, a failed read) and a pause-during-check case in `HoldoutViewModelCheckTest` — 11 tests there now, not the 10 of T019. Passing with `ChainCheckTest`.

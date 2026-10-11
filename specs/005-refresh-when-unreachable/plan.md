@@ -64,7 +64,7 @@ specs/005-refresh-when-unreachable/
 
 ```text
 kotlin/app/src/main/kotlin/holdout/app/
-├── MainViewModel.kt             # changed: refreshChainTime applies only the latest started read (overlapping reads cannot rewind ChainClock)
+├── MainViewModel.kt             # changed: refreshChainTime applies an answer only if its read started after the newest one already applied (overlapping reads cannot rewind ChainClock)
 ├── chain/
 │   └── ChainRepository.kt       # ChainReads interface, implemented by ChainRepository (T019)
 ├── wallet/
