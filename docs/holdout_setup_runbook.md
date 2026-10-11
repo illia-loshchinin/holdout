@@ -136,44 +136,70 @@ instead of "Holdout".
    but keep it out of the clone anyway):
 
    ```bash
-   keytool -genkeypair -v -keystore ~/holdout-release.jks -alias holdout \
+   keytool -genkeypair -v -storetype PKCS12 -keystore ~/holdout-release.jks -alias holdout \
      -keyalg RSA -keysize 4096 -validity 10000 \
      -dname "CN=Holdout, O=Holdout, C=DE"
    ```
 
-   It asks for a keystore password and a key password; a backup copy of the
-   file is not enough without both, so store them with it. Then tell Gradle
-   where it is, in `%USERPROFILE%\.gradle\gradle.properties` (Windows) or
-   `~/.gradle/gradle.properties` — never in the repository's
-   `kotlin/gradle.properties`:
+   A PKCS12 keystore has **one** password: `keytool` asks for it once, and the
+   key's password is that same value (current JDKs make PKCS12 whatever the
+   file is called, and ignore a separate `-keypass`). A backup copy of the file
+   is not enough without it, so store it with the backup. Then tell Gradle
+   where the keystore is — in `%USERPROFILE%\.gradle\gradle.properties`
+   (Windows) or `~/.gradle/gradle.properties`, never in the repository's
+   `kotlin/gradle.properties` (the build refuses a signing property there):
 
    ```properties
    holdout.keystore=C:/Users/<you>/holdout-release.jks
-   holdout.keystorePassword=...
+   holdout.keystorePassword=<the keystore password>
    holdout.keyAlias=holdout
-   holdout.keyPassword=...
+   holdout.keyPassword=<the same password>
    ```
 
-   The same four can be given as `-Pholdout.keystore=...` flags or as
-   `ORG_GRADLE_PROJECT_holdout.keystore` etc. in the environment (a CI secret).
+   `holdout.keystore` has to be an absolute path with forward slashes — a
+   leading `~` is not expanded, backslashes are eaten by a `.properties` file,
+   and a path inside the clone is refused. Prefer that file over `-P` flags:
+   `-Pholdout.keystorePassword=...` leaves the password in the shell history and
+   in the process list while the build runs. (`ORG_GRADLE_PROJECT_holdout.keystore`
+   is not offered: neither bash nor PowerShell can set an environment variable
+   with a dot in its name the usual way. A CI job passes `-P` flags from its
+   secrets.)
+
    With all four set, `cd kotlin && ./gradlew :app:assembleMemberRelease`
-   writes a signed `app/build/outputs/apk/member/release/app-member-release.apk`
-   — the APK that is submitted. Without them the build still succeeds, so CI
+   writes a signed `kotlin/app/build/outputs/apk/member/release/app-member-release.apk`
+   — the APK that is submitted. Without them the release still builds, so CI
    and other machines need no keystore, but the APK is
-   `app-member-release-unsigned.apk` and Gradle prints a `WARNING: memberRelease
-   is UNSIGNED` line; some but not all four fails the build. The path and the
-   passwords never appear in the build output. Check the signature before
-   submitting:
+   `app-member-release-unsigned.apk` and Gradle prints a `WARNING:
+   assembleMemberRelease is UNSIGNED` line (`bundleMemberRelease` does the
+   same). Some but not all four, or a path that is not an existing file outside
+   the clone, fails **only** the release assemble, bundle and package tasks
+   (`checkReleaseSigning`); debug builds, tests and `ktlintCheck` never look at
+   the keystore. The build's own checks print neither the path nor a password,
+   but Android Gradle Plugin errors at signing time (a wrong password or alias)
+   do print the keystore path.
+
+   Check the signature before submitting, from the repository root. The Android
+   SDK is `sdk.dir` in `kotlin/local.properties`; on Windows its build-tools
+   hold `apksigner.bat`, not an extensionless `apksigner`, and `ANDROID_HOME`
+   is often unset:
 
    ```bash
-   "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs \
+   SDK=$(sed -n 's/^sdk.dir=//p' kotlin/local.properties)
+   "$SDK/build-tools/36.0.0/apksigner.bat" verify --print-certs \
      kotlin/app/build/outputs/apk/member/release/app-member-release.apk
    ```
 
-   A signed APK prints the signer's DN and the certificate's SHA-256 — the
-   release fingerprint step 3 adds to `assetlinks.json` — and exits 0 (add
-   `--verbose` for the `Verifies` line and the scheme used, v2). The unsigned
-   APK fails with `DOES NOT VERIFY`.
+   ```powershell
+   $sdk = (Select-String -Path kotlin\local.properties -Pattern '^sdk.dir=').Line -replace '^sdk.dir=', ''
+   & "$sdk\build-tools\36.0.0\apksigner.bat" verify --print-certs `
+     kotlin\app\build\outputs\apk\member\release\app-member-release.apk
+   ```
+
+   (If Studio wrote `sdk.dir` with escaped backslashes, `C\:\\Users\\...`, type
+   the SDK path by hand.) A signed APK prints the signer's DN and the
+   certificate's SHA-256 — the release fingerprint step 3 adds to
+   `assetlinks.json` — and exits 0 (add `--verbose` for the `Verifies` line and
+   the scheme used, v2). The unsigned APK fails with `DOES NOT VERIFY`.
 3. Generate the file:
 
    ```bash
