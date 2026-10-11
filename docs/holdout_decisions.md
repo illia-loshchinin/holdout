@@ -643,7 +643,7 @@ The **3-minute full-cycle walkthrough is for judges**: it stays inside the app a
   - Easy keeps every other check Hard makes: depth, body line, hip rise, legs and knees in view.
   - Easy refuses to start unless the phone reads 40–60° — the band in which no cobra counted on the recorded traces.
   - Easy and Hard clears never share a leaderboard.
-- **Daily 25 streak freezes:** one earned per 7 consecutive active days, at most 2 held, used automatically. A frozen day keeps the streak without adding to it. Device only, never on a Holdout day (FR-016).
+- **Daily 25 streak freezes:** one earned for every seventh day of the streak (when the streak reaches 7, 14, 21 …; clarified 2026-10-11 to match the code), at most 2 held, used automatically. A frozen day bridges the streak without resetting it and is not counted as a day. Device only, never on a Holdout day (FR-016).
 
 **Why:** the product owner wants part of the fee to bring members back daily and into the next Holdout, a declared developer fee, and an easier entry level.
 
