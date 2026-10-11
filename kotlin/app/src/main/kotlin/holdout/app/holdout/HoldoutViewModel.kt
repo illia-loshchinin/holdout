@@ -213,23 +213,9 @@ class HoldoutViewModel(
         val me = address ?: return@act
         val view = _state.value.view ?: return@act
         val config = view.config ?: return@act
-        val running = Journey.runningCohortFor(view.profile, now)
-        val programId = Deployment.programId
-        val instructions =
-            if (running != null && view.runningInBreach(now)) {
-                // The cohort in the running slot is one the member has missed a deadline in and
-                // nobody has recorded yet, which still holds the slot (ObligationsOverlap, 6026).
-                // `record_forfeits` is permissionless and idempotent, so the member's own pair goes
-                // first and frees the slot in the same transaction. The join then names no running
-                // cohort: the record has already cleared the slot, and passing the old one would
-                // write its end back (FR-037g, ES-17, research R22).
-                listOf(
-                    Instructions.recordForfeits(programId, me, config.feeDestination, config.developerDestination, running, listOf(Instructions.MemberPair.of(programId, running, me))),
-                    Instructions.joinCohort(programId, me, config.skrMint, h.address, tier, runningCohort = null),
-                )
-            } else {
-                listOf(Instructions.joinCohort(programId, me, config.skrMint, h.address, tier, running))
-            }
+        // A running cohort the member has missed a deadline in and nobody has recorded yet still holds the
+        // slot (ObligationsOverlap, 6026): its record goes first in the same transaction (FR-037g, ES-17).
+        val instructions = Journey.joinInstructions(Deployment.programId, me, config.skrMint, config.feeDestination, config.developerDestination, h.address, tier, view.joinPlan(now))
         describe(wallet.send(sender, instructions), "You're in. ${Format.skr(h.cohort.chips[tier])} staked.")
     }
 

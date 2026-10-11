@@ -22,24 +22,37 @@ import holdout.core.Derive
  * the word "league" (FR-041).
  */
 object DailyHoldoutLine {
-    fun of(openToJoin: List<CohortSnapshot>, offers: List<Comeback.Offer>, now: Long): String? {
-        comebackLine(offers, now)?.let { return it }
+    /** The line and whether it is the comeback nudge (which Home shows before the Daily 25 is done). */
+    data class Line(val text: String, val comeback: Boolean)
+
+    fun of(openToJoin: List<CohortSnapshot>, offers: List<Comeback.Offer>, now: Long): String? = line(openToJoin, offers, now)?.text
+
+    fun line(openToJoin: List<CohortSnapshot>, offers: List<Comeback.Offer>, now: Long): Line? {
+        comebackLine(offers, now)?.let { return Line(it, comeback = true) }
         val next = openToJoin.minByOrNull { it.start } ?: return null
-        return "Next: ${Format.holdoutTitle(next)}, starting in ${Format.countdown(next.start - now)} · ${next.memberCount} joined."
+        return Line("Next: ${Format.holdoutTitle(next)}, starting in ${Format.countdown(next.start - now)} · ${next.memberCount} joined.", comeback = false)
     }
 
-    /** The nudge of the offer whose round comes first: the place held, or the next round open to join. */
+    /**
+     * The nudge of one offer, by priority: a round open to join first (the soonest start), then a place
+     * already held, then a round not opened yet. The member can act on the first; the others only wait.
+     */
     fun comebackLine(offers: List<Comeback.Offer>, now: Long): String? {
-        val soonest = offers.minByOrNull { (it.held ?: it.next ?: it.upcoming)?.start ?: Long.MAX_VALUE } ?: return null
-        soonest.held?.let { held ->
-            val place = held.entry ?: return null
-            return "You're in the ${Format.holdoutTitle(place.cohort)}. Finish it and up to ${Format.skr(soonest.amount(place.member?.stake))} of the stake you lost comes back."
+        val toJoin = offers.filter { it.held == null && it.next != null }.minByOrNull { it.next!!.start }
+        val held = offers.filter { it.held != null }.minByOrNull { it.held!!.start }
+        val waiting = offers.filter { it.held == null && it.next == null && it.upcoming != null }.minByOrNull { it.upcoming!!.start }
+        if (toJoin == null) {
+            held?.let { offer ->
+                val place = offer.held?.entry ?: return null
+                return "You're in the ${Format.holdoutTitle(place.cohort)}. Finish it and up to ${Format.skr(offer.amount(place.member?.stake))} of the stake you lost comes back."
+            }
+            val offer = waiting ?: return null
+            val up = offer.upcoming ?: return null
+            return "The next ${Format.holdoutTitle(offer.forfeited.cohort)} ${Format.opensForJoining(up.opensAt, now)} and starts in ${Format.countdown(up.start - now)}. Finish it and up to ${Format.skr(offer.amount())} of the stake you lost comes back."
         }
-        val round = soonest.next ?: return soonest.upcoming?.let { up ->
-            "The next ${Format.holdoutTitle(soonest.forfeited.cohort)} ${Format.opensForJoining(up.opensAt, now)} and starts in ${Format.countdown(up.start - now)}. Finish it and up to ${Format.skr(soonest.amount())} of the stake you lost comes back."
-        }
+        val round = toJoin.next ?: return null
         val c = round.entry?.cohort ?: return null
-        return "Finish the ${Format.holdoutTitle(c)} starting in ${Format.countdown(round.start - now)} and up to ${Format.skr(soonest.amount())} of the stake you lost comes back. " +
+        return "Finish the ${Format.holdoutTitle(c)} starting in ${Format.countdown(round.start - now)} and up to ${Format.skr(toJoin.amount())} of the stake you lost comes back. " +
             "Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))}."
     }
 }

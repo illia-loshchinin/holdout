@@ -10,6 +10,7 @@ import holdout.core.MembershipSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -74,6 +75,44 @@ class DailyHoldoutLineTest {
         val line = DailyHoldoutLine.of(emptyList(), offers(unrecorded, entry(round1, null), at = at), at)
         assertEquals("The next Easy · 7-day Holdout opens for joining shortly and starts in 6d 23h. Finish it and up to 5 SKR of the stake you lost comes back.", line)
         assertEquals(line, DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null), at = at), at))
+    }
+
+    /** A second slot: a 21-day Hard forfeit whose missed deadline is also `now − 1`, with its own round open to join at `now + 2 days`. */
+    private val hardLeague = LeagueSnapshot(LeagueParams.judged(1, now + 2 * day), nextIndex = 3)
+    private val hardForfeited = CohortSnapshot(1, 0, now - 21 * day, now - 21 * day - 3_600, 21, 25, day, 0, chips, form = LeagueParams.FORM_TOES)
+    private val hardUnrecorded = entry(hardForfeited, MembershipSnapshot.State.Joined, days = 20)
+    private val hardRound = entry(CohortSnapshot(1, 1, now + 2 * day, now + 2 * day - 3_600, 21, 25, day, 0, chips, form = LeagueParams.FORM_TOES), null)
+
+    private fun twoSlots(vararg entries: Comeback.Entry, at: Long = now) = Comeback.offers(entries.toList(), listOf(league, hardLeague), at)
+
+    @Test
+    fun `given two offers, then a round to join comes before a place held, even when the place starts first`() {
+        val held = entry(round1, MembershipSnapshot.State.Joined, tier = 2)
+        val both = twoSlots(unrecorded, held, hardUnrecorded, hardRound)
+        assertEquals(2, both.size)
+        val line = assertNotNull(DailyHoldoutLine.comebackLine(both, now))
+        assertTrue(line.startsWith("Finish the Hard"), line)
+    }
+
+    @Test
+    fun `given two offers to join, then the soonest start is shown, and a round to join beats one not opened yet`() {
+        // Slot 0 has round 1 open at now + 1 day, slot 1 a round at now + 2 days: the soonest.
+        val bothOpen = twoSlots(unrecorded, entry(round1, null), hardUnrecorded, hardRound)
+        assertTrue(assertNotNull(DailyHoldoutLine.comebackLine(bothOpen, now)).startsWith("Finish the Easy"))
+        // Round 1 locked and the next not opened (upcoming) in slot 0; slot 1 still joinable: the joinable one.
+        val at = round1.start - 1_000
+        val mixed = twoSlots(unrecorded, entry(round1, null), hardUnrecorded, hardRound, at = at)
+        assertTrue(assertNotNull(DailyHoldoutLine.comebackLine(mixed, at)).startsWith("Finish the Hard"))
+    }
+
+    @Test
+    fun `the line comes with a flag saying it is the comeback`() {
+        val comeback = assertNotNull(DailyHoldoutLine.line(listOf(round1), offers(unrecorded, entry(round1, null)), now))
+        assertTrue(comeback.comeback)
+        val plain = assertNotNull(DailyHoldoutLine.line(listOf(round1), emptyList(), now))
+        assertFalse(plain.comeback)
+        assertEquals(DailyHoldoutLine.of(listOf(round1), emptyList(), now), plain.text)
+        assertNull(DailyHoldoutLine.line(emptyList(), emptyList(), now))
     }
 
     @Test

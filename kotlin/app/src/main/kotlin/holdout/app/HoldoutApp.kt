@@ -68,6 +68,7 @@ import holdout.app.wallet.ConnectScreen
 import holdout.app.wallet.WalletRepository
 import holdout.core.ChainClock
 import holdout.core.CohortSnapshot
+import holdout.core.Comeback.forScreenOf
 import holdout.core.Derive
 import holdout.core.HoldoutDay
 import holdout.core.Journey
@@ -591,7 +592,8 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             is Route.Roster -> RosterScreen(target, members, wallet, chainNow, goHome, modifier, onShowing = seekerNames::showing)
             is Route.Forfeit -> {
                 // What finishing a later Holdout of this level and length brings back, from the forfeit itself (FR-037g).
-                val offer = view?.comebackOffer(chainNow, target.cohort.leagueId)
+                // Only the screen of the latest forfeit carries it; an older forfeit's screen keeps the plain ways back.
+                val offer = view?.comebackOffer(chainNow, target.cohort.leagueId).forScreenOf(target.address)
                 val offerRound = offer?.next
                 ForfeitScreen(
                     h = target,
@@ -754,6 +756,11 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     val complete = remember(wallet, dayIndex, refreshToken) { store.isDayComplete(wallet, Store.CHALLENGE, dayIndex) }
     val streak = remember(wallet, dayIndex, refreshToken) { streaks.read(wallet, dayIndex) }
 
+    // The Daily 25's line and whether it is the comeback nudge, worked out once for Home.
+    val holdoutLine = remember(view, chainNow) {
+        chainNow?.let { n -> view?.let { v -> holdout.app.home.DailyHoldoutLine.line(v.openToJoin(n).map { it.cohort }, v.comebackOffers(n), n) } }
+    }
+
     // Home's "Running now" list shows figures derived from rosters, as the
     // connect screen's live list does — read here, and kept fresh (FR-062a).
     val watching = chainNow?.let { n -> view?.runningNotMine(n)?.map { it.address } }.orEmpty()
@@ -772,8 +779,8 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             streak = streak.current,
             freezes = streak.freezes,
             toes = holdout.app.streak.ToesMeter(store, DAILY_25).read(wallet, dayIndex),
-            holdoutLine = chainNow?.let { n -> view?.let { v -> holdout.app.home.DailyHoldoutLine.of(v.openToJoin(n).map { it.cohort }, v.comebackOffers(n), n) } },
-            holdoutLineIsComeback = chainNow?.let { n -> view?.let { v -> holdout.app.home.DailyHoldoutLine.comebackLine(v.comebackOffers(n), n) } } != null,
+            holdoutLine = holdoutLine?.text,
+            holdoutLineIsComeback = holdoutLine?.comeback == true,
             secondsLeftToday = chainNow?.let { HoldoutDay.secondsLeftIn(it) },
         ),
         onStart = {

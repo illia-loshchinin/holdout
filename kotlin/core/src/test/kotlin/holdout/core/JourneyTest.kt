@@ -1,7 +1,9 @@
 package holdout.core
 
 import com.solana.publickey.SolanaPublicKey
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
@@ -64,11 +66,11 @@ class JourneyTest {
         val other = SolanaPublicKey(ByteArray(32) { 2 })
         fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending, -1)
         val lobby = start - day
-        assertNull(Journey.joinBlocker(c, null, null, lobby))
-        assertEquals(Journey.JoinBlocker.JoiningClosed, Journey.joinBlocker(c, null, null, start - 3_600))
-        assertEquals(Journey.JoinBlocker.LobbyPlaceTaken, Journey.joinBlocker(c, profile(pending = ProfileSnapshot.Pending(other, start + 7 * day, start + 14 * day)), null, lobby))
-        assertEquals(Journey.JoinBlocker.Overlaps, Journey.joinBlocker(c, profile(running = ProfileSnapshot.Running(other, start + 1)), start + 1, lobby))
-        assertNull(Journey.joinBlocker(c, profile(running = ProfileSnapshot.Running(other, start)), start, lobby), "back to back is fine")
+        assertNull(Journey.joinBlocker(c, null, null, lobby, runningInBreach = false))
+        assertEquals(Journey.JoinBlocker.JoiningClosed, Journey.joinBlocker(c, null, null, start - 3_600, runningInBreach = false))
+        assertEquals(Journey.JoinBlocker.LobbyPlaceTaken, Journey.joinBlocker(c, profile(pending = ProfileSnapshot.Pending(other, start + 7 * day, start + 14 * day)), null, lobby, runningInBreach = false))
+        assertEquals(Journey.JoinBlocker.Overlaps, Journey.joinBlocker(c, profile(running = ProfileSnapshot.Running(other, start + 1)), start + 1, lobby, runningInBreach = false))
+        assertNull(Journey.joinBlocker(c, profile(running = ProfileSnapshot.Running(other, start)), start, lobby, runningInBreach = false), "back to back is fine")
         assertEquals(other, Journey.runningCohortFor(profile(running = ProfileSnapshot.Running(other, start)), lobby))
     }
 
@@ -82,11 +84,58 @@ class JourneyTest {
         assertNull(Journey.joinBlocker(c, overlapping, start + 1, lobby, runningInBreach = true))
         assertNull(Journey.joinBlocker(c, profile(), null, lobby, runningInBreach = true))
         assertEquals(Journey.JoinBlocker.Overlaps, Journey.joinBlocker(c, overlapping, start + 1, lobby, runningInBreach = false))
-        assertEquals(Journey.JoinBlocker.Overlaps, Journey.joinBlocker(c, overlapping, start + 1, lobby))
+        assertEquals(Journey.JoinBlocker.Overlaps, Journey.joinBlocker(c, overlapping, start + 1, lobby, runningInBreach = false))
         // The rest is unchanged: a held lobby place and closed joining still block.
         val pending = profile(running = ProfileSnapshot.Running(other, start + 1), pending = ProfileSnapshot.Pending(other, start + 7 * day, start + 14 * day))
         assertEquals(Journey.JoinBlocker.LobbyPlaceTaken, Journey.joinBlocker(c, pending, start + 1, lobby, runningInBreach = true))
         assertEquals(Journey.JoinBlocker.JoiningClosed, Journey.joinBlocker(c, overlapping, start + 1, start - 3_600, runningInBreach = true))
+    }
+
+    private fun planProfile(running: SolanaPublicKey?) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running?.let { ProfileSnapshot.Running(it, start + 7 * day) }, null, -1)
+
+    @Test
+    fun `the join plan records an unrecorded breach first and names no running cohort (ES-17)`() {
+        val runningAddr = SolanaPublicKey(ByteArray(32) { 7 })
+        val now = start + day + 10 // day 0's deadline has passed
+        val profile = planProfile(runningAddr)
+        val breach = Comeback.Entry(runningAddr, c, m(0))
+        assertEquals(Journey.JoinPlan(recordForfeitsOf = runningAddr, runningCohort = null), Journey.joinPlan(profile, breach, now))
+        // A recorded forfeit has already freed the slot: nothing to record, and a cleared slot names nothing.
+        assertEquals(Journey.JoinPlan(null, null), Journey.joinPlan(planProfile(null), Comeback.Entry(runningAddr, c, m(0, MembershipSnapshot.State.Forfeited)), now))
+        // The profile still naming it with the forfeit recorded: no record is sent, the cohort is named as the program expects.
+        assertEquals(Journey.JoinPlan(null, runningAddr), Journey.joinPlan(profile, Comeback.Entry(runningAddr, c, m(0, MembershipSnapshot.State.Forfeited)), now))
+    }
+
+    @Test
+    fun `the join plan passes a running cohort the member is standing in, and nothing when there is none`() {
+        val runningAddr = SolanaPublicKey(ByteArray(32) { 7 })
+        val now = start + 60
+        assertEquals(Journey.JoinPlan(null, runningAddr), Journey.joinPlan(planProfile(runningAddr), Comeback.Entry(runningAddr, c, m(0)), now))
+        // Not loaded or not a member: still named, never recorded.
+        assertEquals(Journey.JoinPlan(null, runningAddr), Journey.joinPlan(planProfile(runningAddr), null, now))
+        assertEquals(Journey.JoinPlan(null, runningAddr), Journey.joinPlan(planProfile(runningAddr), Comeback.Entry(runningAddr, c, null), now))
+        assertEquals(Journey.JoinPlan(null, null), Journey.joinPlan(planProfile(null), null, now))
+        assertEquals(Journey.JoinPlan(null, null), Journey.joinPlan(null, null, now))
+    }
+
+    @Test
+    fun `a record plan builds record_forfeits first with the member's own pair, then a join naming no running cohort`() = runBlocking {
+        val programId = SolanaPublicKey(ByteArray(32) { 9 })
+        val mint = SolanaPublicKey(ByteArray(32) { 3 })
+        val fee = SolanaPublicKey(ByteArray(32) { 4 })
+        val dev = SolanaPublicKey(ByteArray(32) { 5 })
+        val runningAddr = SolanaPublicKey(ByteArray(32) { 7 })
+        val target = SolanaPublicKey(ByteArray(32) { 8 })
+        val record = Journey.joinInstructions(programId, wallet, mint, fee, dev, target, 1, Journey.JoinPlan(runningAddr, null))
+        assertEquals(2, record.size)
+        assertContentEquals(Instructions.recordForfeits(programId, wallet, fee, dev, runningAddr, listOf(Instructions.MemberPair.of(programId, runningAddr, wallet))).data, record[0].data)
+        assertEquals(runningAddr, record[0].accounts[2].publicKey)
+        assertEquals(Pdas.membership(programId, runningAddr, wallet), record[0].accounts[7].publicKey)
+        assertContentEquals(Instructions.joinCohort(programId, wallet, mint, target, 1, null).data, record[1].data)
+        assertEquals(programId, record[1].accounts[7].publicKey, "no running cohort named")
+        val plain = Journey.joinInstructions(programId, wallet, mint, fee, dev, target, 1, Journey.JoinPlan(null, runningAddr))
+        assertEquals(1, plain.size)
+        assertEquals(runningAddr, plain[0].accounts[7].publicKey)
     }
 
     @Test

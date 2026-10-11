@@ -1,6 +1,7 @@
 package holdout.core
 
 import com.solana.publickey.SolanaPublicKey
+import com.solana.transaction.TransactionInstruction
 
 /**
  * Where a member stands in one cohort, derived from chain state and chain time
@@ -104,12 +105,52 @@ object Journey {
      * block, recorded or not: the join then carries the record of that forfeit,
      * which frees the slot in the same transaction (FR-037g, ES-17, research R22).
      */
-    fun joinBlocker(c: CohortSnapshot, profile: ProfileSnapshot?, runningCohortEnd: Long?, now: Long, runningInBreach: Boolean = false): JoinBlocker? {
+    fun joinBlocker(c: CohortSnapshot, profile: ProfileSnapshot?, runningCohortEnd: Long?, now: Long, runningInBreach: Boolean): JoinBlocker? {
         if (Derive.status(c, now) != CohortStatus.Open) return JoinBlocker.JoiningClosed
         val p = profile?.normalised(now) ?: return null
         if (p.pending != null) return JoinBlocker.LobbyPlaceTaken
         if (!runningInBreach && runningCohortEnd != null && runningCohortEnd > now && c.start < runningCohortEnd) return JoinBlocker.Overlaps
         return null
+    }
+
+    /**
+     * How a join treats the cohort in the profile's running slot: [recordForfeitsOf] is the cohort whose
+     * forfeit the join sends first (`record_forfeits` for the member's own pair), [runningCohort] the one
+     * `join_cohort` names (null when the record frees the slot, or there is none).
+     */
+    data class JoinPlan(val recordForfeitsOf: SolanaPublicKey?, val runningCohort: SolanaPublicKey?) {
+        /** Whether the cohort in the running slot is one the member is in breach of, unrecorded (ES-17). */
+        val runningInBreach: Boolean get() = recordForfeitsOf != null
+    }
+
+    /**
+     * What a join at [now] sends for the running slot. [running] is the cohort the profile names as
+     * running with the wallet's membership in it, when loaded. A breach nobody has recorded still holds
+     * the slot (ObligationsOverlap, 6026), so the member's own pair is recorded first (`record_forfeits`
+     * is permissionless and idempotent) and the join names no running cohort: the record has cleared
+     * the slot, and passing the old one would write its end back (FR-037g, ES-17, research R22).
+     * Standing in it, finished, or already recorded: no record, the running cohort is named.
+     */
+    fun joinPlan(profile: ProfileSnapshot?, running: Comeback.Entry?, now: Long): JoinPlan {
+        val address = runningCohortFor(profile, now) ?: return JoinPlan(null, null)
+        val breach = running != null && running.address == address && running.member?.let { Derive.inBreach(it, running.cohort, now) } == true
+        return if (breach) JoinPlan(address, null) else JoinPlan(null, address)
+    }
+
+    /** The instructions of a join of [cohort] on [tier], with the record of the running forfeit first when [plan] has one. */
+    suspend fun joinInstructions(
+        programId: SolanaPublicKey,
+        me: SolanaPublicKey,
+        skrMint: SolanaPublicKey,
+        feeDestination: SolanaPublicKey,
+        developerDestination: SolanaPublicKey,
+        cohort: SolanaPublicKey,
+        tier: Int,
+        plan: JoinPlan,
+    ): List<TransactionInstruction> {
+        val join = Instructions.joinCohort(programId, me, skrMint, cohort, tier, plan.runningCohort)
+        val record = plan.recordForfeitsOf ?: return listOf(join)
+        return listOf(Instructions.recordForfeits(programId, me, feeDestination, developerDestination, record, listOf(Instructions.MemberPair.of(programId, record, me))), join)
     }
 
     enum class JoinBlocker { JoiningClosed, LobbyPlaceTaken, Overlaps }

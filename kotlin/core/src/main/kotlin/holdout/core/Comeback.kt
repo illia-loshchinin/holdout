@@ -74,11 +74,11 @@ object Comeback {
         fun amount(chip: ULong? = null): ULong = Settlement.comebackOwed(lost, chip ?: ULong.MAX_VALUE)
     }
 
-    /** The progress slot of a league: its own id, or the one shared by every test league (`Profile::slot_of`). */
-    fun slotOf(leagueId: Int): Int = if (leagueId >= LeagueParams.TEST_LEAGUE_MIN) LeagueParams.TEST_LEAGUE_MIN else leagueId
+    /** The offer for the forfeit screen of the cohort at [address]: only the latest forfeit of a slot carries it, an older one's screen shows none. */
+    fun Offer?.forScreenOf(address: SolanaPublicKey): Offer? = this?.takeIf { it.forfeited.address == address }
 
     /** The offer in the slot of [leagueId], or null (see [offers]). */
-    fun offer(holdouts: List<Entry>, leagues: List<LeagueSnapshot>, now: Long, leagueId: Int): Offer? = offers(holdouts, leagues, now).firstOrNull { it.slot == slotOf(leagueId) }
+    fun offer(holdouts: List<Entry>, leagues: List<LeagueSnapshot>, now: Long, leagueId: Int): Offer? = offers(holdouts, leagues, now).firstOrNull { it.slot == ProfileSnapshot.slotOf(leagueId) }
 
     /**
      * Per progress slot, the offer from the member's latest forfeit there. A slot
@@ -86,12 +86,13 @@ object Comeback {
      * window), or when nothing is left to join or finish: every round of the window
      * closed for joining without the member in one. A round the program has not
      * opened yet has not closed, so an [Offer.upcoming] one keeps the offer
-     * (FR-037g). The league of the forfeit must be
-     * among [leagues]: its first start and cadence give the rounds.
+     * (FR-037g), unless it is already inside its join lock. The league of the forfeit must be
+     * among [leagues]: its first start and cadence give the rounds, with those of every other
+     * league of the same slot.
      */
     fun offers(holdouts: List<Entry>, leagues: List<LeagueSnapshot>, now: Long): List<Offer> {
         val mine = holdouts.filter { it.member != null }
-        val forfeits = mine.filter { forfeited(it, now) }.groupBy { slotOf(it.cohort.leagueId) }
+        val forfeits = mine.filter { forfeited(it, now) }.groupBy { ProfileSnapshot.slotOf(it.cohort.leagueId) }
         return forfeits.mapNotNull { (slot, lost) ->
             // Only the latest counts, as on-chain; a tie goes to the later cohort.
             val latest = lost.maxWith(compareBy({ missedOf(it) }, { it.cohort.start }))
@@ -112,21 +113,27 @@ object Comeback {
 
     private fun offerFrom(slot: Int, lost: Entry, holdouts: List<Entry>, leagues: List<LeagueSnapshot>, now: Long): Offer? {
         val member = lost.member!!
-        val league = leagues.firstOrNull { it.params.leagueId == lost.cohort.leagueId }?.params ?: return null
+        if (leagues.none { it.params.leagueId == lost.cohort.leagueId }) return null
         val missed = missedOf(lost)
         val until = missed + Settlement.COMEBACK_WINDOW_DAYS * lost.cohort.dayLength
-        val inWindow = holdouts.filter { slotOf(it.cohort.leagueId) == slot && it.cohort.start > missed && it.cohort.start <= until }
+        val inWindow = holdouts.filter { ProfileSnapshot.slotOf(it.cohort.leagueId) == slot && it.cohort.start > missed && it.cohort.start <= until }
 
         // Used up: the member finished a Holdout that counts (settle_count takes the record then).
         if (inWindow.any { e -> e.member?.let { finished(it, e.cohort) } == true }) return null
 
-        val rounds = scheduledStarts(league, missed, until).map { start ->
+        // Every league of the slot schedules rounds (all test leagues share one slot), each by its own
+        // first start, cadence and join lock; an equal start goes to the forfeit's own league.
+        val slotLeagues = leagues.map { it.params }.filter { ProfileSnapshot.slotOf(it.leagueId) == slot }.sortedBy { it.leagueId != lost.cohort.leagueId }
+        val scheduled = slotLeagues.flatMap { l -> scheduledStarts(l, missed, until).map { start -> start to l } }.distinctBy { it.first }.sortedBy { it.first }
+        val rounds = scheduled.map { (start, l) ->
             val entry = inWindow.filter { it.cohort.start == start }.let { at -> at.firstOrNull { it.cohort.leagueId == lost.cohort.leagueId } ?: at.firstOrNull() }
-            Round(start, start - league.cadence, entry, entry?.let { Derive.status(it.cohort, now) })
+            Round(start, start - l.cadence, entry, entry?.let { Derive.status(it.cohort, now) })
         }
+        val joinLockOf = scheduled.associate { (start, l) -> start to l.joinLock }
         val placeEntry = inWindow.firstOrNull { e -> e.member?.let { !forfeited(e, now) } == true }
-        val held = placeEntry?.let { e -> rounds.firstOrNull { it.entry == e } ?: Round(e.cohort.start, e.cohort.start - league.cadence, e, Derive.status(e.cohort, now)) }
-        val upcoming = rounds.firstOrNull { it.entry == null && it.start > now }
+        val held = placeEntry?.let { e -> rounds.firstOrNull { it.entry == e } ?: Round(e.cohort.start, e.cohort.start - (leagues.firstOrNull { it.params.leagueId == e.cohort.leagueId }?.params?.cadence ?: 0L), e, Derive.status(e.cohort, now)) }
+        // Joining must still be possible when it opens: inside its join lock a cohort opened then would already be Locked.
+        val upcoming = rounds.firstOrNull { it.entry == null && it.start > now && it.start - (joinLockOf[it.start] ?: 0L) > now }
         val offer = Offer(slot, member.stake, member.tier, missed, until, lost, rounds, held, upcoming)
         return offer.takeIf { it.held != null || it.next != null || it.upcoming != null }
     }

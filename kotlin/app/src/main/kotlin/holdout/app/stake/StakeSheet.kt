@@ -50,7 +50,7 @@ import holdout.repcounter.Stakes
  * 002 FR-012/FR-014): at 45° only, full push-ups from the toes — not
  * discovered at the first sitting.
  *
- * **A comeback round** (FR-037g, T182): opened from the forfeit screen, the
+ * **A comeback round** (FR-037g, T185): opened from the forfeit screen, the
  * sheet starts on [initialTier], the tier of the lost stake, and under the chips
  * says what finishing it brings back for the chip chosen — "up to", capped at the
  * new stake (FR-037e). Only when [comeback] names this Holdout as a round.

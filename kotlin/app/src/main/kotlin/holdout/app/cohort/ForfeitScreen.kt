@@ -37,7 +37,7 @@ import holdout.core.Stage
  * is still alive** — a forfeit ends a Holdout, never the Daily 25 streak — and
  * the way back.
  *
- * With a comeback [offer] (FR-037g, T181) the way back is its card, from the
+ * With a comeback [offer] (FR-037g, T184) the way back is its card, from the
  * forfeit itself and before automation has recorded it:
  *
  * ```
