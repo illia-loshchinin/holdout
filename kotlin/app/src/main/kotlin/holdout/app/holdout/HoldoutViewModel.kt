@@ -70,6 +70,7 @@ class HoldoutViewModel(
 
     private var address: SolanaPublicKey? = null
     private var refresher: Job? = null
+    private var checking: Job? = null
 
     private val _rosters = MutableStateFlow<Map<SolanaPublicKey, List<MembershipSnapshot>>>(emptyMap())
 
@@ -134,6 +135,10 @@ class HoldoutViewModel(
     fun pause() {
         refresher?.cancel()
         refresher = null
+        // A check's reads are foreground-only too (FR-008): none goes on, and none is left "Checking…".
+        checking?.cancel()
+        checking = null
+        _state.update { it.copy(check = ChainCheck()) }
     }
 
     /** Reads started, and the latest one whose answer was taken — both on the main thread. */
@@ -178,7 +183,7 @@ class HoldoutViewModel(
         if (!step.read) return
         _state.update { it.copy(check = step.next) }
         val wallet = address
-        viewModelScope.launch {
+        checking = viewModelScope.launch {
             // A failing side read (chain time, the roster) must not end the check
             // without its answer, or "Checking…" would stay on with nothing to clear it.
             val also =
@@ -193,10 +198,14 @@ class HoldoutViewModel(
             try {
                 refreshNow()
                 also.join()
-            } finally {
-                // Another wallet's check: its state was reset with the wallet's.
-                if (wallet == address) _state.update { it.copy(check = it.check.finished(answered = !it.offline)) }
+            } catch (e: CancellationException) {
+                // The app left the front: [pause] has cleared the check already.
+                throw e
+            } catch (_: Exception) {
+                // A read that throws is a read that did not answer: the check still ends.
             }
+            // Another wallet's check: its state was reset with the wallet's.
+            if (wallet == address) _state.update { it.copy(check = it.check.finished(answered = !it.offline)) }
         }
     }
 

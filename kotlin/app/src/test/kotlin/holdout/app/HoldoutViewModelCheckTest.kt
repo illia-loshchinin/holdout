@@ -15,6 +15,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -94,6 +95,30 @@ class HoldoutViewModelCheckTest {
         runCurrent()
 
         assertEquals(before, chain.reads.size)
+        assertEquals(ChainCheck(), state.check)
+    }
+
+    @Test
+    fun `given a check under way, when the app leaves the front, then it ends with nothing left on screen`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        var sideReadDone = false
+        vm.checkNow {
+            delay(10_000)
+            sideReadDone = true
+        }
+        runCurrent()
+        val checkRead = chain.reads.last()
+        assertTrue(state.check.checking)
+
+        vm.pause()
+        runCurrent()
+        assertEquals(ChainCheck(), state.check)
+
+        // Nothing it had out goes on: the side read never finishes, the late answer is not shown.
+        advanceTimeBy(10_001)
+        checkRead.complete(null)
+        runCurrent()
+        assertFalse(sideReadDone)
         assertEquals(ChainCheck(), state.check)
     }
 
