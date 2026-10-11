@@ -263,6 +263,10 @@ android {
             // seals it off, so the test JVM has to open it (a Robolectric need, not ours).
             all {
                 it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+                // Roborazzi reads these as system properties; only what is given is passed on.
+                listOf("roborazzi.test.record", "roborazzi.output.dir").forEach { name ->
+                    providers.gradleProperty(name).orNull?.let { value -> it.systemProperty(name, value) }
+                }
             }
         }
     }
@@ -331,6 +335,12 @@ dependencies {
     // the Android framework, `createComposeRule()` the Compose host. The BOM
     // pins ui-test-junit4 to the same Compose version the app compiles against.
     testImplementation(libs.robolectric)
+    // Screenshots of the stateless screens as PNG, for a look at them without a
+    // phone. The library alone, no Gradle plugin: `captureRoboImage` does nothing
+    // unless recording is switched on (-Proborazzi.test.record=true, forwarded to
+    // the test JVM above), so a normal test run only renders, and writes nothing.
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(platform(libs.androidx.compose.bom))
