@@ -141,6 +141,20 @@ class HoldoutViewModelCheckTest {
     }
 
     @Test
+    fun `given a check's roster read, when it throws, then the check still ends and the last roster stays`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        vm.checkNow { check -> vm.loadRoster(walletB, check) }
+        runCurrent()
+
+        chain.rosterReads.single().completeExceptionally(IllegalStateException("roster failed"))
+        chain.reads.last().complete(null)
+        runCurrent()
+
+        assertEquals(ChainCheck(stillUnreachable = true), state.check)
+        assertTrue(vm.rosters.value.isEmpty())
+    }
+
+    @Test
     fun `given a check's roster read still out, when the snapshot answers, then the check ends without waiting for it`() = runTest(dispatcher) {
         unreachableFor(walletA)
         vm.checkNow { check -> vm.loadRoster(walletB, check) }

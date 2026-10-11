@@ -89,7 +89,15 @@ class HoldoutViewModel(
         // early one must not put an older roster back over a newer one.
         val started = ++rosterLoadsStarted
         scope.launch {
-            val roster = chain.roster(cohort) ?: return@launch
+            // Its own failure ends only this read: as a child of a check it must not cancel the check.
+            val roster =
+                try {
+                    chain.roster(cohort)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                } ?: return@launch
             if (started < (newestRoster[cohort] ?: 0)) return@launch
             newestRoster[cohort] = started
             _rosters.update { it + (cohort to roster) }
