@@ -53,7 +53,8 @@ fun ThinningChart(points: List<Int>, modifier: Modifier = Modifier) {
             .semantics { contentDescription = description },
     ) {
         val left = GUTTER.toPx()
-        val right = size.width
+        // Room right of the last point for its value, so the label never sits on the line.
+        val right = size.width - END_PAD.toPx()
         val top = TOP_PAD.toPx()
         val base = size.height - LABEL_BAND.toPx()
         val hi = points.max()
@@ -84,8 +85,8 @@ fun ThinningChart(points: List<Int>, modifier: Modifier = Modifier) {
         points.forEachIndexed { i, v -> if (i != last) drawCircle(HoldoutColors.Accent, 2.2.dp.toPx(), Offset(x(i), y(v))) }
         drawCircle(HoldoutColors.Canvas, 5.dp.toPx(), Offset(x(last), y(points[last])))
         drawCircle(HoldoutColors.Accent, 5.dp.toPx(), Offset(x(last), y(points[last])), style = Stroke(width = 2.dp.toPx()))
-        label(measurer, points[last].toString(), strong, Offset(x(last) - 12.dp.toPx(), y(points[last]) - 10.dp.toPx()), alignEnd = true, centreY = true)
-        label(measurer, points[0].toString(), labels, Offset(left + 6.dp.toPx(), y(points[0]) + 2.dp.toPx()), centreY = true)
+        label(measurer, points[last].toString(), strong, Offset(x(last) + 10.dp.toPx(), y(points[last])), centreY = true)
+        label(measurer, points[0].toString(), labels, Offset(left + 6.dp.toPx(), y(points[0]) + 12.dp.toPx()), centreY = true)
     }
 }
 
@@ -110,6 +111,7 @@ private fun DrawScope.label(
 
 private val CHART_HEIGHT = 124.dp
 private val GUTTER = 32.dp
+private val END_PAD = 28.dp
 private val TOP_PAD = Spacing.tight
 private val LABEL_BAND = 20.dp
 private const val FILL_ALPHA = 0.28f

@@ -127,7 +127,7 @@ private fun Line(place: String, r: Leaderboard.Row, me: SolanaPublicKey?, ranked
                 MemberIdentity(address, isYou = r.wallet == me, budget = 20, color = tone, modifier = Modifier.fillMaxWidth())
                 Text(LeaderboardText.figures(r), style = LabelStyle, color = HoldoutColors.TextTertiary)
             }
-            Text(LeaderboardText.rate(r), style = AmountStyle, color = if (ranked) HoldoutColors.Success else HoldoutColors.TextSecondary)
+            Text(LeaderboardText.rate(r), style = AmountStyle.copy(fontSize = LabelStyle.fontSize, lineHeight = LabelStyle.lineHeight), color = if (ranked) HoldoutColors.Success else HoldoutColors.TextSecondary)
         }
         HorizontalDivider(color = HoldoutColors.Hairline, thickness = Spacing.border)
     }
