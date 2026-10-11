@@ -46,7 +46,7 @@ The look is **native on Seeker**. It should feel like it shipped with the device
 - Stopped part-way: *"17 done — 10 banked, 7 not kept. Come back any time before 5h 12m runs out."*
 - After a crash: *"Your 10 banked reps are safe."*
 - The overnight drop: *"Three dropped since yesterday. Your share went up 17 SKR."*
-- Forfeit: *"You missed day 7."* then *"Your 9-day streak is still alive."* and two ways back: *Today's Daily 25* · *The next 7-day Holdout*.
+- Forfeit: *"You missed day 7."* then *"Your 9-day streak is still alive."* and two ways back: *Today's Daily 25* · the next Holdout of the same league (*The next 21-day Holdout* after a 21-day forfeit).
 - Claim: *"You held out 21 days."* above **Claim 1,560 SKR**.
 - Broken streak: *"Your 14-day streak broke. Start a new one today."* There is no save button because there is no grace day.
 - The boost, on an offer: *"Prize boost: up to 480 SKR from the reserve of Easy · 7-day Holdouts when it settles"*, in `success`, only while that reserve holds more than 0. "Up to": the boost is capped at 10 % of the pool and paid only if someone forfeits, so it is never a promised amount. On a running Holdout: *"+ about 1,200 SKR boost from the reserve of Hard · 21-day Holdouts if anyone finishes"*. A reserve is always named by its Holdouts' level and length, never "league".

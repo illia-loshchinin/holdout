@@ -99,8 +99,8 @@ fn timing_ok(
     //
     // Zero is the dangerous one. `settle_count` calls a member finished when
     // `days_completed == duration_days`, so in a zero-day league every member
-    // who never sat a single day is a finisher: an immediate clear, a payout,
-    // and the 21-day unlock, without a push-up. Every other id is refused
+    // who never sat a single day is a finisher: an immediate clear and a
+    // payout, without a push-up. Every other id is refused
     // outright — ids 2 to 99 are not test leagues, yet `Profile::slot_of`
     // sends them to the test progress slot, so a "real" league there would
     // write its judged progress where test runs live.
