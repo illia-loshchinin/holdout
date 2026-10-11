@@ -551,7 +551,7 @@ Only a confirmed absence of the token shows *Not a Seeker*; no network, a rate l
 #### H6 · Forfeit
 **MUST · ✅ Built · 🎨 Drawn** (board *9 · Forfeit*; the *recorded* tweak shows the not-yet-recorded line) · `cohort/ForfeitScreen.kt` · PRD #9, US-4
 
-**On screen:** back · `21-DAY · FROM 21 SEP` · **You missed day 7.** (warning) · card: *You lasted 6 of 21 days. The deadline passed before day 7 reached the chain, so your stake of 1,250 SKR went into this Holdout's prize pool. 80 % stays with members: 70 % to the prize pool, 10 % to league boost and comeback reserves. 20 % goes to the project.* (+ *"final from the deadline; the record catches up on the next automation pass"* if not yet recorded) · *NICE, not built:* **the comeback**, one line: *Finish the next Easy · 7-day Holdout within 14 days and up to 250 SKR of this stake comes back.* (FR-037e) · card with green flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (primary) · **The next 21-day Holdout** (secondary — the same league as the one lost, US-4)
+**On screen:** back · `21-DAY · FROM 21 SEP` · **You missed day 7.** (warning) · card: *You lasted 6 of 21 days. The deadline passed before day 7 reached the chain, so your stake of 1,250 SKR is lost. 80 % of it stays with members: 70 % to this Holdout's prize pool and 10 % to the boost and comeback reserves of Hard · 21-day Holdouts. 20 % goes to the project, and so does the prize pool if nobody finishes.* (+ *"final from the deadline; the record catches up on the next automation pass"* if not yet recorded) · *NICE, not built:* **the comeback**, one line: *Finish the Hard · 21-day Holdout starting in 2d 4h and up to 250 SKR of the stake you lost comes back.* (the built wording of Today's comeback line; the Holdout must *start* within 14 days of the missed deadline, FR-037e) (FR-037e — paid in the same league only) · card with green flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (primary) · **The next 21-day Holdout** (secondary — the same league as the one lost, US-4)
 
 **As drawn:** a back button and `21-DAY · FROM 21 SEP` label · the tour's dot row at `DAY 7` (8 green, 5 faded, yours a hollow coral ring marked `you`) · **You missed day 7.** (30 px light, coral) · *The deadline passed before day 7 reached the chain, so your run in this Holdout has ended.* · card: **You lasted** `6 of 21 days` · **Your stake** `1,250 SKR` · hairline · *to this Holdout's prize pool* `1,000 SKR` · *fee, 20 %* `250 SKR` · (not recorded: *Final from the deadline. The on-chain record catches up on the next automation pass.*) · green-outlined card with the flame: **Your 9-day streak is still alive.** *A forfeit ends a Holdout, never your streak.* · `TWO WAYS BACK` · **Today's Daily 25** (white pill) · **The next 7-day** *· from 12 Oct* (outline). The same visual language as the tour, and no blame.
 
@@ -677,7 +677,7 @@ Declined always says *nothing was sent and nothing changed*; Failed says devnet 
 | X1 | About Holdout | MUST | ✅ | ✏️ | ◯ | W1 | B1, A1 |
 | N1–N5 | System moments | MUST / SHOULD | see §5 N | | — | — | — |
 
-**Count:** 18 MUST screens (16 ✅ in code; all 18 drawn, with the §7 #11–#17 fixes pending) · 5 SHOULD screens (L1 not drawn) + 2 SHOULD moments · 1 NICE screen + several NICE additions inside cards.
+**Count:** 18 MUST screens (16 ✅ in code; all 18 drawn, with the §7 #11–#19 fixes pending) · 5 SHOULD screens (L1 not drawn) + 2 SHOULD moments · 1 NICE screen + several NICE additions inside cards.
 
 ---
 
@@ -704,6 +704,8 @@ Where the draft says something the spec, the PRD or its own tokens note say diff
 | 15 | 2 · Tour, 3 · Today, 4 · Stake, 8 · Lobby, 13 · Detail, 16 · Set-up | No level anywhere: *7-day*, *21-day*, one counting rule | **Easy · 7-day**, **Hard · 21-day**; the Easy rule sentence on Easy screens, the Hard one on Hard screens; tour cards 2 and 3 as built | H35, 002 FR-013, FR-014 |
 | 16 | 3 · Today, 5 · Home, 7 · Claim, 1 · First open | No boost line on offers, no boost estimate on Home, no comeback row on Claim, no comeback nudge | *Prize boost: up to N SKR from the reserve of Easy · 7-day Holdouts when it settles* on every offer with a reserve · *+ about N SKR boost … if anyone finishes* on Home · **Comeback** row on Claim · the comeback nudge on Today | FR-053, FR-037d, FR-037e |
 | 17 | — | No leaderboards board | **L1** under ∿ Standing, with its five variants | US-10, PR 20 |
+| 18 | 9 · Forfeit | The way-back button reads **The next 7-day** *· from 12 Oct* under a 21-day forfeit; the fee card and sentence are the pre-H35 ones | **The next {N}-day Holdout** — the same league as the one lost (US-4, H37), with its own start date; the built fee sentence from `Format.lostStakeSplit` (see H6) | H37, US-4, `ForfeitScreen.kt` |
+| 19 | 3 · Today, 4 · Stake (background) | Row 5's fix stands on the canvas: Today's 21-day offer says *Normally after a 7-day. Open to everyone in this build.* | Delete that sentence. Nothing is unlocked and no flag remains, so the offer carries no ladder wording; the 21-day offer reads like the 7-day one | H37 |
 
 ---
 
@@ -715,7 +717,7 @@ Where the draft says something the spec, the PRD or its own tokens note say diff
 Still to draw:
 1. ~~**T2 variants** and **T1 variants**~~ 🎨 drawn 6 Oct as Tweaks on boards 5 and 3
 2. ~~The §7 copy fixes~~ ✅ all fixed 6 Oct
-3. The §7 #11–#16 fixes on the existing boards: the fee sentence, *Standing*, About without the judge parts, delete Walkthrough, Easy/Hard everywhere, the boost and comeback lines
+3. The §7 #11–#16, #18 and #19 fixes on the existing boards: the fee sentence, *Standing*, About without the judge parts, delete Walkthrough, Easy/Hard everywhere, the boost and comeback lines
 4. **L1 Leaderboards**, five variants (§7 #17)
 5. The Holdout Lab boards (`holdout_lab_screen_map.md` §6, §9)
 
@@ -790,7 +792,7 @@ The member's goals, each with its entry point, its exit and the screens it cross
 | UC-6 | Do today's reps in a Holdout and get the day on chain | N2 or launch → T2 | T2 *on chain* | T2 → S1…S6 → **Submit** → N1 → T2 | US-3, FR-038, FR-047 |
 | UC-7 | Do today's reps in two or three sittings | T2 / T1 part-way | T2 / T1 done | S5 → ✕ → S7 → later S1… | FR-024b, ES-1, ES-2 |
 | UC-8 | See who dropped and what the crowd is worth today | T2 or ∿ | T2 | T2 (counter, *3 dropped since yesterday*, pool, share, boost estimate) → H4 → H5 | PRD §10.1a, FR-038a, FR-062 |
-| UC-9 | Miss a day and find the way back | T2 (deadline) | S1 or H2 | H6 (fee sentence, streak alive) → **Today's Daily 25** or **The next 7-day** | US-4, FR-027, FR-037e |
+| UC-9 | Miss a day and find the way back | T2 (deadline) | S1 or H2 | H6 (fee sentence, streak alive) → **Today's Daily 25** or **the same league's next Holdout** | US-4, FR-027, FR-037e |
 | UC-10 | Come back after a forfeit and earn part of the lost stake back | T1 nudge | H7 claimed | T1 (comeback nudge) → H2 → … → H7 (**Comeback** row) | FR-037e |
 | UC-11 | Finish, wait for settlement, claim | T2 last day | H0 *Finished* | T2 → H4 *settling* → H7 → **Claim** → N1 → H4 *claimed* | US-8, FR-034, FR-035 |
 | UC-12 | Run the whole cycle alone in about half an hour, with a wallet holding a Seeker Genesis Token | T1 short test offer | H7 claimed | H2 Seeker gate → H2 (TEST COHORT) → H3 → T2 ×3 → H4 → H7 | FR-044a, FR-003b, spec 004 FR-014 |
