@@ -29,14 +29,14 @@ object DailyHoldoutLine {
     }
 
     /** The nudge of the offer whose round comes first: the place held, or the next round open to join. */
-    private fun comebackLine(offers: List<Comeback.Offer>, now: Long): String? {
+    fun comebackLine(offers: List<Comeback.Offer>, now: Long): String? {
         val soonest = offers.minByOrNull { (it.held ?: it.next ?: it.upcoming)?.start ?: Long.MAX_VALUE } ?: return null
         soonest.held?.let { held ->
             val place = held.entry ?: return null
             return "You're in the ${Format.holdoutTitle(place.cohort)}. Finish it and up to ${Format.skr(soonest.amount(place.member?.stake))} of the stake you lost comes back."
         }
         val round = soonest.next ?: return soonest.upcoming?.let { up ->
-            "The next ${Format.holdoutTitle(soonest.forfeited.cohort)} opens for joining in ${Format.countdown(up.opensAt - now)} and starts in ${Format.countdown(up.start - now)}. Finish it and up to ${Format.skr(soonest.amount())} of the stake you lost comes back."
+            "The next ${Format.holdoutTitle(soonest.forfeited.cohort)} ${Format.opensForJoining(up.opensAt, now)} and starts in ${Format.countdown(up.start - now)}. Finish it and up to ${Format.skr(soonest.amount())} of the stake you lost comes back."
         }
         val c = round.entry?.cohort ?: return null
         return "Finish the ${Format.holdoutTitle(c)} starting in ${Format.countdown(round.start - now)} and up to ${Format.skr(soonest.amount())} of the stake you lost comes back. " +

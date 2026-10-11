@@ -72,6 +72,13 @@ object Format {
 
     fun tierUsd(tier: Int): String = "≈ $${TIER_USD.getOrElse(tier) { 0 }}"
 
+    /**
+     * "opens for joining in 1d 2h", or "opens for joining shortly" once [opensAt]
+     * has passed and automation has not opened the Holdout yet — never a
+     * countdown stuck at zero (FR-037g).
+     */
+    fun opensForJoining(opensAt: Long, now: Long): String = if (opensAt > now) "opens for joining in ${countdown(opensAt - now)}" else "opens for joining shortly"
+
     /** `3d 4h`, `4h 06m`, `12m 30s`: a countdown, never a date (constitution VI). */
     fun countdown(seconds: Long): String {
         val s = seconds.coerceAtLeast(0)

@@ -69,6 +69,14 @@ class DailyHoldoutLineTest {
     }
 
     @Test
+    fun `given the next round due but not opened by automation yet, then it opens shortly, never in 0m 00s`() {
+        val at = round1.start + 60
+        val line = DailyHoldoutLine.of(emptyList(), offers(unrecorded, entry(round1, null), at = at), at)
+        assertEquals("The next Easy · 7-day Holdout opens for joining shortly and starts in 6d 23h. Finish it and up to 5 SKR of the stake you lost comes back.", line)
+        assertEquals(line, DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null), at = at), at))
+    }
+
+    @Test
     fun `given no forfeit, then the line is the next Holdout to join`() {
         val line = DailyHoldoutLine.of(listOf(open(now + 200_000, form = LeagueParams.FORM_TOES), open(now + 90_000)), emptyList(), now)
         assertEquals("Next: Easy · 7-day Holdout, starting in 1d 1h · 14 joined.", line)

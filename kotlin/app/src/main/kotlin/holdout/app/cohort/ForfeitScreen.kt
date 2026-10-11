@@ -133,7 +133,7 @@ private fun ColumnScope.ComebackCard(offer: Comeback.Offer, now: Long, joinBlock
                 val upcoming = offer.upcoming!!
                 val back = offer.amount()
                 Text("up to ${Format.skr(back)} back", style = AmountStyle, color = HoldoutColors.Accent)
-                Body("The next ${Format.holdoutTitle(offer.forfeited.cohort)} opens for joining in ${Format.countdown(upcoming.opensAt - now)} and starts in ${Format.countdown(upcoming.start - now)}. Finish it and up to ${Format.skr(back)} of the stake you lost comes back.")
+                Body("The next ${Format.holdoutTitle(offer.forfeited.cohort)} ${Format.opensForJoining(upcoming.opensAt, now)} and starts in ${Format.countdown(upcoming.start - now)}. Finish it and up to ${Format.skr(back)} of the stake you lost comes back.")
             }
             next != null && nextCohort != null -> {
                 val back = offer.amount()
@@ -144,7 +144,7 @@ private fun ColumnScope.ComebackCard(offer: Comeback.Offer, now: Long, joinBlock
                     val open = after.entry != null && after.status == CohortStatus.Open
                     when {
                         open -> Body("Or the one after it, starting in ${Format.countdown(after.start - now)}.")
-                        after.entry == null -> Body("The one after it starts in ${Format.countdown(after.start - now)} and opens for joining in ${Format.countdown(after.opensAt - now)}.")
+                        after.entry == null -> Body("The one after it starts in ${Format.countdown(after.start - now)} and ${Format.opensForJoining(after.opensAt, now)}.")
                     }
                 }
                 when (joinBlocker) {

@@ -63,8 +63,10 @@ data class HomeState(
     val freezes: Int = 0,
     /** Today's toes meter (H35), or null before any Daily 25 rep is counted. */
     val toes: ToesMeter.Meter? = null,
-    /** The way into a Holdout once today is done ([DailyHoldoutLine]), or null. */
+    /** The way into a Holdout ([DailyHoldoutLine]), or null: shown once today is done, or at once when it is a comeback (FR-037g). */
     val holdoutLine: String? = null,
+    /** [holdoutLine] is a comeback offer: shown before the Daily 25 too, since joining may close before it is done (FR-037g). */
+    val holdoutLineIsComeback: Boolean = false,
 )
 
 @Composable
@@ -146,7 +148,7 @@ fun HomeScreen(
             modifier = Modifier.padding(top = 8.dp),
         )
         state.toes?.takeIf { state.completedToday }?.let { ToesMeterCard(it, state.target) }
-        state.holdoutLine?.takeIf { state.completedToday }?.let {
+        state.holdoutLine?.takeIf { state.completedToday || state.holdoutLineIsComeback }?.let {
             Text(it, style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.TextPrimary, textAlign = TextAlign.Center)
         }
 

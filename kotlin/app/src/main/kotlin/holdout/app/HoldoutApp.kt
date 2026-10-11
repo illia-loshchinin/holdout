@@ -771,6 +771,7 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             freezes = streak.freezes,
             toes = holdout.app.streak.ToesMeter(store, DAILY_25).read(wallet, dayIndex),
             holdoutLine = chainNow?.let { n -> view?.let { v -> holdout.app.home.DailyHoldoutLine.of(v.openToJoin(n).map { it.cohort }, v.comebackOffers(n), n) } },
+            holdoutLineIsComeback = chainNow?.let { n -> view?.let { v -> holdout.app.home.DailyHoldoutLine.comebackLine(v.comebackOffers(n), n) } } != null,
             secondsLeftToday = chainNow?.let { HoldoutDay.secondsLeftIn(it) },
         ),
         onStart = {

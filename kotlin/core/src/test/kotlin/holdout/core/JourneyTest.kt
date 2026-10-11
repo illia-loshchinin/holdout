@@ -46,7 +46,7 @@ class JourneyTest {
         assertEquals(Stage.Settling, Journey.stage(c, m(7, MembershipSnapshot.State.Finished), end))
         val settled = c.copy(settled = true, sharePerTier = listOf(2uL, 7uL, 14uL, 28uL))
         assertEquals(Stage.ReadyToClaim(32uL, 25uL, 7uL), Journey.stage(settled, m(7, MembershipSnapshot.State.Finished), end + 60))
-        assertEquals(Stage.Claimed(32uL), Journey.stage(settled, m(7, MembershipSnapshot.State.Claimed), end + 120))
+        assertEquals(Stage.Claimed(32uL, 25uL, 7uL), Journey.stage(settled, m(7, MembershipSnapshot.State.Claimed), end + 120), "the breakdown stays after the claim")
     }
 
     @Test
@@ -56,7 +56,7 @@ class JourneyTest {
         val settled = c.copy(settled = true, sharePerTier = listOf(2uL, 7uL, 14uL, 28uL), comebackOwed = 4uL, comebackFunded = 2uL)
         val finisher = m(7, MembershipSnapshot.State.Finished).copy(comebackEntitled = 2uL)
         assertEquals(Stage.ReadyToClaim(33uL, 25uL, 7uL, comeback = 1uL), Journey.stage(settled, finisher, end + 60))
-        assertEquals(Stage.Claimed(33uL), Journey.stage(settled, finisher.copy(state = MembershipSnapshot.State.Claimed), end + 120))
+        assertEquals(Stage.Claimed(33uL, 25uL, 7uL, comeback = 1uL), Journey.stage(settled, finisher.copy(state = MembershipSnapshot.State.Claimed), end + 120), "the comeback row stays after the claim")
     }
 
     @Test

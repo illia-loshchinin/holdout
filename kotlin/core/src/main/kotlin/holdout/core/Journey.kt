@@ -40,7 +40,8 @@ sealed interface Stage {
      */
     data class ReadyToClaim(val amount: ULong, val stake: ULong, val share: ULong, val comeback: ULong = 0uL) : Stage
 
-    data class Claimed(val amount: ULong) : Stage
+    /** Claimed: the amount paid, with the same breakdown as before the claim, so the screen keeps it (FR-037e, H7). */
+    data class Claimed(val amount: ULong, val stake: ULong = 0uL, val share: ULong = 0uL, val comeback: ULong = 0uL) : Stage
 }
 
 object Journey {
@@ -50,7 +51,10 @@ object Journey {
         val status = Derive.status(c, now)
         val payout = payoutOf(c, member)
         return when (member.state) {
-            MembershipSnapshot.State.Claimed -> Stage.Claimed(payout)
+            MembershipSnapshot.State.Claimed -> {
+                val comeback = Derive.comebackRefund(member, c) ?: 0uL
+                Stage.Claimed(payout, member.stake, payout - member.stake - comeback, comeback)
+            }
             MembershipSnapshot.State.Forfeited -> Stage.Forfeited(member.daysCompleted, recorded = true)
             MembershipSnapshot.State.Finished ->
                 if (c.settled) {
