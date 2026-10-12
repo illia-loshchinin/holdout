@@ -15,7 +15,6 @@ import holdout.app.nav.Screen
 import holdout.app.nav.Sheet
 import holdout.app.storage.Store
 import holdout.app.ui.StreakState
-import holdout.core.HoldoutDay
 
 /** The Me dot: SKR or SOL too low to stake or submit (DS BottomNav); false before the chain is read. */
 internal fun Shared.lowOnFunds(): Boolean {
@@ -72,13 +71,11 @@ internal fun Shared.FaucetSheetHost() {
         skr = v?.skr ?: 0uL,
         lamports = v?.lamports ?: 0,
         maxTopTier = v?.config?.maxTopTier ?: 0uL,
-        claimedToday = n != null && v?.profile?.claimedFaucetOn(HoldoutDay.indexOf(n)) == true,
-        now = n ?: 0,
         busy = chain.busy,
         outcome = chain.lastFaucet,
         // Both the snapshot and chain time are needed to claim: without them the balances are not shown and the tap is off.
         ready = v != null && n != null,
-        onClaim = { n?.let { holdouts.claimFaucet(sender, it) } },
+        onClaim = { if (n != null) holdouts.claimFaucet(sender) },
         onBack = {
             holdouts.clearMessage()
             dispatch(NavEvent.CloseSheet)

@@ -325,11 +325,11 @@ class HoldoutViewModel(
 
     // ---- the faucet (T043) -------------------------------------------------
 
-    fun claimFaucet(sender: ActivityResultSender, now: Long) = act {
+    fun claimFaucet(sender: ActivityResultSender) = act {
         val me = address ?: return@act
         val view = _state.value.view ?: return@act
         val config = view.config ?: return@act say("Holdout is not live on devnet yet.", warning = true)
-        val outcome = faucet.claim(sender, me, config, view.profile, view.lamports, now)
+        val outcome = faucet.claim(sender, me, config, view.lamports)
         _state.update { it.copy(lastFaucet = outcome) }
     }
 
@@ -520,7 +520,6 @@ object ProgramErrors {
         6033 -> "Today is already on chain."
         6043 -> "Nothing to claim here."
         6044 -> "Already claimed."
-        6050 -> "Today's test tokens are already claimed."
         6051, 6052 -> "The faucet can't pay out right now. It is not something you did."
         // The token program's InsufficientFunds: not enough SKR for the chip.
         1 -> "Not enough SKR for that chip. Get test tokens first."

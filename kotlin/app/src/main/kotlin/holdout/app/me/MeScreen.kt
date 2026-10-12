@@ -90,7 +90,7 @@ data class MeState(
  *  YOU HOLD                                               SectionLabel
  *  ┌ Test SKR              4,750 SKR ┐                    KeyValueRow
  *  │ Devnet SOL for fees   0.012 SOL │
- *  └ One tap a day: … ┘
+ *  └ One tap: … ┘
  *  Too little SKR or SOL …                                the Me dot's meaning (only when low)
  *  [ Get test tokens ]                                    PrimaryButton → the faucet sheet
  *  ( About Holdout            devnet · test token › )     MenuRow
@@ -221,8 +221,8 @@ private fun Holdings(state: MeState) {
             KeyValueRow("Devnet SOL for fees", Format.sol(state.lamports))
         }
         Body(
-            state.faucetSkr?.let { "One tap a day: ${Format.skr(it).removeSuffix(" SKR")} test SKR, plus SOL for fees. Test network, test token." }
-                ?: "One tap a day: test SKR, plus SOL for fees. Test network, test token.",
+            state.faucetSkr?.let { "One tap: ${Format.skr(it).removeSuffix(" SKR")} test SKR, plus SOL for fees. Test network, test token." }
+                ?: "One tap: test SKR, plus SOL for fees. Test network, test token.",
         )
     }
 }

@@ -5,7 +5,6 @@ import holdout.core.CohortSnapshot
 import holdout.core.CohortStatus
 import holdout.core.ConfigSnapshot
 import holdout.core.Derive
-import holdout.core.HoldoutDay
 import holdout.core.Instructions
 import holdout.core.LeagueParams
 import holdout.core.MembershipSnapshot
@@ -312,7 +311,6 @@ object Scripted {
             }
         }
 
-        val today = HoldoutDay.indexOf(now)
         for ((address, c) in cohorts) {
             val status = Derive.status(c, now)
             val floor = floors.of(c.leagueId)
@@ -347,7 +345,6 @@ object Scripted {
                     // A read that failed is not an empty account: skip the wallet this pass rather than spend its faucet claim.
                     val balance = rpc.tokenAmount(Pdas.associatedToken(w.pubkey, onChain.skrMint)) ?: continue
                     val needsFaucet = balance < c.chips[tier]
-                    if (needsFaucet && profile?.claimedFaucetOn(today) == true) continue
                     val key = keyOf(w)
                     // Only a join that landed fills a place; after a failed one the next wallet is tried.
                     val joined = attempt("join", {

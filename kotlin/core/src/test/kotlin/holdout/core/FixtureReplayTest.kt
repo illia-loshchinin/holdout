@@ -299,7 +299,6 @@ class FixtureReplayTest {
             if (running.getValue("cohort").jsonPrimitive.content == "11111111111111111111111111111111") assertNull(p.running) else assertEquals(ProfileSnapshot.Running(running.key("cohort"), running.l("end")), p.running)
             val pending = f.getValue("pending").jsonObject
             if (pending.getValue("cohort").jsonPrimitive.content == "11111111111111111111111111111111") assertNull(p.pending) else assertEquals(ProfileSnapshot.Pending(pending.key("cohort"), pending.l("start"), pending.l("end")), p.pending)
-            assertEquals(f.l("lastFaucetDay"), p.lastFaucetDay)
         }
         assertFailsWith<IllegalArgumentException> { ProfileSnapshot.decode(ByteArray(ProfileLayout.SIZE)) }
     }
@@ -307,7 +306,7 @@ class FixtureReplayTest {
     @Test
     fun `a lobby place that has started reads as the running cohort, as the program normalises it`() {
         val cohort = SolanaPublicKey(ByteArray(32) { 9 })
-        val p = ProfileSnapshot(cohort, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, null, ProfileSnapshot.Pending(cohort, 1_000, 2_000), ProfileSnapshot.NEVER_CLAIMED)
+        val p = ProfileSnapshot(cohort, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, null, ProfileSnapshot.Pending(cohort, 1_000, 2_000))
         assertEquals(p, p.normalised(999))
         assertEquals(ProfileSnapshot.Running(cohort, 2_000), p.normalised(1_000).running)
         assertNull(p.normalised(1_000).pending)
