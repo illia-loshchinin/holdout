@@ -20,6 +20,8 @@ import holdout.app.sitting.DayCompleteUi
 import holdout.app.sitting.HoldoutDayCard
 import holdout.app.sitting.PreflightContent
 import holdout.app.sitting.PreflightPill
+import holdout.app.sitting.PreflightTip
+import holdout.app.sitting.PreflightTipsSheet
 import holdout.app.sitting.PreflightUi
 import holdout.app.sitting.SetupSheet
 import holdout.app.sitting.SittingCopy
@@ -29,6 +31,7 @@ import holdout.app.sitting.StoppedUi
 import holdout.app.sitting.StreakAfter
 import holdout.app.testutil.AnimationsOff
 import holdout.repcounter.CameraView
+import holdout.repcounter.PreflightCheck
 import holdout.repcounter.Stakes
 import org.junit.Rule
 import org.junit.Test
@@ -62,7 +65,7 @@ class SittingShots {
 
     private fun pills(failing: Set<String> = emptySet()) = labels.map { PreflightPill(it, it !in failing) }
 
-    private fun preflight(name: String, stakes: Stakes = Stakes.STAKED, day: Int? = 12, pills: List<PreflightPill>? = pills(setOf("Camera view")), coach: String? = "Phone to 45°", sub: String? = "Move the phone so it can see all of you", hold: Float? = null, timeLeft: Long? = left) = compose.shoot("sitting", name) {
+    private fun preflight(name: String, stakes: Stakes = Stakes.STAKED, day: Int? = 12, pills: List<PreflightPill>? = pills(setOf("Camera view")), coach: String? = "Phone to 45°", sub: String? = "Move the phone so it can see all of you", hold: Float? = null, timeLeft: Long? = left, tipsOffered: Boolean = false) = compose.shoot("sitting", name) {
         Room {
             PreflightContent(
                 PreflightUi(
@@ -73,6 +76,7 @@ class SittingShots {
                     sub = sub,
                     holdProgress = hold,
                     rule = SittingCopy.ruleCaption(stakes),
+                    tipsOffered = tipsOffered,
                 ),
                 onStop = {},
                 onSetup = {},
@@ -94,6 +98,20 @@ class SittingShots {
 
     @Test
     fun preflightFixing() = preflight("preflight-fixing")
+
+    @Test
+    fun preflightTipsOffered() = preflight("preflight-tips-offered", tipsOffered = true)
+
+    @Test
+    fun preflightTipsSheet() = compose.shoot("sitting", "preflight-tips-sheet") {
+        Room {
+            PreflightTipsSheet(
+                PreflightCheck.entries.map { PreflightTip(it.label, it.fix, red = it == PreflightCheck.CAMERA_ANGLE || it == PreflightCheck.LIGHTING) },
+                onSetup = {},
+                onClose = {},
+            )
+        }
+    }
 
     @Test
     fun preflightLooking() = preflight("preflight-looking", pills = null, coach = null, sub = null)

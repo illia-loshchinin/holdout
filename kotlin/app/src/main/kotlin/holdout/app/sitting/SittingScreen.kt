@@ -204,8 +204,8 @@ fun SittingScreen(
     }
 
     // System Back is the X: the nav layer has no Back inside a sitting, so without this the gesture would
-    // background the app and drop the set's loose reps with no Stopped summary. The set-up guide registers its
-    // own handler after this one, so while it is open Back closes it first. A finished day leaves as its button does.
+    // background the app and drop the set's loose reps with no Stopped summary. The set-up guide and the tip sheet
+    // register their own handlers after this one, so while one is open Back closes it first. A finished day leaves as its button does.
     BackHandler(enabled = labelThen == null) {
         val summary = stopped
         when {
@@ -251,6 +251,7 @@ fun SittingScreen(
                 ui = preflightUi(state, header(SittingCopy.positionLabel(dayNumber)), state.stakes),
                 onStop = stop,
                 onSetup = viewModel::openSetup,
+                onTips = viewModel::openTips,
             )
 
             SittingViewModel.Step.COUNTDOWN -> Countdown(
@@ -318,6 +319,15 @@ fun SittingScreen(
                 detected = state.preflight?.view,
                 onDone = viewModel::closeSetup,
                 levelLabel = levelLabel ?: SittingCopy.levelLabel(state.stakes),
+            )
+        }
+
+        // Only the member opens it, from S3; it registers its Back after the sitting's own, so Back closes it first.
+        if (state.showTips && state.step == SittingViewModel.Step.PREFLIGHT && !state.showSetup) {
+            PreflightTipsSheet(
+                tips = preflightUi(state, header(SittingCopy.positionLabel(dayNumber)), state.stakes).tips,
+                onSetup = viewModel::openSetup,
+                onClose = viewModel::closeTips,
             )
         }
 
