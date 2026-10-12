@@ -1,6 +1,7 @@
 package holdout.app.sitting
 
 import holdout.app.storage.Store
+import holdout.app.streak.StreakMilestones
 import holdout.app.streak.StreakStore
 
 /**
@@ -32,6 +33,9 @@ class SittingMarker(
  * the same date has counted for the streak already (FR-050, FR-025).
  */
 data class StreakAfter(val days: Int, val grew: Boolean) {
+    /** This day took the streak to a milestone (S6 shows the milestone state, once): a day that did not grow it reaches nothing. */
+    val milestone: Boolean get() = grew && StreakMilestones.isMilestone(days)
+
     companion object {
         /** Records [dayIndex] as completed and reports the result. Idempotent per day. */
         fun record(streaks: StreakStore, wallet: String, dayIndex: Long): StreakAfter {

@@ -110,6 +110,8 @@ fun CohortHome(
     /** The faucet: a member whose SOL has run out cannot pay to submit a day. */
     onGetTokens: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The new-phone signal (`NewPhone.shows`): this phone first saw the wallet today and has nothing banked, so say so before the day starts (ES-3a). */
+    newPhone: Boolean = false,
     /** The daily streak, for the footer. */
     streak: Int = 0,
     /** The wallet holds enough SOL for the submit's fee (ES-0a). */
@@ -251,6 +253,7 @@ fun CohortHome(
                     } else {
                         "Nothing banked yet today"
                     }
+                    if (newPhone) Banner(NewPhone.line(reps), warning = false)
                     DayRow(
                         ring = { BankRing(reps, banked / BLOCK, banked, "banked", size = RING, bankedColor = if (warning) HoldoutColors.Warning else HoldoutColors.Accent) },
                         title = label,

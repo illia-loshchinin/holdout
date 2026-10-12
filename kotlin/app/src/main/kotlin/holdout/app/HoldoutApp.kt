@@ -21,6 +21,7 @@ import com.solana.publickey.SolanaPublicKey
 import holdout.app.chain.Deployment
 import holdout.app.chain.Holdout
 import holdout.app.holdout.HoldoutViewModel
+import holdout.app.home.NewPhone
 import holdout.app.names.SeekerNameRepository
 import holdout.app.nav.Badges
 import holdout.app.nav.Nav
@@ -225,6 +226,10 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             delay(1_000)
         }
     }
+    // The day this phone first sees the connected wallet is kept once, for the new-phone banner (ES-3a);
+    // with chain time unknown a new wallet waits for the first known day.
+    val today = now?.let { HoldoutDay.indexOf(it) } ?: Store.UNKNOWN_DAY
+    LaunchedEffect(address, today) { address?.let { NewPhone.markSeen(store, it.base58(), today) } }
     // The default network is followed for as long as the view model lives, not only
     // while started: a loss while the wallet holds the screen must still re-arm the
     // automatic send (T098). Its return reads at once only while in front.

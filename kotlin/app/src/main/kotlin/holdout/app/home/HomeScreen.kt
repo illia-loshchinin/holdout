@@ -26,6 +26,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import holdout.app.chain.Deployment
 import holdout.app.nav.NavEvent
+import holdout.app.streak.StreakMilestones
 import holdout.app.streak.ToesMeter
 import holdout.app.ui.BlockBars
 import holdout.app.ui.Body
@@ -67,6 +68,8 @@ data class HomeState(
     val yesterdayNote: String? = null,
     /** "No banked reps on this device today. 25 to go." — a phone with nothing banked for a streak that is running (ES-3a). */
     val newPhone: Boolean = false,
+    /** Today's day is done and took the streak to a milestone (`StreakMilestones.reachedToday`): the chip shows the milestone state and its line, for the rest of the day (Gap 2). */
+    val milestoneToday: Boolean = false,
     /** The member's other Holdouts that need a tap, one line each (screen map §3 rule 4). */
     val nudges: List<NudgeRowState> = emptyList(),
     /** The way back after a lost stake, one tap (FR-037g). */
@@ -80,6 +83,7 @@ data class HomeState(
 /**
  * ```
  *  TODAY                                              🔥 12     ScreenLabel · StreakFlame
+ *                          A week, every day. That's how habits start.   milestone day only
  *  ┌ THE DAILY 25 [FREE] ───────────────────────────────────┐   HoldoutCard · StatusChip
  *  │ Yesterday ended at 20 of 25. Today starts fresh.        │   banner (warning)
  *  │                 25 push-ups                             │   CounterStyle
@@ -119,12 +123,19 @@ fun HomeScreen(
             StreakFlame(
                 days = state.streak,
                 state = when {
+                    state.milestoneToday -> StreakState.Milestone
                     state.completedToday -> StreakState.ExtendedToday
                     state.streak > 0 -> StreakState.Active
                     else -> StreakState.Broken
                 },
                 chip = true,
             )
+        }
+        // The milestone's line, under the chip, for the rest of the day it was reached (the next day it is the plain chip).
+        if (state.milestoneToday) {
+            StreakMilestones.line(state.streak)?.let {
+                Text(it, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary, textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth())
+            }
         }
 
         DailyCard(state, onStart)
@@ -169,7 +180,7 @@ private fun DailyCard(state: HomeState, onStart: () -> Unit) {
                 StatusChip("free", tone = ChipTone.Accent)
             }
             state.yesterdayNote?.let { Banner(it, warning = true) }
-            if (state.newPhone) Banner("No banked reps on this device today. ${state.target} to go.", warning = false)
+            if (state.newPhone) Banner(NewPhone.line(state.target), warning = false)
 
             when {
                 state.completedToday -> {
@@ -225,7 +236,7 @@ private fun DailyCard(state: HomeState, onStart: () -> Unit) {
 
 /** A one-line note in the card, tinted by its tone; the colour is never the only signal, the words carry it. */
 @Composable
-private fun Banner(text: String, warning: Boolean) {
+internal fun Banner(text: String, warning: Boolean) {
     val tint = if (warning) HoldoutColors.Warning.copy(alpha = BANNER_TINT) else HoldoutColors.Surface3
     Box(
         Modifier
@@ -403,6 +414,20 @@ private fun HomeDonePreview() {
             onCheck = {},
         )
     }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000, heightDp = 900)
+@Composable
+private fun HomeMilestonePreview() {
+    HoldoutTheme {
+        HomeScreen(FRESH.copy(remainingToday = 0, bankedToday = 25, completedToday = true, streak = 7, milestoneToday = true), onStart = {}, onEvent = {}, onJoin = {}, onCheck = {})
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000, heightDp = 900)
+@Composable
+private fun HomeNewPhonePreview() {
+    HoldoutTheme { HomeScreen(FRESH.copy(newPhone = true), onStart = {}, onEvent = {}, onJoin = {}, onCheck = {}) }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000, heightDp = 900)

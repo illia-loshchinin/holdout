@@ -167,6 +167,9 @@ class SittingShots {
     fun dayCompleteDaily() = compose.shoot("sitting", "day-complete-daily") { DayCompleteContent(dailyComplete, {}, {}) }
 
     @Test
+    fun dayCompleteDailyMilestone() = compose.shoot("sitting", "day-complete-daily-milestone") { DayCompleteContent(dailyComplete.copy(streak = StreakAfter(days = 7, grew = true)), {}, {}) }
+
+    @Test
     fun dayCompleteDailyNoOffer() = compose.shoot("sitting", "day-complete-daily-no-offer") { DayCompleteContent(dailyComplete.copy(offer = null), {}, {}) }
 
     @Test

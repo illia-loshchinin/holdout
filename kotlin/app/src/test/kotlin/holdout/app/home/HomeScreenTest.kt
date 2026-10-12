@@ -113,6 +113,41 @@ class HomeScreenTest {
         text("No banked reps on this device today. 25 to go.").assertIsDisplayed()
     }
 
+    // ---- a streak milestone (Gap 2, T1) -------------------------------------------------------------
+
+    private val milestoneDone = fresh.copy(remainingToday = 0, bankedToday = 25, completedToday = true, streak = 7, milestoneToday = true)
+
+    @Test
+    fun `a milestone day shows the chip in its milestone state with the line under it`() {
+        show(milestoneDone)
+        compose.onNodeWithContentDescription("7-day streak, milestone").assertExists()
+        compose.onNodeWithContentDescription("7-day streak, extended today").assertDoesNotExist()
+        text("A week, every day. That's how habits start.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the milestone line follows the day - a hundredth multiple says still here`() {
+        show(milestoneDone.copy(streak = 200))
+        compose.onNodeWithContentDescription("200-day streak, milestone").assertExists()
+        text("200 days. Still here, still going.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a plain day keeps the extended-today chip and no milestone line`() {
+        show(milestoneDone.copy(streak = 8, milestoneToday = false))
+        compose.onNodeWithContentDescription("8-day streak, extended today").assertExists()
+        compose.onNodeWithContentDescription("8-day streak, milestone").assertDoesNotExist()
+        text("A week, every day. That's how habits start.").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the next day at the same count is the plain chip again`() {
+        // 7 days, but today's day is not done: no milestone state, no line.
+        show(fresh.copy(streak = 7, milestoneToday = false))
+        compose.onNodeWithContentDescription("7-day streak").assertExists()
+        text("A week, every day. That's how habits start.").assertDoesNotExist()
+    }
+
     @Test
     fun `no streak shows a broken flame at zero, and a held freeze is said`() {
         show(fresh.copy(streak = 0))

@@ -198,6 +198,54 @@ class DayCompleteScreenTest {
         compose.onNodeWithText("day streak", substring = true).assertDoesNotExist()
     }
 
+    // ---- a streak milestone (Gap 2, S6) ---------------------------------------------------------------
+
+    @Test
+    fun `a day that reaches seven shows the milestone state, the headline and the line, in place of the plain streak line`() {
+        show(dailyUi(streak = StreakAfter(days = 7, grew = true)))
+
+        compose.onNodeWithContentDescription("7-day streak, milestone").assertExists()
+        compose.onNodeWithText("7-day streak").assertIsDisplayed()
+        compose.onNodeWithText("A week, every day. That's how habits start.").assertIsDisplayed()
+        compose.onNodeWithText("day streak · +1").assertDoesNotExist()
+        compose.onNodeWithText("day streak").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a hundredth multiple shows the still-here line`() {
+        show(dailyUi(streak = StreakAfter(days = 300, grew = true)))
+
+        compose.onNodeWithText("300-day streak").assertIsDisplayed()
+        compose.onNodeWithText("300 days. Still here, still going.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a plain day keeps the plain streak line and no milestone`() {
+        show(dailyUi(streak = StreakAfter(days = 8, grew = true)))
+
+        compose.onNodeWithContentDescription("8-day streak").assertExists()
+        compose.onNodeWithContentDescription("8-day streak, milestone").assertDoesNotExist()
+        compose.onNodeWithText("day streak · +1").assertIsDisplayed()
+        compose.onNodeWithText("8-day streak").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a streak already at a milestone that did not grow today shows the plain line`() {
+        show(dailyUi(streak = StreakAfter(days = 7, grew = false)))
+
+        compose.onNodeWithContentDescription("7-day streak, milestone").assertDoesNotExist()
+        compose.onNodeWithText("day streak").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the milestone page still has the upsell and its button`() {
+        show(dailyUi(streak = StreakAfter(days = 7, grew = true)))
+
+        compose.onNodeWithText("Stake on yourself next").assertIsDisplayed()
+        compose.onNodeWithText("Done", ignoreCase = false).performClick()
+        assertEquals(1, finished)
+    }
+
     @Test
     fun `the plain finished screen of Holdout Lab is just the count, done and its button`() {
         show(DayCompleteUi(header = null, reps = 25, holdout = null, streak = null, offer = null, button = "Back to Lab"))
