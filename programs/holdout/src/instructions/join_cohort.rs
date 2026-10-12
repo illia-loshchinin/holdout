@@ -125,6 +125,11 @@ pub(crate) fn handler(ctx: Context<JoinCohort>, tier: u8) -> Result<()> {
         (Some(membership), Some(cohort), Some(key)) => Some((&***membership, key, &***cohort)),
         _ => None,
     };
+    let comeback = guards::comeback_if_open(
+        &ctx.accounts.profile,
+        ctx.accounts.cohort.league_id,
+        comeback,
+    );
     guards::require_joinable(&ctx.accounts.cohort, &member, comeback, now)?;
     guards::require_tier(tier)?;
 
