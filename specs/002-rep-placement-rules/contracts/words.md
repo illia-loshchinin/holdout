@@ -71,6 +71,12 @@ Three fixes, `Preflight.KNEES_FIX`, `KNEES_TURN_LEFT_FIX`, `KNEES_TURN_RIGHT_FIX
 
 The coach ranks the two turn fixes below a failing Whole body in frame pill, so a body partly out of the picture says "Further" (or the head's fix) first.
 
+## Tip sheet (FR-020a) — the pre-flight page, every sitting kind *(added 2026-10-12)*
+
+- **"Still not green? Tips"** — a text button under the fix sentence, shown from the moment the checks have been short of all green for 30 seconds in total in one sitting, or a check that was green has turned red for the third time (whichever is first), until the sitting ends; it never opens the sheet by itself
+- **"Getting the checks green"** — the bottom sheet's title; one row per pill in the pills' order (Lighting · Whole body in frame · Knees visible · Camera view · Background still), each the pill's label and that check's own fix sentence from the sections above — no new per-check copy; a row whose check is red now is marked in the warning colour, with "Not green yet" for screen readers
+- **"Open the set-up guide"** — reopens the guide for this sitting's stakes, as the page's link does; **"Back to the checks"** — closes the sheet. Back, a tap outside and a drag down close it too; the checks keep running underneath
+
 ## Feedback (FR-021)
 
 - A short tone and a rising "+1" per counted rep; the banked chime instead on every tenth.
