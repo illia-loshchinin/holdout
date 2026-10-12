@@ -628,6 +628,37 @@ class NavTransitionTest {
         assertFalse(s.showsBar)
     }
 
+    @Test
+    fun `a Holdout seen running then claimable, settling skipped, still leads to the claim`() {
+        // On Today: to Standing, then the claim.
+        val fromToday = running().then(NavEvent.ChainMoved(mapOf(A to claimable())))
+        assertEquals(Tab.Standing, fromToday.tab)
+        assertEquals(Screen.Claim(A), fromToday.top)
+        // On its detail: the claim on top.
+        val onDetail = running().then(NavEvent.SelectTab(Tab.Holdouts), NavEvent.Open(Screen.Detail(A)), NavEvent.ChainMoved(mapOf(A to claimable())))
+        assertEquals(Screen.Claim(A), onDetail.top)
+    }
+
+    @Test
+    fun `a join that lands in a Holdout already under way goes to Today, not You're in`() {
+        val inLate = joining().then(NavEvent.TxProgress(TxPhase.Done(TxOutcome.Landed("sig"))))
+        assertTrue(inLate.tx?.youreIn == true)
+        val today = inLate.then(NavEvent.JoinedUnderWay)
+        assertNull(today.tx)
+        assertEquals(Tab.Today, today.tab)
+        assertNull(today.top)
+        assertEquals(home(), home().then(NavEvent.JoinedUnderWay), "nothing to leave without You're in")
+    }
+
+    @Test
+    fun `a link to a tab root opens the root, a bar tap the tab as it was left`() {
+        val roster = running().then(NavEvent.SelectTab(Tab.Standing), NavEvent.Open(Screen.Roster(A)), NavEvent.SelectTab(Tab.Today))
+        assertEquals(Screen.Roster(A), roster.then(NavEvent.SelectTab(Tab.Standing)).top, "the bar keeps the stack")
+        val linked = roster.then(NavEvent.GoToRoot(Tab.Standing))
+        assertEquals(Tab.Standing, linked.tab)
+        assertNull(linked.top, "the crowd strip promises the Standing root")
+    }
+
     private companion object {
         const val A = "CohortA"
         const val B = "CohortB"

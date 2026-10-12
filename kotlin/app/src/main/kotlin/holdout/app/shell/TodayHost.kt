@@ -69,7 +69,7 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
             onStart = { startDay(h, stage.dayIndex) },
             onSubmit = { submitDayOf(h, it) },
             // Its standing is the Standing tab's root.
-            onDetail = { dispatch(NavEvent.SelectTab(Tab.Standing)) },
+            onDetail = { dispatch(NavEvent.GoToRoot(Tab.Standing)) },
             onGetTokens = { dispatch(NavEvent.OpenFaucet) },
             modifier = modifier,
             newPhone = newPhone,

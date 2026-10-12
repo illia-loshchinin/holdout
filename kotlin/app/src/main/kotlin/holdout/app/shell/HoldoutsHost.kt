@@ -128,7 +128,7 @@ internal fun Shared.ForfeitHost(id: String, modifier: Modifier = Modifier) {
             {
                 dispatch(
                     if (holdout.core.Derive.status(place.cohort, n) == holdout.core.CohortStatus.Running) {
-                        NavEvent.SelectTab(holdout.app.nav.Tab.Today)
+                        NavEvent.GoToRoot(holdout.app.nav.Tab.Today)
                     } else {
                         NavEvent.Open(holdout.app.nav.Screen.Lobby(place.address.base58()))
                     },

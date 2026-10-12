@@ -135,8 +135,11 @@ sealed interface NavEvent {
 
     data object TourDone : NavEvent
 
-    /** A tap on the bar — or a link that names a tab root ("Join one to have a crowd", H0's running card). */
+    /** A tap on the bar: the tab as it was left, or its root when it is the tab shown. */
     data class SelectTab(val tab: Tab) : NavEvent
+
+    /** A link that names a tab root ("Join one to have a crowd", H0's running card, Today's crowd strip): that root, whatever the tab kept. */
+    data class GoToRoot(val tab: Tab) : NavEvent
 
     /** Pushes [screen] on the shown tab. */
     data class Open(val screen: Screen) : NavEvent
@@ -181,6 +184,9 @@ sealed interface NavEvent {
     /** "Done" after a claim: H0. */
     data object TxDone : NavEvent
 
+    /** A join that landed in a Holdout already under way (a late comeback join, FR-037e): no lobby to wait in, so Today, its day. */
+    data object JoinedUnderWay : NavEvent
+
     /** You're in → "See the lobby". */
     data object SeeLobby : NavEvent
 
@@ -219,6 +225,7 @@ object Nav {
                 e.tab == s.tab -> s.copy(stacks = s.stacks - e.tab)
                 else -> s.copy(tab = e.tab)
             }
+            is NavEvent.GoToRoot -> if (s.fullScreen || s.sheet != null) s else s.copy(tab = e.tab, stacks = s.stacks - e.tab)
             is NavEvent.Open -> if (s.fullScreen || s.sheet != null || s.top == e.screen) s else s.push(e.screen)
             is NavEvent.Swap -> if (s.fullScreen || s.top == null) s else s.withStack(s.stack.dropLast(1) + e.screen)
             NavEvent.Back -> back(s) ?: s
@@ -248,6 +255,7 @@ object Nav {
             NavEvent.TxDone -> s.tx?.let { tx ->
                 s.copy(tx = null, sheet = null, tab = Tab.Holdouts, stacks = s.without { it == Screen.Claim(tx.kind.cohort) } - Tab.Holdouts)
             } ?: s
+            NavEvent.JoinedUnderWay -> if (s.tx?.youreIn == true) s.copy(tx = null, sheet = null, tab = Tab.Today, stacks = s.stacks - Tab.Today) else s
             NavEvent.SeeLobby -> s.tx?.let { tx -> s.copy(tx = null, sheet = null).push(Screen.Lobby(tx.kind.cohort)) } ?: s
             NavEvent.SeeOpenHoldouts -> if (s.tx == null) s else s.copy(tx = null, sheet = null, tab = Tab.Holdouts, stacks = s.stacks - Tab.Holdouts)
             NavEvent.WhatHappensNow -> s.tx?.let { tx ->
@@ -336,8 +344,11 @@ object Nav {
                 before is Stage.Active && now is Stage.Forfeited && n.tab == Tab.Today && n.onRoot -> n = n.push(Screen.Forfeit(cohort))
                 // T2 -. last day passed .-> H4, the Standing root.
                 before is Stage.Active && now == Stage.Settling && n.tab == Tab.Today && n.onRoot -> n = n.copy(tab = Tab.Standing, stacks = n.stacks - Tab.Standing)
-                // H4 -. settled .-> H7
-                before == Stage.Settling && now is Stage.ReadyToClaim && (n.top == Screen.Detail(cohort) || (n.tab == Tab.Standing && n.onRoot)) -> n = n.push(Screen.Claim(cohort))
+                // T2 -. ended and settled between two reads .-> H4 then H7: as if it had passed through settling.
+                before is Stage.Active && now is Stage.ReadyToClaim && n.tab == Tab.Today && n.onRoot ->
+                    n = n.copy(tab = Tab.Standing, stacks = n.stacks - Tab.Standing).push(Screen.Claim(cohort))
+                // H4 -. settled .-> H7 (from settling, or straight from the last day when the reads skipped it)
+                (before == Stage.Settling || before is Stage.Active) && now is Stage.ReadyToClaim && (n.top == Screen.Detail(cohort) || (n.tab == Tab.Standing && n.onRoot)) -> n = n.push(Screen.Claim(cohort))
             }
         }
         return n

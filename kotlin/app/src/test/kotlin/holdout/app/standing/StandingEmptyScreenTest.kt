@@ -55,7 +55,7 @@ class StandingEmptyScreenTest {
         compose.onNodeWithText("Everyone who starts together thins out together.").assertIsDisplayed()
 
         compose.onNodeWithText("See Holdouts").performClick()
-        assertEquals(listOf<NavEvent>(NavEvent.SelectTab(Tab.Holdouts)), events)
+        assertEquals(listOf<NavEvent>(NavEvent.GoToRoot(Tab.Holdouts)), events)
     }
 
     @Test
