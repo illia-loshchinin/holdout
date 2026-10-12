@@ -1,5 +1,9 @@
 package holdout.app.sitting
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -40,7 +44,15 @@ class SetupGuideTest {
         done = emptyList()
         compose.setContent {
             HoldoutTheme {
-                SetupGuide(stakes = stakes, detected = detected, levelLabel = levelLabel, onDone = { done = done + it })
+                var dontShowAgain by remember { mutableStateOf(false) }
+                SetupGuide(
+                    stakes = stakes,
+                    detected = detected,
+                    levelLabel = levelLabel,
+                    dontShowAgain = dontShowAgain,
+                    onDontShowAgainChange = { dontShowAgain = it },
+                    onDone = { done = done + it },
+                )
             }
         }
     }

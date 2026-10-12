@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Sitting
+import holdout.app.sitting.SittingCopy
 import holdout.app.sitting.SittingScreen
 import holdout.app.sitting.SittingViewModel
 import holdout.app.sittingNote
@@ -130,6 +131,7 @@ internal fun Shared.SittingHost(s: Sitting, modifier: Modifier = Modifier) {
                 finishLabel = if (note == null && !onChain) "Submit day ${s.day + 1}" else "Back to today",
                 finishNote = note,
                 headerLabel = Format.headerLabel(h.cohort, s.day + 1),
+                levelLabel = SittingCopy.levelLabel(h.cohort),
                 onChain = onChain,
             )
         }

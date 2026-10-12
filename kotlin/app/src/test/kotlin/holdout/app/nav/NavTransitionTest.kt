@@ -482,14 +482,44 @@ class NavTransitionTest {
     }
 
     @Test
-    fun `N-78 H3 Leave landed - H0`() {
-        val s = home().then(
+    fun `N-78 H3 Leave landed - the lobby stays to say You left, Back to Holdouts goes to H0`() {
+        val left = home().then(
+            NavEvent.ChainMoved(mapOf(A to Stage.Lobby)),
+            NavEvent.SelectTab(Tab.Holdouts),
+            NavEvent.Open(Screen.Lobby(A)),
+            NavEvent.ChainMoved(mapOf(A to Stage.NotJoined)),
+        )
+        // Still the screen shown, so it can say the stake is back in the wallet.
+        assertEquals(Screen.Lobby(A), left.top)
+        val s = left.then(NavEvent.Back)
+        assertEquals(Tab.Holdouts, s.tab)
+        assertTrue(s.onRoot)
+        assertTrue(s.stacks.values.none { Screen.Lobby(A) in it })
+    }
+
+    @Test
+    fun `N-78 H3 Leave landed from a lobby opened on Today - Back to Holdouts still lands on H0`() {
+        val left = home().then(
             NavEvent.ChainMoved(mapOf(A to Stage.Lobby)),
             NavEvent.Open(Screen.Lobby(A)),
             NavEvent.ChainMoved(mapOf(A to Stage.NotJoined)),
         )
+        assertEquals(Screen.Lobby(A), left.top)
+        val s = left.then(NavEvent.Back)
         assertEquals(Tab.Holdouts, s.tab)
         assertTrue(s.onRoot)
+        assertTrue(s.stacks.values.none { Screen.Lobby(A) in it })
+    }
+
+    @Test
+    fun `a lobby that is not shown when the leave lands is taken off the stacks`() {
+        val s = home().then(
+            NavEvent.ChainMoved(mapOf(A to Stage.Lobby)),
+            NavEvent.SelectTab(Tab.Holdouts),
+            NavEvent.Open(Screen.Lobby(A)),
+            NavEvent.SelectTab(Tab.Today),
+            NavEvent.ChainMoved(mapOf(A to Stage.NotJoined)),
+        )
         assertTrue(s.stacks.values.none { Screen.Lobby(A) in it })
     }
 

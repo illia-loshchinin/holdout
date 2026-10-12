@@ -72,12 +72,13 @@ class NavJourneyTest {
     }
 
     @Test
-    fun `J4 UC-5 change your mind - H0, lobby, leave lands, H0`() {
+    fun `J4 UC-5 change your mind - H0, lobby, leave lands, Back to Holdouts, H0`() {
         val s = home().then(
             NavEvent.ChainMoved(mapOf(A to Stage.Lobby)),
             NavEvent.SelectTab(Tab.Holdouts),
             NavEvent.Open(Screen.Lobby(A)),
             NavEvent.ChainMoved(mapOf(A to Stage.NotJoined)),
+            NavEvent.Back,
         )
         assertEquals(Tab.Holdouts, s.tab)
         assertTrue(s.onRoot)

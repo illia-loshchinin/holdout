@@ -584,10 +584,10 @@ class InMemoryStore : Store {
         .toMap()
 }
 
-/** Key prefix of a kept Seeker ID entry: `seekerName:<wallet base58>` (spec 003 data-model §2). */
 /** What MMKV reads for a key never written: no sitting marker (a real start time is never negative). */
 private const val NO_MARKER = -1L
 
+/** Key prefix of a kept Seeker ID entry: `seekerName:<wallet base58>` (spec 003 data-model §2). */
 private const val SEEKER_NAME = "seekerName:"
 
 /** Key prefix of a Seeker Genesis Token confirmation: `seeker:<wallet base58>` (001 data-model §4). */

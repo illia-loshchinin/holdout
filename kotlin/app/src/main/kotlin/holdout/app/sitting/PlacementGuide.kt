@@ -1,5 +1,6 @@
 package holdout.app.sitting
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -88,11 +89,16 @@ fun BoxScope.SetupSheet(
     onDone: (dontShowAgain: Boolean) -> Unit,
     levelLabel: String = SittingCopy.levelLabel(stakes),
 ) {
-    HoldoutSheet(onDismiss = { onDone(false) }, dismissLabel = "Close the set-up guide") {
+    // Hoisted here so every way out carries the tick: the buttons, a scrim tap, a drag down and system Back.
+    var dontShowAgain by remember { mutableStateOf(false) }
+    BackHandler { onDone(dontShowAgain) }
+    HoldoutSheet(onDismiss = { onDone(dontShowAgain) }, dismissLabel = "Close the set-up guide") {
         SetupGuide(
             stakes = stakes,
             detected = detected,
             levelLabel = levelLabel,
+            dontShowAgain = dontShowAgain,
+            onDontShowAgainChange = { dontShowAgain = it },
             onDone = onDone,
             modifier = Modifier.weight(1f),
         )
@@ -130,11 +136,12 @@ internal fun SetupGuide(
     stakes: Stakes,
     detected: CameraView?,
     levelLabel: String,
+    dontShowAgain: Boolean,
+    onDontShowAgainChange: (Boolean) -> Unit,
     onDone: (dontShowAgain: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var page by remember { mutableIntStateOf(0) }
-    var dontShowAgain by remember { mutableStateOf(false) }
     val pages = listOf("1. Phone", "2. Body", "3. Start")
 
     // One scroll offset for the whole sheet would carry a page's scroll to the next page: every page opens at the top.
@@ -173,12 +180,12 @@ internal fun SetupGuide(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { dontShowAgain = !dontShowAgain },
+                .clickable { onDontShowAgainChange(!dontShowAgain) },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(
                 checked = dontShowAgain,
-                onCheckedChange = { dontShowAgain = it },
+                onCheckedChange = onDontShowAgainChange,
                 colors = CheckboxDefaults.colors(checkedColor = HoldoutColors.Accent),
             )
             Text("Don't show this again", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)

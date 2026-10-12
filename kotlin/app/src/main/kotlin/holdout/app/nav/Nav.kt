@@ -265,6 +265,9 @@ object Nav {
         s.sitting != null -> null
         s.tour != null -> if (s.tour.firstRun) null else s.copy(tour = null)
         s.sheet != null -> s.copy(sheet = (s.sheet as? Sheet.Faucet)?.returnTo)
+        // "You left" on the lobby: Back to Holdouts is H0, wherever the lobby was opened from.
+        (s.top as? Screen.Lobby)?.let { s.stages[it.cohort] == Stage.NotJoined } == true ->
+            s.copy(tab = Tab.Holdouts, stacks = s.without { it == s.top } - Tab.Holdouts)
         s.stack.isNotEmpty() -> s.withStack(s.stack.dropLast(1))
         s.tab != Tab.Today -> s.copy(tab = Tab.Today)
         else -> null
@@ -315,6 +318,8 @@ object Nav {
             val wasLobby = before == Stage.Lobby || before == Stage.LobbyLocked
             val lobbyShown = n.visible(lobby)
             if (!inLobby && n.stacks.values.any { lobby in it }) {
+                // A leave that lands under the lobby shown: it stays to say "You left" until Back to Holdouts (see [back]).
+                if (lobbyShown && now == Stage.NotJoined) continue
                 n = n.copy(stacks = n.without { it == lobby })
                 // Left (H3 Leave → H0) or started (H3 → T2).
                 if (lobbyShown) {

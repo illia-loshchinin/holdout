@@ -1,6 +1,8 @@
 package holdout.app.tour
 
 import android.animation.ValueAnimator
+import android.content.Context
+import android.util.Log
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -39,9 +41,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Density
+import holdout.app.BuildConfig
 import holdout.app.ui.theme.HoldoutColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.InputStream
 
 /** Where the figure is in its 12 s loop, read at draw time so a frame never recomposes anything. */
 internal class FigureClock(val still: Boolean, private val millis: State<Float>?) {
@@ -82,7 +86,7 @@ internal fun rememberFigureClock(): FigureClock {
 internal fun TourFigure(clock: FigureClock, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val data by produceState<FigureData?>(null) {
-        value = withContext(Dispatchers.Default) { runCatching { context.assets.open(ASSET).use { FigureData.parse(it) } }.getOrNull() }
+        value = withContext(Dispatchers.Default) { FigureCache.of(context).get() }
     }
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -258,6 +262,47 @@ private inline fun paint(style: FigureStyle, block: (Color?, Pair<Color, Stroke>
 }
 
 internal const val ASSET = "tour_figure.txt"
+
+/**
+ * The parsed figure, kept for the life of the process: [FigureData] is immutable and the asset
+ * is about 650 KB, so card 3 must not read and parse it again on every entry. A load that fails is
+ * reported through [report]; a debug build also throws it, so a missing or malformed asset is
+ * seen, not an empty canvas. A failed load is not kept, so the next entry tries again.
+ */
+internal class FigureCache(
+    private val open: () -> InputStream,
+    private val debug: Boolean,
+    private val report: (Throwable) -> Unit,
+) {
+    private var data: FigureData? = null
+
+    @Synchronized
+    fun get(): FigureData? {
+        data?.let { return it }
+        return try {
+            open().use { FigureData.parse(it) }.also { data = it }
+        } catch (e: Exception) {
+            report(e)
+            if (debug) throw e
+            null
+        }
+    }
+
+    companion object {
+        private var shared: FigureCache? = null
+
+        /** The process's one cache, over the app's assets. */
+        @Synchronized
+        fun of(context: Context): FigureCache = shared ?: context.applicationContext.let { app ->
+            FigureCache(
+                open = { app.assets.open(ASSET) },
+                debug = BuildConfig.DEBUG,
+                report = { Log.e("TourFigure", "The tour figure could not be loaded from $ASSET", it) },
+            ).also { shared = it }
+        }
+    }
+}
+
 private const val WIDTH = 400f
 private const val HEIGHT = 240f
 private const val DIGIT_SIZE = 64f

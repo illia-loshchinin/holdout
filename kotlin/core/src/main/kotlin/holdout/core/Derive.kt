@@ -418,12 +418,15 @@ object Derive {
      * what those members' forfeits added, and the standing stake a day ago is
      * today's plus their stakes, so a member's share a day ago follows.
      */
-    fun sinceYesterday(c: CohortSnapshot, members: List<MembershipSnapshot>, now: Long): SinceYesterday {
+    fun sinceYesterday(c: CohortSnapshot, members: List<MembershipSnapshot>, now: Long): SinceYesterday = sinceYesterday(c, members, now, projectedPool(c, members, now), standingStake(c, members, now))
+
+    /** [sinceYesterday] from a screen's [CohortFigures], which already hold today's pool and standing stake: no second pass over the roster for them. */
+    fun sinceYesterday(figures: CohortFigures, members: List<MembershipSnapshot>): SinceYesterday = sinceYesterday(figures.cohort, members, figures.now, figures.projectedPool, figures.standingStake)
+
+    private fun sinceYesterday(c: CohortSnapshot, members: List<MembershipSnapshot>, now: Long, poolNow: ULong, stakeNow: ULong): SinceYesterday {
         val dropped = members.filter { m ->
             !standing(m, c, now) && m.daysCompleted < c.durationDays && deadlineOf(c, m.daysCompleted) > now - c.dayLength
         }
-        val poolNow = projectedPool(c, members, now)
-        val stakeNow = standingStake(c, members, now)
         val droppedPool = dropped.fold(0uL) { sum, m -> sum + Settlement.forfeitSplit(m.stake).pool }
         val droppedStake = dropped.fold(0uL) { sum, m -> sum + m.stake }
         return SinceYesterday(

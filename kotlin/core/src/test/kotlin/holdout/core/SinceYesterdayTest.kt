@@ -44,6 +44,17 @@ class SinceYesterdayTest {
     }
 
     @Test
+    fun `built from the figures already computed it is the same answer`() {
+        val c = cohort(pool = 40uL * skr)
+        val members = listOf(member(1, days = 1), member(2, days = 2), member(3, days = 2))
+        val figures = Derive.figures(c, members, now)
+        val direct = Derive.sinceYesterday(c, members, now)
+        val shared = Derive.sinceYesterday(figures, members)
+        assertEquals(direct.dropped, shared.dropped)
+        members.forEach { assertEquals(direct.shareGain(it), shared.shareGain(it)) }
+    }
+
+    @Test
     fun `a member who dropped more than a day ago is not counted`() {
         val c = cohort()
         // Missed day 0's deadline (start + 1 day - 1), a day and an hour before now: older than a day.
