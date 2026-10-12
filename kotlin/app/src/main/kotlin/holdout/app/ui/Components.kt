@@ -125,8 +125,11 @@ object Format {
     fun lostStakeSplit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% to $name boosts and comebacks, " +
         "20\u00a0% to the project. If nobody finishes, the pool goes to the project too."
 
-    /** The same split on the forfeit screen, under its **Stake lost** row (ruling G5). */
-    fun lostStakeSplitForfeit(c: holdout.core.CohortSnapshot): String = "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% to ${level(c)} boosts and comebacks, " +
+    /** What the boosts in the fee sentence are named after: the level, or "short test Holdout" for a test Holdout (FR-044a); the stake sheet and the forfeit screen both use it. */
+    fun boostName(c: holdout.core.CohortSnapshot, test: Boolean): String = if (test) "short test Holdout" else level(c)
+
+    /** The same split on the forfeit screen, under its **Stake lost** row (ruling G5); [name] as in [lostStakeSplit]. */
+    fun lostStakeSplitForfeit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% to $name boosts and comebacks, " +
         "20\u00a0% to the project. If nobody finishes, the pool goes to the project too."
 
     /** "Prize boost: up to 480 SKR", on an offer: "up to", never a promise (ruling G6). The card already names the level. */
@@ -178,7 +181,7 @@ object Format {
      */
     fun opensForJoining(opensAt: Long, now: Long): String = if (opensAt > now) "opens for joining in ${countdown(opensAt - now)}" else "opens for joining shortly"
 
-    /** `3d 4h`, `4h 06m`, `12m 30s`: a countdown, never a date (constitution VI). */
+    /** `3d 4h`, `4h 06m`, `12m 30s`, `58s` under a minute: a countdown, never a date (constitution VI). */
     fun countdown(seconds: Long): String {
         val s = seconds.coerceAtLeast(0)
         val days = s / 86_400
@@ -187,7 +190,8 @@ object Format {
         return when {
             days > 0 -> "${days}d ${hours}h"
             hours > 0 -> "%dh %02dm".format(hours, minutes)
-            else -> "%dm %02ds".format(minutes, s % 60)
+            minutes > 0 -> "%dm %02ds".format(minutes, s % 60)
+            else -> "${s % 60}s"
         }
     }
 

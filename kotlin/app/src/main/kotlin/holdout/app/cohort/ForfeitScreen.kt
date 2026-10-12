@@ -18,6 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import holdout.app.chain.Holdout
 import holdout.app.ui.Body
 import holdout.app.ui.ChainCheckBox
@@ -27,8 +30,8 @@ import holdout.app.ui.HoldoutCard
 import holdout.app.ui.KeyValueRow
 import holdout.app.ui.Notice
 import holdout.app.ui.PrimaryButton
-import holdout.app.ui.QuietAction
 import holdout.app.ui.ScreenHeader
+import holdout.app.ui.SecondaryButton
 import holdout.app.ui.SectionLabel
 import holdout.app.ui.TestCohortBadge
 import holdout.app.ui.theme.AmountStyle
@@ -54,12 +57,12 @@ import holdout.core.Stage
  *  ┌ 189 / 312 still standing        48,200 SKR ┐        summary card · DayStrip
  *  └ ▮▮▮▮▮▮▮▮▮▮▮▮▯▯▯▯▯▯▯▯▯  Day 1 · You: out on day 12 · Day 21 ┘
  *  You missed day 12.                                    headline
- *  It didn't reach the chain in time. Your run has ended.
+ *  It didn't reach the chain in time. Your run has ended.      (a day never finished: "You didn't finish day 12 before its deadline. …")
  *  ┌ Stake lost                       1,250 SKR ┐        KeyValueRow + the fee sentence
- *  ┌ Your 12-day streak is still alive. ┐                 success-border card
  *  ┌ COMEBACK  Win back up to 250 SKR … ┐                the offer card, by state
  *  [ Join the next Habit · 21-day ]                       the one primary button
- *  Or keep the streak: today's Daily 25                   QuietAction
+ *  Your 12-day streak is still alive.                     one quiet line, no card
+ *  [ Do today's Daily 25 ]                                SecondaryButton, only while today's is not done
  * ```
  *
  * With a comeback [offer] (FR-037g) the way back is its card, from the forfeit
@@ -96,6 +99,10 @@ fun ForfeitScreen(
     members: List<MembershipSnapshot>? = null,
     /** Opens the place the member holds in a round of the offer; null shows no such button. */
     onSeePlace: (() -> Unit)? = null,
+    /** The missed day was finished on this phone and never reached the chain: the cause sentence says so (FR-024b, ES-3b). */
+    doneOnPhone: Boolean = false,
+    /** Today's Daily 25 is done on this phone: the Daily 25 button and its sentences give way. */
+    daily25Done: Boolean = false,
 ) {
     val c = h.cohort
     val figures = members?.let { Derive.figures(c, it, now) }
@@ -116,25 +123,30 @@ fun ForfeitScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
                 Text(ForfeitText.headline(stage.daysLasted), style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
-                Body(ForfeitText.BODY)
+                Body(ForfeitText.body(stage.daysLasted, doneOnPhone))
             }
 
             HoldoutCard {
                 h.membership?.let { KeyValueRow("Stake lost", Format.skr(it.stake)) }
-                Text(Format.lostStakeSplitForfeit(c), style = LabelStyle, color = HoldoutColors.TextTertiary)
+                Text(Format.lostStakeSplitForfeit(c, name = Format.boostName(c, h.isTest)), style = LabelStyle, color = HoldoutColors.TextTertiary)
                 if (!stage.recorded) Text(ForfeitText.PENDING, style = LabelStyle, color = HoldoutColors.TextTertiary)
             }
 
-            SuccessCard {
-                Text(ForfeitText.streakTitle(streak), style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
-                Body(ForfeitText.STREAK_BODY)
+            val copy = offer?.let { ForfeitText.offer(it, c, now, joinBlocker) }
+            if (copy != null) {
+                OfferCard(copy)
+            } else {
+                ForfeitText.noOffer(c, onNextHoldout != null, dailyOpen = !daily25Done)?.let { words ->
+                    if (!daily25Done) SectionLabel("Two ways back")
+                    Body(words)
+                }
             }
 
-            val copy = offer?.let { ForfeitText.offer(it, c, now, joinBlocker) }
-            if (copy != null) OfferCard(copy) else SectionLabel("Two ways back")
-            if (copy == null) Body(ForfeitText.noOffer(c, onNextHoldout != null))
+            Buttons(h, offer, joinBlocker, onNextHoldout, onJoin, onSeePlace)
 
-            Buttons(h, offer, joinBlocker, onDaily25, onNextHoldout, onJoin, onSeePlace)
+            // A run ending never ends the streak: one quiet line, not a card.
+            Text(ForfeitText.streakTitle(streak), style = LabelStyle, color = HoldoutColors.TextSecondary)
+            if (!daily25Done) SecondaryButton("Do today's Daily 25", onDaily25)
         }
     }
 }
@@ -174,52 +186,56 @@ private fun OfferCard(copy: ForfeitText.OfferCopy) {
         Text(copy.label.uppercase(), style = LabelStyle, color = HoldoutColors.Success)
         copy.headline?.let { Text(it, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary) }
         Body(copy.body)
-        copy.timing?.let { Text(it, style = AmountStyle.copy(fontSize = LabelStyle.fontSize, lineHeight = LabelStyle.lineHeight), color = HoldoutColors.Accent) }
+        copy.timing?.let { Text(timingLine(it, copy.countdowns), style = LabelStyle, color = HoldoutColors.Accent) }
         copy.after?.let { Text(it, style = LabelStyle, color = HoldoutColors.TextTertiary) }
         copy.notice?.let { Notice(it, warning = true) }
     }
 }
 
-/** The one primary button, then the quiet way to keep the streak (DS: one primary per screen). */
+/** Mono is for countdowns (design book): the words stay in the text face, only each of the [countdowns] in [text] is mono. */
+private fun timingLine(text: String, countdowns: List<String>): AnnotatedString = buildAnnotatedString {
+    val mono = AmountStyle.toSpanStyle().copy(fontSize = LabelStyle.fontSize)
+    var at = 0
+    for (countdown in countdowns) {
+        val i = text.indexOf(countdown, at)
+        if (i < 0) break
+        append(text.substring(at, i))
+        withStyle(mono) { append(countdown) }
+        at = i + countdown.length
+    }
+    append(text.substring(at))
+}
+
+/** The one primary button, the way back into a Holdout; the Daily 25 is its own secondary button below the streak note (DS: one primary per screen). */
 @Composable
 private fun ColumnScope.Buttons(
     h: Holdout,
     offer: Comeback.Offer?,
     joinBlocker: Journey.JoinBlocker?,
-    onDaily25: () -> Unit,
     onNextHoldout: (() -> Unit)?,
     onJoin: () -> Unit,
     onSeePlace: (() -> Unit)?,
 ) {
     val c = h.cohort
-    val keepStreak = "Or keep the streak: today's Daily 25"
     val nextCohort = offer?.next?.entry?.cohort
     when {
-        offer == null -> {
-            if (onNextHoldout != null) {
-                PrimaryButton(ForfeitText.nextHoldout(c, h.isTest), onNextHoldout)
-                QuietAction(keepStreak, onDaily25)
-            } else {
-                PrimaryButton("Today's Daily 25", onDaily25)
-            }
-        }
-        offer.held != null && onSeePlace != null -> {
-            PrimaryButton("See your place", onSeePlace)
-            QuietAction(keepStreak, onDaily25)
-        }
-        offer.held == null && nextCohort != null && joinBlocker == null -> {
-            PrimaryButton("Join the next ${Format.level(nextCohort)}", onJoin)
-            QuietAction(keepStreak, onDaily25)
-        }
-        else -> PrimaryButton("Today's Daily 25", onDaily25)
+        offer == null -> if (onNextHoldout != null) PrimaryButton(ForfeitText.nextHoldout(c, h.isTest), onNextHoldout)
+        offer.held != null && onSeePlace != null -> PrimaryButton("See your place", onSeePlace)
+        offer.held == null && nextCohort != null && joinBlocker == null -> PrimaryButton("Join the next ${Format.level(nextCohort)}", onJoin)
     }
 }
 
 /** Every word the forfeit says, pure so it can be tested (no dates, no dollar figures; rulings G3–G5, D-D3, D-D4). */
 internal object ForfeitText {
-    const val BODY = "It didn't reach the chain in time. Your run has ended."
+    private const val ENDED = "Your run has ended."
+
+    /** The cause, by what this phone knows: a day finished but not sent reached the chain too late; a day never finished was not finished by its deadline. */
+    fun body(daysLasted: Int, doneOnPhone: Boolean): String = if (doneOnPhone) {
+        "It didn't reach the chain in time. $ENDED"
+    } else {
+        "You didn't finish day ${daysLasted + 1} before its deadline. $ENDED"
+    }
     const val PENDING = "Final as of the deadline. The chain shows it shortly."
-    const val STREAK_BODY = "A run can end; your streak didn't. That's the habit, and it's yours."
 
     fun headline(daysLasted: Int): String = "You missed day ${daysLasted + 1}."
 
@@ -228,10 +244,11 @@ internal object ForfeitText {
     fun nextHoldout(c: CohortSnapshot, test: Boolean): String = if (test) "The next short test Holdout" else "The next ${Format.level(c)}"
 
     /** No comeback offer: two ways back. */
-    fun noOffer(c: CohortSnapshot, nextOpen: Boolean): String = if (nextOpen) {
-        "Today's Daily 25 keeps your streak going. The next ${Format.level(c)} starts a new run."
-    } else {
-        "Today's Daily 25 keeps your streak going."
+    fun noOffer(c: CohortSnapshot, nextOpen: Boolean, dailyOpen: Boolean = true): String? = when {
+        dailyOpen && nextOpen -> "Today's Daily 25 keeps your streak going. The next ${Format.level(c)} starts a new run."
+        dailyOpen -> "Today's Daily 25 keeps your streak going."
+        nextOpen -> "The next ${Format.level(c)} starts a new run."
+        else -> null
     }
 
     fun summaryDescription(c: CohortSnapshot, daysLasted: Int, standing: Int?, pool: ULong?): String = buildString {
@@ -245,8 +262,10 @@ internal object ForfeitText {
         val label: String,
         val headline: String?,
         val body: String,
-        /** The round's start and when joining closes, in mono. */
+        /** The round's start and when joining closes. */
         val timing: String? = null,
+        /** The countdowns inside [timing], in order: the only part set in mono. */
+        val countdowns: List<String> = emptyList(),
         val after: String? = null,
         val notice: String? = null,
     )
@@ -281,18 +300,23 @@ internal object ForfeitText {
                 }
                 when (joinBlocker) {
                     Journey.JoinBlocker.LobbyPlaceTaken -> OfferCopy(COMEBACK, null, "You hold a place in a Holdout that starts later. Leave it first to join one that can bring your stake back.")
-                    else -> OfferCopy(
-                        COMEBACK,
-                        "Win back up to $back",
-                        Format.comebackForfeit(offer.amount(), nextCohort),
-                        timing = "Starts in ${Format.countdown(next.start - now)} · joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(nextCohort, now))}",
-                        after = after,
-                        notice = when (joinBlocker) {
-                            Journey.JoinBlocker.Overlaps -> "This Holdout starts before your current one ends."
-                            Journey.JoinBlocker.JoiningClosed -> "Joining has closed for this Holdout."
-                            else -> null
-                        },
-                    )
+                    else -> {
+                        val startsIn = Format.countdown(next.start - now)
+                        val closesIn = Format.countdown(Derive.timeUntilJoiningCloses(nextCohort, now))
+                        OfferCopy(
+                            COMEBACK,
+                            "Win back up to $back",
+                            Format.comebackForfeit(offer.amount(), nextCohort),
+                            timing = "Starts in $startsIn · joining closes in $closesIn",
+                            countdowns = listOf(startsIn, closesIn),
+                            after = after,
+                            notice = when (joinBlocker) {
+                                Journey.JoinBlocker.Overlaps -> "This Holdout starts before your current one ends."
+                                Journey.JoinBlocker.JoiningClosed -> "Joining has closed for this Holdout."
+                                else -> null
+                            },
+                        )
+                    }
                 }
             }
             else -> OfferCopy(COMEBACK, null, "Today's Daily 25 keeps your streak going.")

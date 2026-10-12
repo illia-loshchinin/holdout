@@ -41,6 +41,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import holdout.app.nav.NavEvent
 import holdout.app.nav.TxKind
+import holdout.app.storage.Store
 import holdout.app.ui.Body
 import holdout.app.ui.ChecklistRow
 import holdout.app.ui.Format
@@ -60,6 +61,7 @@ import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 import holdout.app.wallet.TxOutcome
 import holdout.app.wallet.TxPhase
+import holdout.core.HoldoutDay
 
 /** What the signing flow shows for one signature (rulings G7, C-D14; boards 4b, 6b, 7b). */
 data class SigningState(
@@ -215,7 +217,21 @@ data class YoureInState(
     val daily25Done: Boolean,
     val test: Boolean = false,
     val testDayLength: Long = 0,
-)
+    /**
+     * The Holdout's first day starts within today's Daily 25 day: the member does today's
+     * push-ups in the Holdout itself (a Holdout day counts for the streak, FR-050), so the
+     * Daily 25 is not offered here.
+     */
+    val startsToday: Boolean = false,
+) {
+    /** The Daily 25 button shows only when today's is not done and the Holdout starts on a later day. */
+    val showDaily25: Boolean get() = !daily25Done && !startsToday
+
+    companion object {
+        /** True when [start] (chain seconds) falls in the Daily 25 day [dayIndex]; an unknown day is never "today". */
+        fun startsToday(start: Long, dayIndex: Long): Boolean = dayIndex != Store.UNKNOWN_DAY && HoldoutDay.indexOf(start) == dayIndex
+    }
+}
 
 /**
  * ```
@@ -226,6 +242,8 @@ data class YoureInState(
  *  └ Until then, leaving refunds it all. ┘
  *  [ Do today's Daily 25 ]  [ See the lobby ]
  * ```
+ * The Daily 25 button shows only when the Holdout starts on a later day than today's Daily 25;
+ * otherwise the lobby is the one primary button.
  * No dollar figures here: "≈ $" lives beside a tier chip only (G4).
  */
 @Composable
@@ -247,11 +265,11 @@ fun YoureInScreen(state: YoureInState, onDaily25: () -> Unit, onEvent: (NavEvent
             KeyValueRow("Joining closes in", state.joiningClosesIn)
             Body("Until then, leaving refunds it all.")
         }
-        if (state.daily25Done) {
-            PrimaryButton("See the lobby", { onEvent(NavEvent.SeeLobby) })
-        } else {
+        if (state.showDaily25) {
             PrimaryButton("Do today's Daily 25", onDaily25)
             SecondaryButton("See the lobby", { onEvent(NavEvent.SeeLobby) })
+        } else {
+            PrimaryButton("See the lobby", { onEvent(NavEvent.SeeLobby) })
         }
     }
 }
