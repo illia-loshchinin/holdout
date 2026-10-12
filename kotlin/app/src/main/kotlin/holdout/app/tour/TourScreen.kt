@@ -10,12 +10,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -33,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -41,6 +44,8 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -54,24 +59,27 @@ import holdout.app.ui.PagerDots
 import holdout.app.ui.PrimaryButton
 import holdout.app.ui.SecondaryButton
 import holdout.app.ui.theme.HoldoutColors
+import holdout.app.ui.theme.HoldoutFonts
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 
 /**
- * The first-run tour (FR-067, T042; boards TourDaily, Tour, TourCounting,
- * Disclosure): four cards, "how it works · N of 4", re-openable from Me and About.
+ * The first-run tour (FR-067, T042; boards TourDaily, Tour, TourMoney,
+ * TourCounting, Disclosure): five cards, "how it works · N of 5", re-openable
+ * from Me and About.
  *
  * ```
- *  HOW IT WORKS · 1 OF 4                     Skip        header · Skip on cards 1–3
- *  1 The Daily 25   2 A Holdout   3 How reps are counted   4 Scripted members
+ *  HOW IT WORKS · 1 OF 5                     Skip        header · Skip on cards 1–4
+ *  1 The Daily 25   2 A Holdout   3 Where a lost stake goes   4 How reps are counted
+ *  5 Scripted members
  *  (the card, centred, scrolls when it must)
  *  ▬ ● ● ●                                               PagerDots
  *  [ Back ] [ Next ]  /  [ Start ] on the last         Back from card 2 on; PrimaryButton
  *  TEST NETWORK · TEST TOKEN
  * ```
  *
- * **Skip on cards 1–3 goes to card 4**, not out of the tour: the scripted-member
+ * **Skip on cards 1–4 goes to card 5**, not out of the tour: the scripted-member
  * note is required on first run (spec 004 FR-013). **Back** — the button from
  * card 2 on, or the system Back — steps back a card; on the first card there is
  * no button and the system Back is left to the shell. **Start** on the last card finishes
@@ -117,7 +125,8 @@ fun TourScreen(onDone: () -> Unit, modifier: Modifier = Modifier) {
                     when (card) {
                         0 -> DailyCard()
                         1 -> HoldoutCardPage()
-                        2 -> CountingCard()
+                        2 -> MoneyCard()
+                        3 -> CountingCard()
                         else -> ScriptedCard()
                     }
                 }
@@ -139,7 +148,7 @@ fun TourScreen(onDone: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-private const val CARDS = 4
+private const val CARDS = 5
 private const val LAST = CARDS - 1
 
 // ---- card 1: the Daily 25 ---------------------------------------------------------------------------
@@ -256,7 +265,81 @@ private fun HoldoutCardPage() {
     }
 }
 
-// ---- card 3: how reps are counted -------------------------------------------------------------------
+// ---- card 3: where a lost stake goes ----------------------------------------------------------------
+
+/**
+ * The split of a lost stake (spec 001 FR-027, FR-037, FR-037e; board TourMoney):
+ * 70 % to the prize pool, 10 % set aside as the member's own comeback, 20 % to
+ * the project — the bar, then a row for each part.
+ */
+@Composable
+private fun MoneyCard() {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
+        Text("Where a lost stake goes", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(fontFamily = HoldoutFonts.Mono, color = HoldoutColors.Accent)) { append("80 %") }
+                append(" comes back to members. The rest runs Holdout.")
+            },
+            style = MaterialTheme.typography.bodyLarge,
+            color = HoldoutColors.TextSecondary,
+        )
+    }
+    HoldoutCard {
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
+            SplitBar()
+            SplitRow("70 %", HoldoutColors.Accent, "This Holdout's prize pool", "Split by everyone who finishes.")
+            SplitRow(
+                "10 %",
+                HoldoutColors.Success,
+                "Your comeback",
+                "Set aside for you. Finish the next Holdout of the same kind and it comes back with your payout.",
+                "Don't, and it joins the boost: up to 10 % more on later prize pools, with every pool nobody won.",
+            )
+            SplitRow("20 %", HoldoutColors.TextSecondary, "The project", "Keeps Holdout running.")
+        }
+    }
+    Text(
+        "Lost on the last day? Join the next one on its first day, or the one after. Nothing is taken from a stake that finishes.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = HoldoutColors.TextTertiary,
+    )
+}
+
+/** 70 · 10 · 20, in the three parts' colours, with a hairline gap between them. */
+@Composable
+private fun SplitBar() {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(14.dp)
+            .clip(CircleShape)
+            .semantics { contentDescription = "Of every lost stake: 70 percent to the prize pool, 10 percent to your comeback, 20 percent to the project." },
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Box(Modifier.weight(70f).fillMaxHeight().background(HoldoutColors.Accent))
+        Box(Modifier.weight(10f).fillMaxHeight().background(HoldoutColors.Success))
+        Box(Modifier.weight(20f).fillMaxHeight().background(HoldoutColors.TextPrimary.copy(alpha = 0.24f)))
+    }
+}
+
+@Composable
+private fun SplitRow(percent: String, colour: Color, title: String, vararg lines: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
+        Text(
+            percent,
+            style = MaterialTheme.typography.titleMedium.copy(fontFamily = HoldoutFonts.Mono),
+            color = colour,
+            modifier = Modifier.width(52.dp),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = HoldoutColors.TextPrimary)
+            lines.forEach { Text(it, style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.TextSecondary) }
+        }
+    }
+}
+
+// ---- card 4: how reps are counted -------------------------------------------------------------------
 
 @Composable
 private fun CountingCard() {
@@ -298,7 +381,7 @@ private val STEPS = listOf(
     "The checks tick green. Hold the top for a second, then 3 · 2 · 1 and every rep counts.",
 )
 
-// ---- card 4: scripted members -----------------------------------------------------------------------
+// ---- card 5: scripted members -----------------------------------------------------------------------
 
 /** Spark's minimum before scripted members stop joining (spec 001 FR-043), and Habit's. */
 private const val SPARK_MINIMUM = 20

@@ -71,13 +71,13 @@ class FormatCopyTest {
     @Test
     fun `the fee sentence is the one the stake sheet shows, with the Holdout's own level`() {
         assertEquals(
-            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % to Spark · 7-day boosts and comebacks, " +
-                "20 % to the project. If nobody finishes, the pool goes to the project too.",
+            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
+                "20 % to the project. If nobody finishes, the pool boosts later Spark · 7-day prizes.",
             Format.lostStakeSplit(spark),
         )
         assertEquals(
-            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % to Habit · 21-day boosts and comebacks, " +
-                "20 % to the project. If nobody finishes, the pool goes to the project too.",
+            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
+                "20 % to the project. If nobody finishes, the pool boosts later Habit · 21-day prizes.",
             Format.lostStakeSplit(habit),
         )
     }
@@ -85,8 +85,8 @@ class FormatCopyTest {
     @Test
     fun `the fee sentence takes the noun it names the boosts after`() {
         assertEquals(
-            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % to Hackathon Holdout boosts and comebacks, " +
-                "20 % to the project. If nobody finishes, the pool goes to the project too.",
+            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
+                "20 % to the project. If nobody finishes, the pool boosts later Hackathon Holdout prizes.",
             Format.lostStakeSplit(spark, name = "Hackathon Holdout"),
         )
     }
@@ -102,8 +102,8 @@ class FormatCopyTest {
     @Test
     fun `the forfeit variant opens on where the stake goes and names the Holdout's pool`() {
         assertEquals(
-            "It goes 70 % to this Holdout's prize pool, 10 % to Habit · 21-day boosts and comebacks, " +
-                "20 % to the project. If nobody finishes, the pool goes to the project too.",
+            "It goes 70 % to this Holdout's prize pool, 10 % set aside for your comeback, " +
+                "20 % to the project. If nobody finishes, the pool boosts later Habit · 21-day prizes.",
             Format.lostStakeSplitForfeit(habit),
         )
     }
@@ -125,13 +125,18 @@ class FormatCopyTest {
     @Test
     fun `the comeback lines are the design book's`() {
         assertEquals(
-            "Get back up to 250 SKR of your lost stake: finish the Spark · 7-day starting in 2d 4h.",
+            "Get back 250 SKR of your lost stake: finish the Spark · 7-day starting in 2d 4h.",
             Format.comebackToday(250_000_000uL, spark, 2 * 86_400L + 4 * 3_600L),
         )
         assertEquals(
-            "Finish a Habit · 21-day starting within 14 days: up to 250 SKR comes back.",
+            "Get back 250 SKR of your lost stake: finish the Spark · 7-day that started today.",
+            Format.comebackToday(250_000_000uL, spark, null),
+        )
+        assertEquals(
+            "Finish the next Habit · 21-day and 250 SKR comes back.",
             Format.comebackForfeit(250_000_000uL, habit),
         )
+        assertEquals("Win back 250 SKR", Format.winBack(250_000_000uL))
         assertEquals("part of your last lost stake, back", Format.COMEBACK_CLAIM_NOTE)
     }
 

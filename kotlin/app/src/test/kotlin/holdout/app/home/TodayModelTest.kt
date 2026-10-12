@@ -44,7 +44,7 @@ class TodayModelTest {
     ) = Holdout(
         address = SolanaPublicKey(ByteArray(32) { n.toByte() }),
         cohort = CohortSnapshot(leagueId, n.toLong(), cohortStart, cutoff, days, reps, dayLength, 0, listOf(500uL * skr, 1_250uL * skr, 2_500uL * skr, 5_000uL * skr), memberCount = joined, heldStake = held, form = form),
-        league = if (leagueId < LeagueParams.TEST_LEAGUE_MIN) LeagueSnapshot(LeagueParams.judged(leagueId, cohortStart), nextIndex = 3).copy(boostReserve = boost) else null,
+        league = if (leagueId < LeagueParams.TEST_LEAGUE_MIN) LeagueSnapshot(LeagueParams.judged(leagueId, cohortStart - n * 7 * day), nextIndex = 3).copy(boostReserve = boost) else null,
         membership = member,
     )
 

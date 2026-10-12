@@ -179,7 +179,7 @@ object MyHoldoutsModel {
                     // Kept under Now while the Holdout runs or a way back is open; then it is past, lost (ruling D-D6).
                     if (offer != null || Derive.status(c, now) in GOING) {
                         // A place held in the comeback round already is the win-back under way: nothing left to win back by tapping.
-                        val winBack = offer?.let { if (it.held != null) COMEBACK_JOINED else "Win back up to ${Format.skr(it.amount())}" }
+                        val winBack = offer?.let { if (it.held != null) COMEBACK_JOINED else Format.winBack(it.amount()) }
                         yours += card(YourKind.Out, ChipTone.Warning, "Lost ${Format.skr(m.stake)} · out on day $missed", winBack, NavEvent.Open(Screen.Forfeit(id)))
                             .copy(detailTone = ChipTone.Success)
                     } else {

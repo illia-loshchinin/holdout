@@ -97,7 +97,7 @@ internal fun Shared.ForfeitHost(id: String, modifier: Modifier = Modifier) {
     if (h == null || n == null || v == null) return Loading(modifier)
     RosterLoop(h)
     val stage = h.stage(n)
-    // What finishing a later Holdout of this level and length brings back, from the forfeit itself (FR-037g).
+    // What finishing the next Holdout of this league brings back, from the forfeit itself (FR-037e, FR-037g).
     // Only the screen of the latest forfeit carries it; an older forfeit's screen keeps the plain ways back.
     val offer = v.comebackOffer(n, h.cohort.leagueId).forScreenOf(h.address)
     val round = offer?.next
@@ -136,7 +136,7 @@ internal fun Shared.ForfeitHost(id: String, modifier: Modifier = Modifier) {
             }
         },
         now = n,
-        joinBlocker = round?.entry?.let { e -> Journey.joinBlocker(e.cohort, v.profile, v.runningEnd(n), n, runningInBreach = v.runningInBreach(n)) },
+        joinBlocker = round?.entry?.let { e -> Journey.joinBlocker(e.cohort, v.profile, v.runningEnd(n), n, runningInBreach = v.runningInBreach(n), lateJoin = round.lateJoin) },
         // The stake sheet on the lost stake's chip (FR-037g).
         onJoin = { round?.entry?.let { e -> dispatch(NavEvent.OpenStake(e.address.base58(), offer?.tier ?: 0, seekerKnown)) } },
     )
@@ -194,7 +194,7 @@ internal fun Shared.StakeSheetHost(sheet: Sheet.Stake, seekerGate: SeekerGate) {
         lamports = v.lamports,
         now = n,
         // A running Holdout the member has missed a deadline in does not block: the join sends its record too (ES-17).
-        joinBlocker = Journey.joinBlocker(h.cohort, v.profile, v.runningEnd(n), n, runningInBreach = v.runningInBreach(n)),
+        joinBlocker = v.joinBlocker(h, n),
         busy = chain.busy,
         message = chain.message,
         messageIsWarning = chain.messageIsWarning,

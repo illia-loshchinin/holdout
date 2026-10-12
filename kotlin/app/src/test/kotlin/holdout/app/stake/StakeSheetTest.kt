@@ -164,7 +164,7 @@ class StakeSheetTest {
     fun `every join carries the refund line word for word, the fee sentence, the full refund and the footer`() {
         show()
         text("If nobody drops out, you get exactly your stake back.").assertExists()
-        text("Miss a day and you lose your stake: 70 % to the prize pool, 10 % to Spark · 7-day boosts and comebacks, 20 % to the project. If nobody finishes, the pool goes to the project too.").assertExists()
+        text("Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, 20 % to the project. If nobody finishes, the pool boosts later Spark · 7-day prizes.").assertExists()
         text("Full refund until joining closes.").assertExists()
         text("Test network, test token. Dollar values are approximate.").assertExists()
     }
@@ -257,7 +257,7 @@ class StakeSheetTest {
     }
 
     @Test
-    fun `a comeback round says what finishing it brings back for the chip chosen, up to`() {
+    fun `a comeback round says exactly what finishing it brings back for the chip chosen`() {
         val round = holdout()
         val lost = Comeback.Entry(SolanaPublicKey(ByteArray(32) { 8 }), round.cohort, null)
         val offer = Comeback.Offer(
@@ -265,16 +265,16 @@ class StakeSheetTest {
             lost = 1_250uL * skr,
             tier = 1,
             missed = start - 5 * day,
-            until = start + 9 * day,
+            firstRound = 1,
             forfeited = lost,
             rounds = listOf(Comeback.Round(start, start - 7 * day, Comeback.Entry(round.address, round.cohort, null), CohortStatus.Open)),
             held = null,
         )
         show(round, initialTier = 1, comeback = offer)
-        text("Finish it and up to 250 SKR of the stake you lost comes back.").assertExists()
-        // The refund is capped at the new stake, and 250 SKR is below the smallest chip, so the pick does not change it.
+        text("Finish it and 125 SKR of the stake you lost comes back.").assertExists()
+        // The refund is capped at the new stake, and 125 SKR is below the smallest chip, so the pick does not change it.
         compose.onNodeWithContentDescription("≈ \$10, 500 SKR").performClick()
-        text("Finish it and up to 250 SKR of the stake you lost comes back.").assertExists()
+        text("Finish it and 125 SKR of the stake you lost comes back.").assertExists()
     }
 
     /** What a refresh of the chain changes under an open sheet: the clock, the roster count, the held stake, the balance. */
@@ -289,7 +289,7 @@ class StakeSheetTest {
         lost = 2_500uL * skr,
         tier = tier,
         missed = start - 5 * day,
-        until = start + 9 * day,
+        firstRound = 1,
         forfeited = Comeback.Entry(SolanaPublicKey(ByteArray(32) { 8 }), round.cohort, null),
         rounds = listOf(Comeback.Round(start, start - 7 * day, Comeback.Entry(round.address, round.cohort, null), CohortStatus.Open)),
         held = null,
@@ -410,7 +410,7 @@ class StakeSheetTest {
         text("Join the Hackathon Holdout").assertExists()
         text("5 push-ups a day for 3 days. Joinable right up to its start.").assertExists()
         text("Starts in 12m 30s").assertExists()
-        text("Miss a day and you lose your stake: 70 % to the prize pool, 10 % to Hackathon Holdout boosts and comebacks, 20 % to the project. If nobody finishes, the pool goes to the project too.").assertExists()
+        text("Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, 20 % to the project. If nobody finishes, the pool boosts later Hackathon Holdout prizes.").assertExists()
     }
 
     @Test

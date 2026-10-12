@@ -55,7 +55,7 @@ import holdout.core.Journey
  *  Light it up: 25 push-ups a day for 7 days.          Body
  *  ( Starts in 2d 4h )                                 accent tint pill
  *  [≈ $10] [≈ $25] [≈ $50] [≈ $100]                    TierChips
- *  Finish it and up to 250 SKR of the stake you lost comes back.   success (comeback only)
+ *  Finish it and 125 SKR of the stake you lost comes back.   success (comeback only)
  *  ┌ Your stake        1,250 SKR  ≈ $25 ┐
  *  │ At stake now     12,500 SKR  14 joined │
  *  │ Joining closes in             2d 3h │
@@ -93,7 +93,7 @@ fun StakeSheet(
     initialTier: Int = 0,
     /** Told of every chip the member picks, so the pick outlives the sheet (the faucet round trip, ES-0a). */
     onTierChange: (Int) -> Unit = {},
-    /** The member's comeback offer, if any; its amount shows only when [h] is one of its rounds. */
+    /** The member's comeback offer, if any; its exact amount shows only when [h] is one of its rounds. */
     comeback: Comeback.Offer? = null,
     /** Where "See your lobby" goes, when the blocker is a place already held in a lobby. */
     onSeeLobby: (() -> Unit)? = null,
@@ -104,7 +104,9 @@ fun StakeSheet(
     val test = h.isTest
     var tier by remember(h.address) { mutableIntStateOf(initialTier.coerceIn(0, c.chips.lastIndex)) }
     val chip = c.chips[tier]
-    val closesIn = Derive.timeUntilJoiningCloses(c, now)
+    // The member's comeback round, started or locked, stays open to them to the end of its first day (FR-037e).
+    val lateRound = comeback?.rounds?.firstOrNull { it.lateJoin && it.entry?.address == h.address }
+    val closesIn = lateRound?.let { (it.closesAt - now).coerceAtLeast(0) } ?: Derive.timeUntilJoiningCloses(c, now)
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
@@ -116,7 +118,7 @@ fun StakeSheet(
             Text(StakeText.title(c, test), style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
             Body(StakeText.levelLine(c, test))
             Text(
-                "Starts in ${Format.countdown(c.start - now)}",
+                if (c.start <= now) "Started today" else "Starts in ${Format.countdown(c.start - now)}",
                 style = LabelStyle,
                 color = HoldoutColors.Accent,
                 modifier = Modifier

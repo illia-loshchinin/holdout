@@ -98,7 +98,7 @@ class SittingOffersTest {
         val round = holdout(3, now + DAY)
         val offer = SittingOffers.of(view(missed, round), now, seekerKnown = true, knownNotSeeker = false)!!
         assertEquals("Get your stake back", offer.offer.title)
-        assertTrue(offer.offer.subtitle.startsWith("Get back up to "), offer.offer.subtitle)
+        assertTrue(offer.offer.subtitle.startsWith("Get back 125 SKR of your lost stake"), offer.offer.subtitle)
         assertEquals(NavEvent.OpenStake(round.address.base58(), 1, seekerKnown = true), offer.go)
     }
 

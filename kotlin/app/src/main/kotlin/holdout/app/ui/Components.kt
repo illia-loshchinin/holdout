@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -117,32 +118,45 @@ object Format {
 
     /**
      * Where a lost stake goes, in the sentence the stake sheet shows (FR-027,
-     * FR-037, FR-041; decided 2026-10-10, shortened 2026-10-11; ruling G5).
-     * The level and length are the Holdout's own, and a no-break space keeps
-     * every "%" on its number's line. [name] is what the boosts are named
-     * after: the level by default, "Hackathon Holdout" for a test Holdout.
+     * FR-037, FR-041; decided 2026-10-10, shortened 2026-10-11, re-split
+     * 2026-10-12: the 10 % is the member's own comeback, and a pool nobody wins
+     * boosts later prizes; ruling G5). The level and length are the Holdout's
+     * own, and a no-break space keeps every "%" on its number's line. [name] is
+     * what the boosts are named after: the level by default, "Hackathon
+     * Holdout" for a test Holdout.
      */
-    fun lostStakeSplit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% to $name boosts and comebacks, " +
-        "20\u00a0% to the project. If nobody finishes, the pool goes to the project too."
+    fun lostStakeSplit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% set aside for your comeback, " +
+        "20\u00a0% to the project. If nobody finishes, the pool boosts later $name prizes."
 
     /** What the boosts in the fee sentence are named after: the level, or "Hackathon Holdout" for a test Holdout (FR-044a); the stake sheet and the forfeit screen both use it. */
     fun boostName(c: holdout.core.CohortSnapshot, test: Boolean): String = if (test) "Hackathon Holdout" else level(c)
 
     /** The same split on the forfeit screen, under its **Stake lost** row (ruling G5); [name] as in [lostStakeSplit]. */
-    fun lostStakeSplitForfeit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% to $name boosts and comebacks, " +
-        "20\u00a0% to the project. If nobody finishes, the pool goes to the project too."
+    fun lostStakeSplitForfeit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% set aside for your comeback, " +
+        "20\u00a0% to the project. If nobody finishes, the pool boosts later $name prizes."
 
-    /** "Prize boost: up to 480 SKR", on an offer: "up to", never a promise (ruling G6). The card already names the level. */
+    /**
+     * "Prize boost: up to 480 SKR", on an offer: "up to", never a promise (ruling G6). The card already names the
+     * level. The boost comes from comebacks nobody made and pools nobody won, so it is the league's free reserve.
+     */
     fun boostLine(amount: ULong): String = "Prize boost: up to ${skr(amount)}"
 
     /** "+ about 1,200 SKR boost if anyone finishes", on a running Holdout (design book, Real copy by moment). */
     fun runningBoostLine(amount: ULong): String = "+ about ${skr(amount)} boost if anyone finishes"
 
-    /** On Today while a lost stake's 14-day window is open: "Get back up to 250 SKR of your lost stake: finish the Spark · 7-day starting in 2d 4h." */
-    fun comebackToday(amount: ULong, c: holdout.core.CohortSnapshot, startsInSeconds: Long): String = "Get back up to ${skr(amount)} of your lost stake: finish the ${level(c)} starting in ${countdown(startsInSeconds)}."
+    /**
+     * On Today while a lost stake's comeback is open (exactly [amount], guaranteed, FR-037e): "Get back 2.5 SKR of
+     * your lost stake: finish the Spark · 7-day starting in 2d 4h." A round already running, joined late, is
+     * "finish the Spark · 7-day that started today" ([startsInSeconds] null).
+     */
+    fun comebackToday(amount: ULong, c: holdout.core.CohortSnapshot, startsInSeconds: Long?): String = "Get back ${skr(amount)} of your lost stake: finish the ${level(c)} " +
+        (if (startsInSeconds == null) "that started today." else "starting in ${countdown(startsInSeconds)}.")
 
-    /** On the forfeit screen: "Finish a Habit · 21-day starting within 14 days: up to 250 SKR comes back." */
-    fun comebackForfeit(amount: ULong, c: holdout.core.CohortSnapshot): String = "Finish a ${level(c)} starting within 14 days: up to ${skr(amount)} comes back."
+    /** On the forfeit screen after a mid-round miss: "Finish the next Habit · 21-day and 250 SKR comes back." */
+    fun comebackForfeit(amount: ULong, c: holdout.core.CohortSnapshot): String = "Finish the next ${level(c)} and ${skr(amount)} comes back."
+
+    /** The words that name a held place's amount, on every screen: "Win back 250 SKR" (exact, no "up to"). */
+    fun winBack(amount: ULong): String = "Win back ${skr(amount)}"
 
     /** The claim's **Comeback** row note, under the amount. */
     const val COMEBACK_CLAIM_NOTE = "part of your last lost stake, back"
@@ -221,9 +235,12 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
     Text(text.uppercase(), style = LabelStyle, color = HoldoutColors.TextTertiary, modifier = modifier)
 }
 
-/** A hairline card — the only separation on black; there are no shadows (design book, Depth). */
+/**
+ * A hairline card — the only separation on black; there are no shadows (design book, Depth).
+ * [padding] is the card's inset: [Spacing.cardPadding], or less for a card kept compact (Today's Daily 25).
+ */
 @Composable
-fun HoldoutCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+fun HoldoutCard(modifier: Modifier = Modifier, padding: PaddingValues = PaddingValues(Spacing.cardPadding), content: @Composable ColumnScope.() -> Unit) {
     val shape = MaterialTheme.shapes.medium
     Column(
         // Clipped outside the caller's modifier, so a card made clickable ripples inside its corners.
@@ -233,7 +250,7 @@ fun HoldoutCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.
             .fillMaxWidth()
             .background(HoldoutColors.Surface1, shape)
             .border(BorderStroke(1.dp, HoldoutColors.Hairline), shape)
-            .padding(Spacing.cardPadding),
+            .padding(padding),
         verticalArrangement = Arrangement.spacedBy(Spacing.tight),
         content = content,
     )

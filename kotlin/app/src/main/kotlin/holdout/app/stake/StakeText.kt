@@ -60,8 +60,8 @@ object StakeText {
 
     const val SHORT_OF_SOL = "Your wallet has too little devnet SOL to pay for joining. The faucet sends some with the test tokens."
 
-    /** `Finish it and up to 250 SKR of the stake you lost comes back.` for the chip chosen (FR-037g). */
-    fun comeback(amount: ULong): String = "Finish it and up to ${Format.skr(amount)} of the stake you lost comes back."
+    /** `Finish it and 25 SKR of the stake you lost comes back.` for the chip chosen: exactly, `min(10 % of the lost stake, the chip)` (FR-037e, FR-037g). */
+    fun comeback(amount: ULong): String = "Finish it and ${Format.skr(amount)} of the stake you lost comes back."
 
     fun joiningCloses(c: CohortSnapshot, now: Long): String = Format.countdown(Derive.timeUntilJoiningCloses(c, now))
 }

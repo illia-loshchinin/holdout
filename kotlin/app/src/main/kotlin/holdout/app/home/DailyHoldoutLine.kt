@@ -2,6 +2,7 @@ package holdout.app.home
 
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.ui.Format
+import holdout.core.CohortStatus
 import holdout.core.Comeback
 import holdout.core.Derive
 
@@ -9,17 +10,17 @@ import holdout.core.Derive
  * The comeback nudge on Today (H35). The Daily 25 pays nothing; what Today shows
  * is the member's own money in the next Holdout:
  *
- * - a stake lost, with a Holdout of the same level and length inside the
- *   14-day comeback window still to join or already held (FR-037g): before
- *   joining, the round, when it starts and how long joining stays open; with a
- *   place held, that finishing it brings back up to N of the lost stake; with the next round not opened yet, when it opens. "Up
- *   to", because the refund is capped at the new stake and scaled to the
- *   reserve of that level and length (FR-037e). It is read from the forfeited
- *   membership, so it shows before the forfeit is recorded or settled;
+ * - a stake lost, with the next Holdout of the same level and length (or the one
+ *   after a last-day miss) still to join or already held (FR-037g): before
+ *   joining, the round, when it starts and how long joining stays open (to the
+ *   end of its first day for a round already started); with a place held, that
+ *   finishing it brings back N of the lost stake; with the next round not
+ *   opened yet, when it opens. N is exact and guaranteed: 10 % of the lost
+ *   stake, never more than the new stake (FR-037e). It is read from the
+ *   forfeited membership, so it shows before the forfeit is recorded or settled;
  * Nothing else: the next Holdout to join is an offer card on Today, not a line (board 3).
  *
- * Never an amount presented as certain (FR-039, constitution XIII), and never
- * the word "league" (FR-041).
+ * Never the word "league" (FR-041).
  */
 object DailyHoldoutLine {
     /**
@@ -42,16 +43,19 @@ object DailyHoldoutLine {
         if (toJoin == null) {
             held?.let { offer ->
                 val place = offer.held?.entry ?: return null
-                return Nudge("You're in the ${Format.level(place.cohort)}. Finish it and up to ${Format.skr(offer.amount(place.member?.stake))} of your lost stake comes back.", held = true)
+                return Nudge("You're in the ${Format.level(place.cohort)}. Finish it and ${Format.skr(offer.amount(place.member?.stake))} of your lost stake comes back.", held = true)
             }
             val offer = waiting ?: return null
             val up = offer.upcoming ?: return null
-            return Nudge("The next ${Format.level(offer.forfeited.cohort)} ${Format.opensForJoining(up.opensAt, now)} and starts in ${Format.countdown(up.start - now)}. Finish it and up to ${Format.skr(offer.amount())} of your lost stake comes back.")
+            return Nudge("The next ${Format.level(offer.forfeited.cohort)} ${Format.opensForJoining(up.opensAt, now)} and starts in ${Format.countdown(up.start - now)}. Finish it and ${Format.skr(offer.amount())} of your lost stake comes back.")
         }
         val round = toJoin.next ?: return null
         val entry = round.entry ?: return null
         val c = entry.cohort
-        val text = Format.comebackToday(toJoin.amount(), c, round.start - now) + " Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))}."
+        // A round already running is "that started today", and its joining closes at the end of its first day.
+        val running = round.lateJoin && Derive.status(c, now) == CohortStatus.Running
+        val closes = if (round.lateJoin) (round.closesAt - now).coerceAtLeast(0) else Derive.timeUntilJoiningCloses(c, now)
+        val text = Format.comebackToday(toJoin.amount(), c, if (running) null else round.start - now) + " Joining closes in ${Format.countdown(closes)}."
         return Nudge(text, entry.address, toJoin.tier)
     }
 }

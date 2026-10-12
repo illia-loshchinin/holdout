@@ -59,14 +59,16 @@ import holdout.core.Stage
  *  You missed day 12.                                    headline
  *  It didn't reach the chain in time. Your run has ended.      (a day never finished: "You didn't finish day 12 before its deadline. …")
  *  ┌ Stake lost                       1,250 SKR ┐        KeyValueRow + the fee sentence
- *  ┌ COMEBACK  Win back up to 250 SKR … ┐                the offer card, by state
+ *  ┌ COMEBACK  Win back 125 SKR … ┐                      the offer card, by state
  *  [ Join the next Habit · 21-day ]                       the one primary button
  *  Your 12-day streak is still alive.                     one quiet line, no card
  *  [ Do today's Daily 25 ]                                SecondaryButton, only while today's is not done
  * ```
  *
  * With a comeback [offer] (FR-037g) the way back is its card, from the forfeit
- * itself and before automation has recorded it: a round to join, a place
+ * itself and before automation has recorded it: a round to join (after a
+ * last-day miss the round that just started, joinable until the end of its
+ * first day, with the one after it as the other way), a place
  * already held, a round not opened yet or opening shortly, or a lobby place
  * elsewhere to leave first (ES-17…ES-19). With no offer (null) the ways back are
  * today's Daily 25 and the next Holdout of the same level and length, the one a
@@ -82,7 +84,7 @@ fun ForfeitScreen(
     onNextHoldout: (() -> Unit)?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    /** What finishing a later Holdout of this level and length brings back of the lost stake, if anything (FR-037g); null shows no offer. */
+    /** What finishing the next Holdout of this level and length brings back of the lost stake, exactly, if anything (FR-037e, FR-037g); null shows no offer. */
     offer: Comeback.Offer? = null,
     /** Chain time, for the countdowns on the offer. */
     now: Long = 0,
@@ -172,7 +174,7 @@ private fun Summary(c: CohortSnapshot, daysLasted: Int, figures: holdout.core.Co
     }
 }
 
-/** The offer card (FR-037g): a label, "Win back up to …", one sentence by state, and the round's timing. */
+/** The offer card (FR-037g): a label, "Win back …", one sentence by state, and the round's timing. */
 @Composable
 private fun OfferCard(copy: ForfeitText.OfferCopy) {
     Column(
@@ -217,11 +219,13 @@ private fun ColumnScope.Buttons(
     onSeePlace: (() -> Unit)?,
 ) {
     val c = h.cohort
-    val nextCohort = offer?.next?.entry?.cohort
+    val next = offer?.next
+    val nextCohort = next?.entry?.cohort
     when {
         offer == null -> if (onNextHoldout != null) PrimaryButton(ForfeitText.nextHoldout(c, h.isTest), onNextHoldout)
         offer.held != null && onSeePlace != null -> PrimaryButton("See your place", onSeePlace)
-        offer.held == null && nextCohort != null && joinBlocker == null -> PrimaryButton("Join the next ${Format.level(nextCohort)}", onJoin)
+        // The round that has started or is locked is not "the next": the member joins it late.
+        offer.held == null && nextCohort != null && joinBlocker == null -> PrimaryButton("Join the ${if (next.lateJoin) "" else "next "}${Format.level(nextCohort)}", onJoin)
     }
 }
 
@@ -285,41 +289,43 @@ internal object ForfeitText {
                 val back = Format.skr(offer.amount(place.member?.stake))
                 val timing = if (Derive.status(place.cohort, now) == CohortStatus.Running) "running now" else "starting in ${Format.countdown(place.cohort.start - now)}"
                 val sep = if (timing == "running now") ", " else " "
-                OfferCopy(COMEBACK, "Win back up to $back", "You're in the ${Format.level(place.cohort)}$sep$timing. Finish it and up to $back of the stake you lost comes back.")
+                OfferCopy(COMEBACK, Format.winBack(offer.amount(place.member?.stake)), "You're in the ${Format.level(place.cohort)}$sep$timing. Finish it and $back of the stake you lost comes back.")
             }
             next == null && offer.upcoming != null -> {
                 // The round before it is locked or running and the next is not opened yet: nothing to join, not closed (FR-037g).
                 val upcoming = offer.upcoming!!
                 val back = Format.skr(offer.amount())
-                OfferCopy(COMEBACK, "Win back up to $back", "The next $level ${Format.opensForJoining(upcoming.opensAt, now)} and starts in ${Format.countdown(upcoming.start - now)}. Finish it and up to $back of the stake you lost comes back.")
+                OfferCopy(COMEBACK, Format.winBack(offer.amount()), "The next $level ${Format.opensForJoining(upcoming.opensAt, now)} and starts in ${Format.countdown(upcoming.start - now)}. Finish it and $back of the stake you lost comes back.")
             }
             next != null && nextCohort != null -> {
                 val back = Format.skr(offer.amount())
-                val after = offer.after(next)?.let { a ->
-                    when {
-                        a.entry != null && a.status == CohortStatus.Open -> "Or the one after it, starting in ${Format.countdown(a.start - now)}."
-                        a.entry == null -> "The one after it starts in ${Format.countdown(a.start - now)} and ${Format.opensForJoining(a.opensAt, now)}."
-                        else -> null
-                    }
-                }
                 when (joinBlocker) {
                     Journey.JoinBlocker.LobbyPlaceTaken -> OfferCopy(COMEBACK, null, "You hold a place in a Holdout that starts later. Leave it first to join one that can bring your stake back.")
                     else -> {
-                        val startsIn = Format.countdown(next.start - now)
-                        val closesIn = Format.countdown(Derive.timeUntilJoiningCloses(nextCohort, now))
-                        OfferCopy(
-                            COMEBACK,
-                            "Win back up to $back",
-                            Format.comebackForfeit(offer.amount(), nextCohort),
-                            timing = "Starts in $startsIn · joining closes in $closesIn",
-                            countdowns = listOf(startsIn, closesIn),
-                            after = after,
-                            notice = when (joinBlocker) {
-                                Journey.JoinBlocker.Overlaps -> "This Holdout starts before your current one ends."
-                                Journey.JoinBlocker.JoiningClosed -> "Joining has closed for this Holdout."
-                                else -> null
-                            },
-                        )
+                        val notice = when (joinBlocker) {
+                            Journey.JoinBlocker.Overlaps -> "This Holdout starts before your current one ends."
+                            Journey.JoinBlocker.JoiningClosed -> "Joining has closed for this Holdout."
+                            else -> null
+                        }
+                        if (next.lateJoin) {
+                            val closesIn = Format.countdown((next.closesAt - now).coerceAtLeast(0))
+                            // The round the miss lands on has started (or is locked): joinable until the end of its first day, with the one after it as the other way.
+                            val name = Format.level(nextCohort)
+                            val lead = if (Derive.status(nextCohort, now) == CohortStatus.Running) "Join the $name that started today." else "Join the $name starting in ${Format.countdown(next.start - now)}."
+                            val tail = offer.after(next)?.let { "Finish it \u2014 or the one after it, starting in ${Format.countdown(it.start - now)} \u2014 and $back comes back." } ?: "Finish it and $back comes back."
+                            OfferCopy(COMEBACK, Format.winBack(offer.amount()), "$lead $tail", timing = "Joining closes in $closesIn", countdowns = listOf(closesIn), notice = notice)
+                        } else {
+                            val startsIn = Format.countdown(next.start - now)
+                            val closesIn = Format.countdown(Derive.timeUntilJoiningCloses(nextCohort, now))
+                            OfferCopy(
+                                COMEBACK,
+                                Format.winBack(offer.amount()),
+                                Format.comebackForfeit(offer.amount(), nextCohort),
+                                timing = "Starts in $startsIn · joining closes in $closesIn",
+                                countdowns = listOf(startsIn, closesIn),
+                                notice = notice,
+                            )
+                        }
                     }
                 }
             }

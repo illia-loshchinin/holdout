@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +25,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import holdout.app.chain.Deployment
 import holdout.app.nav.NavEvent
 import holdout.app.streak.StreakMilestones
@@ -43,6 +45,7 @@ import holdout.app.ui.StreakState
 import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.CounterStyle
 import holdout.app.ui.theme.HoldoutColors
+import holdout.app.ui.theme.HoldoutFonts
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
@@ -84,15 +87,14 @@ data class HomeState(
  * ```
  *  TODAY                                              🔥 12     ScreenLabel · StreakFlame
  *                          A week, every day. That's how habits start.   milestone day only
- *  ┌ THE DAILY 25 [FREE] ───────────────────────────────────┐   HoldoutCard · StatusChip
+ *  ┌ THE DAILY 25 [FREE]                 4h 06m left today ─┐   HoldoutCard (compact) · StatusChip · CountdownText
  *  │ Yesterday ended at 20 of 25. Today starts fresh.        │   banner (warning)
- *  │                 25 push-ups                             │   CounterStyle
+ *  │                 25 push-ups                             │   CounterStyle, 44 sp
  *  │ all at once, or 10 at a time · knees allowed            │
- *  │ [ Start ]                                               │   PrimaryButton
- *  │ 4h 06m left today                                       │   CountdownText
+ *  │ [ Start ]                                               │   PrimaryButton, 48 dp
  *  └─────────────────────────────────────────────────────────┘
  *  ( You finished · claim 1,412 SKR  › )                          nudge rows
- *  ( Get back up to 250 SKR of your lost stake: …  › )            comeback card
+ *  ( Get back 125 SKR of your lost stake: …  › )                 comeback card
  *  HOLDOUTS OPEN TO JOIN                    Holdouts need a Seeker.
  *  [ Spark · 7-day … (Join) ]  [ Habit · 21-day … (Join) ]        OfferCard
  *  ( ⓘ How Holdout works                          4 cards )
@@ -175,11 +177,22 @@ fun HomeScreen(
 
 @Composable
 private fun DailyCard(state: HomeState, onStart: () -> Unit) {
-    HoldoutCard {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
-                SectionLabel("The Daily 25")
-                StatusChip("free", tone = ChipTone.Accent)
+    // Compact (owner, 12 Oct): the time left sits in the header row, a smaller counter and button, tighter insets.
+    HoldoutCard(padding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+                    SectionLabel("The Daily 25")
+                    StatusChip("free", tone = ChipTone.Accent)
+                }
+                if (!state.completedToday) {
+                    state.secondsLeftToday?.let {
+                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.base), verticalAlignment = Alignment.Bottom) {
+                            CountdownText(it, style = LabelStyle.copy(fontFamily = HoldoutFonts.Mono))
+                            Text("left today", style = LabelStyle, color = HoldoutColors.TextSecondary)
+                        }
+                    }
+                }
             }
             state.yesterdayNote?.let { Banner(it, warning = true) }
             if (state.newPhone) Banner(NewPhone.line(state.target), warning = false)
@@ -187,39 +200,31 @@ private fun DailyCard(state: HomeState, onStart: () -> Unit) {
             when {
                 state.completedToday -> {
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
-                        Text("${state.target}", style = CounterStyle, color = HoldoutColors.Success)
-                        Text("done", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary, modifier = Modifier.padding(bottom = Spacing.tight))
+                        Text("${state.target}", style = DailyCounter, color = HoldoutColors.Success)
+                        Text("done", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary, modifier = Modifier.padding(bottom = Spacing.base))
                     }
                     Body("Streak +1. See you tomorrow.", center = true)
                     state.toes?.let { ToesMeterCard(it, state.target) }
                 }
                 state.bankedToday > 0 -> {
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
-                        Text("${state.remainingToday}", style = CounterStyle, color = HoldoutColors.TextPrimary)
-                        Text("to go", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary, modifier = Modifier.padding(bottom = Spacing.tight))
+                        Text("${state.remainingToday}", style = DailyCounter, color = HoldoutColors.TextPrimary)
+                        Text("to go", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary, modifier = Modifier.padding(bottom = Spacing.base))
                     }
                     BlockBars(reps = state.target, bankedBlocks = state.bankedToday / BANK_BLOCK)
                     Body("${state.bankedToday} banked for good", center = true)
-                    PrimaryButton("Keep going", onStart)
+                    PrimaryButton("Keep going", onStart, Modifier.height(Spacing.touchTarget))
                 }
                 else -> {
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
-                        Text("${state.remainingToday}", style = CounterStyle, color = HoldoutColors.TextPrimary)
-                        Text("push-ups", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary, modifier = Modifier.padding(bottom = Spacing.tight))
+                        Text("${state.remainingToday}", style = DailyCounter, color = HoldoutColors.TextPrimary)
+                        Text("push-ups", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary, modifier = Modifier.padding(bottom = Spacing.base))
                     }
                     Body("all at once, or $BANK_BLOCK at a time · knees allowed", center = true)
-                    PrimaryButton("Start", onStart)
+                    PrimaryButton("Start", onStart, Modifier.height(Spacing.touchTarget))
                 }
             }
 
-            if (!state.completedToday) {
-                state.secondsLeftToday?.let {
-                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.base), verticalAlignment = Alignment.Bottom) {
-                        CountdownText(it)
-                        Text("left today", style = LabelStyle, color = HoldoutColors.TextSecondary)
-                    }
-                }
-            }
             if (state.streak > 0) {
                 Text(
                     text = when (state.freezes) {
@@ -235,6 +240,9 @@ private fun DailyCard(state: HomeState, onStart: () -> Unit) {
         }
     }
 }
+
+/** The Daily 25 card's counter: [CounterStyle] at 44 sp, so the card stays compact. */
+private val DailyCounter = CounterStyle.copy(fontSize = 44.sp, lineHeight = 48.sp)
 
 /** A one-line note in the card, tinted by its tone; the colour is never the only signal, the words carry it. */
 @Composable

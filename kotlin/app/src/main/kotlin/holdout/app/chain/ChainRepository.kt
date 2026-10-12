@@ -66,8 +66,14 @@ data class ChainView(
      */
     fun joinable(now: Long): List<Holdout> = openToJoin(now).filter { joinBlocker(it, now) == null }
 
-    /** Why the program would refuse the wallet a place in [h] at [now], or null when it would take it (FR-006a, FR-006b). */
-    fun joinBlocker(h: Holdout, now: Long): Journey.JoinBlocker? = Journey.joinBlocker(h.cohort, profile, runningEnd(now), now, runningInBreach = runningInBreach(now))
+    /**
+     * Why the program would refuse the wallet a place in [h] at [now], or null when it would take it (FR-006a, FR-006b).
+     * The wallet's own comeback round is taken after its joining closed, until the end of its first day (FR-037e).
+     */
+    fun joinBlocker(h: Holdout, now: Long): Journey.JoinBlocker? = Journey.joinBlocker(h.cohort, profile, runningEnd(now), now, runningInBreach = runningInBreach(now), lateJoin = comebackRound(now, h)?.lateJoin == true)
+
+    /** The round of the wallet's comeback offer that is [h], if it is one (FR-037e). */
+    fun comebackRound(now: Long, h: Holdout): Comeback.Round? = comebackOffer(now, h.cohort.leagueId)?.rounds?.firstOrNull { it.entry?.address == h.address }
 
     /** Whether the wallet waits in a lobby, open or locked: its one lobby place is taken, so no other join is offered (FR-006a). */
     fun holdsLobbyPlace(now: Long): Boolean = holdouts.any { it.membership != null && it.stage(now).let { s -> s == Stage.Lobby || s == Stage.LobbyLocked } }
@@ -91,11 +97,17 @@ data class ChainView(
     /** The end of the cohort in the profile's running slot, for the overlap check (FR-006b). */
     fun runningEnd(now: Long): Long? = Journey.runningCohortFor(profile, now)?.let { r -> holdouts.firstOrNull { it.address == r }?.cohort?.let(Derive::end) }
 
-    /** What a join at [now] sends for the profile's running slot: the record of an unrecorded breach first, or the running cohort to name (FR-037g, ES-17). */
-    fun joinPlan(now: Long): Journey.JoinPlan {
+    /**
+     * What a join of [target] at [now] sends for the profile's running slot: the record of an unrecorded breach first,
+     * or the running cohort to name (FR-037g, ES-17). When [target] is the wallet's first comeback round it also names
+     * the forfeited cohort, which is what lets the program take the join after the round's cutoff (FR-037e).
+     */
+    fun joinPlan(now: Long, target: Holdout? = null): Journey.JoinPlan {
         val running = Journey.runningCohortFor(profile, now)
         val h = running?.let { r -> holdouts.firstOrNull { it.address == r } }
-        return Journey.joinPlan(profile, h?.let { Comeback.Entry(it.address, it.cohort, it.membership) }, now)
+        val offer = target?.let { comebackOffer(now, it.cohort.leagueId) }
+        val comeback = offer?.takeIf { o -> o.rounds.firstOrNull()?.entry?.address == target.address }?.forfeited?.address
+        return Journey.joinPlan(profile, h?.let { Comeback.Entry(it.address, it.cohort, it.membership) }, now, comeback)
     }
 
     /**

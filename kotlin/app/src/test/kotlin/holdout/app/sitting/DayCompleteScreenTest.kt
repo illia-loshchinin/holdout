@@ -186,7 +186,7 @@ class DayCompleteScreenTest {
 
     @Test
     fun `a comeback offer takes the upsell's place`() {
-        show(dailyUi(offer = DayCompleteOffer("Your comeback is open", "Get back up to 250 SKR of your lost stake: finish the Spark · 7-day starting in 2d 4h.")))
+        show(dailyUi(offer = DayCompleteOffer("Your comeback is open", "Get back 250 SKR of your lost stake: finish the Spark · 7-day starting in 2d 4h.")))
 
         compose.onNodeWithText("Your comeback is open").assertIsDisplayed()
         compose.onNodeWithText("Stake on yourself next").assertDoesNotExist()

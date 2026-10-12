@@ -37,12 +37,12 @@ class HoldoutPiecesTest {
         val easy = CohortSnapshot(0, 0, 0, 0, 7, 25, 86_400, 0, listOf(1uL, 2uL, 3uL, 4uL), form = holdout.core.LeagueParams.FORM_KNEES_ALLOWED)
         val hard = easy.copy(durationDays = 21, form = holdout.core.LeagueParams.FORM_TOES)
         assertEquals(
-            "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% to Spark \u00b7 7-day boosts and comebacks, " +
-                "20\u00a0% to the project. If nobody finishes, the pool goes to the project too.",
+            "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% set aside for your comeback, " +
+                "20\u00a0% to the project. If nobody finishes, the pool boosts later Spark \u00b7 7-day prizes.",
             Format.lostStakeSplit(easy),
         )
-        assertTrue("Habit \u00b7 21-day boosts and comebacks" in Format.lostStakeSplit(hard))
-        assertTrue("Habit \u00b7 21-day boosts and comebacks" in Format.lostStakeSplitForfeit(hard))
+        assertTrue("boosts later Habit \u00b7 21-day prizes." in Format.lostStakeSplit(hard))
+        assertTrue("boosts later Habit \u00b7 21-day prizes." in Format.lostStakeSplitForfeit(hard))
         assertTrue("league" !in Format.lostStakeSplit(hard).lowercase())
         assertTrue(" %" !in Format.lostStakeSplit(easy), "a % never starts a line on its own")
     }

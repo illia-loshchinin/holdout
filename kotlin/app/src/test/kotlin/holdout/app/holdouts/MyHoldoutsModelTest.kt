@@ -190,7 +190,8 @@ class MyHoldoutsModelTest {
     fun `an Out row offers the win-back until the member holds a place in the comeback round, then says Comeback joined`() {
         val out = withLeague(holdout(1, start - 5 * day, member(1)))
         val before = MyHoldoutsModel.build(view(out, withLeague(holdout(2, start + 2 * day, null))), start).yours.single()
-        assertTrue(before.detail.orEmpty().startsWith("Win back up to "), before.detail)
+        assertTrue(before.detail.orEmpty().startsWith("Win back "), before.detail)
+        assertFalse("up to" in before.detail.orEmpty(), "the comeback is exact: ${before.detail}")
 
         val round = withLeague(holdout(2, start + 2 * day, member(0)))
         val after = MyHoldoutsModel.build(view(out, round), start).yours.single { it.kind == YourKind.Out }
@@ -217,8 +218,8 @@ class MyHoldoutsModelTest {
 
     private val Holdout.id get() = address.base58()
 
-    /** The comeback offer is worked out against the league record. */
-    private fun withLeague(h: Holdout) = h.copy(league = LeagueSnapshot(LeagueParams.judged(h.cohort.leagueId, start), nextIndex = 3))
+    /** The comeback offer is worked out against the league record: cohort n starts at `start + 2 days + (n - 2) weeks`, as the helpers below place them. */
+    private fun withLeague(h: Holdout) = h.copy(league = LeagueSnapshot(LeagueParams.judged(h.cohort.leagueId, start + 2 * day - 2 * 7 * day), nextIndex = 3))
 
     private fun member(daysCompleted: Int, state: MembershipSnapshot.State = MembershipSnapshot.State.Joined) = MembershipSnapshot(me, 0, 10_000_000uL, start - 10 * day, daysCompleted, state)
 

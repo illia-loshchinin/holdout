@@ -341,7 +341,7 @@ class HoldoutViewModel(
         val config = view.config ?: return@act
         // A running cohort the member has missed a deadline in and nobody has recorded yet still holds the
         // slot (ObligationsOverlap, 6026): its record goes first in the same transaction (FR-037g, ES-17).
-        val instructions = Journey.joinInstructions(Deployment.programId, me, config.skrMint, config.feeDestination, config.developerDestination, h.address, tier, view.joinPlan(now))
+        val instructions = Journey.joinInstructions(Deployment.programId, me, config.skrMint, config.feeDestination, config.developerDestination, h.address, tier, view.joinPlan(now, h))
         val result = signing(SignAction.Join, h.address, tier = tier) { onPhase -> wallet.send(sender, instructions, onPhase) }
         describe(result, "You're in. ${Format.skr(h.cohort.chips[tier])} staked.")
     }

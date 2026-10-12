@@ -32,7 +32,7 @@ object ChainFixtures {
     ) = Holdout(
         address = SolanaPublicKey(ByteArray(32) { n.toByte() }),
         cohort = CohortSnapshot(leagueId, n.toLong(), cohortStart, cutoff, days, reps, dayLength, 0, listOf(500uL * SKR, 1_250uL * SKR, 2_500uL * SKR, 5_000uL * SKR), memberCount = 14, heldStake = 12_500uL * SKR, form = form),
-        league = if (leagueId < LeagueParams.TEST_LEAGUE_MIN) LeagueSnapshot(LeagueParams.judged(leagueId, cohortStart), nextIndex = 3) else null,
+        league = if (leagueId < LeagueParams.TEST_LEAGUE_MIN) LeagueSnapshot(LeagueParams.judged(leagueId, cohortStart - n * 7 * DAY), nextIndex = 3) else null,
         membership = member,
     )
 

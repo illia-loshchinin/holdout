@@ -42,7 +42,7 @@ class StakeTextTest {
     fun `the fee sentence names the Holdout's own level and length, a no-break space before every percent`() {
         val fee = StakeText.fee(habit, false)
         assertEquals(
-            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % to Habit · 21-day boosts and comebacks, 20 % to the project. If nobody finishes, the pool goes to the project too.",
+            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, 20 % to the project. If nobody finishes, the pool boosts later Habit · 21-day prizes.",
             fee,
         )
         assertTrue(Regex("\\d %").findAll(fee).none())
@@ -51,15 +51,15 @@ class StakeTextTest {
     @Test
     fun `a test Holdout's fee sentence does not name a level`() {
         val fee = StakeText.fee(spark, true)
-        assertTrue("Hackathon Holdout boosts and comebacks" in fee, fee)
+        assertTrue("boosts later Hackathon Holdout prizes." in fee, fee)
         assertFalse("Spark" in fee)
     }
 
     @Test
     fun `a test Holdout's fee sentence is pinned word for word`() {
         assertEquals(
-            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % to Hackathon Holdout boosts and comebacks, " +
-                "20 % to the project. If nobody finishes, the pool goes to the project too.",
+            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
+                "20 % to the project. If nobody finishes, the pool boosts later Hackathon Holdout prizes.",
             StakeText.fee(habit, true),
         )
     }
@@ -81,8 +81,8 @@ class StakeTextTest {
     }
 
     @Test
-    fun `the comeback line says up to, in the member's words`() {
-        assertEquals("Finish it and up to 250 SKR of the stake you lost comes back.", StakeText.comeback(250uL * skr))
+    fun `the comeback line is exact, in the member's words`() {
+        assertEquals("Finish it and 25 SKR of the stake you lost comes back.", StakeText.comeback(25uL * skr))
     }
 
     @Test

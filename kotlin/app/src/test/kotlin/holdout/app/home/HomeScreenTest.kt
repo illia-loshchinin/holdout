@@ -265,7 +265,7 @@ class HomeScreenTest {
     @Test
     fun `the comeback card says what can come back and takes the member to the round`() {
         val go = NavEvent.OpenStake("r", 1, true)
-        val words = "Get back up to 250 SKR of your lost stake: finish the Habit · 21-day starting in 2d 4h. Joining closes in 1d 3h."
+        val words = "Get back 250 SKR of your lost stake: finish the Habit · 21-day starting in 2d 4h. Joining closes in 1d 3h."
         show(fresh.copy(comeback = ComebackCardState(words, go)))
         text(words).performClick()
         assertEquals(listOf<NavEvent>(go), events)

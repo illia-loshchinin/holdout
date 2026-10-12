@@ -86,13 +86,13 @@ class OnboardingShots {
 
     // ---- Tour -------------------------------------------------------------------------------------------
 
-    // Card 3's figure is read from the assets on a background dispatcher, which Compose's idling does not wait for.
+    // Card 4's figure is read from the assets on a background dispatcher, which Compose's idling does not wait for.
     private fun tour(card: Int) = compose.shoot(
         "onboarding",
         "tour-$card",
         after = {
             repeat(card - 1) { onNodeWithText("Next").performClick() }
-            if (card == 3) {
+            if (card == 4) {
                 repeat(10) {
                     Thread.sleep(200)
                     mainClock.advanceTimeBy(100)
@@ -113,6 +113,9 @@ class OnboardingShots {
 
     @Test
     fun tour4() = tour(4)
+
+    @Test
+    fun tour5() = tour(5)
 
     // ---- Me ---------------------------------------------------------------------------------------------
 

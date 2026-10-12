@@ -45,42 +45,48 @@ class DailyHoldoutLineTest {
     @Test
     fun `given a forfeited membership not yet settled, then the line names the round, its start and the time left to join`() {
         val line = DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null)), now)
-        assertEquals("Get back up to 5 SKR of your lost stake: finish the Spark · 7-day starting in 1d 0h. Joining closes in 23h 00m.", line)
+        assertEquals("Get back 2.5 SKR of your lost stake: finish the Spark · 7-day starting in 1d 0h. Joining closes in 23h 00m.", line)
     }
 
     @Test
-    fun `given a place held in the round, then the line says finishing it brings up to N back`() {
+    fun `given a place held in the round, then the line says finishing it brings exactly N back`() {
         val joined = entry(round1, MembershipSnapshot.State.Joined, tier = 2)
         val line = DailyHoldoutLine.comebackLine(offers(unrecorded, joined), now)
-        assertEquals("You're in the Spark · 7-day. Finish it and up to 5 SKR of your lost stake comes back.", line)
+        assertEquals("You're in the Spark · 7-day. Finish it and 2.5 SKR of your lost stake comes back.", line)
     }
 
     @Test
-    fun `given every round closed without a place, then there is no comeback line`() {
-        // Round 1 is running and round 2 locked: nothing is left to join.
-        val at = round2.start - 1_000
-        val line = DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null), entry(round2, null), at = at), at)
+    fun `given the round closed without a place, then there is no comeback line`() {
+        // Round 1 started more than a day ago: its first day is over, so it takes nobody late. Nothing is left to join.
+        val at = round1.start + day
+        val line = DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null), at = at), at)
         assertNull(line)
     }
 
     @Test
-    fun `given round 1 locked and the next not opened yet, then the line says when it opens and starts`() {
+    fun `given round 1 locked, then it is still the member's to join, until the end of its first day`() {
         val at = round1.start - 1_000
         val line = DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null), at = at), at)
-        assertEquals("The next Spark · 7-day opens for joining in 16m 40s and starts in 7d 0h. Finish it and up to 5 SKR of your lost stake comes back.", line)
+        assertEquals("Get back 2.5 SKR of your lost stake: finish the Spark · 7-day starting in 16m 40s. Joining closes in 1d 0h.", line)
     }
 
     @Test
-    fun `given the next round due but not opened by automation yet, then it opens shortly, never in 0m 00s`() {
+    fun `given round 1 running on its first day, then the line says it started today and when joining closes`() {
         val at = round1.start + 60
         val line = DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null), at = at), at)
-        assertEquals("The next Spark · 7-day opens for joining shortly and starts in 6d 23h. Finish it and up to 5 SKR of your lost stake comes back.", line)
-        assertEquals(line, DailyHoldoutLine.comebackLine(offers(unrecorded, entry(round1, null), at = at), at))
+        assertEquals("Get back 2.5 SKR of your lost stake: finish the Spark · 7-day that started today. Joining closes in 23h 59m.", line)
+        assertEquals(round1Address, DailyHoldoutLine.nudge(offers(unrecorded, entry(round1, null), at = at), at)?.joinAddress)
+    }
+
+    @Test
+    fun `given the next round not opened by automation yet, then it opens shortly, never in 0m 00s`() {
+        val line = DailyHoldoutLine.comebackLine(offers(unrecorded), now)
+        assertEquals("The next Spark · 7-day opens for joining shortly and starts in 1d 0h. Finish it and 2.5 SKR of your lost stake comes back.", line)
     }
 
     /** A second slot: a 21-day Hard forfeit whose missed deadline is also `now − 1`, with its own round open to join at `now + 2 days`. */
-    private val hardLeague = LeagueSnapshot(LeagueParams.judged(1, now + 2 * day), nextIndex = 3)
     private val hardForfeited = CohortSnapshot(1, 0, now - 21 * day, now - 21 * day - 3_600, 21, 25, day, 0, chips, form = LeagueParams.FORM_TOES)
+    private val hardLeague = LeagueSnapshot(LeagueParams.judged(1, hardForfeited.start).copy(cadence = 23 * day), nextIndex = 3)
     private val hardUnrecorded = entry(hardForfeited, MembershipSnapshot.State.Joined, days = 20)
     private val hardRound = entry(CohortSnapshot(1, 1, now + 2 * day, now + 2 * day - 3_600, 21, 25, day, 0, chips, form = LeagueParams.FORM_TOES), null)
 
@@ -100,10 +106,13 @@ class DailyHoldoutLineTest {
         // Slot 0 has round 1 open at now + 1 day, slot 1 a round at now + 2 days: the soonest.
         val bothOpen = twoSlots(unrecorded, entry(round1, null), hardUnrecorded, hardRound)
         assertTrue(assertNotNull(DailyHoldoutLine.comebackLine(bothOpen, now)).contains("finish the Spark"))
-        // Round 1 locked and the next not opened (upcoming) in slot 0; slot 1 still joinable: the joinable one.
+        // Slot 0's round not opened yet (upcoming) while slot 1 is joinable: the joinable one.
+        val mixed = twoSlots(unrecorded, hardUnrecorded, hardRound)
+        assertTrue(assertNotNull(DailyHoldoutLine.comebackLine(mixed, now)).contains("finish the Habit"))
+        // Round 1 locked is still the member's to join late, and it starts first.
         val at = round1.start - 1_000
-        val mixed = twoSlots(unrecorded, entry(round1, null), hardUnrecorded, hardRound, at = at)
-        assertTrue(assertNotNull(DailyHoldoutLine.comebackLine(mixed, at)).contains("finish the Habit"))
+        val late = twoSlots(unrecorded, entry(round1, null), hardUnrecorded, hardRound, at = at)
+        assertTrue(assertNotNull(DailyHoldoutLine.comebackLine(late, at)).contains("finish the Spark"))
     }
 
     @Test

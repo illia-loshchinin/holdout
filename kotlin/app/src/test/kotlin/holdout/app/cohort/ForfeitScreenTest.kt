@@ -55,7 +55,7 @@ class ForfeitScreenTest {
 
     private fun offer(held: Comeback.Round? = null, upcoming: Comeback.Round? = null, rounds: List<Comeback.Round> = listOf(round)): Comeback.Offer {
         val missed = c.start + 12 * Fx.DAY - 1
-        return Comeback.Offer(slot = 1, lost = 1_250_000_000uL, tier = 1, missed = missed, until = c.start + 26 * Fx.DAY, forfeited = forfeited, rounds = rounds, held = held, upcoming = upcoming)
+        return Comeback.Offer(slot = 1, lost = 1_250_000_000uL, tier = 1, missed = missed, firstRound = 1, lastRound = 1, forfeited = forfeited, rounds = rounds, held = held, upcoming = upcoming)
     }
 
     private class Taps {
@@ -131,7 +131,7 @@ class ForfeitScreenTest {
 
         compose.onNodeWithText("Stake lost").assertIsDisplayed()
         compose.onNodeWithText("1,250 SKR").assertIsDisplayed()
-        compose.onNodeWithText("It goes 70 % to this Holdout's prize pool, 10 % to Habit · 21-day boosts and comebacks, 20 % to the project. If nobody finishes, the pool goes to the project too.").assertIsDisplayed()
+        compose.onNodeWithText("It goes 70 % to this Holdout's prize pool, 10 % set aside for your comeback, 20 % to the project. If nobody finishes, the pool boosts later Habit · 21-day prizes.").assertIsDisplayed()
     }
 
     @Test
@@ -239,20 +239,63 @@ class ForfeitScreenTest {
     }
 
     @Test
-    fun `a round to join - win back up to, the timing, Join the next, and the quiet Daily 25`() {
+    fun `a round to join - win back the exact amount, the timing, Join the next, and the quiet Daily 25`() {
         val taps = Taps()
         show(taps, offer = offer())
 
         compose.onNodeWithText("COMEBACK").assertIsDisplayed()
-        compose.onNodeWithText("Win back up to 250 SKR").assertIsDisplayed()
-        compose.onNodeWithText("Finish a Habit · 21-day starting within 14 days: up to 250 SKR comes back.").assertIsDisplayed()
+        compose.onNodeWithText("Win back 125 SKR").assertIsDisplayed()
+        compose.onNodeWithText("Finish the next Habit · 21-day and 125 SKR comes back.").assertIsDisplayed()
         compose.onNodeWithText("Starts in 2d 4h · joining closes in 1d 3h").assertIsDisplayed()
+        // A mid-round miss has one round: no second Holdout is named.
+        compose.onNodeWithText("Or the one after it", substring = true).assertDoesNotExist()
 
         compose.onNodeWithText("Join the next Habit · 21-day").performClick()
         compose.onNodeWithText("Do today's Daily 25").performClick()
 
         assertEquals(1, taps.join)
         assertEquals(1, taps.daily)
+    }
+
+    /** A last-day miss: the round that just started (joinable late) and the one after it. */
+    private fun lastDayOffer(): Comeback.Offer {
+        val started = Fx.cohort(start = now - 2 * 3_600, days = 21, joined = 9).copy(joinCutoff = now - 3 * 3_600)
+        val second = Fx.cohort(start = started.start + 7 * Fx.DAY, days = 21, joined = 0).copy(joinCutoff = started.start + 7 * Fx.DAY - 3_600)
+        val late = Comeback.Round(started.start, started.start - 7 * Fx.DAY, Comeback.Entry(Fx.holdout(started).address, started, null), CohortStatus.Running, index = 1, closesAt = started.start + Fx.DAY, lateJoin = true)
+        val after = Comeback.Round(second.start, started.start, Comeback.Entry(Fx.holdout(second).address, second, null), CohortStatus.Open, index = 2, closesAt = second.joinCutoff)
+        return offer(rounds = listOf(late, after)).copy(lastRound = 2)
+    }
+
+    @Test
+    fun `after a last-day miss - the round that just started with joining closing at the end of its first day, and the next as the other way`() {
+        val taps = Taps()
+        show(taps, offer = lastDayOffer())
+
+        compose.onNodeWithText("Win back 125 SKR").assertIsDisplayed()
+        compose.onNodeWithText("Join the Habit · 21-day that started today. Finish it \u2014 or the one after it, starting in 6d 22h \u2014 and 125 SKR comes back.").assertIsDisplayed()
+        compose.onNodeWithText("Joining closes in 22h 00m").assertIsDisplayed()
+        compose.onNodeWithText("Join the Habit · 21-day").performClick()
+        assertEquals(1, taps.join)
+    }
+
+    @Test
+    fun `a last-day miss whose second round is the only one still open - the plain next round`() {
+        val offer = lastDayOffer()
+        // Past the first day: the late round no longer takes the member, the second is "the next".
+        val closedLate = offer.rounds[0].copy(lateJoin = false)
+        show(offer = offer.copy(rounds = listOf(closedLate, offer.rounds[1])))
+
+        compose.onNodeWithText("Finish the next Habit · 21-day and 125 SKR comes back.").assertIsDisplayed()
+        compose.onNodeWithText("Join the next Habit · 21-day").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a late round that is only locked says when it starts`() {
+        val lockedCohort = Fx.cohort(start = now + 1_800, days = 21, joined = 9).copy(joinCutoff = now - 1_800)
+        val late = Comeback.Round(lockedCohort.start, lockedCohort.start - 7 * Fx.DAY, Comeback.Entry(Fx.holdout(lockedCohort).address, lockedCohort, null), CohortStatus.Locked, index = 1, closesAt = lockedCohort.start + Fx.DAY, lateJoin = true)
+        val copy = ForfeitText.offer(offer(rounds = listOf(late)), c, now, null)!!
+        assertEquals("Join the Habit · 21-day starting in 30m 00s. Finish it and 125 SKR comes back.", copy.body)
+        assertEquals("Joining closes in 1d 0h", copy.timing)
     }
 
     @Test
@@ -263,7 +306,8 @@ class ForfeitScreenTest {
         val held = Comeback.Round(placeCohort.start, placeCohort.start - 7 * Fx.DAY, placeEntry, CohortStatus.Open)
         show(taps, offer = offer(held = held, rounds = listOf(held)), place = true)
 
-        compose.onNodeWithText("You're in the Habit · 21-day starting in 2d 4h. Finish it and up to 250 SKR of the stake you lost comes back.").assertIsDisplayed()
+        compose.onNodeWithText("You're in the Habit · 21-day starting in 2d 4h. Finish it and 125 SKR of the stake you lost comes back.").assertIsDisplayed()
+        compose.onNodeWithText("Win back 125 SKR").assertIsDisplayed()
         compose.onNodeWithText("See your place").performClick()
         compose.onNodeWithText("Do today's Daily 25").performClick()
 
@@ -278,7 +322,7 @@ class ForfeitScreenTest {
         val upcoming = Comeback.Round(start = now + 2 * Fx.DAY + 4 * 3_600, opensAt = now + 6 * 3_600, entry = null, status = null)
         show(taps, offer = offer(upcoming = upcoming, rounds = listOf(upcoming)))
 
-        compose.onNodeWithText("The next Habit · 21-day opens for joining in 6h 00m and starts in 2d 4h. Finish it and up to 250 SKR of the stake you lost comes back.").assertIsDisplayed()
+        compose.onNodeWithText("The next Habit · 21-day opens for joining in 6h 00m and starts in 2d 4h. Finish it and 125 SKR of the stake you lost comes back.").assertIsDisplayed()
         compose.onNodeWithText("Join the next Habit · 21-day").assertDoesNotExist()
         compose.onNodeWithText("Do today's Daily 25").performClick()
         assertEquals(1, taps.daily)
@@ -289,7 +333,7 @@ class ForfeitScreenTest {
         val upcoming = Comeback.Round(start = now + 27 * 3_600, opensAt = now - 60, entry = null, status = null)
         show(offer = offer(upcoming = upcoming, rounds = listOf(upcoming)))
 
-        compose.onNodeWithText("The next Habit · 21-day opens for joining shortly and starts in 1d 3h. Finish it and up to 250 SKR of the stake you lost comes back.").assertIsDisplayed()
+        compose.onNodeWithText("The next Habit · 21-day opens for joining shortly and starts in 1d 3h. Finish it and 125 SKR of the stake you lost comes back.").assertIsDisplayed()
     }
 
     @Test
@@ -349,6 +393,7 @@ class ForfeitScreenTest {
             ForfeitText.offer(offer(), c, now, null),
             ForfeitText.offer(offer(), c, now, Journey.JoinBlocker.LobbyPlaceTaken),
             ForfeitText.offer(offer(upcoming = upcoming, rounds = listOf(upcoming)), c, now, null),
+            ForfeitText.offer(lastDayOffer(), c, now, null),
         )
         val words = copies.flatMap { listOfNotNull(it.headline, it.body, it.timing, it.after, it.notice) } + ForfeitText.body(11, true) + ForfeitText.body(11, false) + ForfeitText.headline(11)
         words.forEach { w ->
@@ -362,11 +407,11 @@ class ForfeitScreenTest {
         val testHoldout = Fx.holdout(test, Fx.member(days = 1, state = MembershipSnapshot.State.Forfeited))
         show(stage = Stage.Forfeited(daysLasted = 1, recorded = true), h = testHoldout)
 
-        val forfeit = "It goes 70 % to this Holdout's prize pool, 10 % to Hackathon Holdout boosts and comebacks, " +
-            "20 % to the project. If nobody finishes, the pool goes to the project too."
+        val forfeit = "It goes 70 % to this Holdout's prize pool, 10 % set aside for your comeback, " +
+            "20 % to the project. If nobody finishes, the pool boosts later Hackathon Holdout prizes."
         compose.onNodeWithText(forfeit).assertExists()
         // The stake sheet's sentence names the same noun.
-        assertTrue("10 % to Hackathon Holdout boosts and comebacks" in StakeText.fee(test, test = true))
+        assertTrue("the pool boosts later Hackathon Holdout prizes." in StakeText.fee(test, test = true))
     }
 
     @Test
@@ -374,6 +419,6 @@ class ForfeitScreenTest {
         assertEquals("The next Hackathon Holdout", ForfeitText.nextHoldout(c, test = true))
         assertEquals("The next Habit · 21-day", ForfeitText.nextHoldout(c, test = false))
         assertNull(ForfeitText.offer(offer(), c, now, Journey.JoinBlocker.LobbyPlaceTaken)!!.headline)
-        assertTrue(ForfeitText.offer(offer(), c, now, null)!!.headline!!.startsWith("Win back up to"))
+        assertEquals("Win back 125 SKR", ForfeitText.offer(offer(), c, now, null)!!.headline)
     }
 }
