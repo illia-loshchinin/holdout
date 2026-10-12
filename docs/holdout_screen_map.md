@@ -1,10 +1,10 @@
 # Holdout — screen map (hackathon build)
 
-**Version:** 3.2 · **Date:** 2026-10-12 (v3.2: the three last gaps built and drawn — the pre-flight tip sheet on S3, streak milestones on S6 and T1, the new-phone banner wired on T1 and T2; the canvas at version `1791813833-5eef` (v132: the tip sheet's camera-view row reads the app's sentence); v3.1: the PR #62 review fixes — a left lobby stays on screen, system Back in a sitting, a reminder on a re-created app; v3.0 on 2026-10-11, the app as built at the integration tip `b1ba45f` plus the integration pass `6ec0dc3`: the four-tab bar with *Today · Standing · Holdouts · Me*, *My Holdouts* and *Me* built; the levels are *Spark · 7-day* and *Habit · 21-day*; the four-card tour; Holdout's own signing flow and *You're in*; the stake confirm and faucet as sheets; the shortened fee sentence; no calendar dates; earlier: v2.2 on 2026-10-10 made staking Seeker-exclusive, v2.1 and v2.0 the same day) · **Scope:** the devnet hackathon build only. Post-hackathon screens are parked in §9. Holdout Lab, the tester app, has its own map: `holdout_lab_screen_map.md`.
+**Version:** 3.3 · **Date:** 2026-10-12 (v3.3: **Today is the day, Standing is the crowd** — T2 redrawn around the day with the crowd as one strip that opens Standing; Standing carries a "your day" strip with its own Start; the sitting from Standing; messages end with their screen; the claim after a short test Holdout offers the Habit; the thinning chart on the Holdout's full length; the canvas at v137; v3.2: the three last gaps built and drawn — the pre-flight tip sheet on S3, streak milestones on S6 and T1, the new-phone banner wired on T1 and T2; v3.1: the PR #62 review fixes — a left lobby stays on screen, system Back in a sitting, a reminder on a re-created app; v3.0 on 2026-10-11, the app as built at the integration tip `b1ba45f` plus the integration pass `6ec0dc3`: the four-tab bar with *Today · Standing · Holdouts · Me*, *My Holdouts* and *Me* built; the levels are *Spark · 7-day* and *Habit · 21-day*; the four-card tour; Holdout's own signing flow and *You're in*; the stake confirm and faucet as sheets; the shortened fee sentence; no calendar dates; earlier: v2.2 on 2026-10-10 made staking Seeker-exclusive, v2.1 and v2.0 the same day) · **Scope:** the devnet hackathon build only. Post-hackathon screens are parked in §9. Holdout Lab, the tester app, has its own map: `holdout_lab_screen_map.md`.
 
 **Purpose.** One place that lists every screen the app has, what each one shows, and where a member can go from it. It is the brief for visual design: each card in §5 is one frame (or one set of frames) to draw, and it is read from the code as built.
 
-**Visual base:** the canvas *"Holdout — hero screens"* (claude.ai design canvas, phone boards at 390 × 844, dark; version `1791813833-5eef`) and the design book `docs/design/`, which is the source for every token, component and sentence of copy. Cards marked 🎨 are drawn on a board. Every card is written so it can be drawn in the same look (§2).
+**Visual base:** the canvas *"Holdout — hero screens"* (claude.ai design canvas, phone boards at 390 × 844, dark; v137) and the design book `docs/design/`, which is the source for every token, component and sentence of copy. Cards marked 🎨 are drawn on a board. Every card is written so it can be drawn in the same look (§2).
 
 > **Sources and precedence (rewritten 2026-10-11).** This file describes **the app as built**: every "On screen" list and every quoted sentence is read from `kotlin/app/src/main/kotlin/holdout/app/` at commit `b1ba45f` and the integration pass `6ec0dc3` (branch `claude/holdout-hero-screens-dev-5605d4`: the navigation shell, Today, the stake and signing flows, the sitting, Holdouts and Standing, Me and first run, all restyled to the boards). **Rules come from the spec-kit specs and nothing else:** `specs/001-holdout-hackathon` (the product; its session *2026-10-11 (evening)*: FR-069…FR-069d the four tabs, FR-070…FR-070c the signing flow, ES-20–ES-22, AC-24), `002-rep-placement-rules` (counting, with its level sentences), `003-seeker-id-names`, `004-lab-and-member-apps`, `005-refresh-when-unreachable`, with the constitution (2.3.1) in `.specify/memory/constitution.md`; they change only through the `/speckit-*` skills. Where a spec asks for more than the code has, that is a **gap** in §8, never written as if built. Where a board on the canvas differs from the code, §7 lists it. **The hackathon PRD is history**, not an authority: it is archived, unmaintained, as `docs/archive/holdout_v1_prd_hackathon-build_2026-09-18.md`, and the `PRD #n` and `PRD §n` citations on the cards point into it for the screen's origin only; the spec wins wherever the two differ. Mechanics are decided in the specs, never here.
 
@@ -125,8 +125,8 @@ On a card: **Spark · 7-day**, under it the tagline. In a sentence: *a Spark*, *
 
 | Tab | Root | Holds | Dot (8 dp accent, never a count) · accessible name |
 |---|---|---|---|
-| **⌂ Today** | **T2** while the member is standing in a running Holdout (that Holdout's day only, plus one nudge line per other Holdout), else **T1** (the Daily 25, nudges, the comeback, the open Holdouts) | The one thing to do today. Starts the sitting | Today's reps are not done (the Holdout's day when one runs, else the Daily 25) · *Today, today's reps aren't done* |
-| **∿ Standing** | **H4** of the Holdout the member is running, else of the last one they ran; else **H4a**, the empty state | Who is still standing, how the crowd thinned, the roster **H5**, the **L1** leaderboards. H4a: *Running now*, then *Yours starts in …* (lobby place) or *Join one to have a crowd* → ☰ | People dropped out of that Holdout since the member last looked at it (a `looked:` marker on the phone) · *Standing, 3 dropped since you last looked* |
+| **⌂ Today** | **T2** while the member is standing in a running Holdout (that Holdout's day, the crowd as one strip, plus one nudge line per other Holdout), else **T1** (the Daily 25, nudges, the comeback, the open Holdouts) | The one thing to do today. Starts the sitting | Today's reps are not done (the Holdout's day when one runs, else the Daily 25) · *Today, today's reps aren't done* |
+| **∿ Standing** | **H4** of the Holdout the member is running, else of the last one they ran; else **H4a**, the empty state | Who is still standing, how the crowd thinned, the roster **H5**, the **L1** leaderboards; on the root of a running Holdout the member stands in, their day too (the *your day* strip, which can start the sitting). H4a: *Running now*, then *Yours starts in …* (lobby place) or *Join one to have a crowd* → ☰ | People dropped out of that Holdout since the member last looked at it (a `looked:` marker on the phone) · *Standing, 3 dropped since you last looked* |
 | **☰ Holdouts** | **H0** My Holdouts | *Yours* (lobby, running, out, settling, claim), *Open to join*, *Running now* (read-only, every wallet), *Finished*. Opens H3, H4, H6, H7; Join opens the H2 sheet | A claim is waiting · *Holdouts, a claim is waiting* |
 | **◯ Me** | **W1** | Address, SKR and SOL, the faucet sheet, the streak and freezes, X1 About Holdout, the tour again, disconnect | SOL too low to pay a transaction, or SKR too low for the cheapest chip of a Holdout open to join · *Me, low on SKR or SOL* |
 
@@ -137,11 +137,13 @@ On a card: **Spark · 7-day**, under it the tagline. In a sentence: *a Spark*, *
 1. **The bar shows on tab roots only** (T1/T2, H4 or H4a as Standing, H0, W1). Pushed screens (H3, H4 from a list, H5, H6, H7, L1, X1) carry a back arrow and no bar. A sheet covers the bar with its scrim.
 2. **Full screen, no bar:** the connect screens (A1, A3), the tour (B1), every sitting (S1–S7), and Holdout's **signing flow** (N1: *Waiting for your wallet*, the confirming checklist, the result, *You're in*). The phone is on the floor; nothing should be tappable by accident.
 3. **Stake confirm (H2) and the faucet are real bottom sheets** (drag handle, scrim) over the screen that opened them — Today, Holdouts, the forfeit screen, Me. Dragging down or pressing Back returns there. The Seeker gate's three states are states of the same sheet.
-4. **Today never becomes a list.** It shows the day's action, the open Holdouts (T1) and at most one nudge line per other Holdout needing a tap (claim ready, lobby, a way back, settling). The running Holdouts the member could watch are not on Today: they sit on Holdouts and in Standing's empty state.
+4. **Today never becomes a list.** It shows the day's action, the open Holdouts (T1) or the crowd as one strip (T2), and at most one nudge line per other Holdout needing a tap (claim ready, lobby, a way back, settling). The running Holdouts the member could watch are not on Today: they sit on Holdouts and in Standing's empty state.
+   - **Each tab has one job while a Holdout runs:** Today is the day (what to do now and how long there is), Standing is the crowd (counter, chart, pool, share, roster). The day button is on both, so the sitting starts from either.
 5. **A screen that sends a transaction never just fails when funds are short.** The stake sheet shows a notice and **Get test tokens**, which opens the faucet sheet over it and comes back to the stake sheet; a submit short of SOL ends on *Not enough SOL* and the same sheet (ES-0a).
 6. **App open lands on Today**, including from a reminder (N2) — also when the reminder re-creates an app Android killed — and after the tour; returning to a killed app from the launcher or Recents brings back its tab and pushed screens. The first run goes connect → tour → Today.
-7. **Back:** during the signing flow it goes back only when the flow allows it, never while the wallet holds the screen (there is no Cancel; MWA cannot be aborted). Otherwise: close the sheet, step back the tour (not out of it on first run), pop the shown tab's pushed screen, then a non-Today tab goes to Today, and Back from Today leaves the app. Tapping the tab you are on pops it to its root. The sitting has its own way out (✕, then the Stopped screen); system Back does the same, closes the set-up guide first when it is open, then the tip sheet (it closes the sheet only, the checks keep running), and on a finished day acts as its finish button.
+7. **Back:** during the signing flow it goes back only when the flow allows it, never while the wallet holds the screen (there is no Cancel; MWA cannot be aborted). Otherwise: close the sheet, step back the tour (not out of it on first run), pop the shown tab's pushed screen, then a non-Today tab goes to Today, and Back from Today leaves the app. Tapping the tab you are on pops it to its root. The sitting has its own way out (✕, then the Stopped screen), and it ends on Today's root, wherever it was started (Standing's day strip included); system Back does the same, closes the set-up guide first when it is open, then the tip sheet (it closes the sheet only, the checks keep running), and on a finished day acts as its finish button.
 8. **What the chain does to where you are** (dotted arrows in §4): a lobby that starts leaves every stack (to Today, or Holdouts), and so does one that is left while not on screen; a lobby on screen when its leave lands stays, showing *You left*, until *Back to Holdouts* or Back; a missed deadline seen on Today's root pushes H6; the last day passing moves to Standing; a Holdout settling while H4 is open pushes H7; a join that lands under the stake sheet with no signing flow showing opens the lobby. Only a change seen while the app is open moves anything, and nothing moves under a full-screen step or a sheet.
+9. **A message belongs to its screen.** The line an action leaves (*Day 3 is on chain.*, a declined signature) ends when the member changes tab, pushes or pops a screen, or a sheet of another kind opens or closes (`nav/MessageScope.kt`); it never turns up on another screen, the claim screen included.
 
 **Pushed screens** (`Screen` in `nav/Nav.kt`): H3 Lobby · H4 Detail (from a list) · H5 Roster · H6 Forfeit · H7 Claim · L1 Leaderboards · X1 About. The tab and the pushed screens are saved (`nav/NavSaved.kt`, `rememberSaveable` in `HoldoutApp`), so a process killed in the background reopens where the member was. A sheet, the signing flow, a sitting and the tour are not restored (the wallet and camera cannot be resumed; banked reps are on disk and come back through Today's crash page).
 
@@ -153,7 +155,7 @@ On a card: **Spark · 7-day**, under it the tagline. In a sentence: *a Spark*, *
 | Your lobby / forfeit / settling / claim cards | ☰ H0 *Yours*; a one-line nudge on ⌂ |
 | "Past Holdouts" | ☰ H0 *Finished* |
 | "The ladder" | removed (6 Oct) |
-| "Who's still standing", "Holdout details" (T2) | ∿ Standing (H4); the counter on T2 opens it |
+| "Who's still standing", "Holdout details" (T2) | ∿ Standing (H4); the crowd strip on T2 opens it |
 | "Leaderboards" | ∿ H4 → L1 (and from H4a) |
 | "Get test tokens", "Disconnect …" | ◯ Me |
 | "About" | ◯ Me → X1 |
@@ -239,7 +241,8 @@ flowchart TB
     T1 -- "comeback card" --> H2
     T2 -- "Start / Keep going" --> S1
     T2 -- "Submit day · after a failed send ✍" --> N1a
-    T2 -- "the counter" --> H4
+    T2 -- "the crowd strip" --> H4
+    T2 -- "Short of SOL · Get test tokens" --> W1a
     N2 -. "tap" .-> T2
 
     %% sitting
@@ -252,15 +255,15 @@ flowchart TB
     S5 -- "✕ Stop" --> S7
     S6 -- "Daily 25 · Done" --> T1
     S6 -- "Holdout · Submit day N ✍" --> N1a
-    S6 -- "Holdout · Back to today" --> T2
+    S6 -- "Holdout · Back to today · also when started from Standing" --> T2
     S6 -- "Holdout · too late to send" --> H6
     S7 -- "Back to today" --> T1
-    S7 -- "Holdout" --> T2
+    S7 -- "Holdout · also when started from Standing" --> T2
 
     %% signing
     N1a -. "approved" .-> N1b -.-> N1c
     N1c -- "join landed" --> H2a
-    N1c -- "submit landed" --> T2
+    N1c -- "submit landed · also from Standing's day strip" --> T2
     N1c -- "claim · Done" --> H0
     N1c -- "Joining closed · See open Holdouts" --> H0
     N1c -- "Deadline passed · What happens now" --> H6
@@ -272,6 +275,9 @@ flowchart TB
     %% standing
     H4 -- "The roster" --> H5
     H4 -- "Leaderboards" --> L1
+    H4 -- "Your day · Start / Keep going" --> S1
+    H4 -- "Your day · Submit day N ✍" --> N1a
+    H4 -- "Your day · Get test tokens" --> W1a
     H4 -- "Your way back · out" --> H6
     H4 -. "settled" .-> H7
     H4a -- "Running now" --> H4
@@ -415,37 +421,37 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 **Exits:** Start / Keep going → S1 · Join → H2 sheet (through the Seeker gate) · How Holdout works → B1 · a nudge → H3 / H4 / H6 / H7 · the comeback card → H2 sheet or the Holdouts tab
 
 #### T2 · Today — in a Holdout
-**MUST · ✅ Built · 🎨 Drawn** (boards *5 · Home — in a Holdout*, *5b* day submitted, *5c* done and waiting for network) · `home/CohortHome.kt`, `shell/TodayHost.kt` · PRD §10.1a, FR-038, FR-047, FR-024b, FR-069a
+**MUST · ✅ Built · 🎨 Drawn** (boards *5 · Home — in a Holdout* redrawn around the day at v137, *5b* day submitted, *5c* done and waiting for network) · `home/CohortHome.kt`, `home/DayModel.kt`, `home/DayParts.kt`, `shell/TodayHost.kt` · PRD §10.1a, FR-038, FR-047, FR-024b, FR-069a
 
-**Job:** *the crowd is the product.* The survivor counter and the prize pool are the biggest things on screen, and they move at the deadline itself. The Holdout's day only: no Daily 25 card and no offers, because a Holdout day counts for the streak (FR-050).
+**Job:** *Today is the day.* What to do now and how long there is to do it. The crowd is one strip under the day that opens Standing, where the counter, the chart, the pool and the share live (FR-069b). The Holdout's day only: no Daily 25 card and no offers, because a Holdout day counts for the streak (FR-050). The day is one model (`DayState`), the same one Standing's day strip draws, so the two never disagree about the button, the deadline or whether the day is done.
 
-**Entered from:** app open while standing in a running Holdout · N2 reminder · H3 at start time · ☰ H0 *running* card · S6/S7 · a submit that landed
+**Entered from:** app open while standing in a running Holdout · N2 reminder · H3 at start time · ☰ H0 *running* card · S6/S7 · a submit that landed · ∿ Standing's tab
 
 **On screen (as built, top → bottom)**
-1. (`SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET` badge on a short test Holdout) · `HABIT · 21-DAY · DAY 12 OF 21`
-2. **189** / 312 (the counter rolls rather than cuts) · `STILL STANDING` · ▲ *3 dropped since yesterday* (green); the whole block is a link to ∿ Standing
-3. Card: **Prize pool** `48,200 SKR` · hairline · **Your share now** `255 SKR` / *if today's standing holds* · *+17 SKR since yesterday* (green) · *+ about 1,200 SKR boost if anyone finishes* (green; only while the level's reserve holds more than 0; FR-037d)
-4. The day: (the new-phone banner *No banked reps on this device today. 25 to go.* above it, with the Holdout's daily target, when this phone first saw the wallet today, the chain shows it in a Holdout that started before today, and nothing is banked here today; ES-3a, FR-069f, 🎨 board *MainNewPhone*; `home/NewPhone.kt`) · the bank ring (1 of 3 blocks) · **10 banked today** · *15 to go* · **Keep going** (primary)
+1. (`SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET` badge on a short test Holdout) · `HABIT · 21-DAY · DAY 12 OF 21` on the left, the streak chip on the right (flame and days; white while active, extended once the day is on chain; no milestone here)
+2. (the new-phone banner *No banked reps on this device today. 25 to go.* above the day, with the Holdout's daily target, when this phone first saw the wallet today, the chain shows it in a Holdout that started before today, and nothing is banked here today; ES-3a, FR-069f, 🎨 board *MainNewPhone*; `home/NewPhone.kt`)
+3. The day: the bank ring (1 of 3 blocks) beside **25 push-ups** (or **10 of 25 banked**) · *all at once or 10 at a time* (or *15 to go*) · `4h 06m` `left` (mono, accent) · the day button (primary), **Start today's 25** / **Keep going**
+4. The crowd strip (one card, the whole card a tap): **189 of 312 still standing · your share 255 SKR** `›` (the share only when the member stands in it) · under it ▲ *3 dropped since yesterday* (green; only when more than 0)
 5. Nudge rows for the member's other Holdouts (a lobby joined for later, a claim waiting, a way back), one line each
-6. Footer row: flame `12` · `4h 06m` `left` (mono, accent)
-7. Bottom bar, ⌂ active
+6. Bottom bar, ⌂ active
 
-**Today's-state variants** (🎨 drawn; the button and ring area change, the counter and pool stay)
+No big counter, prize-pool card, share card or boost line here: they are on Standing (H4).
+
+**Today's-state variants** (🎨 drawn; the ring and button area change, the crowd strip stays)
 | State | Shows | Action |
 |---|---|---|
-| To do | empty ring · **Nothing banked yet today** · *all at once or 10 at a time* | **Start today's 25** |
-| Part-way | ring 1/3 · **10 banked today** · *15 to go* | **Keep going** |
-| Last 10 min | ring and line in warning · **15 push-ups still needed** · *Under 10 minutes left. Unfinished reps won't count.* (FR-047) | Start (never blocked) |
+| To do | empty ring · **25 push-ups** · *all at once or 10 at a time* | **Start today's 25** |
+| Part-way | ring 1/3 · **10 of 25 banked** · *15 to go* | **Keep going** |
+| Last 10 min | ring, title and countdown in warning · **15 push-ups still needed** · *Under 10 minutes left. Unfinished reps won't count.* (FR-047) | Start (never blocked) |
 | Offline, not done | warning notice *Devnet can't be reached right now.* (*…still can't be reached.* after a check) · *You can still do today's reps. The day only counts once it reaches the chain before the deadline.* · **Check again** | Start |
 | Done, offline | ring full · **Done — waiting for network** · *Your 25 are saved on this phone. It only counts once it reaches the chain before the deadline: it's sent when Holdout is open and back online, and you approve it in your wallet.* · notice + **Check again** | — |
 | Done, sending | ring full · **Done — sending to the chain** · *Your 25 are counted on this phone. It only counts once it reaches the chain before the deadline: approve it in your wallet.* · **Waiting for your wallet…** (busy) | the wallet opens by itself (T098) |
 | Done, send failed | **Done — tap to submit** · *…before the deadline.* | **Submit day 12** → N1 |
 | Short of SOL to submit (a waiting day is not sent by itself while SOL is too low, `canPayFees`) | **Today's 25 are done** · *Not on chain yet.* · warning *Not enough devnet SOL for the fee. Test tokens include some.* · **Submit day 12** (off) | **Get test tokens** → W1a sheet |
-| Submitted | ring full in green · **Today is done and on chain.** · *Next day opens in 4h 06m.* | — |
+| On chain | ring full in green · **Today is done and on chain.** · *Day 13 opens in 4h 06m.* · the streak chip extended · no "left" countdown and no *Day 12 is on chain.* line | — |
+| Last day, on chain | ring full in green · **Today is done and on chain.** · *That was the last day. It settles soon after the end, then your claim is ready.* · never *Day 22 opens in …*. When the end passes the app moves to Standing (H4, *You finished · settling*) | — |
 
-**Exits:** Start / Keep going → S1 · Submit → N1 · counter → ∿ H4 · deadline missed → H6 · last day passed → H4 (settling) · a nudge → its screen
-
-No streak milestone here: T2 shows only the Holdout's day.
+**Exits:** Start / Keep going → S1 · Submit → N1 · the crowd strip → the Standing tab root (∿ H4) · Get test tokens → W1a · deadline missed → H6 · last day passed → H4 (settling) · a nudge → its screen
 
 ---
 
@@ -504,14 +510,14 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 
 **Wired by the host (`shell/SittingHost.kt`, `SittingOffers.kt`):** a Holdout day carries the label `HABIT · 21-DAY · DAY 12 OF 21` and, when the chain already counts the day, "Back to today" instead of Submit; a day finished too late to send goes on to that Holdout's Forfeit (H6). The Daily 25's upsell card appears under the streak: **Stake on yourself next** *Spark · 7-day · joining closes in 1d 3h* — or, in its place, **Get your stake back** with the comeback line. Shown only when the member has no Holdout running or in a lobby, and never to a wallet known this session not to hold a Seeker (C-D8, G12); a tap ends the sitting and opens the stake sheet.
 
-**Exits:** Done → T1 · Submit → N1 → T2 · Back to today → T2
+**Exits:** Done → T1 · Submit → N1 → T2 · Back to today → T2. A Holdout day started from Standing's day strip (H4) is the same sitting (`Sitting.HoldoutDay`) and ends the same way, on Today's root.
 
 **Milestone lines** (`streak/StreakMilestones.kt`, FR-049a; frozen days do not count): 7 *A week, every day. That's how habits start.* · 14 *Two weeks in. You're making this yours.* · 21 *21 days. That's a habit now.* · 28 *Four weeks without a gap.* · 30 *A month of showing up.* · 50 *50 days. Most people never get here.* · 60 *Two months strong.* · 90 *Three months. This is who you are now.* · 100 *100 days. Triple digits.* · 365 *A year, every day.* · every other hundred *{N} days. Still here, still going.* Personal and cosmetic like the streak (FR-051): on the phone only, unlocks nothing, never paid against.
 
 #### S7 · Stopped part-way
 **SHOULD · ✅ Built** (✕ shows the summary; the crash variant shows once on Today) **· 🎨 Drawn** (boards *20*, *20a* after a crash, *20d* Daily 25) · `sitting/StoppedScreen.kt`, `sitting/SittingMarker.kt` · ES-1, ES-2
 
-**On screen:** the label · **17** `done today` · the three block bars · `10 banked` (green) · `7 not kept` (warning) · *Only full blocks of 10 are kept. Come back before the day ends.* · a card: `Left today` `5h 12m` · `Still to do` `15 push-ups` · **Back to today** (to T1 after a Daily 25 sitting, to T2 after a Holdout one). It shows when anything was banked or discarded in that sitting; stopping with nothing goes straight back.
+**On screen:** the label · **17** `done today` · the three block bars · `10 banked` (green) · `7 not kept` (warning) · *Only full blocks of 10 are kept. Come back before the day ends.* · a card: `Left today` `5h 12m` · `Still to do` `15 push-ups` · **Back to today** (to T1 after a Daily 25 sitting, to T2 after a Holdout one, Standing's day strip included). It shows when anything was banked or discarded in that sitting; stopping with nothing goes straight back.
 
 **Crash variant** (ES-1, ES-2): **Your 10 banked reps are safe.** · *The app closed mid-sitting. Reps after your last 10 are gone.* Recovery of the banked reps is built (`BankingController.recover`), and Today shows this page once on the next open (`InterruptedSitting.consume` through `interruptedSittings`, `shell/TodayHost.kt`): the running Holdout's day first, then the Daily 25's; reading the marker clears it.
 
@@ -597,13 +603,21 @@ Only a confirmed absence of the token shows *Not a Seeker*; no network, a rate l
 **Exits:** See who's in → H5 · Leave → H0 · start time → T2
 
 #### H4 · Holdout detail (∿ Standing root)
-**MUST · ✅ Built · 🎨 Drawn** (boards *13*, *13a* watching, *13b* settling) · `cohort/CohortDetailScreen.kt` · PRD #11, US-7, FR-035a
+**MUST · ✅ Built · 🎨 Drawn** (boards *13*, *13a* watching, *13b* settling, *13d* `StandingDay` — the root with the "your day" strip, wrapper state boards of *Detail*) · `cohort/CohortDetailScreen.kt`, `cohort/YourDayStrip.kt`, `cohort/ThinningAxes.kt` · PRD #11, US-7, FR-035a, FR-069b
 
-**On screen (as built):** `HABIT · 21-DAY · DAY 12 OF 21` (a back arrow only when pushed from a list; on the Standing root none) · (test badge) · *You're watching this one* (a non-member) · (end-state card, see variants) · **189** / 312 `STILL STANDING` (rolls) · **How the crowd thinned** — a step chart of the standing count after each deadline (`cohort/ThinningChart.kt`) · card: **Prize pool** `48,200 SKR` · *+ about 1,200 SKR boost if anyone finishes* · **Days to go** 9 (today excluded) · hairline · **Days done** *11 of 21 days* · **Your share now** `255 SKR` *on top of your stake, if today's standing holds* (a non-member: *You can watch it thin. Joining is for Seeker owners.*) · **The roster** · **Leaderboards**
+**On screen (as built):** `HABIT · 21-DAY · DAY 12 OF 21` (a back arrow only when pushed from a list; on the Standing root none) · (test badge) · *You're watching this one* (a non-member) · **the "your day" strip** (below) · (end-state card, see variants) · **189** / 312 `STILL STANDING` (rolls) · **How the crowd thinned** — a step chart of the standing count after each deadline (`cohort/ThinningChart.kt`; the x axis is the Holdout's whole length laid out up front — `start`, one or two middle marks, `day 21` at the right edge, a line two days into three ends two thirds across — with a dashed run for the days to go, and whole-number gridlines only; `cohort/ThinningAxes.kt`) · card: **Prize pool** `48,200 SKR` · *+ about 1,200 SKR boost if anyone finishes* · **Days to go** 9 (today excluded) · hairline · **Days done** *11 of 21 days* · **Your share now** `255 SKR` *on top of your stake, if today's standing holds* (a non-member: *You can watch it thin. Joining is for Seeker owners.*) · **The roster** · **Leaderboards**
+
+**The "your day" strip** (`cohort/YourDayStrip.kt`; FR-069b; 🎨 board *13d*): shown **only on the Standing root** while the member stands in a running Holdout and its day is open — never on a Holdout they only watch, one they were forfeited from, one pushed from a list, nor after the last day. It is Today's day (`DayState`) in a card at the top:
+| State | Shows | Action |
+|---|---|---|
+| To do / part-way | `DAY 12 · 25 push-ups · 4h 06m left` (label style; the countdown in the mono face, accent, warning in the last 10 minutes with *Under 10 minutes left. Unfinished reps won't count.*) | **Start today's 25** / **Keep going** → S1 |
+| Done, not on chain | the strip as above with its title: **Done — waiting for network**, **Done — sending to the chain** (**Waiting for your wallet…**) or **Done — tap to submit** | **Submit day 12** → N1 |
+| Short of SOL | **Today's 25 are done** · *Not on chain yet.* · *Not enough devnet SOL for the fee. Test tokens include some.* | **Get test tokens** → W1a sheet |
+| On chain | no card, no button: one quiet line, *Day 12 is done and on chain.* | — |
 
 **Variants:** running · **settling** (**You finished · settling** · *Automation settles it on its next pass, usually within 15 minutes of the end.* · `Ended 4m ago · 11m left of those 15`; past 15 minutes *Taking longer than usual. It settles on the next automation pass; nothing you're owed can change.* — FR-035a) · **claimed** (**Claimed** `1,412 SKR`, the payout rows, the explorer link) · **out** (a notice *You're out after 6 days* · *Your run has ended. Your streak hasn't.* · **Your way back** → H6) · as a watcher (no *Your share*) · reading devnet… · devnet unreachable (**Check again**, spec 005)
 
-**Exits:** The roster → H5 · Leaderboards → L1 · Your way back → H6 · settled → H7
+**Exits:** The roster → H5 · Leaderboards → L1 · Your way back → H6 · settled → H7 · the day strip: Start / Keep going → S1 (the Holdout-day sitting, the same as T2's; its end lands on Today, not here), Submit day N → N1 → Today, Get test tokens → W1a
 
 #### H4a · Standing — nothing of yours yet
 **SHOULD · ✅ Built · 🎨 Drawn** (board *13c*) · `standing/StandingEmptyScreen.kt` · FR-069b, ES-21
@@ -642,7 +656,7 @@ Join before automation has recorded the forfeit sends the member's own `record_f
 
 **On screen (as built):** back · `SPARK · 7-DAY · FINISHED` · `settled` chip (green) · *Spark lit: you held out 7 days.* (a Habit: *You held out 21 days.*) · **1,412** `SKR · YOURS TO CLAIM` · card: **Stake back** `1,250 SKR` · **Share of the prize pool** `162 SKR` (green) · **Comeback** `250 SKR` *part of your last lost stake, back* (green; only when owed, FR-037e) · hairline · *9 of 20 dropped out. The 11 who finished split the pool and its boost.* (*Nobody dropped out: you get exactly your stake back.* when nobody did; *The 1 who finished takes the pool and its boost.*) · **Claim 1,412 SKR** (primary) · *One signature. It waits here until you claim.* No date and no settled time (constitution VI). Short of SOL: *Not enough devnet SOL for the fee. Test tokens include some.* + **Get test tokens** (→ W1a sheet), the button off.
 
-**The claim itself** runs in Holdout's signing flow (N1): **Claiming 1,412 SKR** → the result **CLAIMED** `1,412 SKR` in green with the gradient sweeping once, *1,250 SKR stake back + 162 SKR from the pool + 250 SKR comeback.* and the explorer link, then **Make it a Habit · 21-day** (after a Spark; after a Habit **Join the next Habit · 21-day**) over **Done** (→ H0). The upsell shows only for a Holdout open to join that nothing blocks, never for the short test league. A claimed Holdout's detail (H4) and this screen keep the payout breakdown (UC-10).
+**The claim itself** runs in Holdout's signing flow (N1): **Claiming 1,412 SKR** → the result **CLAIMED** `1,412 SKR` in green with the gradient sweeping once, *1,250 SKR stake back + 162 SKR from the pool + 250 SKR comeback.* and the explorer link, then **Make it a Habit · 21-day** (after a Spark; after a Habit **Join the next Habit · 21-day**) over **Done** (→ H0). The upsell shows only for a Habit open to join that nothing blocks. A **short test Holdout** gets it too (a test Spark, knees form: *Make it a Habit · 21-day*; a test Holdout on the toes form: *Join the next Habit · 21-day*), pointing at the real open Habit, never at a short test Holdout (`claimUpsell`, `shell/TxFlowHost.kt`; FR-070a, 🎨 the *testCohort* tweak of *ClaimTx*). A claimed Holdout's detail (H4) and this screen keep the payout breakdown (UC-10). No leftover message from another action (*Day 3 is on chain.*) shows here (§3 rule 9).
 
 **Entered from:** H0 / Today's *You finished · claim* card · the finished notice (N2, FR-068b) by way of Today · H4 once settled
 
@@ -707,7 +721,7 @@ Join before automation has recorded the forfeit sends the member's own `record_f
 | **N2** | **Reminder notification** (on-device): the Holdout starts; on a day of 12 hours or more, one at its midpoint (17:00–18:00 UTC for a 24-hour day) with sound and one 3 hours before the deadline, silent (FR-068); on a shorter test day, one before each deadline; when a day is done but not on chain, a silent, ongoing *"Day N is done, but not on chain yet"* notice that stays until it is submitted or the deadline passes, re-posted silently every hour (FR-068); and when every day of a Holdout is on chain, **one finished notice 15 minutes after the end** — *"You finished your 7-day Holdout"* · *"Settlement usually comes within 15 minutes of the end, so your claim is probably ready: open Holdout to claim it."* (+ *"It should include a comeback refund too."*), no amount, no chain read, silent for 12-hour days or more, cancelled once the app has seen the cohort settled (FR-068b) | SHOULD · ✅ · 🎨 (board *31*) | OS → Today, also when the app is already running (`ReminderNotices.openAppIntent` → `NavEvent.AppOpened`); the finished notice: → Today, whose card opens H7 |
 | **N3** | **Notification permission**, asked once at the first join with the reason shown on H2; the join goes ahead either way | SHOULD · ✅ | H2 → N1 |
 | **N4** | **Camera permission**: the OS dialog behind S1 | MUST · ✅ | S1 → S2/S3 |
-| **N5** | **"Dropped since yesterday"**: the line under T2's counter (*▲ 3 dropped since yesterday*) and the ∿ tab's dot until the member looks | SHOULD · ✅ (built 11 Oct) · 🎨 | T2 line, ∿ tab → H4 |
+| **N5** | **"Dropped since yesterday"**: the second line of T2's crowd strip (*▲ 3 dropped since yesterday*) and the ∿ tab's dot until the member looks | SHOULD · ✅ (built 11 Oct) · 🎨 | T2 line, ∿ tab → H4 |
 
 **N1 as built (`tx/SigningScreens.kt`; boards 1a–7b)**. The approval sheet belongs to the member's wallet app, so it is drawn **unbranded**: a neutral grey sheet (not a Holdout surface) with *[Your wallet app]*, the identity Holdout sends (**Holdout · holdout.app**), the action, what moves, the fee and *Solana devnet*, then **Reject / Approve**. Around it Holdout shows, full screen, label `SPARK · 7-DAY · JOINING` (`… · DAY 12`, `… · CLAIMING`) and `TEST NETWORK · TEST TOKEN`:
 
@@ -735,8 +749,8 @@ When the transaction may still land (it left the wallet, the network did not con
 | B1 | Tour, cards 1–4 | MUST | ✅ | 🎨 4 of 4 | — | first connect, T1, W1, X1 | T1, back |
 | B2 | Scripted-member disclosure (card 4) | SHOULD | ✅ | 🎨 | — | B1 | T1, back |
 | T1 | Today · Daily 25 + open Holdouts | MUST | ✅ | 🎨 | ⌂ | launch, S6, S7, N2 | S1, H2, B1, H3, H4, H6, H7 |
-| T2 | Today · in a Holdout | MUST | ✅ | 🎨 | ⌂ | launch, N2, H3, H0, N1 | S1, N1, H4, H6 |
-| S1 | Camera permission | MUST | ✅ | 🎨 | — | T1, T2, H2a, H6 | S2, S3 |
+| T2 | Today · in a Holdout (the day + a crowd strip) | MUST | ✅ | 🎨 | ⌂ | launch, N2, H3, H0, N1 | S1, N1, W1a, H4, H6 |
+| S1 | Camera permission | MUST | ✅ | 🎨 | — | T1, T2, H4 (day strip), H2a, H6 | S2, S3 |
 | S2 | Set-up guide (sheet) | MUST | ✅ | 🎨 | — | S1, S3 | S3 |
 | S3 | Pre-flight + hold | MUST | ✅ | 🎨 | — | S2 | S4, S7 |
 | S4 | Countdown | MUST | ✅ | 🎨 | — | S3 | S5 |
@@ -748,7 +762,7 @@ When the transaction may still land (it left the wallet, the network did not con
 | H2 | Stake confirm (sheet) + Seeker gate | MUST | ✅ | 🎨 | ☰ | T1, H0, H6, T1 comeback card | N3→N1, W1a |
 | H2a | You're in | SHOULD | ✅ | 🎨 | — | N1 after a join | S1, H3 |
 | H3 | Lobby (+ locked) | MUST | ✅ | 🎨 | ☰ | H2a, H0, H4a, T1 nudge | H5, H0, T2 |
-| H4 | Holdout detail | MUST | ✅ | 🎨 | ∿ | tab, T2, H0 | H5, L1, H6, H7 |
+| H4 | Holdout detail (+ "your day" strip) | MUST | ✅ | 🎨 | ∿ | tab, T2 crowd strip, H0 | S1, N1, W1a, H5, L1, H6, H7 |
 | H4a | Standing · nothing yet | SHOULD | ✅ | 🎨 | ∿ | tab | H4, H3, H0, L1 |
 | H5 | Roster | MUST | ✅ | 🎨 | ∿ | H4, H3 | back |
 | H6 | Forfeit | MUST | ✅ | 🎨 | ☰ | T2 (deadline), H0, H4, N1 | S1, H2, H3 |
@@ -759,7 +773,7 @@ When the transaction may still land (it left the wallet, the network did not con
 | X1 | About Holdout | MUST | ✅ | 🎨 | ◯ | W1 | B1, A1 |
 | N1–N5 | System moments (N1 = the signing flow) | MUST / SHOULD | see §5 N | 🎨 | — | — | — |
 
-**Count:** 21 MUST screens (all built) · 5 SHOULD screens (all built) · 3 SHOULD moments (N2, N3, N5) · every screen drawn on the canvas, version `1791746298-7062`; no NICE screen is left.
+**Count:** 21 MUST screens (all built) · 5 SHOULD screens (all built) · 3 SHOULD moments (N2, N3, N5) · every screen drawn on the canvas, v137; no NICE screen is left.
 
 ---
 
@@ -799,10 +813,13 @@ Where the draft said something the spec, the PRD or its own tokens note say diff
 ## 8. What to draw next, and what to build
 
 ### Boards to draw, in order
-**Done:** every screen in this map has a board (version `1791813833-5eef`, 12 Oct), with its variants as Tweaks and as extra boards (3b–3g, 4c–4f, 8a–8b, 10a, 13a–13c, 14a, 19a–19b, 20a, 26a). The §7 #1–#19 fixes are made. Still to draw:
+**Done:** every screen in this map has a board (canvas v137, 12 Oct), with its variants as Tweaks and as extra boards (3b–3g, 4c–4f, 8a–8b, 10a, 13a–13d, 14a, 19a–19b, 20a, 26a). v137 redraws T2 (*Main*) around the day, adds the "your day" strip to *Detail* and the wrapper board **13d** *StandingDay*, draws *Detail*'s chart on the full-length 21-day axis, gives *ClaimTx* a *testCohort* tweak with the Habit upsell, and animates the top-down push-up figure on the set-up guide (board 16). The §7 #1–#19 fixes are made. Still to draw:
 1. The §7 #20–#24 follow-ups on the existing boards
 2. ~~The **tip sheet** (S3) and a **streak-milestone state** of the Streak flame~~ — ✅ drawn 12 Oct (canvas version `1791813833-5eef`, design system `1791813251-1cb4`): *Preflight* steps Checks / Tips offered / Tip sheet / Holding / Blocked; the new boards *PreflightTips*, *DayCompleteMilestone*, *TodayMilestone*, *TodayNewPhone*, *MainNewPhone*; the *milestone* tweak on DayComplete and Today, the *newPhone* tweak on Main
 3. The Holdout Lab boards (`holdout_lab_screen_map.md` §6, §9); the share card (board 30) stays parked
+
+### Closed since v3.2 (12 Oct)
+The **Today / Standing redesign** (Phase 30): T2 as the day with a crowd strip (`f7b4556`, `56faaf3`) · Standing's "your day" strip and the sitting started from it (`c23ac33`) · messages end with their screen (`7c95a03`) · the Habit upsell after a short test Holdout's claim (`d2b570d`) · the thinning chart on the Holdout's full length (`3949ae7`).
 
 ### Closed since v3.1 (12 Oct)
 The three last gaps: the **pre-flight tip sheet** (old gap 1; `569c627`) · **streak milestones** on S6 and T1 (old gap 2) and the **new-phone banner** signal on T1 and T2 (old gap 3), both `25b8144`. The design-book sync is `7096877`.
@@ -838,7 +855,8 @@ The paths design has to make smooth, with the screens they cross. Times are PRD 
 
 - **J1 — First reps, under three minutes (PRD §10.2):** `A1` → ✍ → `B1` (four cards; *Skip* lands on card 4) → `T1` **Start** → `S1` → `S2` → `S3` → `S4` → `S5` → `S6` → `T1` (streak 1) → *(or the upsell card when it applies)* → **Join** → `H2`
 - **J2 — Stake on yourself:** `T1` or `☰ H0` **Join** → `H2` sheet (Seeker gate, then the stake confirm) → *(short → `W1a` sheet → back to the sheet)* → `N3` (first join) → ✍ `N1` (*Waiting for your wallet* → the checklist) → `H2a` **You're in** → **See the lobby** `H3` → *(start)* → `T2`
-- **J3 — A day inside a Holdout (PRD §10.3):** `N2` or app open → `T2` (*3 dropped since yesterday*) → **Keep going** → `S1…S6` → **Submit day 12** ✍ `N1` → `T2` *on chain* · optionally `∿ H4 / H5`
+- **J3 — A day inside a Holdout (PRD §10.3):** `N2` or app open → `T2` (the day, `3 dropped since yesterday` in the crowd strip) → **Keep going** → `S1…S6` → **Submit day 12** ✍ `N1` → `T2` *on chain* (*Day 13 opens in …*) · optionally the crowd strip → `∿ H4 / H5`
+- **J3a — The same day from Standing:** `∿ H4` (the "your day" strip) → **Start today's 25** → `S1…S6` → `T2` (a sitting ends on Today) · or **Submit day 12** ✍ `N1` → `T2`
 - **J4 — Change your mind before the start:** `☰ H0` → `H3` → **Leave — full refund** ✍ → `H0`. After the cutoff `H3` is locked.
 - **J5 — Miss a day, and the way back:** `T2` → *(deadline)* → `H6` → **Today's Daily 25** (`S1…`) or, from the comeback offer, **Join the next …** (`H2` on the lost chip → J2); `T1` carries the comeback card until the window's Holdouts have all closed for joining (at most 14 days), and finishing that Holdout pays the comeback with the claim (`H7`)
 - **J6 — Finish and get paid:** `T2` (last day) → `∿ H4` *settling* (usually within 15 minutes of the end) → *(settled)* → `N2` finished notice or the `☰ H0` card → `H7` → **Claim** ✍ `N1` → **CLAIMED** → **Done** → `☰ H0` *Finished*; after a Spark, **Make it a Habit · 21-day** → `H2`
@@ -862,7 +880,7 @@ The member's goals, each with its entry point, its exit and the screens it cross
 | UC-5 | Change your mind before the start | H0 / T1 nudge | H0, stake back | H3 → **Leave — full refund** → N1 inline → H0 | FR-009, US-2 |
 | UC-6 | Do today's reps in a Holdout and get the day on chain | N2 or launch → T2 | T2 *on chain* | T2 → S1…S6 → **Submit** → N1 → T2 | US-3, FR-038, FR-047, FR-070 |
 | UC-7 | Do today's reps in two or three sittings | T2 / T1 part-way | T2 / T1 done | S5 → ✕ → S7 → later S1… | FR-024b, ES-1, ES-2 |
-| UC-8 | See who dropped and what the crowd is worth today | T2 or ∿ | T2 | T2 (counter, *3 dropped since yesterday*, pool, share, boost estimate) → H4 → H5 | PRD §10.1a, FR-038a, FR-062, FR-069b |
+| UC-8 | See who dropped and what the crowd is worth today | T2 or ∿ | T2 or H4 | T2 (crowd strip: *189 of 312 still standing · your share …*, *3 dropped since yesterday*) → H4 (counter, chart, pool, share, boost estimate) → H5 | PRD §10.1a, FR-038a, FR-062, FR-069b |
 | UC-9 | Miss a day and find the way back | T2 (deadline) | S1 or H2 | H6 (fee sentence, streak alive, comeback offer) → **Join the next …** (offer) or **Today's Daily 25**; with no offer, **the same level's next Holdout** | US-4, FR-027, FR-037e, FR-037g |
 | UC-10 | Come back after a forfeit and earn part of the lost stake back | H6 offer or T1 comeback card | H7 claimed | H6 (offer card) or T1 (comeback card) → H2 (lost chip, *up to N SKR … comes back*) → … → H7 (**Comeback** row) | FR-037e, FR-037g |
 | UC-11 | Finish, wait for settlement, claim | T2 last day | H0 *Finished* | T2 → H4 *settling* (usually within 15 minutes of the end) → N2 finished notice, or the H0 card → H7 → **Claim** → N1 → CLAIMED → H0 | US-8, FR-034, FR-035, FR-035a, FR-068b, FR-070a |
