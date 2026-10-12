@@ -139,7 +139,7 @@ private fun DrawScope.drawFromAbove(progress: Float, measurer: TextMeasurer, den
                 translate((VIEWPORT_WIDTH - TOP_VIEW_WIDTH * fit) / 2f, (VIEWPORT_HEIGHT - TOP_VIEW_HEIGHT * fit) / 2f) {
                     scale(fit, pivot = Offset.Zero) {
                         drawTopView(progress)
-                        drawElbowAngle(measurer, density)
+                        drawAngles(measurer, density)
                     }
                 }
             }
@@ -149,18 +149,13 @@ private fun DrawScope.drawFromAbove(progress: Float, measurer: TextMeasurer, den
 }
 
 /**
- * The 45° the elbows make with the body (owner, 12 Oct; the board's `su-angle` group), in the top view's units: an arc
- * at the near shoulder from the body line to the upper arm, the body line dashed, and "45°" beside the elbow.
+ * The two 45°s of the position, as the board marks them (owner, 12 Oct; board 2c): beside the elbow, the angle the
+ * upper arm makes with the body, and beside the phone, the angle it is turned toward the member. In the top view's units.
  */
-private fun DrawScope.drawElbowAngle(measurer: TextMeasurer, density: Density) {
-    val accent = HoldoutColors.Accent
-    drawArc(accent, startAngle = -ELBOW_ANGLE, sweepAngle = ELBOW_ANGLE, useCenter = false, topLeft = Offset(146f, 31.2f), size = Size(28f, 28f), style = Stroke(1.6f))
-    drawLine(accent.copy(alpha = 0.7f), Offset(160f, 45.2f), Offset(178f, 45.2f), strokeWidth = 1f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(2f, 3f)))
-    digit("45°", 192f, 44f, 20f, FontWeight.Normal, true, accent, measurer, density, center = false)
+private fun DrawScope.drawAngles(measurer: TextMeasurer, density: Density) {
+    digit("45°", 192f, 44f, 20f, FontWeight.Normal, true, HoldoutColors.Accent, measurer, density, center = false)
+    digit("45°", 88f, 124f, 20f, FontWeight.Normal, true, HoldoutColors.Accent, measurer, density, center = false)
 }
-
-/** The drawn upper arm's angle from the body line: `atan2(19.7, 24)` of the top view's shoulder-to-elbow segment. */
-private const val ELBOW_ANGLE = 39.4f
 
 private fun DrawScope.drawOutline(outline: FigureOp.Rect, inFrame: Boolean) {
     val topLeft = Offset(outline.x, outline.y)
