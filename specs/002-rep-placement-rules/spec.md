@@ -81,6 +81,10 @@ Decided on the design review of the hero screens, for the product owner's review
 - Q: Which card of the first-run tour explains how reps are counted, and what does it say about the two levels? (FR-013) → A: **Card 3 of 4** (the tour has four cards since 001 FR-067; the fourth is the scripted-member disclosure). It states the placement and the knee rule: every sitting at 45°; push-ups from the knees count in the Daily 25 and in a Spark; a Habit counts from the toes only. Its figure shows the check pills ticking green, five of them (next answer).
 - Q: Does the pre-flight page still show five pills, with *Knees visible* among them? (FR-018, FR-024a) → A: **Yes — Lighting · Whole body in frame · Knees visible · Camera view · Background still**, only the last advisory. The design canvas, which drew four, is redrawn with the fifth. FR-024a is unchanged.
 
+### Session 2026-10-12
+
+- Q: Is the "Don't show this again" tick kept when the guide is closed by the phone's Back, a tap outside it or a drag down, and not only by its own button? (FR-016) → A: **Yes — however the guide is closed.** Its button, the phone's Back, a tap outside it and a drag down all carry the tick, so a ticked guide is not shown again for that wallet at those stakes; with the guide open, Back closes the guide first (001 Session 2026-10-12). Decided by the product owner's delegate on 12 October from the PR #62 review.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Daily 25 counts at 45°, the placement a Holdout is counted at (Priority: P1)
@@ -132,7 +136,7 @@ A member starting a sitting is shown, while still holding the phone, where to pu
 **Acceptance Scenarios**:
 
 1. **Given** a member starts a sitting, **When** the screen opens, **Then** a set-up guide with three pages — the phone, the body, how counting starts — is shown before anything else, and no countdown can begin while it is open.
-2. **Given** the guide, **When** the member ticks "Don't show this again" and closes it, **Then** it is not shown again for that wallet at those stakes, and can still be reopened from the sitting screen.
+2. **Given** the guide, **When** the member ticks "Don't show this again" and closes it — with its button, the phone's Back, a tap outside it or by dragging it down — **Then** it is not shown again for that wallet at those stakes, and can still be reopened from the sitting screen.
 3. **Given** a member getting into position, **When** something needs fixing, **Then** a single correction of at most three words is shown large and spoken aloud, and it changes only when the next thing needs fixing.
 4. **Given** everything is in place, **When** the member holds the top of a push-up, **Then** the screen says "Hold" and the countdown begins on its own.
 
@@ -198,7 +202,7 @@ A member mid-set hears a short tone on every counted rep and, if they glance at 
 **Setting up**
 
 - **FR-015**: When a sitting opens, a set-up guide MUST be shown before the camera checks can start a countdown, with three pages: where the phone goes (only the placements these stakes accept, drawn from above with distances), how to lie, and how counting starts. *(Amended 2026-10-10.)* Under its title, on every page, it MUST first say "Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone."; the phone page MUST say why the placement serves both ("From there it sees all of you, and the knee nearer to it."), and the body page MUST open with the whole-body and knees lines before the position and the outline.
-- **FR-016**: The guide MUST offer "Don't show this again", remembered per wallet and per stakes, and MUST be reopenable from the sitting screen until the member is lined up.
+- **FR-016**: The guide MUST offer "Don't show this again", remembered per wallet and per stakes, kept however the guide is closed (its button, the phone's Back, a tap outside it, or dragging it down), and MUST be reopenable from the sitting screen until the member is lined up.
 - **FR-017**: No countdown MAY start while the guide is open.
 - **FR-018**: While the member gets into position, the screen MUST show one correction at a time, at most three words, in type readable from about two metres, chosen in this order: more light; the phone standing up; getting into view; the phone's placement; getting down; the knee turn ("Turn slightly left", "right" or "away", FR-024a), shown only while *Whole body in frame* passes; further; closer; left or right; then "Hold". A moving background is shown as its own pill, never as the correction, because it does not block the start (001 FR-019).
 - **FR-018a** *(added 2026-10-02)*: Once every check on the phone and the picture passes, the correction MUST say what the position itself still lacks — arms not straight, knees down, knees the model cannot make out, body not in one line — one at a time, with a sentence under it saying what to do. "Hold" is shown only when nothing is missing. Found on the phone: a second person in a proper plank, in loose trousers, saw "Hold" under four green pills for a minute and no countdown, with nothing to say why.
