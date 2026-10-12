@@ -111,7 +111,7 @@ class TourScreenTest {
         compose.onNodeWithText("The Daily 25 and Spark: aim for your toes; knees are allowed.", substring = true).assertExists()
         compose.onNodeWithText("Habit: full push-ups from your toes.", substring = true).assertExists()
         compose.onNodeWithText("Private by design").assertExists()
-        compose.onNodeWithText("No microphone, ever. Reps are counted on this phone — no video leaves the app.").assertExists()
+        compose.onNodeWithText("No microphone, ever. Reps are counted on this phone — no video or body data leaves the app.").assertExists()
         compose.onAllNodes(hasText("Lab", substring = true)).assertCountEquals(0)
     }
 

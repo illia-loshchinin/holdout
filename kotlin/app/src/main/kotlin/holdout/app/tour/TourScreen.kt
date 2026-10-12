@@ -288,7 +288,7 @@ private fun CountingCard() {
             style = MaterialTheme.typography.bodyLarge,
             color = HoldoutColors.TextSecondary,
         )
-        SuccessNote(Mark.Shield, "Private by design", "No microphone, ever. Reps are counted on this phone — no video leaves the app.")
+        SuccessNote(Mark.Shield, "Private by design", "No microphone, ever. Reps are counted on this phone — no video or body data leaves the app.")
     }
 }
 
