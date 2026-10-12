@@ -71,11 +71,13 @@ Built for the Solana Mobile **CLOCK IN** hackathon.
   fails if a microphone permission appears.
 - **Native on Seeker.** Mobile Wallet Adapter with Seed Vault, the Seeker Genesis Token as the key
   to Holdouts, and Seeker ID (`.skr`) names in the roster.
-- **No oracle, and no one can hold the money.** The contract never reads a price. The admin sets
-  up the levels and the operator prices the chips. Every step that moves a Holdout forward
-  (opening it, recording missed days, settling, releasing a comeback) follows the contract's rules
-  and can be sent by any wallet. Our crank does it on a schedule, how often depends on the
-  environment, but if it stopped, anyone could finish the job.
+- **No oracle, and no one can hold the money.** The contract never reads a price, and no
+  instruction lets anyone withdraw a stake or a pool. During judging the upgrade authority is the
+  one trust assumption left (see [Known weaknesses](#known-weaknesses)). The admin sets up the
+  levels and the operator prices the chips. Every step that moves a Holdout forward (opening it,
+  recording missed days, settling, releasing a comeback) follows the contract's rules and can be
+  sent by any wallet. Our crank does it on a schedule, how often depends on the environment, but
+  if it stopped, anyone could finish the job.
 
 ## How it works
 
@@ -88,12 +90,16 @@ Built for the Solana Mobile **CLOCK IN** hackathon.
 | Starts | Any time | Mondays 05:00 UTC | Mondays 05:00 UTC | Every 30 minutes |
 | Needs | A Solana wallet | A Seeker | A Seeker | A Seeker |
 
+For Spark and Habit:
+
 - **Join** by picking one of four chips (≈ $10 / $25 / $50 / $100 in SKR). Joining and leaving
   close one hour before the start. Until then, leaving is a full refund.
 - **Do 25 push-ups a day**, all at once or in blocks of 10. Every 10 are banked for good. When the
   day is done, your wallet signs one transaction.
 - **Miss a day** and your stake is lost. The crank records it, by chain time, not your phone's clock.
 - **Finish**, and once the Holdout settles, claim your stake plus your share.
+
+A Hackathon round works the same way with 5 reps a day, and you can join it right up to its start.
 
 ```mermaid
 flowchart LR

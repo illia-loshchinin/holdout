@@ -12,9 +12,12 @@
 | Client | Codama-generated TypeScript in [`tests/clients/holdout/`](../tests/clients/holdout/), and a hand-written Kotlin client in [`kotlin/core`](../kotlin/core/) |
 | Token | SKR, an SPL token. On devnet it is a test mint with no value. |
 
-The program holds every stake, every pool and every reserve in program-owned vaults. No person,
-including the operator and the developer, can move a member's stake or a prize pool. Only the
-program's rules move them.
+The program holds every stake, every pool and every reserve in program-owned vaults. No instruction
+lets the operator or the developer withdraw a member's stake or a prize pool; only the program's
+rules move them. One trust assumption remains: during judging the program keeps its **upgrade
+authority**, and an upgraded program could move what the vaults hold. That authority is used only
+for defect fixes and is to be revoked once the contract is final (see
+[Known weaknesses](../README.md#known-weaknesses)).
 
 ## Instructions
 

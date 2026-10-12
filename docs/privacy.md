@@ -12,7 +12,7 @@ sure of it.
 | **Video** | Never stored, never uploaded. Each camera frame goes to the on-device pose model and is dropped right after. |
 | **Sound** | Never recorded. The app has **no microphone permission**, and the build fails if one ever appears. |
 | **Body data** | The 33 landmarks per frame live in memory during the sitting and are thrown away. No landmark or rep trace is sent anywhere. |
-| **Banked reps** | Kept in the app's private storage until the day is sent. Cloud backup and device transfer are switched off. |
+| **Banked reps** | Each day's rep count and whether it was completed stay in the app's private storage on the phone, also after the day is sent, until the app's data is cleared or the app is removed. They are counts only, never images. Cloud backup and device transfer are switched off. |
 
 ## What goes on chain
 
