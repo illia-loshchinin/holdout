@@ -274,7 +274,7 @@ class ForfeitScreenTest {
         compose.onNodeWithText("Win back 125 SKR").assertIsDisplayed()
         compose.onNodeWithText("Join the Habit · 21-day that started today. Finish it \u2014 or the one after it, starting in 6d 22h \u2014 and 125 SKR comes back.").assertIsDisplayed()
         compose.onNodeWithText("Joining closes in 22h 00m").assertIsDisplayed()
-        compose.onNodeWithText("Join the Habit · 21-day").performClick()
+        compose.onNodeWithText("Join today's Habit · 21-day").performClick()
         assertEquals(1, taps.join)
     }
 

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -186,6 +187,25 @@ private fun DailyCard() {
     }
     SuccessNote(Mark.Lock, "Every 10 are banked for good", "Close the app or stop mid-set — banked reps stay.")
     Text("Each day done grows your streak.", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextTertiary)
+    // How the levels differ, moved here from the counting card (owner, 12 Oct; board 2a).
+    HorizontalDivider(color = HoldoutColors.Hairline)
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
+        Text("How reps are counted", style = MaterialTheme.typography.titleSmall, color = HoldoutColors.TextPrimary)
+        FormRules()
+    }
+}
+
+/** The Daily 25 and Spark against Habit: the one way the levels count differently. */
+@Composable
+private fun FormRules() {
+    Text(
+        buildAnnotatedString {
+            append("The Daily 25 and Spark: aim for your toes; knees are allowed.\n")
+            withStyle(SpanStyle(color = HoldoutColors.TextPrimary)) { append("Habit: full push-ups from your toes.") }
+        },
+        style = MaterialTheme.typography.bodyLarge,
+        color = HoldoutColors.TextSecondary,
+    )
 }
 
 /** A 5-wide grid of accent dots whose rows ([ys]) are faded by [alphas]: the Daily 25 in blocks of 10. */
@@ -362,15 +382,6 @@ private fun CountingCard() {
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
-        Text("How reps are counted", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
-        Text(
-            buildAnnotatedString {
-                append("The Daily 25 and Spark: aim for your toes; knees are allowed.\n")
-                withStyle(SpanStyle(color = HoldoutColors.TextPrimary)) { append("Habit: full push-ups from your toes.") }
-            },
-            style = MaterialTheme.typography.bodyLarge,
-            color = HoldoutColors.TextSecondary,
-        )
         SuccessNote(Mark.Shield, "Private by design", "No microphone, ever. Reps are counted on this phone — no video or body data leaves the app.")
     }
 }

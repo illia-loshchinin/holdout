@@ -224,8 +224,15 @@ private fun ColumnScope.Buttons(
     when {
         offer == null -> if (onNextHoldout != null) PrimaryButton(ForfeitText.nextHoldout(c, h.isTest), onNextHoldout)
         offer.held != null && onSeePlace != null -> PrimaryButton("See your place", onSeePlace)
-        // The round that has started or is locked is not "the next": the member joins it late.
-        offer.held == null && nextCohort != null && joinBlocker == null -> PrimaryButton("Join the ${if (next.lateJoin) "" else "next "}${Format.level(nextCohort)}", onJoin)
+        // The round that has started or is locked is not "the next": the member joins it late — today's once it runs.
+        offer.held == null && nextCohort != null && joinBlocker == null -> PrimaryButton(
+            when {
+                !next.lateJoin -> "Join the next ${Format.level(nextCohort)}"
+                next.status == CohortStatus.Running -> "Join today's ${Format.level(nextCohort)}"
+                else -> "Join the ${Format.level(nextCohort)}"
+            },
+            onJoin,
+        )
     }
 }
 
