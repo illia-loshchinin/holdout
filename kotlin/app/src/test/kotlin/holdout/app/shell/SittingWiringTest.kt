@@ -33,6 +33,7 @@ class SittingWiringTest {
     @Test
     fun `a day is too late once its own deadline has passed, and not a second before`() {
         assertFalse(tooLateToSend(h, 2, day3Deadline - 1))
+        assertFalse(tooLateToSend(h, 2, day3Deadline), "the deadline second itself still takes a submit (now <= deadline on chain)")
         assertTrue(tooLateToSend(h, 2, day3Deadline + 1))
         assertFalse(tooLateToSend(h, 2, null))
     }

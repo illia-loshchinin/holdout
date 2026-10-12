@@ -291,13 +291,25 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     }
 
     // Asked once, at the first join, with the reason (FR-068a); the join goes ahead either way.
-    var joinAfterAsking by remember { mutableStateOf<(() -> Unit)?>(null) }
+    // The join waiting on the answer is kept as "cohort:tier" in saved state, so an activity
+    // recreated while the system dialog is open still makes it once the answer comes back.
+    var joinAfterAsking by rememberSaveable { mutableStateOf<String?>(null) }
+    var askAnswered by rememberSaveable { mutableStateOf(false) }
     val askForNotifications = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
     ) {
         notificationsAnswered++
-        joinAfterAsking?.invoke()
+        askAnswered = joinAfterAsking != null
+    }
+    LaunchedEffect(askAnswered, joinAfterAsking, chain.view, now) {
+        val waiting = joinAfterAsking ?: return@LaunchedEffect
+        if (!askAnswered) return@LaunchedEffect
+        val (cohort, tier) = waiting.split(':').let { it[0] to it[1].toInt() }
+        val h = chain.view?.holdouts?.firstOrNull { it.address.base58() == cohort } ?: return@LaunchedEffect
+        val n = now ?: return@LaunchedEffect
         joinAfterAsking = null
+        askAnswered = false
+        holdouts.join(sender, h, tier, n)
     }
     // A member already in a Holdout — joined before reminders existed, or on
     // another install — is asked the first time the app finds them in one.
@@ -309,13 +321,14 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
         askForNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
     }
 
-    fun joinAsking(join: () -> Unit) {
+    fun joinAsking(h: Holdout, tier: Int, now: Long) {
         if (android.os.Build.VERSION.SDK_INT >= 33 && !store.askedForNotifications()) {
             store.setAskedForNotifications()
-            joinAfterAsking = join
+            joinAfterAsking = "${h.address.base58()}:$tier"
+            askAnswered = false
             askForNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
         } else {
-            join()
+            holdouts.join(sender, h, tier, now)
         }
     }
 
@@ -563,7 +576,8 @@ internal fun sittingNote(h: Holdout, day: Int, nowSeconds: Long?, offline: Boole
     val n = day + 1
     val reps = h.cohort.repsPerDay
     val left = nowSeconds?.let { Derive.deadlineOf(h.cohort, day) - it }
-    if (left != null && left <= 0) {
+    // The program takes a day up to and including its deadline second (`now <= deadline`).
+    if (left != null && left < 0) {
         val reach = if (offline) "$network can't be reached, and day" else "Day"
         return "Done — too late to send" to
             "$reach $n's deadline has passed, so it can no longer be sent. Your $reps are saved on this phone."

@@ -59,6 +59,18 @@ class TabRootsTest {
     }
 
     @Test
+    fun `Standing lets the last one go once it is over for the member - claimed, or settled after falling out`() {
+        val claimed = holdout(5, START - 20 * DAY, member(7, MembershipSnapshot.State.Claimed))
+        assertNull(TabRoots.standing(view(claimed, lobby, notMine), START), "claimed: the empty state, the Holdout is on Past")
+        val out = holdout(4, START - 12 * DAY, member(1, MembershipSnapshot.State.Forfeited))
+        assertEquals(out.address, TabRoots.standing(view(out), START)?.address, "fell out, not settled yet: the crowd is still worth watching")
+        val settledOut = out.copy(cohort = out.cohort.copy(settled = true))
+        assertNull(TabRoots.standing(view(settledOut), START), "fell out and settled: nothing left to see")
+        val toClaim = holdout(6, START - 20 * DAY, member(7, MembershipSnapshot.State.Finished))
+        assertEquals(toClaim.address, TabRoots.standing(view(toClaim.copy(cohort = toClaim.cohort.copy(settled = true))), START)?.address, "a claim waiting keeps it")
+    }
+
+    @Test
     fun `a running Holdout's roster is read every 30 seconds, a finished one's only slowly`() {
         assertEquals(ROSTER_REFRESH_MILLIS, TabRoots.rosterEveryMillis(running, START))
         // The 7-day Holdout started two days before START: it has ended five days later.

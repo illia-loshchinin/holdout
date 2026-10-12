@@ -53,8 +53,8 @@ internal class Shared(
     val checkChain: (roster: SolanaPublicKey?) -> Unit,
     /** Sends a completed day of a Holdout (and records it as that day's training for the streak). */
     val submitDayOf: (Holdout, Int) -> Unit,
-    /** Asks for notifications once, at the first join (FR-068a), then runs the join. */
-    val joinAsking: (() -> Unit) -> Unit,
+    /** Asks for notifications once, at the first join (FR-068a), then joins [Holdout] on the tier, as of the chain time given. */
+    val joinAsking: (Holdout, Int, Long) -> Unit,
     val disconnect: () -> Unit,
     /** This wallet is confirmed on this phone as holding a Seeker Genesis Token: a join goes straight to the stake confirm. */
     val seekerKnown: Boolean,

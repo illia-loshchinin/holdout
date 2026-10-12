@@ -198,7 +198,7 @@ internal fun Shared.StakeSheetHost(sheet: Sheet.Stake, seekerGate: SeekerGate) {
         busy = chain.busy,
         message = chain.message,
         messageIsWarning = chain.messageIsWarning,
-        onStake = { tier -> joinAsking { holdouts.join(sender, h, tier, n) } },
+        onStake = { tier -> joinAsking(h, tier, n) },
         onGetTokens = { dispatch(NavEvent.OpenFaucet) },
         initialTier = sheet.tier,
         onTierChange = { dispatch(NavEvent.StakeTier(it)) },
