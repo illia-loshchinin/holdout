@@ -162,6 +162,13 @@ class SittingViewModel(
          * member is still holding the phone — unless they asked not to see it.
          */
         val showSetup: Boolean = false,
+        /**
+         * The checks have been short of green for 30 s in total, or a green one has turned red three
+         * times: S3 shows "Still not green? Tips" from now until the sitting ends ([PreflightTipsOffer]).
+         */
+        val tipsOffered: Boolean = false,
+        /** The tip sheet is open over S3. Only the member opens it. */
+        val showTips: Boolean = false,
         /** The one short correction to show big while getting into position. */
         val coach: Coach? = null,
         /** With the pills green and the hold not filling: the sentence that says why (`HoldBlocker.fix`). */
@@ -186,6 +193,9 @@ class SittingViewModel(
     private val preflight = Preflight(stakes = stakes)
     private val readyGate = ReadyGate(stakes = stakes)
     private val positionGuide = PositionGuide()
+
+    /** One per sitting, so nothing carries over to the next. */
+    private val tipsOffer = PreflightTipsOffer()
 
     /** Updated from the gravity sensor; drives where the floor is drawn. */
     @Volatile
@@ -327,8 +337,14 @@ class SittingViewModel(
                 // picture does — and only then, so it never talks over a pill's own fix.
                 val blocker = readyGate.blocker.takeIf { !_uiState.value.showSetup }
                 val coach = Coach.next(report, guidance, blocker)
+                tipsOffer.onReport(
+                    observation.world.timestampMillis,
+                    preflightPills(report, coach).map { pill -> pill.passing },
+                    reading = _uiState.value.showSetup,
+                )
                 _uiState.update {
                     it.withFrame(observation).copy(
+                        tipsOffered = tipsOffer.offered,
                         preflight = report,
                         readyProgress = readyGate.progress,
                         guidance = guidance,
@@ -436,7 +452,7 @@ class SittingViewModel(
         // The guide is dropped here and never comes back. A silhouette
         // reappearing over somebody mid-set is a distraction they cannot act on
         // without abandoning the set.
-        _uiState.update { it.copy(step = Step.COUNTDOWN, readyProgress = 1f, guidance = null) }
+        _uiState.update { it.copy(step = Step.COUNTDOWN, readyProgress = 1f, guidance = null, showTips = false) }
     }
 
     /** One second of the countdown, driven by the screen's timer. */
@@ -686,9 +702,19 @@ class SittingViewModel(
         _uiState.update { it.copy(showSetup = false) }
     }
 
-    /** "How to set up" — reopens the guide, whatever was chosen before. */
+    /** "How to set up" — reopens the guide, whatever was chosen before. Opened from the tip sheet, it takes the sheet's place. */
     fun openSetup() {
-        _uiState.update { it.copy(showSetup = true) }
+        _uiState.update { it.copy(showSetup = true, showTips = false) }
+    }
+
+    /** "Still not green? Tips" — only the member opens the sheet; the checks keep running under it. */
+    fun openTips() {
+        _uiState.update { it.copy(showTips = true) }
+    }
+
+    /** The tip sheet was closed, by its button, Back, a tap outside or a drag. It starts nothing. */
+    fun closeTips() {
+        _uiState.update { it.copy(showTips = false) }
     }
 
     fun onError(message: String) {
