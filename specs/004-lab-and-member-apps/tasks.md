@@ -187,6 +187,21 @@ description: "Task list for 004 Holdout Lab and the member app"
 
 ---
 
+## Phase 8: Walk round 5 — names, Holdouts Now/Past, set-up guide, pre-flight, tour
+
+*(Added 2026-10-12, by `/speckit-tasks` after the clarification session "2026-10-12" of spec.md (the TEST COHORT label of FR-013 is the Hackathon Holdout's DEVNET COHORT badge, and the short test lobby's Holdouts are named Hackathon Holdouts; FR-013, FR-014) and its planning edits (contracts/variants-and-seams.md, quickstart rows 2 and 4). Numbered from T034, after this feature's own T033: the T106 to T108 that appear in T031 are `specs/001-holdout-hackathon`'s. The rest of the same walk — the Holdouts tab as Now and Past, the set-up guide, the pre-flight page and the tour — is specified in 001 (Phase 34) and 002 (Phase 10), not here. Product-owner decision, the name chosen by his delegate; no screen other than the label changes.)*
+
+**Goal:** the member app's disclosure label on the short test lobby's Holdouts is the quiet neutral "DEVNET COHORT · {day length} DAYS" pill, and members read "Hackathon Holdout".
+**Independent test:** quickstart rows 2 and 4 (the label where it applies; a Seeker wallet offered the Hackathon Holdout like any other).
+
+- [X] T034 [US3] **The DEVNET COHORT badge is a neutral pill** (`kotlin/app/src/main/kotlin/holdout/app/ui/Components.kt` `TestCohortBadge`: surface-3 fill, text-secondary text, not the warning tone; FR-013). Done 2026-10-12: `7827ea1` (delegate).
+- [X] T035 [US3] **The short test lobby's Holdouts are "Hackathon Holdout" in the member app** (`kotlin/app/src/main/kotlin/holdout/app/` — the stake sheet, lobby, Today, Holdouts, forfeit, leaderboard and reminder strings and the tests that read them; FR-014). Done 2026-10-12: `f4d77af` (the name, across 31 files), `efde239` (a reminder says the name once) (delegate).
+- [X] T036 [P] [docs] [US3] **Spec, contract and quickstart wording** (`specs/004-lab-and-member-apps/spec.md` Session 2026-10-12 and FR-013, FR-014 and the names note; `contracts/variants-and-seams.md`; `quickstart.md` rows 2 and 4), through `/speckit-clarify` and `/speckit-plan`. Done 2026-10-12: `cfb8b61` and `439b894`.
+
+**Dependencies:** T034 and T035 are built (001 T294 tracks the same commits); T036 reads the code. **Open:** `kotlin/app/src/main/kotlin/holdout/app/ui/StatusChip.kt` still says in a comment that `warning` is the tone for DEVNET COHORT.
+
+---
+
 ## Dependencies & Execution Order
 
 - **Setup:** T001 → T002.
