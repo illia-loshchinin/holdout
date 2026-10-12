@@ -1,14 +1,24 @@
 package holdout.app.stake
 
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.unit.dp
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.chain.Holdout
 import holdout.app.testutil.AnimationsOff
@@ -265,6 +275,125 @@ class StakeSheetTest {
         // The refund is capped at the new stake, and 250 SKR is below the smallest chip, so the pick does not change it.
         compose.onNodeWithContentDescription("≈ \$10, 500 SKR").performClick()
         text("Finish it and up to 250 SKR of the stake you lost comes back.").assertExists()
+    }
+
+    /** What a refresh of the chain changes under an open sheet: the clock, the roster count, the held stake, the balance. */
+    private class Live(h: Holdout, at: Long, balance: ULong) {
+        var h by mutableStateOf(h)
+        var at by mutableLongStateOf(at)
+        var balance by mutableStateOf(balance)
+    }
+
+    private fun comebackOffer(round: Holdout, tier: Int) = Comeback.Offer(
+        slot = 0,
+        lost = 2_500uL * skr,
+        tier = tier,
+        missed = start - 5 * day,
+        until = start + 9 * day,
+        forfeited = Comeback.Entry(SolanaPublicKey(ByteArray(32) { 8 }), round.cohort, null),
+        rounds = listOf(Comeback.Round(start, start - 7 * day, Comeback.Entry(round.address, round.cohort, null), CohortStatus.Open)),
+        held = null,
+    )
+
+    @Test
+    fun `a comeback sheet keeps the lost stake's chip when the chain refreshes under it`() {
+        val round = holdout()
+        val live = Live(round, now, 10_000uL * skr)
+        compose.setContent {
+            HoldoutTheme {
+                StakeSheet(
+                    h = live.h,
+                    skrBalance = live.balance,
+                    lamports = 1_000_000_000L,
+                    now = live.at,
+                    joinBlocker = null,
+                    busy = false,
+                    message = null,
+                    messageIsWarning = true,
+                    onStake = { staked += it },
+                    onGetTokens = {},
+                    initialTier = 2,
+                    onTierChange = { tiersPicked += it },
+                    comeback = comebackOffer(round, tier = 2),
+                )
+            }
+        }
+        compose.onNodeWithContentDescription("≈ \$50, 2,500 SKR").assertIsSelected()
+
+        // A refresh: later clock, one more member, more held stake, a different balance, a new snapshot of the same Holdout.
+        live.at += 30
+        live.h = round.copy(cohort = round.cohort.copy(memberCount = round.cohort.memberCount + 1, heldStake = round.cohort.heldStake + 1_250uL * skr))
+        live.balance = 9_000uL * skr
+        compose.waitForIdle()
+
+        compose.onNodeWithContentDescription("≈ \$50, 2,500 SKR").assertIsSelected()
+        compose.onNodeWithContentDescription("≈ \$25, 1,250 SKR").assertIsNotSelected()
+        assertEquals(emptyList(), tiersPicked, "nothing was picked")
+    }
+
+    @Test
+    fun `a scroll that starts on a chip does not pick it`() {
+        val round = holdout()
+        compose.setContent {
+            HoldoutTheme {
+                StakeSheet(
+                    h = round,
+                    skrBalance = 10_000uL * skr,
+                    lamports = 1_000_000_000L,
+                    now = now,
+                    joinBlocker = null,
+                    busy = false,
+                    message = null,
+                    messageIsWarning = true,
+                    onStake = {},
+                    onGetTokens = {},
+                    modifier = Modifier.height(360.dp),
+                    initialTier = 2,
+                    onTierChange = { tiersPicked += it },
+                    comeback = comebackOffer(round, tier = 2),
+                )
+            }
+        }
+        compose.onNodeWithContentDescription("≈ \$25, 1,250 SKR").performTouchInput { swipeUp(startY = centerY, endY = centerY - 300f, durationMillis = 40) }
+        compose.waitForIdle()
+
+        compose.onNodeWithContentDescription("≈ \$50, 2,500 SKR").assertIsSelected()
+        assertEquals(emptyList(), tiersPicked, "nothing was picked")
+    }
+
+    @Test
+    fun `a coarse swipe, down then one far move then up, that starts on a chip does not pick it`() {
+        val round = holdout()
+        compose.setContent {
+            HoldoutTheme {
+                StakeSheet(
+                    h = round,
+                    skrBalance = 10_000uL * skr,
+                    lamports = 1_000_000_000L,
+                    now = now,
+                    joinBlocker = null,
+                    busy = false,
+                    message = null,
+                    messageIsWarning = true,
+                    onStake = {},
+                    onGetTokens = {},
+                    modifier = Modifier.height(360.dp),
+                    initialTier = 2,
+                    onTierChange = { tiersPicked += it },
+                    comeback = comebackOffer(round, tier = 2),
+                )
+            }
+        }
+        compose.onNodeWithContentDescription("≈ \$25, 1,250 SKR").performTouchInput {
+            down(center)
+            advanceEventTime(10)
+            moveTo(center - androidx.compose.ui.geometry.Offset(0f, 300f))
+            up()
+        }
+        compose.waitForIdle()
+
+        compose.onNodeWithContentDescription("≈ \$50, 2,500 SKR").assertIsSelected()
+        assertEquals(emptyList(), tiersPicked, "nothing was picked")
     }
 
     @Test
