@@ -125,7 +125,7 @@ fun CohortHome(
 ) {
     val c = h.cohort
     val figures = members?.let { Derive.figures(c, it, now, boostReserve = h.league?.boostReserve) }
-    val since = members?.let { Derive.sinceYesterday(c, it, now) }
+    val since = if (figures != null && members != null) Derive.sinceYesterday(figures, members) else null
     val standing by animateIntAsState(figures?.survivors?.standing ?: c.memberCount.toInt(), animationSpec = tween(COUNT_MILLIS), label = "survivors")
     val timeLeft = Derive.timeLeftToday(c, now)
     val warning = Derive.inWarningWindow(timeLeft)
