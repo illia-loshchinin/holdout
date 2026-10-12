@@ -81,7 +81,9 @@ class ConnectScreenTest {
     fun `first open says what each product is in a few short lines`() {
         show()
 
-        compose.onNodeWithText("Holdout").assertIsDisplayed()
+        // The wordmark: HOLDOUT in tracked capitals, read aloud as "Holdout" (owner, 12 Oct).
+        compose.onNodeWithText("HOLDOUT").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Holdout").assertIsDisplayed()
         compose.onNodeWithText("Stake on yourself.", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Prove it every day.", substring = true).assertIsDisplayed()
         compose.onNodeWithText("The Daily 25 — free, every day: get stronger at your own pace. 25 push-ups, counted by the camera.\nYour streak grows.").assertIsDisplayed()
