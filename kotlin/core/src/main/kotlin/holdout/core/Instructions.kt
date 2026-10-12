@@ -381,9 +381,12 @@ object Instructions {
     /**
      * `release_comeback()` — permissionless: a comeback pledge nobody made good
      * moves from the league's comeback reserve to its boost reserve (FR-037e).
-     * [wallet] is the member whose profile holds it. [round] is the comeback's
-     * **last** round — its cohort, settled — once the league has opened it; absent
-     * while it has not been opened, when the program judges by the schedule.
+     * [wallet] is the member whose profile holds it. [round] is the latest of the
+     * comeback's rounds the league has opened — cohort `min(last, next_index − 1)`,
+     * settled — required once the league has opened its first round
+     * (`next_index > first`); absent before that, when the program judges by the
+     * schedule. A two-round comeback with only its first round opened names that
+     * first round.
      * Refused with 6046 when the profile has no open comeback in the league and
      * 6047 while the round can still be finished.
      */

@@ -556,9 +556,10 @@ export const settleFinalizeIx = async (
  * `release_comeback()`, permissionless: `caller` signs and nothing else about
  * them matters. Moves the pledge of `wallet`'s open comeback in the league from
  * the comeback reserve to the boost reserve once its last round can no longer
- * make it good (FR-037e). `round` is cohort `comeback_last_round` of the league,
- * and is required once the league has opened it (`next_index > round`); omit it
- * (the program's own ID in the slot) while that round is unopened.
+ * make it good (FR-037e). `round` is the latest comeback round the league has
+ * opened, cohort `min(comeback_last_round, next_index - 1)`, and is required once
+ * the league has opened the first one (`next_index > comeback_round`); omit it
+ * (the program's own ID in the slot) while no comeback round is opened.
  */
 export const releaseComebackIx = async (
   caller: Address,

@@ -38,8 +38,10 @@ internal fun Shared.MeRoot(modifier: Modifier = Modifier) {
             faucetSkr = v?.config?.maxTopTier,
             streak = streak.current,
             streakState = when {
-                streak.current == 0 -> StreakState.Broken
-                doneToday -> StreakState.ExtendedToday
+                // A Holdout day counts as much as the Daily 25: either one done today extends it.
+                doneToday || streak.completedToday -> StreakState.ExtendedToday
+                // Broken only once there was a streak to break; a member who never trained has a plain 0.
+                streak.current == 0 && streak.longest > 0 -> StreakState.Broken
                 else -> StreakState.Active
             },
             freezes = streak.freezes,
@@ -73,8 +75,8 @@ internal fun Shared.FaucetSheetHost() {
         maxTopTier = v?.config?.maxTopTier ?: 0uL,
         busy = chain.busy,
         outcome = chain.lastFaucet,
-        // Both the snapshot and chain time are needed to claim: without them the balances are not shown and the tap is off.
-        ready = v != null && n != null,
+        // The snapshot, chain time and the program's config are needed to claim: without them the balances are not shown and the tap is off.
+        ready = v?.config != null && n != null,
         onClaim = { if (n != null) holdouts.claimFaucet(sender) },
         onBack = {
             holdouts.clearMessage()

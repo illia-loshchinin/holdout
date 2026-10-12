@@ -100,9 +100,11 @@ class HoldoutViewModel(
      * It runs in [scope]: a check's roster read is a child of the check, so leaving the front cancels it.
      * A cohort's read still out answers for any asked meanwhile — the 30-second pass, a screen opened
      * twice, the Standing dot's own loop — so the same `getProgramAccounts` is never in flight twice.
+     * A [force]d read ("Check again") starts its own anyway: one already out may be hanging, and the
+     * check promises a fresh roster; the newer answer wins either way.
      */
-    fun loadRoster(cohort: SolanaPublicKey, scope: CoroutineScope = viewModelScope) {
-        if (rosterReads[cohort]?.isActive == true) return
+    fun loadRoster(cohort: SolanaPublicKey, scope: CoroutineScope = viewModelScope, force: Boolean = false) {
+        if (!force && rosterReads[cohort]?.isActive == true) return
         // A read given up (see [ROSTER_READ_MILLIS]) can still be answered late; a slow
         // early one must not put an older roster back over a newer one.
         val started = ++rosterLoadsStarted

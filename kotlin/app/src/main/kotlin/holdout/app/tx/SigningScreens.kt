@@ -61,6 +61,7 @@ import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 import holdout.app.wallet.TxOutcome
 import holdout.app.wallet.TxPhase
+import holdout.app.wallet.WalletRepository
 import holdout.core.HoldoutDay
 
 /** What the signing flow shows for one signature (rulings G7, C-D14; boards 4b, 6b, 7b). */
@@ -151,9 +152,15 @@ private fun ColumnScope.Result(state: SigningState, outcome: TxOutcome, onEvent:
             Outcome(Mark.Failed, "Not confirmed yet", "It was sent, but the network hasn't confirmed it. It may still land — check again in a minute.")
             PrimaryButton("Back", back)
         } else {
-            Outcome(Mark.Failed, "It didn't go through", "The network didn't confirm it. $safe")
-            PrimaryButton("Try again", retry)
-            SecondaryButton("Back", back)
+            if (outcome.message == WalletRepository.WRONG_NETWORK) {
+                // A wallet on another network signed nothing: trying again would ask the same wallet the same way.
+                Outcome(Mark.Failed, "Your wallet isn't on devnet", "Nothing was signed. Switch your wallet to devnet, then connect again. $safe")
+                PrimaryButton("Back", back)
+            } else {
+                Outcome(Mark.Failed, "It didn't go through", "The network didn't confirm it. $safe")
+                PrimaryButton("Try again", retry)
+                SecondaryButton("Back", back)
+            }
         }
         TxOutcome.JoiningClosed -> {
             Outcome(Mark.Clock, "Joining closed first", "Your transaction landed too late. Nothing was taken.")

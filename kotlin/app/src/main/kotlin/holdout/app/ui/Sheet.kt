@@ -93,7 +93,12 @@ fun BoxScope.HoldoutSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier, 
                     .draggable(
                         orientation = Orientation.Vertical,
                         state = rememberDraggableState { dragged = (dragged + it).coerceAtLeast(0f) },
-                        onDragStopped = { if (dragged > dismissAt) onDismiss() else dragged = 0f },
+                        // Back at rest either way: a sheet that stays composed (the stake sheet under the faucet) must not reappear pushed down.
+                        onDragStopped = {
+                            val dismiss = dragged > dismissAt
+                            dragged = 0f
+                            if (dismiss) onDismiss()
+                        },
                     )
                     .padding(vertical = Spacing.tight),
                 contentAlignment = Alignment.Center,
