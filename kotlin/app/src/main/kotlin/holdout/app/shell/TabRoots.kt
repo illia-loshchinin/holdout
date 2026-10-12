@@ -42,7 +42,9 @@ internal object TabRoots {
     /**
      * The Holdout the Standing tab is about: the one running with the member
      * standing in it, else the last one they ran — started, whatever came of
-     * it. A lobby place alone is not one: there is no crowd yet.
+     * it — until it is over for them: claimed, or settled with nothing to claim
+     * (they fell out). Then the empty state, and the past one lives on
+     * Holdouts' Past tab. A lobby place alone is not one: there is no crowd yet.
      */
     fun standing(view: ChainView?, now: Long?): Holdout? {
         if (view == null || now == null) return null
@@ -50,5 +52,13 @@ internal object TabRoots {
         return view.holdouts
             .filter { it.membership != null && it.cohort.start <= now && it.stage(now) != Stage.NotJoined }
             .maxByOrNull { it.cohort.start }
+            ?.takeUnless { over(it, now) }
+    }
+
+    /** Nothing left for the member to see happen: claimed, or settled after they fell out. */
+    private fun over(h: Holdout, now: Long): Boolean = when (h.stage(now)) {
+        is Stage.Claimed -> true
+        is Stage.Forfeited -> h.cohort.settled
+        else -> false
     }
 }
