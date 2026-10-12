@@ -41,7 +41,7 @@ import kotlinx.coroutines.delay
 internal fun Shared.HoldoutsRoot(modifier: Modifier = Modifier) {
     val n = now
     val v = view
-    val state = remember(v, n?.let { it / 60 }, rosters, refreshToken) {
+    val state = remember(v, n, rosters, refreshToken) {
         if (v == null || n == null) {
             null
         } else {

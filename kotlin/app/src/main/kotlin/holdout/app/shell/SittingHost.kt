@@ -60,7 +60,7 @@ internal fun Shared.SittingHost(s: Sitting, modifier: Modifier = Modifier) {
             // After the Daily 25: the next Holdout to join, or a comeback in its place — and
             // nothing while a Holdout runs or waits in a lobby, or for a wallet known not to
             // be a Seeker (C-D8, G12). A tap ends this sitting first: the sheet cannot open under it.
-            val offer = remember(view, now?.div(60), seekerKnown, knownNotSeeker) { SittingOffers.of(view, now, seekerKnown, knownNotSeeker) }
+            val offer = remember(view, now, seekerKnown, knownNotSeeker) { SittingOffers.of(view, now, seekerKnown, knownNotSeeker) }
             SittingScreen(
                 viewModel = vm,
                 onFinished = done,
