@@ -83,6 +83,10 @@ sitting ends, reps short of the next block are not kept, and the app says so.
 
 ## How it is tested
 
+- **Holdout Lab.** A separate tester app (`holdout.app.lab`) with the same counting code, no
+  wallet and no network. Testers who agreed to be filmed record sets in it, and each rep is
+  labelled: honest, from the knees, cobra, half rep. That is where rules like "knees down" are
+  worked out. See [Privacy](privacy.md#the-one-exception-holdout-lab).
 - **Recorded traces.** [`fixtures/rep-traces/`](../fixtures/rep-traces/) holds landmark recordings
   of real sittings: honest sets, half reps, knees, cobras, out-of-frame. They are numbers only,
   never pixels. 27 labelled sets hold 278 labelled reps.

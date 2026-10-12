@@ -57,6 +57,8 @@ Built for the Solana Mobile **CLOCK IN** hackathon.
 
 - **Your phone counts every rep.** An on-device AI model watches the push-up and a written rule
   decides what counts. Nobody reports their own reps.
+- **Rules tuned on real recordings.** A separate tester app, Holdout Lab, records labelled sets
+  (knees, toes, cobras). Every rule change is replayed against all of them before it ships.
 - **Money moves only when someone misses a day.** Nobody pays to take part. If everyone finishes,
   everyone gets exactly their stake back.
 - **A fall is not the end.** 10 % of a lost stake is set aside for that member. They finish the next
@@ -168,8 +170,18 @@ The front camera feeds **MediaPipe Pose Landmarker** on the phone's GPU. A plain
 The phone stands on the floor at **45°** ahead of the shoulder. That is the one angle where the
 camera can tell a push-up from the knees from one on the toes, so every sitting uses it.
 Pre-flight checks (light, whole body, knees visible, angle), a held plank and a 3 · 2 · 1 countdown
-come before the first rep. Refused reps get a coaching cue, never an error. More in
-[Rep counting](docs/rep-counting.md).
+come before the first rep. Refused reps get a coaching cue, never an error.
+
+**Holdout Lab: where the rules are trained.** The rules come from a separate app, **Holdout Lab**
+(`holdout.app.lab`). It runs exactly the same counting code. Testers who agreed to be filmed do
+sets in it: honest push-ups, push-ups from the knees, cobras, half reps, different angles. Each rep
+is then labelled, for example "from the knees" or "from the toes". The labelled recordings become
+the fixtures in [`fixtures/rep-traces/`](fixtures/rep-traces/). Every rule change, such as where
+"knees down" starts, is replayed against all of them before it ships. That way a fix that catches
+knee push-ups can't quietly start refusing honest ones. Lab has no wallet and no network. It is
+never given to members, and the member build fails if any Lab code reaches it.
+
+More in [Rep counting](docs/rep-counting.md).
 
 ## On chain and off chain
 
