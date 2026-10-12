@@ -1,6 +1,7 @@
 package holdout.app.sitting
 
 import holdout.app.ui.Format
+import holdout.core.CohortSnapshot
 import holdout.repcounter.Stakes
 
 /**
@@ -38,6 +39,9 @@ object SittingCopy {
         Stakes.EASY -> "spark · 7-day"
         Stakes.DAILY -> DAILY
     }
+
+    /** The same label for a Holdout day, read from its cohort: a test Holdout of 3 days says `habit · 3-day`, not 21. */
+    fun levelLabel(cohort: CohortSnapshot): String = Format.level(cohort).lowercase()
 
     /**
      * The sentence under a sitting's set-up and pre-flight page: the Holdout's

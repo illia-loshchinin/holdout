@@ -3,6 +3,7 @@ package holdout.app.sitting
 import android.Manifest
 import android.content.pm.PackageManager
 import android.hardware.camera2.CameraCharacteristics
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.camera2.interop.Camera2CameraInfo
@@ -100,6 +101,8 @@ fun SittingScreen(
     tools: LabSittingTools? = null,
     /** The finished screen's top label of a Holdout day, `Format.headerLabel(cohort, day)`; null falls back to "day 12 · 25 reps". */
     headerLabel: String? = null,
+    /** The set-up guide's level label of a Holdout day, `SittingCopy.levelLabel(cohort)`; null (the Daily 25, Lab) reads it from the stakes. */
+    levelLabel: String? = null,
     /** The finished Holdout day is already on chain (the signing flow's success): nothing is left to submit. */
     onChain: Boolean = false,
     /** What a finished Daily 25 points on to (the next Holdout, or a comeback); null when there is none to offer. */
@@ -178,6 +181,8 @@ fun SittingScreen(
     val countingLabel = SittingCopy.countingLabel(dayNumber, state.target)
     fun header(label: String) = SittingHeader(label.takeIf { member }, timeLeft, holdoutDay)
 
+    val finish = { if (tools != null && viewModel.labEnding != null) labelThen = onFinished else onFinished() }
+
     // Stopped part-way (board 20): shown when anything was banked or discarded in this sitting.
     val bankedAtStart = remember { viewModel.uiState.value.banked }
     var stopped by remember { mutableStateOf<StoppedUi?>(null) }
@@ -195,6 +200,18 @@ fun SittingScreen(
                 secondsLeft = viewModel.timeLeftSeconds(),
             ).takeIf { member }
             if (summary != null) stopped = summary else onCancelled(discarded)
+        }
+    }
+
+    // System Back is the X: the nav layer has no Back inside a sitting, so without this the gesture would
+    // background the app and drop the set's loose reps with no Stopped summary. The set-up guide registers its
+    // own handler after this one, so while it is open Back closes it first. A finished day leaves as its button does.
+    BackHandler(enabled = labelThen == null) {
+        val summary = stopped
+        when {
+            summary != null -> onCancelled(summary.notKept)
+            state.step == SittingViewModel.Step.COMPLETE -> finish()
+            else -> stop()
         }
     }
 
@@ -276,7 +293,7 @@ fun SittingScreen(
                 } else {
                     DayCompleteUi(null, state.target, null, null, null, finishLabel ?: "Back")
                 },
-                onFinish = { if (tools != null && viewModel.labEnding != null) labelThen = onFinished else onFinished() },
+                onFinish = finish,
                 onOffer = onOffer,
             )
         }
@@ -300,7 +317,7 @@ fun SittingScreen(
                 stakes = state.stakes,
                 detected = state.preflight?.view,
                 onDone = viewModel::closeSetup,
-                levelLabel = SittingCopy.levelLabel(state.stakes),
+                levelLabel = levelLabel ?: SittingCopy.levelLabel(state.stakes),
             )
         }
 
