@@ -140,7 +140,7 @@ Created by the first `claim_faucet` or `join_cohort`, whichever comes first.
 | `leagues[l].last_changed` | i64 | The instant of the member's most recent outcome in that league — the cohort's `end` for a clear, the missed `deadline_of(days_completed)` for a forfeit — and **never the time the transaction landed**. Written as `max(last_changed, t)`, so neither page order nor a late crank run can change it. Leaderboard tie-break (FR-060b) |
 | `running` | {cohort: Pubkey, end: i64} | Membership in a started cohort; default = none |
 | `pending` | {cohort: Pubkey, start: i64, end: i64} | Lobby place; default = none. `end` is the lobby cohort's own end, copied in as the place is taken: normalisation promotes the place without the cohort account in hand, and `running.end` is the only figure the overlap guard has (FR-006b, INV-4) |
-| `last_faucet_day` | i64 | Day index of last faucet claim; −1 = never |
+| `last_faucet_day` | i64 | Day index of last faucet claim; −1 = never. **Informational since 2026-10-12**: `claim_faucet` still stamps it, nothing reads it (the per-wallet daily limit is removed, FR-042a) |
 | `bump` | u8 | |
 
 `cleared` and `forfeited` are order-independent counters: `forfeited` rises the moment a forfeit is recorded (FR-060a), `cleared` when the cohort is counted. Only the two streak figures need cohort order, and only `settle_count` writes them.
@@ -181,7 +181,7 @@ Per-league progress is recorded from Phase 1; league leaderboards reading it are
 | Chip set: 4 increasing positive amounts; operator only | FR-054, R14 | `publish_chip_set` |
 | Only the program's current upgrade authority may `initialize`, verified against `ProgramData` | R14, constitution I | `initialize` |
 | No cohort opens before the first chip set is published (`chip_set.version > 0`) | FR-055b | `open_cohort` |
-| Faucet: payer ∈ {`sponsor`, recipient}; once per recipient per day; every lamport leaving the vault charged to the day's budget; mints `chip_set.max_top_tier`, not today's `amounts[3]` | FR-042a, R13 | `claim_faucet` |
+| Faucet: payer ∈ {`sponsor`, recipient}; no per-recipient limit (removed 2026-10-12); every lamport leaving the vault charged to the day's budget; mints `chip_set.max_top_tier`, not today's `amounts[3]` | FR-042a, R13 | `claim_faucet` |
 | Sponsor refill only below half its float, charged to the same daily budget; no signature from the sponsor | FR-042b, R13 | `top_up_sponsor` |
 | `exercise` must be `0` — the reserved values are layout, not behaviour, in this build | H30, constitution V | `create_league` |
 
