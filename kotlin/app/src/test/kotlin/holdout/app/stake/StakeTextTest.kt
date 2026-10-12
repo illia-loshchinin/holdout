@@ -23,19 +23,19 @@ class StakeTextTest {
     fun `the title joins the level by name`() {
         assertEquals("Join the Spark · 7-day Holdout", StakeText.title(spark, test = false))
         assertEquals("Join the Habit · 21-day Holdout", StakeText.title(habit, test = false))
-        assertEquals("Join the Hackathon Holdout", StakeText.title(spark, test = true))
+        assertEquals("Join the Hackathon · 7-day Holdout", StakeText.title(spark, test = true))
     }
 
     @Test
     fun `the level line leads with the tagline's first words`() {
         assertEquals("Light it up: 25 push-ups a day for 7 days.", StakeText.levelLine(spark, false))
         assertEquals("Make it stick: 25 push-ups a day for 21 days.", StakeText.levelLine(habit, false))
-        assertEquals("5 push-ups a day for 3 days. Joinable right up to its start.", StakeText.levelLine(cohort(LeagueParams.FORM_KNEES_ALLOWED, 3, reps = 5, joinLock = 0), true))
+        assertEquals("A quick taste: 5 push-ups a day for 3 days. Joinable right up to its start.", StakeText.levelLine(cohort(LeagueParams.FORM_KNEES_ALLOWED, 3, reps = 5, joinLock = 0), true))
     }
 
     @Test
     fun `a test Holdout with a join lock does not claim to be joinable up to its start`() {
-        assertEquals("5 push-ups a day for 3 days.", StakeText.levelLine(cohort(LeagueParams.FORM_KNEES_ALLOWED, 3, reps = 5, joinLock = 60), true))
+        assertEquals("A quick taste: 5 push-ups a day for 3 days.", StakeText.levelLine(cohort(LeagueParams.FORM_KNEES_ALLOWED, 3, reps = 5, joinLock = 60), true))
     }
 
     @Test
@@ -51,7 +51,7 @@ class StakeTextTest {
     @Test
     fun `a test Holdout's fee sentence does not name a level`() {
         val fee = StakeText.fee(spark, true)
-        assertTrue("boosts later Hackathon Holdout prizes." in fee, fee)
+        assertTrue("boosts later Hackathon · 7-day prizes." in fee, fee)
         assertFalse("Spark" in fee)
     }
 
@@ -59,7 +59,7 @@ class StakeTextTest {
     fun `a test Holdout's fee sentence is pinned word for word`() {
         assertEquals(
             "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
-                "20 % to the project. If nobody finishes, the pool boosts later Hackathon Holdout prizes.",
+                "20 % to the project. If nobody finishes, the pool boosts later Hackathon · 21-day prizes.",
             StakeText.fee(habit, true),
         )
     }

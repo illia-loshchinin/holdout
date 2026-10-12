@@ -407,10 +407,10 @@ class StakeSheetTest {
         val test = holdout(leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, dayLength = 600, joined = 3, held = 250uL * skr, cutoff = start, reps = 5)
         show(test, at = start - 750)
         text("DEVNET COHORT · 10-MINUTE DAYS").assertExists()
-        text("Join the Hackathon Holdout").assertExists()
-        text("5 push-ups a day for 3 days. Joinable right up to its start.").assertExists()
+        text("Join the Hackathon · 3-day Holdout").assertExists()
+        text("A quick taste: 5 push-ups a day for 3 days. Joinable right up to its start.").assertExists()
         text("Starts in 12m 30s").assertExists()
-        text("Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, 20 % to the project. If nobody finishes, the pool boosts later Hackathon Holdout prizes.").assertExists()
+        text("Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, 20 % to the project. If nobody finishes, the pool boosts later Hackathon · 3-day prizes.").assertExists()
     }
 
     @Test

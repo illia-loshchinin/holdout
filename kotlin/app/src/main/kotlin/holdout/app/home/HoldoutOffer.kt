@@ -119,8 +119,8 @@ private fun OfferCardTestPreview() {
     HoldoutTheme {
         OfferCard(
             PREVIEW.copy(
-                title = OfferCardState.TEST_TITLE,
-                tagline = "3 days · 5 push-ups a day · joinable right up to its start",
+                title = "Hackathon · 3-day",
+                tagline = "A quick taste · knees allowed",
                 atStake = "250 SKR",
                 joined = "at stake · 3 joined",
                 timing = "Starts in 12m 30s",

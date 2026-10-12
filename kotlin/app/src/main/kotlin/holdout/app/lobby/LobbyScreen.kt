@@ -43,9 +43,6 @@ import holdout.core.MembershipSnapshot
 
 /** The words of the lobby (board 8; FR-009, ES-12, ruling G3, G9), kept apart from the screen so they are tested alone. */
 object LobbyText {
-    /** A Hackathon Holdout keeps its own name (spec 001 FR-044a). */
-    const val TEST_NAME = "Hackathon Holdout"
-
     const val LATE_LEAVE = "Leaving closed before your transaction landed. You're still in."
     const val CONTRACT_HOLDS = "held by the contract, not by us"
     const val NO_POOL = "No prize pool until someone misses a day."
@@ -54,7 +51,7 @@ object LobbyText {
     const val LOCKED_NOTE = "Joining closed. This is the final roster."
     const val FOOTER = "Dollar values are approximate."
 
-    fun name(c: CohortSnapshot, test: Boolean): String = if (test) TEST_NAME else Format.level(c)
+    fun name(c: CohortSnapshot, test: Boolean): String = if (test) Format.testName(c) else Format.level(c)
 
     /** `SPARK · 7-DAY · STARTS IN 2D 4H`; locked, `SPARK · 7-DAY · LOCKED · STARTS IN 41M 10S`. No calendar dates (ruling G3). */
     fun headerLabel(c: CohortSnapshot, test: Boolean, secondsToStart: Long, locked: Boolean): String {

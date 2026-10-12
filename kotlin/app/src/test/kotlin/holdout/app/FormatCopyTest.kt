@@ -86,8 +86,8 @@ class FormatCopyTest {
     fun `the fee sentence takes the noun it names the boosts after`() {
         assertEquals(
             "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
-                "20 % to the project. If nobody finishes, the pool boosts later Hackathon Holdout prizes.",
-            Format.lostStakeSplit(spark, name = "Hackathon Holdout"),
+                "20 % to the project. If nobody finishes, the pool boosts later Hackathon · 3-day prizes.",
+            Format.lostStakeSplit(spark, name = "Hackathon · 3-day"),
         )
     }
 

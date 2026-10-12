@@ -90,6 +90,22 @@ object Format {
 
     fun levelTagline(c: holdout.core.CohortSnapshot): String? = levelTagline(c.form)
 
+    /**
+     * "Hackathon · 3-day": the short test Holdout's name, built like a level's ("Spark · 7-day"), from the
+     * cohort's own length (FR-044a; the badge keeps DEVNET COHORT).
+     */
+    fun testName(c: holdout.core.CohortSnapshot): String = testName(c.durationDays)
+
+    /** [testName] for a place that knows only the length in days (a reminder). */
+    fun testName(days: Int): String = "Hackathon · $days-day"
+
+    /** "A quick taste · knees allowed" / "A quick taste · toes only": the test Holdout's tagline, the way a level's is picked by its form. */
+    fun testTagline(c: holdout.core.CohortSnapshot): String = when (c.form) {
+        holdout.core.LeagueParams.FORM_KNEES_ALLOWED -> "A quick taste · knees allowed"
+        holdout.core.LeagueParams.FORM_TOES -> "A quick taste · toes only"
+        else -> "A quick taste"
+    }
+
     /** True when joining stays open until the cohort starts (a join lock of 0, FR-044a); a league with a lock closes it earlier. */
     fun joinableToStart(c: holdout.core.CohortSnapshot): Boolean = c.joinCutoff == c.start
 
@@ -122,14 +138,14 @@ object Format {
      * 2026-10-12: the 10 % is the member's own comeback, and a pool nobody wins
      * boosts later prizes; ruling G5). The level and length are the Holdout's
      * own, and a no-break space keeps every "%" on its number's line. [name] is
-     * what the boosts are named after: the level by default, "Hackathon
-     * Holdout" for a test Holdout.
+     * what the boosts are named after: the level by default, "Hackathon ·
+     * 3-day" (see [testName]) for a test Holdout.
      */
     fun lostStakeSplit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% set aside for your comeback, " +
         "20\u00a0% to the project. If nobody finishes, the pool boosts later $name prizes."
 
-    /** What the boosts in the fee sentence are named after: the level, or "Hackathon Holdout" for a test Holdout (FR-044a); the stake sheet and the forfeit screen both use it. */
-    fun boostName(c: holdout.core.CohortSnapshot, test: Boolean): String = if (test) "Hackathon Holdout" else level(c)
+    /** What the boosts in the fee sentence are named after: the level, or [testName] ("Hackathon · 3-day") for a test Holdout (FR-044a); the stake sheet and the forfeit screen both use it. */
+    fun boostName(c: holdout.core.CohortSnapshot, test: Boolean): String = if (test) testName(c) else level(c)
 
     /** The same split on the forfeit screen, under its **Stake lost** row (ruling G5); [name] as in [lostStakeSplit]. */
     fun lostStakeSplitForfeit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% set aside for your comeback, " +
