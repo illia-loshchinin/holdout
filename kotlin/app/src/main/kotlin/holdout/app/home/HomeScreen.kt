@@ -150,6 +150,8 @@ fun HomeScreen(
                 ChainUnreachable(state.checking, state.stillUnreachable, onCheck)
             }
             HoldoutsBlock.NotLive -> SectionLabel("Holdouts are not live on ${Deployment.networkName.lowercase()} yet")
+            // A lobby place is held: nothing more to join, so nothing is drawn (the lobby line above says it all).
+            HoldoutsBlock.Hidden -> Unit
             is HoldoutsBlock.Open -> {
                 if (block.stale) ChainUnreachable(state.checking, state.stillUnreachable, onCheck)
                 if (block.cards.isEmpty()) {

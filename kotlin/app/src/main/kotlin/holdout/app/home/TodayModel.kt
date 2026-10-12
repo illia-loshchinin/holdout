@@ -77,7 +77,13 @@ sealed interface HoldoutsBlock {
     /** The program is not deployed or not initialised on this network. */
     data object NotLive : HoldoutsBlock
 
-    /** [cards] open to join, or none: "The next Holdout opens soon." (ES-15). [stale] an earlier read is shown while the chain can't be reached. */
+    /**
+     * The member holds a place in a lobby, so they can join nothing more: no block at all, not the cards, the
+     * Seeker line or "opens soon". The lobby line and the Daily 25 are all Today shows (owner, 12 Oct).
+     */
+    data object Hidden : HoldoutsBlock
+
+    /** [cards] joinable now, or none: "The next Holdout opens soon." (ES-15). [stale] an earlier read is shown while the chain can't be reached. */
     data class Open(val cards: List<OfferCardState>, val stale: Boolean = false) : HoldoutsBlock
 }
 
@@ -93,18 +99,23 @@ object TodayModel {
     fun holdouts(view: ChainView?, now: Long?, offline: Boolean): HoldoutsBlock = when {
         view == null || now == null -> if (offline) HoldoutsBlock.Unreachable else HoldoutsBlock.Reading
         view.config == null -> HoldoutsBlock.NotLive
-        else -> HoldoutsBlock.Open(view.openToJoin(now).sortedBy { it.cohort.start }.map { OfferCardState.of(it, now) }, stale = offline)
+        view.holdsLobbyPlace(now) -> HoldoutsBlock.Hidden
+        else -> HoldoutsBlock.Open(view.joinable(now).sortedBy { it.cohort.start }.map { OfferCardState.of(it, now) }, stale = offline)
     }
 
     /**
      * The comeback card, or null: the round to join opens its stake sheet on the
      * tier of the lost stake; a round not opened yet opens the Holdouts tab
      * (FR-037g). A place already held has no card: its lobby line says it all
-     * (owner, 12 Oct walk).
+     * (owner, 12 Oct walk). Nor has a round the program would refuse (a lobby
+     * place held in another Holdout, a running one that ends after it starts):
+     * no card for a Join that cannot go through (owner, 12 Oct).
      */
     fun comeback(view: ChainView?, now: Long?, seekerKnown: Boolean): ComebackCardState? {
         if (view == null || now == null || view.config == null) return null
         val nudge = DailyHoldoutLine.nudge(view.comebackOffers(now), now)?.takeUnless { it.held } ?: return null
+        val round = nudge.joinAddress?.let { a -> view.holdouts.firstOrNull { it.address == a } }
+        if (round != null && view.joinBlocker(round, now) != null) return null
         val go = nudge.joinAddress?.let { NavEvent.OpenStake(it.base58(), nudge.tier, seekerKnown) } ?: NavEvent.SelectTab(Tab.Holdouts)
         return ComebackCardState(nudge.text, go)
     }

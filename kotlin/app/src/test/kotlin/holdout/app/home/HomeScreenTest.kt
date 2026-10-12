@@ -207,6 +207,17 @@ class HomeScreenTest {
     }
 
     @Test
+    fun `while a lobby place is held the Holdouts block is not drawn at all`() {
+        show(fresh.copy(holdouts = HoldoutsBlock.Hidden, nudges = listOf(NudgeRowState("Spark · 7-day lobby · starts in 2d 0h", NavEvent.Open(Screen.Lobby("l"))))))
+        text("Spark · 7-day lobby · starts in 2d 0h").assertIsDisplayed()
+        text("THE DAILY 25").assertIsDisplayed()
+        text("HOLDOUTS OPEN TO JOIN").assertDoesNotExist()
+        text("Holdouts need a Seeker.").assertDoesNotExist()
+        text("The next Holdout opens soon.").assertDoesNotExist()
+        text("Join").assertDoesNotExist()
+    }
+
+    @Test
     fun `no program on the network says Holdouts are not live yet`() {
         show(fresh.copy(holdouts = HoldoutsBlock.NotLive))
         text("HOLDOUTS ARE NOT LIVE ON ${Deployment.networkName.uppercase()} YET").assertIsDisplayed()
