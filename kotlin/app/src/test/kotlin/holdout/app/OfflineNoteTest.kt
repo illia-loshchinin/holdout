@@ -49,7 +49,7 @@ class OfflineNoteTest {
     fun `the deadline's own last second still counts down`() {
         val (title, sentence) = offlineNote(holdout, day = 2, nowSeconds = day3Deadline - 30, network = "Devnet")
         assertEquals("Done — not sent yet", title)
-        assertEquals(true, "(0m 30s left)" in sentence, sentence)
+        assertEquals(true, "(30s left)" in sentence, sentence)
     }
 
     @Test

@@ -85,7 +85,10 @@ class HoldoutPiecesTest {
         assertEquals("≈ $25", Format.tierUsd(1))
         assertEquals("3d 4h", Format.countdown(3 * 86_400 + 4 * 3_600 + 59))
         assertEquals("4h 06m", Format.countdown(4 * 3_600 + 6 * 60))
-        assertEquals("0m 00s", Format.countdown(-5))
+        assertEquals("0s", Format.countdown(-5))
+        assertEquals("58s", Format.countdown(58))
+        assertEquals("1m 00s", Format.countdown(60))
+        assertEquals("12m 30s", Format.countdown(750))
         assertEquals("10-minute", Format.dayLength(600))
         assertEquals("Ho1d…yoy4", Format.short("Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4"))
     }

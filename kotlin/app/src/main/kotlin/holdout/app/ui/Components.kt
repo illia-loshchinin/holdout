@@ -181,7 +181,7 @@ object Format {
      */
     fun opensForJoining(opensAt: Long, now: Long): String = if (opensAt > now) "opens for joining in ${countdown(opensAt - now)}" else "opens for joining shortly"
 
-    /** `3d 4h`, `4h 06m`, `12m 30s`: a countdown, never a date (constitution VI). */
+    /** `3d 4h`, `4h 06m`, `12m 30s`, `58s` under a minute: a countdown, never a date (constitution VI). */
     fun countdown(seconds: Long): String {
         val s = seconds.coerceAtLeast(0)
         val days = s / 86_400
@@ -190,7 +190,8 @@ object Format {
         return when {
             days > 0 -> "${days}d ${hours}h"
             hours > 0 -> "%dh %02dm".format(hours, minutes)
-            else -> "%dm %02ds".format(minutes, s % 60)
+            minutes > 0 -> "%dm %02ds".format(minutes, s % 60)
+            else -> "${s % 60}s"
         }
     }
 
