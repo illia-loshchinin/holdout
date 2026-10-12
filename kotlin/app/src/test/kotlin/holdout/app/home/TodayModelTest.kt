@@ -121,6 +121,12 @@ class TodayModelTest {
     }
 
     @Test
+    fun `a short test Holdout with a join lock does not claim to be joinable up to its start`() {
+        val test = holdout(1, start + 750, leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, reps = 5, dayLength = 600, joined = 3, held = 250uL * skr, cutoff = start + 690)
+        assertEquals("3 days · 5 push-ups a day", OfferCardState.of(test, start).tagline)
+    }
+
+    @Test
     fun `nudges - one line per Holdout needing a tap, never the running one, each going to its screen`() {
         val lobby = holdout(1, start + 2 * day, member = member(0))
         val running = holdout(2, start - 2 * day, member = member(2))

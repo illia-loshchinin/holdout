@@ -39,7 +39,7 @@ data class OfferCardState(
                 cohort = h.address.base58(),
                 title = if (test) TEST_TITLE else Format.level(c),
                 tagline = if (test) {
-                    "${c.durationDays} days · ${c.repsPerDay} push-ups a day · joinable right up to its start"
+                    "${c.durationDays} days · ${c.repsPerDay} push-ups a day" + if (Format.joinableToStart(c)) " · joinable right up to its start" else ""
                 } else {
                     Format.levelTagline(c) ?: "${c.repsPerDay} push-ups a day"
                 },

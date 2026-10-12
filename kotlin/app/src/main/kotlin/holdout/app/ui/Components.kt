@@ -89,6 +89,9 @@ object Format {
 
     fun levelTagline(c: holdout.core.CohortSnapshot): String? = levelTagline(c.form)
 
+    /** True when joining stays open until the cohort starts (a join lock of 0, FR-044a); a league with a lock closes it earlier. */
+    fun joinableToStart(c: holdout.core.CohortSnapshot): Boolean = c.joinCutoff == c.start
+
     /**
      * The level's rule sentence, read the same everywhere it appears (design
      * book, Levels; ruling G2). A Spark screen never shows the Habit sentence:

@@ -33,9 +33,9 @@ object StakeText {
 
     /** `Light it up: 25 push-ups a day for 7 days.` / `Make it stick: …`; a test Holdout says what it is. */
     fun levelLine(c: CohortSnapshot, test: Boolean): String {
-        if (test) return "${c.repsPerDay} push-ups a day for ${c.durationDays} days. Joinable right up to its start."
-        val lead = Format.levelTagline(c)?.substringBefore(" · ")
         val plain = "${c.repsPerDay} push-ups a day for ${c.durationDays} days."
+        if (test) return if (Format.joinableToStart(c)) "$plain Joinable right up to its start." else plain
+        val lead = Format.levelTagline(c)?.substringBefore(" · ")
         return if (lead == null) plain else "$lead: $plain"
     }
 
