@@ -244,7 +244,8 @@ They include:
 - this README's weaknesses table must equal `docs/weaknesses.json`.
 
 They run on GitHub Actions for every push and pull request. The same four jobs also run on a
-developer's machine with `bash scripts/ci-local.sh`: the Solana side in WSL, Kotlin on Windows. Every change is specified first (`specs/`), checked against a written
+developer's machine with `bash scripts/ci-local.sh`: the Solana side in WSL, Kotlin on Windows.
+Every change is specified first (`specs/`), checked against a written
 [constitution](.specify/memory/constitution.md), and reviewed before merge.
 
 ## Known weaknesses
