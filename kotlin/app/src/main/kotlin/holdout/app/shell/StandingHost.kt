@@ -16,6 +16,7 @@ import holdout.app.nav.NavEvent
 import holdout.app.nav.Screen
 import holdout.app.roster.RosterScreen
 import holdout.app.standing.StandingEmptyScreen
+import holdout.app.standing.StandingEmptyText
 import holdout.app.ui.Format
 import holdout.app.ui.Reading
 import holdout.app.ui.SectionLabel
@@ -72,7 +73,7 @@ internal fun Shared.StandingRoot(modifier: Modifier = Modifier) {
     }
     StandingEmptyScreen(
         running = running.map { MyHoldoutsModel.runningRow(it, n, rosters[it.address]) },
-        lobby = lobby?.let { "Yours starts in ${Format.countdown(it.cohort.start - n)}" to it.address.base58() },
+        lobby = lobby?.let { "${StandingEmptyText.LOBBY_LEAD}${Format.countdown(it.cohort.start - n)}" to it.address.base58() },
         onEvent = dispatch,
         modifier = modifier,
     )
