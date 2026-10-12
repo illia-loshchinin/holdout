@@ -75,8 +75,9 @@ internal fun Shared.FaucetSheetHost() {
         maxTopTier = v?.config?.maxTopTier ?: 0uL,
         busy = chain.busy,
         outcome = chain.lastFaucet,
-        // The snapshot, chain time and the program's config are needed to claim: without them the balances are not shown and the tap is off.
-        ready = v?.config != null && n != null,
+        // The snapshot, chain time and a published chip set are needed to claim (claim_faucet refuses an
+        // unpublished one, 6012): without them the balances are not shown and the tap is off.
+        ready = (v?.config?.chipVersion ?: 0L) > 0L && n != null,
         onClaim = { if (n != null) holdouts.claimFaucet(sender) },
         onBack = {
             holdouts.clearMessage()
