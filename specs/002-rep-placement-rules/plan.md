@@ -92,7 +92,7 @@ kotlin/repcounter/src/test/kotlin/holdout/repcounter/
 kotlin/app/src/main/kotlin/holdout/app/
 ├── sitting/SittingViewModel.kt  # steps, countdown guard (Hard: a plank to calibrate on), coaching, trace and video, labelling
 ├── sitting/SittingScreen.kt     # camera, skeleton, +1, clean screen
-├── sitting/PlacementGuide.kt    # SetupDialog: Phone / Body / Start, the 45° band per stakes
+├── sitting/PlacementGuide.kt    # SetupSheet: Positioning / Rules / Start tabs, the 45° band per stakes, the cues card (2026-10-12)
 ├── sitting/PreflightTipsOffer.kt # FR-020a: the tip trigger (30 s short of green in total, not counting time under the set-up guide, or the third green-to-red turn) in the sitting's state
 ├── sitting/PreflightTipsSheet.kt # FR-020a: the "Getting the checks green" sheet (rows from the pills' fix sentences)
 ├── sitting/SittingCues.kt       # rep tone, banked chime, speech
