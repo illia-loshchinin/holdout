@@ -39,7 +39,7 @@ internal fun Shared.TxFlowHost(tx: TxFlow, modifier: Modifier = Modifier) {
     SigningScreen(signingState(tx, h, n), onEvent = dispatch, modifier = modifier)
 }
 
-/** "Try again": the same signature asked of the wallet again. */
+/** "Try again": the same action, a new signature asked of the wallet. */
 internal fun Shared.resend(kind: TxKind) {
     val h = holdout(kind.cohort) ?: return
     when (kind) {

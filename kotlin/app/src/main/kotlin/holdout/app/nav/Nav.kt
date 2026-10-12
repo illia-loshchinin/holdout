@@ -172,7 +172,7 @@ sealed interface NavEvent {
 
     data class TxProgress(val phase: TxPhase) : NavEvent
 
-    /** "Try again": the same signature, asked again. */
+    /** "Try again": the same action, a new signature asked of the wallet. */
     data object TxRetry : NavEvent
 
     /** "Back" on a result, or leaving the confirming screen ("You can leave this screen"). */

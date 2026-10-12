@@ -391,7 +391,7 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
                 SeekerStatus.Confirmed -> knownNotSeeker = false
                 else -> Unit
             }
-            // "Try again": the same signature, asked of the wallet again.
+            // "Try again": the same action, a new signature asked of the wallet.
             NavEvent.TxRetry -> before.tx?.kind?.let { shared.resend(it) }
             else -> Unit
         }
