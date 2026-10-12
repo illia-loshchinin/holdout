@@ -2,6 +2,8 @@ package holdout.app.holdouts
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -43,7 +45,7 @@ class MyHoldoutsScreenTest {
     private val running = YourHoldout("r", "Habit · 21-day", YourKind.Running, ChipTone.Success, "Day 12 of 21 · 189 still standing", "15 push-ups to go today", false, NavEvent.Open(Screen.Detail("r")))
     private val lobby = YourHoldout("l", "Spark · 7-day", YourKind.Lobby, ChipTone.Accent, "Joined · 1,250 SKR staked", "starts in 2d 4h", false, NavEvent.Open(Screen.Lobby("l")))
     private val locked = YourHoldout("k", "Spark · 7-day", YourKind.Locked, ChipTone.Neutral, "Joining closed · 14 in · 1,250 SKR staked", "starts in 41m 10s", false, NavEvent.Open(Screen.Lobby("k")))
-    private val out = YourHoldout("o", "Habit · 21-day", YourKind.Out, ChipTone.Warning, "Out after 6 days", "Win back up to 250 SKR", false, NavEvent.Open(Screen.Forfeit("o")), detailTone = ChipTone.Success)
+    private val out = YourHoldout("o", "Habit · 21-day", YourKind.Out, ChipTone.Warning, "Lost 1,250 SKR · out on day 7", "Win back up to 250 SKR", false, NavEvent.Open(Screen.Forfeit("o")), detailTone = ChipTone.Success)
     private val settling = YourHoldout("s", "Spark · 7-day", YourKind.Settling, ChipTone.Success, "You finished · settling, usually within 11m", null, false, NavEvent.Open(Screen.Detail("s")))
     private val claim = YourHoldout("c", "Spark · 7-day", YourKind.Claim, ChipTone.Success, "Held out 7 of 7", "1,412 SKR waiting for you", false, NavEvent.Open(Screen.Claim("c")))
     private val habitOffer = OpenHoldout("b", "Habit · 21-day", "9,000 SKR", "at stake · 9 joined", "Prize boost: up to 1,200 SKR", "Joining closes in 2d 3h", false)
@@ -53,7 +55,6 @@ class MyHoldoutsScreenTest {
     fun `running, lobby and claim - each card says its state and opens its screen`() {
         show(MyHoldoutsState(yours = listOf(running, lobby, claim)))
 
-        compose.onNodeWithText("YOURS").assertIsDisplayed()
         compose.onNodeWithText("RUNNING").assertIsDisplayed()
         compose.onNodeWithText("Day 12 of 21 · 189 still standing").assertIsDisplayed()
         compose.onNodeWithText("15 push-ups to go today").assertIsDisplayed()
@@ -72,7 +73,7 @@ class MyHoldoutsScreenTest {
         show(MyHoldoutsState(yours = listOf(out, settling)))
 
         compose.onNodeWithText("OUT").assertIsDisplayed()
-        compose.onNodeWithText("Out after 6 days").assertIsDisplayed()
+        compose.onNodeWithText("Lost 1,250 SKR · out on day 7").assertIsDisplayed()
         compose.onNodeWithText("Win back up to 250 SKR").assertIsDisplayed().performClick()
         compose.onNodeWithText("You finished · settling, usually within 11m").assertIsDisplayed()
         assertEquals(listOf<NavEvent>(NavEvent.Open(Screen.Forfeit("o"))), events)
@@ -106,7 +107,6 @@ class MyHoldoutsScreenTest {
     fun `while a lobby place is held there is no Open to join section at all`() {
         show(MyHoldoutsState(yours = listOf(lobby), holdsLobbyPlace = true))
 
-        compose.onNodeWithText("YOURS").assertIsDisplayed()
         compose.onNodeWithText("OPEN TO JOIN").assertDoesNotExist()
         compose.onNodeWithText("Holdouts need a Seeker.").assertDoesNotExist()
         compose.onNodeWithText("The next Holdout opens soon.").assertDoesNotExist()
@@ -131,13 +131,97 @@ class MyHoldoutsScreenTest {
     }
 
     @Test
-    fun `finished - one quiet line each, going to its detail`() {
-        show(MyHoldoutsState(finished = listOf(FinishedHoldout("f", "Spark · 7-day · finished · claimed 1,180 SKR", NavEvent.Open(Screen.Detail("f"))))))
+    fun `a tap anywhere on an offer card joins, as the Join pill does`() {
+        show(MyHoldoutsState(open = listOf(free)))
 
-        compose.onNodeWithText("FINISHED").assertIsDisplayed()
-        compose.onNodeWithText("Spark · 7-day · finished · claimed 1,180 SKR →").performClick()
+        compose.onNodeWithText("Spark · 7-day").performClick()
+        compose.onNodeWithText("Join").performClick()
 
-        assertEquals(listOf<NavEvent>(NavEvent.Open(Screen.Detail("f"))), events)
+        assertEquals(listOf("f", "f"), joins)
+    }
+
+    private val won = PastHoldout("w", "Spark · 7-day", "Held out 7 of 7 · 12 of 14 finished", "1,180 SKR", NavEvent.Open(Screen.Detail("w")))
+    private val wonTest = PastHoldout("t", "Hackathon Holdout", "Held out 3 of 3", "605.42 SKR", NavEvent.Open(Screen.Detail("t")))
+    private val lost = PastHoldout("x", "Habit · 21-day", "Out on day 5 of 21", "2,500 SKR", NavEvent.Open(Screen.Forfeit("x")))
+
+    private fun past(state: MyHoldoutsState) {
+        show(state)
+        compose.onNodeWithText("Past · ", substring = true).performClick()
+    }
+
+    @Test
+    fun `the switch shows both counts and opens on Now`() {
+        show(MyHoldoutsState(yours = listOf(running, lobby), open = listOf(free), won = listOf(won), lost = listOf(lost)))
+
+        compose.onNodeWithText("Now · 2").assertIsDisplayed().assertIsSelected()
+        compose.onNodeWithText("Past · 2").assertIsDisplayed().assertIsNotSelected()
+        compose.onNodeWithText("Day 12 of 21 · 189 still standing").assertIsDisplayed()
+        compose.onNodeWithText("Held out 7 of 7 · 12 of 14 finished").assertDoesNotExist()
+    }
+
+    @Test
+    fun `Past shows what was won and what was lost, and Now's cards and offers step aside`() {
+        past(MyHoldoutsState(yours = listOf(running), open = listOf(free), won = listOf(won), lost = listOf(lost)))
+
+        compose.onNodeWithText("Past · 2").assertIsSelected()
+        compose.onNodeWithText("Now · 1").assertIsNotSelected()
+        compose.onNodeWithText("WON").assertIsDisplayed()
+        compose.onNodeWithText("Spark · 7-day").assertIsDisplayed()
+        compose.onNodeWithText("Held out 7 of 7 · 12 of 14 finished").assertIsDisplayed()
+        compose.onNodeWithText("1,180 SKR").assertIsDisplayed()
+        compose.onNodeWithText("claimed").assertIsDisplayed()
+        compose.onNodeWithText("LOST").assertIsDisplayed()
+        compose.onNodeWithText("Out on day 5 of 21").assertIsDisplayed()
+        compose.onNodeWithText("2,500 SKR").assertIsDisplayed()
+        compose.onNodeWithText("lost").assertIsDisplayed()
+        compose.onNodeWithText("Day 12 of 21 · 189 still standing").assertDoesNotExist()
+        compose.onNodeWithText("OPEN TO JOIN").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a Past row opens the screen it names - the detail when won, the forfeit when lost`() {
+        past(MyHoldoutsState(won = listOf(won, wonTest), lost = listOf(lost)))
+
+        compose.onNodeWithText("Held out 7 of 7 · 12 of 14 finished").performClick()
+        compose.onNodeWithText("Out on day 5 of 21").performClick()
+
+        assertEquals(listOf(won.go, lost.go), events)
+    }
+
+    @Test
+    fun `a Past group with no rows is not drawn`() {
+        past(MyHoldoutsState(yours = listOf(running), won = listOf(won)))
+        compose.onNodeWithText("WON").assertIsDisplayed()
+        compose.onNodeWithText("LOST").assertDoesNotExist()
+        compose.onNodeWithText("Nothing finished yet.").assertDoesNotExist()
+    }
+
+    @Test
+    fun `Past with nothing finished says so`() {
+        past(MyHoldoutsState(yours = listOf(running)))
+        compose.onNodeWithText("Past · 0").assertIsSelected()
+        compose.onNodeWithText("Nothing finished yet.").assertIsDisplayed()
+        compose.onNodeWithText("WON").assertDoesNotExist()
+        compose.onNodeWithText("LOST").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the switch goes back to Now`() {
+        past(MyHoldoutsState(yours = listOf(running), open = listOf(free), won = listOf(won)))
+
+        compose.onNodeWithText("Now · 1").performClick()
+
+        compose.onNodeWithText("Day 12 of 21 · 189 still standing").assertIsDisplayed()
+        compose.onNodeWithText("OPEN TO JOIN").assertIsDisplayed()
+    }
+
+    @Test
+    fun `there is no Running now - other people's pools are Standing's`() {
+        show(MyHoldoutsState(yours = listOf(running), open = listOf(free)))
+
+        compose.onNodeWithText("RUNNING NOW").assertDoesNotExist()
+        compose.onNodeWithText("FINISHED").assertDoesNotExist()
+        assertEquals(0, compose.onAllNodes(hasText("prize pool", substring = true)).fetchSemanticsNodes().size)
     }
 
     @Test
@@ -146,20 +230,9 @@ class MyHoldoutsScreenTest {
 
         compose.onNodeWithText("No Holdouts yet.").assertIsDisplayed()
         compose.onNodeWithText("Stake on yourself for 7 or 21 days. Full refund until joining closes.").assertIsDisplayed()
-        compose.onNodeWithText("YOURS").assertDoesNotExist()
         compose.onNodeWithText("Join").assertIsDisplayed()
-    }
-
-    @Test
-    fun `running now - the Holdouts to watch, every wallet, no Join in them`() {
-        val watch = RunningHoldout("w", "Spark · 7-day · day 3 of 7", "9 still standing of 12 · prize pool 2,400 SKR", false)
-        show(MyHoldoutsState(running = listOf(watch)))
-
-        compose.onNodeWithText("RUNNING NOW").assertIsDisplayed()
-        compose.onNodeWithText("9 still standing of 12 · prize pool 2,400 SKR").performClick()
-
-        assertEquals(listOf<NavEvent>(NavEvent.Open(Screen.Detail("w"))), events)
-        assertEquals(0, compose.onAllNodes(hasText("Join")).fetchSemanticsNodes().size)
+        compose.onNodeWithText("Now · ", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Past · ", substring = true).assertDoesNotExist()
     }
 
     @Test
@@ -208,6 +281,6 @@ class MyHoldoutsScreenTest {
         val h = Fx.holdout(c, Fx.member(days = 2, state = MembershipSnapshot.State.Forfeited))
         val s = MyHoldoutsModel.build(ChainView(null, listOf(h), null, 0uL, 0L), Fx.START)
         assertTrue(s.yours.isEmpty())
-        assertEquals(listOf("Spark · 7-day · finished · out after 2 days"), s.finished.map { it.line })
+        assertEquals(listOf("Out on day 3 of 7"), s.lost.map { it.line })
     }
 }

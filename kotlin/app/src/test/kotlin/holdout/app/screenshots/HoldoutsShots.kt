@@ -5,10 +5,10 @@ import holdout.app.chain.Holdout
 import holdout.app.claim.ClaimScreen
 import holdout.app.cohort.CohortDetailScreen
 import holdout.app.cohort.ForfeitScreen
-import holdout.app.holdouts.FinishedHoldout
 import holdout.app.holdouts.MyHoldoutsScreen
 import holdout.app.holdouts.MyHoldoutsState
 import holdout.app.holdouts.OpenHoldout
+import holdout.app.holdouts.PastHoldout
 import holdout.app.holdouts.RunningHoldout
 import holdout.app.holdouts.YourHoldout
 import holdout.app.holdouts.YourKind
@@ -53,7 +53,7 @@ class HoldoutsShots {
     private val running = YourHoldout("r", "Habit · 21-day", YourKind.Running, ChipTone.Success, "Day 12 of 21 · 189 still standing", "15 push-ups to go today", false, NavEvent.Open(Screen.Detail("r")))
     private val lobby = YourHoldout("l", "Spark · 7-day", YourKind.Lobby, ChipTone.Accent, "Joined · 1,250 SKR staked", "starts in 2d 4h", false, NavEvent.Open(Screen.Lobby("l")))
     private val locked = YourHoldout("k", "Spark · 7-day", YourKind.Locked, ChipTone.Neutral, "Joining closed · 14 in · 1,250 SKR staked", "starts in 41m 10s", false, NavEvent.Open(Screen.Lobby("k")))
-    private val out = YourHoldout("o", "Habit · 21-day", YourKind.Out, ChipTone.Warning, "Out after 6 days", "Win back up to 250 SKR", false, NavEvent.Open(Screen.Forfeit("o")), detailTone = ChipTone.Success)
+    private val out = YourHoldout("o", "Habit · 21-day", YourKind.Out, ChipTone.Warning, "Lost 1,250 SKR · out on day 7", "Win back up to 250 SKR", false, NavEvent.Open(Screen.Forfeit("o")), detailTone = ChipTone.Success)
     private val settling = YourHoldout("s", "Spark · 7-day", YourKind.Settling, ChipTone.Success, "You finished · settling, usually within 11m", null, false, NavEvent.Open(Screen.Detail("s")))
     private val claim = YourHoldout("c", "Spark · 7-day", YourKind.Claim, ChipTone.Success, "Held out 7 of 7", "1,412 SKR waiting for you", false, NavEvent.Open(Screen.Claim("c")))
     private val habitOffer = OpenHoldout("b", "Habit · 21-day", "9,000 SKR", "at stake · 9 joined", "Prize boost: up to 1,200 SKR", "Joining closes in 2d 3h", false)
@@ -73,8 +73,7 @@ class HoldoutsShots {
         MyHoldoutsState(
             yours = listOf(running, lobby, claim),
             open = listOf(free, habitOffer),
-            finished = listOf(FinishedHoldout("f", "Spark · 7-day · finished · claimed 1,180 SKR", NavEvent.Open(Screen.Detail("f")))),
-            running = watch,
+            won = listOf(PastHoldout("f", "Spark · 7-day", "Held out 7 of 7 · 12 of 14 finished", "1,180 SKR", NavEvent.Open(Screen.Detail("f")))),
         ),
         TabBadges(holdouts = true),
     )
@@ -83,7 +82,7 @@ class HoldoutsShots {
     fun h0OutAndSettling() = h0("h0-out-settling", MyHoldoutsState(yours = listOf(out, settling, locked), open = listOf(free)))
 
     @Test
-    fun h0Empty() = h0("h0-empty", MyHoldoutsState(open = listOf(free), running = watch))
+    fun h0Empty() = h0("h0-empty", MyHoldoutsState(open = listOf(free)))
 
     // ---- Standing ---------------------------------------------------------------------------------------
 

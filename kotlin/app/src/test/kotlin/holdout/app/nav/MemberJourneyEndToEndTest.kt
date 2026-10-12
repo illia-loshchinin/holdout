@@ -173,9 +173,9 @@ class MemberJourneyEndToEndTest {
         assertTrue(s.showsBar)
         assertFalse(Badges.holdouts(s.stages.values))
 
-        // H0 lists it under Finished.
+        // H0 lists it under Past, won.
         val h0 = MyHoldoutsModel.build(chain.view(), now + 660)
         assertTrue(h0.yours.isEmpty())
-        assertEquals(listOf("Spark · 7-day · finished · claimed 11.62 SKR"), h0.finished.map { it.line })
+        assertEquals(listOf("Spark · 7-day" to "11.62 SKR"), h0.won.map { it.name to it.amount })
     }
 }
