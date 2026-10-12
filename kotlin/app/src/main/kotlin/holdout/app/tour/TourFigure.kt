@@ -45,7 +45,6 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Density
 import holdout.app.BuildConfig
 import holdout.app.ui.TOP_VIEW_HEIGHT
-import holdout.app.ui.TOP_VIEW_LOOP_MILLIS
 import holdout.app.ui.TOP_VIEW_STILL
 import holdout.app.ui.TOP_VIEW_WIDTH
 import holdout.app.ui.drawTopView
@@ -81,7 +80,7 @@ internal fun rememberFigureClock(): FigureClock {
  * an outline that turns green when the whole body is in frame, four checks tick,
  * the top is held for a second, 3 · 2 · 1, the checks clear and three reps count;
  * a small panel at the top left shows the push-up from above, with the phone turned 45°
- * ahead of the shoulder ([drawFromAbove]: the animated top view shared with the set-up guide).
+ * ahead of the shoulder ([drawFromAbove]: the set-up guide's top view, held at the bottom of the push-up).
  *
  * **Generated, never redrawn:** the poses are the Holdout Rig's, read frame by
  * frame from `assets/tour_figure.txt` ([FigureData], made by
@@ -112,7 +111,8 @@ internal fun TourFigure(clock: FigureClock, modifier: Modifier = Modifier) {
             val overlay = clock.overlay()
             val frame = if (clock.still) FigureTimeline.STILL_FRAME else figure.schedule.frameAt(clock.now())
             drawOps(figure.scene, measurer, density)
-            drawFromAbove(topViewProgress(clock), measurer, density)
+            // Held at the bottom of the push-up, elbows bent at 45° (owner, 12 Oct): the side view carries the motion.
+            drawFromAbove(TOP_VIEW_STILL, measurer, density)
             drawOutline(figure.outline, overlay.inFrame)
             drawOps(figure.frames[frame], measurer, density)
             if (overlay.kneesTag) drawOps(figure.knee, measurer, density)
@@ -123,15 +123,9 @@ internal fun TourFigure(clock: FigureClock, modifier: Modifier = Modifier) {
     }
 }
 
-/** Where the top view is in its loop: the figure's 12 s loop holds eight of its 1.5 s ones, so the two stay in step. */
-internal fun topViewProgress(clock: FigureClock): Float {
-    if (clock.still) return TOP_VIEW_STILL
-    return (clock.now() % TOP_VIEW_LOOP_MILLIS).toFloat() / TOP_VIEW_LOOP_MILLIS
-}
-
 /**
  * The "from above" panel (the board's `translate(6 8)` group, top left): a black 120 × 74 card, its title, the shared
- * animated top view in a 116 × 50 viewport and the distance under it. It sits left of the rep count (x 130) and never covers it.
+ * top view, held at the bottom of the push-up, in a 116 × 50 viewport and the distance under it. It sits left of the rep count (x 130) and never covers it.
  */
 private fun DrawScope.drawFromAbove(progress: Float, measurer: TextMeasurer, density: Density) {
     translate(PANEL_X, PANEL_Y) {
@@ -143,13 +137,30 @@ private fun DrawScope.drawFromAbove(progress: Float, measurer: TextMeasurer, den
             clipRect(0f, 0f, VIEWPORT_WIDTH, VIEWPORT_HEIGHT) {
                 val fit = minOf(VIEWPORT_WIDTH / TOP_VIEW_WIDTH, VIEWPORT_HEIGHT / TOP_VIEW_HEIGHT)
                 translate((VIEWPORT_WIDTH - TOP_VIEW_WIDTH * fit) / 2f, (VIEWPORT_HEIGHT - TOP_VIEW_HEIGHT * fit) / 2f) {
-                    scale(fit, pivot = Offset.Zero) { drawTopView(progress) }
+                    scale(fit, pivot = Offset.Zero) {
+                        drawTopView(progress)
+                        drawElbowAngle(measurer, density)
+                    }
                 }
             }
         }
         digit("~1.5m ahead of your shoulder", 8f, 69f, PANEL_NOTE_SIZE, FontWeight.Normal, true, HoldoutColors.Accent, measurer, density, center = false)
     }
 }
+
+/**
+ * The 45° the elbows make with the body (owner, 12 Oct; the board's `su-angle` group), in the top view's units: an arc
+ * at the near shoulder from the body line to the upper arm, the body line dashed, and "45°" beside the elbow.
+ */
+private fun DrawScope.drawElbowAngle(measurer: TextMeasurer, density: Density) {
+    val accent = HoldoutColors.Accent
+    drawArc(accent, startAngle = -ELBOW_ANGLE, sweepAngle = ELBOW_ANGLE, useCenter = false, topLeft = Offset(146f, 31.2f), size = Size(28f, 28f), style = Stroke(1.6f))
+    drawLine(accent.copy(alpha = 0.7f), Offset(160f, 45.2f), Offset(178f, 45.2f), strokeWidth = 1f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(2f, 3f)))
+    digit("45°", 192f, 44f, 20f, FontWeight.Normal, true, accent, measurer, density, center = false)
+}
+
+/** The drawn upper arm's angle from the body line: `atan2(19.7, 24)` of the top view's shoulder-to-elbow segment. */
+private const val ELBOW_ANGLE = 39.4f
 
 private fun DrawScope.drawOutline(outline: FigureOp.Rect, inFrame: Boolean) {
     val topLeft = Offset(outline.x, outline.y)
