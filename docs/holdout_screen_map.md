@@ -1,6 +1,6 @@
 # Holdout — screen map (hackathon build)
 
-**Version:** 3.6 · **Date:** 2026-10-12 (v3.6: **walk round 4** — the app offers only a Join the program would take: with a lobby place held ⌂ T1 has no "Holdouts open to join" block and ☰ H0 no "Open to join" section at all, while a Holdout runs only Holdouts starting at or after its end are listed, and no Join is greyed out or explained; Today shows only the comeback round's lobby line once the member holds a place in it (no loss line, no green card); H0's Out row then reads *Comeback joined*; the forfeit screen never asks for a Daily 25 already done; the crowd strip leaves out *your share* while it is 0; H0's running card opens H4 above H0 with the day strip, and Back returns to H0; v3.5: **the faucet has no per-wallet limit** — W1a carries no "Once a day" footer and no "Claimed today. Back in …" outcome, and *Get them* stays enabled after a claim; v3.4: **walk round 3** — the forfeit screen H6 puts the comeback first, then one quiet streak line and a separate *Do today's Daily 25* button shown only while today's is not done, with a cause sentence that fits the day and a fee sentence that names a short test Holdout; *You're in* offers the Daily 25 only when the Holdout starts on a later day; a countdown under a minute reads `58s`; a sitting started from Standing's day strip ends on Today's root; Today shows no settling countdown after the last day; v3.3: **Today is the day, Standing is the crowd** — T2 redrawn around the day with the crowd as one strip that opens Standing; Standing carries a "your day" strip with its own Start; the sitting from Standing; messages end with their screen; the claim after a short test Holdout offers the Habit; the thinning chart on the Holdout's full length; the canvas at v137; v3.2: the three last gaps built and drawn — the pre-flight tip sheet on S3, streak milestones on S6 and T1, the new-phone banner wired on T1 and T2; v3.1: the PR #62 review fixes — a left lobby stays on screen, system Back in a sitting, a reminder on a re-created app; v3.0 on 2026-10-11, the app as built at the integration tip `b1ba45f` plus the integration pass `6ec0dc3`: the four-tab bar with *Today · Standing · Holdouts · Me*, *My Holdouts* and *Me* built; the levels are *Spark · 7-day* and *Habit · 21-day*; the four-card tour; Holdout's own signing flow and *You're in*; the stake confirm and faucet as sheets; the shortened fee sentence; no calendar dates; earlier: v2.2 on 2026-10-10 made staking Seeker-exclusive, v2.1 and v2.0 the same day) · **Scope:** the devnet hackathon build only. Post-hackathon screens are parked in §9. Holdout Lab, the tester app, has its own map: `holdout_lab_screen_map.md`.
+**Version:** 3.7 · **Date:** 2026-10-12 (v3.7: **walk round 5** — a short test Holdout is a *Hackathon Holdout* whose badge is the quiet neutral pill *DEVNET COHORT · 10-MINUTE DAYS*; ☰ H0 is two tabs, *Now · N* and *Past · N* (Won and Lost rows), without *Running now* (that stays on ∿ H4a); a tap anywhere on an offer card does what its Join does (T1 and H0); the tour has a *Back* button from card 2 and says no video or body data leaves the app, and card 3 draws a top view; the set-up guide S2 is *1. Positioning · 2. Rules · 3. Start* with no intro paragraph and a *What you'll hear and see* card; S3 says *Place your phone* once and hides the outline until the phone stands; the sitting shows no *Under 10 minutes left…* pill, only the time line turns warning; v3.6: **walk round 4** — the app offers only a Join the program would take: with a lobby place held ⌂ T1 has no "Holdouts open to join" block and ☰ H0 no "Open to join" section at all, while a Holdout runs only Holdouts starting at or after its end are listed, and no Join is greyed out or explained; Today shows only the comeback round's lobby line once the member holds a place in it (no loss line, no green card); H0's Out row then reads *Comeback joined*; the forfeit screen never asks for a Daily 25 already done; the crowd strip leaves out *your share* while it is 0; H0's running card opens H4 above H0 with the day strip, and Back returns to H0; v3.5: **the faucet has no per-wallet limit** — W1a carries no "Once a day" footer and no "Claimed today. Back in …" outcome, and *Get them* stays enabled after a claim; v3.4: **walk round 3** — the forfeit screen H6 puts the comeback first, then one quiet streak line and a separate *Do today's Daily 25* button shown only while today's is not done, with a cause sentence that fits the day and a fee sentence that names a short test Holdout; *You're in* offers the Daily 25 only when the Holdout starts on a later day; a countdown under a minute reads `58s`; a sitting started from Standing's day strip ends on Today's root; Today shows no settling countdown after the last day; v3.3: **Today is the day, Standing is the crowd** — T2 redrawn around the day with the crowd as one strip that opens Standing; Standing carries a "your day" strip with its own Start; the sitting from Standing; messages end with their screen; the claim after a short test Holdout offers the Habit; the thinning chart on the Holdout's full length; the canvas at v137; v3.2: the three last gaps built and drawn — the pre-flight tip sheet on S3, streak milestones on S6 and T1, the new-phone banner wired on T1 and T2; v3.1: the PR #62 review fixes — a left lobby stays on screen, system Back in a sitting, a reminder on a re-created app; v3.0 on 2026-10-11, the app as built at the integration tip `b1ba45f` plus the integration pass `6ec0dc3`: the four-tab bar with *Today · Standing · Holdouts · Me*, *My Holdouts* and *Me* built; the levels are *Spark · 7-day* and *Habit · 21-day*; the four-card tour; Holdout's own signing flow and *You're in*; the stake confirm and faucet as sheets; the shortened fee sentence; no calendar dates; earlier: v2.2 on 2026-10-10 made staking Seeker-exclusive, v2.1 and v2.0 the same day) · **Scope:** the devnet hackathon build only. Post-hackathon screens are parked in §9. Holdout Lab, the tester app, has its own map: `holdout_lab_screen_map.md`.
 
 **Purpose.** One place that lists every screen the app has, what each one shows, and where a member can go from it. It is the brief for visual design: each card in §5 is one frame (or one set of frames) to draw, and it is read from the code as built.
 
@@ -90,7 +90,7 @@ Every new board reuses these. The values are the draft's tokens note; the design
 | Header labels (Today, Lobby, Detail, Forfeit, Claim, signing flow) | `HABIT · 21-DAY · DAY 12 OF 21` · lobby `SPARK · 7-DAY · STARTS IN 2D 4H` · locked `SPARK · 7-DAY · LOCKED · STARTS IN 41M 10S` · finished `SPARK · 7-DAY · FINISHED` | `21-DAY · FROM 21 SEP · DAY 12 OF 21` |
 | An offer's timing | `Joining closes in 2d 3h` (a short test Holdout: `Starts in 12m 30s`) | `Starts Mon 12 Oct, 07:00 your time` |
 | The only mention on a screen (stake sheet, *You're in*, the claim's upsell) | Join the Spark · 7-day Holdout | — |
-| A short test Holdout in a sentence | *Test Holdout* (its badge keeps the wording **SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET**, the disclosed weakness, FR-044a) | — |
+| A short test Holdout in a sentence | *Hackathon Holdout* (since 12 Oct; was *Test Holdout*). Its badge is the neutral pill **DEVNET COHORT · 10-MINUTE DAYS** (surface-3, text-secondary; was the warning-coloured **SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET**); the README still discloses the short test lobby, FR-044a | — |
 | Sentences | *your run has ended* | — |
 
 Never *cohort* or *league* in anything a member reads (but for that badge), and no names for the lengths: the number of days is the label.
@@ -127,7 +127,7 @@ On a card: **Spark · 7-day**, under it the tagline. In a sentence: *a Spark*, *
 |---|---|---|---|
 | **⌂ Today** | **T2** while the member is standing in a running Holdout (that Holdout's day, the crowd as one strip, plus one nudge line per other Holdout), else **T1** (the Daily 25, nudges, the comeback, the open Holdouts) | The one thing to do today. Starts the sitting | Today's reps are not done (the Holdout's day when one runs, else the Daily 25) · *Today, today's reps aren't done* |
 | **∿ Standing** | **H4** of the Holdout the member is running, else of the last one they ran; else **H4a**, the empty state | Who is still standing, how the crowd thinned, the roster **H5**, the **L1** leaderboards; on the root of a running Holdout the member stands in, their day too (the *your day* strip, which can start the sitting). H4a: *Running now*, then *Yours starts in …* (lobby place) or *Join one to have a crowd* → ☰ | People dropped out of that Holdout since the member last looked at it (a `looked:` marker on the phone) · *Standing, 3 dropped since you last looked* |
-| **☰ Holdouts** | **H0** My Holdouts | *Yours* (lobby, running, out, settling, claim), *Open to join* (only what can be joined; not drawn while a lobby place is held), *Running now* (read-only, every wallet), *Finished*. Opens H3, H4, H6, H7; Join opens the H2 sheet | A claim is waiting · *Holdouts, a claim is waiting* |
+| **☰ Holdouts** | **H0** My Holdouts | Two tabs: **Now · N** (the member's Holdouts: claim, running, settling, lobby, locked, out; then *Open to join*, only what can be joined and not drawn while a lobby place is held) and **Past · N** (*Won* and *Lost* rows). Opens H3, H4, H6, H7; Join, or a tap anywhere on an offer card, opens the H2 sheet | A claim is waiting · *Holdouts, a claim is waiting* |
 | **◯ Me** | **W1** | Address, SKR and SOL, the faucet sheet, the streak and freezes, X1 About Holdout, the tour again, disconnect | SOL too low to pay a transaction, or SKR too low for the cheapest chip of a Holdout open to join · *Me, low on SKR or SOL* |
 
 > **Decided 2026-10-10:** the pulse tab is **Standing** — the state (*still standing*), not a noun for the group, which the design book avoids. *Crowd*, *Live* and *Field* were considered and dropped. The icons carry text labels for accessibility.
@@ -153,14 +153,14 @@ On a card: **Spark · 7-day**, under it the tagline. In a sentence: *a Spark*, *
 |---|---|
 | "Holdouts open to join" | ⌂ T1 and ☰ H0 — only the Holdouts the member can join; neither draws it while a lobby place is held |
 | Your lobby / forfeit / settling / claim cards | ☰ H0 *Yours*; a one-line nudge on ⌂ |
-| "Past Holdouts" | ☰ H0 *Finished* |
+| "Past Holdouts" | ☰ H0 *Past* |
 | "The ladder" | removed (6 Oct) |
 | "Who's still standing", "Holdout details" (T2) | ∿ Standing (H4); the crowd strip on T2 opens it |
 | "Leaderboards" | ∿ H4 → L1 (and from H4a) |
 | "Get test tokens", "Disconnect …" | ◯ Me |
 | "About" | ◯ Me → X1 |
 | "How Holdout works" | a row at the foot of T1, a row on Me and on X1 → B1 |
-| "Running now" | ☰ H0 and ∿ H4a (not on Today) |
+| "Running now" | ∿ H4a only (not on Today, and since 12 Oct not on H0) |
 
 ---
 
@@ -233,7 +233,7 @@ flowchart TB
 
     %% today
     T1 -- "Start / Keep going" --> S1
-    T1 -- "Join" --> H2
+    T1 -- "Join · or a tap on the offer card" --> H2
     T1 -- "How Holdout works" --> B1
     T1 -- "nudge · lobby" --> H3
     T1 -- "nudge · claim" --> H7
@@ -290,10 +290,11 @@ flowchart TB
     H0 -- "lobby" --> H3
     H0 -- "running" --> H4
     H0 -- "out" --> H6
-    H0 -- "settling / finished" --> H4
+    H0 -- "settling" --> H4
+    H0 -- "Past · Won" --> H4
+    H0 -- "Past · Lost" --> H6
     H0 -- "claim" --> H7
-    H0 -- "Running now" --> H4
-    H0 -- "offer · Join" --> H2
+    H0 -- "offer · Join, or a tap on the card" --> H2
     H2 -- "Stake ✍ (asks notifications once)" --> N1a
     H2 -- "short on SKR / SOL" --> W1a
     W1a -- "back to the stake sheet" --> H2
@@ -348,7 +349,7 @@ Each card gives **tier · code status · design status**, why the screen exists,
 **Exits:** Connect → N1 (the wallet app) → B1 (first time) or T1 · *No wallet yet?* → A3
 
 #### ~~A2 · Walkthrough — a full cycle~~ — removed 9 Oct
-The submission is the app's final state, so nothing in it is for judges only (spec 004, constitution v2.1.0). The full cycle is shown in the demo video, sent as a link with the submission, and any wallet holding a Seeker Genesis Token can run it on a labelled short test Holdout (FR-044a, FR-003b; H38). Anyone else can watch one thin from H0's or Standing's *Running now* list (FR-062a). `WalkthroughScreen` is deleted.
+The submission is the app's final state, so nothing in it is for judges only (spec 004, constitution v2.1.0). The full cycle is shown in the demo video, sent as a link with the submission, and any wallet holding a Seeker Genesis Token can run it on a labelled short test Holdout (FR-044a, FR-003b; H38). Anyone else can watch one thin from Standing's *Running now* list (FR-062a). `WalkthroughScreen` is deleted.
 
 #### A3 · No wallet on this phone
 **MUST · ✅ Built** (a variant of A1, `noWallet` / *No wallet yet?*) **· 🎨 Drawn** (board *21*) · ES-0
@@ -368,16 +369,16 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 
 **Entered from:** first connect for this wallet · T1 *"How Holdout works"* · ◯ Me *"How Holdout works"* and X1 (re-opened)
 
-**On screen:** `HOW IT WORKS · 1 OF 4` · *Skip* (right, on cards 1–3) → the card (centred, scrolls when it must) → pager dots (the active one a long pill) → **Next** (**Start** on card 4) → `TEST NETWORK · TEST TOKEN`
+**On screen:** `HOW IT WORKS · 1 OF 4` · *Skip* (right, on cards 1–3) → the card (centred, scrolls when it must) → pager dots (the active one a long pill) → a secondary **Back** beside **Next** from card 2 on (**Start** on card 4) → `TEST NETWORK · TEST TOKEN`
 
 | Card | Title | Illustration | Says |
 |---|---|---|---|
 | 1 | **The Daily 25** | two dot grids (25 dots at once; 10 · 10 · 5 across the day) | *25 push-ups a day. Free. Your way:* · **All at once** *One sitting, all 25.* · **At your own pace** 10 *morning* · 10 *lunch* · 5 *evening* · **Every 10 are banked for good** *Close the app or stop mid-set — banked reps stay.* · *Each day done grows your streak.* |
 | 2 | **A Holdout** | an example card: `Day 1` members each stake the same → `Day 21` finishers stand, the rest fade (`Example · Habit · 21-day`) | *Stake SKR with everyone who starts on Monday. Finish, and split what the others lost.* · *Spark · 7-day lights it up — knees allowed.* *Habit · 21-day makes it stick — toes only.* · *Changed your mind? Full refund until joining closes.* *Holdouts need a Seeker. The Daily 25 is free for everyone.* |
-| 3 | **How reps are counted** | the animated figure (the phone at 45°, one drawing; the checks tick, the count rises) beside three steps | 1 *Phone on the floor, at 45°, ahead of your shoulder.* 2 *Get into a push-up: head to feet, knees included, inside the outline.* 3 *The checks tick green. Hold the top for a second, then 3 · 2 · 1 and every rep counts.* · *The Daily 25 and Spark: aim for your toes; knees are allowed.* *Habit: full push-ups from your toes.* · **Private by design** *No microphone, ever. Reps are counted on this phone — no video leaves the app.* |
+| 3 | **How reps are counted** | the animated figure (the phone at 45°, one drawing; the checks tick, the count rises) beside three steps, and a **"from above" panel** (about 120 × 74 dp, left of the rep count, labelled *~1.5m ahead of your shoulder*) with the same animated top view as S2's *At 45°* card — *decided 12 Oct, drawn on the canvas (v184), app pending* | 1 *Phone on the floor, at 45°, ahead of your shoulder.* 2 *Get into a push-up: head to feet, knees included, inside the outline.* 3 *The checks tick green. Hold the top for a second, then 3 · 2 · 1 and every rep counts.* · *The Daily 25 and Spark: aim for your toes; knees are allowed.* *Habit: full push-ups from your toes.* · **Private by design** *No microphone, ever. Reps are counted on this phone — no video or body data leaves the app.* |
 | 4 | **Scripted members** | a dot row: real members and scripted ones outlined | *Some members in these Holdouts are scripted. Real wallets, same rules, labelled SCRIPTED.* · *They only fill a Holdout to its minimum: 20 per Spark and 12 per Habit. Their days aren't camera-checked.* |
 
-**Skip on cards 1–3 goes to card 4**, not out of the tour: the scripted-member note is required on first run (spec 004 FR-013). **Back** steps back a card; on card 1 of a first run it leaves the app (the tour cannot be left but by finishing it), and on a re-opened tour it closes the tour. Nothing here is for judges and no card names Holdout Lab.
+**Skip on cards 1–3 goes to card 4**, not out of the tour: the scripted-member note is required on first run (spec 004 FR-013). The **Back** button (from card 2) and the system Back both step back a card; on card 1 of a first run the system Back leaves the app (the tour cannot be left but by finishing it), and on a re-opened tour it closes the tour. Nothing here is for judges and no card names Holdout Lab.
 
 **Exits:** Start → T1 (first run) or back to where it was opened (Today, Me, About)
 
@@ -403,10 +404,10 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 3. Nudge rows, one line each, a chevron, only for the member's *other* Holdouts (no running one is a line, it is T2): *You finished · claim 1,412 SKR* (green) · *Habit · 21-day lobby · starts in 2d 4h* · *Habit · 21-day: Out after 6 days · Win back up to 250 SKR* (warning) · *Spark · 7-day: You finished · settling, usually within 11m*. Each opens its screen (H7, H3, H6, H4). A Holdout the member is out of has no row once they hold a place in its comeback round: that round's lobby line is all that shows of it
 4. The **comeback card** (green, the whole card one tap; FR-037e, FR-037g, `home/DailyHoldoutLine.kt`), from the forfeit until the window's Holdouts have all closed for joining: *Get back up to 250 SKR of your lost stake: finish the Spark · 7-day starting in 2d 4h. Joining closes in 2d 3h.* (opens the stake sheet on the lost stake's chip) · the next round not opened yet: *The next Habit · 21-day opens for joining in 40m 00s and starts in 7d 0h. Finish it and up to 250 SKR of your lost stake comes back.* (opens the Holdouts tab). **No card once a place in the comeback round is held** (its lobby line says it all; the card *You're in the Habit · 21-day. Finish it…* is on H6 only), **nor for a round the program would refuse** (a lobby place held in another Holdout, a running Holdout that ends after it starts); the day-complete page offers no comeback for a held place either
 5. Section label `HOLDOUTS OPEN TO JOIN` · hint *Holdouts need a Seeker.* — **only while the member can join something**: with a lobby place held (lobby or locked) items 5 and 6 are not drawn at all (no cards, no Seeker line, no *The next Holdout opens soon.*); while a Holdout runs only Holdouts starting at or after its end are listed (`ChainView.joinable`; FR-006a, FR-006b)
-6. Offer cards, each with an outlined **Join** (FR-053; level, tagline, what is at stake, how long joining stays open, the boost; `home/HoldoutOffer.kt`):
+6. Offer cards, each with an outlined **Join** — and a tap anywhere on a card does what Join does (FR-053, 12 Oct; level, tagline, what is at stake, how long joining stays open, the boost; `home/HoldoutOffer.kt`):
    - **Spark · 7-day** · *Light it up · knees allowed* · `12,500 SKR` *at stake · 14 joined* · *Joining closes in 2d 3h* (accent) · *Prize boost: up to 480 SKR* (green, only while the level's reserve holds more than 0; "up to", never a promise)
    - **Habit · 21-day** · *Make it stick · toes only* · `9,000 SKR` *at stake · 9 joined* · *Joining closes in 2d 3h*
-   - a short test Holdout, with its badge: **Test Holdout** · *3 days · 5 push-ups a day · joinable right up to its start* · *Starts in 12m 30s* (no mention of judges, spec 004 FR-014)
+   - a Hackathon Holdout, with its badge `DEVNET COHORT · 10-MINUTE DAYS` (a quiet neutral pill): **Hackathon Holdout** · *3 days · 5 push-ups a day · joinable right up to its start* · *Starts in 12m 30s* (no mention of judges, spec 004 FR-014)
 7. Row: ⓘ **How Holdout works** · `4 cards`
 8. Bottom bar, ⌂ active
 
@@ -429,7 +430,7 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 **Entered from:** app open while standing in a running Holdout · N2 reminder · H3 at start time · S6/S7 · a submit that landed · ∿ Standing's tab
 
 **On screen (as built, top → bottom)**
-1. (`SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET` badge on a short test Holdout) · `HABIT · 21-DAY · DAY 12 OF 21` on the left, the streak chip on the right (flame and days; white while active, extended once the day is on chain; no milestone here)
+1. (`DEVNET COHORT · 10-MINUTE DAYS` badge on a Hackathon Holdout) · `HABIT · 21-DAY · DAY 12 OF 21` on the left, the streak chip on the right (flame and days; white while active, extended once the day is on chain; no milestone here)
 2. (the new-phone banner *No banked reps on this device today. 25 to go.* above the day, with the Holdout's daily target, when this phone first saw the wallet today, the chain shows it in a Holdout that started before today, and nothing is banked here today; ES-3a, FR-069f, 🎨 board *MainNewPhone*; `home/NewPhone.kt`)
 3. The day: the bank ring (1 of 3 blocks) beside **25 push-ups** (or **10 of 25 banked**) · *all at once or 10 at a time* (or *15 to go*) · `4h 06m` `left` (mono, accent) · the day button (primary), **Start today's 25** / **Keep going**
 4. The crowd strip (one card, the whole card a tap): **189 of 312 still standing · your share 255 SKR** `›` (the share only when the member stands in it and it is above 0 — nothing has dropped yet, no *· your share …*) · under it ▲ *3 dropped since yesterday* (green; only when more than 0)
@@ -468,14 +469,14 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 **Exits:** allowed → S2 (or S3 if the guide is turned off) · ✕ → back
 
 #### S2 · Set-up guide — "Before you get down"
-**MUST · ✅ Built · 🎨 Drawn** (board *16*, *16d*; a sheet with working Phone / Body / Start tabs) · `sitting/PlacementGuide.kt`
+**MUST · ✅ Built · 🎨 Drawn** (board *16*, *16d*; a sheet with working Positioning / Rules / Start tabs) · `sitting/PlacementGuide.kt`
 
 **Job:** read while the phone is still in hand, since the countdown can't start behind it. A bottom sheet over the camera.
 
-**On screen (as built, three pages):** **Before you get down** · the level on the right (`spark · 7-day`, `habit · 21-day`, `the daily 25`) · first, under the title on every page (002 FR-015): *Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone.* · tabs **1. Phone · 2. Body · 3. Start**
-- **Phone:** *Stand the phone on the floor, facing where you'll be. Lean it on something.* · one drawing, **At 45°** (*Ahead of your shoulder, about 1.5 m away.*; ticked when the view is detected) · *From there it sees all of you, and the knee nearer to it.* · the level's rule sentence (§2), or for the Daily 25 *counted as the Spark*
-- **Body:** *Your whole body in the picture, head to feet.* · *Your knees clearly visible to the phone.* · *Top of a push-up: arms straight, hands under your shoulders.* · *Line up with the outline on screen.* · then per level — Habit: *On your toes, down to just above the floor. Knee push-ups don't count.*; Spark: *Aim for your toes — knees still count in a Spark.*; Daily 25: *Aim for your toes — knees still count in the Daily 25.* · *Turn a little away, so the phone sees your near knee.* · a plank drawing
-- **Start:** *Hold the top for a second. A ring fills, then “three, two, one, go”.* · *Nothing to tap. Each rep beeps; every 10 bank for good.* · *All the way down and up — short reps are skipped.* · *Stop any time with ✕ in the corner.*
+**On screen (as built, three tabs; rewritten 12 Oct):** **Before you get down** · the level on the right (`spark · 7-day`, `habit · 21-day`, `the daily 25`) · tabs **1. Positioning · 2. Rules · 3. Start**, and **no intro paragraph** under the title (each fact is said once; the 10 Oct *Two things decide whether a rep counts…* line is gone, 002 FR-015)
+- **Positioning:** *Phone on the floor, leaning on something, facing where you'll be.* · one animated drawing, **At 45°** (a top view; *Ahead of your shoulder, about 1.5 m away.*; highlighted when the view is detected) · *Top of a push-up, hands under your shoulders, turned a little away: it sees you head to feet and your near knee.* · *Line up with the outline on screen.*
+- **Rules** (by the sitting's own form, 002 FR-015a): Habit — *Full push-ups from your toes, down to just above the floor.* · *Knee push-ups, or hips resting on the floor, don't count.*; Spark — *Aim for full push-ups from your toes.* · *From the knees still counts, body straight from the knees.*; Daily 25 — *From your toes or your knees — both count.* · then, for all, *All the way down and up — short reps are skipped.* · a card **What you'll hear and see**: beep (a rep counted) · *"10 banked"* (those 10 are saved) · *"Go lower"* (not deep enough — not counted) · *"Keep your body straight"* (hips sagged or piked — not counted) · *"Slow down"* (too fast to read — not counted) · *"Knees off the floor"* (a knee touched — not counted; Habit only) · *"Keep your legs in the picture"* (the phone lost your knees or feet) · *"Done"* (the day is complete)
+- **Start:** *Hold the top for a second. A ring fills, then “three, two, one, go”.* · *Nothing to tap. Each rep beeps.* · *Every 10 push-ups are saved on your phone.* · *Stop any time with ✕ in the corner.*
 - ☐ *Don't show this again* (remembered per wallet and per level) · **Skip / Back** · **Next / Got it**
 
 **Exits:** Got it / Skip → S3 · drag down or scrim → S3
@@ -483,7 +484,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 #### S3 · Pre-flight and hold the start position
 **MUST · ✅ Built · 🎨 Drawn** (boards *17*, *17d*, *PreflightTips*; the *step* tweak shows Checks / Tips offered / Tip sheet / Holding / Blocked) · `sitting/PreflightScreen.kt`, `sitting/PreflightTipsOffer.kt`, `sitting/PreflightTipsSheet.kt`
 
-**On screen:** camera + the floor/outline guide · five pills turning green: **Lighting · Whole body in frame · Knees visible · Camera view · Background still** (the knees got their own pill, 002 FR-024a; red, it says which way to turn or to move the phone back) · `Looking…` before the first frame · one big coach line, also spoken (*Phone to 45°*, *Knees up*, *Move back*, *Can't see knees*) · under it the sentence that says what to do (each failure states its fix) · once all green, a **hold ring** fills with **Hold…** and *Hold the top. The countdown starts when the ring fills.* · the level's rule sentence (the Daily 25: *counted as the Spark*) · **How to set up** · once offered, a text button **Still not green? Tips** under the fix sentence · in a Holdout the time to the deadline (`4h 06m to today's deadline`, warning in the last 10 minutes)
+**On screen:** camera + the outline (hidden until the phone stands on the floor, then the dashed box alone, with no push-up figure inside) · five pills turning green: **Lighting · Whole body in frame · Knees visible · Camera view · Background still** (the knees got their own pill, 002 FR-024a; red, it says which way to turn or to move the phone back) · `Looking…` before the first frame · one big coach line with a soft shadow, also spoken (first *Place your phone* with *On the floor, ahead of your shoulder, turned to you at 45°.* under it, said once; then *Phone to 45°*, *Knees up*, *Move back*, *Can't see knees*) · under it the sentence that says what to do (each failure states its fix) · once all green, a **hold ring** fills with **Hold…** and *Hold the top. The countdown starts when the ring fills.* · the level's rule sentence (the Daily 25: *counted as the Spark*) · **How to set up** · once offered, a text button **Still not green? Tips** under the fix sentence · in a Holdout the time to the deadline (`4h 06m to today's deadline`; only this line turns warning in the last 10 minutes — no *Under 10 minutes left…* sentence, 12 Oct)
 
 **Tip sheet** (002 FR-020a; a `HoldoutSheet` over S3): **Getting the checks green** · one row per check, in the pills' order: the check's pill, then its fix sentence (`PreflightStatus.fix ?: PreflightCheck.fix`, so *Move the phone so it can see all of you* for the camera view); a row that is red now is in the warning colour and read as *Not green yet* · **Open the set-up guide** · **Back to the checks**. **Offered**, in every sitting kind, once the checks have been short of all green for 30 seconds in total (time under the set-up guide does not count) or a check that was green has turned red for the third time, whichever comes first; it stays offered until the sitting ends and never opens by itself.
 
@@ -497,7 +498,7 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 #### S5 · Counting
 **MUST · ✅ Built · 🎨 Drawn** (boards *6 · Sitting — counting*, *6d*) · `sitting/CountingScreen.kt`
 
-**On screen:** camera + skeleton · a large hint pill mid-screen with the last refused rep's reason (*Go lower*; read from the floor and spoken, 002 FR-019) · **Block of 10 banked** (a green pill on a block, chime) · in the last ten minutes of a Holdout day, *Under 10 minutes left. Unfinished reps won't count.* · bottom: **17** *of 25* (the number pulses and a *+1* rises on every rep) · three block bars, proportional 10 / 10 / 5 · *10 banked · 7 this set* · `4h 06m` `left`
+**On screen:** camera + skeleton · a large hint pill mid-screen with the last refused rep's reason (*Go lower*; read from the floor and spoken, 002 FR-019) · **Block of 10 banked** (a green pill on a block, chime) · in the last ten minutes of a Holdout day only the time line turns warning (no sentence, 12 Oct) · bottom: **17** *of 25* (the number pulses and a *+1* rises on every rep) · three block bars, proportional 10 / 10 / 5 · *10 banked · 7 this set* · `4h 06m` `left`
 
 **Exits:** target reached → S6 · ✕ → S7
 
@@ -527,26 +528,30 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 ### H — ☰ Holdouts and ∿ Standing
 
 #### H0 · My Holdouts (☰ root)
-**MUST · ✅ Built · 🎨 Drawn** (boards *10 · My Holdouts*, *10a* out and settling; the *scenario* tweak shows running / lobby / claim, locked lobby, empty) · `holdouts/MyHoldoutsScreen.kt`, `holdouts/MyHoldoutsModel.kt`, `holdouts/RunningNowCard.kt` · FR-069c, FR-062a
+**MUST · ✅ Built · 🎨 Drawn** (boards *10 · My Holdouts*, *10a* out and settling; the *scenario* tweak shows running / lobby / claim, locked lobby, empty) · `holdouts/MyHoldoutsScreen.kt`, `holdouts/MyHoldoutsModel.kt`, `ui/SegmentedSwitch.kt` · FR-069c
 
-**On screen (as built, top → bottom)**
+**On screen (as built, top → bottom; two tabs since 12 Oct)**
 1. **Holdouts** (title) · (chain notices: *Devnet can't be reached right now.* + **Check again**; *Holdouts are not live on devnet yet*)
-2. **Yours** — a card per Holdout, with the level and a status chip on the right, two lines, and the next thing in the state's colour (`Journey.stage`):
+2. A switch **Now · 3 | Past · 4** (the counts; shown once the member has a Holdout of their own; opens on Now, and the choice survives rotation)
+3. **Now** — the member's own Holdouts not yet over, a card each with the level and a status chip on the right, two lines, and the next thing in the state's colour (`Journey.stage`), in this order: claim, running, settling, lobby, locked, out:
    | Stage | Chip | Lines | Opens |
    |---|---|---|---|
+   | Ready to claim | `claim` | *Held out 7 of 7* · *1,412 SKR waiting for you* (green) | H7 |
+   | Running | `running` | *Day 12 of 21 · 189 still standing* (*312 started* until the roster is read) · *15 push-ups to go today* / *Today's reps are done* / *Today is on chain* | H4, pushed above H0 with the member's day strip; Back returns here |
+   | Settling | `settling` | *You finished · settling, usually within 11m* → *… settling any moment* (`Derive.settleUsuallyIn`, FR-035a) | H4 |
    | Lobby | `lobby` | *Joined · 1,250 SKR staked* · *starts in 2d 4h* | H3 |
    | Locked lobby | `locked` | *Joining closed · 14 in · 1,250 SKR staked* · *starts in 41m 10s* | H3 |
-   | Running | `running` | *Day 12 of 21 · 189 still standing* (*312 started* until the roster is read) · *15 push-ups to go today* / *Today's reps are done* / *Today is on chain* | H4, pushed above H0 with the member's day strip; Back returns here |
-   | Out | `out` (warning) | *Out after 6 days* · *Win back up to 250 SKR* (green, while a way back is open) — or *Comeback joined* (green) once the member holds a place in its comeback round | H6 |
-   | Settling | `settling` | *You finished · settling, usually within 11m* → *… settling any moment* (`Derive.settleUsuallyIn`, FR-035a) | H4 |
-   | Ready to claim | `claim` | *Held out 7 of 7* · *1,412 SKR waiting for you* (green) | H7 |
+   | Out | `out` (warning) | *Lost 1,250 SKR · out on day 7* · *Win back up to 250 SKR* (green, while a way back is open) — or *Comeback joined* (green) once the member holds a place in its comeback round | H6 |
 
-   A forfeit stays under *Yours* until its comeback window has closed, then moves to *Finished*. Empty: a notice **No Holdouts yet.** *Stake on yourself for 7 or 21 days. Full refund until joining closes.*
-3. **Open to join** · hint *Holdouts need a Seeker.* — offer cards: level, `9,000 SKR` *at stake · 9 joined*, *Prize boost: up to 1,200 SKR*, *Joining closes in 2d 3h*, **Join** → H2 sheet. A Holdout you already joined is not listed again, and neither is one the program would refuse: **only what can be joined** is listed, with no greyed Join and no reason line. **With a lobby place held (lobby or locked) the whole section is not drawn** — no header, no Seeker hint, no cards, no *The next Holdout opens soon.*; while a Holdout runs only Holdouts starting at or after its end are listed. To change their mind a member leaves the lobby (H3, a full refund until joining closes) and then joins another. None joinable: *The next Holdout opens soon.*
-4. **Running now** (read-only, every wallet, Seeker or not; FR-062a): the running Holdouts the member is not in — **Habit · 21-day · day 12 of 21** over *189 still standing of 312 · prize pool 48,200 SKR*, a chevron → H4 → H5. No Join.
-5. **Finished** — one quiet line each: *Spark · 7-day · finished · claimed 1,180 SKR →* (H4) · *Habit · 21-day · finished · out after 6 days →* (H6)
+   A forfeit stays on Now until its comeback window has closed, then moves to Past. Empty: a notice **No Holdouts yet.** *Stake on yourself for 7 or 21 days. Full refund until joining closes.* (and no switch)
+4. **Open to join** (at the end of Now) · hint *Holdouts need a Seeker.* — offer cards: level, `9,000 SKR` *at stake · 9 joined*, *Prize boost: up to 1,200 SKR*, *Joining closes in 2d 3h*, **Join** → H2 sheet; **a tap anywhere on a card does what Join does**. A Holdout you already joined is not listed again, and neither is one the program would refuse: **only what can be joined** is listed, with no greyed Join and no reason line. **With a lobby place held (lobby or locked) the whole section is not drawn** — no header, no Seeker hint, no cards, no *The next Holdout opens soon.*; while a Holdout runs only Holdouts starting at or after its end are listed. To change their mind a member leaves the lobby (H3, a full refund until joining closes) and then joins another. None joinable: *The next Holdout opens soon.*
+5. **Past** — two groups, a section label over one card of rows each:
+   - **WON** — the name (**Spark · 7-day**, or **Hackathon Holdout**) over *Held out 7 of 7 · 12 of 14 finished*, the amount in the mono face and success colour, `1,180 SKR`, with *claimed* under it, a chevron → H4
+   - **LOST** — the name over *Out on day 5 of 21*, the stake in warning, `2,500 SKR`, with *lost* under it, a chevron → H6
 
-**Exits:** a card → H3 / H4 (the running one too: H4 above H0, Back returns here) / H6 / H7 · Join → H2 · a *Running now* row → H4 → H5
+There is no *Running now* on H0 (12 Oct): watching a Holdout the member is not in is ∿ H4a's list (FR-062a).
+
+**Exits:** a card → H3 / H4 (the running one too: H4 above H0, Back returns here) / H6 / H7 · Join or a tap on an offer card → H2 · a Past row → H4 (won) or H6 (lost)
 
 #### ~~H1 · The ladder~~ — removed 6 Oct
 The ladder screen and the **Human Flag** rung are out of the app (the code is deleted, 9 Oct). The open Holdouts it listed already appear on T1 and H0, and the Daily 25 is T1 itself.
@@ -567,7 +572,7 @@ The ladder screen and the **Human Flag** rung are out of the app (the code is de
 Only a confirmed absence of the token shows *Not a Seeker*; no network, a rate limit or a mainnet outage shows *Couldn't check* (FR-003d). Debug builds can skip the gate with `-Pholdout.seekerGate=off`.
 
 **The stake confirm (as built, top → bottom)**
-1. (test badge) · **Join the Spark · 7-day Holdout** (a short test Holdout: **Join the Test Holdout**) · *Light it up: 25 push-ups a day for 7 days.* (*Make it stick: …*) · a pill `Starts in 2d 4h`
+1. (test badge) · **Join the Spark · 7-day Holdout** (a Hackathon Holdout: **Join the Hackathon Holdout**) · *Light it up: 25 push-ups a day for 7 days.* (*Make it stick: …*) · a pill `Starts in 2d 4h`
 2. Four chips: **≈ $10 / ≈ $25 / ≈ $50 / ≈ $100**, each with its SKR amount (mono); the picked one has an accent outline. This is the one place a "≈ $" sits (FR-059)
 3. (a comeback round) *Finish it and up to 250 SKR of the stake you lost comes back.* (green, for the chip chosen, FR-037g)
 4. Card: **Your stake** `1,250 SKR` / `≈ $25` · hairline · **At stake now** `12,500 SKR` / *14 joined* · **Joining closes in** `2d 3h`
@@ -623,7 +628,7 @@ Only a confirmed absence of the token shows *Not a Seeker*; no network, a rate l
 #### H4a · Standing — nothing of yours yet
 **SHOULD · ✅ Built · 🎨 Drawn** (board *13c*) · `standing/StandingEmptyScreen.kt` · FR-069b, ES-21
 
-**On screen:** **Standing** · `RUNNING NOW` — the running Holdouts the member could watch (the same card as H0) · then, with a lobby place and nothing running of theirs, **Yours starts in 2d 4h ›** (accent, → H3); without one a card **Join one to have a crowd.** *Everyone who starts together thins out together.* **See Holdouts** (→ ☰) · **Leaderboards →**. A member whose only Holdout is in a lobby gets the watch list and the lobby line, never the join card (D-D9).
+**On screen:** **Standing** · `RUNNING NOW` — the running Holdouts the member could watch (a card with the level, the day and how many still stand; the list moved here from H0 on 12 Oct) · then, with a lobby place and nothing running of theirs, **Yours starts in 2d 4h ›** (accent, → H3); without one a card **Join one to have a crowd.** *Everyone who starts together thins out together.* **See Holdouts** (→ ☰) · **Leaderboards →**. A member whose only Holdout is in a lobby gets the watch list and the lobby line, never the join card (D-D9).
 
 **Exits:** a *Running now* row → H4 → H5 · the lobby line → H3 · See Holdouts → H0 · Leaderboards → L1
 
@@ -641,7 +646,7 @@ Only a confirmed absence of the token shows *Not a Seeker*; no network, a rate l
 #### H6 · Forfeit
 **MUST · ✅ Built · 🎨 Drawn** (board *9 · Forfeit*) · `cohort/ForfeitScreen.kt` · PRD #9, US-4, FR-037g
 
-**On screen (as built):** back · `HABIT · 21-DAY · DAY 12 OF 21` · (test badge) · a summary card: **189 / 312** *still standing* · `48,200 SKR` *prize pool* · the day strip with the missed day marked · **You missed day 7.** · the cause, by what the phone knows: *You didn't finish day 7 before its deadline. Your run has ended.* for a day never finished, *It didn't reach the chain in time. Your run has ended.* for a day finished on the phone and not sent (FR-024b, ES-3b) · card: **Stake lost** `1,250 SKR` · *It goes 70 % to this Holdout's prize pool, 10 % to Habit · 21-day boosts and comebacks, 20 % to the project. If nobody finishes, the pool goes to the project too.* (a short test Holdout: *…10 % to short test Holdout boosts and comebacks…*, as on the stake sheet; + *Final as of the deadline. The chain shows it shortly.* until recorded) · then the way back (the comeback block and its one primary button; the next-Holdout button picks only a Holdout the member can join), then the streak line and the Daily 25 button (below):
+**On screen (as built):** back · `HABIT · 21-DAY · DAY 12 OF 21` · (test badge) · a summary card: **189 / 312** *still standing* · `48,200 SKR` *prize pool* · the day strip with the missed day marked · **You missed day 7.** · the cause, by what the phone knows: *You didn't finish day 7 before its deadline. Your run has ended.* for a day never finished, *It didn't reach the chain in time. Your run has ended.* for a day finished on the phone and not sent (FR-024b, ES-3b) · card: **Stake lost** `1,250 SKR` · *It goes 70 % to this Holdout's prize pool, 10 % to Habit · 21-day boosts and comebacks, 20 % to the project. If nobody finishes, the pool goes to the project too.* (a short test Holdout: *…10 % to Hackathon Holdout boosts and comebacks…*, as on the stake sheet; + *Final as of the deadline. The chain shows it shortly.* until recorded) · then the way back (the comeback block and its one primary button; the next-Holdout button picks only a Holdout the member can join), then the streak line and the Daily 25 button (below):
 - **with a comeback offer** (FR-037g): `COMEBACK` card: **Win back up to 250 SKR** · *Finish a Habit · 21-day starting within 14 days: up to 250 SKR comes back.* · *Starts in* `2d 4h` *· joining closes in* `2d 3h` · *Or the one after it, starting in 9d 4h.* (or *The one after it starts in 9d 4h and opens for joining in 2d 4h.*) · **Join the next Habit · 21-day** (primary → H2 on the lost stake's chip). The offer is worked out from the forfeit itself, before it is recorded or settled: the Holdouts of the same level and length that start after the missed deadline and within 14 of their days after it — with weekly Holdouts exactly two (FR-037e)
 - **a place held** (ES-18): *You're in the Habit · 21-day, starting in 2d 4h. Finish it and up to 250 SKR of the stake you lost comes back.* (or *…, running now.*) · **See your place**
 - **round 2 not opened yet:** *The next Habit · 21-day opens for joining in 40m 00s and starts in 7d 0h. Finish it and up to 250 SKR of the stake you lost comes back.* (*opens for joining shortly* once that instant has passed) · no Join
@@ -674,8 +679,8 @@ Only a confirmed absence of the token shows *Not a Seeker*; no network, a rate l
 
 **On screen (as built, top → bottom)**
 1. back · `STANDING` · **Leaderboards**
-2. Board chips, one selected: **Spark · 7-day** · **Habit · 21-day** · **Short test** (only when a test league exists; it carries the `SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET` badge)
-3. One line under the chips: *All-time, from the chain. Ranked by share survived, after 3 played.* (test board: *Every short test Holdout on devnet, together. Ranked by share survived, after 3 played.*)
+2. Board chips, one selected: **Spark · 7-day** · **Habit · 21-day** · **Hackathon** (only when a test league exists; it carries the `DEVNET COHORT · 10-MINUTE DAYS` badge)
+3. One line under the chips: *All-time, from the chain. Ranked by share survived, after 3 played.* (test board: *Every Hackathon Holdout on devnet, together. Ranked by share survived, after 3 played.*)
 4. Your standing, one line: `YOU'RE RANKED #4` · `YOU'RE 2 HOLDOUTS AWAY FROM BEING RANKED` · `PLAY 3 OF THESE HOLDOUTS TO BE RANKED`
 5. `RANKED · 12` then rows: `1.` **alice.skr** or `ABcd…wxYZ` (Seeker ID when the wallet holds one, shortened address otherwise, spec 003) · `· you` on yours · right: **86% survived** · under: *6 of 7 cleared · streak 4 · best 6*; `SCRIPTED · ` where it applies. Empty: *Nobody has played 3 of these yet.*
 6. `NOT RANKED YET · 31` then rows marked `·` with *… · 2 more to be ranked*
@@ -806,7 +811,7 @@ Where the draft said something the spec, the PRD or its own tokens note say diff
 | 20 | 16 · Set-up, 17 · Pre-flight, 20 · Stopped, 5 · Home, 4 · Stake | A board's own wording for a line a spec fixes | **The code's wording stands wherever a spec mandates it, and the board follows it:** the set-up guide's lines in 002 FR-015's order, *Unfinished reps won't count.* (FR-047), *— try again* (FR-003d), the offline notes (FR-024b), the five pre-flight pills incl. *Knees visible* (002 FR-024a) | spec wins over board (precedence above) |
 | 21 | every board with a time | Countdowns written `2d 04h 12m` | `Format.countdown`: `2d 4h`, `4h 06m`, `12m 30s` | ruling G3 |
 | 22 | 8a · Lobby (locked) | A weekday in the footer (*Until Monday, just keep your streak.*, on the first draft of the board; check the current version) | *Until it starts, just keep your streak.* — no weekday for a countdown screen; *We'll remind you.* only with notifications on | constitution VI, ruling G9 |
-| 23 | every board with the test badge (3f, 4d, 8b …) | The badge's wording as the draft had it (*TEST COHORT · 10-MIN DAYS*) | **SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET** — the badge keeps its disclosed-weakness wording, every sentence says *short test Holdout* / *Test Holdout* | FR-044a, FR-040, constitution XI |
+| 23 | every board with the test badge (3f, 4d, 8b …) | The badge's wording as the draft had it (*TEST COHORT · 10-MIN DAYS*) | **SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET** — the badge keeps its disclosed-weakness wording, every sentence says *short test Holdout* / *Test Holdout* *(superseded 12 Oct: the badge is the neutral pill **DEVNET COHORT · 10-MINUTE DAYS** and the name is **Hackathon Holdout**)* | FR-044a, FR-040, constitution XI |
 | 24 | 4b, 6b, 7b, 6c | The confirming and result boards | Check that they carry what the code shows: **Leave this screen** on the confirming screen; **Not confirmed yet** *It was sent, but the network hasn't confirmed it. It may still land — check again in a minute.* (never "your funds are untouched"); **No wallet on this phone** | FR-070a, ES-20 |
 
 ---
@@ -861,10 +866,10 @@ The paths design has to make smooth, with the screens they cross. Times are PRD 
 - **J4 — Change your mind before the start:** `☰ H0` → `H3` → **Leave — full refund** ✍ → `H0`. After the cutoff `H3` is locked.
 - **J5 — Miss a day, and the way back:** `T2` → *(deadline)* → `H6` → **Do today's Daily 25** (`S1…`, while it is not done) or, from the comeback offer, **Join the next …** (`H2` on the lost chip → J2); `T1` carries the comeback card until the window's Holdouts have all closed for joining (at most 14 days), and finishing that Holdout pays the comeback with the claim (`H7`)
 - **J6 — Finish and get paid:** `T2` (last day) → `∿ H4` *settling* (usually within 15 minutes of the end) → *(settled)* → `N2` finished notice or the `☰ H0` card → `H7` → **Claim** ✍ `N1` → **CLAIMED** → **Done** → `☰ H0` *Finished*; after a Spark, **Make it a Habit · 21-day** → `H2`
-- **J7 — Anyone, a judge included, sees the whole cycle:** the demo video (sent with the submission) · or, connected with a wallet holding a Seeker Genesis Token, `T1` → a short test Holdout → `H2` (Seeker gate, then the stake confirm) → its 10-minute days → settlement → `H7` claim, in about half an hour (FR-044a, FR-003b) · or, without one, `☰ H0` **Running now** (or `∿ H4a`) → `H4` → `H5`, watching a Holdout thin (FR-062a)
+- **J7 — Anyone, a judge included, sees the whole cycle:** the demo video (sent with the submission) · or, connected with a wallet holding a Seeker Genesis Token, `T1` → a short test Holdout → `H2` (Seeker gate, then the stake confirm) → its 10-minute days → settlement → `H7` claim, in about half an hour (FR-044a, FR-003b) · or, without one, `∿ H4a` **Running now** → `H4` → `H5`, watching a Holdout thin (FR-062a)
 - **J8 — Offline:** `T1` the Daily 25 works with no network. `T2` warns before starting; at the end *"Done — not sent yet"* · **Back to today** (nothing is sent while the chain can't be reached); `T2` shows *"Done — waiting for network"*; the day is sent, with the wallet's approval, once Holdout is open and the chain answers again — and only before the deadline (*"Done — tap to submit"* only if that send was declined or failed).
 - **J9 — Where do I stand:** `∿ H4` → **Leaderboards** → `L1` (Spark · 7-day) → *You're 2 Holdouts away from being ranked* → back to `∿`.
-- **J10 — Watch before you stake:** `∿ Standing` with nothing of yours → `H4a` **Running now** → `H4` → `H5` → back → **Join one to have a crowd** → `☰ H0` → **Join** → J2.
+- **J10 — Watch before you stake:** `∿ Standing` with nothing of yours → `H4a` **Running now** → `H4` → `H5` → back → **Join one to have a crowd** → `☰ H0` (Now, *Open to join*) → **Join**, or a tap on the card → J2.
 
 ---
 
@@ -890,5 +895,5 @@ The member's goals, each with its entry point, its exit and the screens it cross
 | UC-14 | Keep the Daily 25 going with no network | T1 | T1 done | S1…S6 offline | US-5A, ES-3 |
 | UC-15 | Know what the app runs on and who is scripted | ◯ W1 → X1 (B1 card 4) | back | X1 | spec 004 FR-012, FR-013 |
 | UC-16 | Switch wallets or networks | W1 / X1 | A1 | **Disconnect wallet** → A1 | FR-001b |
-| UC-17 | Watch a Holdout thin without joining one, Seeker or not | ☰ H0 or ∿ H4a **Running now** | back | H0 / H4a → H4 → H5 | FR-062a, FR-003c, FR-069b, FR-069c, US-9 |
+| UC-17 | Watch a Holdout thin without joining one, Seeker or not | ∿ H4a **Running now** | back | H4a → H4 → H5 | FR-062a, FR-003c, FR-069b, FR-069c, US-9 |
 | UC-18 | Decline or lose a signature and know what is still safe | H2, S6/T2, H7 → N1 | the opener | N1a → N1c *Declined* (*Nothing was sent.*) or *Failed* (*The network didn't confirm it.* / *Not confirmed yet … check again in a minute*) → **Try again** or **Back** | FR-070, FR-070a, ES-20 |
