@@ -338,15 +338,19 @@ fun ChainCheckBox(offline: Boolean, checking: Boolean, onCheck: () -> Unit, modi
 
 /**
  * The short test cohort's label (FR-044a), wherever it appears: the offers
- * on home, the stake sheet, the lobby, the roster and cohort detail.
+ * on home, the stake sheet, the lobby, the roster and cohort detail. A quiet
+ * neutral pill, `surface-3` and `text-secondary` (owner, 12 Oct: a disclosure,
+ * not an alarm), and it may wrap on a narrow card.
  */
 @Composable
 fun TestCohortBadge(dayLengthSeconds: Long, modifier: Modifier = Modifier) {
     Text(
         text = "SHORT TEST COHORT · ${Format.dayLength(dayLengthSeconds).uppercase()} DAYS · DEVNET",
         style = LabelStyle,
-        color = HoldoutColors.Warning,
-        modifier = modifier,
+        color = HoldoutColors.TextSecondary,
+        modifier = modifier
+            .background(HoldoutColors.Surface3, MaterialTheme.shapes.small)
+            .padding(horizontal = Spacing.tight, vertical = Spacing.base),
     )
 }
 
