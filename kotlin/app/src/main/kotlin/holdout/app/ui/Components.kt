@@ -125,8 +125,11 @@ object Format {
     fun lostStakeSplit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% to $name boosts and comebacks, " +
         "20\u00a0% to the project. If nobody finishes, the pool goes to the project too."
 
-    /** The same split on the forfeit screen, under its **Stake lost** row (ruling G5). */
-    fun lostStakeSplitForfeit(c: holdout.core.CohortSnapshot): String = "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% to ${level(c)} boosts and comebacks, " +
+    /** What the boosts in the fee sentence are named after: the level, or "short test Holdout" for a test Holdout (FR-044a); the stake sheet and the forfeit screen both use it. */
+    fun boostName(c: holdout.core.CohortSnapshot, test: Boolean): String = if (test) "short test Holdout" else level(c)
+
+    /** The same split on the forfeit screen, under its **Stake lost** row (ruling G5); [name] as in [lostStakeSplit]. */
+    fun lostStakeSplitForfeit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% to $name boosts and comebacks, " +
         "20\u00a0% to the project. If nobody finishes, the pool goes to the project too."
 
     /** "Prize boost: up to 480 SKR", on an offer: "up to", never a promise (ruling G6). The card already names the level. */

@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import holdout.app.chain.Holdout
+import holdout.app.stake.StakeText
 import holdout.app.testing.Fx
 import holdout.app.testutil.AnimationsOff
 import holdout.app.testutil.TALL_PHONE
@@ -289,6 +290,19 @@ class ForfeitScreenTest {
         words.forEach { w ->
             assertFalse(Regex("""\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun|UTC|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b|\d{1,2}:\d{2}|\$|≈""").containsMatchIn(w), "\"$w\"")
         }
+    }
+
+    @Test
+    fun `a short test Holdout names the boosts after a short test Holdout, as the stake sheet does`() {
+        val test = Fx.cohort(joined = 10, leagueId = 100, dayLength = 600, days = 3, form = 1)
+        val testHoldout = Fx.holdout(test, Fx.member(days = 1, state = MembershipSnapshot.State.Forfeited))
+        show(stage = Stage.Forfeited(daysLasted = 1, recorded = true), h = testHoldout)
+
+        val forfeit = "It goes 70 % to this Holdout's prize pool, 10 % to short test Holdout boosts and comebacks, " +
+            "20 % to the project. If nobody finishes, the pool goes to the project too."
+        compose.onNodeWithText(forfeit).assertExists()
+        // The stake sheet's sentence names the same noun.
+        assertTrue("10 % to short test Holdout boosts and comebacks" in StakeText.fee(test, test = true))
     }
 
     @Test

@@ -123,7 +123,7 @@ fun ForfeitScreen(
 
             HoldoutCard {
                 h.membership?.let { KeyValueRow("Stake lost", Format.skr(it.stake)) }
-                Text(Format.lostStakeSplitForfeit(c), style = LabelStyle, color = HoldoutColors.TextTertiary)
+                Text(Format.lostStakeSplitForfeit(c, name = Format.boostName(c, h.isTest)), style = LabelStyle, color = HoldoutColors.TextTertiary)
                 if (!stage.recorded) Text(ForfeitText.PENDING, style = LabelStyle, color = HoldoutColors.TextTertiary)
             }
 
