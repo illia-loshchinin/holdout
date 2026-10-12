@@ -25,7 +25,8 @@ jobs:
   pass:
     if: vars.HOLDOUT_CRANK_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 9
+    # The build, one pass and 7 minutes of scripted polls, then the next run queues behind it.
+    timeout-minutes: 14
     steps:
       - uses: actions/checkout@v4
 
@@ -47,4 +48,6 @@ jobs:
           HOLDOUT_PAYER_KEY_JSON: ${{ secrets.HOLDOUT_PAYER_KEY_JSON }}
           HOLDOUT_SCRIPTED_KEYS_TGZ_B64: ${{ secrets.HOLDOUT_SCRIPTED_KEYS_TGZ_B64 }}
           CRANK_JAR: kotlin/crank/build/libs/crank.jar
+          # Scripted polls every minute after the pass, so a Hackathon round tops up soon after someone real joins (FR-043).
+          CRANK_ONCE_POLL_SECONDS: '420'
         run: bash scripts/crank-loop.sh --once

@@ -6,7 +6,8 @@
 # moments after the one before starts, not up to an interval later (FR-044a).
 # Between passes `crank scripted run` runs alone every CRANK_SCRIPTED_POLL_SECONDS
 # (default 60, 0 to switch off), so a Hackathon round tops up soon after someone
-# real joins it (FR-043). Runs in the Fly machine and in the GitHub Actions fallback (with --once).
+# real joins it (FR-043). Runs in the Fly machine, and in the GitHub Actions
+# fallback with --once (then CRANK_ONCE_POLL_SECONDS of scripted polls).
 #
 # Keys come from the environment, never from the image or the repository:
 #   HOLDOUT_PAYER_KEY_JSON        the payer's Solana CLI keypair (a JSON array)
@@ -64,22 +65,6 @@ pass() {
   return $scripted
 }
 
-if [[ "${1:-}" == "--once" ]]; then
-  pass
-  exit $?
-fi
-
-# Seconds to sleep: the interval, or until 5 s after the next open falls due
-# (a margin for the chain clock), never less than 5 s.
-next_sleep() {
-  local interval="${CRANK_INTERVAL_SECONDS:-600}" next wait
-  next="$(grep -o '"nextOpenAt":[0-9]*' "$SUMMARY" 2>/dev/null | head -n 1 | cut -d: -f2)"
-  [[ -z "$next" ]] && { echo "$interval"; return; }
-  wait=$(( next + 5 - $(date +%s) ))
-  (( wait < 5 )) && wait=5
-  (( wait < interval )) && echo "$wait" || echo "$interval"
-}
-
 # Between full passes, `scripted run` alone every CRANK_SCRIPTED_POLL_SECONDS
 # (default 60): a Hackathon round gets scripted members only once someone real
 # joins it (FR-043), and its lobby lasts 30 minutes, so a judge who joins finds
@@ -95,6 +80,33 @@ poll_scripted() {
     (( status != 0 )) && echo "=== poll ended with a failure; the next one retries (exit $status)"
   fi
   return 0
+}
+
+# One pass, then `scripted run` alone every CRANK_SCRIPTED_POLL_SECONDS for
+# CRANK_ONCE_POLL_SECONDS more (default 0): the GitHub Actions fallback starts
+# a pass every 10 minutes and sets this so it polls too (crank.yml).
+if [[ "${1:-}" == "--once" ]]; then
+  pass
+  status=$?
+  left="${CRANK_ONCE_POLL_SECONDS:-0}"
+  poll="${CRANK_SCRIPTED_POLL_SECONDS:-60}"
+  while [[ -n "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" ]] && (( poll > 0 && left >= poll )); do
+    sleep "$poll"
+    left=$(( left - poll ))
+    poll_scripted
+  done
+  exit $status
+fi
+
+# Seconds to sleep: the interval, or until 5 s after the next open falls due
+# (a margin for the chain clock), never less than 5 s.
+next_sleep() {
+  local interval="${CRANK_INTERVAL_SECONDS:-600}" next wait
+  next="$(grep -o '"nextOpenAt":[0-9]*' "$SUMMARY" 2>/dev/null | head -n 1 | cut -d: -f2)"
+  [[ -z "$next" ]] && { echo "$interval"; return; }
+  wait=$(( next + 5 - $(date +%s) ))
+  (( wait < 5 )) && wait=5
+  (( wait < interval )) && echo "$wait" || echo "$interval"
 }
 
 while true; do
