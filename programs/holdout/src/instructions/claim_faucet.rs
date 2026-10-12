@@ -22,6 +22,18 @@
 //! the recipient pays its own fee and already holds the top-up, as every
 //! scripted wallet does (R12) — spends none of the budget.
 //!
+//! ## No per-wallet limit
+//!
+//! A wallet may claim as often as it likes (owner's decision, 12 October:
+//! testers ran out of test SKR). Every claim mints the same amount — the
+//! highest top tier ever published — and the SOL top-up is sent only when the
+//! wallet holds less than `sol_top_up`. Only the day's lamport budget and the
+//! vault's balance limit it: SKR is a worthless test token the program mints,
+//! while the lamports are the one real cost. `Profile::last_faucet_day` is
+//! still stamped, for information only, and
+//! `HoldoutError::FaucetAlreadyClaimedToday` keeps its code (errors are never
+//! renumbered) but is no longer raised.
+//!
 //! When the budget or the vault is exhausted the whole instruction fails with
 //! its own error. There is no partial payout.
 
@@ -124,17 +136,11 @@ pub(crate) fn handler(ctx: Context<ClaimFaucet>, recipient: Pubkey) -> Result<()
         profile.last_faucet_day = NEVER_CLAIMED;
         profile.bump = ctx.bumps.profile;
     }
-    require!(
-        profile.last_faucet_day < today,
-        HoldoutError::FaucetAlreadyClaimedToday
-    );
 
     // Before the first `publish_chip_set`, `max_top_tier` is zero: the claim
-    // would mint no SKR and still stamp `last_faucet_day`, spending the
-    // recipient's one claim of the day on nothing and leaving them unable to
-    // make a real one until the next 05:00 UTC boundary. `open_cohort` already
-    // refuses in this window for the same reason (FR-055b), and refused before
-    // anything is written, as here.
+    // would mint no SKR yet create the accounts and spend the vault's lamports
+    // on them. `open_cohort` already refuses in this window for the same
+    // reason (FR-055b), and refused before anything is written, as here.
     require!(
         ctx.accounts.config.chip_set.is_published(),
         HoldoutError::ChipSetNotPublished
@@ -245,6 +251,7 @@ pub(crate) fn handler(ctx: Context<ClaimFaucet>, recipient: Pubkey) -> Result<()
         skr,
     )?;
 
+    // Informational: the day of the latest claim. It no longer gates one.
     ctx.accounts.profile.last_faucet_day = today;
 
     emit!(FaucetClaimed {

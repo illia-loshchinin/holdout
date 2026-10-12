@@ -77,6 +77,8 @@ pub enum HoldoutError {
     PreviousCohortUnsettled = 45,
 
     // ---- 6050–6054 · the faucet, and the exercise guard that shares it ---
+    // No longer raised: `claim_faucet` has no per-wallet limit (owner, 12 Oct).
+    // The code stays so no later error is renumbered.
     #[msg("This wallet has already used the faucet today")]
     FaucetAlreadyClaimedToday = 50,
     #[msg("The faucet has spent today's allowance")]

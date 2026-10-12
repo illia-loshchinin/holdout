@@ -17,6 +17,10 @@
  * And a claim that moves **no** lamports at all — the recipient pays its own
  * fee and already holds the top-up, as every scripted wallet does (R12) —
  * spends none of the budget and is not capped.
+ *
+ * There is **no per-wallet limit** (owner's decision, 12 October: testers ran
+ * out of test SKR). Every claim mints the same amount; the day's lamport budget
+ * is the only cap, and it bounds the SOL, the one thing that is not worthless.
  */
 
 import { generateKeyPairSigner, getAddressDecoder, type Address, type KeyPairSigner } from '@solana/kit';
@@ -137,23 +141,100 @@ describe('claim_faucet (contracts §3, research R13)', () => {
     expect(await skrOf(newcomer.address), 'enough for any open cohort\'s top chip').toBe(DEFAULT_CHIPS[3]);
   });
 
-  it('takes one claim per recipient per day, and another after the boundary (ES-0a)', async () => {
+  it('mints again on a second claim the same day, and charges only the lamports that move (owner, 12 Oct)', async () => {
+    // Testers ran out of test SKR, so there is no per-wallet limit: every tap
+    // mints. The day's lamport budget is what bounds the SOL.
     const newcomer = await zeroSolWallet();
     await h.sendOrThrow([await claimFaucetIx(sponsor.address, newcomer.address, mint, sponsor.address)], sponsor);
+    expect(await skrOf(newcomer.address)).toBe(DEFAULT_CHIPS[3]);
+    expect(h.balance(newcomer.address)).toBe(SOL_TOP_UP);
 
-    expectProgramError(await claim(newcomer.address), 'FaucetAlreadyClaimedToday');
-    // Later the same day is still the same day.
+    const chargedBefore = (await h.readConfig()).faucet.lamportsToday;
+    const vaultBefore = vaultBalance();
+    const sponsorBefore = h.balance(sponsor.address);
+
+    const second = await claim(newcomer.address);
+    expect(second.ok, second.logs.join('\n')).toBe(true);
+    expect(await skrOf(newcomer.address), 'minted a second time').toBe(2n * DEFAULT_CHIPS[3]!);
+
+    // The wallet already holds the top-up and has its accounts, so the only
+    // lamports that move are the sponsor's fee, reimbursed. No new top-up, no
+    // rent.
+    expect(h.balance(newcomer.address), 'no second top-up').toBe(SOL_TOP_UP);
+    expect(h.balance(sponsor.address), 'the sponsor ends where it started').toBe(sponsorBefore);
+    const moved = vaultBefore - vaultBalance();
+    expect(moved).toBeLessThan(SOL_TOP_UP);
+    const config = await h.readConfig();
+    expect(config.faucet.lamportsToday - chargedBefore, 'charged exactly what left the vault').toBe(moved);
+    expect(decodeClaimed(oneEvent(second, 'FaucetClaimed')).lamports).toBe(moved);
+
+    // Later the same day, and after the 05:00 UTC boundary, still mint.
     h.advance(3_600);
-    expectProgramError(await claim(newcomer.address), 'FaucetAlreadyClaimedToday');
-    expect(await skrOf(newcomer.address), 'and nothing was minted twice').toBe(DEFAULT_CHIPS[3]);
+    await h.sendOrThrow([await claimFaucetIx(sponsor.address, newcomer.address, mint, sponsor.address)], sponsor);
+    expect(await skrOf(newcomer.address)).toBe(3n * DEFAULT_CHIPS[3]!);
 
-    // 05:00 UTC turns the day over.
     const today = todayAt(h.now());
     h.setTime(Number((today + 1n) * 86_400n + 18_000n));
     expect(todayAt(h.now())).toBe(today + 1n);
-    const again = await claim(newcomer.address);
-    expect(again.ok, again.logs.join('\n')).toBe(true);
-    expect(await skrOf(newcomer.address)).toBe(2n * DEFAULT_CHIPS[3]!);
+    await h.sendOrThrow([await claimFaucetIx(sponsor.address, newcomer.address, mint, sponsor.address)], sponsor);
+    expect(await skrOf(newcomer.address)).toBe(4n * DEFAULT_CHIPS[3]!);
+    // `last_faucet_day` is still stamped, for information only.
+    expect((await h.readProfile(newcomer.address)).lastFaucetDay).toBe(today + 1n);
+  });
+
+  it('keeps minting until the day\'s lamport budget is used, then refuses with FaucetCapReached', async () => {
+    const newcomer = await zeroSolWallet();
+    await h.sendOrThrow([await claimFaucetIx(sponsor.address, newcomer.address, mint, sponsor.address)], sponsor);
+    const minted = await skrOf(newcomer.address);
+
+    // The budget is all used. A repeat claim paid for by the sponsor would
+    // move the sponsor's fee out of the vault, which the day can no longer
+    // afford.
+    await h.injectConfig({
+      skrMint: mint,
+      sponsor: sponsor.address,
+      faucet: {
+        solTopUp: SOL_TOP_UP,
+        sponsorFloat: SPONSOR_FLOAT,
+        dailyLamportCap: DAILY_CAP,
+        lamportDay: todayAt(h.now()),
+        lamportsToday: DAILY_CAP,
+      },
+    });
+    const vaultBefore = vaultBalance();
+    expectProgramError(await claim(newcomer.address), 'FaucetCapReached');
+    expect(await skrOf(newcomer.address), 'nothing minted by the refused claim').toBe(minted);
+    expect(vaultBalance()).toBe(vaultBefore);
+  });
+
+  it('lets a wallet that pays its own fee and holds the top-up claim again and again, spending no budget (R12)', async () => {
+    const scripted = await generateKeyPairSigner();
+    await h.fund(scripted.address, 1n * SOL);
+    await h.injectProfile(scripted.address);
+    h.injectTokenAccount(await associatedTokenPda(scripted.address, mint), mint, scripted.address, 0n);
+
+    // The day's budget is already gone: a claim that moves no lamports needs none.
+    await h.injectConfig({
+      skrMint: mint,
+      sponsor: sponsor.address,
+      faucet: {
+        solTopUp: SOL_TOP_UP,
+        sponsorFloat: SPONSOR_FLOAT,
+        dailyLamportCap: DAILY_CAP,
+        lamportDay: todayAt(h.now()),
+        lamportsToday: DAILY_CAP,
+      },
+    });
+    const vaultBefore = vaultBalance();
+    for (let i = 1n; i <= 3n; i++) {
+      await h.sendOrThrow(
+        [await claimFaucetIx(scripted.address, scripted.address, mint, sponsor.address)],
+        scripted,
+      );
+      expect(await skrOf(scripted.address)).toBe(i * DEFAULT_CHIPS[3]!);
+    }
+    expect(vaultBalance(), 'not one lamport out of the vault').toBe(vaultBefore);
+    expect((await h.readConfig()).faucet.lamportsToday, 'the budget is as it was').toBe(DAILY_CAP);
   });
 
   it('sends no top-up to a wallet that already holds it, but still charges the rent (research R13)', async () => {
@@ -193,11 +274,10 @@ describe('claim_faucet (contracts §3, research R13)', () => {
     expect(decodeClaimed(oneEvent(result, 'FaucetClaimed')).lamports).toBe(0n);
   });
 
-  it('refuses before the first chip set is published, sparing the day\'s claim', async () => {
+  it('refuses before the first chip set is published, writing nothing', async () => {
     // Between `initialize` and the first `publish_chip_set`, `max_top_tier` is
-    // zero. A claim would mint no SKR and still stamp `last_faucet_day`,
-    // spending the recipient's one claim of the day on nothing and leaving
-    // them unable to make a real one until the next 05:00 UTC boundary.
+    // zero. A claim would mint no SKR, create the accounts and spend the
+    // vault's lamports on nothing.
     await h.injectConfig({
       skrMint: mint,
       sponsor: sponsor.address,
@@ -208,7 +288,7 @@ describe('claim_faucet (contracts §3, research R13)', () => {
     const vaultBefore = vaultBalance();
     expectProgramError(await claim(newcomer.address), 'ChipSetNotPublished');
 
-    // Nothing written, nothing spent, and the claim still available.
+    // Nothing written, nothing spent.
     expect(h.svm.getAccount(await profilePda(newcomer.address)).exists).toBe(false);
     expect(vaultBalance()).toBe(vaultBefore);
     expect((await h.readConfig()).faucet.lamportsToday).toBe(0n);
