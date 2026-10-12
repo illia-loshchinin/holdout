@@ -238,4 +238,14 @@ class SetupGuideTest {
         compose.onNodeWithText("Back").performClick()
         compose.onNodeWithText(placeFloor).assertExists()
     }
+
+    @Test
+    fun `the cues list says each refused-rep word, and the knees one only where knees do not count`() {
+        val habit = sittingCues(Stakes.STAKED).map { it.first }
+        val spark = sittingCues(Stakes.EASY).map { it.first }
+        assertTrue("\"Go lower\"" in habit && "\"Knees off the floor\"" in habit)
+        assertTrue("\"Knees off the floor\"" !in spark && "\"Knees off the floor\"" !in sittingCues(Stakes.DAILY).map { it.first })
+        assertEquals("beep", habit.first())
+        assertEquals("\"Done\"", habit.last())
+    }
 }

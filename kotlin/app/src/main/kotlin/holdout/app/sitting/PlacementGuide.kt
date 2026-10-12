@@ -66,6 +66,7 @@ import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 import holdout.repcounter.CameraView
+import holdout.repcounter.RepHint
 import holdout.repcounter.Stakes
 
 /**
@@ -261,6 +262,47 @@ private fun RulesPage(stakes: Stakes) {
         Stakes.DAILY -> GuideLine("From your toes or your knees — both count.", strong = true)
     }
     GuideLine("All the way down and up — short reps are skipped.")
+    CuesCard(stakes)
+}
+
+/**
+ * What the sitting says and shows while counting, and what each means (owner, 12 Oct): face-down the member
+ * hears them, so they learn them here. The refused-rep words are [RepHint]'s; "Knees off the floor" only where
+ * knees do not count.
+ */
+internal fun sittingCues(stakes: Stakes): List<Pair<String, String>> = buildList {
+    add("beep" to "a rep counted")
+    add("\"10 banked\"" to "those 10 are saved")
+    add("\"${RepHint.GO_LOWER.message}\"" to "not deep enough — not counted")
+    add("\"${RepHint.KEEP_BODY_STRAIGHT.message}\"" to "hips sagged or piked — not counted")
+    add("\"${RepHint.SLOW_DOWN.message}\"" to "too fast to read — not counted")
+    if (stakes.judgesKnees) add("\"${RepHint.UP_ON_YOUR_TOES.message}\"" to "a knee touched — not counted")
+    add("\"${RepHint.LEGS_IN_VIEW.message}\"" to "the phone lost your knees or feet")
+    add("\"Done\"" to "the day is complete")
+}
+
+@Composable
+private fun CuesCard(stakes: Stakes) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(HoldoutColors.Surface1, MaterialTheme.shapes.medium)
+            .border(Spacing.border, HoldoutColors.Hairline, MaterialTheme.shapes.medium)
+            .padding(Spacing.cardPadding),
+        verticalArrangement = Arrangement.spacedBy(Spacing.tight),
+    ) {
+        Text("What you'll hear and see", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+        sittingCues(stakes).forEach { (said, means) ->
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(fontFamily = HoldoutFonts.Mono, color = HoldoutColors.Accent)) { append(said) }
+                    append("  $means")
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = HoldoutColors.TextSecondary,
+            )
+        }
+    }
 }
 
 @Composable
