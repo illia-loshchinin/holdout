@@ -15,6 +15,8 @@ description: "Task list for 002 rep placement and form rules — as built, with 
 
 **Refreshed 2026-10-08** for spec Session 2026-10-08: the Daily 25 is counted at 45° only, in the Easy band and with Easy's checks; head-on is retired (FR-006); a rep on the back or standing is refused (FR-008a, SC-002c). The head-on tasks are kept with a **Superseded** or **Dropped** note rather than deleted, so their history stays; the work of 7–8 October is T040–T045 (commits `19f773a`, `cdc4c1a`, `8e8b346`, `63f7060`, `78b54e5`), and what it leaves open is T046–T048.
 
+**Refreshed 2026-10-12** for spec Session 2026-10-12 (FR-016's tick kept however the guide closes; FR-018/FR-020a's tip sheet, with the 30 seconds counting only time when the pre-flight page is visible): the tip sheet is built as T051 (owned by `specs/001-holdout-hackathon` T253, commit `569c627`).
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: can run in parallel (different files, no dependency on an open task)
@@ -131,6 +133,7 @@ description: "Task list for 002 rep placement and form rules — as built, with 
 
 - [X] T049 Give the near knee its own blocking pre-flight pill, Knees visible, between Whole body in frame and Camera view in `kotlin/repcounter/src/main/kotlin/holdout/repcounter/Preflight.kt` (`PreflightCheck.KNEES_VISIBLE`, `Preflight.kneesVisible()`), moving the near-knee checks and their three fixes out of Whole body in frame, red without a picture pose, and have `Coach.next` rank the knee turn fixes below a failing Whole body in frame pill per FR-024a (missing)
 - [X] T050 Make the set-up guide in `kotlin/app/src/main/kotlin/holdout/app/sitting/PlacementGuide.kt` say "Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone." under its title on every page, with the phone page's "From there it sees all of you, and the knee nearer to it." and the body page opening on the whole-body and knees lines, per FR-015 as amended (missing)
+- [X] T051 [US3] **Pre-flight tip sheet** (FR-020a, US-3 scenario 5; `contracts/words.md` "Tip sheet"; quickstart 001 24e) — owned and tracked by `specs/001-holdout-hackathon` T253, built in commit `569c627`: the trigger counter in `kotlin/app/src/main/kotlin/holdout/app/sitting/PreflightTipsOffer.kt` (30 seconds in total short of all green, counting only time when the pre-flight page is visible and not time under the set-up guide, though a flip during it counts; or the third green-to-red turn; whichever is first; kept until the sitting ends), the "Getting the checks green" sheet in `sitting/PreflightTipsSheet.kt`, wired in `sitting/PreflightScreen.kt`, `sitting/SittingViewModel.kt` and `sitting/SittingScreen.kt`. Tests: `PreflightTipsOfferTest` (incl. "time spent reading the set-up guide does not count"), `PreflightTipsSheetTest`, `PreflightTipsWiringTest` in `kotlin/app/src/test/kotlin/holdout/app/sitting/`
 
 ---
 
@@ -143,7 +146,7 @@ description: "Task list for 002 rep placement and form rules — as built, with 
 - T028 and T033 wait on 001 T095 (beta testers).
 - T034 waits on T033 (it writes T033's results into the weaknesses rows).
 - Phase 8 waits on T033 and T035.
-- Phase 9 (T049, T050) is built; it does not wait on Phase 7's open T046–T048 (labelling and a recording) or on Phase 8, and is independent of both; T050 follows T049 (the guide's knees line names the pill).
+- Phase 9 (T049–T051) is built; it does not wait on Phase 7's open T046–T048 (labelling and a recording) or on Phase 8, and is independent of both; T050 follows T049 (the guide's knees line names the pill).
 
 ## Parallel execution examples
 
