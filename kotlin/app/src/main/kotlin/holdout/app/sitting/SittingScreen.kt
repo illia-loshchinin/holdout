@@ -36,7 +36,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -456,15 +455,8 @@ private fun PositionOverlay(viewModel: SittingViewModel, mirrored: Boolean) {
                     ),
                 )
 
-                // What goes in the box: a body at the top of a push-up, shaped
-                // for the placement, so the outline reads as "lie like this".
-                val box = Rect(
-                    left = fit.offsetX + left * fit.width,
-                    top = fit.offsetY + target.top * fit.height,
-                    right = fit.offsetX + (left + 2f * target.halfWidth) * fit.width,
-                    bottom = fit.offsetY + target.bottom * fit.height,
-                )
-                drawPlankFigure(box.deflate(box.minDimension * 0.08f), HoldoutColors.Accent.copy(alpha = 0.7f))
+                // The box alone: a figure inside it sat under the coach's words and said nothing they
+                // don't (owner, 12 Oct walk).
             },
     )
 }

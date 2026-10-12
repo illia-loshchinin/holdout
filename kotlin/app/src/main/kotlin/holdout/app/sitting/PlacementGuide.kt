@@ -35,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -394,26 +393,6 @@ private fun DrawScope.drawPhone(centre: Offset, accent: Color) {
     )
     val lensY = centre.y - ph / 2f
     drawCircle(HoldoutColors.Canvas, radius = ph * 0.28f, center = Offset(centre.x, lensY))
-}
-
-/**
- * A body in the top-of-a-push-up position, drawn inside the outline over the
- * camera, so the outline says what goes in it: lying across the frame, as the
- * phone at 45° sees the body.
- */
-fun DrawScope.drawPlankFigure(box: Rect, color: Color) {
-    val w = box.width
-    val h = box.height
-    fun p(x: Float, y: Float) = Offset(box.left + x * w, box.top + y * h)
-    val stroke = (minOf(w, h) * 0.045f).coerceIn(4f, 12f)
-    val line = Stroke(width = stroke, cap = StrokeCap.Round)
-
-    drawCircle(color, radius = h * 0.13f, center = p(0.08f, 0.3f), style = line)
-    // Shoulder to heel in one straight line, on the toes.
-    drawLine(color, p(0.16f, 0.36f), p(0.95f, 0.88f), stroke, StrokeCap.Round)
-    drawLine(color, p(0.95f, 0.88f), p(0.98f, 0.98f), stroke, StrokeCap.Round)
-    // A straight arm down to the floor.
-    drawLine(color, p(0.18f, 0.37f), p(0.2f, 0.98f), stroke, StrokeCap.Round)
 }
 
 private val TabHeight = 40.dp
