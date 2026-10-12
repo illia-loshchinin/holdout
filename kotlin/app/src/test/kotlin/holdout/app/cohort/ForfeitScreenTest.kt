@@ -2,6 +2,7 @@ package holdout.app.cohort
 
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -76,6 +77,7 @@ class ForfeitScreenTest {
         place: Boolean = false,
         h: Holdout = this.h,
         doneOnPhone: Boolean = true,
+        daily25Done: Boolean = false,
     ) {
         compose.setContent {
             HoldoutTheme {
@@ -93,6 +95,7 @@ class ForfeitScreenTest {
                     members = members,
                     onSeePlace = if (place) ({ taps.place++ }) else null,
                     doneOnPhone = doneOnPhone,
+                    daily25Done = daily25Done,
                 )
             }
         }
@@ -164,11 +167,46 @@ class ForfeitScreenTest {
     }
 
     @Test
-    fun `the streak is still alive`() {
+    fun `the streak is still alive - one quiet line, no card and no body sentence`() {
         show(streak = 12)
 
-        compose.onNodeWithText("Your 12-day streak is still alive.").assertIsDisplayed()
-        compose.onNodeWithText(ForfeitText.STREAK_BODY).assertIsDisplayed()
+        val note = compose.onNodeWithText("Your 12-day streak is still alive.")
+        note.assertExists()
+        compose.onNodeWithText("A run can end; your streak didn't. That's the habit, and it's yours.").assertDoesNotExist()
+        // No card around it: it starts where the headline starts, at the screen's gutter, not inset by a card's padding.
+        assertEquals(
+            compose.onNodeWithText("You missed day 12.").getBoundsInRoot().left,
+            note.getBoundsInRoot().left,
+        )
+    }
+
+    @Test
+    fun `the order - Stake lost, the comeback with its Join, the streak note, then the Daily 25 button`() {
+        show(offer = offer(), daily25Done = false)
+
+        val tops = listOf("Stake lost", "COMEBACK", "Join the next Habit · 21-day", "Your 12-day streak is still alive.", "Do today's Daily 25")
+            .map { compose.onNodeWithText(it).getBoundsInRoot().top }
+        assertEquals(tops.sorted(), tops, "the sections run in this order")
+        assertEquals(tops.distinct(), tops)
+    }
+
+    @Test
+    fun `today's Daily 25 not done - it is offered as a secondary button, with the same action`() {
+        val taps = Taps()
+        show(taps, offer = offer(), daily25Done = false)
+
+        compose.onNodeWithText("Do today's Daily 25").performClick()
+        compose.onNodeWithText("Or keep the streak: today's Daily 25").assertDoesNotExist()
+        assertEquals(1, taps.daily)
+    }
+
+    @Test
+    fun `today's Daily 25 done - no Daily 25 offer at all`() {
+        show(offer = offer(), daily25Done = true)
+
+        compose.onNodeWithText("Do today's Daily 25").assertDoesNotExist()
+        compose.onNodeWithText("Join the next Habit · 21-day").assertIsDisplayed()
+        compose.onNodeWithText("Your 12-day streak is still alive.").assertExists()
     }
 
     @Test
@@ -211,7 +249,7 @@ class ForfeitScreenTest {
         compose.onNodeWithText("Starts in 2d 4h · joining closes in 1d 3h").assertIsDisplayed()
 
         compose.onNodeWithText("Join the next Habit · 21-day").performClick()
-        compose.onNodeWithText("Or keep the streak: today's Daily 25").performClick()
+        compose.onNodeWithText("Do today's Daily 25").performClick()
 
         assertEquals(1, taps.join)
         assertEquals(1, taps.daily)
@@ -227,7 +265,7 @@ class ForfeitScreenTest {
 
         compose.onNodeWithText("You're in the Habit · 21-day starting in 2d 4h. Finish it and up to 250 SKR of the stake you lost comes back.").assertIsDisplayed()
         compose.onNodeWithText("See your place").performClick()
-        compose.onNodeWithText("Or keep the streak: today's Daily 25").performClick()
+        compose.onNodeWithText("Do today's Daily 25").performClick()
 
         assertEquals(1, taps.place)
         assertEquals(1, taps.daily)
@@ -242,7 +280,7 @@ class ForfeitScreenTest {
 
         compose.onNodeWithText("The next Habit · 21-day opens for joining in 6h 00m and starts in 2d 4h. Finish it and up to 250 SKR of the stake you lost comes back.").assertIsDisplayed()
         compose.onNodeWithText("Join the next Habit · 21-day").assertDoesNotExist()
-        compose.onNodeWithText("Today's Daily 25").performClick()
+        compose.onNodeWithText("Do today's Daily 25").performClick()
         assertEquals(1, taps.daily)
     }
 
@@ -260,7 +298,7 @@ class ForfeitScreenTest {
 
         compose.onNodeWithText("You hold a place in a Holdout that starts later. Leave it first to join one that can bring your stake back.").assertIsDisplayed()
         compose.onNodeWithText("Join the next Habit · 21-day").assertDoesNotExist()
-        compose.onNodeWithText("Today's Daily 25").assertIsDisplayed()
+        compose.onNodeWithText("Do today's Daily 25").assertIsDisplayed()
     }
 
     @Test
@@ -279,10 +317,19 @@ class ForfeitScreenTest {
         compose.onNodeWithText("TWO WAYS BACK").assertIsDisplayed()
         compose.onNodeWithText("Today's Daily 25 keeps your streak going. The next Habit · 21-day starts a new run.").assertIsDisplayed()
         compose.onNodeWithText("The next Habit · 21-day").performClick()
-        compose.onNodeWithText("Or keep the streak: today's Daily 25").performClick()
+        compose.onNodeWithText("Do today's Daily 25").performClick()
 
         assertEquals(1, taps.next)
         assertEquals(1, taps.daily)
+    }
+
+    @Test
+    fun `no offer, Daily 25 done - the next Holdout alone, no two ways back`() {
+        show(offer = null, daily25Done = true)
+
+        compose.onNodeWithText("TWO WAYS BACK").assertDoesNotExist()
+        compose.onNodeWithText("The next Habit · 21-day starts a new run.").assertIsDisplayed()
+        compose.onNodeWithText("Do today's Daily 25").assertDoesNotExist()
     }
 
     @Test
@@ -291,7 +338,7 @@ class ForfeitScreenTest {
         show(taps, offer = null, nextOpen = false)
 
         compose.onNodeWithText("Today's Daily 25 keeps your streak going.").assertIsDisplayed()
-        compose.onNodeWithText("Today's Daily 25").performClick()
+        compose.onNodeWithText("Do today's Daily 25").performClick()
         assertEquals(1, taps.daily)
     }
 
