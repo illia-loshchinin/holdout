@@ -83,6 +83,23 @@ class FormatCopyTest {
     }
 
     @Test
+    fun `the fee sentence takes the noun it names the boosts after`() {
+        assertEquals(
+            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % to short test Holdout boosts and comebacks, " +
+                "20 % to the project. If nobody finishes, the pool goes to the project too.",
+            Format.lostStakeSplit(spark, name = "short test Holdout"),
+        )
+    }
+
+    @Test
+    fun `SOL shows three decimals from lamports`() {
+        assertEquals("0.012 SOL", Format.sol(12_000_000L))
+        assertEquals("0.000 SOL", Format.sol(0L))
+        assertEquals("1.500 SOL", Format.sol(1_500_000_000L))
+        assertEquals("0.001 SOL", Format.sol(1_000_000L))
+    }
+
+    @Test
     fun `the forfeit variant opens on where the stake goes and names the Holdout's pool`() {
         assertEquals(
             "It goes 70 % to this Holdout's prize pool, 10 % to Habit · 21-day boosts and comebacks, " +

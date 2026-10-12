@@ -218,7 +218,7 @@ private fun Holdings(state: MeState) {
             Reading { Body("Reading devnet…") }
         } else {
             KeyValueRow("Test SKR", Format.skr(state.skr))
-            KeyValueRow("Devnet SOL for fees", "%.3f SOL".format(state.lamports / LAMPORTS_PER_SOL))
+            KeyValueRow("Devnet SOL for fees", Format.sol(state.lamports))
         }
         Body(
             state.faucetSkr?.let { "One tap a day: ${Format.skr(it).removeSuffix(" SKR")} test SKR, plus SOL for fees. Test network, test token." }
@@ -228,7 +228,6 @@ private fun Holdings(state: MeState) {
 }
 
 private const val COPIED_MILLIS = 1_500L
-private const val LAMPORTS_PER_SOL = 1e9
 private val PILL_HEIGHT = 32.dp
 private val COPY_MARK = 12.dp
 private const val COPY_UNITS = 12f

@@ -77,7 +77,7 @@ fun FaucetSheet(
         Text("Get test tokens", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
         HoldoutCard {
             KeyValueRow("Test SKR", Format.skr(skr))
-            KeyValueRow("Devnet SOL for fees", "%.3f SOL".format(lamports / LAMPORTS_PER_SOL))
+            KeyValueRow("Devnet SOL for fees", Format.sol(lamports))
             Body(if (maxTopTier > 0uL) "One tap: ${Format.skr(maxTopTier).removeSuffix(" SKR")} test SKR, plus SOL for fees." else "One tap: test SKR, plus SOL for fees.")
             Outcome(outcome, claimedToday, now)
         }
@@ -117,8 +117,6 @@ private fun Outcome(outcome: FaucetOutcome?, claimedToday: Boolean, now: Long) {
 private fun Line(text: String, color: Color) {
     Text(text, style = MaterialTheme.typography.bodyLarge, color = color)
 }
-
-private const val LAMPORTS_PER_SOL = 1e9
 
 private const val PREVIEW_NOW = 1_791_176_400L + 3 * 86_400L
 

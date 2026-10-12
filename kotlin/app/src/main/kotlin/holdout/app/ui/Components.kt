@@ -116,9 +116,10 @@ object Format {
      * Where a lost stake goes, in the sentence the stake sheet shows (FR-027,
      * FR-037, FR-041; decided 2026-10-10, shortened 2026-10-11; ruling G5).
      * The level and length are the Holdout's own, and a no-break space keeps
-     * every "%" on its number's line.
+     * every "%" on its number's line. [name] is what the boosts are named
+     * after: the level by default, "short test Holdout" for a test Holdout.
      */
-    fun lostStakeSplit(c: holdout.core.CohortSnapshot): String = "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% to ${level(c)} boosts and comebacks, " +
+    fun lostStakeSplit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% to $name boosts and comebacks, " +
         "20\u00a0% to the project. If nobody finishes, the pool goes to the project too."
 
     /** The same split on the forfeit screen, under its **Stake lost** row (ruling G5). */
@@ -156,6 +157,11 @@ object Format {
         val grouped = whole.reversed().chunked(3).joinToString(",").reversed()
         return (if (fraction.isEmpty()) grouped else "$grouped.$fraction") + " SKR"
     }
+
+    private const val LAMPORTS_PER_SOL = 1e9
+
+    /** `0.012 SOL`: a wallet's SOL balance from lamports, three decimals (the fee balance on Me and in the faucet). */
+    fun sol(lamports: Long): String = "%.3f SOL".format(lamports / LAMPORTS_PER_SOL)
 
     /** The fiat label a chip carries — always approximate, never on-chain (FR-059, constitution XIII). */
     val TIER_USD = listOf(10, 25, 50, 100)
