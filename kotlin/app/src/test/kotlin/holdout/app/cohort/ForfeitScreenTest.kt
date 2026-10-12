@@ -70,6 +70,7 @@ class ForfeitScreenTest {
         members: List<MembershipSnapshot>? = Fx.roster(standing = 19, out = 1, lasted = 11, going = 11),
         place: Boolean = false,
         h: Holdout = this.h,
+        doneOnPhone: Boolean = true,
     ) {
         compose.setContent {
             HoldoutTheme {
@@ -86,18 +87,34 @@ class ForfeitScreenTest {
                     onJoin = { taps.join++ },
                     members = members,
                     onSeePlace = if (place) ({ taps.place++ }) else null,
+                    doneOnPhone = doneOnPhone,
                 )
             }
         }
     }
 
     @Test
-    fun `the facts - the day missed, that it did not reach the chain, that the run has ended`() {
-        show()
+    fun `a day done on this phone but not sent says it did not reach the chain in time`() {
+        show(doneOnPhone = true)
 
         compose.onNodeWithText("HABIT · 21-DAY · DAY 12 OF 21").assertIsDisplayed()
         compose.onNodeWithText("You missed day 12.").assertIsDisplayed()
         compose.onNodeWithText("It didn't reach the chain in time. Your run has ended.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a day never done says the member did not finish it before its deadline`() {
+        show(doneOnPhone = false)
+
+        compose.onNodeWithText("You missed day 12.").assertIsDisplayed()
+        compose.onNodeWithText("You didn't finish day 12 before its deadline. Your run has ended.").assertIsDisplayed()
+        compose.onNodeWithText("It didn't reach the chain in time. Your run has ended.").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the cause sentence by whether the day was done on the phone`() {
+        assertEquals("It didn't reach the chain in time. Your run has ended.", ForfeitText.body(daysLasted = 11, doneOnPhone = true))
+        assertEquals("You didn't finish day 12 before its deadline. Your run has ended.", ForfeitText.body(daysLasted = 11, doneOnPhone = false))
     }
 
     @Test
@@ -268,7 +285,7 @@ class ForfeitScreenTest {
             ForfeitText.offer(offer(), c, now, Journey.JoinBlocker.LobbyPlaceTaken),
             ForfeitText.offer(offer(upcoming = upcoming, rounds = listOf(upcoming)), c, now, null),
         )
-        val words = copies.flatMap { listOfNotNull(it.headline, it.body, it.timing, it.after, it.notice) } + ForfeitText.BODY + ForfeitText.headline(11)
+        val words = copies.flatMap { listOfNotNull(it.headline, it.body, it.timing, it.after, it.notice) } + ForfeitText.body(11, true) + ForfeitText.body(11, false) + ForfeitText.headline(11)
         words.forEach { w ->
             assertFalse(Regex("""\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun|UTC|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b|\d{1,2}:\d{2}|\$|≈""").containsMatchIn(w), "\"$w\"")
         }

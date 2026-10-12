@@ -54,7 +54,7 @@ import holdout.core.Stage
  *  ┌ 189 / 312 still standing        48,200 SKR ┐        summary card · DayStrip
  *  └ ▮▮▮▮▮▮▮▮▮▮▮▮▯▯▯▯▯▯▯▯▯  Day 1 · You: out on day 12 · Day 21 ┘
  *  You missed day 12.                                    headline
- *  It didn't reach the chain in time. Your run has ended.
+ *  It didn't reach the chain in time. Your run has ended.      (a day never finished: "You didn't finish day 12 before its deadline. …")
  *  ┌ Stake lost                       1,250 SKR ┐        KeyValueRow + the fee sentence
  *  ┌ Your 12-day streak is still alive. ┐                 success-border card
  *  ┌ COMEBACK  Win back up to 250 SKR … ┐                the offer card, by state
@@ -96,6 +96,8 @@ fun ForfeitScreen(
     members: List<MembershipSnapshot>? = null,
     /** Opens the place the member holds in a round of the offer; null shows no such button. */
     onSeePlace: (() -> Unit)? = null,
+    /** The missed day was finished on this phone and never reached the chain: the cause sentence says so (FR-024b, ES-3b). */
+    doneOnPhone: Boolean = false,
 ) {
     val c = h.cohort
     val figures = members?.let { Derive.figures(c, it, now) }
@@ -116,7 +118,7 @@ fun ForfeitScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
                 Text(ForfeitText.headline(stage.daysLasted), style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
-                Body(ForfeitText.BODY)
+                Body(ForfeitText.body(stage.daysLasted, doneOnPhone))
             }
 
             HoldoutCard {
@@ -217,7 +219,11 @@ private fun ColumnScope.Buttons(
 
 /** Every word the forfeit says, pure so it can be tested (no dates, no dollar figures; rulings G3–G5, D-D3, D-D4). */
 internal object ForfeitText {
-    const val BODY = "It didn't reach the chain in time. Your run has ended."
+    private const val ENDED = "Your run has ended."
+
+    /** The cause, by what this phone knows: a day finished but not sent reached the chain too late; a day never finished was not finished by its deadline. */
+    fun body(daysLasted: Int, doneOnPhone: Boolean): String =
+        if (doneOnPhone) "It didn't reach the chain in time. $ENDED" else "You didn't finish day ${daysLasted + 1} before its deadline. $ENDED"
     const val PENDING = "Final as of the deadline. The chain shows it shortly."
     const val STREAK_BODY = "A run can end; your streak didn't. That's the habit, and it's yours."
 

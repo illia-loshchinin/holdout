@@ -118,6 +118,8 @@ internal fun Shared.ForfeitHost(id: String, modifier: Modifier = Modifier) {
         stillUnreachable = chain.check.stillUnreachable,
         onCheck = { checkChain(h.address) },
         offer = offer,
+        // The missed day is the one after the days on chain; finished on this phone means it was too late to send.
+        doneOnPhone = store.isDayComplete(wallet, cohortScope(h), (h.membership?.daysCompleted ?: 0).toLong()),
         members = rosters[h.address],
         // A place held in a round of the offer: its lobby, or Today once it runs.
         onSeePlace = offer?.held?.entry?.let { place ->
