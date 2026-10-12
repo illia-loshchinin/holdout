@@ -97,11 +97,14 @@ object Run {
      * with a cohort not yet settled. Until every cohort of the older leagues
      * has settled, the newest opens nothing, so a member can never hold
      * outcomes in two test leagues at once and the shared streak stays in
-     * order through a switchover (FR-044a, FR-060).
+     * order through a switchover (FR-044a, FR-060). A retired league in
+     * [owing] holds it too: it still owes a comeback round not opened yet, has
+     * just opened one this pass (not among [cohorts] until the next read), or
+     * what it owes could not be read (FR-037e).
      */
-    fun lobbyHeldBy(retired: Set<Int>, cohorts: Collection<CohortSnapshot>): Int? = cohorts
-        .filter { it.leagueId in retired && !it.settled }
-        .minOfOrNull { it.leagueId }
+    fun lobbyHeldBy(retired: Set<Int>, cohorts: Collection<CohortSnapshot>, owing: Collection<Int> = emptyList()): Int? = (
+        cohorts.filter { it.leagueId in retired && !it.settled }.map { it.leagueId } + owing.filter { it in retired }
+        ).minOrNull()
 
     /**
      * The last round a retired test [league] still owes a comeback in, or null
@@ -286,6 +289,9 @@ object Run {
         suspend fun send(step: String, instructions: List<TransactionInstruction>): String? = signAndSend(rpc, step, instructions, listOf(payer), args.dryRun, pause, beforeRetrying = "the next pass reads chain state and retries")
 
         // ---- 1. open ---------------------------------------------------------
+        // Retired test leagues that opened a comeback round this pass.
+        val openedRetired = mutableSetOf<Int>()
+
         suspend fun openDue(league: LeagueSnapshot, upTo: Long = Long.MAX_VALUE) {
             val id = league.params.leagueId
             val current = league.copy(nextIndex = nextIndex.getValue(id))
@@ -305,6 +311,7 @@ object Run {
                 // name this cohort as their predecessor, are reported as planned.
                 if (!args.dryRun) {
                     nextIndex[id] = index + 1
+                    if (upTo != Long.MAX_VALUE) openedRetired += id
                 } else {
                     due.drop(position + 1).forEach { later ->
                         pass.record("open_cohort", "skipped") {
@@ -320,9 +327,12 @@ object Run {
         val retired = retiredTestLeagues(leagues.map { it.params.leagueId })
         // A retired test league still opens the rounds its comebacks are owed in (FR-037e).
         val owed = mutableMapOf<Int, Long>()
+        // Retired leagues whose debts could not be read hold the new lobby this pass rather than risk two open test leagues.
+        val owedUnknown = mutableSetOf<Int>()
         if (retired.isNotEmpty()) {
             val early = rpc.profiles(programId)
             if (early == null) {
+                owedUnknown += retired
                 pass.failures++
                 pass.record("open_cohort", "failed") { put("error", "could not list profiles from ${config.rpcUrl} for the comebacks retired test leagues owe") }
             } else {
@@ -332,6 +342,7 @@ object Run {
                     for (cohort in cohorts.values.filter { it.leagueId == id && !it.settled }) {
                         val accounts = rpc.membershipAccounts(programId, Pdas.cohort(programId, id, cohort.index))
                         if (accounts == null) {
+                            owedUnknown += id
                             pass.failures++
                             pass.record("open_cohort", "failed") {
                                 put("league", id)
@@ -348,6 +359,9 @@ object Run {
                 }
             }
         }
+
+        // The retired leagues that hold the new lobby beyond an unsettled cohort it can see.
+        fun owing(): Set<Int> = retired.filter { it in openedRetired || it in owedUnknown || (owed[it] ?: -1L) >= nextIndex.getValue(it) }.toSet()
         for (league in leagues) {
             val id = league.params.leagueId
             if (id in retired) {
@@ -366,11 +380,11 @@ object Run {
                     }
                 }
             } else {
-                val heldBy = if (id >= LeagueParams.TEST_LEAGUE_MIN) lobbyHeldBy(retired, cohorts.values) else null
+                val heldBy = if (id >= LeagueParams.TEST_LEAGUE_MIN) lobbyHeldBy(retired, cohorts.values, owing()) else null
                 if (heldBy != null) {
                     pass.record("open_cohort", "waiting") {
                         put("league", id)
-                        put("reason", "test league $heldBy still has a cohort to settle; the new lobby opens once it has wound down (FR-044a)")
+                        put("reason", "test league $heldBy still has a cohort to open or settle; the new lobby opens once it has wound down (FR-044a)")
                     }
                 } else {
                     openDue(league)
@@ -544,7 +558,7 @@ object Run {
                 if (id in retired) {
                     (owed[id] ?: -1L) >= nextIndex.getValue(id)
                 } else {
-                    id < LeagueParams.TEST_LEAGUE_MIN || lobbyHeldBy(retired, cohorts.values) == null
+                    id < LeagueParams.TEST_LEAGUE_MIN || lobbyHeldBy(retired, cohorts.values, owing()) == null
                 }
             }
             .map { it.copy(nextIndex = nextIndex.getValue(it.params.leagueId)) }

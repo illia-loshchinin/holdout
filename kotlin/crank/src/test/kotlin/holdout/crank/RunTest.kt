@@ -484,6 +484,24 @@ class RunTest {
         assertEquals(100, Run.lobbyHeldBy(setOf(100), listOf(old, testCohort(101, 0, start = first + 600))), "an older cohort still unsettled holds the lobby")
         assertEquals(null, Run.lobbyHeldBy(setOf(100), listOf(old.copy(settled = true))), "all settled: the lobby opens")
         assertEquals(null, Run.lobbyHeldBy(emptySet(), listOf(old)), "no older test league, nothing to wait for")
+        // All settled, yet a comeback round still to open, or just opened: the lobby waits for it too.
+        assertEquals(100, Run.lobbyHeldBy(setOf(100), listOf(old.copy(settled = true)), owing = listOf(100)))
+        assertEquals(null, Run.lobbyHeldBy(setOf(100), listOf(old.copy(settled = true)), owing = listOf(101)), "only a retired league holds it")
+    }
+
+    @Test
+    fun `a pass that opens a comeback round in the older test league keeps the new lobby closed`() = runBlocking {
+        val chain = twoTestLeagues(earlierMembers = 0)
+        chain.accounts[Pdas.cohort(programId, 100, 0)] = cohortBytes(testCohort(100, 0, start = first + 600).copy(settled = true))
+        chain.accounts[Pdas.profile(programId, comebackWallet)] = profileBytes(comebackWallet, 100, stake = 100, round = 1, last = 1)
+        val json = pass(chain)
+        val opens = chain.sentTx.filter { chain.nameOf(it) == "open_cohort" }.map { t -> t.message.accounts }
+        assertEquals(1, opens.size, "one open: the round league 100 owes")
+        assertTrue(Pdas.cohort(programId, 100, 1) in opens.single())
+        val steps = json.getValue("steps").jsonArray.map { it.jsonObject }.filter { it.getValue("step").jsonPrimitive.content == "open_cohort" }
+        assertTrue(steps.any { it["league"]?.jsonPrimitive?.int == 100 && it.getValue("status").jsonPrimitive.content == "comeback" })
+        val held = steps.single { it["league"]?.jsonPrimitive?.int == 101 }
+        assertEquals("waiting", held.getValue("status").jsonPrimitive.content, "league 101 waits for the round league 100 just opened")
     }
 
     @Test
