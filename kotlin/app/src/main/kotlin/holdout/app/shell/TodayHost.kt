@@ -107,8 +107,8 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
     val offline = chain.offline
     val holdoutsBlock = TodayModel.holdouts(view, chainNow, offline)
     // The nudges and the comeback card come from the chain read; with none they are empty.
-    val nudges = remember(view, chainNow?.div(60), rosters) { TodayModel.nudges(view, chainNow) }
-    val comeback = remember(view, chainNow?.div(60), seekerKnown) { TodayModel.comeback(view, chainNow, seekerKnown) }
+    val nudges = remember(view, chainNow, rosters) { TodayModel.nudges(view, chainNow) }
+    val comeback = remember(view, chainNow, seekerKnown) { TodayModel.comeback(view, chainNow, seekerKnown) }
 
     ChainCheckBox(offline, chain.check.checking, { checkChain(null) }, modifier) {
         HomeScreen(
