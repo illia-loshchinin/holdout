@@ -74,13 +74,14 @@ internal fun Shared.signingState(tx: TxFlow, h: Holdout, n: Long): SigningState 
 /**
  * After a claim, the next step up that the member can take now (G7): from a
  * Spark, "Make it a Habit · 21-day"; from a Habit, the next Habit. Only a
- * Holdout open to join that nothing blocks; never the short test league. The
- * length in the words is the open Habit's own, never typed here.
+ * Holdout open to join that nothing blocks; never the short test league as the
+ * target. A short test Holdout's claim offers it like any other: a test Spark
+ * the Habit, a test Holdout of the toes form the next one. The length in the
+ * words is the open Habit's own, never typed here.
  */
 private fun Shared.upsell(h: Holdout, n: Long): Pair<String, NavEvent>? = view?.let { claimUpsell(h, it, n, seekerKnown) }
 
 internal fun claimUpsell(h: Holdout, v: ChainView, n: Long, seekerKnown: Boolean): Pair<String, NavEvent>? {
-    if (h.isTest) return null
     val habit = v.openToJoin(n)
         .filter { !it.isTest && it.cohort.form == LeagueParams.FORM_TOES }
         .filter { Journey.joinBlocker(it.cohort, v.profile, v.runningEnd(n), n, runningInBreach = v.runningInBreach(n)) == null }
