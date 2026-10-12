@@ -55,7 +55,9 @@ You can also copy the APK to the phone and open it there, after allowing install
 source.
 
 The app opens on the connect-wallet screen. Connect a Mobile Wallet Adapter wallet **set to
-devnet**, then use the faucet on **Me** for test SKR and fee SOL.
+devnet**, then use the faucet on **Me** for test SKR and fee SOL. A build without
+`holdout.sponsorKeypair` has no fee sponsor, so the wallet needs a little devnet SOL first
+(`solana airdrop 1 <address> --url devnet` or [faucet.solana.com](https://faucet.solana.com)).
 
 **No Seeker?** A release build always checks the Seeker Genesis Token before a join. A debug build
 can skip that check, so you can try a Holdout on any phone or the emulator:

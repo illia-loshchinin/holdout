@@ -62,7 +62,7 @@ Built for the Solana Mobile **CLOCK IN** hackathon.
 - **Money moves only when someone misses a day.** Nobody pays to take part. If everyone finishes,
   everyone gets exactly their stake back.
 - **A fall is not the end.** 10 % of a lost stake is set aside for that member. They finish the next
-  Holdout of the same kind and get it back, in full.
+  Holdout of the same kind and get it back, up to the size of their new stake.
 - **80 % of every lost stake stays with members.** 70 % goes to this Holdout's prize pool and 10 %
   to the member's own comeback. 20 % runs the project. The contract enforces it.
 - **Discipline ranks you, money never does.** Leaderboards rank by the share of Holdouts you
@@ -215,7 +215,10 @@ adb install -r app/build/outputs/apk/member/debug/app-member-debug.apk
 ```
 
 Then connect a Mobile Wallet Adapter wallet **on devnet** and tap **Get test tokens** on **Me** for
-test SKR and fee SOL. Holdouts need a Seeker holding a Seeker Genesis Token. To try one on another
+test SKR and fee SOL. The release APK carries a fee sponsor, so a brand-new wallet with no SOL can
+use the faucet. A build of your own has none unless you pass `-Pholdout.sponsorKeypair=…`. Without
+it, give the wallet a little devnet SOL first (`solana airdrop 1 <address> --url devnet` or
+[faucet.solana.com](https://faucet.solana.com)). Holdouts need a Seeker holding a Seeker Genesis Token. To try one on another
 phone, build with `-Pholdout.seekerGate=off` (debug only).
 
 The signed release, the build options and troubleshooting are in

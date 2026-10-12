@@ -62,8 +62,9 @@ The comeback is how Holdout treats a member who fell off.
 2. When settlement counts your forfeit, the pledge moves into the program's reserve vault for that
    kind of Holdout, booked under `comeback_reserve`. No boost can ever spend it.
 3. You join **the next Holdout of the same kind** (Spark after a Spark, Habit after a Habit) and
-   finish it. Your claim then includes the pledge, in full:
-   `min(10 % of the lost stake, your new stake)`.
+   finish it. Your claim then includes `min(10 % of the lost stake, your new stake)`: the whole
+   pledge, unless your new stake is smaller than it. Any excess over your new stake goes to the
+   boost reserve.
 4. Missed the **last day**? The next Holdout has already closed for joining. You can still join it
    late, until the end of its first day, or take the one after it. Finishing either brings the
    pledge back.
