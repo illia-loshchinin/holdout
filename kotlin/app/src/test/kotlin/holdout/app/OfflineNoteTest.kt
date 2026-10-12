@@ -73,6 +73,7 @@ class OfflineNoteTest {
     @Test
     fun `before the deadline with the chain answering there is no note, so the day is submitted`() {
         assertNull(sittingNote(holdout, day = 2, nowSeconds = day3Deadline - 30, offline = false, network = "Devnet"))
+        assertNull(sittingNote(holdout, day = 2, nowSeconds = day3Deadline, offline = false, network = "Devnet"), "the deadline second can still be sent")
         assertNull(sittingNote(holdout, day = 2, nowSeconds = null, offline = false, network = "Devnet"))
     }
 

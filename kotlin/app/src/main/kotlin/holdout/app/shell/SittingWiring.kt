@@ -17,7 +17,7 @@ import holdout.core.Stage
  */
 
 /** Whether [day] of [h] can no longer be sent: its own deadline has passed at chain time [nowSeconds] (unknown time is never late). */
-internal fun tooLateToSend(h: Holdout, day: Int, nowSeconds: Long?): Boolean = nowSeconds != null && Derive.deadlineOf(h.cohort, day) - nowSeconds <= 0
+internal fun tooLateToSend(h: Holdout, day: Int, nowSeconds: Long?): Boolean = nowSeconds != null && Derive.deadlineOf(h.cohort, day) - nowSeconds < 0
 
 /** Whether the chain already counts [day] for the member in [live] (the sitting's day-complete page then has nothing left to submit). */
 internal fun dayOnChain(live: Holdout?, day: Int): Boolean = (live?.membership?.daysCompleted ?: 0) > day
