@@ -59,8 +59,8 @@ nobody can claim for you. Your wallet signs your own claim.
 The comeback is how Holdout treats a member who fell off.
 
 1. You miss a day. 10 % of your stake is **pledged to you**. It is not shared with anyone.
-2. When settlement counts your forfeit, the pledge moves into the program's reserve vault for that kind of Holdout, booked
-   under `comeback_reserve`. No boost can ever spend it.
+2. When settlement counts your forfeit, the pledge moves into the program's reserve vault for that
+   kind of Holdout, booked under `comeback_reserve`. No boost can ever spend it.
 3. You join **the next Holdout of the same kind** (Spark after a Spark, Habit after a Habit) and
    finish it. Your claim then includes the pledge, in full:
    `min(10 % of the lost stake, your new stake)`.
@@ -74,8 +74,8 @@ The amount is exact. The app says "Win back 250 SKR", never "up to".
 
 ## The boost: what nobody used
 
-Each kind of Holdout (Spark, Habit, and the Hackathon rounds) has its own **boost reserve**, held by the program.
-It is filled from two sources only:
+Each kind of Holdout (Spark, Habit, and the Hackathon rounds) has its own **boost reserve**, held
+by the program. It is filled from two sources only:
 
 - comeback pledges that nobody made good;
 - the whole pool of a Holdout that **nobody** finished.
@@ -124,8 +124,8 @@ costs more than it brings back.
 
 ## Stakes are chips in SKR
 
-You pick one of four chips. You never type an amount. The chips are sized at about ≈ $10 / $25 /
-$50 / $100 and priced in SKR off-chain by the operator, from the Jupiter Price API, once a week
+You pick one of four chips. You never type an amount. The chips are sized at ≈ $10 / $25 / $50 /
+$100 and priced in SKR off-chain by the operator, from the Jupiter Price API, once a week
 before the Monday Holdouts open. The contract stores four SKR amounts and **never reads a price**.
 A guard script, `scripts/check-no-oracle.sh`, fails CI if any oracle code appears.
 
