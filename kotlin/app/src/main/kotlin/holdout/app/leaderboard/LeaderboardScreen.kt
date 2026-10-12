@@ -42,7 +42,7 @@ import holdout.core.Leaderboard.View
 
 /**
  * The leaderboards (L1, board 29; US-10, FR-060…FR-065): all-time, one per
- * level, plus one combined board for the Hackathon Holdouts, which wears its
+ * level, plus one combined board for the Hackathon rounds, which wears its
  * `DEVNET COHORT` badge (FR-044a). Ranked by [Leaderboard] from on-chain progress
  * only; each member by Seeker ID or shortened address (spec 003), scripted
  * members labelled, and **no amount anywhere** (FR-063, constitution XIII).
@@ -157,7 +157,7 @@ object LeaderboardText {
     }
 
     fun about(b: Board): String = when (b) {
-        Board.TEST -> "Every Hackathon Holdout on devnet, together. Ranked by share survived, after ${Leaderboard.RANKED_AFTER} played."
+        Board.TEST -> "Every Hackathon round on devnet, together. Ranked by share survived, after ${Leaderboard.RANKED_AFTER} played."
         else -> "All-time, from the chain. Ranked by share survived, after ${Leaderboard.RANKED_AFTER} played."
     }
 

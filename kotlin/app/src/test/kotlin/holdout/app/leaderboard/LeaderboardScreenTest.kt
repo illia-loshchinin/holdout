@@ -138,11 +138,11 @@ class LeaderboardScreenTest {
     }
 
     @Test
-    fun `the test board wears the test badge and says Hackathon Holdouts, together`() {
+    fun `the test board wears the test badge and says Hackathon rounds, together`() {
         show(board = Board.TEST)
 
         compose.onNodeWithText("DEVNET COHORT · 10-MINUTE DAYS").assertIsDisplayed()
-        compose.onNodeWithText("Every Hackathon Holdout on devnet, together. Ranked by share survived, after 3 played.").assertIsDisplayed()
+        compose.onNodeWithText("Every Hackathon round on devnet, together. Ranked by share survived, after 3 played.").assertIsDisplayed()
     }
 
     @Test

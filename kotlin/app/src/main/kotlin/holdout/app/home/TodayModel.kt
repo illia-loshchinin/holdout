@@ -15,7 +15,7 @@ import holdout.core.Stage
  * One Holdout open to join, as Today and the connect screen draw it (FR-053,
  * board 3): the level and its tagline, what is at stake and how many have
  * joined, how long joining stays open, and the prize boost the reserve can add
- * ("up to", never a promise). A Hackathon Holdout keeps its own name and its
+ * ("up to", never a promise). A Hackathon Holdout keeps its own name ("Hackathon · 3-day") and its
  * badge (FR-044a).
  */
 data class OfferCardState(
@@ -38,12 +38,8 @@ data class OfferCardState(
             val test = h.isTest
             return OfferCardState(
                 cohort = h.address.base58(),
-                title = if (test) TEST_TITLE else Format.level(c),
-                tagline = if (test) {
-                    "${c.durationDays} days · ${c.repsPerDay} push-ups a day" + if (Format.joinableToStart(c)) " · joinable right up to its start" else ""
-                } else {
-                    Format.levelTagline(c) ?: "${c.repsPerDay} push-ups a day"
-                },
+                title = if (test) Format.testName(c) else Format.level(c),
+                tagline = if (test) Format.testTagline(c) else Format.levelTagline(c) ?: "${c.repsPerDay} push-ups a day",
                 atStake = Format.skr(Derive.atStake(c)),
                 joined = "at stake · ${c.memberCount} joined",
                 timing = if (test) "Starts in ${Format.countdown(c.start - now)}" else "Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))}",
@@ -52,9 +48,6 @@ data class OfferCardState(
                 testDayLength = c.dayLength,
             )
         }
-
-        /** A Hackathon Holdout's own name (ruling G2: test cohorts keep their own label). */
-        const val TEST_TITLE = "Hackathon Holdout"
     }
 }
 

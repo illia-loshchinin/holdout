@@ -148,8 +148,8 @@ object MyHoldoutsModel {
             val m = h.membership ?: continue
             val c = h.cohort
             val id = h.address.base58()
-            // A Hackathon Holdout keeps its own name (G2); the badge on its card says why.
-            val name = if (h.isTest) TEST_NAME else Format.level(c)
+            // A Hackathon Holdout keeps its own name, "Hackathon · 3-day" (G2); the badge on its card says why.
+            val name = if (h.isTest) Format.testName(c) else Format.level(c)
             fun card(kind: YourKind, tone: ChipTone, line: String, detail: String?, go: NavEvent) = YourHoldout(id, name, kind, tone, line, detail, h.isTest, go, c.dayLength)
             when (val stage = h.stage(now)) {
                 Stage.NotJoined -> Unit
@@ -214,7 +214,7 @@ object MyHoldoutsModel {
         val c = h.cohort
         OpenHoldout(
             cohort = h.address.base58(),
-            name = if (h.isTest) TEST_NAME else Format.level(c),
+            name = if (h.isTest) Format.testName(c) else Format.level(c),
             amount = Format.skr(Derive.atStake(c)),
             note = "at stake · ${c.memberCount} joined",
             boost = h.league?.boostReserve?.takeIf { it > 0uL }?.let(Format::boostLine),
@@ -235,7 +235,7 @@ object MyHoldoutsModel {
         val figures = roster?.let { Derive.figures(c, it, now) }
         val line = figures?.let { "${it.survivors.standing} still standing of ${it.survivors.starters} · prize pool ${Format.skr(it.projectedPool)}" }
             ?: "${c.memberCount} started · prize pool ${Format.skr(c.pool)}"
-        return RunningHoldout(h.address.base58(), "${Format.level(c)} · day $day of ${c.durationDays}", line, h.isTest, c.dayLength)
+        return RunningHoldout(h.address.base58(), "${if (h.isTest) Format.testName(c) else Format.level(c)} · day $day of ${c.durationDays}", line, h.isTest, c.dayLength)
     }
 
     /** The Now tab's order, by what needs the member: a claim, a running day, a settling, the lobbies, then a way back. */
@@ -249,9 +249,6 @@ object MyHoldoutsModel {
 
     /** The detail of an Out row once the member holds a place in its comeback round (owner, 12 Oct). */
     const val COMEBACK_JOINED = "Comeback joined"
-
-    /** A Hackathon Holdout's own name on a card (FR-044a, ruling G2); its badge says why. */
-    const val TEST_NAME = "Hackathon Holdout"
 
     /** Staking is Seeker-exclusive, said up front (ruling G12). */
     const val SEEKER_LINE = "Holdouts need a Seeker."

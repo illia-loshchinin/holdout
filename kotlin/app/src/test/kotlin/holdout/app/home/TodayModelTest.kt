@@ -148,16 +148,16 @@ class TodayModelTest {
         val test = holdout(1, start + 750, leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, reps = 5, dayLength = 600, joined = 3, held = 250uL * skr, cutoff = start + 750)
         val card = OfferCardState.of(test, start)
         assertTrue(card.test)
-        assertEquals("Hackathon Holdout", card.title)
-        assertEquals("3 days · 5 push-ups a day · joinable right up to its start", card.tagline)
+        assertEquals("Hackathon · 3-day", card.title)
+        assertEquals("A quick taste · knees allowed", card.tagline)
         assertEquals("Starts in 12m 30s", card.timing)
         assertEquals(600, card.testDayLength)
     }
 
     @Test
-    fun `a short test Holdout with a join lock does not claim to be joinable up to its start`() {
-        val test = holdout(1, start + 750, leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, reps = 5, dayLength = 600, joined = 3, held = 250uL * skr, cutoff = start + 690)
-        assertEquals("3 days · 5 push-ups a day", OfferCardState.of(test, start).tagline)
+    fun `a short test Holdout's tagline follows its form, with a join lock or not`() {
+        val test = holdout(1, start + 750, form = LeagueParams.FORM_TOES, leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, reps = 5, dayLength = 600, joined = 3, held = 250uL * skr, cutoff = start + 690)
+        assertEquals("A quick taste · toes only", OfferCardState.of(test, start).tagline)
     }
 
     @Test

@@ -118,6 +118,6 @@ class SittingOffersTest {
     fun `a test Holdout is offered under its own name`() {
         val test = holdout(2, now + 750, leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, reps = 5, dayLength = 600, cutoff = now + 750)
         val offer = SittingOffers.of(view(test), now, seekerKnown = false, knownNotSeeker = false)!!
-        assertEquals("Hackathon Holdout · starts in 12m 30s", offer.offer.subtitle)
+        assertEquals("Hackathon · 3-day · starts in 12m 30s", offer.offer.subtitle)
     }
 }

@@ -19,14 +19,14 @@ class ReminderNoticesTest {
 
     @Test
     fun `given the short test cohort, when it is labelled, then its day length is named`() {
-        assertEquals("7-day Hackathon Holdout (1-hour days)", ReminderNotices.holdoutLabel(7, test = true, dayLength = 3_600))
+        assertEquals("Hackathon · 7-day (1-hour days)", ReminderNotices.holdoutLabel(7, test = true, dayLength = 3_600))
         assertFalse(ReminderNotices.holdoutLabel(21, test = false, dayLength = 86_400).contains("test"))
     }
 
     @Test
     fun `given a finished Holdout, when its notice is worded, then it says the claim is probably ready and never an amount`() {
         assertEquals("You finished your 7-day Holdout", ReminderNotices.finishedTitle(7, test = false, dayLength = 86_400))
-        assertEquals("You finished your 7-day Hackathon Holdout (10-minute days)", ReminderNotices.finishedTitle(7, test = true, dayLength = 600))
+        assertEquals("You finished your Hackathon · 7-day (10-minute days)", ReminderNotices.finishedTitle(7, test = true, dayLength = 600))
         val plain = ReminderNotices.finishedText(comeback = false)
         assertEquals("Settlement usually comes within 15 minutes of the end, so your claim is probably ready: open Holdout to claim it.", plain)
         val comeback = ReminderNotices.finishedText(comeback = true)
