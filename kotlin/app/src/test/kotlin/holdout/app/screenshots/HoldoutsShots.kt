@@ -56,8 +56,8 @@ class HoldoutsShots {
     private val out = YourHoldout("o", "Habit · 21-day", YourKind.Out, ChipTone.Warning, "Out after 6 days", "Win back up to 250 SKR", false, NavEvent.Open(Screen.Forfeit("o")), detailTone = ChipTone.Success)
     private val settling = YourHoldout("s", "Spark · 7-day", YourKind.Settling, ChipTone.Success, "You finished · settling, usually within 11m", null, false, NavEvent.Open(Screen.Detail("s")))
     private val claim = YourHoldout("c", "Spark · 7-day", YourKind.Claim, ChipTone.Success, "Held out 7 of 7", "1,412 SKR waiting for you", false, NavEvent.Open(Screen.Claim("c")))
-    private val blocked = OpenHoldout("b", "Habit · 21-day", "9,000 SKR", "at stake · 9 joined", "Prize boost: up to 1,200 SKR", "Joining closes in 2d 3h", "You already hold a place in a Holdout that hasn't started.", false)
-    private val free = OpenHoldout("f", "Spark · 7-day", "12,500 SKR", "at stake · 14 joined", "Prize boost: up to 480 SKR", "Joining closes in 2d 3h", null, false)
+    private val habitOffer = OpenHoldout("b", "Habit · 21-day", "9,000 SKR", "at stake · 9 joined", "Prize boost: up to 1,200 SKR", "Joining closes in 2d 3h", false)
+    private val free = OpenHoldout("f", "Spark · 7-day", "12,500 SKR", "at stake · 14 joined", "Prize boost: up to 480 SKR", "Joining closes in 2d 3h", false)
     private val watch = listOf(
         RunningHoldout("a", "Habit · 21-day · day 12 of 21", "189 still standing of 312 · prize pool 48,200 SKR", false),
         RunningHoldout("b", "Spark · 7-day · day 7 of 7", "13 still standing of 20 · prize pool 6,125 SKR", false),
@@ -72,7 +72,7 @@ class HoldoutsShots {
         "h0-full",
         MyHoldoutsState(
             yours = listOf(running, lobby, claim),
-            open = listOf(free, blocked),
+            open = listOf(free, habitOffer),
             finished = listOf(FinishedHoldout("f", "Spark · 7-day · finished · claimed 1,180 SKR", NavEvent.Open(Screen.Detail("f")))),
             running = watch,
         ),

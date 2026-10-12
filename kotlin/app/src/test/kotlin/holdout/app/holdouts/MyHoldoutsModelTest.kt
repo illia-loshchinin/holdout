@@ -6,12 +6,15 @@ import holdout.app.chain.Holdout
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Screen
 import holdout.app.nav.Tab
+import holdout.app.ui.ChipTone
 import holdout.core.CohortSnapshot
 import holdout.core.LeagueParams
+import holdout.core.LeagueSnapshot
 import holdout.core.MembershipSnapshot
+import holdout.core.ProfileSnapshot
 import org.junit.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** H0 My Holdouts (screen map H0, board 10): what each section lists and where each card goes. */
@@ -90,13 +93,45 @@ class MyHoldoutsModelTest {
     @Test
     fun `open to join - the offers with what is at stake, the boost and the countdown, never one already joined`() {
         val open = holdout(1, start + 2 * day, null, joined = 9, held = 9_000_000_000uL)
-        val joined = holdout(2, start + 2 * day, member(0))
-        val s = MyHoldoutsModel.build(view(open, joined), start)
+        val claimed = holdout(2, start - 20 * day, member(7, MembershipSnapshot.State.Claimed), settled = true)
+        val s = MyHoldoutsModel.build(view(open, claimed), start)
         assertEquals(listOf(open.id), s.open.map { it.cohort })
         assertEquals("9,000 SKR", s.open[0].amount)
         assertEquals("at stake · 9 joined", s.open[0].note)
         assertEquals("Joining closes in 1d 23h", s.open[0].closesIn)
-        assertNull(s.open[0].blocker)
+        assertFalse(s.holdsLobbyPlace)
+    }
+
+    @Test
+    fun `open to join - only what the program would take, so a Join is always live`() {
+        val running = holdout(1, start - 2 * day, member(2))
+        val overlapping = holdout(2, start + 3 * day, null)
+        val backToBack = holdout(3, start + 5 * day, null)
+        val p = profile(running = ProfileSnapshot.Running(running.address, start + 5 * day))
+        val s = MyHoldoutsModel.build(view(running, overlapping, backToBack, profile = p), start)
+        assertEquals(listOf(backToBack.id), s.open.map { it.cohort })
+    }
+
+    @Test
+    fun `open to join - none while the member holds a lobby place, the section is not drawn`() {
+        val lobby = holdout(1, start + 3 * day, member(0))
+        val other = holdout(2, start + 2 * day, null)
+        val s = MyHoldoutsModel.build(view(lobby, other), start)
+        assertTrue(s.holdsLobbyPlace)
+        assertTrue(s.open.isEmpty())
+        assertEquals(listOf(lobby.id), s.yours.map { it.cohort })
+    }
+
+    @Test
+    fun `an Out row offers the win-back until the member holds a place in the comeback round, then says Comeback joined`() {
+        val out = withLeague(holdout(1, start - 5 * day, member(1)))
+        val before = MyHoldoutsModel.build(view(out, withLeague(holdout(2, start + 2 * day, null))), start).yours.single()
+        assertTrue(before.detail.orEmpty().startsWith("Win back up to "), before.detail)
+
+        val round = withLeague(holdout(2, start + 2 * day, member(0)))
+        val after = MyHoldoutsModel.build(view(out, round), start).yours.single { it.kind == YourKind.Out }
+        assertEquals("Comeback joined", after.detail)
+        assertEquals(ChipTone.Success, after.detailTone)
     }
 
     @Test
@@ -118,6 +153,9 @@ class MyHoldoutsModelTest {
     }
 
     private val Holdout.id get() = address.base58()
+
+    /** The comeback offer is worked out against the league record. */
+    private fun withLeague(h: Holdout) = h.copy(league = LeagueSnapshot(LeagueParams.judged(h.cohort.leagueId, start), nextIndex = 3))
 
     private fun member(daysCompleted: Int, state: MembershipSnapshot.State = MembershipSnapshot.State.Joined) = MembershipSnapshot(me, 0, 10_000_000uL, start - 10 * day, daysCompleted, state)
 
@@ -152,5 +190,7 @@ class MyHoldoutsModelTest {
         membership = membership,
     )
 
-    private fun view(vararg holdouts: Holdout) = ChainView(config = null, holdouts = holdouts.toList(), profile = null, skr = 0uL, lamports = 0L)
+    private fun view(vararg holdouts: Holdout, profile: ProfileSnapshot? = null) = ChainView(config = null, holdouts = holdouts.toList(), profile = profile, skr = 0uL, lamports = 0L)
+
+    private fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(me, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending)
 }

@@ -20,7 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,7 +54,7 @@ import holdout.app.ui.theme.Spacing
  *  (empty: NoticeCard "No Holdouts yet.")
  *  OPEN TO JOIN                    Holdouts need a Seeker.
  *  ┌ Spark · 7-day                          [ Join ] ┐   level · 9,000 SKR at stake · 9 joined
- *  └ Prize boost: up to 480 SKR · Joining closes in 2d 3h ┘   (greyed out, with the reason, when it can't be joined)
+ *  └ Prize boost: up to 480 SKR · Joining closes in 2d 3h ┘   (only what can be joined; none at all while a lobby place is held)
  *  RUNNING NOW                                     read-only, → H4 (FR-062a)
  *  FINISHED                                        one quiet line each → H4 / H6
  * ```
@@ -94,12 +93,15 @@ fun MyHoldoutsScreen(
         }
         state.yours.forEach { YourCard(it) { onEvent(it.go) } }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-            SectionLabel("Open to join")
-            Text(MyHoldoutsModel.SEEKER_LINE, style = LabelStyle, color = HoldoutColors.TextTertiary)
+        // A lobby place held means nothing more can be joined: no section at all, not even its header (owner, 12 Oct).
+        if (!state.holdsLobbyPlace) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                SectionLabel("Open to join")
+                Text(MyHoldoutsModel.SEEKER_LINE, style = LabelStyle, color = HoldoutColors.TextTertiary)
+            }
+            if (state.open.isEmpty()) Body("The next Holdout opens soon.")
+            state.open.forEach { OfferCard(it) { onJoin(it.cohort) } }
         }
-        if (state.open.isEmpty()) Body("The next Holdout opens soon.")
-        state.open.forEach { OfferCard(it) { onJoin(it.cohort) } }
 
         if (state.running.isNotEmpty()) {
             SectionLabel("Running now")
@@ -129,8 +131,8 @@ private fun YourCard(card: YourHoldout, onClick: () -> Unit) {
 
 /**
  * An offer: the level, what is at stake and how many joined, the boost, how long
- * joining stays open — and a Join, greyed out with its reason when the member
- * cannot take it (FR-006a, FR-006b). The Join is a 44 dp pill at the card's end.
+ * joining stays open — and a Join that goes through: an offer the member could not
+ * take is not listed (FR-006a, FR-006b). The Join is a 44 dp pill at the card's end.
  */
 @Composable
 private fun OfferCard(offer: OpenHoldout, onJoin: () -> Unit) {
@@ -138,7 +140,7 @@ private fun OfferCard(offer: OpenHoldout, onJoin: () -> Unit) {
         if (offer.test) TestCohortBadge(offer.testDayLength)
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
             Text(offer.name, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary, modifier = Modifier.weight(1f))
-            JoinPill(enabled = offer.blocker == null, onClick = onJoin)
+            JoinPill(onClick = onJoin)
         }
         // Under the title row, not beside the Join: the stake line gets the card's whole width and stays on one line.
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.tight), verticalAlignment = Alignment.Bottom) {
@@ -147,33 +149,29 @@ private fun OfferCard(offer: OpenHoldout, onJoin: () -> Unit) {
         }
         offer.boost?.let { Text(it, style = LabelStyle, color = HoldoutColors.Success) }
         Text(offer.closesIn, style = LabelStyle, color = HoldoutColors.Accent)
-        offer.blocker?.let { Text(it, style = LabelStyle, color = HoldoutColors.TextTertiary) }
     }
 }
 
-/** "Join": an outlined pill 44 dp tall (greyed out when it can't be taken) inside a 48 dp target. */
+/** "Join": an outlined pill 44 dp tall inside a 48 dp target. */
 @Composable
-private fun JoinPill(enabled: Boolean, onClick: () -> Unit) {
+private fun JoinPill(onClick: () -> Unit) {
     val shape = MaterialTheme.shapes.extraLarge
     Box(
         Modifier
             .height(Spacing.touchTarget)
-            .semantics {
-                role = Role.Button
-                if (!enabled) disabled()
-            }
-            .clickable(enabled = enabled, onClick = onClick),
+            .semantics { role = Role.Button }
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             Modifier
                 .height(PILL_HEIGHT)
-                .background(if (enabled) HoldoutColors.Canvas else HoldoutColors.Surface3, shape)
-                .border(Spacing.border, if (enabled) HoldoutColors.Hairline else HoldoutColors.Surface3, shape)
+                .background(HoldoutColors.Canvas, shape)
+                .border(Spacing.border, HoldoutColors.Hairline, shape)
                 .padding(horizontal = Spacing.cardPadding),
             contentAlignment = Alignment.Center,
         ) {
-            Text("Join", style = MaterialTheme.typography.titleMedium, color = if (enabled) HoldoutColors.TextPrimary else HoldoutColors.TextTertiary)
+            Text("Join", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
         }
     }
 }
@@ -196,8 +194,8 @@ private val PREVIEW = MyHoldoutsState(
         YourHoldout("c", "Spark · 7-day", YourKind.Claim, ChipTone.Success, "Held out 7 of 7", "1,412 SKR waiting for you", false, NavEvent.Open(Screen.Claim("c"))),
     ),
     open = listOf(
-        OpenHoldout("o", "Habit · 21-day", "9,000 SKR", "at stake · 9 joined", "Prize boost: up to 1,200 SKR", "Joining closes in 2d 3h", "You already hold a place in a Holdout that hasn't started.", false),
-        OpenHoldout("p", "Spark · 7-day", "12,500 SKR", "at stake · 14 joined", "Prize boost: up to 480 SKR", "Joining closes in 2d 3h", null, false),
+        OpenHoldout("o", "Habit · 21-day", "9,000 SKR", "at stake · 9 joined", "Prize boost: up to 1,200 SKR", "Joining closes in 2d 3h", false),
+        OpenHoldout("p", "Spark · 7-day", "12,500 SKR", "at stake · 14 joined", "Prize boost: up to 480 SKR", "Joining closes in 2d 3h", false),
     ),
     finished = listOf(FinishedHoldout("f", "Spark · 7-day · finished · claimed 1,180 SKR", NavEvent.Open(Screen.Detail("f")))),
     running = listOf(RunningHoldout("w", "Spark · 7-day · day 3 of 7", "9 still standing of 12 · prize pool 2,400 SKR", false)),
