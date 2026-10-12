@@ -26,7 +26,7 @@ class AccountLayoutTest {
 
     @Test
     fun `account sizes are the ones the program allocates`() {
-        assertEquals(229, bytes("Cohort").size)
+        assertEquals(221, bytes("Cohort").size)
         assertEquals(AccountLayout.Cohort.SIZE, bytes("Cohort").size)
         assertEquals(101, bytes("Membership").size)
         assertEquals(AccountLayout.Membership.SIZE, bytes("Membership").size)
@@ -34,7 +34,7 @@ class AccountLayoutTest {
         assertEquals(AccountLayout.Config.SIZE, bytes("Config").size)
         assertEquals(68, bytes("LeagueConfig").size)
         assertEquals(LeagueSnapshot.SIZE, bytes("LeagueConfig").size)
-        assertEquals(257, bytes("Profile").size)
+        assertEquals(236, bytes("Profile").size)
         assertEquals(ProfileLayout.SIZE, bytes("Profile").size)
     }
 
@@ -63,7 +63,6 @@ class AccountLayoutTest {
         assertEquals(12, c.memberCount)
         assertEquals(900uL, c.heldStake)
         assertEquals(680uL, c.pool)
-        assertEquals(600uL, c.boostDue)
         assertEquals(300uL, c.comebackDue)
         assertEquals(3, c.forfeitsRecorded)
         assertEquals(9, c.counted)
@@ -73,7 +72,7 @@ class AccountLayoutTest {
         assertTrue(c.settled)
         assertEquals(listOf(17uL, 0uL, 42uL, 85uL), c.sharePerTier)
         assertEquals(2uL, c.roundingRemainder)
-        assertEquals(500uL, c.noFinisherFee)
+        assertEquals(500uL, c.noFinisherBoost)
         assertEquals(501uL, c.boostReceived)
         assertEquals(77uL, c.comebackOwed)
         assertEquals(66uL, c.comebackFunded)
@@ -145,14 +144,14 @@ class AccountLayoutTest {
     }
 
     @Test
-    fun `given the golden profile, when decoded, then every slot carries its open comeback`() {
+    fun `given the golden profile, when decoded, then every slot carries its open comeback and the rounds that make it good`() {
         val p = ProfileSnapshot.decode(bytes("Profile"))
         assertEquals(key(0x99), p.wallet)
         assertEquals(
             listOf(
-                ProfileSnapshot.LeagueProgress(5, 2, 3, 4, 1_790_600_000, 25_000_000uL, 1_790_599_999, 1_791_809_999),
-                ProfileSnapshot.LeagueProgress(1, 0, 1, 1, 1_791_400_000, 0uL, 1_791_300_000, 1_792_500_000),
-                ProfileSnapshot.LeagueProgress(0, 1, 0, 0, 1_790_700_000, 10_000_000uL, 1_790_699_000, 1_790_840_000),
+                ProfileSnapshot.LeagueProgress(5, 2, 3, 4, 1_790_600_000, 25_000_000uL, 0, 7, 8),
+                ProfileSnapshot.LeagueProgress(1, 0, 1, 1, 1_791_400_000, 0uL, 0, 0, 0),
+                ProfileSnapshot.LeagueProgress(0, 1, 0, 0, 1_790_700_000, 10_000_000uL, 101, 12, 12),
             ),
             p.leagues,
         )
@@ -161,13 +160,15 @@ class AccountLayoutTest {
     }
 
     @Test
-    fun `given an open comeback, when a cohort starts inside its window, then only that cohort is the comeback`() {
-        val slot = ProfileSnapshot.LeagueProgress(0, 1, 0, 0, 1_000, 25uL, 1_000, 2_000)
-        assertTrue(!slot.comebackOpenFor(1_000), "a cohort starting at the missed deadline itself is not after it")
-        assertTrue(slot.comebackOpenFor(1_001))
-        assertTrue(slot.comebackOpenFor(2_000), "the last instant of the window still counts")
-        assertTrue(!slot.comebackOpenFor(2_001))
-        assertTrue(!slot.copy(comebackStake = 0uL).comebackOpenFor(1_500), "a used record opens nothing")
+    fun `given an open comeback, when a cohort of its league is one of its rounds, then only that cohort is the comeback`() {
+        val slot = ProfileSnapshot.LeagueProgress(0, 1, 0, 0, 1_000, 25uL, 101, 12, 13)
+        assertTrue(!slot.comebackOpenFor(101, 11), "a cohort before the first round is not the comeback")
+        assertTrue(slot.comebackOpenFor(101, 12))
+        assertTrue(slot.comebackOpenFor(101, 13), "the last round still counts")
+        assertTrue(!slot.comebackOpenFor(101, 14))
+        assertTrue(!slot.comebackOpenFor(102, 12), "another test league sharing the slot is not the league of the pledge")
+        assertTrue(!slot.copy(comebackStake = 0uL).comebackOpenFor(101, 12), "a used record opens nothing")
+        assertTrue(slot.comebackOpenIn(101) && !slot.comebackOpenIn(100))
     }
 
     @Test

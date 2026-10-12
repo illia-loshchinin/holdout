@@ -20,7 +20,8 @@ import kotlinx.serialization.json.putJsonObject
 
 /**
  * `crank status` (T036): every cohort, every league with its form and its two
- * reserves (H35), and the faucet's three health figures — the vault's balance,
+ * reserves (H35) — `boostReserve` free for boosts, `comebackReserve` pledged to
+ * members (open comebacks and refunds owed) — and the faucet's three health figures — the vault's balance,
  * the sponsor's balance against its float, and the day's lamport spend against
  * its cap. What the live period is monitored on (T110, FR-042b). Read-only: it
  * signs nothing and needs no key.
@@ -156,6 +157,7 @@ internal object Status {
                             put("formName", LeagueParams.formName(league.form))
                             put("firstStart", league.params.firstStart)
                             put("nextIndex", league.nextIndex)
+                            // Free for boosts (pools nobody won, pledges nobody made good) / pledged to members (FR-037c-e).
                             put("boostReserve", JsonPrimitive(league.boostReserve.toBig()))
                             put("comebackReserve", JsonPrimitive(league.comebackReserve.toBig()))
                             reserveVaults[id]?.let { (vault, amount) ->
@@ -184,11 +186,11 @@ internal object Status {
                             put("heldStake", JsonPrimitive(c.heldStake.toBig()))
                             put("form", c.form)
                             put("pool", JsonPrimitive(c.pool.toBig()))
-                            // Reserve shares held in the vault until the cohort finalizes (FR-037c).
-                            put("boostDue", JsonPrimitive(c.boostDue.toBig()))
+                            // Comeback pledges held in the vault until each forfeit is counted (FR-037c).
                             put("comebackDue", JsonPrimitive(c.comebackDue.toBig()))
-                            // Written by settlement (FR-037d, FR-037e).
+                            // Written by settlement (FR-037, FR-037d, FR-037e).
                             put("boostReceived", JsonPrimitive(c.boostReceived.toBig()))
+                            put("noFinisherBoost", JsonPrimitive(c.noFinisherBoost.toBig()))
                             put("comebackOwed", JsonPrimitive(c.comebackOwed.toBig()))
                             put("comebackFunded", JsonPrimitive(c.comebackFunded.toBig()))
                             put("comebackClaimed", JsonPrimitive(c.comebackClaimed.toBig()))

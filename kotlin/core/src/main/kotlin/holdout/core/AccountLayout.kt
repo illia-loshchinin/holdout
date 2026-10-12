@@ -29,9 +29,9 @@ import java.nio.ByteOrder
 object AccountLayout {
     const val DISCRIMINATOR_SIZE = 8
 
-    /** `programs/holdout/src/state/cohort.rs` — 229 bytes (H35: `form`, the reserve dues and the boost and comeback figures; no carry-over). */
+    /** `programs/holdout/src/state/cohort.rs` — 221 bytes (H35: `form`, the comeback due and the boost and comeback figures; no carry-over, no boost due). */
     object Cohort {
-        const val SIZE = 229
+        const val SIZE = 221
 
         /** `sha256("account:Cohort")[..8]`. */
         val DISCRIMINATOR: ByteArray get() = bytes(0x89, 0x11, 0xd5, 0x3d, 0x69, 0x40, 0x90, 0xa9)
@@ -49,23 +49,22 @@ object AccountLayout {
         const val MEMBER_COUNT = 74
         const val HELD_STAKE = 78
         const val POOL = 86
-        const val BOOST_DUE = 94
-        const val COMEBACK_DUE = 102
-        const val FORFEITS_RECORDED = 110
-        const val COUNTED = 114
-        const val FINISHER_COUNT = 118
-        const val FINISHERS_PER_TIER = 122
-        const val TOTAL_FINISHER_STAKE = 138
-        const val SETTLED = 146
-        const val SHARE_PER_TIER = 147
-        const val ROUNDING_REMAINDER = 179
-        const val NO_FINISHER_FEE = 187
-        const val BOOST_RECEIVED = 195
-        const val COMEBACK_OWED = 203
-        const val COMEBACK_FUNDED = 211
-        const val COMEBACK_CLAIMED = 219
-        const val VAULT_BUMP = 227
-        const val BUMP = 228
+        const val COMEBACK_DUE = 94
+        const val FORFEITS_RECORDED = 102
+        const val COUNTED = 106
+        const val FINISHER_COUNT = 110
+        const val FINISHERS_PER_TIER = 114
+        const val TOTAL_FINISHER_STAKE = 130
+        const val SETTLED = 138
+        const val SHARE_PER_TIER = 139
+        const val ROUNDING_REMAINDER = 171
+        const val NO_FINISHER_BOOST = 179
+        const val BOOST_RECEIVED = 187
+        const val COMEBACK_OWED = 195
+        const val COMEBACK_FUNDED = 203
+        const val COMEBACK_CLAIMED = 211
+        const val VAULT_BUMP = 219
+        const val BUMP = 220
     }
 
     /** `programs/holdout/src/state/membership.rs` — 101 bytes. */
@@ -189,9 +188,7 @@ data class CohortSnapshot(
     val memberCount: Long = 0,
     val heldStake: ULong = 0uL,
     val pool: ULong = 0uL,
-    /** The boost-reserve share of this cohort's recorded forfeits, held in its vault until it finalizes (FR-037c). */
-    val boostDue: ULong = 0uL,
-    /** The comeback-reserve share, held likewise (FR-037c). */
+    /** The comeback pledges of this cohort's recorded forfeits, held in its vault until each forfeit is counted (FR-037c). */
     val comebackDue: ULong = 0uL,
     val forfeitsRecorded: Long = 0,
     val counted: Long = 0,
@@ -201,12 +198,13 @@ data class CohortSnapshot(
     val settled: Boolean = false,
     val sharePerTier: List<ULong> = listOf(0uL, 0uL, 0uL, 0uL),
     val roundingRemainder: ULong = 0uL,
-    val noFinisherFee: ULong = 0uL,
+    /** A cohort nobody finished: its whole pool, sent to the league's boost reserve (FR-037). */
+    val noFinisherBoost: ULong = 0uL,
     /** What finalization drew from the league's boost reserve into the pool (FR-037d). */
     val boostReceived: ULong = 0uL,
     /** Comeback refunds owed to its finishers, summed as they are counted (FR-037e). */
     val comebackOwed: ULong = 0uL,
-    /** What finalization drew from the comeback reserve: `min(comebackOwed, reserve)`. */
+    /** What finalization drew from the comeback reserve: all of `comebackOwed`, which the reserve always holds as pledges. */
     val comebackFunded: ULong = 0uL,
     /** Refunds paid out with claims so far. */
     val comebackClaimed: ULong = 0uL,
@@ -237,7 +235,6 @@ data class CohortSnapshot(
                 memberCount = r.u32(l.MEMBER_COUNT),
                 heldStake = r.u64(l.HELD_STAKE),
                 pool = r.u64(l.POOL),
-                boostDue = r.u64(l.BOOST_DUE),
                 comebackDue = r.u64(l.COMEBACK_DUE),
                 forfeitsRecorded = r.u32(l.FORFEITS_RECORDED),
                 counted = r.u32(l.COUNTED),
@@ -247,7 +244,7 @@ data class CohortSnapshot(
                 settled = r.bool(l.SETTLED),
                 sharePerTier = r.u64s(l.SHARE_PER_TIER, 4),
                 roundingRemainder = r.u64(l.ROUNDING_REMAINDER),
-                noFinisherFee = r.u64(l.NO_FINISHER_FEE),
+                noFinisherBoost = r.u64(l.NO_FINISHER_BOOST),
                 boostReceived = r.u64(l.BOOST_RECEIVED),
                 comebackOwed = r.u64(l.COMEBACK_OWED),
                 comebackFunded = r.u64(l.COMEBACK_FUNDED),
@@ -276,7 +273,7 @@ data class MembershipSnapshot(
      * What this member was owed from the comeback reserve when counted as a
      * finisher (FR-037e): `min(10% × the forfeited stake, stake)`, or `0`.
      * The refund a claim pays is this, scaled by what the cohort funded
-     * ([Derive.comebackRefund]).
+     * ([Derive.comebackRefund]) — all of it, as the reserve always holds the pledge.
      */
     val comebackEntitled: ULong = 0uL,
 ) {

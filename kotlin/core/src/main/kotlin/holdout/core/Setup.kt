@@ -87,14 +87,15 @@ data class LeagueParams(
 /**
  * A `LeagueConfig` account as stored: its parameters, the next cohort index to
  * open, and the league's two reserves (H35, FR-037c–e) — what its reserve
- * vault holds, `boost_reserve + comeback_reserve` (INV-1).
+ * vault holds, `boost_reserve + comeback_reserve` (INV-1). Boosts draw on the
+ * first only, so a pledge in the second is always there for its member.
  */
 data class LeagueSnapshot(
     val params: LeagueParams,
     val nextIndex: Long,
-    /** What a finishing cohort's boost draws on: `min(20% × its own pool, this)` (FR-037d). */
+    /** Free for boosts: pools nobody won and pledges nobody made good. A finishing cohort's boost is `min(10% × its own pool, this)` (FR-037d). */
     val boostReserve: ULong = 0uL,
-    /** What a finishing cohort's comeback refunds draw on (FR-037e). */
+    /** Pledged to members: every open comeback's pledge and every refund owed but not yet drawn (FR-037e). */
     val comebackReserve: ULong = 0uL,
     val reserveVaultBump: Int = 0,
 ) {

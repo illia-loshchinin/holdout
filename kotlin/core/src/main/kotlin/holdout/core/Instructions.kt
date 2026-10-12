@@ -191,6 +191,12 @@ object Instructions {
      * associated SKR account into the cohort's vault. [runningCohort] is the
      * cohort in `profile.running`, which the program requires whenever that
      * slot is set: the overlap rule is checked against its account.
+     *
+     * [comebackCohort] is the cohort the member forfeited in, passed with their
+     * membership in it (derived here) when [cohort] is their comeback round and
+     * joining has otherwise closed: the program then lets them in until the
+     * round's first day's deadline, and a late join into a started cohort is
+     * their running obligation at once (FR-037e). Absent for any ordinary join.
      */
     suspend fun joinCohort(
         programId: SolanaPublicKey,
@@ -199,6 +205,7 @@ object Instructions {
         cohort: SolanaPublicKey,
         tier: Int,
         runningCohort: SolanaPublicKey? = null,
+        comebackCohort: SolanaPublicKey? = null,
     ): TransactionInstruction {
         require(tier in 0..3) { "a tier is 0..3, got $tier" }
         return TransactionInstruction(
@@ -212,6 +219,8 @@ object Instructions {
                 AccountMeta(Pdas.profile(programId, member), false, true),
                 AccountMeta(Pdas.associatedToken(member, skrMint), false, true),
                 AccountMeta(runningCohort ?: programId, false, false),
+                AccountMeta(comebackCohort?.let { Pdas.membership(programId, it, member) } ?: programId, false, false),
+                AccountMeta(comebackCohort ?: programId, false, false),
                 AccountMeta(skrMint, false, false),
                 AccountMeta(SYSTEM_PROGRAM, false, false),
                 AccountMeta(TOKEN_PROGRAM, false, false),
@@ -269,8 +278,8 @@ object Instructions {
      * `record_forfeits()` — permissionless, up to ten pairs in the remaining
      * accounts; pairs not in breach or already forfeited are skipped, so a page
      * may be repeated and re-ordered freely (research R9). Each forfeit splits
-     * 70/5/5/10/10 (FR-027, H35): the pool and the two reserve dues stay in the
-     * vault, the developer part goes to [developerDestination] and the
+     * 70/10/10/10 (FR-027, H35): the pool and the member's comeback pledge stay
+     * in the vault, the developer part goes to [developerDestination] and the
      * operations part to [feeDestination] at once.
      */
     suspend fun recordForfeits(
@@ -299,10 +308,12 @@ object Instructions {
 
     /**
      * `settle_count()` — permissionless and paged like [recordForfeits], with
-     * the same split for a breach nobody recorded. The league's cohort
-     * `index − 1` is required for every index but 0: counting runs in cohort
-     * order so every streak, and every comeback record, does too (FR-061a,
-     * FR-037e).
+     * the same split for a breach nobody recorded. A counted forfeit moves its
+     * pledge into the league's reserve vault and opens the comeback, and a
+     * finisher counted in the comeback's rounds makes it good — which is why the
+     * league is writable (FR-037c–e). The league's cohort `index − 1` is
+     * required for every index but 0: counting runs in cohort order so every
+     * streak, and every comeback record, does too (FR-061a, FR-037e).
      */
     suspend fun settleCount(
         programId: SolanaPublicKey,
@@ -320,11 +331,12 @@ object Instructions {
             listOf(
                 AccountMeta(caller, true, true),
                 AccountMeta(Pdas.config(programId), false, false),
-                AccountMeta(Pdas.league(programId, leagueId), false, false),
+                AccountMeta(Pdas.league(programId, leagueId), false, true),
                 AccountMeta(cohort, false, true),
                 AccountMeta(Pdas.vault(programId, cohort), false, true),
                 AccountMeta(feeDestination, false, true),
                 AccountMeta(developerDestination, false, true),
+                AccountMeta(Pdas.reserveVault(programId, leagueId), false, true),
                 AccountMeta(previousCohort ?: programId, false, false),
                 AccountMeta(TOKEN_PROGRAM, false, false),
             ) + pairs.pageAccounts(),
@@ -335,18 +347,16 @@ object Instructions {
     /**
      * `settle_finalize()`. With finishers it draws the boost from the league's
      * reserve vault into the pool, writes the shares, sends the rounding
-     * remainder to [feeDestination] and funds the comeback refunds; with none
-     * it sends half of the pool to [developerDestination] and the rest to
-     * [feeDestination] (FR-037). Either way the cohort's reserve dues then move
-     * to the league's reserve vault, which is why the league is writable
-     * (FR-037c–e, H35). It needs no other cohort, so no caller can change where
-     * the money goes (FR-030a).
+     * remainder to [feeDestination] and draws the comeback refunds owed; with
+     * none it sends the whole pool to the league's reserve vault, for later
+     * boosts (FR-037). Either way the league's reserves are updated, which is why
+     * the league is writable (FR-037c–e, H35). It needs no other cohort, so no
+     * caller can change where the money goes (FR-030a).
      */
     suspend fun settleFinalize(
         programId: SolanaPublicKey,
         caller: SolanaPublicKey,
         feeDestination: SolanaPublicKey,
-        developerDestination: SolanaPublicKey,
         leagueId: Int,
         cohort: SolanaPublicKey,
         previousCohort: SolanaPublicKey? = null,
@@ -359,7 +369,6 @@ object Instructions {
             AccountMeta(cohort, false, true),
             AccountMeta(Pdas.vault(programId, cohort), false, true),
             AccountMeta(feeDestination, false, true),
-            AccountMeta(developerDestination, false, true),
             AccountMeta(Pdas.reserveVault(programId, leagueId), false, true),
             // The league's cohort `index - 1`, settled: required for every index
             // but 0, as for settle_count — an empty cohort is never counted (FR-061a).
@@ -367,6 +376,32 @@ object Instructions {
             AccountMeta(TOKEN_PROGRAM, false, false),
         ),
         discriminator("settle_finalize"),
+    )
+
+    /**
+     * `release_comeback()` — permissionless: a comeback pledge nobody made good
+     * moves from the league's comeback reserve to its boost reserve (FR-037e).
+     * [wallet] is the member whose profile holds it. [round] is the comeback's
+     * **last** round — its cohort, settled — once the league has opened it; absent
+     * while it has not been opened, when the program judges by the schedule.
+     * Refused with 6046 when the profile has no open comeback in the league and
+     * 6047 while the round can still be finished.
+     */
+    suspend fun releaseComeback(
+        programId: SolanaPublicKey,
+        caller: SolanaPublicKey,
+        leagueId: Int,
+        wallet: SolanaPublicKey,
+        round: SolanaPublicKey? = null,
+    ): TransactionInstruction = TransactionInstruction(
+        programId,
+        listOf(
+            AccountMeta(caller, true, true),
+            AccountMeta(Pdas.league(programId, leagueId), false, true),
+            AccountMeta(Pdas.profile(programId, wallet), false, true),
+            AccountMeta(round ?: programId, false, false),
+        ),
+        discriminator("release_comeback"),
     )
 
     /**

@@ -95,7 +95,7 @@ class RpcTest {
         val params = Rpc.programAccountsParams(programId, AccountQueries.cohorts())
         val config = params.jsonArray[1].jsonObject
         assertEquals(
-            Json.parseToJsonElement("""[{"dataSize": 229}, {"memcmp": {"offset": 0, "bytes": "PvkMGFCafqS"}}]"""),
+            Json.parseToJsonElement("""[{"dataSize": 221}, {"memcmp": {"offset": 0, "bytes": "PvkMGFCafqS"}}]"""),
             config.getValue("filters"),
         )
         assertNull(config["dataSlice"], "status reads the whole cohort")
@@ -105,7 +105,7 @@ class RpcTest {
     fun `the profile query lists every Profile and nothing else`() {
         val config = Rpc.programAccountsParams(programId, AccountQueries.profiles()).jsonArray[1].jsonObject
         val filters = config.getValue("filters").jsonArray
-        assertEquals(Json.parseToJsonElement("""{"dataSize": 257}"""), filters[0])
+        assertEquals(Json.parseToJsonElement("""{"dataSize": 236}"""), filters[0])
         assertEquals(0, filters[1].jsonObject.getValue("memcmp").jsonObject.getValue("offset").jsonPrimitive.content.toInt())
         assertNull(config["dataSlice"], "the board reads the whole profile")
     }

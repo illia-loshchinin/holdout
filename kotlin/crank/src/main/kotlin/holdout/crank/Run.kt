@@ -14,6 +14,7 @@ import holdout.core.Pdas
 import holdout.core.ProfileSnapshot
 import holdout.core.ProgramErrorCode
 import holdout.core.Rpc
+import holdout.core.Schedule
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
@@ -34,13 +35,20 @@ import kotlinx.serialization.json.putJsonArray
  *    Each forfeit's developer and operations parts leave at once, to
  *    `Config.developer_destination` and `Config.fee_destination` (H35).
  * 4. **Settle** each league's finished cohorts **oldest first**: page
- *    `settle_count` over the uncounted members, then `settle_finalize`, which
- *    draws the boost and the comeback funding from the league's reserve vault,
- *    credits the cohort's own reserve dues to it, and with no finishers sends
- *    the whole pool out, half to the developer destination and the rest to
- *    operations (FR-037, FR-037c–e).
+ *    `settle_count` over the uncounted members, which moves each counted
+ *    forfeit's comeback pledge into the league's reserve vault and opens (or
+ *    makes good) the member's comeback, then `settle_finalize`, which draws the
+ *    boost and the comeback refunds owed from that vault and, with no
+ *    finishers, sends the whole pool to the league's boost reserve
+ *    (FR-037, FR-037c–e).
  *    Cohort *i* waits while *i − 1* is unsettled — the program refuses it
  *    (6045), so this is not a preference.
+ * 5. **Release** every comeback pledge nobody can make good any more: read each
+ *    profile, and for an open comeback whose last round is settled — or was
+ *    never opened and whose first day has passed — send `release_comeback`,
+ *    which moves the pledge to the league's boost reserve (FR-037e). A refusal
+ *    because it is not due after all (6047) or already released (6046) is an
+ *    expected outcome.
  *
  * Every step is idempotent on-chain, so two cranks, or a crank and a stranger,
  * running at once produce one outcome (FR-030a). A failed step is reported and
@@ -113,7 +121,38 @@ object Run {
     }
 
     /** The program's `schedule::cohort_start`. */
-    fun scheduledStart(league: LeagueSnapshot, index: Long): Long = league.params.firstStart + index * league.params.cadence
+    fun scheduledStart(league: LeagueSnapshot, index: Long): Long = Schedule.cohortStart(league.params.firstStart, league.params.cadence, index)
+
+    /** One open comeback whose pledge `release_comeback` can move to the boost reserve. */
+    data class ReleaseDue(val wallet: SolanaPublicKey, val leagueId: Int, val round: Long)
+
+    /**
+     * The open comebacks due for release at [now] (FR-037e), the program's own
+     * test in `release_comeback`: a comeback is released once its **last** round
+     * can no longer be finished. If the league has opened that round
+     * (`nextIndex > round`), its cohort must be settled; if it has not, the
+     * round's first day, by the league's schedule, must have passed — later
+     * than joining closes, and later than its comeback member may join late.
+     * [nextIndex] is each league's next index as it stands after this pass.
+     */
+    fun releasesDue(profiles: Collection<ProfileSnapshot>, leagues: Collection<LeagueSnapshot>, nextIndex: Map<Int, Long>, cohorts: Map<Pair<Int, Long>, CohortSnapshot>, now: Long): List<ReleaseDue> {
+        val byId = leagues.associateBy { it.params.leagueId }
+        return profiles.flatMap { profile ->
+            profile.leagues.mapNotNull { progress ->
+                if (progress.comebackStake == 0uL) return@mapNotNull null
+                val league = byId[progress.comebackLeague] ?: return@mapNotNull null
+                val round = progress.comebackLastRound
+                val opened = (nextIndex[league.params.leagueId] ?: league.nextIndex) > round
+                val due =
+                    if (opened) {
+                        cohorts[league.params.leagueId to round]?.settled == true
+                    } else {
+                        now > Schedule.deadlineOf(scheduledStart(league, round), league.params.dayLength, 0)
+                    }
+                if (due) ReleaseDue(profile.wallet, league.params.leagueId, round) else null
+            }
+        }
+    }
 
     /** Whether the sponsor is below half its float, the only state `top_up_sponsor` accepts. */
     fun sponsorRefillDue(config: ConfigSnapshot, sponsorLamports: Long): Boolean = sponsorLamports.toULong() < config.sponsorFloat / 2uL
@@ -141,6 +180,12 @@ object Run {
     const val FAUCET_CAP_REACHED = 6051
     const val FAUCET_EMPTY = 6052
     const val SPONSOR_FLOAT_SUFFICIENT = 6054
+
+    /** `release_comeback`: the profile has no open comeback in the league (already released or made good). */
+    const val NO_COMEBACK_TO_RELEASE = 6046
+
+    /** `release_comeback`: the comeback's last round can still be finished. */
+    const val COMEBACK_STILL_OPEN = 6047
 
     /** What became of one transaction. */
     enum class Outcome { Landed, Refused, Failed }
@@ -402,7 +447,7 @@ object Run {
             }
             val outcome =
                 pass.send("settle_finalize", detail) {
-                    send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, onChain.developerDestination, leagueId, address, previousAddress)))
+                    send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, leagueId, address, previousAddress)))
                 }
             // A simulated finalize changed nothing: the next cohort still waits on this one.
             if (outcome != Outcome.Landed || args.dryRun) {
@@ -410,6 +455,26 @@ object Run {
                 continue
             }
             cohorts[leagueId to index] = counted.copy(settled = true)
+        }
+
+        // ---- 5. comebacks nobody can make good any more ------------------------
+        // After settlement, so a pledge the counting just closed is not read as open.
+        val profiles = rpc.profiles(programId)
+        if (profiles == null) {
+            pass.failures++
+            pass.record("release_comeback", "failed") { put("error", "could not list profiles from ${config.rpcUrl}") }
+        } else {
+            for (due in releasesDue(profiles, leagues, nextIndex, cohorts, now)) {
+                // The last round's cohort is passed once the league has opened it; the program judges by the schedule otherwise.
+                val round = if (nextIndex.getValue(due.leagueId) > due.round) Pdas.cohort(programId, due.leagueId, due.round) else null
+                pass.send("release_comeback", {
+                    put("league", due.leagueId)
+                    put("round", due.round)
+                    put("wallet", due.wallet.base58())
+                }, expected = setOf(NO_COMEBACK_TO_RELEASE, COMEBACK_STILL_OPEN)) {
+                    send("release_comeback ${due.leagueId}/${due.round} ${due.wallet.base58()}", listOf(Instructions.releaseComeback(programId, payer.publicKey, due.leagueId, due.wallet, round)))
+                }
+            }
         }
 
         // The leagues this crank opens in, as they stand after this pass; a lobby

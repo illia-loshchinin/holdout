@@ -101,12 +101,16 @@ object Journey {
      * no running cohort ending after [c] starts (FR-006a, FR-006b). The
      * program re-checks all of it.
      *
+     * [lateJoin]: [c] is the member's comeback round (`Comeback.Round.lateJoin`),
+     * which the program lets them into until the end of its first day although
+     * joining has closed for everyone else (FR-037e).
+     *
      * A running cohort the member is in breach of ([runningInBreach]) does not
      * block, recorded or not: the join then carries the record of that forfeit,
      * which frees the slot in the same transaction (FR-037g, ES-17, research R22).
      */
-    fun joinBlocker(c: CohortSnapshot, profile: ProfileSnapshot?, runningCohortEnd: Long?, now: Long, runningInBreach: Boolean): JoinBlocker? {
-        if (Derive.status(c, now) != CohortStatus.Open) return JoinBlocker.JoiningClosed
+    fun joinBlocker(c: CohortSnapshot, profile: ProfileSnapshot?, runningCohortEnd: Long?, now: Long, runningInBreach: Boolean, lateJoin: Boolean = false): JoinBlocker? {
+        if (Derive.status(c, now) != CohortStatus.Open && !lateJoin) return JoinBlocker.JoiningClosed
         val p = profile?.normalised(now) ?: return null
         if (p.pending != null) return JoinBlocker.LobbyPlaceTaken
         if (!runningInBreach && runningCohortEnd != null && runningCohortEnd > now && c.start < runningCohortEnd) return JoinBlocker.Overlaps
@@ -116,9 +120,10 @@ object Journey {
     /**
      * How a join treats the cohort in the profile's running slot: [recordForfeitsOf] is the cohort whose
      * forfeit the join sends first (`record_forfeits` for the member's own pair), [runningCohort] the one
-     * `join_cohort` names (null when the record frees the slot, or there is none).
+     * `join_cohort` names (null when the record frees the slot, or there is none), [comebackCohort] the
+     * forfeited cohort `join_cohort` is shown when the join is into the member's comeback round (FR-037e).
      */
-    data class JoinPlan(val recordForfeitsOf: SolanaPublicKey?, val runningCohort: SolanaPublicKey?) {
+    data class JoinPlan(val recordForfeitsOf: SolanaPublicKey?, val runningCohort: SolanaPublicKey?, val comebackCohort: SolanaPublicKey? = null) {
         /** Whether the cohort in the running slot is one the member is in breach of, unrecorded (ES-17). */
         val runningInBreach: Boolean get() = recordForfeitsOf != null
     }
@@ -130,11 +135,13 @@ object Journey {
      * is permissionless and idempotent) and the join names no running cohort: the record has cleared
      * the slot, and passing the old one would write its end back (FR-037g, ES-17, research R22).
      * Standing in it, finished, or already recorded: no record, the running cohort is named.
+     * [comebackCohort] is the forfeited cohort when the join is into the member's comeback round, which
+     * lets the program take it after its joining has closed (FR-037e); it rides along either way.
      */
-    fun joinPlan(profile: ProfileSnapshot?, running: Comeback.Entry?, now: Long): JoinPlan {
-        val address = runningCohortFor(profile, now) ?: return JoinPlan(null, null)
+    fun joinPlan(profile: ProfileSnapshot?, running: Comeback.Entry?, now: Long, comebackCohort: SolanaPublicKey? = null): JoinPlan {
+        val address = runningCohortFor(profile, now) ?: return JoinPlan(null, null, comebackCohort)
         val breach = running != null && running.address == address && running.member?.let { Derive.inBreach(it, running.cohort, now) } == true
-        return if (breach) JoinPlan(address, null) else JoinPlan(null, address)
+        return if (breach) JoinPlan(address, null, comebackCohort) else JoinPlan(null, address, comebackCohort)
     }
 
     /** The instructions of a join of [cohort] on [tier], with the record of the running forfeit first when [plan] has one. */
@@ -148,7 +155,7 @@ object Journey {
         tier: Int,
         plan: JoinPlan,
     ): List<TransactionInstruction> {
-        val join = Instructions.joinCohort(programId, me, skrMint, cohort, tier, plan.runningCohort)
+        val join = Instructions.joinCohort(programId, me, skrMint, cohort, tier, plan.runningCohort, plan.comebackCohort)
         val record = plan.recordForfeitsOf ?: return listOf(join)
         return listOf(Instructions.recordForfeits(programId, me, feeDestination, developerDestination, record, listOf(Instructions.MemberPair.of(programId, record, me))), join)
     }
@@ -158,7 +165,7 @@ object Journey {
     /**
      * The way back after forfeiting [forfeited] (US-4): of the Holdouts [open] to
      * join, the earliest-starting one in the same league — the league the member
-     * chose, and the one a comeback refund pays on (FR-037e). Every test league is
+     * chose, and the one whose rounds make a comeback good (FR-037e). Every test league is
      * one lobby, so a test cohort's way back is any test league's. Never another
      * league's: with none of its own open, there is no offer (FR-003).
      */

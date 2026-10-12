@@ -252,9 +252,9 @@ object Reminders {
     ): Boolean {
         if (m.comebackEntitled > 0uL) return true
         val progress = profile?.progress(c.leagueId) ?: return false
-        if (!progress.comebackOpenFor(c.start)) return false
+        if (!progress.comebackOpenFor(c.leagueId, c.index)) return false
         return memberships.none { (o, om) ->
-            o.leagueId == c.leagueId && o.start < c.start && !o.settled && om.daysCompleted >= o.durationDays && progress.comebackOpenFor(o.start)
+            o.leagueId == c.leagueId && o.index < c.index && !o.settled && om.daysCompleted >= o.durationDays && progress.comebackOpenFor(o.leagueId, o.index)
         }
     }
 

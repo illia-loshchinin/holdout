@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
 
 /**
  * The H35 settlement arithmetic in [Settlement] — the forfeit split, the boost,
- * the comeback and the no-finisher split — replayed against
+ * the comeback and the comeback rounds — replayed against
  * `fixtures/settlement-vectors.json` → `reserve_vectors`, the same golden
  * numbers `programs/holdout/src/math/settlement.rs` replays. Amounts reach
  * `u64::MAX`, past a JSON double and a signed Long, so every number is read
@@ -32,7 +32,7 @@ class SettlementTest {
         cases.forEach { v ->
             val stake = v.u("stake")
             val split = Settlement.forfeitSplit(stake)
-            assertEquals(Settlement.ForfeitSplit(v.u("pool"), v.u("boost"), v.u("comeback"), v.u("developer"), v.u("operations")), split, "split of $stake")
+            assertEquals(Settlement.ForfeitSplit(v.u("pool"), v.u("comeback"), v.u("developer"), v.u("operations")), split, "split of $stake")
             assertEquals(Settlement.feeOf(stake), split.fee, "the parts of the fee add up — $stake")
             assertEquals(split.pool, Settlement.poolContribution(stake), "the pool part is what the projected pool counts — $stake")
             assertEquals(
@@ -41,6 +41,7 @@ class SettlementTest {
                 "the stake is fully allocated — $stake",
             )
             assertEquals(split.developer + split.operations, split.paidOutNow)
+            assertEquals(Settlement.comebackPledge(stake), split.comeback, "the pledge is the comeback part — $stake")
         }
     }
 
@@ -59,37 +60,34 @@ class SettlementTest {
     }
 
     @Test
-    fun `given every golden entitlement, when the finisher claims, then the pro-rata refund is the program's`() {
+    fun `given every golden entitlement, when the finisher claims, then the refund is the program's`() {
         reserve("comeback_refund").forEach { v ->
             assertEquals(v.u("refund"), Settlement.comebackRefund(v.u("entitled"), v.u("funded"), v.u("owed")), "refund ${v.u("entitled")} ${v.u("funded")} ${v.u("owed")}")
         }
     }
 
     @Test
-    fun `given every golden pool with no finishers, when it settles, then half goes to the developer and the rest to operations`() {
-        reserve("no_finisher_split").forEach { v ->
-            val pool = v.u("pool")
-            val (developer, operations) = Settlement.noFinisherSplit(pool)
-            assertEquals(v.u("developer") to v.u("operations"), developer to operations, "no-finisher split of $pool")
-            assertEquals(pool, developer + operations, "nothing left behind — $pool")
+    fun `given every golden miss, when its rounds are worked out, then they are the program's`() {
+        val cases = reserve("comeback_round")
+        assertTrue(cases.isNotEmpty())
+        cases.forEach { v ->
+            fun l(name: String) = v.getValue(name).jsonPrimitive.content.toLong()
+            val rounds = Schedule.comebackRounds(l("first_start"), l("cadence"), l("join_lock"), l("missed_at"))
+            assertEquals(l("first")..l("last"), rounds, v.getValue("note").jsonPrimitive.content)
+            assertEquals(l("first"), Schedule.comebackRound(l("first_start"), l("cadence"), l("missed_at")))
         }
     }
 
     @Test
-    fun `given the no-finisher math vectors, when their pool settles, then the developer and operations figures are the vector's`() {
-        val noFinishers = vectors.getValue("math_vectors").jsonArray.map { it.jsonObject }.filter { "developer" in it.getValue("expected").jsonObject }
-        assertTrue(noFinishers.isNotEmpty())
-        noFinishers.forEach { v ->
-            val e = v.getValue("expected").jsonObject
-            assertEquals(e.u("developer") to e.u("operations"), Settlement.noFinisherSplit(e.u("pool")), v.getValue("id").jsonPrimitive.content)
-        }
+    fun `given a cohort nobody finished, when it settles, then the whole pool is the boost reserve's`() {
+        assertEquals(12_345uL, Settlement.noFinisherBoost(12_345uL))
     }
 
     @Test
-    fun `given a hundred base units, when split, then it is 70 5 5 10 10`() {
-        assertEquals(Settlement.ForfeitSplit(70uL, 5uL, 5uL, 10uL, 10uL), Settlement.forfeitSplit(100uL))
+    fun `given a hundred base units, when split, then it is 70 10 10 10`() {
+        assertEquals(Settlement.ForfeitSplit(70uL, 10uL, 10uL, 10uL), Settlement.forfeitSplit(100uL))
         // Operations takes what the floors leave: 9 → pool 7, fee 2, every percent part floors to 0.
-        assertEquals(Settlement.ForfeitSplit(7uL, 0uL, 0uL, 0uL, 2uL), Settlement.forfeitSplit(9uL))
+        assertEquals(Settlement.ForfeitSplit(7uL, 0uL, 0uL, 2uL), Settlement.forfeitSplit(9uL))
     }
 
     @Test

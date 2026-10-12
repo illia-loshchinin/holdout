@@ -13,6 +13,8 @@ import holdout.core.LeagueParams
 import holdout.core.LeagueSnapshot
 import holdout.core.MembershipSnapshot
 import holdout.core.Pdas
+import holdout.core.ProfileLayout
+import holdout.core.ProfileSnapshot
 import holdout.core.Rpc
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -142,6 +144,16 @@ class RunTest {
         return b.array()
     }
 
+    /** A profile whose only record is an open comeback in [league]: [stake] lost, good for cohorts [round]..[last] of that league. */
+    private fun profileBytes(wallet: SolanaPublicKey, league: Int, stake: Long, round: Long, last: Long): ByteArray {
+        val b = le(ProfileLayout.SIZE)
+        b.put(0, ProfileLayout.DISCRIMINATOR)
+        b.put(ProfileLayout.WALLET, wallet.bytes)
+        val at = ProfileLayout.LEAGUES + ProfileSnapshot.slotOf(league) * ProfileLayout.LEAGUE_PROGRESS_SIZE
+        b.putLong(at + 16, stake).put(at + 24, league.toByte()).putInt(at + 25, round.toInt()).putInt(at + 29, last.toInt())
+        return b.array()
+    }
+
     private fun membershipBytes(cohort: SolanaPublicKey, m: MembershipSnapshot, counted: Boolean): ByteArray {
         val l = AccountLayout.Membership
         val b = le(l.SIZE)
@@ -169,7 +181,7 @@ class RunTest {
 
         fun nameOf(t: Transaction): String {
             val ix = t.message.instructions.single()
-            return listOf("open_cohort", "top_up_sponsor", "record_forfeits", "settle_count", "settle_finalize").first { Instructions.discriminator(it).contentEquals(ix.data.copyOf(8)) }
+            return listOf("open_cohort", "top_up_sponsor", "record_forfeits", "settle_count", "settle_finalize", "release_comeback").first { Instructions.discriminator(it).contentEquals(ix.data.copyOf(8)) }
         }
 
         private fun apply(t: Transaction) {
@@ -284,14 +296,84 @@ class RunTest {
         // H35: every step that moves fee money names both destinations, and finalize the league's reserve vault.
         fun accountsOf(t: Transaction) = t.message.instructions.single().accountIndices.map { t.message.accounts[it.toInt()] }
         assertEquals(listOf(feeDestination, developerDestination), accountsOf(forfeit).subList(4, 6), "record_forfeits: operations, then developer")
-        assertEquals(listOf(feeDestination, developerDestination), accountsOf(chain.sentTx[3]).subList(5, 7), "settle_count: operations, then developer")
+        assertEquals(listOf(feeDestination, developerDestination, Pdas.reserveVault(programId, 0)), accountsOf(chain.sentTx[3]).subList(5, 8), "settle_count: operations, developer, then the reserve vault the pledges move to")
         assertEquals(
             listOf(Pdas.league(programId, 0), Pdas.cohort(programId, 0, 1)),
             accountsOf(finalize).subList(2, 4),
         )
-        assertEquals(listOf(feeDestination, developerDestination, Pdas.reserveVault(programId, 0)), accountsOf(finalize).subList(5, 8), "settle_finalize: both destinations, then the reserve vault")
+        assertEquals(listOf(feeDestination, Pdas.reserveVault(programId, 0)), accountsOf(finalize).subList(5, 7), "settle_finalize: operations, then the reserve vault; no developer")
+        assertTrue(writableIn(chain.sentTx[3], Pdas.league(programId, 0)), "counting writes the league's reserves and the comeback")
         assertTrue(writableIn(finalize, Pdas.league(programId, 0)), "finalize writes the league's reserves")
         chain.sentTx.forEach { assertEquals(payer.publicKey, it.message.accounts[0], "the crank's payer pays every fee") }
+    }
+
+    // ---- release_comeback --------------------------------------------------
+
+    private val comebackWallet = SolanaPublicKey(ByteArray(32) { 21 })
+
+    private fun progressOf(league: Int, stake: ULong, round: Long, last: Long) = ProfileSnapshot.LeagueProgress(0, 1, 0, 0, 0, stake, league, round, last)
+
+    private fun profileOf(vararg progress: ProfileSnapshot.LeagueProgress) = ProfileSnapshot(comebackWallet, progress.toList() + List(3 - progress.size) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, null, null)
+
+    @Test
+    fun `a comeback is released once its last round is settled, or never opened and its first day has passed`() {
+        val next = mapOf(0 to 3L)
+        val cohorts = mapOf((0 to 0L) to cohort(0, settled = true), (0 to 1L) to cohort(1), (0 to 2L) to cohort(2, settled = true))
+        val now = first + 5 * week
+        fun due(vararg p: ProfileSnapshot.LeagueProgress, at: Long = now) = Run.releasesDue(listOf(profileOf(*p)), listOf(league0), next, cohorts, at)
+        // Opened: only the settled last round releases it.
+        assertEquals(listOf(Run.ReleaseDue(comebackWallet, 0, 2L)), due(progressOf(0, 100uL, 2, 2)))
+        assertEquals(emptyList(), due(progressOf(0, 100uL, 1, 1)), "cohort 1 is opened and not settled: the member could still finish it")
+        assertEquals(listOf(2L), due(progressOf(0, 100uL, 1, 2)).map { it.round }, "a two-round comeback is judged by its last round")
+        // Never opened (league 0 has opened 0..2): due once the round's first day by the schedule has passed.
+        val roundStart = first + 4 * week
+        assertEquals(emptyList(), due(progressOf(0, 100uL, 4, 4), at = roundStart + day - 1), "the first day is not over")
+        assertEquals(listOf(4L), due(progressOf(0, 100uL, 4, 4), at = roundStart + day).map { it.round })
+        // Nothing open, or a league the crank does not know: nothing to release.
+        assertEquals(emptyList(), due(progressOf(0, 0uL, 2, 2)))
+        assertEquals(emptyList(), due(progressOf(7, 100uL, 2, 2)))
+    }
+
+    @Test
+    fun `a pass releases a pledge whose round settled, after settlement, and leaves one whose round is still running`() = runBlocking {
+        val chain = liveLeague(sponsorLamports = 30_000_000)
+        val runningRound = SolanaPublicKey(ByteArray(32) { 22 })
+        chain.accounts[Pdas.profile(programId, comebackWallet)] = profileBytes(comebackWallet, league = 0, stake = 100, round = 1, last = 1)
+        chain.accounts[Pdas.profile(programId, runningRound)] = profileBytes(runningRound, league = 0, stake = 100, round = 2, last = 2)
+        val json = pass(chain)
+        // Cohort 1 settles in this pass, so the pledge waiting on it is due in the same pass; cohort 2 is still running.
+        assertEquals(listOf("open_cohort", "record_forfeits", "settle_count", "settle_finalize", "release_comeback"), chain.sent)
+        assertEquals(0, json.getValue("failed").jsonPrimitive.int)
+        val release = chain.sentTx.last()
+        fun accountsOf(t: Transaction) = t.message.instructions.single().accountIndices.map { t.message.accounts[it.toInt()] }
+        assertEquals(listOf(payer.publicKey, Pdas.league(programId, 0), Pdas.profile(programId, comebackWallet), Pdas.cohort(programId, 0, 1)), accountsOf(release))
+        assertTrue(writableIn(release, Pdas.league(programId, 0)) && writableIn(release, Pdas.profile(programId, comebackWallet)))
+    }
+
+    @Test
+    fun `a release the program refuses as not due or already done is an expected outcome, not a failure`() = runBlocking {
+        listOf("0x179e" to 6046, "0x179f" to 6047).forEach { (hex, code) ->
+            val chain = liveLeague(sponsorLamports = 30_000_000, refuse = mapOf("release_comeback" to "Transaction simulation failed: custom program error: $hex"))
+            chain.accounts[Pdas.profile(programId, comebackWallet)] = profileBytes(comebackWallet, league = 0, stake = 100, round = 0, last = 0)
+            val json = pass(chain)
+            assertEquals(0, json.getValue("failed").jsonPrimitive.int, "$code")
+            val step = json.getValue("steps").jsonArray.map { it.jsonObject }.single { it.getValue("step").jsonPrimitive.content == "release_comeback" }
+            assertEquals("refused", step.getValue("status").jsonPrimitive.content)
+            assertEquals(code, step.getValue("programError").jsonPrimitive.int)
+        }
+    }
+
+    @Test
+    fun `a pass with nobody holding a comeback sends no release, and a dry run only simulates one`() = runBlocking {
+        val none = liveLeague(sponsorLamports = 30_000_000)
+        pass(none)
+        assertFalse("release_comeback" in none.sent)
+        val chain = liveLeague(sponsorLamports = 30_000_000)
+        chain.accounts[Pdas.profile(programId, comebackWallet)] = profileBytes(comebackWallet, league = 0, stake = 100, round = 0, last = 0)
+        val json = pass(chain, "--dry-run")
+        assertEquals(emptyList(), chain.sent)
+        val step = json.getValue("steps").jsonArray.map { it.jsonObject }.single { it.getValue("step").jsonPrimitive.content == "release_comeback" }
+        assertEquals("simulated", step.getValue("status").jsonPrimitive.content)
     }
 
     private fun writableIn(t: Transaction, key: SolanaPublicKey): Boolean = holdout.core.Transactions.isWritable(t.message, t.message.accounts.indexOf(key))
