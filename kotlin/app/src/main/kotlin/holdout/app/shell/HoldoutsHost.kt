@@ -152,7 +152,7 @@ internal fun Shared.ClaimHost(id: String, modifier: Modifier = Modifier) {
         onBack = { dispatch(NavEvent.Back) },
         modifier = modifier,
         // Too little SOL for the fee: the faucet sheet first, then back here (ES-0a).
-        shortOfSol = (view?.lamports ?: Long.MAX_VALUE) < holdout.app.faucet.FaucetClient.MEMBER_CAN_PAY_LAMPORTS,
+        shortOfSol = !canPayFees(view),
         onGetTokens = { dispatch(NavEvent.OpenFaucet) },
     )
 }
@@ -197,6 +197,7 @@ internal fun Shared.StakeSheetHost(sheet: Sheet.Stake, seekerGate: SeekerGate) {
         onStake = { tier -> joinAsking { holdouts.join(sender, h, tier, n) } },
         onGetTokens = { dispatch(NavEvent.OpenFaucet) },
         initialTier = sheet.tier,
+        onTierChange = { dispatch(NavEvent.StakeTier(it)) },
         comeback = v.comebackOffer(n, h.cohort.leagueId),
         // "See your lobby": the sheet closes, then the lobby the member already holds a place in opens.
         onSeeLobby = v.mine(n).firstOrNull { it.status(n) == CohortStatus.Open || it.status(n) == CohortStatus.Locked }?.let { lobby ->

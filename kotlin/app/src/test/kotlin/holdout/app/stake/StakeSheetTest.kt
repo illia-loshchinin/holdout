@@ -56,6 +56,7 @@ class StakeSheetTest {
     )
 
     private val staked = mutableListOf<Int>()
+    private val tiersPicked = mutableListOf<Int>()
     private var tokens = 0
     private var lobbies = 0
 
@@ -86,6 +87,7 @@ class StakeSheetTest {
                     onStake = { staked += it },
                     onGetTokens = { tokens++ },
                     initialTier = initialTier,
+                    onTierChange = { tiersPicked += it },
                     onSeeLobby = if (seeLobby) ({ lobbies++ }) else null,
                     showNotificationReason = notificationReason,
                     comeback = comeback,
@@ -125,6 +127,14 @@ class StakeSheetTest {
         compose.onNodeWithContentDescription("≈ \$50, 2,500 SKR").performClick()
         text("Stake 2,500 SKR").performScrollTo().performClick()
         assertEquals(listOf(2), staked)
+    }
+
+    @Test
+    fun `a chip pick is reported, so the pick can outlive the sheet`() {
+        show(initialTier = 0)
+        compose.onNodeWithContentDescription("≈ \$100, 5,000 SKR").performClick()
+        compose.onNodeWithContentDescription("≈ \$25, 1,250 SKR").performClick()
+        assertEquals(listOf(3, 1), tiersPicked)
     }
 
     @Test

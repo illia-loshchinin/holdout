@@ -74,7 +74,7 @@ class FaucetClient(private val rpc: Rpc, private val wallet: WalletRepository, p
         if (profile?.claimedFaucetOn(today) == true) return FaucetOutcome.UsedToday(HoldoutDay.endOf(today))
 
         val viaSponsor = sponsor?.takeIf { it.publicKey == config.sponsor }
-        if (lamports < MEMBER_CAN_PAY_LAMPORTS) return viaSponsor?.let { sponsorPaid(it, recipient, config, today) } ?: FaucetOutcome.CannotPayOut
+        if (!canPayFees(lamports)) return viaSponsor?.let { sponsorPaid(it, recipient, config, today) } ?: FaucetOutcome.CannotPayOut
         val ix = Instructions.claimFaucet(programId, recipient, recipient, config.skrMint, config.sponsor)
         return when (val sent = wallet.send(sender, listOf(ix))) {
             is SendResult.Landed -> FaucetOutcome.Funded(sent.signature)
@@ -119,6 +119,9 @@ class FaucetClient(private val rpc: Rpc, private val wallet: WalletRepository, p
     companion object {
         /** Enough SOL for a member to pay a transaction's fee and first-time rent themselves — a claim or a join. */
         const val MEMBER_CAN_PAY_LAMPORTS = 5_000_000L
+
+        /** Whether [lamports] is enough SOL to pay a transaction's fee (see [MEMBER_CAN_PAY_LAMPORTS]). */
+        fun canPayFees(lamports: Long): Boolean = lamports >= MEMBER_CAN_PAY_LAMPORTS
 
         const val FAUCET_ALREADY_CLAIMED_TODAY = 6050
         const val FAUCET_CAP_REACHED = 6051

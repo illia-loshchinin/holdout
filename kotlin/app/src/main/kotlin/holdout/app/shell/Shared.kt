@@ -79,7 +79,7 @@ internal class Shared(
  * chain read yet) counts as yes: nothing is said or blocked on a guess. Today
  * says "short of SOL" below this, and the automatic send stays shut.
  */
-internal fun canPayFees(view: ChainView?): Boolean = (view?.lamports ?: Long.MAX_VALUE) >= FaucetClient.MEMBER_CAN_PAY_LAMPORTS
+internal fun canPayFees(view: ChainView?): Boolean = view?.lamports?.let(FaucetClient::canPayFees) ?: true
 
 /** Where a Holdout's sittings bank on this phone: per wallet, per cohort, per cohort day (data-model §4). */
 internal fun cohortScope(h: Holdout) = "cohort:${h.address.base58()}"

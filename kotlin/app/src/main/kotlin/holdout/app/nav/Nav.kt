@@ -149,6 +149,9 @@ sealed interface NavEvent {
     /** Join: the stake sheet on [tier]. [seekerKnown]: this wallet is confirmed on this phone, so the gate is passed (FR-003b). */
     data class OpenStake(val cohort: String, val tier: Int = 0, val seekerKnown: Boolean = false) : NavEvent
 
+    /** The chip picked on the stake sheet, so it is still picked after the faucet round trip (ES-0a). */
+    data class StakeTier(val tier: Int) : NavEvent
+
     data class SeekerChecked(val status: SeekerStatus) : NavEvent
 
     data object SeekerRetry : NavEvent
@@ -223,6 +226,7 @@ object Nav {
                 s.sitting != null || s.tour != null -> s
                 else -> s.copy(tx = null, sheet = Sheet.Stake(e.cohort, e.tier, if (e.seekerKnown) SeekerStatus.Confirmed else SeekerStatus.Checking))
             }
+            is NavEvent.StakeTier -> s.updateStake { it.copy(tier = e.tier) }
             is NavEvent.SeekerChecked -> s.updateStake { if (it.gate == SeekerStatus.Confirmed) it else it.copy(gate = e.status) }
             NavEvent.SeekerRetry -> s.updateStake { if (it.gate == SeekerStatus.Confirmed) it else it.copy(gate = SeekerStatus.Checking) }
             NavEvent.OpenFaucet -> when {

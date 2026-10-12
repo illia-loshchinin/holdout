@@ -91,6 +91,8 @@ fun StakeSheet(
     modifier: Modifier = Modifier,
     /** The chip the sheet starts on: the lost stake's, when opened from the comeback offer (0..3). */
     initialTier: Int = 0,
+    /** Told of every chip the member picks, so the pick outlives the sheet (the faucet round trip, ES-0a). */
+    onTierChange: (Int) -> Unit = {},
     /** The member's comeback offer, if any; its amount shows only when [h] is one of its rounds. */
     comeback: Comeback.Offer? = null,
     /** Where "See your lobby" goes, when the blocker is a place already held in a lobby. */
@@ -128,7 +130,10 @@ fun StakeSheet(
         TierChips(
             tiers = c.chips.mapIndexed { i, amount -> TierChip(Format.tierUsd(i), Format.skr(amount)) },
             selected = tier,
-            onSelect = { tier = it },
+            onSelect = {
+                tier = it
+                onTierChange(it)
+            },
         )
         if (comeback != null && comeback.rounds.any { it.entry?.address == h.address }) {
             Text(StakeText.comeback(comeback.amount(chip)), style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Success)
@@ -181,7 +186,7 @@ fun StakeSheet(
             short = skrBalance < chip,
             held = skrBalance,
             chip = chip,
-            noFees = lamports < FaucetClient.MEMBER_CAN_PAY_LAMPORTS,
+            noFees = !FaucetClient.canPayFees(lamports),
             busy = busy,
             message = message,
             messageIsWarning = messageIsWarning,
