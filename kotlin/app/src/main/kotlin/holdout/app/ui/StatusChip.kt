@@ -31,7 +31,7 @@ enum class ChipTone {
     /** `success`: running, settled, standing. */
     Success,
 
-    /** `warning`: DEVNET COHORT, out, forfeited. */
+    /** `warning`: out, forfeited. (The DEVNET COHORT badge is a neutral pill, `TestCohortBadge`.) */
     Warning,
     ;
 
