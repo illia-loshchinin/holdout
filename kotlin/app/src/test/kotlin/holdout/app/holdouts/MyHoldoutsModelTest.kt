@@ -5,7 +5,6 @@ import holdout.app.chain.ChainView
 import holdout.app.chain.Holdout
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Screen
-import holdout.app.nav.Tab
 import holdout.core.CohortSnapshot
 import holdout.core.LeagueParams
 import holdout.core.MembershipSnapshot
@@ -37,7 +36,7 @@ class MyHoldoutsModelTest {
         assertEquals("Habit · 21-day", r.name)
         assertEquals("Day 4 of 21 · 12 started", r.line)
         assertEquals("15 push-ups to go today", r.detail)
-        assertEquals(NavEvent.SelectTab(Tab.Today), r.go)
+        assertEquals(NavEvent.Open(Screen.Detail(running.address.base58())), r.go)
     }
 
     @Test

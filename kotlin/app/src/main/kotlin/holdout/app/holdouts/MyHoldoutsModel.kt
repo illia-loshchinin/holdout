@@ -6,7 +6,6 @@ import holdout.app.chain.Holdout
 import holdout.app.cohort.SettlingWords
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Screen
-import holdout.app.nav.Tab
 import holdout.app.ui.ChipTone
 import holdout.app.ui.Format
 import holdout.core.CohortStatus
@@ -144,7 +143,8 @@ object MyHoldoutsModel {
                         owed == 0 -> "Today's reps are done"
                         else -> "$owed push-ups to go today"
                     }
-                    yours += card(YourKind.Running, ChipTone.Success, "Day ${stage.dayIndex + 1} of ${c.durationDays} · $crowd", detail, NavEvent.SelectTab(Tab.Today))
+                    // Its screen above H0, with the day and its Start (FR-069b), so Back returns here and never leaves the app (owner, 12 Oct walk).
+                    yours += card(YourKind.Running, ChipTone.Success, "Day ${stage.dayIndex + 1} of ${c.durationDays} · $crowd", detail, NavEvent.Open(Screen.Detail(id)))
                 }
                 is Stage.Forfeited -> {
                     val offer = view.comebackOffer(now, c.leagueId).forScreenOf(h.address)

@@ -10,7 +10,6 @@ import androidx.compose.ui.test.performClick
 import holdout.app.chain.ChainView
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Screen
-import holdout.app.nav.Tab
 import holdout.app.testing.Fx
 import holdout.app.testutil.AnimationsOff
 import holdout.app.testutil.TALL_PHONE
@@ -42,7 +41,7 @@ class MyHoldoutsScreenTest {
         compose.setContent { HoldoutTheme { MyHoldoutsScreen(state, onEvent = { events += it }, onJoin = { joins += it }) } }
     }
 
-    private val running = YourHoldout("r", "Habit · 21-day", YourKind.Running, ChipTone.Success, "Day 12 of 21 · 189 still standing", "15 push-ups to go today", false, NavEvent.SelectTab(Tab.Today))
+    private val running = YourHoldout("r", "Habit · 21-day", YourKind.Running, ChipTone.Success, "Day 12 of 21 · 189 still standing", "15 push-ups to go today", false, NavEvent.Open(Screen.Detail("r")))
     private val lobby = YourHoldout("l", "Spark · 7-day", YourKind.Lobby, ChipTone.Accent, "Joined · 1,250 SKR staked", "starts in 2d 4h", false, NavEvent.Open(Screen.Lobby("l")))
     private val locked = YourHoldout("k", "Spark · 7-day", YourKind.Locked, ChipTone.Neutral, "Joining closed · 14 in · 1,250 SKR staked", "starts in 41m 10s", false, NavEvent.Open(Screen.Lobby("k")))
     private val out = YourHoldout("o", "Habit · 21-day", YourKind.Out, ChipTone.Warning, "Out after 6 days", "Win back up to 250 SKR", false, NavEvent.Open(Screen.Forfeit("o")), detailTone = ChipTone.Success)

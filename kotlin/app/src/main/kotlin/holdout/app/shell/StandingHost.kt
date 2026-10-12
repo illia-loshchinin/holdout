@@ -88,10 +88,11 @@ internal fun Shared.DetailHost(id: String, root: Boolean = false, modifier: Modi
     RosterLoop(h)
     // Only the claim made from this cohort: another cohort's transaction is never shown as this one's.
     val claimSignature = chain.lastClaim?.takeIf { it.first == h.address }?.second
-    // On the Standing root, the member's own day while it is open (FR-069b): the same day, button and sitting as Today.
+    // The member's own day while it is open (FR-069b), on the Standing root and wherever else their Holdout's screen
+    // opens (H0's running card): the same day, button and sitting as Today.
     val stage = h.stage(n)
     val active = stage as? Stage.Active
-    val inputs = if (root && active != null) dayInputs(h, active) else null
+    val inputs = if (active != null && h.membership != null) dayInputs(h, active) else null
     CohortDetailScreen(
         h, rosters[h.address], stage, n, claimSignature,
         onRoster = { dispatch(NavEvent.Open(Screen.Roster(id))) },

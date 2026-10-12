@@ -160,8 +160,11 @@ class AppShellTest {
         assertEquals(Tab.Holdouts, nav.tab)
 
         event(NavEvent.Back)
+        // The running card opens its screen above H0: Back returns to H0, it never leaves the app.
         compose.onNodeWithText("Running card").performClick()
-        compose.onNodeWithText("Today root").assertExists()
+        compose.onNodeWithText("Pushed: Detail(cohort=r)").assertExists()
+        event(NavEvent.Back)
+        compose.onNodeWithText("Running card").assertExists()
 
         event(NavEvent.SelectTab(Tab.Holdouts))
         compose.onNodeWithText("Watched card").performScrollTo().performClick()
@@ -282,7 +285,7 @@ class AppShellTest {
 
         val H0 = MyHoldoutsState(
             yours = listOf(
-                YourHoldout("r", "Running card", YourKind.Running, ChipTone.Success, "Day 3 of 7 · 12 started", "15 push-ups to go today", false, NavEvent.SelectTab(Tab.Today)),
+                YourHoldout("r", "Running card", YourKind.Running, ChipTone.Success, "Day 3 of 7 · 12 started", "15 push-ups to go today", false, NavEvent.Open(Screen.Detail("r"))),
                 YourHoldout("l", "Lobby card", YourKind.Lobby, ChipTone.Accent, "Joined · 10 SKR staked", "starts in 2d 0h", false, NavEvent.Open(Screen.Lobby("l"))),
             ),
             open = listOf(OpenHoldout("o", "Offer card", "9,000 SKR", "at stake · 9 joined", null, "joining closes in 1d 23h", null, false)),
