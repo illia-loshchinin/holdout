@@ -46,7 +46,9 @@ class SetupGuideTest {
     private val dailyRule = "From your toes or your knees — both count."
     private val startLines = listOf(
         "Hold the top for a second. A ring fills, then “three, two, one, go”.",
-        "Nothing to tap. Each rep beeps; every 10 bank for good.",
+        "Nothing to tap. Each rep beeps.",
+        BANKED_KEPT,
+        BANKED_LOST,
         "Stop any time with ✕ in the corner.",
     )
 
