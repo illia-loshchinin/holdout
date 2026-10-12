@@ -87,7 +87,7 @@ The faucet figures above are **normative**: research R13 explains where they com
 | `no_finisher_boost` | u64 | The whole pool when there are no finishers, moved to the league's boost reserve; nothing is paid to a destination and nothing carries over into another cohort (FR-037; to the boost reserve since 2026-10-12, renamed from `no_finisher_fee`) |
 | `boost_received` | u64 | `min(floor(10 % × pool), league.boost_reserve)` drawn into the pool before shares (cap 10 % since 2026-10-10); 0 with no finishers or no forfeits (FR-037d) |
 | `comeback_owed` | u64 | Σ over the cohort's finishers who made their comeback good of `min(floor(10 % × forfeited stake), their stake)`, summed as `settle_count` counts them (FR-037e) |
-| `comeback_funded` | u64 | `== comeback_owed`: drawn from the league's `comeback_reserve` at finalize, in full (FR-037e) |
+| `comeback_funded` | u64 | `min(comeback_owed, league.comeback_reserve)` — always `comeback_owed`, because the reserve holds every owed refund: drawn from the league's `comeback_reserve` at finalize, in full (FR-037e, INV-10) |
 | `comeback_claimed` | u64 | Refunds paid out with claims so far; a claim pays the member's `comeback_entitled` in full (FR-037e). Not written once: rises per claim |
 
 **Derived, never stored** (`kotlin/core` `Derive.kt`, mirrored in program guards and pinned by `fixtures/`):
