@@ -4,7 +4,9 @@
 # run` reports a cohort open falling due before then (`nextOpenAt`, chain time):
 # the loop wakes a few seconds after it, so the next test cohort is joinable
 # moments after the one before starts, not up to an interval later (FR-044a).
-# Runs in the Fly machine and in the GitHub Actions fallback (with --once).
+# Between passes `crank scripted run` runs alone every CRANK_SCRIPTED_POLL_SECONDS
+# (default 60, 0 to switch off), so a Hackathon round tops up soon after someone
+# real joins it (FR-043). Runs in the Fly machine and in the GitHub Actions fallback (with --once).
 #
 # Keys come from the environment, never from the image or the repository:
 #   HOLDOUT_PAYER_KEY_JSON        the payer's Solana CLI keypair (a JSON array)
@@ -78,8 +80,32 @@ next_sleep() {
   (( wait < interval )) && echo "$wait" || echo "$interval"
 }
 
+# Between full passes, `scripted run` alone every CRANK_SCRIPTED_POLL_SECONDS
+# (default 60): a Hackathon round gets scripted members only once someone real
+# joins it (FR-043), and its lobby lasts 30 minutes, so a judge who joins finds
+# it topped up within a minute rather than up to a pass later. A poll that
+# does nothing prints nothing.
+poll_scripted() {
+  local out
+  out="$(java -jar "$JAR" scripted run)"
+  local status=$?
+  if (( status != 0 )) || grep -q '"step"' <<< "$out"; then
+    echo "=== $(date -u +%FT%TZ) crank scripted run (poll)"
+    echo "$out"
+    (( status != 0 )) && echo "=== poll ended with a failure; the next one retries (exit $status)"
+  fi
+  return 0
+}
+
 while true; do
   : > "$SUMMARY"
   pass || echo "=== pass ended with a failure; the next pass retries (exit $?)"
-  sleep "$(next_sleep)"
+  wait="$(next_sleep)"
+  poll="${CRANK_SCRIPTED_POLL_SECONDS:-60}"
+  while [[ -n "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" ]] && (( poll > 0 && wait > poll )); do
+    sleep "$poll"
+    wait=$(( wait - poll ))
+    poll_scripted
+  done
+  sleep "$wait"
 done

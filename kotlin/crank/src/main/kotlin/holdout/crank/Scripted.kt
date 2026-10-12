@@ -46,12 +46,17 @@ data class ScriptedWallet(val pubkey: SolanaPublicKey, val league: String, val g
  * and the roster live here and in the committed public list alone (FR-043a).
  *
  * - **Fill to a floor, real members first.** A cohort is topped up only to
- *   its league's floor — 20 for 7-day, 12 for 21-day — counting everyone
- *   already in it: to half the floor while its lobby is open, to the whole
- *   floor from 24 hours before the join cutoff. Never over, never leaving.
+ *   its league's floor — on devnet 20 for Spark, 4 for a Hackathon round and
+ *   none for Habit (owner, 13 October) — counting everyone already in it: to
+ *   half the floor while its lobby is open, to the whole floor from 24 hours
+ *   before the join cutoff. Never over, never leaving. A Hackathon round is
+ *   filled only once a real member has joined it: an empty one stays empty.
  * - **Which wallets.** The 7-day league plays the same 20 every week; the
  *   21-day league rotates three groups of 12 by cohort index, so no wallet is
- *   ever asked to overlap itself (FR-006b).
+ *   ever asked to overlap itself (FR-006b). Test leagues draw on all 36
+ *   21-day wallets, idle while Habit's floor is 0.
+ * - **SOL.** The payer tops a wallet up in its join transaction, so its
+ *   faucet claim mints SKR only and never spends testers' lamport budget.
  * - **Tiers and forfeits** come from a hash of the cohort and the wallet, so
  *   every pass — and anyone reading this file — agrees on them: about 40 %
  *   finish, and forfeits fall three times as often in the first half.
@@ -60,7 +65,19 @@ data class ScriptedWallet(val pubkey: SolanaPublicKey, val league: String, val g
  */
 object Scripted {
     const val DEFAULT_FLOOR_7D = 20
-    const val DEFAULT_FLOOR_21D = 12
+
+    /** None on devnet: judges will not run a 21-day Holdout, so its wallets play the Hackathon rounds (owner, 13 October). */
+    const val DEFAULT_FLOOR_21D = 0
+
+    /** A Hackathon round's floor, once a real member has joined it (owner, 13 October). */
+    const val DEFAULT_FLOOR_TEST = 4
+
+    /**
+     * What a wallet should hold above the faucet's `sol_top_up` before it
+     * claims and joins: a first claim's profile and token-account rent, a
+     * membership's rent and the fees of its days (R12).
+     */
+    const val JOIN_RESERVE_LAMPORTS = 10_000_000L
 
     /** The last cohort start that gets scripted members: Monday 9 November 2026, 05:00 UTC (R12). */
     val DEFAULT_LAST_START: Long = Instant.parse("2026-11-09T05:00:00Z").epochSecond
@@ -79,8 +96,8 @@ object Scripted {
 
     fun checkArgs(args: Args) {
         when (args.words.getOrNull(1)) {
-            "plan" -> args.allow("cohort", "floor-7d", "floor-21d", "floor-test")
-            "run" -> args.allow("floor-7d", "floor-21d", "floor-test", "last-start")
+            "plan" -> args.allow("cohort", "floor-7d", "floor-21d", "floor-test", "fill-empty")
+            "run" -> args.allow("floor-7d", "floor-21d", "floor-test", "fill-empty", "last-start")
             "fund" -> args.allow("lamports")
             else -> configError("unknown command '${args.words.joinToString(" ")}'; try --help")
         }
@@ -110,11 +127,11 @@ object Scripted {
     // ---- the plan: pure ----------------------------------------------------
 
     /**
-     * [test] is 0 by default: on devnet the short test cohort is filled by
-     * testers alone (FR-044a). A local run (quickstart §5a) sets it to watch
-     * a whole cycle — forfeits, settlement — with nobody on a phone.
+     * The devnet floors (FR-043). [test] applies only to a round a real member
+     * has joined ([needsRealMember]); a local run (quickstart §5a) passes its
+     * own floors to watch a whole cycle with nobody on a phone.
      */
-    data class Floors(val sevenDay: Int = DEFAULT_FLOOR_7D, val twentyOneDay: Int = DEFAULT_FLOOR_21D, val test: Int = 0) {
+    data class Floors(val sevenDay: Int = DEFAULT_FLOOR_7D, val twentyOneDay: Int = DEFAULT_FLOOR_21D, val test: Int = DEFAULT_FLOOR_TEST) {
         fun of(leagueId: Int): Int = when (leagueId) {
             LeagueParams.LEAGUE_7D -> sevenDay
             LeagueParams.LEAGUE_21D -> twentyOneDay
@@ -140,17 +157,25 @@ object Scripted {
      */
     fun deficit(c: CohortSnapshot, floor: Int, now: Long, members: Int = 0): Int = (target(c, floor, now) - maxOf(c.memberCount.toInt(), members)).coerceAtLeast(0)
 
-    /** The wallets that may play [leagueId]'s cohort [index]: the 7-day twenty, or the 21-day group whose turn it is. */
+    /** Whether [leagueId]'s cohorts get scripted members only once a real member has joined: the Hackathon rounds (FR-043). */
+    fun needsRealMember(leagueId: Int): Boolean = leagueId >= LeagueParams.TEST_LEAGUE_MIN
+
+    /** [needsRealMember], unless `--fill-empty` — a local run (quickstart §5a) — fills empty rounds too. */
+    private fun waitsForReal(leagueId: Int, args: Args): Boolean = needsRealMember(leagueId) && "fill-empty" !in args.flags
+
+    /** Lamports the payer sends a wallet holding [balance] before it claims and joins, so the claim takes none from the faucet (FR-043a). */
+    fun solTopUp(balance: Long, faucetTopUp: Long): Long = (faucetTopUp + JOIN_RESERVE_LAMPORTS - balance).coerceAtLeast(0)
+
+    /** The wallets that may play [leagueId]'s cohort [index]: the 7-day twenty, the 21-day group whose turn it is, or for a test league all 36 21-day wallets. */
     fun poolFor(roster: List<ScriptedWallet>, leagueId: Int, index: Long): List<ScriptedWallet> = when (leagueId) {
         LeagueParams.LEAGUE_7D -> roster.filter { it.group == "7d" }
         LeagueParams.LEAGUE_21D -> {
             val groups = roster.filter { it.league == "21d" }.map { it.group }.distinct().sorted()
             if (groups.isEmpty()) emptyList() else roster.filter { it.group == groups[(index % groups.size).toInt()] }
         }
-        // Only ever with --floor-test, which judged runs never pass: every scripted
-        // wallet, since test cohorts may start every few minutes and each wallet
-        // can hold only one running Holdout at a time (FR-006b).
-        else -> roster
+        // A Hackathon round starts every 30 minutes and each wallet holds one running
+        // Holdout at a time (FR-006b): the 36 wallets Habit leaves idle on devnet.
+        else -> roster.filter { it.league == "21d" }
     }.sortedBy { it.index }
 
     private fun seed(cohort: SolanaPublicKey, wallet: SolanaPublicKey, salt: String): Long {
@@ -217,7 +242,7 @@ object Scripted {
 
     private fun floors(args: Args): Floors {
         fun floor(name: String, default: Int) = args.option(name)?.let { it.toIntOrNull()?.takeIf { n -> n in 0..1_000 } ?: configError("--$name must be 0..1000, got $it") } ?: default
-        return Floors(floor("floor-7d", DEFAULT_FLOOR_7D), floor("floor-21d", DEFAULT_FLOOR_21D), floor("floor-test", 0))
+        return Floors(floor("floor-7d", DEFAULT_FLOOR_7D), floor("floor-21d", DEFAULT_FLOOR_21D), floor("floor-test", DEFAULT_FLOOR_TEST))
     }
 
     suspend fun plan(args: Args, config: CrankConfig, rpc: Rpc, roster: List<ScriptedWallet> = roster()): JsonObject {
@@ -241,7 +266,8 @@ object Scripted {
             put("members", c.memberCount)
             put("real", members.size - scripted.size)
             put("scripted", scripted.size)
-            put("deficit", deficit(c, floor, now))
+            put("needsRealMember", waitsForReal(c.leagueId, args))
+            put("deficit", if (waitsForReal(c.leagueId, args) && scripted.size == members.size) 0 else deficit(c, floor, now, members.size))
             putJsonArray("pool") {
                 poolFor(roster, c.leagueId, c.index).forEach { w ->
                     addJsonObject {
@@ -284,6 +310,10 @@ object Scripted {
             k
         }
 
+        // Loaded on the first top-up only: a pass that sends no SOL needs no payer.
+        val payer by lazy { loadKeypair(config.requirePayer(), "payer") }
+        val scriptedKeys = roster.map { it.pubkey }.toSet()
+
         val steps = mutableListOf<JsonObject>()
         var failures = 0
 
@@ -324,9 +354,12 @@ object Scripted {
             // ---- fill an open lobby to its target -----------------------------
             if (status == CohortStatus.Open && c.start <= lastStart) {
                 if (target(c, floor, now) == 0) continue
+                // A Hackathon round nobody real has joined stays empty (FR-043).
+                if (waitsForReal(c.leagueId, args) && c.memberCount == 0L) continue
                 // The cohort and its roster read again, together: a member who joined or
                 // left since the cohort list was read moves the deficit either way.
                 val fresh = rpc.cohortRead(programId, address) ?: failed("could not read cohort ${c.leagueId}/${c.index} and its roster")
+                if (waitsForReal(c.leagueId, args) && fresh.members.all { it.wallet in scriptedKeys }) continue
                 var needed = deficit(fresh.cohort, floor, now, fresh.members.size)
                 if (needed == 0) continue
                 val inCohort = fresh.members.map { it.wallet }.toSet()
@@ -345,6 +378,8 @@ object Scripted {
                     // A read that failed is not an empty account: skip the wallet this pass rather than spend its faucet claim.
                     val balance = rpc.tokenAmount(Pdas.associatedToken(w.pubkey, onChain.skrMint)) ?: continue
                     val needsFaucet = balance < c.chips[tier]
+                    val lamports = rpc.balance(w.pubkey) ?: continue
+                    val topUp = solTopUp(lamports, onChain.solTopUp.toLong())
                     val key = keyOf(w)
                     // Only a join that landed fills a place; after a failed one the next wallet is tried.
                     val joined = attempt("join", {
@@ -352,12 +387,15 @@ object Scripted {
                         put("wallet", w.pubkey.base58())
                         put("tier", tier)
                         put("faucet", needsFaucet)
+                        if (topUp > 0) put("solTopUp", topUp)
                     }) {
                         val ixs = buildList {
+                            // First, so the claim finds the faucet's top-up already held and moves no lamports; the payer then pays the fee too.
+                            if (topUp > 0) add(Instructions.systemTransfer(payer.publicKey, w.pubkey, topUp.toULong()))
                             if (needsFaucet) add(Instructions.claimFaucet(programId, w.pubkey, w.pubkey, onChain.skrMint, onChain.sponsor))
                             add(Instructions.joinCohort(programId, w.pubkey, onChain.skrMint, address, tier, running))
                         }
-                        signAndSend(rpc, "scripted join ${c.leagueId}/${c.index}", ixs, listOf(key), args.dryRun, pause, beforeRetrying = "the next pass re-reads the roster")
+                        signAndSend(rpc, "scripted join ${c.leagueId}/${c.index}", ixs, if (topUp > 0) listOf(payer, key) else listOf(key), args.dryRun, pause, beforeRetrying = "the next pass re-reads the roster")
                     }
                     if (joined) needed--
                 }
