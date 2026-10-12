@@ -10,19 +10,17 @@
   `/speckit-analyze` on the feature and check spec, plan, tasks, data model, contracts and
   quickstart against the code on the branch. Fix any drift through the skills above, then mark it
   ready or merge.
-- **Run `bash scripts/ci-local.sh --report` and get it green before a pull request is marked
-  ready for review, and again before it is merged** — on the branch as it will land: the latest
-  base merged in, committed and pushed. It runs the same four jobs as GitHub Actions (the Solana
-  side in WSL, Kotlin on Windows) and replaces the Actions check while Actions is off: it sets the
-  commit status **CI (local)** on the PR's head commit and keeps one comment on the PR with the
-  per-job results. A green CI (local) on the head commit is the merge gate. A run that started
-  with uncommitted changes, or whose HEAD is not the pushed PR head or does not contain the base's
-  tip, sets no status; one that skipped a job sets no green one. A change needs no run only when
-  `git diff --name-only origin/<base>...HEAD | bash scripts/needs-ci.sh` prints `false` —
-  documentation alone, where the few docs files a job reads (the README's weaknesses table and
-  its source, the program-instructions contract) count as code.
+- **The GitHub Actions check `CI` must be green on the PR's head commit before a pull request is
+  marked ready for review, and again before it is merged** — on the branch as it will land: the
+  latest base merged in, committed and pushed. Actions is on again since 2026-10-12 (the repository
+  is public); it runs the four jobs on every push and pull request, and `scripts/needs-ci.sh`
+  skips them for documentation alone, where the few docs files a job reads (the README's
+  weaknesses table and its source, the program-instructions contract) count as code.
+  `bash scripts/ci-local.sh` runs the same four jobs on this machine (the Solana side in WSL,
+  Kotlin on Windows) — use it to check before pushing, or with `--report` (commit status
+  **CI (local)** and a PR comment) only if Actions is unavailable; it is no longer a required step.
 - **Codex reviews only a pull request that is ready for review — so mark it ready to get one.**
-  A draft gets no Codex review. Once the spec-kit check and CI (local) are green on the head
+  A draft gets no Codex review. Once the spec-kit check and the `CI` check are green on the head
   commit (the two rules above), run `gh pr ready <PR number>` and comment `@codex review`, then
   wait for Codex with the PR left ready. Do not keep a PR in draft while waiting for a review, and
   do not start a stand-in review while Codex can still answer. Fix or answer every Codex finding on

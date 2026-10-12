@@ -1,0 +1,29 @@
+Copyright (c) 2026 Illia Loshchinin. All rights reserved.
+
+This repository, including the Holdout Android application, the Holdout Solana
+program, and all accompanying source code, documentation, designs and assets
+(the "Software"), is proprietary.
+
+The source is made publicly visible for review, including evaluation by the
+judges of the Solana Mobile CLOCK IN hackathon. You may view the Software and,
+for that purpose only, build and run it on your own devices.
+
+No other right is granted. Without the prior written permission of the
+copyright holder you may not use, copy, modify, merge, publish, distribute,
+sublicense, sell, or create derivative works of the Software, in whole or in
+part, or deploy it or any part of it for others to use.
+
+Viewing and forking this repository on GitHub is governed by GitHub's Terms of
+Service; a fork grants no rights beyond those stated here.
+
+Third-party components bundled with the Software (such as fonts under the SIL
+Open Font License and the MediaPipe model) remain under their own licenses.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT OF
+OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
+
+For permission requests, contact the copyright holder through
+https://github.com/illia-loshchinin.
