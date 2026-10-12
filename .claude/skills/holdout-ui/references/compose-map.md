@@ -41,9 +41,10 @@ Kotlin stores ARGB (`0xAARRGGBB`); the book stores `#rrggbbaa`.
 | `body` | `MaterialTheme.typography.bodyLarge` | 16/24 |
 | `label` | `LabelStyle` (= `labelMedium`) | 13/16 Medium, +0.02em, `.uppercase()` at call site |
 
-Fonts: the book names Roboto Flex (numbers) and JetBrains Mono (amounts). The app currently uses
-`FontFamily.Default` and `FontFamily.Monospace` as stand-ins (see `Type.kt` KDoc). Don't add font
-files as part of a screen task; mention it if the screen relies on it.
+Fonts: both faces the book names are bundled in `res/font/` (OFL, texts in `assets/licenses/`):
+`HoldoutFonts.Mono` (JetBrains Mono 400/500) for amounts, countdowns and addresses — never
+`FontFamily.Monospace` — and `HoldoutFonts.FlexCounter` / `FlexDisplay` (Roboto Flex 300, optical size
+56 / 40) behind `CounterStyle` and `DisplayStyle`. UI text stays the system Roboto (`FontFamily.Default`).
 Don't use `bodyMedium`/`bodySmall`/other M3 slots — they are not defined by the book and fall back to
 Material defaults (`Notice` currently does this).
 

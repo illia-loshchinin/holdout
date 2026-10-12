@@ -13,12 +13,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import holdout.app.ui.Format
 import holdout.app.ui.LocalSeekerNames
 import holdout.app.ui.MemberIdentity
 import holdout.app.ui.ScriptedChip
 import holdout.app.ui.theme.HoldoutColors
+import holdout.app.ui.theme.HoldoutFonts
 import holdout.app.ui.theme.Spacing
 
 /**
@@ -41,7 +41,7 @@ fun LobbyRosterRow(wallet: String, isYou: Boolean, scripted: Boolean, modifier: 
                 isYou = isYou,
                 budget = NAME_BUDGET,
                 color = HoldoutColors.TextPrimary,
-                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace, fontFeatureSettings = "tnum"),
+                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = HoldoutFonts.Mono, fontFeatureSettings = "tnum"),
                 modifier = Modifier.weight(1f),
             )
             if (scripted) ScriptedChip()
