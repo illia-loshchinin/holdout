@@ -11,7 +11,7 @@ import holdout.core.Stage
 import holdout.repcounter.Stakes
 
 /** Where the member's day stands: what is left to do, a finished day not yet on the chain, or on the chain. */
-internal enum class DayPhase {
+enum class DayPhase {
     /** Reps still to do (or being done): Start, Keep going. */
     ToDo,
 
@@ -26,13 +26,13 @@ internal enum class DayPhase {
 }
 
 /** The colour a day's title takes, resolved by the screen from theme colours. */
-internal enum class DayTone { Plain, Accent, Success, Warning }
+enum class DayTone { Plain, Accent, Success, Warning }
 
 /** What the day button does; [None] is the one that only says the wallet is out. */
-internal enum class DayAction { Start, Submit, None }
+enum class DayAction { Start, Submit, None }
 
 /** The day's one button: its words and what a tap does. */
-internal data class DayButton(val label: String, val action: DayAction, val enabled: Boolean = true, val busy: Boolean = false)
+data class DayButton(val label: String, val action: DayAction, val enabled: Boolean = true, val busy: Boolean = false)
 
 /**
  * A running Holdout's day for the member standing in it — one model for Today
@@ -40,7 +40,7 @@ internal data class DayButton(val label: String, val action: DayAction, val enab
  * the deadline or whether the day is done (FR-024b, FR-038, FR-047, FR-069a/b).
  * Pure: the screens only draw it.
  */
-internal data class DayState(
+data class DayState(
     val phase: DayPhase,
     /** The Holdout's day index, 0-based: what a submit sends. */
     val dayIndex: Int,
