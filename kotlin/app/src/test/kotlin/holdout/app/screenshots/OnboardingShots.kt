@@ -137,14 +137,12 @@ class OnboardingShots {
 
     // ---- Faucet sheet, About ------------------------------------------------------------------------------
 
-    private fun faucet(name: String, outcome: FaucetOutcome? = null, claimedToday: Boolean = false, back: String? = null, busy: Boolean = false) = compose.shoot("onboarding", name) {
+    private fun faucet(name: String, outcome: FaucetOutcome? = null, back: String? = null, busy: Boolean = false) = compose.shoot("onboarding", name) {
         Sheeted(behind = { Tabbed(Tab.Me) { MeScreen(meState, {}, {}, {}, {}) } }) {
             FaucetSheet(
                 skr = 400_000_000uL,
                 lamports = 1_000L,
                 maxTopTier = 5_000_000_000uL,
-                claimedToday = claimedToday,
-                now = now,
                 busy = busy,
                 outcome = outcome,
                 onClaim = {},
@@ -167,7 +165,7 @@ class OnboardingShots {
     fun faucetFunded() = faucet("faucet-funded", outcome = FaucetOutcome.Funded("4Bx9pQ7Qk2abcdef"), back = "Back to the stake sheet")
 
     @Test
-    fun faucetUsedToday() = faucet("faucet-used-today", outcome = FaucetOutcome.UsedToday(now + 6 * 3_600 + 40 * 60), claimedToday = true)
+    fun faucetFundedFromMe() = faucet("faucet-funded-from-me", outcome = FaucetOutcome.Funded("4Bx9pQ7Qk2abcdef"))
 
     @Test
     fun faucetCannotPayOut() = faucet("faucet-cannot-pay-out", outcome = FaucetOutcome.CannotPayOut)

@@ -134,7 +134,7 @@ class MeScreenTest {
         compose.onNodeWithText("4,750 SKR").assertIsDisplayed()
         compose.onNodeWithText("Devnet SOL for fees").assertIsDisplayed()
         compose.onNodeWithText("0.012 SOL").assertIsDisplayed()
-        compose.onNodeWithText("One tap a day: 5,000 test SKR, plus SOL for fees. Test network, test token.").assertIsDisplayed()
+        compose.onNodeWithText("One tap: 5,000 test SKR, plus SOL for fees. Test network, test token.").assertIsDisplayed()
         compose.onNodeWithText("Get test tokens").performScrollTo().performClick()
         assertEquals(1, tokens)
     }
