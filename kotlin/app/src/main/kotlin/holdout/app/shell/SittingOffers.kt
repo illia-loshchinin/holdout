@@ -26,7 +26,7 @@ internal object SittingOffers {
         val busy = view.mine(now).any { h -> h.stage(now).let { it is Stage.Active || it == Stage.Lobby || it == Stage.LobbyLocked } }
         if (busy) return null
         TodayModel.comeback(view, now, seekerKnown)?.let { return SittingOffer(DayCompleteOffer(COMEBACK_TITLE, it.text), it.go) }
-        val next = view.openToJoin(now).minByOrNull { Derive.timeUntilJoiningCloses(it.cohort, now) } ?: return null
+        val next = view.joinable(now).minByOrNull { Derive.timeUntilJoiningCloses(it.cohort, now) } ?: return null
         val card = OfferCardState.of(next, now)
         return SittingOffer(
             DayCompleteOffer(STAKE_TITLE, "${card.title} · ${card.timing.replaceFirstChar { it.lowercase() }}"),
