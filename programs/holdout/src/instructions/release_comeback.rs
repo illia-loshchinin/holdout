@@ -7,16 +7,22 @@
 //!
 //! Counting already releases a pledge whenever its member is counted again in
 //! the league. This is for the member who never comes back. A pledge is
-//! released only once its **last** round cannot make it good any more (the
-//! earlier one, if there are two, is settled before the last can be):
+//! released only once **none** of its rounds can make it good any more:
 //!
-//!  - **the round was opened** (`league.next_index > round`): it must be passed
-//!    and settled. Had the member finished it, counting would have made the
-//!    pledge owed and closed the comeback; had they forfeited it, counting
-//!    would have replaced the comeback with a new one for a later round.
-//!  - **the round was never opened**: its first day, by the league's schedule,
-//!    has passed — later than its joining closes, and later than any comeback
-//!    member may join it — so if it opens now nobody can ever be in it.
+//!  - **every round that was opened is settled.** The latest opened one —
+//!    cohort `min(last, next_index − 1)` — must be passed and settled; cohorts
+//!    settle in order, so the earlier rounds are settled too. Had the member
+//!    finished one, counting would have made the pledge owed and closed the
+//!    comeback; had they forfeited one, counting would have replaced the
+//!    comeback with a new one for a later round.
+//!  - **a round never opened can no longer take anyone**: the first day of the
+//!    last round, by the league's schedule, has passed — later than its
+//!    joining closes, and later than any comeback member may join it — so if
+//!    it opens now nobody can ever be in it.
+//!
+//! Both hold when only some of the rounds were opened. Checking the time alone
+//! would let a pledge go while its member's finish of an earlier round still
+//! waits to be counted.
 //!
 //! What a later boost draws may therefore depend on when this ran; a pledge
 //! never does (INV-10).
@@ -54,8 +60,9 @@ pub struct ReleaseComeback<'info> {
     )]
     pub profile: Box<Account<'info, Profile>>,
 
-    /// The comeback's last round — cohort `comeback_last_round` of this
-    /// league — required once it has been opened.
+    /// The comeback's latest opened round — cohort
+    /// `min(comeback_last_round, league.next_index − 1)` of this league —
+    /// required once its first round has been opened.
     pub round: Option<Box<Account<'info, Cohort>>>,
 }
 
@@ -66,21 +73,27 @@ pub(crate) fn handler(ctx: Context<ReleaseComeback>) -> Result<()> {
     let pledge = progress
         .open_pledge_in(league_id)
         .ok_or(error!(HoldoutError::NoComebackToRelease))?;
+    let first = progress.comeback_round;
     let round = progress.comeback_last_round;
 
     let league = &ctx.accounts.league;
-    if league.next_index > round {
+    if league.next_index > first {
+        // The latest of its rounds the league has opened, settled — and with
+        // it every earlier one, since cohorts settle in order.
+        let latest = round.min(league.next_index - 1);
         let cohort = ctx
             .accounts
             .round
             .as_ref()
             .ok_or(error!(HoldoutError::AccountMismatch))?;
         require!(
-            cohort.league_id == league_id && cohort.index == round,
+            cohort.league_id == league_id && cohort.index == latest,
             HoldoutError::AccountMismatch
         );
         require!(cohort.settled, HoldoutError::ComebackStillOpen);
-    } else {
+    }
+    if league.next_index <= round {
+        // A round not opened yet: nobody can be in it once its first day has passed.
         let start = schedule::cohort_start(league.first_start, league.cadence, round);
         let first_deadline = schedule::deadline_of(start, league.day_length, 0);
         require!(now > first_deadline, HoldoutError::ComebackStillOpen);

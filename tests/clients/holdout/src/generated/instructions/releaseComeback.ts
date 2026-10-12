@@ -39,8 +39,9 @@ caller: TAccountCaller;
 league: TAccountLeague;
 profile: TAccountProfile;
 /**
- * The comeback's last round — cohort `comeback_last_round` of this
- * league — required once it has been opened.
+ * The comeback's latest opened round — cohort
+ * `min(comeback_last_round, league.next_index − 1)` of this league —
+ * required once its first round has been opened.
  */
 round?: TAccountRound;
 }
@@ -69,8 +70,9 @@ caller: TAccountMetas[0];
 league: TAccountMetas[1];
 profile: TAccountMetas[2];
 /**
- * The comeback's last round — cohort `comeback_last_round` of this
- * league — required once it has been opened.
+ * The comeback's latest opened round — cohort
+ * `min(comeback_last_round, league.next_index − 1)` of this league —
+ * required once its first round has been opened.
  */
 round?: TAccountMetas[3] | undefined;
 };

@@ -316,19 +316,25 @@ class RunTest {
     private fun profileOf(vararg progress: ProfileSnapshot.LeagueProgress) = ProfileSnapshot(comebackWallet, progress.toList() + List(3 - progress.size) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, null, null)
 
     @Test
-    fun `a comeback is released once its last round is settled, or never opened and its first day has passed`() {
+    fun `a comeback is released once every opened round is settled and an unopened last round can take nobody`() {
         val next = mapOf(0 to 3L)
         val cohorts = mapOf((0 to 0L) to cohort(0, settled = true), (0 to 1L) to cohort(1), (0 to 2L) to cohort(2, settled = true))
         val now = first + 5 * week
         fun due(vararg p: ProfileSnapshot.LeagueProgress, at: Long = now) = Run.releasesDue(listOf(profileOf(*p)), listOf(league0), next, cohorts, at)
         // Opened: only the settled last round releases it.
-        assertEquals(listOf(Run.ReleaseDue(comebackWallet, 0, 2L)), due(progressOf(0, 100uL, 2, 2)))
+        assertEquals(listOf(Run.ReleaseDue(comebackWallet, 0, 2L, account = 2L)), due(progressOf(0, 100uL, 2, 2)))
         assertEquals(emptyList(), due(progressOf(0, 100uL, 1, 1)), "cohort 1 is opened and not settled: the member could still finish it")
-        assertEquals(listOf(2L), due(progressOf(0, 100uL, 1, 2)).map { it.round }, "a two-round comeback is judged by its last round")
+        assertEquals(listOf(2L), due(progressOf(0, 100uL, 1, 2)).map { it.account }, "the latest opened round is the one checked")
+        // Rounds 2 and 3, only 2 opened: 2 settled is not enough until round 3's first day has passed too.
+        val thirdStart = first + 3 * week
+        assertEquals(emptyList(), due(progressOf(0, 100uL, 2, 3), at = thirdStart + day - 1), "round 3 could still take its member")
+        assertEquals(listOf(Run.ReleaseDue(comebackWallet, 0, 3L, account = 2L)), due(progressOf(0, 100uL, 2, 3), at = thirdStart + day))
+        // Rounds 1 and 2 with only 1 opened and not settled: its member may have finished it, so nothing goes yet.
+        assertEquals(emptyList(), Run.releasesDue(listOf(profileOf(progressOf(0, 100uL, 1, 2))), listOf(league0), mapOf(0 to 2L), cohorts, now))
         // Never opened (league 0 has opened 0..2): due once the round's first day by the schedule has passed.
         val roundStart = first + 4 * week
         assertEquals(emptyList(), due(progressOf(0, 100uL, 4, 4), at = roundStart + day - 1), "the first day is not over")
-        assertEquals(listOf(4L), due(progressOf(0, 100uL, 4, 4), at = roundStart + day).map { it.round })
+        assertEquals(listOf(Run.ReleaseDue(comebackWallet, 0, 4L, account = null)), due(progressOf(0, 100uL, 4, 4), at = roundStart + day))
         // Nothing open, or a league the crank does not know: nothing to release.
         assertEquals(emptyList(), due(progressOf(0, 0uL, 2, 2)))
         assertEquals(emptyList(), due(progressOf(7, 100uL, 2, 2)))

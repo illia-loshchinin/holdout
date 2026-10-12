@@ -123,16 +123,20 @@ object Run {
     /** The program's `schedule::cohort_start`. */
     fun scheduledStart(league: LeagueSnapshot, index: Long): Long = Schedule.cohortStart(league.params.firstStart, league.params.cadence, index)
 
-    /** One open comeback whose pledge `release_comeback` can move to the boost reserve. */
-    data class ReleaseDue(val wallet: SolanaPublicKey, val leagueId: Int, val round: Long)
+    /**
+     * One open comeback whose pledge `release_comeback` can move to the boost reserve: [round] is its last round,
+     * [account] the latest of its rounds the league has opened — the cohort the instruction is passed — or null.
+     */
+    data class ReleaseDue(val wallet: SolanaPublicKey, val leagueId: Int, val round: Long, val account: Long? = null)
 
     /**
      * The open comebacks due for release at [now] (FR-037e), the program's own
-     * test in `release_comeback`: a comeback is released once its **last** round
-     * can no longer be finished. If the league has opened that round
-     * (`nextIndex > round`), its cohort must be settled; if it has not, the
-     * round's first day, by the league's schedule, must have passed — later
-     * than joining closes, and later than its comeback member may join late.
+     * test in `release_comeback`: a comeback is released once **none** of its
+     * rounds can be finished any more. Every round the league has opened must be
+     * settled — the latest of them, `min(last, nextIndex − 1)`, is checked, and
+     * cohorts settle in order — and if the last round is not opened yet, its
+     * first day, by the league's schedule, must have passed: later than joining
+     * closes, and later than its comeback member may join late.
      * [nextIndex] is each league's next index as it stands after this pass.
      */
     fun releasesDue(profiles: Collection<ProfileSnapshot>, leagues: Collection<LeagueSnapshot>, nextIndex: Map<Int, Long>, cohorts: Map<Pair<Int, Long>, CohortSnapshot>, now: Long): List<ReleaseDue> {
@@ -141,15 +145,13 @@ object Run {
             profile.leagues.mapNotNull { progress ->
                 if (progress.comebackStake == 0uL) return@mapNotNull null
                 val league = byId[progress.comebackLeague] ?: return@mapNotNull null
+                val first = progress.comebackRound
                 val round = progress.comebackLastRound
-                val opened = (nextIndex[league.params.leagueId] ?: league.nextIndex) > round
-                val due =
-                    if (opened) {
-                        cohorts[league.params.leagueId to round]?.settled == true
-                    } else {
-                        now > Schedule.deadlineOf(scheduledStart(league, round), league.params.dayLength, 0)
-                    }
-                if (due) ReleaseDue(profile.wallet, league.params.leagueId, round) else null
+                val next = nextIndex[league.params.leagueId] ?: league.nextIndex
+                val latest = if (next > first) minOf(round, next - 1) else null
+                val settled = latest == null || cohorts[league.params.leagueId to latest]?.settled == true
+                val closed = next > round || now > Schedule.deadlineOf(scheduledStart(league, round), league.params.dayLength, 0)
+                if (settled && closed) ReleaseDue(profile.wallet, league.params.leagueId, round, latest) else null
             }
         }
     }
@@ -465,8 +467,8 @@ object Run {
             pass.record("release_comeback", "failed") { put("error", "could not list profiles from ${config.rpcUrl}") }
         } else {
             for (due in releasesDue(profiles, leagues, nextIndex, cohorts, now)) {
-                // The last round's cohort is passed once the league has opened it; the program judges by the schedule otherwise.
-                val round = if (nextIndex.getValue(due.leagueId) > due.round) Pdas.cohort(programId, due.leagueId, due.round) else null
+                // The latest opened round's cohort is passed; a round not opened yet the program judges by the schedule.
+                val round = due.account?.let { Pdas.cohort(programId, due.leagueId, it) }
                 pass.send("release_comeback", {
                     put("league", due.leagueId)
                     put("round", due.round)
