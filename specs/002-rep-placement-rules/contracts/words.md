@@ -14,7 +14,7 @@ Members read the two staked levels as **Spark · 7-day** and **Habit · 21-day**
 
 > At 45° only: phone on the floor ahead of your shoulder. Full push-ups from your toes — push-ups from the knees don't count.
 
-Each is shown on the stake sheet of that level (001 T059, T228), and on the pre-flight page of a sitting in that Holdout *(2026-10-12: no longer on the set-up guide, whose Rules tab lists the sitting's own rule lines, below)*. A Spark screen never shows the Habit sentence, nor the reverse. The tour's counting card (card 3 of 4, FR-013) states the placement and the knee rule in its own words, not by quoting a sentence. The Daily 25 shows the caption "counted as the Spark" instead of a level sentence (FR-014). The hips-resting rule (FR-008, 2026-10-04) is applied by the counter and is not part of either sentence. *(Until 2026-10-11 one sentence, "Staked Holdouts are counted at 45° …", served every Holdout.)*
+Each is shown on the stake sheet of that level (001 T059, T228), and on the pre-flight page of a sitting in that Holdout *(2026-10-12: no longer on the set-up guide, whose Rules tab lists the sitting's own rule lines, below)*. A Spark screen never shows the Habit sentence, nor the reverse. The tour's counting card (card 4 of 5, FR-013) states the placement and the knee rule in its own words, not by quoting a sentence. The Daily 25 shows the caption "counted as the Spark" instead of a level sentence (FR-014). The hips-resting rule (FR-008, 2026-10-04) is applied by the counter and is not part of either sentence. *(Until 2026-10-11 one sentence, "Staked Holdouts are counted at 45° …", served every Holdout.)*
 
 ## Refused placement (FR-004) — `Stakes.cameraFix`, `Preflight`
 
@@ -65,7 +65,7 @@ Title "Before you get down", the sitting's level at its right; tabs **1. Positio
 
 ## The tour's counting card (FR-013) *(amended 2026-10-12)*
 
-- Card 3 shows the "from above" panel (the guide's "At 45°" top view, about 120 × 74 dp, left of the rep count) labelled "~1.5m ahead of your shoulder", and the line "No microphone, ever. Reps are counted on this phone — no video or body data leaves the app."
+- Card 4 of 5 shows the "from above" panel (the guide's "At 45°" top view, about 120 × 74 dp, left of the rep count) labelled "~1.5m ahead of your shoulder", and the line "No microphone, ever. Reps are counted on this phone — no video or body data leaves the app."
 
 ## Framing (FR-024, FR-010) — the Whole body in frame pill, before the hold
 
