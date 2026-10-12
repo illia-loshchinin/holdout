@@ -60,6 +60,19 @@ data class ChainView(
     fun openToJoin(now: Long): List<Holdout> = holdouts.filter { it.status(now) == CohortStatus.Open && it.membership == null }
 
     /**
+     * What the app offers to join: [openToJoin] minus every Holdout the program would refuse the wallet now
+     * (a lobby place already held, a running Holdout that ends after it starts, FR-006a, FR-006b), so a Join
+     * shown is a Join that goes through. The program re-checks all of it.
+     */
+    fun joinable(now: Long): List<Holdout> = openToJoin(now).filter { joinBlocker(it, now) == null }
+
+    /** Why the program would refuse the wallet a place in [h] at [now], or null when it would take it (FR-006a, FR-006b). */
+    fun joinBlocker(h: Holdout, now: Long): Journey.JoinBlocker? = Journey.joinBlocker(h.cohort, profile, runningEnd(now), now, runningInBreach = runningInBreach(now))
+
+    /** Whether the wallet waits in a lobby, open or locked: its one lobby place is taken, so no other join is offered (FR-006a). */
+    fun holdsLobbyPlace(now: Long): Boolean = holdouts.any { it.membership != null && it.stage(now).let { s -> s == Stage.Lobby || s == Stage.LobbyLocked } }
+
+    /**
      * Running Holdouts the wallet is not in — Home's read-only "Running now"
      * list, so any connected wallet, with or without a Seeker, can watch a
      * Holdout thin (FR-062a, FR-003c, constitution XII).
