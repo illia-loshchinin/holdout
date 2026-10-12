@@ -95,7 +95,7 @@ The full list, each with its real fix, is in the README's
 
 ## Tests
 
-- **65 Rust unit tests** in the program. The settlement maths is checked against golden vectors
+- **66 Rust unit tests** in the program. The settlement maths is checked against golden vectors
   in [`fixtures/settlement-vectors.json`](../fixtures/settlement-vectors.json).
 - **About 300 contract tests** in [`tests/`](../tests/) (TypeScript, `@solana/kit` + LiteSVM):
   15 scenario suites (join and leave, forfeits, settlement, reserves, comeback joins, faucet,

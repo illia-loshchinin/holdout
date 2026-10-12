@@ -226,9 +226,9 @@ The signed release, the build options and troubleshooting are in
 
 | | |
 |---|---|
-| **≈ 1,780 Kotlin tests** | `:app` 1,265 (incl. Robolectric and Roborazzi screen tests), `:core` 229, `:repcounter` 150, `:crank` 143 |
+| **≈ 1,780 Kotlin tests** | `:app` 1,269 (incl. Robolectric and Roborazzi screen tests), `:core` 229, `:repcounter` 150, `:crank` 144 |
 | **≈ 300 contract tests** | TypeScript, `@solana/kit` + LiteSVM: 15 scenario suites and a randomised invariant checker |
-| **65 Rust unit tests** | Settlement maths checked against golden vectors |
+| **66 Rust unit tests** | Settlement maths checked against golden vectors |
 | **278 labelled reps** | From 27 recorded sets, replayed by a regression ratchet that fails on any change |
 
 Every pull request has to pass four CI jobs: `program`, `anchor`, `contract-tests` and `kotlin`.
