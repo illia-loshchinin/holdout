@@ -15,11 +15,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
-import holdout.app.holdouts.FinishedHoldout
 import holdout.app.holdouts.MyHoldoutsScreen
 import holdout.app.holdouts.MyHoldoutsState
 import holdout.app.holdouts.OpenHoldout
-import holdout.app.holdouts.RunningHoldout
+import holdout.app.holdouts.PastHoldout
 import holdout.app.holdouts.YourHoldout
 import holdout.app.holdouts.YourKind
 import holdout.app.nav.Nav
@@ -166,12 +165,9 @@ class AppShellTest {
         event(NavEvent.Back)
         compose.onNodeWithText("Running card").assertExists()
 
-        event(NavEvent.SelectTab(Tab.Holdouts))
-        compose.onNodeWithText("Watched card").performScrollTo().performClick()
-        compose.onNodeWithText("Pushed: Detail(cohort=w)").assertExists()
-
-        event(NavEvent.Back)
-        compose.onNodeWithText("Finished line →").performScrollTo().performClick()
+        // A won Holdout is on the Past tab, one tap on the switch away; its row opens the detail.
+        compose.onNodeWithText("Past · 1").performClick()
+        compose.onNodeWithText("Won row").performScrollTo().performClick()
         compose.onNodeWithText("Pushed: Detail(cohort=f)").assertExists()
     }
 
@@ -289,8 +285,7 @@ class AppShellTest {
                 YourHoldout("l", "Lobby card", YourKind.Lobby, ChipTone.Accent, "Joined · 10 SKR staked", "starts in 2d 0h", false, NavEvent.Open(Screen.Lobby("l"))),
             ),
             open = listOf(OpenHoldout("o", "Offer card", "9,000 SKR", "at stake · 9 joined", null, "joining closes in 1d 23h", false)),
-            finished = listOf(FinishedHoldout("f", "Finished line", NavEvent.Open(Screen.Detail("f")))),
-            running = listOf(RunningHoldout("w", "Watched card", "12 started · prize pool 0 SKR", false)),
+            won = listOf(PastHoldout("f", "Won row", "Held out 7 of 7", "10 SKR", NavEvent.Open(Screen.Detail("f")))),
         )
     }
 }

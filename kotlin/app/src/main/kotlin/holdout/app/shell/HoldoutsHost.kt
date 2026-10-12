@@ -33,9 +33,9 @@ import holdout.core.Stage
 import kotlinx.coroutines.delay
 
 /**
- * The Holdouts tab root, H0 My Holdouts (screen map H0, board 10; FR-069):
- * the member's own Holdouts by stage, those open to join, the ones running now
- * to watch (FR-062a), and the finished ones.
+ * The Holdouts tab root, H0 My Holdouts (screen map H0, boards 10 and 10b; FR-069):
+ * Now (the member's own Holdouts by stage, then those open to join) and Past
+ * (the ones won, the ones lost). The running Holdouts to watch (FR-062a) are Standing's.
  */
 @Composable
 internal fun Shared.HoldoutsRoot(modifier: Modifier = Modifier) {
@@ -48,12 +48,12 @@ internal fun Shared.HoldoutsRoot(modifier: Modifier = Modifier) {
             MyHoldoutsModel.build(v, n, rosters) { h, day -> store.bankedReps(wallet, cohortScope(h), day.toLong()) }
         }
     }
-    // Rosters for the Running now rows; the running card's is the app's Standing loop's to read.
-    val watched = TabRoots.watchedOnHoldouts(v, n)
-    InFrontLoop(watched) {
-        if (watched.isEmpty()) kotlinx.coroutines.awaitCancellation()
-        watched.forEach { holdouts.loadRoster(it) }
-        delay(ROSTER_REFRESH_MILLIS)
+    // Rosters for the Past tab's "finished" counts; a finished roster moves slowly, and the Standing one is the app's loop's to read.
+    val claimed = TabRoots.claimedOnHoldouts(v, n)
+    InFrontLoop(claimed) {
+        if (claimed.isEmpty()) kotlinx.coroutines.awaitCancellation()
+        claimed.forEach { holdouts.loadRoster(it) }
+        delay(CHAIN_REFRESH_MILLIS)
     }
     MyHoldoutsScreen(
         state = state,

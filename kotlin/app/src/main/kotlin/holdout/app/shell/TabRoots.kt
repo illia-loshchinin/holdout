@@ -29,14 +29,14 @@ internal object TabRoots {
     }
 
     /**
-     * The running Holdouts whose rosters the Holdouts root reads itself (its
-     * running card and the Running now rows): all of them but the one Standing
-     * is about, which the app's own loop reads already (R8).
+     * The Holdouts the member claimed, whose rosters the Holdouts root reads
+     * itself for its Past tab's "12 of 14 finished": all of them but the one
+     * Standing is about, which the app's own loop reads already (R8).
      */
-    fun watchedOnHoldouts(view: ChainView?, now: Long?): List<SolanaPublicKey> {
+    fun claimedOnHoldouts(view: ChainView?, now: Long?): List<SolanaPublicKey> {
         if (view == null || now == null) return emptyList()
         val standing = standing(view, now)?.address
-        return view.holdouts.filter { it.status(now) == CohortStatus.Running && it.address != standing }.map { it.address }
+        return view.holdouts.filter { it.stage(now) is Stage.Claimed && it.address != standing }.map { it.address }
     }
 
     /**

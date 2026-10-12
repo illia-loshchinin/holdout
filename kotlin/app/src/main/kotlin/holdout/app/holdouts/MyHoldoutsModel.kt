@@ -14,18 +14,29 @@ import holdout.core.Derive
 import holdout.core.MembershipSnapshot
 import holdout.core.Stage
 
-/** H0 My Holdouts, as the screen shows it: three lists, each row's words worked out, and where a tap goes. */
+/**
+ * H0 My Holdouts, as the screen shows it: the Now tab ([yours] still going, then [open] to join) and the
+ * Past tab ([won], then [lost]), each row's words worked out, and where a tap goes (owner, 12 Oct).
+ */
 data class MyHoldoutsState(
+    /** Still going, in the order of [MyHoldoutsModel.NOW_ORDER]: what needs the member first. */
     val yours: List<YourHoldout> = emptyList(),
     val open: List<OpenHoldout> = emptyList(),
-    val finished: List<FinishedHoldout> = emptyList(),
-    /** Running Holdouts the wallet is not in, to watch — every wallet, Seeker or not (FR-062a, ruling G14). */
-    val running: List<RunningHoldout> = emptyList(),
+    /** Past, claimed, newest first. */
+    val won: List<PastHoldout> = emptyList(),
+    /** Past, forfeited with no way back left, newest first. */
+    val lost: List<PastHoldout> = emptyList(),
     /** The wallet waits in a lobby, so it can join nothing more: the "Open to join" section is not drawn at all (owner, 12 Oct). */
     val holdsLobbyPlace: Boolean = false,
 ) {
-    /** Nothing of the member's own yet: the empty card shows, the offers still under it. */
-    val empty: Boolean get() = yours.isEmpty() && finished.isEmpty()
+    /** Nothing of the member's own, now or past: the empty card shows with no switch, the offers still under it. */
+    val empty: Boolean get() = yours.isEmpty() && won.isEmpty() && lost.isEmpty()
+
+    /** The count on the Now side of the switch. */
+    val nowCount: Int get() = yours.size
+
+    /** The count on the Past side of the switch. */
+    val pastCount: Int get() = won.size + lost.size
 }
 
 /** One of the member's Holdouts still going: a status chip on the right, two lines, and where it opens. */
@@ -73,10 +84,21 @@ data class OpenHoldout(
     val testDayLength: Long = 0,
 )
 
-/** A Holdout the member is done with: one line, to its detail (claimed) or its forfeit. */
-data class FinishedHoldout(val cohort: String, val line: String, val go: NavEvent)
+/**
+ * A Holdout the member is done with, one row of the Past tab: the name, a line under it, the amount that
+ * ended it (won: claimed; lost: the stake) and where it opens — its detail (won) or its forfeit (lost).
+ */
+data class PastHoldout(
+    val cohort: String,
+    val name: String,
+    /** "Held out 7 of 7 · 12 of 14 finished", or "Out on day 5 of 21". */
+    val line: String,
+    /** "1,180 SKR": claimed on a won row, the stake on a lost one. */
+    val amount: String,
+    val go: NavEvent,
+)
 
-/** A running Holdout to watch, read-only: its day and how many still stand; it opens H4 (then H5). */
+/** A running Holdout to watch, read-only: its day and how many still stand; it opens H4 (then H5). Standing's empty state lists them. */
 data class RunningHoldout(val cohort: String, val name: String, val line: String, val test: Boolean, val testDayLength: Long = 0) {
     val go: NavEvent get() = NavEvent.Open(Screen.Detail(cohort))
 }
@@ -93,32 +115,35 @@ object MyHoldoutsModel {
         rosters: Map<SolanaPublicKey, List<MembershipSnapshot>> = emptyMap(),
         bankedToday: (Holdout, Int) -> Int = { _, _ -> 0 },
     ): MyHoldoutsState {
-        val (yours, finished) = sorted(view, now, rosters, bankedToday)
-        val running = view.runningNotMine(now).map { h -> runningRow(h, now, rosters[h.address]) }
+        val sorted = sorted(view, now, rosters, bankedToday)
         val holdsLobbyPlace = view.holdsLobbyPlace(now)
-        return MyHoldoutsState(yours, if (holdsLobbyPlace) emptyList() else open(view, now), finished, running, holdsLobbyPlace)
+        return MyHoldoutsState(sorted.yours, if (holdsLobbyPlace) emptyList() else open(view, now), sorted.won, sorted.lost, holdsLobbyPlace)
     }
 
     /**
-     * Only the member's own Holdouts still going (H0's "Yours"), without the
-     * open and running lists a caller such as Today's nudges would discard.
+     * Only the member's own Holdouts still going (H0's Now tab), without the
+     * open and past lists a caller such as Today's nudges would discard.
      */
     fun yours(
         view: ChainView,
         now: Long,
         rosters: Map<SolanaPublicKey, List<MembershipSnapshot>> = emptyMap(),
         bankedToday: (Holdout, Int) -> Int = { _, _ -> 0 },
-    ): List<YourHoldout> = sorted(view, now, rosters, bankedToday).first
+    ): List<YourHoldout> = sorted(view, now, rosters, bankedToday).yours
 
-    /** The member's Holdouts split into those still going and those finished, the finished newest first. */
+    /** What [sorted] makes of the member's Holdouts. */
+    private class Sorted(val yours: List<YourHoldout>, val won: List<PastHoldout>, val lost: List<PastHoldout>)
+
+    /** The member's Holdouts split into those still going (by [NOW_ORDER]) and those past, won and lost, each newest first. */
     private fun sorted(
         view: ChainView,
         now: Long,
         rosters: Map<SolanaPublicKey, List<MembershipSnapshot>>,
         bankedToday: (Holdout, Int) -> Int,
-    ): Pair<List<YourHoldout>, List<FinishedHoldout>> {
+    ): Sorted {
         val yours = mutableListOf<YourHoldout>()
-        val finished = mutableListOf<Pair<Long, FinishedHoldout>>()
+        val won = mutableListOf<Pair<Long, PastHoldout>>()
+        val lost = mutableListOf<Pair<Long, PastHoldout>>()
         for (h in view.holdouts) {
             val m = h.membership ?: continue
             val c = h.cohort
@@ -149,15 +174,16 @@ object MyHoldoutsModel {
                 }
                 is Stage.Forfeited -> {
                     val offer = view.comebackOffer(now, c.leagueId).forScreenOf(h.address)
-                    val out = "out after ${stage.daysLasted} day${if (stage.daysLasted == 1) "" else "s"}"
-                    // Kept under Yours while the Holdout runs or a way back is open; then it is finished (ruling D-D6).
+                    // The day missed is the one after the days held: "out on day 7" for six days lasted.
+                    val missed = (stage.daysLasted + 1).coerceAtMost(c.durationDays)
+                    // Kept under Now while the Holdout runs or a way back is open; then it is past, lost (ruling D-D6).
                     if (offer != null || Derive.status(c, now) in GOING) {
                         // A place held in the comeback round already is the win-back under way: nothing left to win back by tapping.
                         val winBack = offer?.let { if (it.held != null) COMEBACK_JOINED else "Win back up to ${Format.skr(it.amount())}" }
-                        yours += card(YourKind.Out, ChipTone.Warning, out.replaceFirstChar { it.uppercase() }, winBack, NavEvent.Open(Screen.Forfeit(id)))
+                        yours += card(YourKind.Out, ChipTone.Warning, "Lost ${Format.skr(m.stake)} · out on day $missed", winBack, NavEvent.Open(Screen.Forfeit(id)))
                             .copy(detailTone = ChipTone.Success)
                     } else {
-                        finished += c.start to FinishedHoldout(id, "$name · finished · $out", NavEvent.Open(Screen.Forfeit(id)))
+                        lost += c.start to PastHoldout(id, name, "Out on day $missed of ${c.durationDays}", Format.skr(m.stake), NavEvent.Open(Screen.Forfeit(id)))
                     }
                 }
                 Stage.Settling -> yours += card(YourKind.Settling, ChipTone.Success, SettlingWords.homeLine(Derive.settleUsuallyIn(c, now)), null, NavEvent.Open(Screen.Detail(id)))
@@ -168,10 +194,19 @@ object MyHoldoutsModel {
                     "${Format.skr(stage.amount)} waiting for you",
                     NavEvent.Open(Screen.Claim(id)),
                 )
-                is Stage.Claimed -> finished += c.start to FinishedHoldout(id, "$name · finished · claimed ${Format.skr(stage.amount)}", NavEvent.Open(Screen.Detail(id)))
+                is Stage.Claimed -> {
+                    // "12 of 14 finished" once the roster is read; the first half alone until then.
+                    val finishers = rosters[h.address]?.let { Derive.survivors(c, it, now) }?.let { " · ${it.standing} of ${it.starters} finished" }.orEmpty()
+                    val held = "Held out ${m.daysCompleted.coerceAtMost(c.durationDays)} of ${c.durationDays}$finishers"
+                    won += c.start to PastHoldout(id, name, held, Format.skr(stage.amount), NavEvent.Open(Screen.Detail(id)))
+                }
             }
         }
-        return yours to finished.sortedByDescending { it.first }.map { it.second }
+        return Sorted(
+            yours.sortedBy { NOW_ORDER.indexOf(it.kind) },
+            won.sortedByDescending { it.first }.map { it.second },
+            lost.sortedByDescending { it.first }.map { it.second },
+        )
     }
 
     /** Only what the program would take (FR-006a, FR-006b): a Join shown always goes through. */
@@ -202,6 +237,9 @@ object MyHoldoutsModel {
             ?: "${c.memberCount} started · prize pool ${Format.skr(c.pool)}"
         return RunningHoldout(h.address.base58(), "${Format.level(c)} · day $day of ${c.durationDays}", line, h.isTest, c.dayLength)
     }
+
+    /** The Now tab's order, by what needs the member: a claim, a running day, a settling, the lobbies, then a way back. */
+    val NOW_ORDER = listOf(YourKind.Claim, YourKind.Running, YourKind.Settling, YourKind.Lobby, YourKind.Locked, YourKind.Out)
 
     private val GOING = setOf(CohortStatus.Open, CohortStatus.Locked, CohortStatus.Running)
 

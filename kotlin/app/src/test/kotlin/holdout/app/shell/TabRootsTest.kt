@@ -67,12 +67,12 @@ class TabRootsTest {
     }
 
     @Test
-    fun `Holdouts reads the running rosters the app's Standing loop does not`() {
-        // The member's running Holdout is read by the app's loop; Holdouts only adds the ones they watch.
-        assertEquals(listOf(notMine.address), TabRoots.watchedOnHoldouts(view(running, lobby, notMine), START))
-        // A member standing in none: every running Holdout is Holdouts' own to read.
-        assertEquals(listOf(notMine.address), TabRoots.watchedOnHoldouts(view(lobby, notMine), START))
-        assertEquals(emptyList(), TabRoots.watchedOnHoldouts(null, START))
+    fun `Holdouts reads the rosters of the Holdouts the member claimed, for the Past tab`() {
+        val claimed = holdout(5, START - 20 * DAY, member(7, MembershipSnapshot.State.Claimed))
+        // Running, lobby and watched Holdouts have no row on the Past tab: nothing to read for them.
+        assertEquals(listOf(claimed.address), TabRoots.claimedOnHoldouts(view(running, lobby, notMine, claimed), START))
+        assertEquals(emptyList(), TabRoots.claimedOnHoldouts(view(running, lobby, notMine), START))
+        assertEquals(emptyList(), TabRoots.claimedOnHoldouts(null, START))
     }
 
     @Test

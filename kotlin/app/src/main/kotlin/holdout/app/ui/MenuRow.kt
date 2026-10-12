@@ -57,9 +57,9 @@ fun MenuRow(title: String, caption: String? = null, modifier: Modifier = Modifie
     }
 }
 
-/** The right-pointing chevron of the board's row, drawn: 14 dp, `text-tertiary`, 1.5 stroke. */
+/** The right-pointing chevron of the board's row, drawn (a Past row on Holdouts has it too): 14 dp, `text-tertiary`, 1.5 stroke. */
 @Composable
-private fun Chevron() {
+internal fun Chevron() {
     Canvas(Modifier.size(CHEVRON)) {
         val u = size.minDimension / CHEVRON_UNITS
         val path = Path().apply {

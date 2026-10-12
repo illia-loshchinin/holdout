@@ -50,7 +50,7 @@ class MyHoldoutsModelTest {
         val s = MyHoldoutsModel.build(view(out, settling, claim), start)
 
         val byId = s.yours.associateBy { it.cohort }
-        assertEquals("Out after 1 day", byId.getValue(out.id).line)
+        assertEquals("Lost 10 SKR · out on day 2", byId.getValue(out.id).line)
         assertEquals(NavEvent.Open(Screen.Forfeit(out.id)), byId.getValue(out.id).go)
         assertEquals("settling", byId.getValue(settling.id).status)
         assertEquals(NavEvent.Open(Screen.Detail(settling.id)), byId.getValue(settling.id).go)
@@ -79,14 +79,79 @@ class MyHoldoutsModelTest {
     }
 
     @Test
-    fun `finished - claimed Holdouts, and a forfeit once its Holdout has ended with no way back`() {
+    fun `now - ordered by what needs the member, a claim first and the way back last`() {
+        val out = holdout(1, start - 5 * day, member(1))
+        val locked = holdout(2, start + 1_800, member(0)).let { it.copy(cohort = it.cohort.copy(joinCutoff = start - 60)) }
+        val lobby = holdout(3, start + 3 * day, member(0))
+        val settling = holdout(4, start - 8 * day, member(7, MembershipSnapshot.State.Finished))
+        val running = holdout(5, start - 3 * day, member(3))
+        val claim = holdout(6, start - 9 * day, member(7, MembershipSnapshot.State.Finished), settled = true)
+        val s = MyHoldoutsModel.build(view(out, locked, lobby, settling, running, claim), start)
+
+        assertEquals(
+            listOf(YourKind.Claim, YourKind.Running, YourKind.Settling, YourKind.Lobby, YourKind.Locked, YourKind.Out),
+            s.yours.map { it.kind },
+        )
+        assertEquals(6, s.nowCount)
+    }
+
+    @Test
+    fun `an Out row says what was lost and the day it was missed`() {
+        val out = holdout(1, start - 5 * day, member(2), days = 21, form = LeagueParams.FORM_TOES)
+        val card = MyHoldoutsModel.build(view(out), start).yours.single()
+        assertEquals(YourKind.Out, card.kind)
+        assertEquals("Lost 10 SKR · out on day 3", card.line)
+    }
+
+    @Test
+    fun `past - a claimed Holdout is won, with the claimed amount and how many finished once the roster is read`() {
         val claimed = holdout(1, start - 20 * day, member(7, MembershipSnapshot.State.Claimed), settled = true)
-        val oldOut = holdout(2, start - 30 * day, member(2, MembershipSnapshot.State.Forfeited))
-        val s = MyHoldoutsModel.build(view(claimed, oldOut), start)
+        val s = MyHoldoutsModel.build(view(claimed), start)
         assertTrue(s.yours.isEmpty())
-        assertEquals(listOf("Spark · 7-day · finished · claimed 15 SKR", "Spark · 7-day · finished · out after 2 days"), s.finished.map { it.line })
-        assertEquals(NavEvent.Open(Screen.Detail(claimed.id)), s.finished[0].go)
-        assertEquals(NavEvent.Open(Screen.Forfeit(oldOut.id)), s.finished[1].go)
+        val row = s.won.single()
+        assertEquals("Spark · 7-day", row.name)
+        assertEquals("Held out 7 of 7", row.line)
+        assertEquals("15 SKR", row.amount)
+        assertEquals(NavEvent.Open(Screen.Detail(claimed.id)), row.go)
+        assertEquals(1, s.pastCount)
+
+        val roster = List(12) { member(7, MembershipSnapshot.State.Finished) } + List(2) { member(3, MembershipSnapshot.State.Forfeited) }
+        val read = MyHoldoutsModel.build(view(claimed), start, rosters = mapOf(claimed.address to roster)).won.single()
+        assertEquals("Held out 7 of 7 · 12 of 12 finished", read.line)
+    }
+
+    @Test
+    fun `past - a forfeit whose Holdout has ended with no way back is lost, with the stake and the day`() {
+        val oldOut = holdout(2, start - 30 * day, member(2, MembershipSnapshot.State.Forfeited))
+        val s = MyHoldoutsModel.build(view(oldOut), start)
+        assertTrue(s.yours.isEmpty())
+        val row = s.lost.single()
+        assertEquals("Spark · 7-day", row.name)
+        assertEquals("Out on day 3 of 7", row.line)
+        assertEquals("10 SKR", row.amount)
+        assertEquals(NavEvent.Open(Screen.Forfeit(oldOut.id)), row.go)
+        assertTrue(s.won.isEmpty())
+    }
+
+    @Test
+    fun `past - each group newest first, a Hackathon Holdout under its own name, a claim waiting or settling stays on Now`() {
+        val older = holdout(1, start - 30 * day, member(7, MembershipSnapshot.State.Claimed), settled = true)
+        val newer = holdout(2, start - 20 * day, member(7, MembershipSnapshot.State.Claimed), settled = true)
+        val waiting = holdout(3, start - 9 * day, member(7, MembershipSnapshot.State.Finished), settled = true)
+        val test = holdout(4, start - 25 * day, member(2, MembershipSnapshot.State.Forfeited)).let { it.copy(cohort = it.cohort.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, dayLength = 600)) }
+        val s = MyHoldoutsModel.build(view(older, newer, waiting, test), start)
+
+        assertEquals(listOf(newer.id, older.id), s.won.map { it.cohort })
+        assertEquals(listOf(waiting.id), s.yours.map { it.cohort })
+        assertEquals(listOf("Hackathon Holdout"), s.lost.map { it.name })
+    }
+
+    @Test
+    fun `the state has no running list - other people's pools are Standing's`() {
+        val watched = holdout(1, start - 2 * day, null)
+        val s = MyHoldoutsModel.build(view(watched), start)
+        assertTrue(s.empty)
+        assertTrue(s.yours.isEmpty() && s.won.isEmpty() && s.lost.isEmpty())
     }
 
     @Test
@@ -134,14 +199,13 @@ class MyHoldoutsModelTest {
     }
 
     @Test
-    fun `running now - running Holdouts the wallet is not in, read-only, each opening H4`() {
+    fun `running row - a running Holdout watched from outside, read-only, opening H4 (Standing's empty state)`() {
         val watched = holdout(1, start - 2 * day, null)
-        val mine = holdout(2, start - 2 * day, member(2))
-        val s = MyHoldoutsModel.build(view(watched, mine), start)
-        assertEquals(listOf(watched.id), s.running.map { it.cohort })
-        assertEquals("Spark · 7-day · day 3 of 7", s.running[0].name)
-        assertEquals("12 started · prize pool 0 SKR", s.running[0].line)
-        assertEquals(NavEvent.Open(Screen.Detail(watched.id)), s.running[0].go)
+        val row = MyHoldoutsModel.runningRow(watched, start, null)
+        assertEquals(watched.id, row.cohort)
+        assertEquals("Spark · 7-day · day 3 of 7", row.name)
+        assertEquals("12 started · prize pool 0 SKR", row.line)
+        assertEquals(NavEvent.Open(Screen.Detail(watched.id)), row.go)
     }
 
     @Test
