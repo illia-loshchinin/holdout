@@ -190,11 +190,10 @@ pub(crate) fn handler(
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test-leagues"))]
 mod tests {
     use super::*;
 
-    #[cfg(feature = "test-leagues")]
     #[test]
     fn a_test_league_needs_a_day_and_a_cadence() {
         let id = 100;
