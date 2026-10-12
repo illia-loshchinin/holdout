@@ -61,7 +61,8 @@ Most lines fit in 12 words; a body under a title is one or two of them.
 - After a crash: *"Your 10 banked reps are safe."*
 - The overnight drop: *"Three dropped since yesterday. Your share went up 17 SKR."*
 - First open: **The Daily 25** — *free, every day: get stronger at your own pace. / 25 push-ups, counted by the camera. Your streak grows.* **A Holdout** — *stake SKR and run 7 or 21 days with others. / Miss a day: your stake joins the prize pool. / Finish: take it back plus a share of the pool.*
-- Forfeit: *"You missed day 7."* then *"It didn't reach the chain in time. Your run has ended."*, *"Your 9-day streak is still alive."* and two ways back: *Today's Daily 25* · *The next Habit · 21-day*.
+- Forfeit: *"You missed day 7."* then the cause, by what the phone knows: *"You didn't finish day 7 before its deadline. Your run has ended."* (the day was never finished) or *"It didn't reach the chain in time. Your run has ended."* (finished on the phone, not sent). Then the **Stake lost** card and the comeback block with its **Join** (the one primary button). Under it one quiet line in `text-secondary`, no card: *"Your 9-day streak is still alive."* or *"Your streak is untouched."*, and a secondary button **Do today's Daily 25** only while today's Daily 25 isn't done. The comeback timing line (*Starts in 9m 24s · joining closes in 8m 24s*) sets only its countdowns in Mono. With no comeback offer the sentence reads *"Today's Daily 25 keeps your streak going. The next Habit · 21-day starts a new run."* under *Two ways back*; once today's Daily 25 is done: *"The next Habit · 21-day starts a new run."*
+- You're in (after joining): **Do today's Daily 25** only when the Holdout starts on a later day than today and today's 25 aren't done, with **See the lobby** as the secondary button; otherwise **See the lobby** is the one primary button, because a Holdout day on today's day already counts for the streak.
 - Claim: *"You held out 21 days."* above **Claim 1,560 SKR**; the rows are **Stake back** and **Share of the prize pool**.
 - A transaction that failed or was declined: *"The network didn't confirm it."* / *"Nothing was sent."*, then what is still safe: *"Your 1,412 SKR waits here."*
 - Broken streak: *"Your 14-day streak broke. Start a new one today."* There is no save button because there is no grace day.
@@ -156,7 +157,7 @@ The product has three of its own marks, all built from simple geometry rather th
 - **The streak flame**: active, extended (flips up in `success`), broken (cracked, `text-tertiary`), personal best (`celebration` with a **PB** mark).
 - **The scripted-member diamond (◇)**: always beside a `SCRIPTED` label chip.
 
-**Logo:** the mark and the name. The mark is the app icon's crowd with its H: the same 25 members, the same seven in `accent`, so the icon and the logo are one symbol at two sizes. Beside it sits **HOLDOUT** in Roboto Medium 500, all capitals, `text-primary`, tracking +22%, converted to outlines so it never depends on an installed font. The files are in the **Logo** asset group.
+**Logo:** the mark and the name. The mark is the app icon's crowd with its H: the same 25 members, the same seven in `accent`, so the icon and the logo are one symbol at two sizes. Beside it sits the wordmark **HOLDOUT**: Roboto Medium (500), all capitals, `text-primary`, tracked +22% (0.22 em), converted to outlines so it never depends on an installed font. It is the name as the first-open screen sets it (owner, 12 Oct). In running text the name stays **Holdout**; the capitals belong to the wordmark only. The files are in the **Logo** asset group.
 
 - **Lockups:** horizontal is the default (website header, deck, store banner, social). Stacked is for square spaces (avatar, title slide). The wordmark alone is for places where the icon already sits beside it. The mark alone is the icon without its tile.
 - **Clear space:** two grid steps (the distance between two members' centres) on every side. The files already include it.
@@ -164,7 +165,7 @@ The product has three of its own marks, all built from simple geometry rather th
 - **Ground:** the colour versions live only on black (`canvas`). On a light page someone else controls (a hackathon listing, a partner site, print), use the one-ink black version: the bold H alone, the themed-icon geometry, with the name. Never put the colour version on white.
 - **Never:** recolour the members or the H, stretch or rotate, add a gradient, glow or shadow, re-set the name in another font, rearrange the lockup, or put it on a photo without its black ground.
 
-Inside the app the name is live text, not the outlined file: `ui/Wordmark.kt` sets *HOLDOUT* in the system Roboto at weight 500, all capitals, tracked +22%, and reads aloud as "Holdout"; in running text the name stays "Holdout". The outlined files are for everything outside the app.
+Inside the app the name is live text, not the outlined file: `ui/Wordmark.kt` sets *HOLDOUT* in the system Roboto at weight 500, 14 sp, tracked +22%, as the first-open screen shows it. The outlined files are for everything outside the app.
 
 Never borrow the Solana logomark as Holdout's own. It may appear only where Solana's brand guidelines allow, and nothing may imply an official Solana or Seeker product.
 

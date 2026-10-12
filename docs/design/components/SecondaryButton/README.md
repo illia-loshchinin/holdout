@@ -2,7 +2,7 @@
 
 The second-best path, sitting under a primary button: same pill shape, transparent, with a `hairline` border.
 
-**Use for:** the alternative that is still a real choice, such as *The next 7-day Holdout* under *Today's Daily 25* on the forfeit screen.
+**Use for:** the alternative that is still a real choice, such as *Do today's Daily 25* under the comeback's **Join** on the forfeit screen, or *See the lobby* under *Do today's Daily 25* on You're in.
 
 **Anatomy:** transparent fill, `hairline` border at `size-border`, `text-primary` label in `title`, height `size-button`, `radius-pill`. Pressed fills `surface-3`. Focus is a 2px `accent` ring.
 
