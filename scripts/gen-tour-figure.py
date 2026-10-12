@@ -11,6 +11,10 @@ parses at runtime (kotlin/app/.../tour/FigureData.kt) and draws in a Compose Can
 
 Default <out>: kotlin/app/src/main/assets/tour_figure.txt
 
+The "from above" panel (a group holding a nested <svg> with SMIL <animate>s) is not read:
+the app draws it in Compose from one shared drawing (kotlin/app/.../ui/TopView.kt), so the
+generator skips the whole group, its labels included.
+
 Format (one record per line, `#` lines are comments):
 
     V 1
@@ -217,14 +221,28 @@ def schedule(css):
     return out
 
 
+def outer_svg_end(html, start):
+    """The index just past the `</svg>` that closes the `<svg>` at [start]; the board nests an <svg> in the "from above" panel."""
+    depth = 0
+    for m in re.finditer(r"<svg[\s>]|</svg>", html[start:]):
+        depth += 1 if m.group(0).startswith("<svg") else -1
+        if depth == 0:
+            return start + m.end()
+    raise ValueError("unclosed <svg>")
+
+
+def is_panel(el):
+    """The "from above" panel: a group that holds a nested <svg> (the animated top view, SMIL <animate>s)."""
+    return el.tag.endswith("g") and any(c.tag.endswith("svg") for c in el)
+
+
 def main():
     src = Path(sys.argv[1])
     dst = Path(sys.argv[2]) if len(sys.argv) > 2 else Path(__file__).resolve().parent.parent / "kotlin/app/src/main/assets/tour_figure.txt"
     html = src.read_text(encoding="utf8")
     css = html[: html.index("</style>")]
     i = html.index('<svg class="ho-anim"')
-    j = html.index("</svg>", i) + len("</svg>")
-    svg = html[i:j]
+    svg = html[i:outer_svg_end(html, i)]
     svg = re.sub(r' aria-label="[^"]*"', "", svg)
     svg = svg.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ', 1)
     root = ET.fromstring(svg)
@@ -237,6 +255,10 @@ def main():
         if m:
             continue
         if cls in ("ho-dash", "ho-ok", "ho-panel", "ho-knee", "ho-count") or (child.tag.endswith("g") and "font-size" in child.attrib and "64" in child.attrib["font-size"]):
+            continue
+        if is_panel(child):
+            # The animated top view and its labels are drawn in Compose (TourFigure.drawFromAbove, TopView), not read from here.
+            print("skipped the from-above panel (translate %s): drawn in Compose" % child.attrib.get("transform"))
             continue
         walk(child, w, base)
     # The outline rectangle (drawn dashed accent, then solid success) and the knees tag.

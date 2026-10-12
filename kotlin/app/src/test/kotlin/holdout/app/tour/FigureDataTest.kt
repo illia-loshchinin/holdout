@@ -56,4 +56,17 @@ class FigureDataTest {
         assertEquals(FigureTimeline.STILL_FRAME, data.schedule.frameAt(11_900))
         assertEquals(0, data.schedule.frameAt(0))
     }
+
+    @Test
+    fun `the generated file leaves the from-above panel to Compose`() {
+        val file = File("src/main/assets/$ASSET")
+        val text = file.readText()
+        val data = file.inputStream().use { FigureData.parse(it) }
+
+        // The board's panel holds an animated <svg>: neither it nor its labels are in the data (TourFigure.drawFromAbove draws them).
+        assertTrue("from above" !in text && "ahead of your shoulder" !in text && "animate" !in text)
+        assertTrue(data.scene.none { it is FigureOp.Text })
+        // What is left of the scene: the camera cone, the stool and the Seeker.
+        assertTrue(data.scene.any { it is FigureOp.Push } && data.scene.size < 20)
+    }
 }
