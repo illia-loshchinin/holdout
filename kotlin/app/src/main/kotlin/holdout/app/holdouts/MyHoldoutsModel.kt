@@ -11,7 +11,6 @@ import holdout.app.ui.Format
 import holdout.core.CohortStatus
 import holdout.core.Comeback.forScreenOf
 import holdout.core.Derive
-import holdout.core.Journey
 import holdout.core.MembershipSnapshot
 import holdout.core.Stage
 
@@ -22,6 +21,8 @@ data class MyHoldoutsState(
     val finished: List<FinishedHoldout> = emptyList(),
     /** Running Holdouts the wallet is not in, to watch — every wallet, Seeker or not (FR-062a, ruling G14). */
     val running: List<RunningHoldout> = emptyList(),
+    /** The wallet waits in a lobby, so it can join nothing more: the "Open to join" section is not drawn at all (owner, 12 Oct). */
+    val holdsLobbyPlace: Boolean = false,
 ) {
     /** Nothing of the member's own yet: the empty card shows, the offers still under it. */
     val empty: Boolean get() = yours.isEmpty() && finished.isEmpty()
@@ -58,7 +59,7 @@ enum class YourKind(val word: String) {
     Claim("claim"),
 }
 
-/** A Holdout open to join, with Join — greyed out with the reason when the member cannot (FR-006a, FR-006b). */
+/** A Holdout the member can join now, with Join: one the program would refuse is not listed (FR-006a, FR-006b). */
 data class OpenHoldout(
     val cohort: String,
     val name: String,
@@ -68,7 +69,6 @@ data class OpenHoldout(
     val note: String,
     val boost: String?,
     val closesIn: String,
-    val blocker: String?,
     val test: Boolean,
     val testDayLength: Long = 0,
 )
@@ -95,7 +95,8 @@ object MyHoldoutsModel {
     ): MyHoldoutsState {
         val (yours, finished) = sorted(view, now, rosters, bankedToday)
         val running = view.runningNotMine(now).map { h -> runningRow(h, now, rosters[h.address]) }
-        return MyHoldoutsState(yours, open(view, now), finished, running)
+        val holdsLobbyPlace = view.holdsLobbyPlace(now)
+        return MyHoldoutsState(yours, if (holdsLobbyPlace) emptyList() else open(view, now), finished, running, holdsLobbyPlace)
     }
 
     /**
@@ -151,7 +152,8 @@ object MyHoldoutsModel {
                     val out = "out after ${stage.daysLasted} day${if (stage.daysLasted == 1) "" else "s"}"
                     // Kept under Yours while the Holdout runs or a way back is open; then it is finished (ruling D-D6).
                     if (offer != null || Derive.status(c, now) in GOING) {
-                        val winBack = offer?.let { "Win back up to ${Format.skr(it.amount(it.held?.entry?.member?.stake))}" }
+                        // A place held in the comeback round already is the win-back under way: nothing left to win back by tapping.
+                        val winBack = offer?.let { if (it.held != null) COMEBACK_JOINED else "Win back up to ${Format.skr(it.amount())}" }
                         yours += card(YourKind.Out, ChipTone.Warning, out.replaceFirstChar { it.uppercase() }, winBack, NavEvent.Open(Screen.Forfeit(id)))
                             .copy(detailTone = ChipTone.Success)
                     } else {
@@ -172,9 +174,9 @@ object MyHoldoutsModel {
         return yours to finished.sortedByDescending { it.first }.map { it.second }
     }
 
-    private fun open(view: ChainView, now: Long): List<OpenHoldout> = view.openToJoin(now).map { h ->
+    /** Only what the program would take (FR-006a, FR-006b): a Join shown always goes through. */
+    private fun open(view: ChainView, now: Long): List<OpenHoldout> = view.joinable(now).map { h ->
         val c = h.cohort
-        val blocker = Journey.joinBlocker(c, view.profile, view.runningEnd(now), now, runningInBreach = view.runningInBreach(now))
         OpenHoldout(
             cohort = h.address.base58(),
             name = if (h.isTest) TEST_NAME else Format.level(c),
@@ -182,12 +184,6 @@ object MyHoldoutsModel {
             note = "at stake · ${c.memberCount} joined",
             boost = h.league?.boostReserve?.takeIf { it > 0uL }?.let(Format::boostLine),
             closesIn = "Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))}",
-            blocker = when (blocker) {
-                Journey.JoinBlocker.LobbyPlaceTaken -> "You already hold a place in a Holdout that hasn't started."
-                Journey.JoinBlocker.Overlaps -> "Starts before your current one ends."
-                Journey.JoinBlocker.JoiningClosed -> "Joining has closed."
-                null -> null
-            },
             test = h.isTest,
             testDayLength = c.dayLength,
         )
@@ -212,6 +208,9 @@ object MyHoldoutsModel {
     /** The empty card's words (screen map H0; ES-12 holds in the worst case). */
     const val EMPTY_TITLE = "No Holdouts yet."
     const val EMPTY_TEXT = "Stake on yourself for 7 or 21 days. Full refund until joining closes."
+
+    /** The detail of an Out row once the member holds a place in its comeback round (owner, 12 Oct). */
+    const val COMEBACK_JOINED = "Comeback joined"
 
     /** A short test Holdout's own name on a card (FR-044a, ruling G2); its badge says why. */
     const val TEST_NAME = "Test Holdout"

@@ -15,7 +15,6 @@ import holdout.app.tx.YoureInScreen
 import holdout.app.tx.YoureInState
 import holdout.app.ui.Format
 import holdout.core.Derive
-import holdout.core.Journey
 import holdout.core.LeagueParams
 import holdout.core.Stage
 
@@ -82,9 +81,8 @@ internal fun Shared.signingState(tx: TxFlow, h: Holdout, n: Long): SigningState 
 private fun Shared.upsell(h: Holdout, n: Long): Pair<String, NavEvent>? = view?.let { claimUpsell(h, it, n, seekerKnown) }
 
 internal fun claimUpsell(h: Holdout, v: ChainView, n: Long, seekerKnown: Boolean): Pair<String, NavEvent>? {
-    val habit = v.openToJoin(n)
+    val habit = v.joinable(n)
         .filter { !it.isTest && it.cohort.form == LeagueParams.FORM_TOES }
-        .filter { Journey.joinBlocker(it.cohort, v.profile, v.runningEnd(n), n, runningInBreach = v.runningInBreach(n)) == null }
         .minByOrNull { it.cohort.start } ?: return null
     val text = if (h.cohort.form == LeagueParams.FORM_TOES) "Join the next ${Format.level(habit.cohort)}" else "Make it a ${Format.level(habit.cohort)}"
     return text to NavEvent.OpenStake(habit.address.base58(), seekerKnown = seekerKnown)

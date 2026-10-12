@@ -1,5 +1,6 @@
 package holdout.app.shell
 
+import com.solana.publickey.SolanaPublicKey
 import holdout.app.nav.Nav
 import holdout.app.nav.NavEvent
 import holdout.app.nav.NavState
@@ -9,10 +10,12 @@ import holdout.app.nav.then
 import holdout.app.testutil.ChainFixtures.DAY
 import holdout.app.testutil.ChainFixtures.START
 import holdout.app.testutil.ChainFixtures.holdout
+import holdout.app.testutil.ChainFixtures.me
 import holdout.app.testutil.ChainFixtures.member
 import holdout.app.testutil.ChainFixtures.view
 import holdout.core.LeagueParams
 import holdout.core.MembershipSnapshot
+import holdout.core.ProfileSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -66,6 +69,13 @@ class SittingOffersTest {
     fun `a forfeited Holdout does not hold the offer back`() {
         val forfeited = holdout(2, now - 9 * DAY, member = member(3, MembershipSnapshot.State.Forfeited))
         assertNotNull(SittingOffers.of(view(forfeited, open), now, seekerKnown = false, knownNotSeeker = false))
+    }
+
+    @Test
+    fun `a Holdout the program would refuse is not offered - a lobby place held that this view does not show`() {
+        val elsewhere = ProfileSnapshot.Pending(SolanaPublicKey(ByteArray(32) { 9 }), START + 5 * DAY, START + 12 * DAY)
+        val profile = ProfileSnapshot(me, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, null, elsewhere)
+        assertNull(SittingOffers.of(view(open, profile = profile), now, seekerKnown = false, knownNotSeeker = false))
     }
 
     @Test

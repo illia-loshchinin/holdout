@@ -8,6 +8,7 @@ import holdout.core.ConfigSnapshot
 import holdout.core.LeagueParams
 import holdout.core.LeagueSnapshot
 import holdout.core.MembershipSnapshot
+import holdout.core.ProfileSnapshot
 
 /** Chain data for the shell's JVM tests: a Spark/Habit Holdout at a start time, the member's place in it, a view of several. */
 object ChainFixtures {
@@ -37,5 +38,5 @@ object ChainFixtures {
 
     fun member(days: Int, state: MembershipSnapshot.State = MembershipSnapshot.State.Joined, joinedAt: Long = START - 10 * DAY) = MembershipSnapshot(me, 1, 1_250uL * SKR, joinedAt, days, state)
 
-    fun view(vararg h: Holdout, cfg: ConfigSnapshot? = config, lamports: Long = 0L) = ChainView(cfg, h.toList(), null, 0uL, lamports)
+    fun view(vararg h: Holdout, cfg: ConfigSnapshot? = config, lamports: Long = 0L, profile: ProfileSnapshot? = null) = ChainView(cfg, h.toList(), profile, 0uL, lamports)
 }

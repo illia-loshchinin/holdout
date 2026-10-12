@@ -10,10 +10,12 @@ import holdout.core.ConfigSnapshot
 import holdout.core.LeagueParams
 import holdout.core.LeagueSnapshot
 import holdout.core.MembershipSnapshot
+import holdout.core.ProfileSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -48,7 +50,9 @@ class TodayModelTest {
 
     private fun member(days: Int, state: MembershipSnapshot.State = MembershipSnapshot.State.Joined) = MembershipSnapshot(me, 1, 1_250uL * skr, start - 10 * day, days, state)
 
-    private fun view(vararg h: Holdout, cfg: ConfigSnapshot? = config) = ChainView(cfg, h.toList(), null, 0uL, 0L)
+    private fun view(vararg h: Holdout, cfg: ConfigSnapshot? = config, profile: ProfileSnapshot? = null) = ChainView(cfg, h.toList(), profile, 0uL, 0L)
+
+    private fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(me, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending)
 
     @Test
     fun `an offer card names the level and its tagline, what is at stake, how long joining stays open and the boost`() {
@@ -86,11 +90,11 @@ class TodayModelTest {
     }
 
     @Test
-    fun `the block lists the open Holdouts soonest first, none when the member is in them already`() {
+    fun `the block lists the open Holdouts soonest first, none the member is in already`() {
         val later = holdout(1, start + 7 * day)
         val sooner = holdout(2, start + 2 * day)
-        val joined = holdout(3, start + 3 * day, member = member(0))
-        val block = assertIs<HoldoutsBlock.Open>(TodayModel.holdouts(view(later, sooner, joined), start, offline = false))
+        val finished = holdout(3, start - 9 * day, member = member(7, MembershipSnapshot.State.Claimed))
+        val block = assertIs<HoldoutsBlock.Open>(TodayModel.holdouts(view(later, sooner, finished), start, offline = false))
         assertEquals(listOf(sooner.address.base58(), later.address.base58()), block.cards.map { it.cohort })
         assertFalse(block.stale)
     }
@@ -100,6 +104,36 @@ class TodayModelTest {
         val block = assertIs<HoldoutsBlock.Open>(TodayModel.holdouts(view(holdout(1, start - 3 * day)), start, offline = false))
         assertTrue(block.cards.isEmpty())
         assertEquals("The next Holdout opens soon.", TodayModel.OPENS_SOON)
+    }
+
+    @Test
+    fun `while a lobby place is held the block is hidden - no cards, no Seeker line, no opens-soon card`() {
+        val lobby = holdout(1, start + 2 * day, member = member(0))
+        val other = holdout(2, start + 3 * day)
+        assertEquals(HoldoutsBlock.Hidden, TodayModel.holdouts(view(lobby, other), start, offline = false))
+        assertEquals(HoldoutsBlock.Hidden, TodayModel.holdouts(view(lobby), start, offline = false))
+        // A locked lobby is still a place held.
+        val locked = holdout(3, start + 1_800, member = member(0))
+        assertEquals(HoldoutsBlock.Hidden, TodayModel.holdouts(view(locked), start, offline = false))
+    }
+
+    @Test
+    fun `a place in a running Holdout still lists the Holdouts that start after it ends, and only those`() {
+        val running = holdout(1, start - 2 * day, member = member(2))
+        val overlapping = holdout(2, start + 3 * day)
+        val backToBack = holdout(3, start + 5 * day)
+        val v = view(running, overlapping, backToBack, profile = profile(running = ProfileSnapshot.Running(running.address, start + 5 * day)))
+        val block = assertIs<HoldoutsBlock.Open>(TodayModel.holdouts(v, start, offline = false))
+        assertEquals(listOf(backToBack.address.base58()), block.cards.map { it.cohort })
+    }
+
+    @Test
+    fun `nothing joinable behind a running Holdout is the opens-soon card, not a Join that would be refused`() {
+        val running = holdout(1, start - 2 * day, member = member(2))
+        val overlapping = holdout(2, start + 3 * day)
+        val v = view(running, overlapping, profile = profile(running = ProfileSnapshot.Running(running.address, start + 5 * day)))
+        val block = assertIs<HoldoutsBlock.Open>(TodayModel.holdouts(v, start, offline = false))
+        assertTrue(block.cards.isEmpty())
     }
 
     @Test
@@ -155,6 +189,17 @@ class TodayModelTest {
         assertEquals(1, rows.size)
         assertEquals(NavEvent.Open(Screen.Lobby(comeback.address.base58())), rows.single().go)
         assertNull(TodayModel.comeback(v, start, seekerKnown = true))
+    }
+
+    @Test
+    fun `no comeback card when its round to join would be refused - a lobby place held in another Holdout`() {
+        val out = holdout(1, start - 5 * day, member(1))
+        val round = holdout(2, start + 2 * day)
+        assertNotNull(TodayModel.comeback(view(out, round), start, seekerKnown = true), "the round is joinable on its own")
+
+        val lobby = holdout(3, start + 3 * day, member(0), form = LeagueParams.FORM_TOES, days = 21, leagueId = LeagueParams.LEAGUE_21D)
+        val pending = ProfileSnapshot.Pending(lobby.address, start + 3 * day, start + 24 * day)
+        assertNull(TodayModel.comeback(view(out, round, lobby, profile = profile(pending = pending)), start, seekerKnown = true))
     }
 
     @Test

@@ -2,7 +2,6 @@ package holdout.app.holdouts
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -47,8 +46,8 @@ class MyHoldoutsScreenTest {
     private val out = YourHoldout("o", "Habit · 21-day", YourKind.Out, ChipTone.Warning, "Out after 6 days", "Win back up to 250 SKR", false, NavEvent.Open(Screen.Forfeit("o")), detailTone = ChipTone.Success)
     private val settling = YourHoldout("s", "Spark · 7-day", YourKind.Settling, ChipTone.Success, "You finished · settling, usually within 11m", null, false, NavEvent.Open(Screen.Detail("s")))
     private val claim = YourHoldout("c", "Spark · 7-day", YourKind.Claim, ChipTone.Success, "Held out 7 of 7", "1,412 SKR waiting for you", false, NavEvent.Open(Screen.Claim("c")))
-    private val blocked = OpenHoldout("b", "Habit · 21-day", "9,000 SKR", "at stake · 9 joined", "Prize boost: up to 1,200 SKR", "Joining closes in 2d 3h", "You already hold a place in a Holdout that hasn't started.", false)
-    private val free = OpenHoldout("f", "Spark · 7-day", "12,500 SKR", "at stake · 14 joined", "Prize boost: up to 480 SKR", "Joining closes in 2d 3h", null, false)
+    private val habitOffer = OpenHoldout("b", "Habit · 21-day", "9,000 SKR", "at stake · 9 joined", "Prize boost: up to 1,200 SKR", "Joining closes in 2d 3h", false)
+    private val free = OpenHoldout("f", "Spark · 7-day", "12,500 SKR", "at stake · 14 joined", "Prize boost: up to 480 SKR", "Joining closes in 2d 3h", false)
 
     @Test
     fun `running, lobby and claim - each card says its state and opens its screen`() {
@@ -104,17 +103,28 @@ class MyHoldoutsScreenTest {
     }
 
     @Test
-    fun `an offer the member cannot take is greyed out with the reason`() {
-        show(MyHoldoutsState(open = listOf(blocked)))
+    fun `while a lobby place is held there is no Open to join section at all`() {
+        show(MyHoldoutsState(yours = listOf(lobby), holdsLobbyPlace = true))
 
-        compose.onNodeWithText("You already hold a place in a Holdout that hasn't started.").assertIsDisplayed()
-        compose.onNodeWithText("Join").assertIsNotEnabled()
+        compose.onNodeWithText("YOURS").assertIsDisplayed()
+        compose.onNodeWithText("OPEN TO JOIN").assertDoesNotExist()
+        compose.onNodeWithText("Holdouts need a Seeker.").assertDoesNotExist()
+        compose.onNodeWithText("The next Holdout opens soon.").assertDoesNotExist()
+        compose.onNodeWithText("Join").assertDoesNotExist()
         assertTrue(joins.isEmpty())
     }
 
     @Test
+    fun `with nothing joinable the section says the next Holdout opens soon`() {
+        show(MyHoldoutsState(yours = listOf(running)))
+
+        compose.onNodeWithText("OPEN TO JOIN").assertIsDisplayed()
+        compose.onNodeWithText("The next Holdout opens soon.").assertIsDisplayed()
+    }
+
+    @Test
     fun `no offer carries a dollar figure`() {
-        show(MyHoldoutsState(yours = listOf(running), open = listOf(free, blocked)))
+        show(MyHoldoutsState(yours = listOf(running), open = listOf(free, habitOffer)))
 
         compose.onNodeWithText("$", substring = true).assertDoesNotExist()
         compose.onNodeWithText("≈", substring = true).assertDoesNotExist()
@@ -182,7 +192,7 @@ class MyHoldoutsScreenTest {
 
     @Test
     fun `model - a short test Holdout is a Test Holdout on its card and its offer`() {
-        val test = Fx.cohort(days = 3, joined = 3, leagueId = 100, dayLength = 600, form = 1, start = Fx.START + 3_600)
+        val test = Fx.cohort(days = 3, joined = 3, leagueId = 100, dayLength = 600, form = 1, start = Fx.START - 300)
         val mine = Fx.holdout(test, Fx.member())
         val open = Fx.holdout(Fx.cohort(days = 3, joined = 1, leagueId = 100, dayLength = 600, form = 1, start = Fx.START + 7_200).copy(index = 2, joinCutoff = Fx.START + 7_200), null)
         val s = MyHoldoutsModel.build(ChainView(null, listOf(mine, open), null, 0uL, 0L), Fx.START)

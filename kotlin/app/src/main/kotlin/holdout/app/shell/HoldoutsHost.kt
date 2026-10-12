@@ -108,9 +108,9 @@ internal fun Shared.ForfeitHost(id: String, modifier: Modifier = Modifier) {
         // Today's Daily 25 starts its sitting (ruling: not just Today).
         onDaily25 = { dispatch(NavEvent.StartSitting(Sitting.Daily25(dayIndex))) },
         // The way back is the same league's next Holdout, its stake sheet straight
-        // (US-4; the test lobby for a test cohort); none open to join right now, and
+        // (US-4; the test lobby for a test cohort); none the program would take right now, and
         // the button is not shown.
-        onNextHoldout = Journey.wayBack(h.cohort, v.openToJoin(n)) { it.cohort }
+        onNextHoldout = Journey.wayBack(h.cohort, v.joinable(n)) { it.cohort }
             ?.let { next -> { dispatch(NavEvent.OpenStake(next.address.base58(), seekerKnown = seekerKnown)) } },
         onBack = { dispatch(NavEvent.Back) },
         modifier = modifier,
