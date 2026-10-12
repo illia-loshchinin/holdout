@@ -387,7 +387,7 @@ private fun CountingCard() {
     }
 }
 
-private const val TRUST = "Holdout counts your push-ups right on your phone. Completed days are submitted to Solana, where a smart contract " +
+private const val TRUST = "An AI model on your phone tracks your body, and Holdout counts your push-ups right there. Completed days are submitted to Solana, where a smart contract " +
     "secures the stakes and determines payouts through transparent, verifiable rules."
 
 private val STEPS = listOf(
