@@ -15,7 +15,7 @@ Run every user-facing string through this list, then `bash scripts/check-wording
 | do your reps, 10 banked, 15 to go | bet, wager, gamble, odds, luck, jackpot, pot |
 | `≈ $25` beside a tier | a dollar figure presented as what you receive |
 
-Never in member copy: *cohort*, *league*, *challenge* (as an in-app noun), *earn*, *survivors*, *Easy*, *Hard*, a Holdout numbered like *cohort 14*. A level's reserves are named by its level and length: *Spark · 7-day boosts and comebacks*.
+Never in member copy: *cohort*, *league*, *challenge* (as an in-app noun), *earn*, *survivors*, *Easy*, *Hard*, a Holdout numbered like *cohort 14*. A level's boost is named by its level and length: *boosts later Spark · 7-day prizes*.
 
 ## Naming
 - **Holdout** — one word, capital H. Once per screen; after that the length and dates name it.
@@ -31,7 +31,7 @@ Never in member copy: *cohort*, *league*, *challenge* (as an in-app noun), *earn
 - *If nobody drops out, you get exactly your stake back.* — before every join.
 - *Stakes and payouts are in SKR; dollar values are approximate.* — wherever a USD label appears.
 - *Some members in these Holdouts are scripted.* — first run; label each scripted member `◇ SCRIPTED`.
-- *Miss a day and you lose your stake: 70 % to the prize pool, 10 % to Spark · 7-day boosts and comebacks, 20 % to the project. If nobody finishes, the pool goes to the project too.* — the stake sheet (`Format.lostStakeSplit(c)`); the forfeit screen says *It goes 70 % to this Holdout's prize pool, 10 % to Habit · 21-day boosts and comebacks, 20 % to the project. If nobody finishes, the pool goes to the project too.* under a **Stake lost** row (`Format.lostStakeSplitForfeit(c)`). Nowhere else, with the Holdout's own level and length and a no-break space before every %.
+- *Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, 20 % to the project. If nobody finishes, the pool boosts later Spark · 7-day prizes.* — the stake sheet (`Format.lostStakeSplit(c, name)`); the forfeit screen says *It goes 70 % to this Holdout's prize pool, 10 % set aside for your comeback, 20 % to the project. If nobody finishes, the pool boosts later Habit · 21-day prizes.* under a **Stake lost** row (`Format.lostStakeSplitForfeit(c, name)`). The 10 % is the member's own comeback, never "boosts and comebacks". Nowhere else (but tour card 3, *Where a lost stake goes*), with the Holdout's own level and length as `name` (a Hackathon Holdout names itself: *…boosts later Hackathon Holdout prizes*) and a no-break space before every %.
 
 ## Moments (reuse these shapes)
 - Obligation: *15 to go · 5h 12m left today* — reps and time remaining, never a clock time or date.
@@ -43,6 +43,6 @@ Never in member copy: *cohort*, *league*, *challenge* (as an in-app noun), *earn
 - Broken streak: *Your 14-day streak broke. Start a new one today.* (no save button)
 - Coach cues: *More light · Get in view · Phone to 45° · Arms straight · Hold*; refused reps: *Go lower · Keep your body straight · Slow down*.
 - Boost, on an offer: *Prize boost: up to 480 SKR* (`Format.boostLine`; only while the reserve holds more than 0; "up to", never a promise). On a running Holdout: *+ about 1,200 SKR boost if anyone finishes* (`Format.runningBoostLine`).
-- Comeback, on Today: *Get back up to 250 SKR of your lost stake: finish the Spark · 7-day starting in 2d 4h.* (`Format.comebackToday`); on the forfeit screen *Finish a Habit · 21-day starting within 14 days: up to 250 SKR comes back.* (`Format.comebackForfeit`); on the claim, a **Comeback** row: *part of your last lost stake, back*.
+- Comeback (exact and guaranteed, `min(10 % of the lost stake, the new chip)` — never "up to"; good for the next round of the same league only): on Today *Get back 125 SKR of your lost stake: finish the Spark · 7-day starting in 2d 4h. Joining closes in 2d 3h.* (`Format.comebackToday`; a round already started: *…finish the Spark · 7-day that started today. Joining closes in …*); on the forfeit screen the headline *Win back 125 SKR* (`Format.winBack`) over *Finish the next Habit · 21-day and 125 SKR comes back.* (`Format.comebackForfeit`) and *Starts in 2d 4h · joining closes in 2d 3h*; on the stake sheet *Finish it and 125 SKR of the stake you lost comes back.* (`StakeText.comeback`); on H0's Out row *Win back 125 SKR*, or *Comeback joined* once a place is held; on the claim, a **Comeback** row: *part of your last lost stake, back*. The boost stays "up to": a comeback nobody makes good and a pool nobody won feed it.
 - Holdout Lab (testers only): say *set*, *trace*, *video*; every switch label starts `TEST ·`; the consent sentence word for word: *only people who agreed in writing to be filmed*.
 - A roster never shows a stake, prize or payout amount.
