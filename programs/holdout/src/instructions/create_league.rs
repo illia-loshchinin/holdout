@@ -91,8 +91,15 @@ fn timing_ok(
     if LeagueConfig::is_test_league(league_id) {
         // A test league's whole point is a compressed day, so its clock is
         // free — but never a zero duration or a zero rep count, for the
-        // reasons below.
-        return cfg!(feature = "test-leagues") && duration_days > 0 && reps_per_day > 0;
+        // reasons below, and never a zero day or cadence: every deadline is
+        // counted in days, and `schedule::comeback_rounds` divides by the
+        // cadence when a forfeit is counted, so a zero one would leave the
+        // cohort unable to settle.
+        return cfg!(feature = "test-leagues")
+            && duration_days > 0
+            && reps_per_day > 0
+            && day_length > 0
+            && cadence > 0;
     }
     // The duration belongs to the timing: it is what fixes the league's `end`,
     // and `open_cohort` copies it into every cohort permanently, so a wrong
@@ -181,4 +188,24 @@ pub(crate) fn handler(
     league.bump = ctx.bumps.league;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(feature = "test-leagues")]
+    #[test]
+    fn a_test_league_needs_a_day_and_a_cadence() {
+        let id = 100;
+        assert!(timing_ok(id, 3, 5, 0, 600, 1_800, 0));
+        assert!(
+            !timing_ok(id, 3, 5, 0, 600, 0, 0),
+            "zero cadence: comeback_rounds would divide by it"
+        );
+        assert!(!timing_ok(id, 3, 5, 0, 0, 1_800, 0), "zero day");
+        assert!(!timing_ok(id, 3, 5, 0, 600, -1, 0));
+        assert!(!timing_ok(id, 0, 5, 0, 600, 1_800, 0));
+        assert!(!timing_ok(id, 3, 0, 0, 600, 1_800, 0));
+    }
 }
