@@ -47,8 +47,8 @@ internal fun Shared.HoldoutsRoot(modifier: Modifier = Modifier) {
             MyHoldoutsModel.build(v, n, rosters) { h, day -> store.bankedReps(wallet, cohortScope(h), day.toLong()) }
         }
     }
-    // Rosters for the running card's standing count and the Running now rows.
-    val watched = n?.let { now -> v?.holdouts?.filter { it.status(now) == holdout.core.CohortStatus.Running }?.map { it.address } }.orEmpty()
+    // Rosters for the Running now rows; the running card's is the app's Standing loop's to read.
+    val watched = TabRoots.watchedOnHoldouts(v, n)
     InFrontLoop(watched) {
         if (watched.isEmpty()) kotlinx.coroutines.awaitCancellation()
         watched.forEach { holdouts.loadRoster(it) }

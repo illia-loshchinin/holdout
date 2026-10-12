@@ -67,6 +67,15 @@ class TabRootsTest {
     }
 
     @Test
+    fun `Holdouts reads the running rosters the app's Standing loop does not`() {
+        // The member's running Holdout is read by the app's loop; Holdouts only adds the ones they watch.
+        assertEquals(listOf(notMine.address), TabRoots.watchedOnHoldouts(view(running, lobby, notMine), START))
+        // A member standing in none: every running Holdout is Holdouts' own to read.
+        assertEquals(listOf(notMine.address), TabRoots.watchedOnHoldouts(view(lobby, notMine), START))
+        assertEquals(emptyList(), TabRoots.watchedOnHoldouts(null, START))
+    }
+
+    @Test
     fun `a lobby place alone is not a Holdout to stand in, and watching is not a place`() {
         assertNull(TabRoots.standing(view(lobby, notMine), START))
         assertNull(TabRoots.standing(view(), START))

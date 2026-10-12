@@ -1,5 +1,6 @@
 package holdout.app.shell
 
+import com.solana.publickey.SolanaPublicKey
 import holdout.app.chain.ChainView
 import holdout.app.chain.Holdout
 import holdout.core.CohortStatus
@@ -25,6 +26,17 @@ internal object TabRoots {
     fun rosterEveryMillis(h: Holdout, now: Long): Long = when (h.status(now)) {
         CohortStatus.Settling, CohortStatus.Settled -> CHAIN_REFRESH_MILLIS
         else -> ROSTER_REFRESH_MILLIS
+    }
+
+    /**
+     * The running Holdouts whose rosters the Holdouts root reads itself (its
+     * running card and the Running now rows): all of them but the one Standing
+     * is about, which the app's own loop reads already (R8).
+     */
+    fun watchedOnHoldouts(view: ChainView?, now: Long?): List<SolanaPublicKey> {
+        if (view == null || now == null) return emptyList()
+        val standing = standing(view, now)?.address
+        return view.holdouts.filter { it.status(now) == CohortStatus.Running && it.address != standing }.map { it.address }
     }
 
     /**
