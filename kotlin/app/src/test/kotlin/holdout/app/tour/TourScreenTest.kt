@@ -141,8 +141,8 @@ class TourScreenTest {
         compose.onNodeWithText("Habit: full push-ups from your toes.", substring = true).assertDoesNotExist()
         compose.onNodeWithText("Private and fair by design").assertExists()
         compose.onNodeWithText(
-            "An AI on your phone counts every rep. No mic, and no video ever leaves it.\n" +
-                "Each finished day lands on Solana — stakes held by the program, paid out by rules anyone can check.",
+            "Holdout counts your push-ups right on your phone. Completed days are submitted to Solana, where a smart contract " +
+                "secures the stakes and determines payouts through transparent, verifiable rules.",
         ).assertExists()
         compose.onAllNodes(hasText("Lab", substring = true)).assertCountEquals(0)
     }

@@ -387,8 +387,8 @@ private fun CountingCard() {
     }
 }
 
-private const val TRUST = "An AI on your phone counts every rep. No mic, and no video ever leaves it.\n" +
-    "Each finished day lands on Solana — stakes held by the program, paid out by rules anyone can check."
+private const val TRUST = "Holdout counts your push-ups right on your phone. Completed days are submitted to Solana, where a smart contract " +
+    "secures the stakes and determines payouts through transparent, verifiable rules."
 
 private val STEPS = listOf(
     "Phone on the floor, at 45°, ahead of your shoulder.",
