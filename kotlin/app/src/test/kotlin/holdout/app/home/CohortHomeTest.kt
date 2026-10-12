@@ -173,6 +173,15 @@ class CohortHomeTest {
     }
 
     @Test
+    fun `the strip leaves the share out while nobody has dropped and there is nothing to share`() {
+        val allStanding = roster.map { it.copy(daysCompleted = 11) }
+        val noPool = h.copy(cohort = cohort.copy(pool = 0uL), league = h.league?.copy(boostReserve = 0uL))
+        show(holdout = noPool, members = allStanding)
+        text("5 of 5 still standing").assertIsDisplayed()
+        text("your share", substring = true).assertDoesNotExist()
+    }
+
+    @Test
     fun `the streak chip is in the header row, and the footer is gone`() {
         show()
         compose.onNodeWithContentDescription("12-day streak").assertExists()

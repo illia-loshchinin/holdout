@@ -189,9 +189,12 @@ fun CohortHome(
     }
 }
 
-/** What the crowd strip says: [standing] of [total], the member's [share] if they stand in it, and who [dropped] since yesterday. */
+/**
+ * What the crowd strip says: [standing] of [total], the member's [share] if they stand in it and there is
+ * one to show (nothing has dropped yet, so nothing to share: no "your share 0 SKR"), and who [dropped] since yesterday.
+ */
 private data class CrowdStrip(val standing: Int, val total: Long, val share: ULong?, val dropped: Int) {
-    val line: String get() = "$standing of $total still standing" + (share?.let { " · your share ${Format.skr(it)}" } ?: "")
+    val line: String get() = "$standing of $total still standing" + (share?.takeIf { it > 0uL }?.let { " · your share ${Format.skr(it)}" } ?: "")
 }
 
 /**
