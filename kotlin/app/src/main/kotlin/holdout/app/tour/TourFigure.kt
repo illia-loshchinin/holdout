@@ -27,8 +27,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -42,6 +44,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Density
 import holdout.app.BuildConfig
+import holdout.app.ui.TOP_VIEW_HEIGHT
+import holdout.app.ui.TOP_VIEW_LOOP_MILLIS
+import holdout.app.ui.TOP_VIEW_STILL
+import holdout.app.ui.TOP_VIEW_WIDTH
+import holdout.app.ui.drawTopView
 import holdout.app.ui.theme.HoldoutColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -73,14 +80,18 @@ internal fun rememberFigureClock(): FigureClock {
  * a Seeker leans on a low stool, a figure kneels and gets into a push-up inside
  * an outline that turns green when the whole body is in frame, four checks tick,
  * the top is held for a second, 3 · 2 · 1, the checks clear and three reps count;
- * a small view from above shows the phone turned 45°.
+ * a small panel at the top left shows the push-up from above, with the phone turned 45°
+ * ahead of the shoulder ([drawFromAbove]: the animated top view shared with the set-up guide).
  *
  * **Generated, never redrawn:** the poses are the Holdout Rig's, read frame by
  * frame from `assets/tour_figure.txt` ([FigureData], made by
  * `scripts/gen-tour-figure.py`) and drawn in a Canvas. Only the body keeps the
  * figure's own colours; the camera cone, outline, check pills, countdown digits
  * and rep count use `accent` and `success`. With animations off it shows the top
- * pose and the finished checks.
+ * pose and the finished checks, and the top view at the bottom of its push-up.
+ *
+ * The generator leaves the "from above" panel out of the data (it holds an animated
+ * `<svg>`); it is drawn here, at the board's position and size, in the figure's scale.
  */
 @Composable
 internal fun TourFigure(clock: FigureClock, modifier: Modifier = Modifier) {
@@ -101,6 +112,7 @@ internal fun TourFigure(clock: FigureClock, modifier: Modifier = Modifier) {
             val overlay = clock.overlay()
             val frame = if (clock.still) FigureTimeline.STILL_FRAME else figure.schedule.frameAt(clock.now())
             drawOps(figure.scene, measurer, density)
+            drawFromAbove(topViewProgress(clock), measurer, density)
             drawOutline(figure.outline, overlay.inFrame)
             drawOps(figure.frames[frame], measurer, density)
             if (overlay.kneesTag) drawOps(figure.knee, measurer, density)
@@ -108,6 +120,34 @@ internal fun TourFigure(clock: FigureClock, modifier: Modifier = Modifier) {
             overlay.countdown?.let { digit(it.toString(), 200f, 104f, DIGIT_SIZE, FontWeight.Light, false, HoldoutColors.Accent, measurer, density, center = true) }
             overlay.reps?.let { count(it, measurer, density) }
         }
+    }
+}
+
+/** Where the top view is in its loop: the figure's 12 s loop holds eight of its 1.5 s ones, so the two stay in step. */
+internal fun topViewProgress(clock: FigureClock): Float {
+    if (clock.still) return TOP_VIEW_STILL
+    return (clock.now() % TOP_VIEW_LOOP_MILLIS).toFloat() / TOP_VIEW_LOOP_MILLIS
+}
+
+/**
+ * The "from above" panel (the board's `translate(6 8)` group, top left): a black 120 × 74 card, its title, the shared
+ * animated top view in a 116 × 50 viewport and the distance under it. It sits left of the rep count (x 130) and never covers it.
+ */
+private fun DrawScope.drawFromAbove(progress: Float, measurer: TextMeasurer, density: Density) {
+    translate(PANEL_X, PANEL_Y) {
+        drawRoundRect(Color.Black, Offset.Zero, Size(PANEL_WIDTH, PANEL_HEIGHT), CornerRadius(PANEL_RADIUS))
+        drawRoundRect(Color.White.copy(alpha = 0.12f), Offset.Zero, Size(PANEL_WIDTH, PANEL_HEIGHT), CornerRadius(PANEL_RADIUS), style = Stroke(1f))
+        digit("from above", 8f, 12f, PANEL_TITLE_SIZE, FontWeight.Normal, false, HoldoutColors.TextTertiary, measurer, density, center = false)
+        // The board's nested <svg x="2" y="12" width="116" height="50" viewBox="0 0 350 150">: fitted whole, centred, clipped.
+        translate(2f, 12f) {
+            clipRect(0f, 0f, VIEWPORT_WIDTH, VIEWPORT_HEIGHT) {
+                val fit = minOf(VIEWPORT_WIDTH / TOP_VIEW_WIDTH, VIEWPORT_HEIGHT / TOP_VIEW_HEIGHT)
+                translate((VIEWPORT_WIDTH - TOP_VIEW_WIDTH * fit) / 2f, (VIEWPORT_HEIGHT - TOP_VIEW_HEIGHT * fit) / 2f) {
+                    scale(fit, pivot = Offset.Zero) { drawTopView(progress) }
+                }
+            }
+        }
+        digit("~1.5m ahead of your shoulder", 8f, 69f, PANEL_NOTE_SIZE, FontWeight.Normal, true, HoldoutColors.Accent, measurer, density, center = false)
     }
 }
 
@@ -305,6 +345,15 @@ internal class FigureCache(
 
 private const val WIDTH = 400f
 private const val HEIGHT = 240f
+private const val PANEL_X = 6f
+private const val PANEL_Y = 8f
+private const val PANEL_WIDTH = 120f
+private const val PANEL_HEIGHT = 74f
+private const val PANEL_RADIUS = 10f
+private const val PANEL_TITLE_SIZE = 8f
+private const val PANEL_NOTE_SIZE = 6f
+private const val VIEWPORT_WIDTH = 116f
+private const val VIEWPORT_HEIGHT = 50f
 private const val DIGIT_SIZE = 64f
 private const val LABEL_SIZE = 11f
 private const val COUNT_SIZE = 22f
@@ -315,4 +364,6 @@ internal const val DESCRIPTION =
     "Animation, side view: a Seeker leans on a low stool, its front camera facing you. You step in, kneel and get into a push-up; " +
         "your whole body, head to feet and knees included, fits the outline. The checks tick green — lighting, whole body, knees, " +
         "camera view, background — you hold the top for a second, then a 3, 2, 1 countdown, the checks clear and three reps count. " +
-        "A small top view shows the phone turned 45 degrees toward you, ahead of your shoulder."
+        "A small panel at the top left shows the push-up from above, animated: the phone stands on the floor turned 45 degrees, " +
+        "about 1.5 metres ahead of your shoulder, with its sight line to you; on the way down your elbows bend outward and your " +
+        "head moves a little toward the phone, on the way up your arms straighten."
