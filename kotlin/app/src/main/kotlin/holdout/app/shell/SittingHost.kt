@@ -3,6 +3,8 @@ package holdout.app.shell
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import holdout.app.nav.NavEvent
@@ -17,6 +19,9 @@ import holdout.core.Derive
 import holdout.core.HoldoutDay
 import holdout.repcounter.Stakes
 import kotlinx.coroutines.flow.first
+
+/** The finished page of a Holdout day reads the chain again when the last read failed (see [SittingHost]). */
+internal fun rechecksAtFinish(step: SittingViewModel.Step, offline: Boolean): Boolean = step == SittingViewModel.Step.COMPLETE && offline
 
 /**
  * A sitting, full screen with no bar (rulings G1): the free Daily 25, or one
@@ -104,6 +109,14 @@ internal fun Shared.SittingHost(s: Sitting, modifier: Modifier = Modifier) {
             // (FR-024b, 2026-10-10; too late online or off, 2026-10-11). One value per
             // composition, so label and tap agree.
             val note = sittingNote(h, s.day, now, chain.offline)
+            // "Offline" is the last read's verdict, and a read can fail in the middle of a sitting (the
+            // camera and the pose model hold the CPU) and stand until the next 30-second pass. The
+            // finished page must not say "can't be reached" on that: it asks the chain once now, and only
+            // a read that fails again keeps the note. The same read is the member's "Check again".
+            val finished by vm.uiState.collectAsState()
+            LaunchedEffect(finished.step, chain.offline) {
+                if (rechecksAtFinish(finished.step, chain.offline)) checkChain(null)
+            }
             // The chain already counts this day (read live, not the Holdout as the sitting started):
             // the finished page has nothing left to submit.
             val onChain = dayOnChain(holdout(s.cohort), s.day)
