@@ -31,7 +31,10 @@ import holdout.app.ui.theme.Spacing
 /**
  * How the crowd thinned (H4, board 13): one point for the start and one after
  * each deadline that has passed, [points] being the members still standing.
- * Dotted gridlines at round values, the baseline with `start` · a middle day ·
+ * The x axis is the Holdout's whole length, [totalDays], from `start` to
+ * `day N` ([ThinningAxes]), so the line ends part-way while days remain and the
+ * rest is a faint dashed run from the last point to the right edge. Dotted
+ * gridlines at whole numbers, the baseline with `start` · a middle mark or two ·
  * the last day under it, a line in `accent` with a soft fill under it, and the
  * last point ringed with its value.
  *
@@ -40,7 +43,7 @@ import holdout.app.ui.theme.Spacing
  * sentence ([DetailText.thinningDescription]): the chart itself is not read.
  */
 @Composable
-fun ThinningChart(points: List<Int>, modifier: Modifier = Modifier) {
+fun ThinningChart(points: List<Int>, totalDays: Int, modifier: Modifier = Modifier) {
     if (points.size < 2) return
     val measurer = rememberTextMeasurer()
     val labels = LabelStyle.copy(color = HoldoutColors.TextTertiary)
@@ -57,21 +60,29 @@ fun ThinningChart(points: List<Int>, modifier: Modifier = Modifier) {
         val right = size.width - END_PAD.toPx()
         val top = TOP_PAD.toPx()
         val base = size.height - LABEL_BAND.toPx()
-        val hi = points.max()
-        val lo = DetailText.floorValue(points.min(), hi)
-        fun x(i: Int) = left + (right - left) * i / points.lastIndex
+        val axis = ThinningAxes.yAxis(points)
+        val hi = axis.hi
+        val lo = axis.lo
+        // A Holdout's days are all on the axis from the first look: the points fill only as many as have passed.
+        val days = maxOf(totalDays, points.lastIndex)
+        fun x(i: Int) = left + (right - left) * ThinningAxes.xFraction(i, days)
         fun y(v: Int) = if (hi == lo) base else base - (base - top) * (v - lo) / (hi - lo)
 
         val dash = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 4.dp.toPx()))
-        DetailText.gridValues(points.min(), hi).forEach { v ->
+        axis.grid.forEach { v ->
             drawLine(HoldoutColors.Hairline, Offset(left, y(v)), Offset(right, y(v)), strokeWidth = 1.dp.toPx(), pathEffect = dash)
             label(measurer, v.toString(), labels, Offset(left - 6.dp.toPx(), y(v)), alignEnd = true, centreY = true)
         }
         drawLine(HoldoutColors.Hairline, Offset(left, base), Offset(right, base), strokeWidth = 1.dp.toPx())
         val last = points.lastIndex
-        label(measurer, "start", labels, Offset(left, base + 6.dp.toPx()))
-        if (last >= 4) label(measurer, "day ${last / 2}", labels, Offset(x(last / 2), base + 6.dp.toPx()), centre = true)
-        label(measurer, "day $last", labels, Offset(right, base + 6.dp.toPx()), alignEnd = true)
+        ThinningAxes.xTicks(days).forEach { tick ->
+            val at = Offset(x(tick.day), base + 6.dp.toPx())
+            when (tick.day) {
+                0 -> label(measurer, tick.label, labels, at)
+                days -> label(measurer, tick.label, labels, at, alignEnd = true)
+                else -> label(measurer, tick.label, labels, at, centre = true)
+            }
+        }
 
         val line = Path().apply { points.forEachIndexed { i, v -> if (i == 0) moveTo(x(i), y(v)) else lineTo(x(i), y(v)) } }
         val area = Path().apply {
@@ -86,6 +97,11 @@ fun ThinningChart(points: List<Int>, modifier: Modifier = Modifier) {
         drawCircle(HoldoutColors.Canvas, 5.dp.toPx(), Offset(x(last), y(points[last])))
         drawCircle(HoldoutColors.Accent, 5.dp.toPx(), Offset(x(last), y(points[last])), style = Stroke(width = 2.dp.toPx()))
         label(measurer, points[last].toString(), strong, Offset(x(last) + 10.dp.toPx(), y(points[last])), centreY = true)
+        // The days still to come: a faint dashed run on from the last point (past its value) to the right edge.
+        val restFrom = x(last) + 10.dp.toPx() + measurer.measure(points[last].toString(), strong).size.width + 6.dp.toPx()
+        if (last < days && restFrom < right) {
+            drawLine(HoldoutColors.TextTertiary.copy(alpha = REST_ALPHA), Offset(restFrom, y(points[last])), Offset(right, y(points[last])), strokeWidth = 1.dp.toPx(), pathEffect = dash)
+        }
         // The first value sits under the line's start; where the line drops away steeply it would cross the label, so it moves right of the line.
         val drop = if (points.size > 1) (y(points[1]) - y(points[0])) / (x(1) - x(0)) else 0f
         if (drop >= STEEP) {
@@ -121,6 +137,7 @@ private val END_PAD = 28.dp
 private val TOP_PAD = Spacing.tight
 private val LABEL_BAND = 20.dp
 private const val FILL_ALPHA = 0.28f
+private const val REST_ALPHA = 0.5f
 
 /** A line that falls this many pixels per pixel across would run through a label set just under its start. */
 private const val STEEP = 0.25f
@@ -129,5 +146,5 @@ private val LABEL_HALF_HEIGHT = 7.dp
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 private fun ThinningChartPreview() {
-    HoldoutTheme { ThinningChart(listOf(312, 301, 288, 270, 259, 243, 231, 222, 210, 203, 195, 189), Modifier.padding(Spacing.screenGutter)) }
+    HoldoutTheme { ThinningChart(listOf(312, 301, 288, 270, 259, 243, 231, 222, 210, 203, 195, 189), 21, Modifier.padding(Spacing.screenGutter)) }
 }
