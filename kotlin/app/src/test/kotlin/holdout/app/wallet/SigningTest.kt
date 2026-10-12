@@ -29,10 +29,14 @@ class SigningTest {
     }
 
     @Test
-    fun `signed but not submitted by the wallet - not declined, and it may still land`() {
+    fun `signed but not submitted by the wallet - not declined, and safe to try again`() {
+        // One transaction per request: the wallet signed it but could not send it (MWA spec, -4).
         val f = WalletFailures.of("Not all transactions were submitted", remote(NOT_SUBMITTED))
         assertFalse(f.declined)
-        assertTrue(f.mayStillLand)
+        assertFalse(f.mayStillLand)
+        val outcome = TxOutcome.of(SignAction.Join, f, lowOnSol = false)
+        assertEquals(TxOutcome.Failed(mayStillLand = false, message = "Not all transactions were submitted"), outcome)
+        assertTrue(outcome.canRetry)
     }
 
     @Test
@@ -93,7 +97,25 @@ class SigningTest {
     fun `not enough SOL - said by the network, or a failure with too little SOL in the wallet`() {
         assertEquals(TxOutcome.NotEnoughSol, TxOutcome.of(SignAction.Claim, SendResult.Failed("Attempt to debit an account but found no record of a prior credit."), lowOnSol = false))
         assertEquals(TxOutcome.NotEnoughSol, TxOutcome.of(SignAction.Submit, SendResult.Failed("Transaction simulation failed: InsufficientFundsForFee"), lowOnSol = false))
-        assertEquals(TxOutcome.NotEnoughSol, TxOutcome.of(SignAction.Join, SendResult.Failed("Remote exception", mayStillLand = true), lowOnSol = true))
+        assertEquals(TxOutcome.NotEnoughSol, TxOutcome.of(SignAction.Join, SendResult.Failed("Remote exception"), lowOnSol = true))
+    }
+
+    @Test
+    fun `a send that may still land stays that, however little SOL the wallet held`() {
+        val sent = SendResult.Failed("Sent, but not confirmed", mayStillLand = true)
+        for (a in SignAction.entries) {
+            assertEquals(TxOutcome.Failed(mayStillLand = true, message = "Sent, but not confirmed"), TxOutcome.of(a, sent, lowOnSol = true), "$a")
+        }
+        // The balance is only a guess; the network saying it outright still is not.
+        val said = SendResult.Failed("Transaction simulation failed: InsufficientFundsForFee", mayStillLand = true)
+        assertEquals(TxOutcome.NotEnoughSol, TxOutcome.of(SignAction.Claim, said, lowOnSol = false))
+    }
+
+    @Test
+    fun `a failure that did not go out is read as short of SOL when the wallet held little`() {
+        val refused = SendResult.Failed("Remote exception", mayStillLand = false)
+        assertEquals(TxOutcome.NotEnoughSol, TxOutcome.of(SignAction.Submit, refused, lowOnSol = true))
+        assertEquals(TxOutcome.Failed(mayStillLand = false, message = "Remote exception"), TxOutcome.of(SignAction.Submit, refused, lowOnSol = false))
     }
 
     @Test
@@ -119,6 +141,16 @@ class SigningTest {
     @Test
     fun `no wallet on the phone`() {
         assertEquals(TxOutcome.NoWallet, TxOutcome.of(SignAction.Join, SendResult.NoWallet, lowOnSol = false))
+    }
+
+    @Test
+    fun `Try again is offered after a decline or a failure that sent nothing, never when it may still land`() {
+        assertTrue(TxOutcome.Declined.canRetry)
+        assertTrue(TxOutcome.Failed(mayStillLand = false, message = "x").canRetry)
+        assertFalse(TxOutcome.Failed(mayStillLand = true, message = "x").canRetry)
+        assertFalse(TxOutcome.Landed("sig").canRetry)
+        assertFalse(TxOutcome.NotEnoughSol.canRetry)
+        assertFalse(TxOutcome.Refused("x").canRetry)
     }
 
     private fun remote(code: Int) = JsonRpc20Client.JsonRpc20RemoteException(code, "remote", null)

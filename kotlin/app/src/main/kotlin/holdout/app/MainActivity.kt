@@ -24,17 +24,22 @@ class MainActivity : ComponentActivity() {
 
     /**
      * A reminder's tap (or the launcher) reaching an activity that is already
-     * up: the app opens on Today (FR-069). A fresh activity starts on Today anyway.
+     * up: the app opens on Today (FR-069).
      */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (AppOpen.opensToday(intent)) main.opens.opened()
+        if (AppOpen.take(intent)) main.opens.opened()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // The same tap reaching an activity made anew: after the system killed the process the saved
+        // tab and screens come back, and a reminder still means Today. A rotation does not: its intent
+        // was taken already.
+        if (AppOpen.take(intent)) main.opens.opened()
 
         holdSplashForItsAnimation()
 

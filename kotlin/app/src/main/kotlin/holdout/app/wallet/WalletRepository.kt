@@ -52,7 +52,7 @@ sealed interface SendResult {
  * `signAndSendTransactions`, and paid for by the member. The auth token the
  * wallet issues is kept, so a restart reconnects without asking again.
  */
-class WalletRepository(private val store: Store, private val rpc: Rpc) {
+open class WalletRepository(private val store: Store, private val rpc: Rpc) {
     // Made on first use, not with the repository: it needs Android's Uri, and the
     // view model that holds this repository is built in JVM tests too (005 T019).
     private val adapter by lazy {
@@ -139,7 +139,7 @@ class WalletRepository(private val store: Store, private val rpc: Rpc) {
      * [onPhase] hears where it stands, for the signing screens (rulings G7):
      * the wallet holds the screen, then — approved and sent — devnet confirms.
      */
-    suspend fun send(sender: ActivityResultSender, instructions: List<TransactionInstruction>, onPhase: (SendPhase) -> Unit = {}): SendResult {
+    open suspend fun send(sender: ActivityResultSender, instructions: List<TransactionInstruction>, onPhase: (SendPhase) -> Unit = {}): SendResult {
         val blockhash = rpc.latestBlockhash() ?: return SendResult.Failed("${Deployment.networkName} did not answer. Check the connection and try again.", beforeWallet = true)
         // Never Message.Builder directly: it miscounts an account with mixed flags (see Transactions).
         val transaction = Transactions.message(instructions, blockhash).toUnsignedTransaction()

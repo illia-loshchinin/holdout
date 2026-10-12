@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.security.MessageDigest
 
 /**
@@ -97,26 +98,35 @@ class HoldoutViewModel(
     /**
      * Reads [cohort]'s roster (one `getProgramAccounts`, sliced — R8); a failed read keeps the last one.
      * It runs in [scope]: a check's roster read is a child of the check, so leaving the front cancels it.
+     * A cohort's read still out answers for any asked meanwhile — the 30-second pass, a screen opened
+     * twice, the Standing dot's own loop — so the same `getProgramAccounts` is never in flight twice.
      */
     fun loadRoster(cohort: SolanaPublicKey, scope: CoroutineScope = viewModelScope) {
-        // Loads overlap — the 30-second pass, a screen opened twice — and a slow
+        if (rosterReads[cohort]?.isActive == true) return
+        // A read given up (see [ROSTER_READ_MILLIS]) can still be answered late; a slow
         // early one must not put an older roster back over a newer one.
         val started = ++rosterLoadsStarted
-        scope.launch {
-            // Its own failure ends only this read: as a child of a check it must not cancel the check.
-            val roster =
-                try {
-                    chain.roster(cohort)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    null
-                } ?: return@launch
-            if (started < (newestRoster[cohort] ?: 0)) return@launch
-            newestRoster[cohort] = started
-            _rosters.update { it + (cohort to roster) }
-        }
+        val read =
+            scope.launch {
+                // Its own failure ends only this read: as a child of a check it must not cancel the check.
+                val roster =
+                    try {
+                        withTimeoutOrNull(ROSTER_READ_MILLIS) { chain.roster(cohort) }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        null
+                    } ?: return@launch
+                if (started < (newestRoster[cohort] ?: 0)) return@launch
+                newestRoster[cohort] = started
+                _rosters.update { it + (cohort to roster) }
+            }
+        rosterReads[cohort] = read
+        read.invokeOnCompletion { if (rosterReads[cohort] === read) rosterReads.remove(cohort) }
     }
+
+    /** The roster read now out, by cohort — on the main thread. */
+    private val rosterReads = mutableMapOf<SolanaPublicKey, Job>()
 
     private val _leaderboard = MutableStateFlow<Leaderboard.Snapshot?>(null)
 
@@ -271,21 +281,29 @@ class HoldoutViewModel(
         val result = send { phase -> _state.update { s -> s.copy(signing = s.signing?.takeIf { it.id == id }?.copy(phase = TxPhase.of(phase)) ?: s.signing) } }
         val lowOnSol = (_state.value.view?.lamports ?: Long.MAX_VALUE) < holdout.app.faucet.FaucetClient.MEMBER_CAN_PAY_LAMPORTS
         val outcome = TxOutcome.of(action, result, lowOnSol)
-        _state.update { s -> s.copy(signing = (s.signing?.takeIf { it.id == id } ?: started).copy(phase = TxPhase.Done(outcome))) }
+        // A result that offers "Try again" frees the action with it: the closing read in [act] would
+        // otherwise drop that tap, and the screen would wait for a wallet nobody asked.
+        _state.update { s -> s.copy(signing = (s.signing?.takeIf { it.id == id } ?: started).copy(phase = TxPhase.Done(outcome)), busy = s.busy && !outcome.canRetry) }
         return result
     }
 
     private fun say(message: String?, warning: Boolean = false) = _state.update { it.copy(message = message, messageIsWarning = warning) }
 
+    /** Actions started: one frees [UiState.busy] at its end only if no later one has taken it since. */
+    private var actions = 0
+
     private fun act(block: suspend () -> Unit) {
         if (_state.value.busy) return
+        val mine = ++actions
         viewModelScope.launch {
             _state.update { it.copy(busy = true, message = null) }
             try {
                 block()
             } finally {
                 refreshNow()
-                _state.update { it.copy(busy = false) }
+                // A failed signature frees the action before this read ends (see [signing]); a retry may
+                // hold it by now, and this action's end must not release the retry's hold.
+                if (mine == actions) _state.update { it.copy(busy = false) }
             }
         }
     }
@@ -464,6 +482,9 @@ class HoldoutViewModel(
 
     companion object {
         private const val REFRESH_MILLIS = 30_000L
+
+        /** A roster read that has not answered by now is given up, so one that hangs cannot hold its cohort's reads off for good. */
+        private const val ROSTER_READ_MILLIS = 60_000L
 
         /** A refusal in the wallet: nothing was signed, so nothing moved. */
         const val DECLINED = "You declined in your wallet. Nothing was sent."

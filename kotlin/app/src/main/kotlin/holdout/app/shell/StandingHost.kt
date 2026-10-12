@@ -133,10 +133,19 @@ internal fun Shared.LeaderboardsHost(board: Leaderboard.Board, read: Leaderboard
     )
 }
 
-/** A Holdout's roster, read now and every 30 s while it is on screen. */
+/** Whether the app's own loop (the Standing dot's) already reads [h]'s roster every 30 s, wherever the member is. */
+internal fun Shared.rosterReadByApp(h: Holdout): Boolean {
+    val n = now ?: return false
+    val about = standingHoldout() ?: return false
+    return about.address == h.address && TabRoots.rosterEveryMillis(about, n) == ROSTER_REFRESH_MILLIS
+}
+
+/** A Holdout's roster, read now and every 30 s while it is on screen — unless the app's Standing loop is reading it already. */
 @Composable
 internal fun Shared.RosterLoop(h: Holdout) {
-    InFrontLoop(h.address) {
+    val covered = rosterReadByApp(h)
+    InFrontLoop(h.address to covered) {
+        if (covered) kotlinx.coroutines.awaitCancellation()
         holdouts.loadRoster(h.address)
         delay(ROSTER_REFRESH_MILLIS)
     }
