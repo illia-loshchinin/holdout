@@ -3,6 +3,7 @@ package holdout.app.home
 import holdout.app.chain.ChainView
 import holdout.app.chain.Holdout
 import holdout.app.holdouts.MyHoldoutsModel
+import holdout.app.holdouts.YourKind
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Tab
 import holdout.app.ui.Format
@@ -114,13 +115,12 @@ object TodayModel {
      */
     fun nudges(view: ChainView?, now: Long?, exceptCohort: String? = null): List<NudgeRowState> {
         if (view == null || now == null || view.config == null) return emptyList()
-        val yours = MyHoldoutsModel.build(view, now).yours
-        return yours.filter { it.cohort != exceptCohort && it.status != "running" }.map { y ->
-            when (y.status) {
-                "claim" -> NudgeRowState("You finished · claim ${claimAmount(view, now, y.cohort)}", y.go, NudgeTone.Success)
-                "lobby" -> NudgeRowState("${y.name} lobby · ${y.detail}", y.go)
-                "out" -> NudgeRowState("${y.name}: ${y.line}${y.detail?.let { " · $it" }.orEmpty()}", y.go, NudgeTone.Warning)
-                else -> NudgeRowState("${y.name}: ${y.line}", y.go)
+        return MyHoldoutsModel.yours(view, now).filter { it.cohort != exceptCohort && it.kind != YourKind.Running }.map { y ->
+            when (y.kind) {
+                YourKind.Claim -> NudgeRowState("You finished · claim ${claimAmount(view, now, y.cohort)}", y.go, NudgeTone.Success)
+                YourKind.Lobby -> NudgeRowState("${y.name} lobby · ${y.detail}", y.go)
+                YourKind.Out -> NudgeRowState("${y.name}: ${y.line}${y.detail?.let { " · $it" }.orEmpty()}", y.go, NudgeTone.Warning)
+                YourKind.Running, YourKind.Locked, YourKind.Settling -> NudgeRowState("${y.name}: ${y.line}", y.go)
             }
         }
     }

@@ -21,6 +21,7 @@ import holdout.app.holdouts.MyHoldoutsState
 import holdout.app.holdouts.OpenHoldout
 import holdout.app.holdouts.RunningHoldout
 import holdout.app.holdouts.YourHoldout
+import holdout.app.holdouts.YourKind
 import holdout.app.nav.Nav
 import holdout.app.nav.NavEvent
 import holdout.app.nav.NavState
@@ -281,10 +282,10 @@ class AppShellTest {
 
         val H0 = MyHoldoutsState(
             yours = listOf(
-                YourHoldout("r", "Running card", "running", ChipTone.Success, "Day 3 of 7 · 12 started", "15 push-ups to go today", false, NavEvent.SelectTab(Tab.Today)),
-                YourHoldout("l", "Lobby card", "lobby", ChipTone.Accent, "Joined · 10 SKR staked", "starts in 2d 0h", false, NavEvent.Open(Screen.Lobby("l"))),
+                YourHoldout("r", "Running card", YourKind.Running, ChipTone.Success, "Day 3 of 7 · 12 started", "15 push-ups to go today", false, NavEvent.SelectTab(Tab.Today)),
+                YourHoldout("l", "Lobby card", YourKind.Lobby, ChipTone.Accent, "Joined · 10 SKR staked", "starts in 2d 0h", false, NavEvent.Open(Screen.Lobby("l"))),
             ),
-            open = listOf(OpenHoldout("o", "Offer card", "9,000 SKR at stake · 9 joined", null, "joining closes in 1d 23h", null, false)),
+            open = listOf(OpenHoldout("o", "Offer card", "9,000 SKR", "at stake · 9 joined", null, "joining closes in 1d 23h", null, false)),
             finished = listOf(FinishedHoldout("f", "Finished line", NavEvent.Open(Screen.Detail("f")))),
             running = listOf(RunningHoldout("w", "Watched card", "12 started · prize pool 0 SKR", false)),
         )
