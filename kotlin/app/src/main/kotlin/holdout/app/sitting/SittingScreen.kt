@@ -57,6 +57,7 @@ import holdout.repcounter.Angles
 import holdout.repcounter.ImagePose
 import holdout.repcounter.Lens
 import holdout.repcounter.PoseIndex
+import holdout.repcounter.PositionHint
 import holdout.repcounter.Side
 import java.util.concurrent.Executors
 import kotlin.math.atan
@@ -405,6 +406,9 @@ private fun PositionOverlay(viewModel: SittingViewModel, mirrored: Boolean) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val guidance = state.guidance ?: return
     if (state.frameWidth <= 0 || state.frameHeight <= 0) return
+    // While the phone is not standing on the floor the outline has no floor to sit on: it only covers the
+    // "Stand phone up" words (owner, 12 Oct walk).
+    if (guidance.hint == PositionHint.AIM_AT_THE_FLOOR) return
 
     val alpha by animateFloatAsState(
         targetValue = if (guidance.aligned) 0f else 1f,

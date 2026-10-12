@@ -683,7 +683,9 @@ class SittingViewModel(
         val last = spoken
         val due = when {
             last == null || last.first != coach -> true
-            coach == Coach.HOLD -> false
+            // "Hold" and "Place your phone" are said once: the member holding the phone can read it, and a
+            // repeat only nags (owner, 12 Oct walk).
+            coach == Coach.HOLD || coach == Coach.AIM_AT_FLOOR -> false
             else -> nowMillis - last.second >= COACH_REPEAT_MILLIS
         }
         if (!due) return

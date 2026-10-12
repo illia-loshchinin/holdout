@@ -16,6 +16,9 @@ import holdout.repcounter.Stakes
  */
 object SittingCopy {
     /** The last ten minutes of a Holdout day (001 FR-047, ES-3): said before and during the sitting. */
+    /** Under "Place your phone" in pre-flight: where it goes, the set-up guide's first step in one line. */
+    const val PLACE_PHONE = "On the floor, ahead of your shoulder, turned to you at 45°."
+
     const val LAST_MINUTES = "Under 10 minutes left. Unfinished reps won't count."
 
     /** The Daily 25's stand-in for a level sentence: it is counted exactly as a Spark (002 FR-014). */

@@ -201,6 +201,20 @@ class PreflightScreenTest {
     )
 
     @Test
+    fun `before the phone stands, the page says only where it goes - no body fix under it`() {
+        val ui = preflightUi(
+            state = SittingViewModel.UiState(
+                preflight = report(PreflightCheck.WHOLE_BODY, fixes = mapOf(PreflightCheck.WHOLE_BODY to "Step back so your whole body is visible")),
+                coach = Coach.AIM_AT_FLOOR,
+            ),
+            header = SittingHeader("x", null, true),
+            stakes = Stakes.STAKED,
+        )
+        assertEquals("Place your phone", ui.coach)
+        assertEquals(SittingCopy.PLACE_PHONE, ui.sub)
+    }
+
+    @Test
     fun `the five checks become the five pills in order, labels untouched`() {
         val ui = preflightUi(
             state = SittingViewModel.UiState(preflight = report(PreflightCheck.CAMERA_ANGLE), coach = Coach.TURN_45),

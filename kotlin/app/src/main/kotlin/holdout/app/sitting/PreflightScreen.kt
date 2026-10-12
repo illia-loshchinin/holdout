@@ -15,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
@@ -87,6 +89,8 @@ internal fun preflightUi(state: SittingViewModel.UiState, header: SittingHeader,
     val gating = statuses.firstOrNull { !it.passing && !it.check.advisory }
     val advisory = statuses.firstOrNull { !it.passing && it.check.advisory }
     val (sub, warning) = when {
+        // Before the phone stands on the floor nothing about the body can be checked: say only where it goes.
+        coach == Coach.AIM_AT_FLOOR -> SittingCopy.PLACE_PHONE to false
         state.holdFix != null -> state.holdFix to true
         gating != null -> gating.fix to false
         advisory != null -> advisory.fix to true
@@ -217,7 +221,13 @@ private fun HoldRing(progress: Float) {
 internal const val TIPS_BUTTON = "Still not green? Tips"
 
 /** The coach's words: read from two metres away, so as big as a line allows (002 FR-018). */
-internal val CoachStyle = TextStyle(fontSize = 54.sp, lineHeight = 58.sp, fontWeight = FontWeight.Light)
+// A soft shadow keeps the words readable where they cross the outline and its figure (owner, 12 Oct walk).
+internal val CoachStyle = TextStyle(
+    fontSize = 54.sp,
+    lineHeight = 58.sp,
+    fontWeight = FontWeight.Light,
+    shadow = Shadow(color = Color.Black.copy(alpha = 0.8f), offset = Offset.Zero, blurRadius = 16f),
+)
 
 private val RingSize = 120.dp
 private const val FULL_TURN = 360f
