@@ -32,7 +32,7 @@ program's rules move them.
 | `settle_finalize` | **Anyone**, once | Applies the boost, then computes one share per chip in constant time. A Holdout with no finishers sends its pool to the boost reserve. |
 | `release_comeback` | **Anyone** | Moves a comeback pledge that can no longer be made good into the boost reserve |
 | `claim_payout` | Member | Pays stake + share + comeback. Never expires. |
-| `claim_faucet(recipient)` | Fee sponsor | A zero-SOL wallet's first transaction: test SKR plus fee SOL, within the daily budget |
+| `claim_faucet(recipient)` | Fee sponsor (or the recipient, if it has SOL) | A zero-SOL wallet's first transaction: test SKR plus fee SOL, within the daily budget |
 | `top_up_sponsor` | **Anyone** | Refills the fee sponsor from the faucet's own funds |
 | `set_flags(genesis_gate_enabled)` | Admin | Turns the on-chain Seeker Genesis Token check on or off |
 

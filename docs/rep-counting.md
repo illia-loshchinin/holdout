@@ -36,8 +36,9 @@ From [`RepCounter.kt`](../kotlin/repcounter/src/main/kotlin/holdout/repcounter/R
 | 4. Tempo | One full cycle takes 0.8 to 6 seconds |
 | 5. Legs | Straight, on the toes (Habit only) |
 
-Angles are smoothed with a one-euro filter. The machine triggers on slightly wider values than the
-rule (165° and 85°), so ~2° of model jitter can't count one descent twice. A rep that breaks the rule
+Angles are smoothed with a one-euro filter. The bottom triggers at 85°, a little past the rule, so
+~2° of model jitter can't count one descent twice. At 45° the top is set per sitting, between 148°
+and 160° (see below). A rep that breaks the rule
 is dropped quietly, with a coaching cue: *Go lower · Keep your body straight · Slow down*. It is
 never an error.
 

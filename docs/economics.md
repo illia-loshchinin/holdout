@@ -68,7 +68,8 @@ The comeback is how Holdout treats a member who fell off.
    late, until the end of its first day, or take the one after it. Finishing either brings the
    pledge back.
 5. If you don't finish it, anyone (in practice, the crank) can call `release_comeback` once that
-   round is settled. The pledge then joins the **boost reserve**.
+   round is settled, or once its first day is over if it never opened. The pledge then joins the
+   **boost reserve**.
 
 The amount is exact. The app says "Win back 250 SKR", never "up to".
 

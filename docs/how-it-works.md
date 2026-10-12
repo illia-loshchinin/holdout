@@ -115,8 +115,10 @@ played. Money never ranks anyone. There is one board for Spark, one for Habit an
 board for the Hackathon rounds, all read live from on-chain progress.
 
 **Reminders** are scheduled on the phone from chain time, because no server knows your deadlines.
-You get one when a Holdout starts, one halfway through a day that isn't done, and one before the
-deadline.
+You get one when a Holdout starts and one before each day's deadline while that day isn't done. A
+24-hour day also gets one halfway through, with sound, and then the one before the deadline is
+silent. A day done on the phone but not yet on chain stays in the notification shade until it is
+sent.
 
 ## Getting started with no SOL
 
