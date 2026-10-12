@@ -121,10 +121,10 @@ data class ChainView(
     private fun comebackLeagues(): List<LeagueSnapshot> = holdouts.mapNotNull { it.league }.distinctBy { it.params.leagueId }
 
     /** What the wallet can still win back of stakes it lost, per level and length (FR-037g); empty when nothing is offered. */
-    fun comebackOffers(now: Long): List<Comeback.Offer> = Comeback.offers(comebackEntries(), comebackLeagues(), now)
+    fun comebackOffers(now: Long): List<Comeback.Offer> = Comeback.offers(comebackEntries(), comebackLeagues(), now, profile)
 
     /** The comeback offer of the slot [leagueId] belongs to, if any. */
-    fun comebackOffer(now: Long, leagueId: Int): Comeback.Offer? = Comeback.offer(comebackEntries(), comebackLeagues(), now, leagueId)
+    fun comebackOffer(now: Long, leagueId: Int): Comeback.Offer? = Comeback.offer(comebackEntries(), comebackLeagues(), now, leagueId, profile)
 }
 
 /** The chain reads the staked side of the app makes: [ChainRepository] on a phone, a fake in the view model's tests (005 T019). */

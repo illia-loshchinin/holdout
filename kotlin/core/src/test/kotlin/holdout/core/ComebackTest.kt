@@ -205,6 +205,39 @@ class ComebackTest {
     }
 
     @Test
+    fun `a test league's open pledge keeps its offer - a forfeit in another test league opens none`() {
+        val a = LeagueParams.TEST_LEAGUE_MIN
+        fun testLeague(id: Int) = LeagueSnapshot(LeagueParams.judged(0, s0).copy(leagueId = id, durationDays = 2, dayLength = 600, cadence = 3_600, joinLock = 60), nextIndex = 5)
+        fun testCohort(id: Int, start: Long) = CohortSnapshot(id, (start - s0) / 3_600, start, start - 60, 2, 25, 600, 0, chips)
+        fun profile(stake: ULong, league: Int) = ProfileSnapshot(
+            wallet,
+            List(ProfileLayout.TEST_LEAGUE_SLOT + 1) { slot ->
+                ProfileSnapshot.LeagueProgress(0, 1, 0, 0, 0, comebackStake = if (slot == ProfileLayout.TEST_LEAGUE_SLOT) stake else 0uL, comebackLeague = league, comebackRound = 1, comebackLastRound = 1)
+            },
+            running = null,
+            pending = null,
+        )
+        val leagues = listOf(testLeague(a), testLeague(a + 1))
+        val olderA = entry(testCohort(a, s0), State.Forfeited, days = 0)
+        val newerB = entry(testCohort(a + 1, s0 + 1_800), State.Forfeited, days = 0)
+        val roundA = entry(testCohort(a, s0 + 3_600))
+        val roundB = entry(testCohort(a + 1, s0 + 3_600 + 1_800))
+        val holdouts = listOf(olderA, newerB, roundA, roundB)
+        val at = Derive.deadlineOf(newerB.cohort, 0) + 10
+        // Without the profile the latest forfeit wins, as before.
+        assertEquals(newerB, assertNotNull(Comeback.offer(holdouts, leagues, at, a)).forfeited)
+        // The slot holds A's pledge: B's forfeit goes to B's boosts, so A's comeback is the one offered.
+        val kept = assertNotNull(Comeback.offer(holdouts, leagues, at, a, profile(25uL, a)))
+        assertEquals(olderA, kept.forfeited)
+        assertEquals(roundA, kept.next?.entry)
+        // B's own pledge, or none recorded yet, leaves B's forfeit the latest.
+        assertEquals(newerB, assertNotNull(Comeback.offer(holdouts, leagues, at, a, profile(25uL, a + 1))).forfeited)
+        assertEquals(newerB, assertNotNull(Comeback.offer(holdouts, leagues, at, a, profile(0uL, a))).forfeited)
+        // A's pledge with no forfeit of A in sight: nothing the phone can name, so no offer rather than B's.
+        assertNull(Comeback.offer(listOf(newerB, roundB), leagues, at, a, profile(25uL, a)))
+    }
+
+    @Test
     fun `a place held in a round is the comeback - no Join, finishing it brings the amount back`() {
         val r1 = entry(cohort(1, s0 + week), State.Joined, tier = 2)
         val offer = assertNotNull(Comeback.offer(listOf(forfeit21(), r1, entry(cohort(1, s0 + 2 * week))), listOf(leagueOf(1)), now, 1))

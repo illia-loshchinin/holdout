@@ -25,8 +25,11 @@ import com.solana.publickey.SolanaPublicKey
  * forfeit of a slot counts, a finished round uses the offer up, and a forfeit
  * recorded by the crank and one still unrecorded ([Derive.inBreach]) count alike
  * (FR-038a). Another league never counts, test leagues included, though they
- * share a progress slot (`Profile::slot_of`). Pure: chain accounts and chain
- * time only (constitution II, VI).
+ * share a progress slot (`Profile::slot_of`). While that shared slot holds one
+ * test league's open pledge, a forfeit in another opens no comeback
+ * (`settle_count`: `pledge_of_another_league` sends its pledge to that league's
+ * boosts), so the offer stays the pledged league's. Pure: chain accounts and
+ * chain time only (constitution II, VI).
  */
 object Comeback {
     /** One cohort with the connected wallet's membership in it, if any — all the offer reads. */
@@ -105,7 +108,7 @@ object Comeback {
     fun Offer?.forScreenOf(address: SolanaPublicKey): Offer? = this?.takeIf { it.forfeited.address == address }
 
     /** The offer in the slot of [leagueId], or null (see [offers]). */
-    fun offer(holdouts: List<Entry>, leagues: List<LeagueSnapshot>, now: Long, leagueId: Int): Offer? = offers(holdouts, leagues, now).firstOrNull { it.slot == ProfileSnapshot.slotOf(leagueId) }
+    fun offer(holdouts: List<Entry>, leagues: List<LeagueSnapshot>, now: Long, leagueId: Int, profile: ProfileSnapshot? = null): Offer? = offers(holdouts, leagues, now, profile).firstOrNull { it.slot == ProfileSnapshot.slotOf(leagueId) }
 
     /**
      * Per progress slot, the offer from the member's latest forfeit there. A slot
@@ -115,13 +118,19 @@ object Comeback {
      * [Offer.upcoming] one keeps the offer (FR-037g), unless it is already inside
      * its join lock. The league of the forfeit must be among [leagues]: its first
      * start, cadence and join lock give the rounds.
+     *
+     * With the member's [profile], a slot whose recorded pledge belongs to one
+     * test league keeps that league's offer: a forfeit in another test league
+     * there opens no comeback while the pledge is open, so it is not offered.
      */
-    fun offers(holdouts: List<Entry>, leagues: List<LeagueSnapshot>, now: Long): List<Offer> {
+    fun offers(holdouts: List<Entry>, leagues: List<LeagueSnapshot>, now: Long, profile: ProfileSnapshot? = null): List<Offer> {
         val mine = holdouts.filter { it.member != null }
         val forfeits = mine.filter { forfeited(it, now) }.groupBy { ProfileSnapshot.slotOf(it.cohort.leagueId) }
         return forfeits.mapNotNull { (slot, lost) ->
+            val pledged = profile?.leagues?.getOrNull(slot)?.takeIf { it.comebackStake > 0uL }?.comebackLeague
+            val counting = if (pledged == null) lost else lost.filter { it.cohort.leagueId == pledged }
             // Only the latest counts, as on-chain; a tie goes to the later cohort.
-            val latest = lost.maxWith(compareBy({ missedOf(it) }, { it.cohort.start }))
+            val latest = counting.maxWithOrNull(compareBy({ missedOf(it) }, { it.cohort.start })) ?: return@mapNotNull null
             offerFrom(slot, latest, holdouts, leagues, now)
         }.sortedBy { it.slot }
     }
