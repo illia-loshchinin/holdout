@@ -52,6 +52,7 @@ import holdout.app.ui.Body
 import holdout.app.ui.HoldoutCard
 import holdout.app.ui.PagerDots
 import holdout.app.ui.PrimaryButton
+import holdout.app.ui.SecondaryButton
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
@@ -66,13 +67,14 @@ import holdout.app.ui.theme.Spacing
  *  1 The Daily 25   2 A Holdout   3 How reps are counted   4 Scripted members
  *  (the card, centred, scrolls when it must)
  *  ▬ ● ● ●                                               PagerDots
- *  [ Next ]  /  [ Start ] on the last                    PrimaryButton
+ *  [ Back ] [ Next ]  /  [ Start ] on the last         Back from card 2 on; PrimaryButton
  *  TEST NETWORK · TEST TOKEN
  * ```
  *
  * **Skip on cards 1–3 goes to card 4**, not out of the tour: the scripted-member
- * note is required on first run (spec 004 FR-013). **Back** steps back a card;
- * on the first card it is left to the shell. **Start** on the last card finishes
+ * note is required on first run (spec 004 FR-013). **Back** — the button from
+ * card 2 on, or the system Back — steps back a card; on the first card there is
+ * no button and the system Back is left to the shell. **Start** on the last card finishes
  * ([onDone]). Nothing here is for judges, and no card names Holdout Lab.
  */
 @Composable
@@ -122,7 +124,11 @@ fun TourScreen(onDone: () -> Unit, modifier: Modifier = Modifier) {
             }
         }
         PagerDots(CARDS, card, Modifier.padding(vertical = Spacing.betweenItems))
-        PrimaryButton(if (last) "Start" else "Next", { if (last) onDone() else card++ })
+        // Back beside Next from card 2 on, so a card can be read again (owner, 12 Oct); the system Back does the same.
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
+            if (card > 0) SecondaryButton("Back", { card-- }, Modifier.weight(1f))
+            PrimaryButton(if (last) "Start" else "Next", { if (last) onDone() else card++ }, Modifier.weight(2f))
+        }
         Text(
             "Test network · test token".uppercase(),
             style = LabelStyle,

@@ -188,4 +188,18 @@ class TourScreenTest {
         assertLabel(1)
         assertEquals(0, done)
     }
+
+    @Test
+    fun `the Back button steps back a card, and the first card has none`() {
+        show()
+        compose.onNodeWithText("Back").assertDoesNotExist()
+        next()
+        next()
+        compose.onNodeWithText("Back").performClick()
+        assertLabel(2)
+        compose.onNodeWithText("Back").performClick()
+        assertLabel(1)
+        compose.onNodeWithText("Back").assertDoesNotExist()
+        assertEquals(0, done)
+    }
 }
