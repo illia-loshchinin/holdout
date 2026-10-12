@@ -4,12 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,9 +28,6 @@ import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
 import holdout.app.ui.Notice
 import holdout.app.ui.PrimaryButton
-import holdout.app.ui.QuietAction
-import holdout.app.ui.SecondaryButton
-import holdout.app.ui.SectionLabel
 import holdout.app.ui.TestCohortBadge
 import holdout.app.ui.TierChip
 import holdout.app.ui.TierChips
@@ -51,24 +48,27 @@ import holdout.core.Journey
  *
  * ```
  *  [DEVNET COHORT badge]
- *  Join the Spark · 7-day Holdout                      headlineMedium
+ *  Join the Spark · 7-day Holdout                      titleMedium, one line
  *  Light it up: 25 push-ups a day for 7 days.          Body
  *  ( Starts in 2d 4h )                                 accent tint pill
- *  [≈ $10] [≈ $25] [≈ $50] [≈ $100]                    TierChips
+ *  [≈ $10] [≈ $25] [≈ $50] [≈ $100]                    TierChips: the stake itself
  *  Finish it and 125 SKR of the stake you lost comes back.   success (comeback only)
- *  ┌ Your stake        1,250 SKR  ≈ $25 ┐
- *  │ At stake now     12,500 SKR  14 joined │
- *  │ Joining closes in             2d 3h │
- *  └──────────────────────────────────────┘
+ *  ┌ At stake now     12,500 SKR  14 joined │
+ *  └ Joining closes in             2d 3h ┘              warning colour in the last minutes
  *  If nobody drops out, you get exactly your stake back.
  *  Miss a day and you lose your stake: 70 % …            fee sentence
  *  Full refund until joining closes.
+ *  At 45° only. Aim for full push-ups from your toes; …  the level's rule
  *  Allow notifications and … (notifications off only)
- *  ┌ HOW REPS ARE COUNTED HERE · the level's rule ┐
- *  Joining closes in 8m 30s. A transaction signed now may land too late.   warning, last minutes
- *  [ Stake 1,250 SKR ]                                  PrimaryButton, or why not + Get test tokens
+ *  A transaction signed now may land too late.          warning, last minutes
+ *  [ Stake 1,250 SKR ]                                  PrimaryButton; a join that can't go ahead
+ *                                                        says why, its one way on in the button's place
  *  Test network, test token. Dollar values are approximate.
  * ```
+ *
+ * **It fits a Seeker screen unscrolled** in every state (owner, 12 Oct;
+ * StakeSheetFitTest): no row repeats what the chips or the button say, the
+ * rule is a line rather than a box, and a blocked join shows one button.
  *
  * **A comeback round** (FR-037g, T185): opened from the forfeit screen or
  * Today's comeback card, the sheet starts on [initialTier], the tier of the
@@ -107,15 +107,16 @@ fun StakeSheet(
     // The member's comeback round, started or locked, stays open to them to the end of its first day (FR-037e).
     val lateRound = comeback?.rounds?.firstOrNull { it.lateJoin && it.entry?.address == h.address }
     val closesIn = lateRound?.let { (it.closesAt - now).coerceAtLeast(0) } ?: Derive.timeUntilJoiningCloses(c, now)
+    val closingWarning = StakeText.closingWarning(closesIn)
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
-            .padding(start = Spacing.screenGutter, end = Spacing.screenGutter, bottom = Spacing.betweenSections),
-        verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
+            .padding(start = Spacing.screenGutter, end = Spacing.screenGutter, bottom = Spacing.screenGutter),
+        verticalArrangement = Arrangement.spacedBy(Spacing.tight),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
             if (test) TestCohortBadge(c.dayLength)
-            Text(StakeText.title(c, test), style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
+            Text(StakeText.title(c, test), style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
             Body(StakeText.levelLine(c, test))
             Text(
                 if (c.start <= now) "Started today" else "Starts in ${Format.countdown(c.start - now)}",
@@ -125,7 +126,7 @@ fun StakeSheet(
                     .clip(MaterialTheme.shapes.small)
                     .background(HoldoutColors.AccentTint)
                     .border(Spacing.border, HoldoutColors.Accent, MaterialTheme.shapes.small)
-                    .padding(horizontal = Spacing.betweenItems, vertical = Spacing.tight),
+                    .padding(horizontal = Spacing.betweenItems, vertical = Spacing.base),
             )
         }
 
@@ -141,15 +142,8 @@ fun StakeSheet(
             Text(StakeText.comeback(comeback.amount(chip)), style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Success)
         }
 
-        HoldoutCard {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Your stake", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(Format.skr(chip), style = AmountStyle, color = HoldoutColors.TextPrimary)
-                    Text(Format.tierUsd(tier), style = LabelStyle, color = HoldoutColors.TextTertiary)
-                }
-            }
-            HorizontalDivider(thickness = Spacing.border, color = HoldoutColors.Hairline)
+        // The stake itself is the chip picked and the button's own words, so no row repeats it.
+        HoldoutCard(padding = PaddingValues(horizontal = Spacing.cardPadding, vertical = Spacing.betweenItems)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("At stake now", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
                 Column(horizontalAlignment = Alignment.End) {
@@ -159,7 +153,7 @@ fun StakeSheet(
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Joining closes in", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
-                Text(Format.countdown(closesIn), style = AmountStyle, color = HoldoutColors.Accent)
+                Text(Format.countdown(closesIn), style = AmountStyle, color = if (closingWarning != null) HoldoutColors.Warning else HoldoutColors.Accent)
             }
         }
 
@@ -167,23 +161,13 @@ fun StakeSheet(
             Text(StakeText.NO_DROPOUT, style = LabelStyle, color = HoldoutColors.TextPrimary)
             Text(StakeText.fee(c, test), style = LabelStyle, color = HoldoutColors.TextSecondary)
             Text(StakeText.FULL_REFUND, style = LabelStyle, color = HoldoutColors.TextSecondary)
+            // How reps are counted here: the level's rule, a line of its own.
+            Text(Format.levelRule(c) ?: Format.levelRule(holdout.core.LeagueParams.FORM_TOES).orEmpty(), style = LabelStyle, color = HoldoutColors.TextPrimary)
             if (showNotificationReason) Text(StakeText.NOTIFICATION_REASON, style = LabelStyle, color = HoldoutColors.TextTertiary)
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.small)
-                .background(HoldoutColors.Surface3)
-                .padding(horizontal = Spacing.betweenItems, vertical = Spacing.betweenItems),
-            verticalArrangement = Arrangement.spacedBy(Spacing.base),
-        ) {
-            SectionLabel("How reps are counted here")
-            Text(Format.levelRule(c) ?: Format.levelRule(holdout.core.LeagueParams.FORM_TOES).orEmpty(), style = LabelStyle, color = HoldoutColors.TextPrimary)
-        }
-
         StakeBottom(
-            closingWarning = StakeText.closingWarning(closesIn),
+            closingWarning = closingWarning,
             joinBlocker = joinBlocker,
             short = skrBalance < chip,
             held = skrBalance,
@@ -218,27 +202,31 @@ private fun StakeBottom(
     onSeeLobby: (() -> Unit)?,
 ) {
     closingWarning?.let { Notice(it, warning = true) }
+    // A join that can't go ahead says why, and its one way on takes the stake button's place.
     when {
         joinBlocker != null -> {
             Notice(StakeText.blocker(joinBlocker), warning = true)
             if (joinBlocker == Journey.JoinBlocker.LobbyPlaceTaken && onSeeLobby != null) {
-                QuietAction("See your lobby", onSeeLobby)
+                PrimaryButton("See your lobby", onSeeLobby)
+            } else {
+                PrimaryButton("Stake ${Format.skr(chip)}", onStake, enabled = false)
             }
         }
         short -> {
             Notice(StakeText.shortOfSkr(held, chip), warning = true)
-            SecondaryButton("Get test tokens", onGetTokens)
+            PrimaryButton("Get test tokens", onGetTokens)
         }
         noFees -> {
             Notice(StakeText.SHORT_OF_SOL, warning = true)
-            SecondaryButton("Get test tokens", onGetTokens)
+            PrimaryButton("Get test tokens", onGetTokens)
+        }
+        else -> {
+            Notice(message, messageIsWarning)
+            PrimaryButton(
+                text = if (busy) Format.WAITING_FOR_WALLET else "Stake ${Format.skr(chip)}",
+                onClick = onStake,
+                busy = busy,
+            )
         }
     }
-    Notice(message, messageIsWarning)
-    PrimaryButton(
-        text = if (busy) Format.WAITING_FOR_WALLET else "Stake ${Format.skr(chip)}",
-        onClick = onStake,
-        enabled = joinBlocker == null && !short && !noFees,
-        busy = busy,
-    )
 }

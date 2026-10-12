@@ -4,7 +4,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performScrollTo
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.chain.Holdout
 import holdout.app.home.HoldoutsBlock
@@ -106,9 +105,9 @@ class StakeAndLobbyShots {
     @Test
     fun shortOfSkr() = stake("short-of-skr", skrBalance = 400uL * skr)
 
-    /** The sheet scrolls inside itself: the button under the long copy is reachable. */
+    /** Short of SKR, the sheet's one way on is Get test tokens, in the stake button's place, on screen without scrolling. */
     @Test
-    fun shortOfSkrEnd() = stake("short-of-skr-end", skrBalance = 400uL * skr, after = { onNodeWithText("Stake 1,250 SKR").performScrollTo().assertIsDisplayed() })
+    fun shortOfSkrEnd() = stake("short-of-skr-end", skrBalance = 400uL * skr, after = { onNodeWithText("Get test tokens").assertIsDisplayed() })
 
     private fun gate(name: String, status: SeekerStatus) = compose.shoot("stake", name) {
         Sheeted(behind = { HomeScreen(behind, {}, {}, {}, {}) }) {

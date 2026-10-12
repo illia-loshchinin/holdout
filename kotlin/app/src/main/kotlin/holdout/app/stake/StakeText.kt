@@ -39,9 +39,9 @@ object StakeText {
     /** The fee sentence with the Holdout's own name (ruling G5); a test Holdout names itself, not a level. */
     fun fee(c: CohortSnapshot, test: Boolean): String = Format.lostStakeSplit(c, name = Format.boostName(c, test))
 
-    /** `Joining closes in 8m 30s. A transaction signed now may land too late.`, or null before the last minutes (ES-12). */
+    /** `A transaction signed now may land too late.` in the last minutes before the cutoff, or null before them (ES-12); the countdown above it turns to the warning colour. */
     fun closingWarning(secondsToClose: Long): String? = if (secondsToClose in 1..CLOSING_WINDOW_SECONDS) {
-        "Joining closes in ${Format.countdown(secondsToClose)}. A transaction signed now may land too late."
+        "A transaction signed now may land too late."
     } else {
         null
     }

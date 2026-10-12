@@ -66,8 +66,8 @@ class StakeTextTest {
 
     @Test
     fun `the closing warning shows in the last ten minutes only`() {
-        assertEquals("Joining closes in 8m 30s. A transaction signed now may land too late.", StakeText.closingWarning(510))
-        assertEquals("Joining closes in 10m 00s. A transaction signed now may land too late.", StakeText.closingWarning(600))
+        assertEquals("A transaction signed now may land too late.", StakeText.closingWarning(510))
+        assertEquals("A transaction signed now may land too late.", StakeText.closingWarning(600))
         assertNull(StakeText.closingWarning(601))
         assertNull(StakeText.closingWarning(0))
         assertNull(StakeText.closingWarning(2 * day))

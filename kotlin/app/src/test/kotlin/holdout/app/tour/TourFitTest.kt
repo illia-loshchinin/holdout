@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import holdout.app.testutil.AnimationsOff
+import holdout.app.testutil.SEEKER
 import holdout.app.ui.theme.HoldoutTheme
 import org.junit.Rule
 import org.junit.Test
@@ -47,6 +48,3 @@ class TourFitTest {
         assertEquals(emptyMap(), overflow.filterValues { it > 0f }, "cards that scroll, by how many px at 480 dpi")
     }
 }
-
-/** The app's area on a Seeker: 400 × 829 dp at 480 dpi. */
-internal const val SEEKER = "w400dp-h829dp-xxhdpi"

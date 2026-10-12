@@ -115,7 +115,8 @@ class StakeSheetTest {
         text("Light it up: 25 push-ups a day for 7 days.").assertExists()
         text("Starts in 2d 4h").assertExists()
         text("At 45° only. Aim for full push-ups from your toes; push-ups from the knees still count.").assertExists()
-        text("HOW REPS ARE COUNTED HERE").assertExists()
+        // The rule is a line of its own now, with no box or label (the sheet fits a Seeker screen).
+        text("HOW REPS ARE COUNTED HERE").assertDoesNotExist()
     }
 
     @Test
@@ -148,11 +149,12 @@ class StakeSheetTest {
     }
 
     @Test
-    fun `your stake, what is at stake now and how many joined, and when joining closes`() {
+    fun `what is at stake now and how many joined, and when joining closes - the stake itself is the chip and the button`() {
         show()
-        text("Your stake").assertExists()
-        // The chip and the stake's own caption.
-        compose.onAllNodes(hasText("≈ \$25")).assertCountEquals(2)
+        text("Your stake").assertDoesNotExist()
+        // The chip alone carries the dollar label; the button names the SKR.
+        compose.onAllNodes(hasText("≈ \$25")).assertCountEquals(1)
+        text("Stake 1,250 SKR").assertExists()
         text("At stake now").assertExists()
         text("12,500 SKR").assertExists()
         text("14 joined").assertExists()
@@ -205,7 +207,8 @@ class StakeSheetTest {
     fun `short of SKR - what is held against what the chip needs, and Get test tokens`() {
         show(skrBalance = 400uL * skr, initialTier = 1)
         text("You hold 400 SKR. This chip needs 1,250 SKR.").assertExists()
-        text("Stake 1,250 SKR").performScrollTo().assertIsNotEnabled()
+        // Get test tokens takes the stake button's place.
+        text("Stake 1,250 SKR").assertDoesNotExist()
         text("Get test tokens").performScrollTo().performClick()
         assertEquals(1, tokens)
     }
@@ -214,7 +217,7 @@ class StakeSheetTest {
     fun `short of SOL - the faucet sends some with the test tokens`() {
         show(lamports = 1_000L)
         text("Your wallet has too little devnet SOL to pay for joining. The faucet sends some with the test tokens.").assertExists()
-        text("Stake 1,250 SKR").performScrollTo().assertIsNotEnabled()
+        text("Stake 1,250 SKR").assertDoesNotExist()
         text("Get test tokens").performScrollTo().performClick()
         assertEquals(1, tokens)
     }
@@ -232,7 +235,8 @@ class StakeSheetTest {
         text("You already hold a place in a Holdout that hasn't started.").assertExists()
         text("See your lobby").performScrollTo().performClick()
         assertEquals(1, lobbies)
-        text("Stake 1,250 SKR").performScrollTo().assertIsNotEnabled()
+        // See your lobby takes the stake button's place.
+        text("Stake 1,250 SKR").assertDoesNotExist()
     }
 
     @Test
@@ -240,12 +244,15 @@ class StakeSheetTest {
         show(blocker = Journey.JoinBlocker.Overlaps)
         text("This Holdout starts before your current one ends.").assertExists()
         text("See your lobby").assertDoesNotExist()
+        text("Stake 1,250 SKR").performScrollTo().assertIsNotEnabled()
     }
 
     @Test
     fun `in the last minutes before the cutoff the sheet warns a transaction may land too late (ES-12)`() {
         show(at = start - 3_600 - 510)
-        text("Joining closes in 8m 30s. A transaction signed now may land too late.").assertExists()
+        // The countdown above says how long; the warning says what it means.
+        text("8m 30s").assertExists()
+        text("A transaction signed now may land too late.").assertExists()
         // The warning is not a block: the stake is still possible.
         text("Stake 1,250 SKR").performScrollTo().assertIsEnabled()
     }
@@ -416,8 +423,8 @@ class StakeSheetTest {
     @Test
     fun `no dollar figure sits beside a pool or a total`() {
         show()
-        // The only dollar labels are the chips and the stake's own approximate tier.
-        compose.onAllNodes(hasText("≈ \$25")).assertCountEquals(2)
+        // The only dollar labels are the chips'.
+        compose.onAllNodes(hasText("≈ \$25")).assertCountEquals(1)
         text("12,500 SKR ≈", substring = true).assertDoesNotExist()
     }
 }
