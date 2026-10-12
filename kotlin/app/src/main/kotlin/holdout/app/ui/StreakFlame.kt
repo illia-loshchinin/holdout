@@ -2,6 +2,7 @@ package holdout.app.ui
 
 import android.animation.ValueAnimator
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -132,8 +133,7 @@ fun StreakFlame(days: Int, state: StreakState, modifier: Modifier = Modifier, ch
  * animations are off, as for the loaders (`ValueAnimator.areAnimatorsEnabled`).
  */
 @Composable
-private fun MilestoneFlame(chip: Boolean) {
-    val pulse = remember { Animatable(1f) }
+internal fun MilestoneFlame(chip: Boolean, pulse: Animatable<Float, AnimationVector1D> = remember { Animatable(1f) }) {
     val animate = remember { ValueAnimator.areAnimatorsEnabled() }
     LaunchedEffect(Unit) {
         if (animate) {

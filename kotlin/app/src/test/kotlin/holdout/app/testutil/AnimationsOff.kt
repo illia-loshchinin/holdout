@@ -11,11 +11,12 @@ import org.junit.runner.Description
  * the wallet or the chain lets Compose go idle and its words can be asserted.
  */
 class AnimationsOff : TestWatcher() {
-    override fun starting(description: Description) = scale(0f)
+    override fun starting(description: Description) = setScale(0f)
 
-    override fun finished(description: Description) = scale(1f)
+    override fun finished(description: Description) = setScale(1f)
 
-    private fun scale(value: Float) {
+    /** For a test that needs animations both off and on: 0 turns them off, 1 back on. */
+    fun setScale(value: Float) {
         ValueAnimator::class.java.getMethod("setDurationScale", Float::class.javaPrimitiveType).invoke(null, value)
     }
 }
