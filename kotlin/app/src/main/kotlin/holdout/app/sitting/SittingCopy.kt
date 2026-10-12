@@ -6,7 +6,7 @@ import holdout.repcounter.Stakes
 
 /**
  * The words of the sitting path that are built from state: the top bar's label,
- * the time lines, the guide's level label and the level's rule sentence (boards
+ * the time lines, the guide's level label and the pre-flight rule sentence (boards
  * 15–20 and 6; rulings C-D2, G2, G3; 002 FR-014, FR-047). Pure, so a JVM test
  * can pin every one. Labels come back lower-case, as the boards write them, and
  * the screens upper-case them as they do every label.
@@ -47,7 +47,7 @@ object SittingCopy {
     fun levelLabel(cohort: CohortSnapshot): String = Format.level(cohort).lowercase()
 
     /**
-     * The sentence under a sitting's set-up and pre-flight page: the Holdout's
+     * The sentence under a sitting's pre-flight page: the Holdout's
      * own level rule, word for word (`Stakes`, read by `Format.levelRule`), or
      * for the Daily 25 the caption that it is counted as the Spark. A Spark
      * never shows the Habit sentence, nor the reverse.
