@@ -55,9 +55,10 @@ internal object DetailText {
     fun gridValues(min: Int, max: Int): List<Int> {
         val span = max - min
         if (span <= 0) return emptyList()
-        val step = STEPS.firstOrNull { span / it <= 3 } ?: return emptyList()
-        val first = (min / step + 1) * step
-        return generateSequence(first) { it + step }.takeWhile { it < max }.toList()
+        // The first round step that leaves three lines or fewer (a span of 17 at step 5 can hold four).
+        return STEPS.firstNotNullOfOrNull { step ->
+            generateSequence((min / step + 1) * step) { it + step }.takeWhile { it < max }.toList().takeIf { it.size <= 3 }
+        } ?: emptyList()
     }
 
     /** The lowest value the chart's baseline stands for: a fifth under the smallest point, so the line does not sit on it. */

@@ -128,7 +128,7 @@ fun CohortDetailScreen(
             if (points != null && points.size >= 2) {
                 HoldoutCard {
                     SectionLabel("How the crowd thinned")
-                    ThinningChart(points)
+                    ThinningChart(points, c.durationDays)
                 }
             }
 
