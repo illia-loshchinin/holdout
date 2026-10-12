@@ -93,7 +93,8 @@ internal fun CountingContent(ui: CountingUi, onStop: () -> Unit, modifier: Modif
             ) {
                 ui.hint?.let { Hint(it) }
                 if (ui.justBanked && ui.hint == null) BankedPill()
-                if (ui.header.inLastMinutes) WarningPill(SittingCopy.LAST_MINUTES)
+                // No "unfinished reps" sentence during the sitting (owner, 12 Oct): the member is already doing the
+                // day; Today and the day strip say it. The time line alone turns to a warning.
             }
             Column(
                 modifier = Modifier.padding(bottom = Spacing.betweenSections),

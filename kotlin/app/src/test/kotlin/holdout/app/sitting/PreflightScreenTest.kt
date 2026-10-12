@@ -115,10 +115,10 @@ class PreflightScreenTest {
     }
 
     @Test
-    fun `the last ten minutes say unfinished reps will not count`() {
+    fun `the last ten minutes show the time alone - the sentence is Today's, not the sitting's`() {
         show(holdout(timeLeft = 9 * 60L + 30))
         compose.onNodeWithText("9m 30s to today's deadline").assertIsDisplayed()
-        compose.onNodeWithText(SittingCopy.LAST_MINUTES).assertIsDisplayed()
+        compose.onNodeWithText(SittingCopy.LAST_MINUTES).assertDoesNotExist()
     }
 
     @Test

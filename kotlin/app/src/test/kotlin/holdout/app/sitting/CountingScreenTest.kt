@@ -116,10 +116,10 @@ class CountingScreenTest {
     }
 
     @Test
-    fun `in the last ten minutes of a Holdout day the time turns to a warning and the unfinished reps sentence shows`() {
+    fun `in the last ten minutes of a Holdout day the time turns to a warning, with no sentence over the camera`() {
         show(timeLeft = 9 * 60L + 30)
         compose.onNodeWithContentDescription("Under 10 minutes left, 9m 30s").assertExists()
-        compose.onNodeWithText(SittingCopy.LAST_MINUTES).assertIsDisplayed()
+        compose.onNodeWithText(SittingCopy.LAST_MINUTES).assertDoesNotExist()
     }
 
     @Test

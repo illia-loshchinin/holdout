@@ -125,23 +125,8 @@ internal fun TimeLine(header: SittingHeader, modifier: Modifier = Modifier) {
             style = TimeLineStyle,
             color = if (late || Derive.inWarningWindow(left)) HoldoutColors.Warning else HoldoutColors.TextSecondary,
         )
-        if (late) WarningPill(SittingCopy.LAST_MINUTES)
+        // The warning sentence lives on Today and the day strip, not in the sitting (owner, 12 Oct).
     }
-}
-
-/** A one-line warning on the camera: coral text and border on the raised surface (the last ten minutes, FR-047). */
-@Composable
-internal fun WarningPill(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        style = LabelStyle,
-        color = HoldoutColors.Warning,
-        textAlign = TextAlign.Center,
-        modifier = modifier
-            .background(HoldoutColors.Surface2.copy(alpha = CHIP_FILL), CircleShape)
-            .border(Spacing.border, HoldoutColors.Warning.copy(alpha = CHIP_BORDER_FIX), CircleShape)
-            .padding(horizontal = Spacing.betweenItems, vertical = Spacing.tight),
-    )
 }
 
 /** Black fading to nothing from the top edge, under the bar: text over the camera sits on a scrim. */
