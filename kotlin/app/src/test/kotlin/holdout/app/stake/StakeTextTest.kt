@@ -14,7 +14,7 @@ class StakeTextTest {
     private val skr = 1_000_000uL
     private val day = 86_400L
 
-    private fun cohort(form: Int, days: Int, leagueId: Int = 0, reps: Int = 25, dayLength: Long = day) = CohortSnapshot(leagueId, 1, 1_791_176_400L, 1_791_172_800L, days, reps, dayLength, 0, listOf(500uL * skr, 1_250uL * skr, 2_500uL * skr, 5_000uL * skr), form = form)
+    private fun cohort(form: Int, days: Int, leagueId: Int = 0, reps: Int = 25, dayLength: Long = day, joinLock: Long = 3_600L) = CohortSnapshot(leagueId, 1, 1_791_176_400L, 1_791_176_400L - joinLock, days, reps, dayLength, 0, listOf(500uL * skr, 1_250uL * skr, 2_500uL * skr, 5_000uL * skr), form = form)
 
     private val spark = cohort(LeagueParams.FORM_KNEES_ALLOWED, 7)
     private val habit = cohort(LeagueParams.FORM_TOES, 21)
@@ -30,7 +30,12 @@ class StakeTextTest {
     fun `the level line leads with the tagline's first words`() {
         assertEquals("Light it up: 25 push-ups a day for 7 days.", StakeText.levelLine(spark, false))
         assertEquals("Make it stick: 25 push-ups a day for 21 days.", StakeText.levelLine(habit, false))
-        assertEquals("5 push-ups a day for 3 days. Joinable right up to its start.", StakeText.levelLine(cohort(LeagueParams.FORM_KNEES_ALLOWED, 3, reps = 5), true))
+        assertEquals("5 push-ups a day for 3 days. Joinable right up to its start.", StakeText.levelLine(cohort(LeagueParams.FORM_KNEES_ALLOWED, 3, reps = 5, joinLock = 0), true))
+    }
+
+    @Test
+    fun `a test Holdout with a join lock does not claim to be joinable up to its start`() {
+        assertEquals("5 push-ups a day for 3 days.", StakeText.levelLine(cohort(LeagueParams.FORM_KNEES_ALLOWED, 3, reps = 5, joinLock = 60), true))
     }
 
     @Test

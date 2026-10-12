@@ -1,15 +1,18 @@
 package holdout.app.standing
 
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.text.TextLayoutResult
 import holdout.app.holdouts.RunningHoldout
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Screen
 import holdout.app.nav.Tab
 import holdout.app.testutil.AnimationsOff
 import holdout.app.testutil.TALL_PHONE
+import holdout.app.ui.theme.HoldoutFonts
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.core.Leaderboard
 import org.junit.Rule
@@ -18,6 +21,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 /** Standing with nothing of the member's to show (FR-069b, board "nothing of yours yet"). */
 @RunWith(RobolectricTestRunner::class)
@@ -81,6 +85,20 @@ class StandingEmptyScreenTest {
 
         compose.onNodeWithText("RUNNING NOW").assertDoesNotExist()
         compose.onNodeWithText("Yours starts in 41m 10s").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the lobby line sets only the countdown in the mono face, the words around it stay in the text face`() {
+        show(emptyList(), "Yours starts in 6m 29s" to "l", mutableListOf())
+
+        compose.onNodeWithText("Yours starts in 6m 29s").assertIsDisplayed()
+        val result = mutableListOf<TextLayoutResult>()
+        compose.onNodeWithText("Yours starts in 6m 29s").fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(result)
+        val text = result.first().layoutInput.text
+        val mono = text.spanStyles.filter { it.item.fontFamily == HoldoutFonts.Mono }
+        assertEquals(1, mono.size, "one mono span")
+        assertEquals("6m 29s", text.text.substring(mono.single().start, mono.single().end))
+        assertNotEquals(HoldoutFonts.Mono, result.first().layoutInput.style.fontFamily, "the base style is not mono")
     }
 
     @Test

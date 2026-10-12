@@ -21,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import holdout.app.holdouts.RunningHoldout
 import holdout.app.holdouts.RunningNowCard
@@ -108,7 +110,17 @@ private fun LobbyLine(text: String, onClick: () -> Unit) {
             .padding(horizontal = Spacing.cardPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text, style = AmountStyle, color = HoldoutColors.Accent, modifier = Modifier.weight(1f))
+        // Mono is for countdowns (design book): the words stay in the text face, only the time after them is mono.
+        val lead = StandingEmptyText.LOBBY_LEAD
+        val line = buildAnnotatedString {
+            if (text.startsWith(lead)) {
+                append(lead)
+                withStyle(AmountStyle.toSpanStyle()) { append(text.removePrefix(lead)) }
+            } else {
+                append(text)
+            }
+        }
+        Text(line, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Accent, modifier = Modifier.weight(1f))
         Text("›", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Accent)
     }
 }
@@ -119,6 +131,9 @@ object StandingEmptyText {
     const val JOIN_TITLE = "Join one to have a crowd."
     const val JOIN_BODY = "Everyone who starts together thins out together."
     const val JOIN_BUTTON = "See Holdouts"
+
+    /** The words before the countdown in the lobby pill; the host appends the countdown. */
+    const val LOBBY_LEAD = "Yours starts in "
 }
 
 private const val BORDER_ALPHA = 0.32f

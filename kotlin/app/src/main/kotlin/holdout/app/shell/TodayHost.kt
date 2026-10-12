@@ -10,7 +10,6 @@ import androidx.compose.ui.Modifier
 import holdout.app.home.CohortHome
 import holdout.app.home.HomeScreen
 import holdout.app.home.HomeState
-import holdout.app.home.NewPhone
 import holdout.app.home.NudgeRow
 import holdout.app.home.TodayModel
 import holdout.app.nav.NavEvent
@@ -63,7 +62,7 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
         }
         val banked = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.bankedReps(wallet, scope, stage.dayIndex.toLong()) }
         val pendingToday = pendingTodayOf(h, stage)
-        val newPhone = remember(wallet, dayIndex, view, banked) { NewPhone.shows(store, wallet, dayIndex, view, banked) }
+        val newPhone = remember(wallet, dayIndex, view, banked) { NewPhoneWiring.shows(store, wallet, dayIndex, view, banked) }
         CohortHome(
             h = h,
             members = rosters[h.address],
@@ -118,7 +117,7 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
     }
     val view = view
     // This phone met the wallet today, the chain has it in a Holdout from an earlier day, and nothing is banked here (ES-3a).
-    val newPhone = remember(wallet, dayIndex, view, banked) { NewPhone.shows(store, wallet, dayIndex, view, banked) }
+    val newPhone = remember(wallet, dayIndex, view, banked) { NewPhoneWiring.shows(store, wallet, dayIndex, view, banked) }
     val offline = chain.offline
     val holdoutsBlock = TodayModel.holdouts(view, chainNow, offline)
     // The nudges and the comeback card come from the chain read; with none they are empty.
