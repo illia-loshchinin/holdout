@@ -466,6 +466,19 @@ class RunTest {
     }
 
     @Test
+    fun `a retired test league still opens the rounds its comebacks are owed in`() {
+        // A recorded comeback names its last round; a forfeit not counted yet is owed the rounds its miss gives.
+        assertEquals(5L, Run.owedComebackRound(league0, listOf(profileOf(progressOf(0, 100uL, 4, 5))), emptyList()))
+        assertEquals(null, Run.owedComebackRound(league0, listOf(profileOf(progressOf(0, 0uL, 4, 5))), emptyList()), "no pledge, nothing owed")
+        assertEquals(null, Run.owedComebackRound(league0, listOf(profileOf(progressOf(7, 100uL, 4, 5))), emptyList()), "another league's comeback")
+        val midRound = first + 2 * week + day
+        assertEquals(3L, Run.owedComebackRound(league0, emptyList(), listOf(midRound)), "a miss mid-round is owed the next round")
+        val lastSecond = first + 3 * week - 1
+        assertEquals(4L, Run.owedComebackRound(league0, emptyList(), listOf(lastSecond)), "a miss after the next round closed is owed the one after")
+        assertEquals(5L, Run.owedComebackRound(league0, listOf(profileOf(progressOf(0, 100uL, 5, 5))), listOf(midRound)), "the latest owed round wins")
+    }
+
+    @Test
     fun `the new test lobby waits until every cohort of an older test league has settled`() {
         val old = testCohort(100, 0, start = first)
         assertEquals(100, Run.lobbyHeldBy(setOf(100), listOf(old, testCohort(101, 0, start = first + 600))), "an older cohort still unsettled holds the lobby")

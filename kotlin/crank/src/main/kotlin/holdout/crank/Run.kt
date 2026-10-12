@@ -104,6 +104,23 @@ object Run {
         .minOfOrNull { it.leagueId }
 
     /**
+     * The last round a retired test [league] still owes a comeback in, or null
+     * (FR-037e: a comeback is guaranteed). A comeback is made good only in its
+     * own league, so a league retired by a newer one keeps opening its cohorts —
+     * no further than this round — until every comeback it owes can be finished:
+     * the open ones the members' progress records ([profiles]) name, and those
+     * still to be recorded when a forfeited cohort is counted ([uncountedMisses],
+     * the missed deadline of each forfeit not counted yet). Anyone may join a
+     * round opened so, as any open cohort; the new lobby waits until they settle.
+     */
+    fun owedComebackRound(league: LeagueSnapshot, profiles: Collection<ProfileSnapshot>, uncountedMisses: Collection<Long>): Long? {
+        val id = league.params.leagueId
+        val recorded = profiles.flatMap { it.leagues }.filter { it.comebackStake > 0uL && it.comebackLeague == id }.map { it.comebackLastRound }
+        val pending = uncountedMisses.map { Schedule.comebackRounds(league.params.firstStart, league.params.cadence, league.params.joinLock, it).last }
+        return (recorded + pending).maxOrNull()
+    }
+
+    /**
      * The earliest instant after [now] at which one of [leagues] falls due to
      * open its next cohort: the start of its newest one (`open_cohort` refuses
      * before it). The loop wakes for it instead of waiting out its interval, so
@@ -269,10 +286,10 @@ object Run {
         suspend fun send(step: String, instructions: List<TransactionInstruction>): String? = signAndSend(rpc, step, instructions, listOf(payer), args.dryRun, pause, beforeRetrying = "the next pass reads chain state and retries")
 
         // ---- 1. open ---------------------------------------------------------
-        suspend fun openDue(league: LeagueSnapshot) {
+        suspend fun openDue(league: LeagueSnapshot, upTo: Long = Long.MAX_VALUE) {
             val id = league.params.leagueId
             val current = league.copy(nextIndex = nextIndex.getValue(id))
-            val due = dueOpens(current, now) { cohorts[id to it]?.start ?: scheduledStart(league, it) }
+            val due = dueOpens(current, now) { cohorts[id to it]?.start ?: scheduledStart(league, it) }.filter { it <= upTo }
             for ((position, index) in due.withIndex()) {
                 val previous = if (index == 0L) null else Pdas.cohort(programId, id, index - 1)
                 val opened =
@@ -301,12 +318,52 @@ object Run {
             }
         }
         val retired = retiredTestLeagues(leagues.map { it.params.leagueId })
+        // A retired test league still opens the rounds its comebacks are owed in (FR-037e).
+        val owed = mutableMapOf<Int, Long>()
+        if (retired.isNotEmpty()) {
+            val early = rpc.profiles(programId)
+            if (early == null) {
+                pass.failures++
+                pass.record("open_cohort", "failed") { put("error", "could not list profiles from ${config.rpcUrl} for the comebacks retired test leagues owe") }
+            } else {
+                for (league in leagues.filter { it.params.leagueId in retired }) {
+                    val id = league.params.leagueId
+                    val misses = mutableListOf<Long>()
+                    for (cohort in cohorts.values.filter { it.leagueId == id && !it.settled }) {
+                        val accounts = rpc.membershipAccounts(programId, Pdas.cohort(programId, id, cohort.index))
+                        if (accounts == null) {
+                            pass.failures++
+                            pass.record("open_cohort", "failed") {
+                                put("league", id)
+                                put("index", cohort.index)
+                                put("error", "could not read the members for the comebacks this league owes")
+                            }
+                            continue
+                        }
+                        accounts.map { it.second }
+                            .filter { !it.counted && (it.member.state == MembershipSnapshot.State.Forfeited || Derive.inBreach(it.member, cohort, now)) }
+                            .forEach { misses += Derive.deadlineOf(cohort, it.member.daysCompleted) }
+                    }
+                    owedComebackRound(league, early, misses)?.let { owed[id] = it }
+                }
+            }
+        }
         for (league in leagues) {
             val id = league.params.leagueId
             if (id in retired) {
-                pass.record("open_cohort", "retired") {
-                    put("league", id)
-                    put("reason", "a newer test league is the lobby; this one opens no more cohorts (FR-044a)")
+                val upTo = owed[id]
+                if (upTo != null && upTo >= nextIndex.getValue(id)) {
+                    pass.record("open_cohort", "comeback") {
+                        put("league", id)
+                        put("upTo", upTo)
+                        put("reason", "a newer test league is the lobby, but this one owes a comeback in its rounds up to $upTo (FR-037e)")
+                    }
+                    openDue(league, upTo)
+                } else {
+                    pass.record("open_cohort", "retired") {
+                        put("league", id)
+                        put("reason", "a newer test league is the lobby; this one opens no more cohorts (FR-044a)")
+                    }
                 }
             } else {
                 val heldBy = if (id >= LeagueParams.TEST_LEAGUE_MIN) lobbyHeldBy(retired, cohorts.values) else null
@@ -482,7 +539,14 @@ object Run {
         // The leagues this crank opens in, as they stand after this pass; a lobby
         // held by an older test league waits on settlement, not on a clock.
         val opening = leagues
-            .filter { it.params.leagueId !in retired && (it.params.leagueId < LeagueParams.TEST_LEAGUE_MIN || lobbyHeldBy(retired, cohorts.values) == null) }
+            .filter { l ->
+                val id = l.params.leagueId
+                if (id in retired) {
+                    (owed[id] ?: -1L) >= nextIndex.getValue(id)
+                } else {
+                    id < LeagueParams.TEST_LEAGUE_MIN || lobbyHeldBy(retired, cohorts.values) == null
+                }
+            }
             .map { it.copy(nextIndex = nextIndex.getValue(it.params.leagueId)) }
         val nextOpen = nextOpenAt(opening, cohorts.values, now)
 
