@@ -156,7 +156,7 @@ The product has three of its own marks, all built from simple geometry rather th
 - **The streak flame**: active, extended (flips up in `success`), broken (cracked, `text-tertiary`), personal best (`celebration` with a **PB** mark).
 - **The scripted-member diamond (◇)**: always beside a `SCRIPTED` label chip.
 
-**Logo:** the mark and the name. The mark is the app icon's crowd with its H: the same 25 members, the same seven in `accent`, so the icon and the logo are one symbol at two sizes. Beside it sits **Holdout** in Roboto Flex 300 (the `counter` face), title case, `text-primary`, tracking −2%, converted to outlines so it never depends on an installed font. The files are in the **Logo** asset group.
+**Logo:** the mark and the name. The mark is the app icon's crowd with its H: the same 25 members, the same seven in `accent`, so the icon and the logo are one symbol at two sizes. Beside it sits **HOLDOUT** in Roboto Medium 500, all capitals, `text-primary`, tracking +22%, converted to outlines so it never depends on an installed font. The files are in the **Logo** asset group.
 
 - **Lockups:** horizontal is the default (website header, deck, store banner, social). Stacked is for square spaces (avatar, title slide). The wordmark alone is for places where the icon already sits beside it. The mark alone is the icon without its tile.
 - **Clear space:** two grid steps (the distance between two members' centres) on every side. The files already include it.
@@ -164,7 +164,7 @@ The product has three of its own marks, all built from simple geometry rather th
 - **Ground:** the colour versions live only on black (`canvas`). On a light page someone else controls (a hackathon listing, a partner site, print), use the one-ink black version: the bold H alone, the themed-icon geometry, with the name. Never put the colour version on white.
 - **Never:** recolour the members or the H, stretch or rotate, add a gradient, glow or shadow, re-set the name in another font, rearrange the lockup, or put it on a photo without its black ground.
 
-Inside the app the name is live text, not the outlined file: `ui/Wordmark.kt` sets *Holdout* in the `counter` face at weight 300, tracked −2%, and follows the theme's face. The outlined files are for everything outside the app.
+Inside the app the name is live text, not the outlined file: `ui/Wordmark.kt` sets *HOLDOUT* in the system Roboto at weight 500, all capitals, tracked +22%, and reads aloud as "Holdout"; in running text the name stays "Holdout". The outlined files are for everything outside the app.
 
 Never borrow the Solana logomark as Holdout's own. It may appear only where Solana's brand guidelines allow, and nothing may imply an official Solana or Seeker product.
 

@@ -572,23 +572,23 @@ The ladder screen and the **Human Flag** rung are out of the app (the code is de
 
 Only a confirmed absence of the token shows *Not a Seeker*; no network, a rate limit or a mainnet outage shows *Couldn't check* (FR-003d). Debug builds can skip the gate with `-Pholdout.seekerGate=off`.
 
-**The stake confirm (as built, top → bottom)**
-1. (test badge) · **Join the Spark · 7-day Holdout** (a Hackathon Holdout: **Join the Hackathon Holdout**) · *Light it up: 25 push-ups a day for 7 days.* (*Make it stick: …*) · a pill `Starts in 2d 4h` — or **`Started today`** once the round has started (the late round of a comeback, joinable until the end of its day 1; `c.start <= now`, 12 Oct)
+**The stake confirm (as built, top → bottom; fits one Seeker screen, 400 × 829 dp, with nothing to scroll in every state — `StakeSheetFitTest`, 12 Oct)**
+1. (test badge) · **Join the Spark · 7-day Holdout** (one line) (a Hackathon Holdout: **Join the Hackathon Holdout**) · *Light it up: 25 push-ups a day for 7 days.* (*Make it stick: …*) · a pill `Starts in 2d 4h` — or **`Started today`** once the round has started (the late round of a comeback, joinable until the end of its day 1; `c.start <= now`, 12 Oct)
 2. Four chips: **≈ $10 / ≈ $25 / ≈ $50 / ≈ $100**, each with its SKR amount (mono); the picked one has an accent outline. This is the one place a "≈ $" sits (FR-059)
 3. (a comeback round) *Finish it and 125 SKR of the stake you lost comes back.* (green, the exact `min(10 % of the lost stake, the chip chosen)`, so it changes with the chip; FR-037e, FR-037g, `StakeText.comeback`)
-4. Card: **Your stake** `1,250 SKR` / `≈ $25` · hairline · **At stake now** `12,500 SKR` / *14 joined* · **Joining closes in** `2d 3h` (for the member's own late comeback round, the time to the end of its day 1)
+4. Card (no "Your stake" row — the chip picked and the button say it): **At stake now** `12,500 SKR` / *14 joined* · **Joining closes in** `2d 3h` (for the member's own late comeback round, the time to the end of its day 1)
 5. *If nobody drops out, you get exactly your stake back.* · the fee sentence (§2: *…70 % to the prize pool, 10 % set aside for your comeback, 20 % to the project. If nobody finishes, the pool boosts later Spark · 7-day prizes.*) · *Full refund until joining closes.* · (only while notifications are off) *Allow notifications and this phone reminds you before each deadline. Reminders never leave the phone.* (FR-068a, G9)
-6. **How reps are counted here** (a surface/3 box): the level's rule sentence (§2); the sheet never shows the Habit sentence on a Spark
-7. (the last 10 minutes of joining, ES-12) warning *Joining closes in 8m 30s. A transaction signed now may land too late.*
-8. **Stake 1,250 SKR** (primary) — or why not, and **Get test tokens**
+6. The level's rule sentence (§2) as a plain line under the fee sentence — no box, no heading; the sheet never shows the Habit sentence on a Spark
+7. (the last 10 minutes of joining, ES-12) the **Joining closes in** countdown turns to the warning colour and the warning reads only *A transaction signed now may land too late.*
+8. **Stake 1,250 SKR** (primary) — or, when the join cannot go ahead, why, and its one way on in the button's place (**Get test tokens**, **See your lobby**)
 9. *Test network, test token. Dollar values are approximate.*
 
 **Variants**
 | Condition | Shows | Button |
 |---|---|---|
-| Not enough SKR | *You hold 400 SKR. This chip needs 1,250 SKR.* + **Get test tokens** | Stake off |
-| Not enough SOL | *Your wallet has too little devnet SOL to pay for joining. The faucet sends some with the test tokens.* + **Get test tokens** | Stake off |
-| Joining closed / already in a lobby / overlaps | *Joining has closed for this Holdout.* · *You already hold a place in a Holdout that hasn't started.* (+ **See your lobby**) · *This Holdout starts before your current one ends.* | Stake off |
+| Not enough SKR | *You hold 400 SKR. This chip needs 1,250 SKR.* + **Get test tokens** in the button's place | — |
+| Not enough SOL | *Your wallet has too little devnet SOL to pay for joining. The faucet sends some with the test tokens.* + **Get test tokens** in the button's place | — |
+| Joining closed / already in a lobby / overlaps | *Joining has closed for this Holdout.* · *You already hold a place in a Holdout that hasn't started.* (+ **See your lobby** in the button's place) · *This Holdout starts before your current one ends.* | Stake off (joining closed and overlap); the place-held line replaces the button |
 | Signing | the button reads **Waiting for your wallet…**, then Holdout's full-screen signing flow covers the sheet | — |
 
 **Exits:** Stake → (notification ask, first join only) → N1 → H2a · Get test tokens → W1a sheet → *Back to the stake sheet* · drag down → where it opened from
