@@ -82,19 +82,25 @@ poll_scripted() {
   return 0
 }
 
+# Polls until the absolute time [$1], only while a whole interval still fits:
+# a poll's own run time counts against the deadline, so the next full pass is
+# not pushed back by the transactions a poll sent.
+polls_until() {
+  local deadline=$1 poll="${CRANK_SCRIPTED_POLL_SECONDS:-60}"
+  [[ -n "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" ]] && (( poll > 0 )) || return 0
+  while (( $(date +%s) + poll < deadline )); do
+    sleep "$poll"
+    poll_scripted
+  done
+}
+
 # One pass, then `scripted run` alone every CRANK_SCRIPTED_POLL_SECONDS for
 # CRANK_ONCE_POLL_SECONDS more (default 0): the GitHub Actions fallback starts
 # a pass every 10 minutes and sets this so it polls too (crank.yml).
 if [[ "${1:-}" == "--once" ]]; then
   pass
   status=$?
-  left="${CRANK_ONCE_POLL_SECONDS:-0}"
-  poll="${CRANK_SCRIPTED_POLL_SECONDS:-60}"
-  while [[ -n "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" ]] && (( poll > 0 && left >= poll )); do
-    sleep "$poll"
-    left=$(( left - poll ))
-    poll_scripted
-  done
+  polls_until $(( $(date +%s) + ${CRANK_ONCE_POLL_SECONDS:-0} ))
   exit $status
 fi
 
@@ -112,12 +118,8 @@ next_sleep() {
 while true; do
   : > "$SUMMARY"
   pass || echo "=== pass ended with a failure; the next pass retries (exit $?)"
-  wait="$(next_sleep)"
-  poll="${CRANK_SCRIPTED_POLL_SECONDS:-60}"
-  while [[ -n "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" ]] && (( poll > 0 && wait > poll )); do
-    sleep "$poll"
-    wait=$(( wait - poll ))
-    poll_scripted
-  done
-  sleep "$wait"
+  deadline=$(( $(date +%s) + $(next_sleep) ))
+  polls_until "$deadline"
+  rest=$(( deadline - $(date +%s) ))
+  (( rest > 0 )) && sleep "$rest"
 done
