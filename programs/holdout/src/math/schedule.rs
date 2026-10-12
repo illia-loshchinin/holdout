@@ -37,6 +37,40 @@ pub fn cohort_start(first_start: i64, cadence: i64, index: u32) -> i64 {
     first_start + i64::from(index) * cadence
 }
 
+/// The first round that can make a forfeit good (FR-037e): the league's first
+/// cohort that starts after the missed deadline — the smallest `k` with
+/// `first_start + k * cadence > missed_at`. Its member may join it until its
+/// first day's deadline, even once joining has closed for everyone else
+/// (`join_cohort`).
+pub fn comeback_round(first_start: i64, cadence: i64, missed_at: i64) -> u32 {
+    // div_euclid so an instant before the first start still lands on round 0.
+    let k = (missed_at - first_start).div_euclid(cadence) + 1;
+    k.clamp(0, i64::from(u32::MAX)) as u32
+}
+
+/// The rounds that can make a forfeit good, first and last (FR-037e).
+///
+/// Usually one: the first round after the miss, still open to join. A miss on
+/// the last day of a round lands the second before the next one starts, after
+/// its joining closed; the member then chooses — join that round late, on its
+/// first day, or the one after it, which is open as usual. Counted in rounds,
+/// not days, so a league's day length never changes which rounds they are.
+pub fn comeback_rounds(
+    first_start: i64,
+    cadence: i64,
+    join_lock: i64,
+    missed_at: i64,
+) -> (u32, u32) {
+    let first = comeback_round(first_start, cadence, missed_at);
+    let cutoff = join_cutoff(cohort_start(first_start, cadence, first), join_lock);
+    // Open the second after the miss: `now < cutoff` at `missed_at + 1`.
+    if missed_at + 1 < cutoff {
+        (first, first)
+    } else {
+        (first, first.saturating_add(1))
+    }
+}
+
 /// How many whole cohort days have **elapsed** at `now`, capped at the
 /// cohort's duration: `floor((now − start) ÷ day_length)`, and `0` before the
 /// start. While the cohort is `Running` this is its current zero-based day
@@ -129,6 +163,70 @@ mod tests {
         assert_eq!(
             cohort_start(FIRST_START, cadence, 6),
             FIRST_START + 6 * cadence
+        );
+    }
+
+    #[test]
+    fn a_miss_mid_round_is_made_good_by_the_next_round_and_a_last_day_miss_by_either_of_two() {
+        let cadence = 7 * DAY_LENGTH;
+        // Cohort 3 of a weekly 7-day league: a miss on days 1–6 is made good by
+        // cohort 4, open to join while cohort 3 runs.
+        let start = cohort_start(FIRST_START, cadence, 3);
+        for day in 0..6 {
+            let missed = deadline_of(start, DAY_LENGTH, day);
+            assert_eq!(comeback_round(FIRST_START, cadence, missed), 4, "day {day}");
+            assert_eq!(
+                comeback_rounds(FIRST_START, cadence, JOIN_LOCK, missed),
+                (4, 4),
+                "day {day}"
+            );
+        }
+        // The last day's deadline is the second before cohort 4 starts, an hour
+        // after its joining closed: cohort 4, joined late, or cohort 5.
+        let last = deadline_of(start, DAY_LENGTH, 6);
+        assert_eq!(last + 1, cohort_start(FIRST_START, cadence, 4));
+        assert_eq!(
+            comeback_rounds(FIRST_START, cadence, JOIN_LOCK, last),
+            (4, 5)
+        );
+
+        // A 21-day league on a weekly cadence: a miss on day 7 of cohort 3 is
+        // the second before cohort 4 starts (4 or 5); a miss on day 10, after
+        // cohort 4 started, is made good by cohort 5, open as usual.
+        assert_eq!(
+            comeback_rounds(
+                FIRST_START,
+                cadence,
+                JOIN_LOCK,
+                deadline_of(start, DAY_LENGTH, 6)
+            ),
+            (4, 5)
+        );
+        assert_eq!(
+            comeback_rounds(
+                FIRST_START,
+                cadence,
+                JOIN_LOCK,
+                deadline_of(start, DAY_LENGTH, 9)
+            ),
+            (5, 5)
+        );
+
+        // At the cutoff's edge: open the second after the miss, or not.
+        let cutoff4 = join_cutoff(cohort_start(FIRST_START, cadence, 4), JOIN_LOCK);
+        assert_eq!(
+            comeback_rounds(FIRST_START, cadence, JOIN_LOCK, cutoff4 - 2),
+            (4, 4)
+        );
+        assert_eq!(
+            comeback_rounds(FIRST_START, cadence, JOIN_LOCK, cutoff4 - 1),
+            (4, 5)
+        );
+
+        // Before the first start there is still a round 0.
+        assert_eq!(
+            comeback_round(FIRST_START, cadence, FIRST_START - 5 * DAY_LENGTH),
+            0
         );
     }
 

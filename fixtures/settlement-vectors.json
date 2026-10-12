@@ -1,15 +1,16 @@
 {
-  "$comment": "Golden settlement vectors — PRD §19 V1–V22, revised 2026-10-05 for the 70/30 forfeit split and no carry-over, and 2026-10-09 for the 70/5/5/10/10 re-split and the 20% comeback refund, and 2026-10-10 for the 10% boost cap. The contract must reproduce these exactly (constitution VII: these exist as failing tests before the logic). Amounts are whole SKR base units.",
+  "$comment": "Golden settlement vectors — PRD §19 V1–V22, revised 2026-10-05 for the 70/30 forfeit split and no carry-over, and 2026-10-09 for the 70/5/5/10/10 re-split and the 20% comeback refund, 2026-10-10 for the 10% boost cap, and 2026-10-12 for the 70/10/10/10 split, the guaranteed comeback pledge of the next round and no-finisher pools to the boost reserve. The contract must reproduce these exactly (constitution VII: these exist as failing tests before the logic). Amounts are whole SKR base units.",
   "rules": {
     "fee": "fee = floor(forfeited * 30 / 100), taken at forfeit time",
     "pool": "pool = (forfeited - fee) summed over forfeits",
     "share_per_tier": "share_t = floor(pool * chip_t / total_finisher_stake) — constant time per tier (research R10)",
     "remainder": "remainder = pool - sum over tiers of (finisher_count_t * share_t); sent to the fee destination at settlement (FR-032a)",
-    "no_finishers": "developer = floor(pool / 2); operations = pool - developer: the whole pool goes out and nothing carries over (FR-037, H34, H35)",
+    "no_finishers": "to_boost = pool: the whole pool goes to the league's boost reserve; the developer and operations took their parts at forfeit time (FR-037, 2026-10-12)",
     "payout": "payout = stake + share_of(stake tier)",
-    "forfeit_split": "per forfeited stake s: fee = floor(30% s); boost = floor(5% s); comeback = floor(5% s); developer = floor(10% s); operations = fee - boost - comeback - developer; pool = s - fee (FR-027, H35)",
+    "forfeit_split": "per forfeited stake s: fee = floor(30% s); comeback = floor(10% s), pledged to the forfeiting member; developer = floor(10% s); operations = fee - comeback - developer; pool = s - fee (FR-027, H35, 2026-10-12)",
     "boost": "boost = min(floor(10% of the cohort's own pool), league boost reserve), drawn at finalization before shares (FR-037d; cap 10% since 2026-10-10, was 20%)",
-    "comeback": "owed = min(floor(20% of the counted forfeited stake), the new stake); refund = floor(entitled * funded / total owed), funded = min(total owed, comeback reserve) (FR-037e)"
+    "comeback": "owed = min(floor(10% of the counted forfeited stake), the new stake), for finishing the comeback round only; funded = total owed, always, because every owed refund is pledged in the comeback reserve; refund = floor(entitled * funded / total owed) (FR-037e)",
+    "comeback_round": "first = smallest k with first_start + k * cadence > missed_at; last = first while first is open to join the second after the miss (missed_at + 1 < first_start + first * cadence - join_lock), else first + 1. Finishing any round from first to last makes the comeback good; the member may join round first late, until its first day's deadline (FR-037e)"
   },
   "math_vectors": [
     {
@@ -60,7 +61,7 @@
       "stakes": { "250": 6 },
       "forfeited_stakes": { "250": 6 },
       "finisher_stakes": {},
-      "expected": { "forfeited": 1500, "fee": 450, "pool": 1050, "total_finisher_stake": 0, "developer": 525, "operations": 525 }
+      "expected": { "forfeited": 1500, "fee": 450, "pool": 1050, "total_finisher_stake": 0, "to_boost": 1050 }
     },
     {
       "id": "V6",
@@ -69,7 +70,7 @@
       "league": "7-day",
       "pool_override": 1001,
       "finisher_stakes": {},
-      "expected": { "pool": 1001, "total_finisher_stake": 0, "developer": 500, "operations": 501 }
+      "expected": { "pool": 1001, "total_finisher_stake": 0, "to_boost": 1001 }
     },
     {
       "id": "V9",
@@ -128,14 +129,14 @@
   ],
   "reserve_vectors": {
     "forfeit_split": [
-      { "stake": 0, "pool": 0, "boost": 0, "comeback": 0, "developer": 0, "operations": 0 },
-      { "stake": 1, "pool": 1, "boost": 0, "comeback": 0, "developer": 0, "operations": 0 },
-      { "stake": 9, "pool": 7, "boost": 0, "comeback": 0, "developer": 0, "operations": 2 },
-      { "stake": 19, "pool": 14, "boost": 0, "comeback": 0, "developer": 1, "operations": 4 },
-      { "stake": 100, "pool": 70, "boost": 5, "comeback": 5, "developer": 10, "operations": 10 },
-      { "stake": 1250, "pool": 875, "boost": 62, "comeback": 62, "developer": 125, "operations": 126 },
-      { "stake": 25000000, "pool": 17500000, "boost": 1250000, "comeback": 1250000, "developer": 2500000, "operations": 2500000 },
-      { "stake": 18446744073709551615, "pool": 12912720851596686131, "boost": 922337203685477580, "comeback": 922337203685477580, "developer": 1844674407370955161, "operations": 1844674407370955163 }
+      { "stake": 0, "pool": 0, "comeback": 0, "developer": 0, "operations": 0 },
+      { "stake": 1, "pool": 1, "comeback": 0, "developer": 0, "operations": 0 },
+      { "stake": 9, "pool": 7, "comeback": 0, "developer": 0, "operations": 2 },
+      { "stake": 19, "pool": 14, "comeback": 1, "developer": 1, "operations": 3 },
+      { "stake": 100, "pool": 70, "comeback": 10, "developer": 10, "operations": 10 },
+      { "stake": 1250, "pool": 875, "comeback": 125, "developer": 125, "operations": 125 },
+      { "stake": 25000000, "pool": 17500000, "comeback": 2500000, "developer": 2500000, "operations": 2500000 },
+      { "stake": 18446744073709551615, "pool": 12912720851596686131, "comeback": 1844674407370955161, "developer": 1844674407370955161, "operations": 1844674407370955162 }
     ],
     "boost": [
       { "own_pool": 0, "reserve": 500, "boost": 0 },
@@ -146,11 +147,11 @@
       { "own_pool": 18446744073709551615, "reserve": 18446744073709551615, "boost": 1844674407370955161 }
     ],
     "comeback_owed": [
-      { "forfeited_stake": 100, "new_stake": 100, "owed": 20 },
+      { "forfeited_stake": 100, "new_stake": 100, "owed": 10 },
       { "forfeited_stake": 1000, "new_stake": 25, "owed": 25 },
-      { "forfeited_stake": 9, "new_stake": 100, "owed": 1 },
-      { "forfeited_stake": 25000000, "new_stake": 10000000, "owed": 5000000 },
-      { "forfeited_stake": 18446744073709551615, "new_stake": 18446744073709551615, "owed": 3689348814741910323 }
+      { "forfeited_stake": 9, "new_stake": 100, "owed": 0 },
+      { "forfeited_stake": 25000000, "new_stake": 10000000, "owed": 2500000 },
+      { "forfeited_stake": 18446744073709551615, "new_stake": 18446744073709551615, "owed": 1844674407370955161 }
     ],
     "comeback_refund": [
       { "entitled": 10, "funded": 30, "owed": 30, "refund": 10 },
@@ -159,13 +160,16 @@
       { "entitled": 0, "funded": 0, "owed": 0, "refund": 0 },
       { "entitled": 2500000, "funded": 1000000, "owed": 7500000, "refund": 333333 }
     ],
-    "no_finisher_split": [
-      { "pool": 0, "developer": 0, "operations": 0 },
-      { "pool": 1, "developer": 0, "operations": 1 },
-      { "pool": 2, "developer": 1, "operations": 1 },
-      { "pool": 1050, "developer": 525, "operations": 525 },
-      { "pool": 1001, "developer": 500, "operations": 501 },
-      { "pool": 18446744073709551615, "developer": 9223372036854775807, "operations": 9223372036854775808 }
+    "comeback_round": [
+      { "note": "weekly 7-day: day 1 of cohort 3", "first_start": 1790571600, "cadence": 604800, "join_lock": 3600, "missed_at": 1792472399, "first": 4, "last": 4 },
+      { "note": "weekly 7-day: day 6 of cohort 3", "first_start": 1790571600, "cadence": 604800, "join_lock": 3600, "missed_at": 1792904399, "first": 4, "last": 4 },
+      { "note": "weekly 7-day: last day of cohort 3, the second before cohort 4 starts", "first_start": 1790571600, "cadence": 604800, "join_lock": 3600, "missed_at": 1792990799, "first": 4, "last": 5 },
+      { "note": "weekly 21-day: day 10 of cohort 3, after cohort 4 started", "first_start": 1790571600, "cadence": 604800, "join_lock": 3600, "missed_at": 1793249999, "first": 5, "last": 5 },
+      { "note": "cohort 4 still open the second after", "first_start": 1790571600, "cadence": 604800, "join_lock": 3600, "missed_at": 1792987198, "first": 4, "last": 4 },
+      { "note": "cohort 4 closes the second after", "first_start": 1790571600, "cadence": 604800, "join_lock": 3600, "missed_at": 1792987199, "first": 4, "last": 5 },
+      { "note": "before the first start", "first_start": 1790571600, "cadence": 604800, "join_lock": 3600, "missed_at": 1790139600, "first": 0, "last": 0 },
+      { "note": "test league: 600 s days, 30 min cadence, 60 s lock; day 2 of cohort 2", "first_start": 1790571600, "cadence": 1800, "join_lock": 60, "missed_at": 1790576399, "first": 3, "last": 3 },
+      { "note": "test league: last day of cohort 2", "first_start": 1790571600, "cadence": 1800, "join_lock": 60, "missed_at": 1790576999, "first": 3, "last": 4 }
     ]
   }
 }

@@ -16,6 +16,14 @@
 //! supplied whenever `profile.running` is set, because the overlap is judged on
 //! that account's own end and never on the profile's cached copy — see
 //! `guards::require_slot_free`.
+//!
+//! **A comeback round stays joinable for its member until its first day's
+//! deadline** (FR-037e). A member who missed a day may make it good by
+//! finishing the league's first cohort to start after the miss; a miss on the
+//! last day lands the second before that cohort starts, after its joining
+//! closed. Passing the forfeited membership and its cohort lets that member join
+//! late — `guards::require_joinable` — and a late join takes the running slot
+//! at once, since the cohort has already started or is about to.
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
@@ -28,7 +36,7 @@ use crate::{
         cohort::{Cohort, VAULT_SEED},
         config::{Config, CONFIG_SEED},
         membership::{Membership, MembershipState, MEMBERSHIP_SEED},
-        profile::{PendingSlot, Profile, NEVER_CLAIMED, PROFILE_SEED},
+        profile::{PendingSlot, Profile, RunningSlot, NEVER_CLAIMED, PROFILE_SEED},
     },
 };
 
@@ -89,6 +97,14 @@ pub struct JoinCohort<'info> {
     /// Anchor's "none" is the program's own ID in the slot.
     pub running_cohort: Option<Box<Account<'info, Cohort>>>,
 
+    /// The member's forfeited membership, when this cohort is its comeback
+    /// round and joining has otherwise closed (FR-037e). Checked by
+    /// `guards::is_comeback_round`, never trusted by address alone.
+    pub comeback_membership: Option<Box<Account<'info, Membership>>>,
+
+    /// The cohort of `comeback_membership`.
+    pub comeback_cohort: Option<Box<Account<'info, Cohort>>>,
+
     #[account(constraint = skr_mint.key() == config.skr_mint @ HoldoutError::AccountMismatch)]
     pub skr_mint: Box<Account<'info, Mint>>,
 
@@ -99,7 +115,17 @@ pub struct JoinCohort<'info> {
 pub(crate) fn handler(ctx: Context<JoinCohort>, tier: u8) -> Result<()> {
     let now = Clock::get()?.unix_timestamp;
 
-    guards::require_open(&ctx.accounts.cohort, now)?;
+    let member = ctx.accounts.member.key();
+    let comeback_key = ctx.accounts.comeback_cohort.as_ref().map(|c| c.key());
+    let comeback = match (
+        &ctx.accounts.comeback_membership,
+        &ctx.accounts.comeback_cohort,
+        &comeback_key,
+    ) {
+        (Some(membership), Some(cohort), Some(key)) => Some((&***membership, key, &***cohort)),
+        _ => None,
+    };
+    guards::require_joinable(&ctx.accounts.cohort, &member, comeback, now)?;
     guards::require_tier(tier)?;
 
     let profile = &mut ctx.accounts.profile;
@@ -188,6 +214,14 @@ pub(crate) fn handler(ctx: Context<JoinCohort>, tier: u8) -> Result<()> {
         start: cohort.start,
         end: cohort.end(),
     };
+    // A late comeback join into a cohort already running is its obligation now.
+    if cohort.start <= now {
+        profile.pending.clear();
+        profile.running = RunningSlot {
+            cohort: cohort_key,
+            end: cohort.end(),
+        };
+    }
 
     emit!(MemberJoined {
         cohort: cohort_key,

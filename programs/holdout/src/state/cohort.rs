@@ -56,12 +56,11 @@ pub struct Cohort {
     /// Members' stakes, held separately from the pool at every instant (INV-1).
     pub held_stake: u64,
     /// Only forfeited stakes ever enter this, and a boost drawn from the
-    /// league's reserve of earlier forfeits (INV-2).
+    /// league's boost reserve (INV-2).
     pub pool: u64,
-    /// The boost-reserve share of this cohort's forfeits, held in its vault
-    /// until it finalizes and moves to the league (FR-037c).
-    pub boost_due: u64,
-    /// The comeback-reserve share, held likewise (FR-037c).
+    /// The comeback pledges of this cohort's recorded forfeits, held in its
+    /// vault until each forfeit is counted and its pledge moves to the
+    /// league's comeback reserve (FR-037c).
     pub comeback_due: u64,
     pub forfeits_recorded: u32,
     /// Memberships `settle_count` has processed; settlement finalizes when this
@@ -76,14 +75,15 @@ pub struct Cohort {
     pub settled: bool,
     pub share_per_tier: [u64; 4],
     pub rounding_remainder: u64,
-    /// A cohort nobody finished: its whole pool, sent to the developer and
-    /// operations destinations (FR-037).
-    pub no_finisher_fee: u64,
+    /// A cohort nobody finished: its whole pool, sent to the league's boost
+    /// reserve (FR-037).
+    pub no_finisher_boost: u64,
     /// The boost this cohort drew from its league's reserve (FR-037d).
     pub boost_received: u64,
     /// Comeback refunds owed to its finishers, summed as they are counted (FR-037e).
     pub comeback_owed: u64,
-    /// What finalization drew from the comeback reserve: `min(owed, reserve)`.
+    /// What finalization drew from the comeback reserve: all of `comeback_owed`,
+    /// which the reserve always holds as pledges.
     pub comeback_funded: u64,
     /// Refunds paid out with claims so far.
     pub comeback_claimed: u64,
@@ -130,9 +130,9 @@ impl Cohort {
     }
 
     /// Materialise one forfeited stake on this cohort's books (FR-027, H35): it
-    /// leaves `held_stake`, its pool part joins the pool, its reserve parts wait
-    /// in the vault for finalization (FR-037c). The developer and operations
-    /// parts are the caller's to transfer out; the split says how much.
+    /// leaves `held_stake`, its pool part joins the pool, its comeback pledge
+    /// waits in the vault until the forfeit is counted (FR-037c). The developer
+    /// and operations parts are the caller's to transfer out; the split says how much.
     pub fn take_forfeit(&mut self, stake: u64) -> Result<settlement::ForfeitSplit> {
         let split = settlement::forfeit_split(stake);
         self.held_stake = self
@@ -142,10 +142,6 @@ impl Cohort {
         self.pool = self
             .pool
             .checked_add(split.pool)
-            .ok_or(error!(HoldoutError::AccountMismatch))?;
-        self.boost_due = self
-            .boost_due
-            .checked_add(split.boost)
             .ok_or(error!(HoldoutError::AccountMismatch))?;
         self.comeback_due = self
             .comeback_due
@@ -161,7 +157,6 @@ impl Cohort {
     pub fn custody(&self) -> u64 {
         self.held_stake
             + self.pool
-            + self.boost_due
             + self.comeback_due
             + (self.comeback_funded - self.comeback_claimed)
     }
@@ -190,7 +185,6 @@ mod tests {
             member_count: 0,
             held_stake: 0,
             pool: 0,
-            boost_due: 0,
             comeback_due: 0,
             forfeits_recorded: 0,
             counted: 0,
@@ -200,7 +194,7 @@ mod tests {
             settled: false,
             share_per_tier: [0; 4],
             rounding_remainder: 0,
-            no_finisher_fee: 0,
+            no_finisher_boost: 0,
             boost_received: 0,
             comeback_owed: 0,
             comeback_funded: 0,

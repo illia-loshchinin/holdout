@@ -127,9 +127,15 @@ pub mod holdout {
     }
 
     /// Once. Constant-time per-tier shares; with no finishers the whole pool
-    /// goes to the fee destination (FR-030a, FR-037).
+    /// goes to the league's boost reserve (FR-030a, FR-037).
     pub fn settle_finalize<'info>(ctx: Context<'info, SettleFinalize<'info>>) -> Result<()> {
         instructions::settle_finalize::handler(ctx)
+    }
+
+    /// Permissionless: a comeback pledge whose round can no longer be finished
+    /// goes to the boost reserve (FR-037e).
+    pub fn release_comeback(ctx: Context<ReleaseComeback>) -> Result<()> {
+        instructions::release_comeback::handler(ctx)
     }
 
     /// A deliberate member action, claimable indefinitely (FR-034, FR-035).

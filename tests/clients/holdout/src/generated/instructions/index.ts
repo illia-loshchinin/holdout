@@ -15,6 +15,7 @@ export * from './leaveCohort';
 export * from './openCohort';
 export * from './publishChipSet';
 export * from './recordForfeits';
+export * from './releaseComeback';
 export * from './setFlags';
 export * from './settleCount';
 export * from './settleFinalize';

@@ -22,6 +22,62 @@ pub fn require_open(cohort: &Cohort, now: i64) -> Result<()> {
     Ok(())
 }
 
+/// Joining is open (error 6021) — or, for the member whose comeback round this
+/// cohort is, still possible until its first day's deadline (FR-037e).
+///
+/// `comeback` is the member's forfeited membership and its cohort, when the
+/// caller passed them. They make this cohort the member's comeback round when
+/// the membership is theirs and forfeited (recorded, or in breach and about to
+/// be), its cohort is of the same league and earlier, and this cohort is the
+/// first of the league to start after the deadline they missed. A miss on the
+/// last day lands the second before that round starts, an hour after its
+/// joining closed, and this is what keeps that round within the member's reach.
+pub fn require_joinable(
+    cohort: &Cohort,
+    member: &Pubkey,
+    comeback: Option<(&Membership, &Pubkey, &Cohort)>,
+    now: i64,
+) -> Result<()> {
+    if cohort.status(now) == CohortStatus::Open {
+        return Ok(());
+    }
+    let late = comeback.is_some_and(|(membership, missed_key, missed)| {
+        is_comeback_round(cohort, member, membership, missed_key, missed, now)
+    });
+    require!(
+        late && !cohort.settled && now <= cohort.deadline_of(0),
+        HoldoutError::JoiningClosed
+    );
+    Ok(())
+}
+
+/// Whether `cohort` is the comeback round of `membership`, a forfeit in
+/// `missed` (FR-037e): the same rule as `schedule::comeback_round`, read from
+/// the two cohorts alone — cohorts start `cadence` apart, so the cadence is
+/// their distance in time over their distance in index.
+pub fn is_comeback_round(
+    cohort: &Cohort,
+    member: &Pubkey,
+    membership: &Membership,
+    missed_key: &Pubkey,
+    missed: &Cohort,
+    now: i64,
+) -> bool {
+    let forfeited =
+        membership.state == MembershipState::Forfeited || membership.in_breach(missed, now);
+    if membership.wallet != *member
+        || membership.cohort != *missed_key
+        || !forfeited
+        || missed.league_id != cohort.league_id
+        || missed.index >= cohort.index
+    {
+        return false;
+    }
+    let cadence = (cohort.start - missed.start) / i64::from(cohort.index - missed.index);
+    let missed_at = forfeit_instant(membership, missed);
+    cohort.start > missed_at && cohort.start - cadence <= missed_at
+}
+
 /// Completed days are only accepted while the cohort is running (error 6030).
 pub fn require_running(cohort: &Cohort, now: i64) -> Result<()> {
     require!(
@@ -172,7 +228,6 @@ mod tests {
             member_count: 0,
             held_stake: 0,
             pool: 0,
-            boost_due: 0,
             comeback_due: 0,
             forfeits_recorded: 0,
             counted: 0,
@@ -182,7 +237,7 @@ mod tests {
             settled: false,
             share_per_tier: [0; 4],
             rounding_remainder: 0,
-            no_finisher_fee: 0,
+            no_finisher_boost: 0,
             boost_received: 0,
             comeback_owed: 0,
             comeback_funded: 0,
@@ -458,5 +513,115 @@ mod tests {
         assert!(require_tier(0).is_ok());
         assert!(require_tier(3).is_ok());
         assert!(require_tier(4).is_err());
+    }
+
+    #[test]
+    fn the_comeback_round_stays_joinable_for_its_member_until_its_first_deadline() {
+        let cadence = 7 * DEVNET_DAY_LENGTH;
+        let member = Pubkey::new_unique();
+        let missed_key = Pubkey::new_unique();
+        let mut missed = cohort(FIRST_START, 7);
+        missed.index = 3;
+        let mut round = cohort(FIRST_START + cadence, 7);
+        round.index = 4;
+
+        // A miss on the last day: the deadline is the second before the round starts.
+        let mut m = membership(6);
+        m.wallet = member;
+        m.cohort = missed_key;
+        m.state = MembershipState::Forfeited;
+        let comeback = Some((&m, &missed_key, &missed));
+
+        assert!(
+            require_joinable(&round, &member, comeback, round.join_cutoff).is_ok(),
+            "locked"
+        );
+        assert!(
+            require_joinable(&round, &member, comeback, round.start).is_ok(),
+            "running"
+        );
+        assert!(require_joinable(&round, &member, comeback, round.deadline_of(0)).is_ok());
+        assert_eq!(
+            code_of(require_joinable(
+                &round,
+                &member,
+                comeback,
+                round.deadline_of(0) + 1
+            )),
+            6021,
+            "not after the first day"
+        );
+        assert_eq!(
+            code_of(require_joinable(&round, &member, None, round.start)),
+            6021,
+            "nor for anyone else"
+        );
+        let stranger = Pubkey::new_unique();
+        assert_eq!(
+            code_of(require_joinable(&round, &stranger, comeback, round.start)),
+            6021
+        );
+
+        // A membership still joined, not in breach, is no comeback.
+        let mut joined = m.clone();
+        joined.state = MembershipState::Joined;
+        joined.days_completed = 7;
+        assert_eq!(
+            code_of(require_joinable(
+                &round,
+                &member,
+                Some((&joined, &missed_key, &missed)),
+                round.start
+            )),
+            6021
+        );
+        // One still in breach but not recorded yet is.
+        let mut breached = m.clone();
+        breached.state = MembershipState::Joined;
+        assert!(require_joinable(
+            &round,
+            &member,
+            Some((&breached, &missed_key, &missed)),
+            round.start
+        )
+        .is_ok());
+
+        // The round after is not this miss's round.
+        let mut later = cohort(FIRST_START + 2 * cadence, 7);
+        later.index = 5;
+        assert!(!is_comeback_round(
+            &later,
+            &member,
+            &m,
+            &missed_key,
+            &missed,
+            later.start
+        ));
+        // Nor is a cohort of another league.
+        let mut other = round.clone();
+        other.league_id = 1;
+        assert!(!is_comeback_round(
+            &other,
+            &member,
+            &m,
+            &missed_key,
+            &missed,
+            other.start
+        ));
+    }
+
+    #[test]
+    fn an_open_cohort_is_joinable_by_anyone() {
+        let c = cohort(FIRST_START, 7);
+        assert!(require_joinable(&c, &Pubkey::new_unique(), None, c.join_cutoff - 1).is_ok());
+        assert_eq!(
+            code_of(require_joinable(
+                &c,
+                &Pubkey::new_unique(),
+                None,
+                c.join_cutoff
+            )),
+            6021
+        );
     }
 }

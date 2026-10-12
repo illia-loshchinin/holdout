@@ -28,7 +28,8 @@ pub fn pool_contribution(forfeited_stake: u64) -> u64 {
 /// A tier's share of the pool, rounded down (FR-032, FR-032a).
 ///
 /// `total_finisher_stake == 0` has no finishers to pay, so the caller must use
-/// [`no_finisher_split`] instead; this returns 0 rather than dividing by zero.
+/// send the whole pool to the boost reserve instead; this returns 0 rather than
+/// dividing by zero.
 pub fn share_for_tier(pool: u64, chip: u64, total_finisher_stake: u64) -> u64 {
     if total_finisher_stake == 0 {
         return 0;
@@ -50,21 +51,20 @@ pub fn rounding_remainder(pool: u64, finishers_per_tier: [u32; 4], shares: [u64;
 }
 
 /// Percents of a forfeited stake for each destination of the fee (FR-027, H35;
-/// re-split 2026-10-09 to 70 / 5 / 5 / 10 / 10).
-/// The operations part is not a constant: it takes whatever the floors leave,
-/// so the five parts always add back to the stake.
-pub const BOOST_PERCENT: u128 = 5;
-pub const COMEBACK_PERCENT: u128 = 5;
+/// re-split 2026-10-12 to 70 / 10 / 10 / 10). The operations part is not a
+/// constant: it takes whatever the floors leave, so the parts always add back
+/// to the stake.
+///
+/// The comeback part is **the forfeiting member's own**: it is pledged to them,
+/// and comes back to them if they finish the next round of the league, or goes
+/// to the boost reserve if they do not (FR-037e). Nothing goes to the boost
+/// reserve at forfeit time any more.
+pub const COMEBACK_PERCENT: u128 = 10;
 pub const DEVELOPER_PERCENT: u128 = 10;
 
 /// The most a boost may add to a cohort's own pool, in percent (FR-037d; 10 since
 /// 2026-10-10, so a group forfeiting into its own finisher recovers under 1 SKR per SKR lost).
 pub const BOOST_CAP_PERCENT: u128 = 10;
-/// The share of a counted forfeited stake a comeback refunds, in percent (FR-037e).
-pub const COMEBACK_REFUND_PERCENT: u128 = 20;
-/// How many of the finished cohort's days after the missed deadline a comeback
-/// cohort may start (FR-037e).
-pub const COMEBACK_WINDOW_DAYS: i64 = 14;
 
 fn percent_of(amount: u64, percent: u128) -> u64 {
     // u128: `amount * percent` overflows u64 for large amounts.
@@ -76,9 +76,8 @@ fn percent_of(amount: u64, percent: u128) -> u64 {
 pub struct ForfeitSplit {
     /// To this cohort's prize pool.
     pub pool: u64,
-    /// Held in the cohort's vault until it finalizes, then the league's boost reserve.
-    pub boost: u64,
-    /// Held likewise, then the league's comeback reserve.
+    /// The member's comeback pledge: held in the cohort's vault until the
+    /// forfeit is counted, then in the league's comeback reserve (FR-037c).
     pub comeback: u64,
     /// To the developer destination at once.
     pub developer: u64,
@@ -89,7 +88,7 @@ pub struct ForfeitSplit {
 impl ForfeitSplit {
     /// Everything that did not reach the pool: always [`fee_of`] the stake.
     pub fn fee(&self) -> u64 {
-        self.boost + self.comeback + self.developer + self.operations
+        self.comeback + self.developer + self.operations
     }
 
     /// The parts that leave the cohort's vault when the forfeit is recorded.
@@ -101,46 +100,47 @@ impl ForfeitSplit {
 /// Split one forfeited stake (FR-027, H35).
 pub fn forfeit_split(forfeited_stake: u64) -> ForfeitSplit {
     let fee = fee_of(forfeited_stake);
-    let boost = percent_of(forfeited_stake, BOOST_PERCENT);
-    let comeback = percent_of(forfeited_stake, COMEBACK_PERCENT);
+    let comeback = comeback_pledge(forfeited_stake);
     let developer = percent_of(forfeited_stake, DEVELOPER_PERCENT);
     ForfeitSplit {
         pool: forfeited_stake - fee,
-        boost,
         comeback,
         developer,
-        // 5 + 5 + 10 of the stake can never exceed 30 of it, so this cannot underflow.
-        operations: fee - boost - comeback - developer,
+        // 10 + 10 of the stake can never exceed 30 of it, so this cannot underflow.
+        operations: fee - comeback - developer,
     }
+}
+
+/// The comeback pledged to a member who forfeited this stake: 10 %, rounded
+/// down (FR-027, FR-037e). The same figure at forfeit, at counting and at
+/// release, because it is always recomputed from the stake.
+pub fn comeback_pledge(forfeited_stake: u64) -> u64 {
+    percent_of(forfeited_stake, COMEBACK_PERCENT)
 }
 
 /// The boost a finishing cohort draws: 10% of its own pool, never more than the
 /// league's boost reserve holds (FR-037d). A cohort with no forfeits gets none.
+/// The boost reserve never includes a pledge, so a boost cannot spend one.
 pub fn boost_for(own_pool: u64, boost_reserve: u64) -> u64 {
     percent_of(own_pool, BOOST_CAP_PERCENT).min(boost_reserve)
 }
 
-/// What a comeback owes a finisher: 20% of the forfeited stake, never more than
-/// the stake they finished on (FR-037e).
+/// What a comeback owes a finisher of the comeback round: the pledge, never
+/// more than the stake they finished on (FR-037e). The rest of the pledge, if
+/// any, goes to the boost reserve.
 pub fn comeback_owed(forfeited_stake: u64, new_stake: u64) -> u64 {
-    percent_of(forfeited_stake, COMEBACK_REFUND_PERCENT).min(new_stake)
+    comeback_pledge(forfeited_stake).min(new_stake)
 }
 
-/// One finisher's refund: their entitlement, scaled down pro rata when the
-/// league's comeback reserve could not fund every finisher's in full (FR-037e).
+/// One finisher's refund: their entitlement, scaled pro rata to what
+/// finalization drew. Every owed refund is pledged in the reserve, so `funded`
+/// always equals `total_owed` and this is the entitlement itself; the scaling
+/// stays so a shortfall could never pay out more than was drawn (FR-037e).
 pub fn comeback_refund(entitled: u64, funded: u64, total_owed: u64) -> u64 {
     if total_owed == 0 {
         return 0;
     }
     ((entitled as u128) * (funded as u128) / (total_owed as u128)) as u64
-}
-
-/// A cohort nobody finished: its whole pool goes out, half (floored) to the
-/// developer and the rest to operations, in the ratio of their forfeit shares,
-/// and nothing carries over (FR-037, H34, H35; half each since 2026-10-09).
-pub fn no_finisher_split(pool: u64) -> (u64, u64) {
-    let developer = pool / 2;
-    (developer, pool - developer)
 }
 
 #[cfg(test)]
@@ -161,14 +161,13 @@ mod tests {
         boost: Vec<BoostVector>,
         comeback_owed: Vec<OwedVector>,
         comeback_refund: Vec<RefundVector>,
-        no_finisher_split: Vec<NoFinisherVector>,
+        comeback_round: Vec<RoundVector>,
     }
 
     #[derive(serde::Deserialize)]
     struct SplitVector {
         stake: u64,
         pool: u64,
-        boost: u64,
         comeback: u64,
         developer: u64,
         operations: u64,
@@ -197,10 +196,13 @@ mod tests {
     }
 
     #[derive(serde::Deserialize)]
-    struct NoFinisherVector {
-        pool: u64,
-        developer: u64,
-        operations: u64,
+    struct RoundVector {
+        first_start: i64,
+        cadence: i64,
+        join_lock: i64,
+        missed_at: i64,
+        first: u32,
+        last: u32,
     }
 
     #[derive(serde::Deserialize)]
@@ -229,10 +231,9 @@ mod tests {
         shares: std::collections::BTreeMap<String, u64>,
         #[serde(default)]
         remainder: u64,
+        /// A cohort nobody finished: its whole pool, to the league's boost reserve (FR-037).
         #[serde(default)]
-        developer: Option<u64>,
-        #[serde(default)]
-        operations: Option<u64>,
+        to_boost: Option<u64>,
     }
 
     fn load() -> Fixture {
@@ -285,14 +286,8 @@ mod tests {
             );
 
             if total == 0 {
-                let (developer, operations) = no_finisher_split(pool);
-                assert_eq!(Some(developer), v.expected.developer, "developer — {ctx}");
-                assert_eq!(
-                    Some(operations),
-                    v.expected.operations,
-                    "operations — {ctx}"
-                );
-                assert_eq!(developer + operations, pool, "nothing left behind — {ctx}");
+                // Nobody to pay: the whole pool goes to the boost reserve (FR-037).
+                assert_eq!(Some(pool), v.expected.to_boost, "to the boost — {ctx}");
                 continue;
             }
 
@@ -333,7 +328,6 @@ mod tests {
             let split = forfeit_split(v.stake);
             let ctx = format!("split of {}", v.stake);
             assert_eq!(split.pool, v.pool, "pool — {ctx}");
-            assert_eq!(split.boost, v.boost, "boost — {ctx}");
             assert_eq!(split.comeback, v.comeback, "comeback — {ctx}");
             assert_eq!(split.developer, v.developer, "developer — {ctx}");
             assert_eq!(split.operations, v.operations, "operations — {ctx}");
@@ -376,12 +370,17 @@ mod tests {
                 v.owed
             );
         }
-        for v in r.no_finisher_split {
+        for v in r.comeback_round {
             assert_eq!(
-                no_finisher_split(v.pool),
-                (v.developer, v.operations),
-                "no-finisher split of {}",
-                v.pool
+                crate::math::schedule::comeback_rounds(
+                    v.first_start,
+                    v.cadence,
+                    v.join_lock,
+                    v.missed_at
+                ),
+                (v.first, v.last),
+                "comeback rounds after {}",
+                v.missed_at
             );
         }
     }
