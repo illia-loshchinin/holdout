@@ -84,7 +84,7 @@
     {
       "what": "The faucet's fee sponsor key ships inside the app",
       "why": "A wallet with zero SOL cannot pay for its own first transaction, and there is no server to sign for it",
-      "fix": "Anyone can extract the key, and empty the 0.05 SOL float it holds, so the contract bounds that instead of assuming it will not happen: one claim per wallet a day, a single daily budget of 0.72 SOL covering **every** lamport that leaves the faucet — top-ups and reimbursements alike — and a permissionless refill, so a drained sponsor is restored by the next crank pass rather than ending onboarding. Real fix: no faucet on mainnet, or a rate-limited relayer"
+      "fix": "Anyone can extract the key, and empty the 0.05 SOL float it holds, so the contract bounds that instead of assuming it will not happen: no wallet is limited (a tester who runs out may claim again), but a single daily budget of 0.72 SOL covering **every** lamport that leaves the faucet — top-ups and reimbursements alike — and a permissionless refill, so a drained sponsor is restored by the next crank pass rather than ending onboarding. Real fix: no faucet on mainnet, or a rate-limited relayer"
     },
     {
       "what": "The program keeps its upgrade authority during judging",
