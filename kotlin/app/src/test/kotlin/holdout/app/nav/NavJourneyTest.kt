@@ -72,6 +72,33 @@ class NavJourneyTest {
     }
 
     @Test
+    fun `J3a a day started from Standing's strip is the same sitting as from Today, and ends on Today`() {
+        val fromToday = running().then(NavEvent.StartSitting(Sitting.HoldoutDay(A, 5)))
+        val standing = running().then(NavEvent.SelectTab(Tab.Standing))
+        assertEquals(Tab.Standing, standing.tab)
+        assertTrue(standing.showsBar)
+        val fromStanding = standing.then(NavEvent.StartSitting(Sitting.HoldoutDay(A, 5)))
+        assertEquals(fromToday.sitting, fromStanding.sitting)
+        assertFalse(fromStanding.showsBar)
+        val back = fromStanding.then(NavEvent.SittingEnded)
+        assertNull(back.sitting)
+        assertEquals(Tab.Today, back.tab)
+        assertTrue(back.onRoot)
+    }
+
+    @Test
+    fun `J3b Today's crowd strip opens the Standing root, and the Today tab brings Today back`() {
+        var s = running()
+        assertEquals(Tab.Today, s.tab)
+        s = s.then(NavEvent.SelectTab(Tab.Standing))
+        assertEquals(Tab.Standing, s.tab)
+        assertTrue(s.onRoot)
+        assertTrue(s.showsBar)
+        s = s.then(NavEvent.SelectTab(Tab.Today))
+        assertEquals(Tab.Today, s.tab)
+    }
+
+    @Test
     fun `J4 UC-5 change your mind - H0, lobby, leave lands, Back to Holdouts, H0`() {
         val s = home().then(
             NavEvent.ChainMoved(mapOf(A to Stage.Lobby)),

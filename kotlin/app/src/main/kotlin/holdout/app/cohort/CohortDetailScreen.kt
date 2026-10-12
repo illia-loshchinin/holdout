@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
 import holdout.app.chain.Holdout
 import holdout.app.claim.PayoutRows
+import holdout.app.home.DayState
 import holdout.app.ui.Body
 import holdout.app.ui.ChainCheckBox
 import holdout.app.ui.ChainUnreachable
@@ -54,6 +55,7 @@ import holdout.core.Stage
  * ```
  *  ‹  HABIT · 21-DAY · DAY 12 OF 21           ScreenHeader (no ‹ on the Standing root)
  *  [You're watching this one]                  a watcher's note
+ *  DAY 12 · 25 push-ups · 4h 06m left  [Start]  the member's day while it is open (YourDayStrip, FR-069b)
  *  ┌ You finished · settling … ┐               settling card, success border
  *  189 / 312                                   StatBlock counter, rolls
  *  STILL STANDING
@@ -84,6 +86,12 @@ fun CohortDetailScreen(
     onLeaderboards: (() -> Unit)? = null,
     /** A member who is out reaches their forfeit screen from here; null shows no card. */
     onForfeit: (() -> Unit)? = null,
+    /** The member's day, for the strip at the top (FR-069b): null on a Holdout they only watch, past the last day, or off the Standing root. */
+    day: DayState? = null,
+    onStartDay: () -> Unit = {},
+    onSubmitDay: (dayIndex: Int) -> Unit = {},
+    /** The faucet: a member short of the SOL a submit costs. */
+    onGetTokens: () -> Unit = {},
 ) {
     val c = h.cohort
     val figures = members?.let { Derive.figures(c, it, now, boostReserve = h.league?.boostReserve) }
@@ -102,6 +110,8 @@ fun CohortDetailScreen(
             if (h.isTest) TestCohortBadge(c.dayLength, Modifier.align(Alignment.CenterHorizontally))
             if (member == null) Watching()
             if (offline) ChainUnreachable(checking, stillUnreachable, onCheck)
+            // Only while the member stands in the running Holdout with a day open or just done.
+            if (day != null && member != null && stage is Stage.Active) YourDayStrip(day, onStartDay, onSubmitDay, onGetTokens)
 
             when (stage) {
                 Stage.Settling -> Settling(c, now)

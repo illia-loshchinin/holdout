@@ -23,8 +23,6 @@ import holdout.app.streak.StreakMilestones
 import holdout.app.streak.ToesMeter
 import holdout.app.ui.ChainCheckBox
 import holdout.core.HoldoutDay
-import holdout.core.LeagueParams
-import holdout.repcounter.Stakes
 
 /**
  * The Today tab root (screen map T1/T2, ruling G1): T2 while a Holdout runs
@@ -53,15 +51,8 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
     if (running != null && chainNow != null) {
         val (h, stage) = running
         // Its roster is read every 30 s by the app's Standing loop: the running Holdout is the one Standing is about.
-        val scope = cohortScope(h)
-        // A process killed between banking the last block and marking the day done
-        // leaves the target banked and no marker: finish it, as for the Daily 25,
-        // or the day could be neither trained again nor submitted.
-        LaunchedEffect(wallet, h.address, stage.dayIndex) {
-            if (BankingController.recover(store, streaks, wallet, scope, stage.dayIndex.toLong(), h.cohort.repsPerDay)) bumpRefresh()
-        }
-        val banked = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.bankedReps(wallet, scope, stage.dayIndex.toLong()) }
-        val pendingToday = pendingTodayOf(h, stage)
+        val day = dayInputs(h, stage)
+        val banked = day.banked
         val newPhone = remember(wallet, dayIndex, view, banked) { NewPhoneWiring.shows(store, wallet, dayIndex, view, banked) }
         CohortHome(
             h = h,
@@ -69,19 +60,14 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
             stage = stage,
             now = chainNow,
             banked = banked,
-            pendingDay = pendingToday,
-            autoSendTried = pendingToday != null && chain.autoSubmit.tried(h.address.base58(), pendingToday),
+            pendingDay = day.pendingDay,
+            autoSendTried = day.autoSendTried,
             offline = chain.offline,
             busy = chain.busy,
             message = chain.message,
             messageIsWarning = chain.messageIsWarning,
-            onStart = {
-                // An exercise or a form this build does not know is refused, never guessed (FR-014, H30, H35).
-                if (h.cohort.exercise == LeagueParams.EXERCISE_PUSHUP && Stakes.ofForm(h.cohort.form) != null) {
-                    dispatch(NavEvent.StartSitting(Sitting.HoldoutDay(h.address.base58(), stage.dayIndex)))
-                }
-            },
-            onSubmit = { day -> submitDayOf(h, day) },
+            onStart = { startDay(h, stage.dayIndex) },
+            onSubmit = { submitDayOf(h, it) },
             // Its standing is the Standing tab's root.
             onDetail = { dispatch(NavEvent.SelectTab(Tab.Standing)) },
             onGetTokens = { dispatch(NavEvent.OpenFaucet) },

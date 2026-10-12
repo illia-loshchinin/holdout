@@ -88,8 +88,12 @@ internal fun Shared.DetailHost(id: String, root: Boolean = false, modifier: Modi
     RosterLoop(h)
     // Only the claim made from this cohort: another cohort's transaction is never shown as this one's.
     val claimSignature = chain.lastClaim?.takeIf { it.first == h.address }?.second
+    // On the Standing root, the member's own day while it is open (FR-069b): the same day, button and sitting as Today.
+    val stage = h.stage(n)
+    val active = stage as? Stage.Active
+    val inputs = if (root && active != null) dayInputs(h, active) else null
     CohortDetailScreen(
-        h, rosters[h.address], h.stage(n), n, claimSignature,
+        h, rosters[h.address], stage, n, claimSignature,
         onRoster = { dispatch(NavEvent.Open(Screen.Roster(id))) },
         onBack = if (root) null else ({ dispatch(NavEvent.Back) }),
         modifier = modifier,
@@ -99,6 +103,10 @@ internal fun Shared.DetailHost(id: String, root: Boolean = false, modifier: Modi
         onCheck = { checkChain(h.address) },
         onLeaderboards = { dispatch(NavEvent.Open(Screen.Leaderboards(Leaderboard.Board.of(h.cohort.leagueId)))) },
         onForfeit = { dispatch(NavEvent.Open(Screen.Forfeit(id))) },
+        day = if (active != null && inputs != null) dayState(h, active, n, inputs) else null,
+        onStartDay = { active?.let { startDay(h, it.dayIndex) } },
+        onSubmitDay = { submitDayOf(h, it) },
+        onGetTokens = { dispatch(NavEvent.OpenFaucet) },
     )
 }
 

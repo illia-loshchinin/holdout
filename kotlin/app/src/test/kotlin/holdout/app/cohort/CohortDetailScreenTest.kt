@@ -1,14 +1,18 @@
 package holdout.app.cohort
 
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import holdout.app.chain.Holdout
+import holdout.app.home.DayState
 import holdout.app.testing.Fx
 import holdout.app.testutil.AnimationsOff
 import holdout.app.testutil.TALL_PHONE
+import holdout.app.ui.Format
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.core.MembershipSnapshot
 import holdout.core.Stage
@@ -18,6 +22,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /** H4, the Holdout detail (board 13): the running, watching, settling, late, claimed and out states. */
 @RunWith(RobolectricTestRunner::class)
@@ -47,10 +52,18 @@ class CohortDetailScreenTest {
         onForfeit: (() -> Unit)? = null,
         offline: Boolean = false,
         onCheck: () -> Unit = {},
+        day: DayState? = null,
+        onStartDay: () -> Unit = {},
+        onSubmitDay: (Int) -> Unit = {},
+        onGetTokens: () -> Unit = {},
     ) {
         compose.setContent {
             HoldoutTheme {
-                CohortDetailScreen(h, members, stage, at, signature, onRoster, onBack, offline = offline, onCheck = onCheck, onLeaderboards = onLeaderboards, onForfeit = onForfeit)
+                CohortDetailScreen(
+                    h, members, stage, at, signature, onRoster, onBack,
+                    offline = offline, onCheck = onCheck, onLeaderboards = onLeaderboards, onForfeit = onForfeit,
+                    day = day, onStartDay = onStartDay, onSubmitDay = onSubmitDay, onGetTokens = onGetTokens,
+                )
             }
         }
     }
@@ -206,5 +219,93 @@ class CohortDetailScreenTest {
         compose.onNodeWithText("Devnet can't be reached right now.").assertIsDisplayed()
         compose.onNodeWithText("Check again").performClick()
         assertEquals(1, checks)
+    }
+
+    // ---- the day strip (FR-069b): the member's day, at the top of Standing while it is open ----
+
+    private fun today(banked: Int = 0, done: Boolean = false, pending: Int? = null, tried: Boolean = false, offline: Boolean = false, fees: Boolean = true) = DayState.of(cohort, Stage.Active(4, done), now, banked, pending, tried, offline, false, fees)
+
+    @Test
+    fun `the day strip names the day, the target and the time left, with Start`() {
+        var starts = 0
+        val day = today()
+        show(day = day, onStartDay = { starts++ })
+
+        compose.onNodeWithText("DAY 5 · 25 push-ups · ${Format.countdown(day.timeLeft!!)} left").assertIsDisplayed()
+        compose.onNodeWithText("Start today's 25").performClick()
+        assertEquals(1, starts)
+    }
+
+    @Test
+    fun `the day strip sits above the counter`() {
+        show(day = today())
+        val strip = compose.onNodeWithText("Start today's 25").fetchSemanticsNode().positionInRoot.y
+        val counter = compose.onNodeWithText("STILL STANDING").fetchSemanticsNode().positionInRoot.y
+        assertTrue(strip < counter)
+    }
+
+    @Test
+    fun `part-way the strip says Keep going`() {
+        show(day = today(banked = 10))
+        compose.onNodeWithText("Keep going").assertIsDisplayed()
+    }
+
+    @Test
+    fun `done and on chain - one quiet line and no button`() {
+        show(day = today(done = true), stage = Stage.Active(4, true))
+
+        compose.onNodeWithText("Day 5 is done and on chain.").assertIsDisplayed()
+        compose.onNodeWithText("Start today's 25").assertDoesNotExist()
+        compose.onNodeWithText("DAY 5 · 25 push-ups", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("left", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `done and not sent while offline - waiting for network, no button`() {
+        show(day = today(pending = 4, offline = true), offline = true)
+
+        compose.onNodeWithText("Done — waiting for network").assertIsDisplayed()
+        compose.onNodeWithText("Submit day 5").assertDoesNotExist()
+    }
+
+    @Test
+    fun `done and the send did not land - Submit day 5 sends it`() {
+        val sent = mutableListOf<Int>()
+        show(day = today(pending = 4, tried = true), onSubmitDay = { sent += it })
+
+        compose.onNodeWithText("Done — tap to submit").assertIsDisplayed()
+        compose.onNodeWithText("Submit day 5").performClick()
+        assertEquals(listOf(4), sent)
+    }
+
+    @Test
+    fun `done but short of SOL - Submit is off and Get test tokens is the way`() {
+        var tokens = 0
+        show(day = today(pending = 4, fees = false), onGetTokens = { tokens++ })
+
+        compose.onNodeWithText("Submit day 5").assertIsNotEnabled()
+        compose.onNodeWithText("Get test tokens").performClick()
+        assertEquals(1, tokens)
+    }
+
+    @Test
+    fun `no strip for a Holdout the member only watches`() {
+        show(h = Fx.holdout(cohort, null), day = today())
+        compose.onNodeWithText("Start today's 25").assertDoesNotExist()
+        compose.onNodeWithText("DAY 5 · 25 push-ups", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `no strip after the last day`() {
+        val done = Fx.cohort(joined = 10, start = Fx.START - 7 * Fx.DAY)
+        val h = Fx.holdout(done, Fx.member(days = 7, state = MembershipSnapshot.State.Finished))
+        show(h = h, members = Fx.roster(3, 0, finished = true), at = done.start + 7 * Fx.DAY + 240, day = today())
+        compose.onNodeWithText("Start today's 25").assertDoesNotExist()
+    }
+
+    @Test
+    fun `no strip when the host gives none`() {
+        show()
+        compose.onNodeWithText("Start today's 25").assertDoesNotExist()
     }
 }

@@ -14,6 +14,7 @@ import holdout.app.testutil.TALL_PHONE
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.wallet.TxOutcome
 import holdout.app.wallet.TxPhase
+import holdout.core.LeagueParams
 import holdout.core.MembershipSnapshot
 import org.junit.Rule
 import org.junit.Test
@@ -104,10 +105,37 @@ class ClaimResultTest {
         assertEquals("Join the next Habit · 21-day", up?.first)
     }
 
+    private fun testHoldout(form: Int) = Fx.holdout(Fx.cohort(days = 3, leagueId = 100, dayLength = 600, form = form, settled = true), Fx.member(state = MembershipSnapshot.State.Claimed))
+
     @Test
-    fun `upsell - none when no Habit is open, or after a short test Holdout`() {
+    fun `upsell - none when no Habit is open`() {
         assertNull(claimUpsell(spark, view(spark), now, seekerKnown = true))
-        val test = Fx.holdout(Fx.cohort(days = 3, leagueId = 100, dayLength = 600, form = 1, settled = true), Fx.member(state = MembershipSnapshot.State.Claimed))
-        assertNull(claimUpsell(test, view(test, open(21)), now, seekerKnown = true))
+        assertNull(claimUpsell(testHoldout(form = 1), view(testHoldout(form = 1)), now, seekerKnown = true))
+    }
+
+    @Test
+    fun `upsell - a claim after a short test Spark offers the open Habit like any Spark`() {
+        val test = testHoldout(form = LeagueParams.FORM_KNEES_ALLOWED)
+        val habit = open(21)
+        val up = claimUpsell(test, view(test, habit), now, seekerKnown = true)
+
+        assertEquals("Make it a Habit · 21-day", up?.first)
+        assertEquals(NavEvent.OpenStake(habit.address.base58(), seekerKnown = true), up?.second)
+    }
+
+    @Test
+    fun `upsell - a claim after a short test Holdout of the toes form offers the next Habit`() {
+        val test = testHoldout(form = LeagueParams.FORM_TOES)
+        val up = claimUpsell(test, view(test, open(21)), now, seekerKnown = false)
+
+        assertEquals("Join the next Habit · 21-day", up?.first)
+    }
+
+    @Test
+    fun `upsell - never offers a short test Holdout, whatever was claimed`() {
+        val openTest = Fx.holdout(Fx.cohort(days = 3, leagueId = 100, dayLength = 600, form = LeagueParams.FORM_TOES, start = Fx.START + 2 * Fx.DAY, joined = 4), null)
+        assertNull(claimUpsell(spark, view(spark, openTest), now, seekerKnown = true))
+        val test = testHoldout(form = LeagueParams.FORM_KNEES_ALLOWED)
+        assertNull(claimUpsell(test, view(test, openTest), now, seekerKnown = true))
     }
 }

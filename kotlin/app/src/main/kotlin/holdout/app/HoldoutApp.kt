@@ -23,6 +23,7 @@ import holdout.app.chain.Holdout
 import holdout.app.holdout.HoldoutViewModel
 import holdout.app.names.SeekerNameRepository
 import holdout.app.nav.Badges
+import holdout.app.nav.MessageScope
 import holdout.app.nav.Nav
 import holdout.app.nav.NavEvent
 import holdout.app.nav.NavSaved
@@ -402,6 +403,8 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
         }
         // The signing flow closed: its last outcome is no longer shown anywhere.
         if (before.tx != null && nav.tx == null) holdouts.clearSigning()
+        // A message belongs to the screen the action was taken on: it goes when the member leaves it.
+        if (MessageScope.left(before, nav)) holdouts.clearMessage()
     }
 
     shared = Shared(
