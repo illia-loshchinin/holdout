@@ -76,6 +76,8 @@ internal fun Shared.FaucetSheetHost() {
         now = n ?: 0,
         busy = chain.busy,
         outcome = chain.lastFaucet,
+        // Both the snapshot and chain time are needed to claim: without them the balances are not shown and the tap is off.
+        ready = v != null && n != null,
         onClaim = { n?.let { holdouts.claimFaucet(sender, it) } },
         onBack = {
             holdouts.clearMessage()
