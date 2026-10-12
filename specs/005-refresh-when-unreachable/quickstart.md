@@ -3,10 +3,10 @@
 ## Unit tests (Windows)
 
 ```bash
-cd kotlin && ./gradlew :app:testMemberDebugUnitTest --tests "holdout.app.ChainCheckTest" --tests "holdout.app.CheckAgainCopyTest"
+cd kotlin && ./gradlew :app:testMemberDebugUnitTest --tests "holdout.app.ChainCheckTest" --tests "holdout.app.CheckAgainCopyTest" --tests "holdout.app.HoldoutViewModelCheckTest" --tests "holdout.app.MainViewModelTest"
 ```
 
-Expected: all pass — the gate's transitions (data-model.md) and the copy rules (contracts/check-again-ui.md).
+Expected: all pass — the gate's transitions (data-model.md), the view model's wiring (a check's joins, its pause, the sends it never makes), chain-time read order, and the copy rules (contracts/check-again-ui.md).
 
 ## On a phone against a local validator (the owner's case)
 
@@ -30,3 +30,4 @@ Then use `adb reverse --remove tcp:8898` to cut the link and `adb reverse tcp:88
 4. With the chain answering, pull down on the home: no indicator.
 5. Open a Holdout's details and, in a forfeited Holdout, the forfeit screen, with the reverse removed: each shows *"Devnet can't be reached right now."* with **Check again** and the pull.
 6. With the reverse removed, look at the home with no Holdout running after an earlier read (above its Holdout cards), and at the home of a running Holdout whose day is done. Each shows *"Devnet can't be reached right now."* with **Check again**. A failed check turns that line into *"Devnet still can't be reached."* in place.
+7. With the reverse removed, tap **Check again** and send the app to the background at once (home button), then come back: no *"Checking…"* is left, the line reads *"Devnet can't be reached right now."* again until the next check.

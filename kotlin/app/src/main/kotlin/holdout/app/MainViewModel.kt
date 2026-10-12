@@ -22,11 +22,21 @@ class MainViewModel : ViewModel() {
      * (FR-024b), so a phone with no signal counts reps exactly as before, and
      * the caller simply asks again later.
      */
-    suspend fun refreshChainTime(clock: ChainClock): Boolean {
-        val time = rpcClient.chainTime() ?: return false
-        clock.observe(time.unixSeconds, time.slot)
+    suspend fun refreshChainTime(clock: ChainClock, read: suspend () -> Rpc.ChainTime? = rpcClient::chainTime): Boolean {
+        val started = ++readsStarted
+        val time = read() ?: return false
+        // Reads overlap — the loop's and a member's "Check again" — and a slow early
+        // one must not put an older time back over a newer one (the clock would run backwards).
+        if (started > newestApplied) {
+            newestApplied = started
+            clock.observe(time.unixSeconds, time.slot)
+        }
         return true
     }
+
+    /** Chain-time reads started, and the latest one whose answer was taken — both on the main thread. */
+    private var readsStarted = 0
+    private var newestApplied = 0
 
     /** The wait before chain time is asked again, cut short when the network comes back. */
     val retry = ChainTimeRetry()
