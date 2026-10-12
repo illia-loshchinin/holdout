@@ -190,6 +190,13 @@ class HomeScreenTest {
     }
 
     @Test
+    fun `a tap anywhere on an offer card opens it, as Join does`() {
+        show(fresh)
+        text("Spark · 7-day").performClick()
+        assertEquals(listOf("spark"), joined)
+    }
+
+    @Test
     fun `a Hackathon Holdout keeps its badge and its own name`() {
         val test = spark.copy(cohort = "t", title = OfferCardState.TEST_TITLE, tagline = "3 days · 5 push-ups a day · joinable right up to its start", atStake = "250 SKR", joined = "at stake · 3 joined", timing = "Starts in 12m 30s", boost = null, test = true, testDayLength = 600)
         show(fresh.copy(holdouts = HoldoutsBlock.Open(listOf(test, spark))))

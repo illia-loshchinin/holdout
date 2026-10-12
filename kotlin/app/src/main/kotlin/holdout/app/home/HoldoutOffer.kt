@@ -1,6 +1,7 @@
 package holdout.app.home
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,7 +52,8 @@ fun HoldoutOffer(h: Holdout, now: Long, onClick: (() -> Unit)?, modifier: Modifi
  */
 @Composable
 fun OfferCard(offer: OfferCardState, onJoin: (() -> Unit)?, modifier: Modifier = Modifier) {
-    HoldoutCard(modifier) {
+    // The whole card opens the stake sheet, as Join does (owner, 12 Oct): a tap anywhere on the offer means "this one".
+    HoldoutCard(if (onJoin != null) modifier.clickable(onClickLabel = "Join ${offer.title}", onClick = onJoin) else modifier) {
         if (offer.test) TestCohortBadge(offer.testDayLength)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
