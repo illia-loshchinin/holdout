@@ -54,12 +54,14 @@ private fun Today(
     offline: Boolean = false,
     canPayFees: Boolean = true,
     at: Long = NOW,
+    dayIndex: Int = 11,
+    crowd: List<MembershipSnapshot> = ROSTER,
 ) {
     HoldoutTheme {
         CohortHome(
             h = HABIT,
-            members = ROSTER,
-            stage = Stage.Active(11, todayDone),
+            members = crowd,
+            stage = Stage.Active(dayIndex, todayDone),
             now = at,
             banked = banked,
             offline = offline,
@@ -109,3 +111,11 @@ private fun TodayShortOfSolPreview() = Today(pendingDay = 11, canPayFees = false
 @Preview(showBackground = true, backgroundColor = 0xFF000000, heightDp = 900)
 @Composable
 private fun TodaySubmittedPreview() = Today(todayDone = true)
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000, heightDp = 900)
+@Composable
+private fun TodayLastDaySubmittedPreview() = Today(todayDone = true, dayIndex = 20, at = START + 21 * DAY - 14_760 - 1)
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000, heightDp = 900)
+@Composable
+private fun TodayNobodyDroppedPreview() = Today(crowd = ROSTER.take(4))

@@ -28,8 +28,9 @@ import kotlin.test.assertEquals
 
 /**
  * Today with a Holdout running (T2, board 5 · 5b; FR-038, FR-046, FR-047,
- * FR-024b): the counter and pool from the roster, the day button in each state,
- * and the callbacks. Habit · 21-day, day 12, with 312 started.
+ * FR-024b, FR-069a): the day first — the day button in each state and the
+ * deadline — with the crowd as one strip that opens Standing, and the callbacks.
+ * Habit · 21-day, day 12, with 5 started.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TALL_PHONE)
@@ -96,21 +97,24 @@ class CohortHomeTest {
         stillUnreachable: Boolean = false,
         holdout: Holdout = h,
         newPhone: Boolean = false,
+        message: String? = null,
+        messageIsWarning: Boolean = false,
+        index: Int = 11,
     ) {
         compose.setContent {
             HoldoutTheme {
                 CohortHome(
                     h = holdout,
                     members = members,
-                    stage = Stage.Active(11, todayDone),
+                    stage = Stage.Active(index, todayDone),
                     now = at,
                     banked = banked,
                     offline = offline,
                     pendingDay = pendingDay,
                     autoSendTried = autoSendTried,
                     busy = busy,
-                    message = null,
-                    messageIsWarning = false,
+                    message = message,
+                    messageIsWarning = messageIsWarning,
                     onStart = { started++ },
                     onSubmit = { submitted += it },
                     onDetail = { details++ },
@@ -134,31 +138,45 @@ class CohortHomeTest {
     }
 
     @Test
-    fun `the counter is the screen - standing of started - and a link to who is still standing`() {
+    fun `the crowd is one strip under the day - standing of started, the member's share - and opens Standing`() {
         show()
-        compose.onNodeWithContentDescription("4 of 5, still standing").assertExists()
-        compose.onNodeWithContentDescription("4 of 5, still standing").performClick()
+        // Pool 975 SKR over 5,000 standing: 243.75 for the member.
+        text("4 of 5 still standing · your share 243.75 SKR").assertIsDisplayed()
+        text("4 of 5 still standing", substring = true).performClick()
         assertEquals(1, details)
     }
 
     @Test
-    fun `the pool and the member's share, with the short condition, and no dollars`() {
+    fun `the counter, the pool card and the boost line are Standing's, not Today's`() {
         show()
-        text("Prize pool").assertIsDisplayed()
-        text("Your share now").assertIsDisplayed()
-        text("if today's standing holds").assertIsDisplayed()
-        text("+ about 97.5 SKR boost if anyone finishes").assertIsDisplayed()
+        text("Prize pool").assertDoesNotExist()
+        text("Your share now").assertDoesNotExist()
+        text("if today's standing holds").assertDoesNotExist()
+        text("boost", substring = true).assertDoesNotExist()
+        text("STILL STANDING").assertDoesNotExist()
+        compose.onNodeWithContentDescription("4 of 5, still standing").assertDoesNotExist()
         text("≈", substring = true).assertDoesNotExist()
-        text("on top of your", substring = true).assertDoesNotExist()
     }
 
     @Test
-    fun `members who dropped in the last day are counted, with what the share gained`() {
+    fun `the strip says who dropped in the last day, under its line`() {
         // key(5) completed 10 days: its day-11 deadline (start + 11 days - 1) is within the last day of `now`.
         show()
         text("1 dropped since yesterday").assertIsDisplayed()
-        // Pool 975 SKR over 5,000 standing: 243.75 for the member, against 20 a day ago.
-        text("+223.75 SKR since yesterday").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the strip leaves the share out while the roster is not read`() {
+        show(members = null)
+        text("5 of 5 still standing").assertIsDisplayed()
+        text("your share", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `the streak chip is in the header row, and the footer is gone`() {
+        show()
+        compose.onNodeWithContentDescription("12-day streak").assertExists()
+        compose.onNodeWithContentDescription("12-day streak").assertIsDisplayed()
     }
 
     @Test
@@ -195,7 +213,7 @@ class CohortHomeTest {
     @Test
     fun `to do - nothing banked, the way to do it and Start today's 25`() {
         show()
-        text("Nothing banked yet today").assertIsDisplayed()
+        text("25 push-ups").assertIsDisplayed()
         text("all at once or 10 at a time").assertIsDisplayed()
         text("Start today's 25").performClick()
         assertEquals(1, started)
@@ -204,7 +222,7 @@ class CohortHomeTest {
     @Test
     fun `part-way - what is banked, what is left and Keep going`() {
         show(banked = 10)
-        text("10 banked today").assertIsDisplayed()
+        text("10 of 25 banked").assertIsDisplayed()
         text("15 to go").assertIsDisplayed()
         text("Keep going").performClick()
         assertEquals(1, started)
@@ -276,22 +294,45 @@ class CohortHomeTest {
     }
 
     @Test
-    fun `submitted - today is on chain and the next day opens in a countdown`() {
+    fun `submitted - today is on chain and day 13 opens in a countdown, with no deadline countdown`() {
         show(todayDone = true)
         text("Today is done and on chain.").assertIsDisplayed()
-        text("Next day opens in 4h 06m.").assertIsDisplayed()
+        text("Day 13 opens in 4h 06m.").assertIsDisplayed()
         text("Start today's 25").assertDoesNotExist()
+        text("left").assertDoesNotExist()
+        text("Next day opens", substring = true).assertDoesNotExist()
     }
 
     @Test
-    fun `the footer carries the streak and the time left`() {
+    fun `the last day on chain says it was the last, never that the next day opens`() {
+        show(todayDone = true, index = 20, at = start + 21 * day - 14_760 - 1)
+        text("That was the last day. It settles soon after the end, then your claim is ready.").assertIsDisplayed()
+        text("opens in", substring = true).assertDoesNotExist()
+        text("left").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the landed day's message is not repeated under the done card`() {
+        show(todayDone = true, message = "Day 12 is on chain.", messageIsWarning = false)
+        text("Today is done and on chain.").assertIsDisplayed()
+        text("Day 12 is on chain.").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a warning from the last action still gets its line`() {
+        show(message = "Declined in your wallet.", messageIsWarning = true)
+        text("Declined in your wallet.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the time left sits with the day while it is open`() {
         show()
-        compose.onNodeWithContentDescription("12-day streak").assertExists()
         text("left").assertExists()
+        compose.onNodeWithContentDescription("4h 06m left").assertExists()
     }
 
     @Test
-    fun `no Daily 25 link and no roster or details buttons - the counter is the way to Standing`() {
+    fun `no Daily 25 link and no roster or details buttons - the strip is the way to Standing`() {
         show()
         text("The Daily 25", substring = true).assertDoesNotExist()
         text("Who's still standing").assertDoesNotExist()
