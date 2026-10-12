@@ -1,36 +1,242 @@
-# Holdout
+<p align="center">
+  <img src="docs/images/holdout-logo.svg" alt="HOLDOUT" width="420">
+</p>
 
-[![CI](https://github.com/illia-loshchinin/holdout/actions/workflows/ci.yml/badge.svg)](https://github.com/illia-loshchinin/holdout/actions/workflows/ci.yml)
+<p align="center">
+  <b>Be the holdout. Stake on yourself.</b><br>
+  25 push-ups a day, counted by your phone. Stake SKR with everyone who starts on Monday.<br>
+  Finish, and take your stake back plus a share of what the others lost.
+</p>
 
-Solana Mobile fitness commitment dApp. Built for the CLOCK IN hackathon, submission due 13 Oct 2026, 01:59 CEST (12 Oct, 23:59 UTC); judging runs 13 Oct – 9 Nov 2026.
+<p align="center">
+  <img alt="Solana devnet" src="https://img.shields.io/badge/Solana-devnet-9945FF?logo=solana&logoColor=white">
+  <img alt="Anchor 1.1.2" src="https://img.shields.io/badge/Anchor-1.1.2-512BD4">
+  <img alt="Kotlin and Jetpack Compose" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white">
+  <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white">
+  <img alt="Built for Solana Seeker" src="https://img.shields.io/badge/built%20for-Solana%20Seeker-80ECFF">
+  <img alt="CI (local)" src="https://img.shields.io/badge/CI-local%20gate-14F195">
+  <img alt="License: proprietary" src="https://img.shields.io/badge/license-proprietary-lightgrey">
+</p>
 
-**Devnet only, mock SKR mint — a test network with a test token.** No stake, prize or token touches mainnet or real value; the app's only mainnet contact is two reads: members' public Seeker ID names, for display only, and the connected wallet's Seeker Genesis Token, before a join (see Known weaknesses).
+Holdout is a Solana Mobile app where you stake on yourself. Anyone can do the free **Daily 25**:
+25 push-ups, counted on the phone, that build a streak. On top of it sit **Holdouts**, 7-day and
+21-day runs with a stake in SKR. Miss a day and your stake goes to the people still standing.
+Finish, and you get your stake back plus a share of the pool.
 
-## What it is
+Built for the Solana Mobile **CLOCK IN** hackathon.
 
-**The Daily 25** — 25 push-ups, free, verified on the phone — with staked **Holdouts** on top:
-
-| Layer | |
+| | |
 |---|---|
-| The Daily 25 | Free, every day, for everyone. Builds a personal streak. Unlocks nothing, pays nothing, and a forfeit doesn't break it. |
-| Spark · 7-day Holdout | Staked: seven days, knee push-ups count (*Light it up · knees allowed*; the program's `Easy` form). Open at all times to any wallet holding a Seeker Genesis Token. |
-| Habit · 21-day Holdout | Staked: twenty-one days, from the toes (*Make it stick · toes only*; the program's `Hard` form). Open at all times to any wallet holding a Seeker Genesis Token. |
+| **Now** | **Devnet.** Test SKR, the whole cycle working end to end: the contract, the crank, the app and short *Hackathon* rounds anyone with a Seeker can run in half an hour. |
+| **Next** | **Mainnet, real SKR, real stakes.** The Seeker Genesis Token check moves into the contract, the faucet goes, the upgrade authority is revoked and the operator keys are split. See [Known weaknesses](#known-weaknesses): each one is written down with its real fix. |
 
-Staking is Seeker-exclusive (FR-003b). The Daily 25 stays open to everyone.
+## Contents
 
-The two Holdouts are separate leagues for different people, not rungs of a ladder: neither unlocks the other, and nothing earned in one is needed for the other (FR-003).
+[What makes it different](#what-makes-holdout-different) ·
+[How it works](#how-it-works) ·
+[Where a lost stake goes](#where-a-lost-stake-goes) ·
+[Privacy](#privacy-what-we-never-collect) ·
+[Rep counting](#how-push-ups-are-counted) ·
+[On chain](#on-chain-and-off-chain) ·
+[Install](#install-and-run) ·
+[Quality](#quality-and-verification) ·
+[Known weaknesses](#known-weaknesses) ·
+[Docs](#documentation)
 
-A Holdout is a cohort of members who start and finish together; "Holdout" is what members read, `Cohort` is what the contract stores (spec §1a).
+<!-- screenshots: uncomment once the files in docs/images/ exist (see docs/images/README.md)
+<p align="center">
+  <img src="docs/images/today.png" width="19%" alt="Today">
+  <img src="docs/images/sitting.png" width="19%" alt="A sitting">
+  <img src="docs/images/standing.png" width="19%" alt="Standing">
+  <img src="docs/images/tour-stake.png" width="19%" alt="Where a lost stake goes">
+  <img src="docs/images/claim.png" width="19%" alt="Claim">
+</p>
+-->
 
-You need a Solana wallet to use the app — even the Daily 25. The app has a built-in faucet for test SKR and devnet fee SOL, with no limit per wallet.
+## What makes Holdout different
 
-Cohorts start every Monday 05:00 UTC. Joining and leaving close 1 hour before the start. Miss a day and the stake is forfeited into that cohort's prize pool; finish and take back the stake plus a share of what the quitters left. Leaderboards rank members by discipline — the share of their cohorts they survived — never by money.
+- **Your phone counts every rep.** An on-device AI model watches the push-up and a written rule
+  decides what counts. Nobody reports their own reps.
+- **Money moves only when someone misses a day.** Nobody pays to take part. If everyone finishes,
+  everyone gets exactly their stake back.
+- **A fall is not the end.** 10 % of a lost stake is set aside for that member. They finish the next
+  Holdout of the same kind and get it back, in full.
+- **80 % of every lost stake stays with members.** 70 % goes to this Holdout's prize pool and 10 %
+  to the member's own comeback. 20 % runs the project. The contract enforces it.
+- **Discipline ranks you, money never does.** Leaderboards rank by the share of Holdouts you
+  finished.
+- **Private by design.** No microphone. No video or body data ever leaves the phone. The build
+  fails if a microphone permission appears.
+- **Native on Seeker.** Mobile Wallet Adapter with Seed Vault, the Seeker Genesis Token as the key
+  to Holdouts, and Seeker ID (`.skr`) names in the roster.
+- **No oracle, no single operator.** The contract never reads a price. Every step that moves a
+  Holdout forward (open, record forfeits, settle, release) can be called by anyone.
 
-The build lands in two phases: the core loop first, then — only if there's time before the 28 September freeze — league leaderboards, weekly chip re-pricing and automatic offline submission (spec §3a). Carry-over delivery was cut on 5 October, when nothing carried over any more (H34).
+## How it works
+
+| | The Daily 25 | Spark · 7-day | Habit · 21-day | Hackathon · 3-day |
+|---|---|---|---|---|
+| | *All at once, or 10 at a time* | *Light it up · knees allowed* | *Make it stick · toes only* | *A quick taste* (devnet only) |
+| Stake | Free | SKR | SKR | Test SKR |
+| Days × reps | Every day × 25 | 7 × 25 | 21 × 25 | 3 × 5, 10-minute days |
+| Knee push-ups | Count | Count | Don't count | As its level |
+| Starts | Any time | Mondays 05:00 UTC | Mondays 05:00 UTC | Every 30 minutes |
+| Needs | A Solana wallet | A Seeker | A Seeker | A Seeker |
+
+- **Join** by picking one of four chips (≈ $10 / $25 / $50 / $100 in SKR). Joining and leaving
+  close one hour before the start. Until then, leaving is a full refund.
+- **Do 25 push-ups a day**, all at once or in blocks of 10. Every 10 are banked for good. When the
+  day is done, your wallet signs one transaction.
+- **Miss a day** and your stake is lost. The crank records it, by chain time, not your phone's clock.
+- **Finish**, and once the Holdout settles, claim your stake plus your share.
+
+```mermaid
+flowchart LR
+    J["join_cohort<br/>stake a chip"] --> D["Daily sitting<br/>25 push-ups at 45°"]
+    D --> S["submit_day<br/>one tx a day"]
+    S -->|"next day"| D
+    S -->|"last day done"| F["settle_count<br/>settle_finalize"]
+    D -.->|"missed a deadline"| R["record_forfeits<br/>70 / 10 / 10 / 10"]
+    R --> F
+    F --> C["claim_payout<br/>stake + share + comeback"]
+```
+
+More in [How it works](docs/how-it-works.md): the calendar, the Hackathon rounds, scripted members,
+Seeker gating, the four tabs and the faucet.
+
+## Where a lost stake goes
+
+```mermaid
+flowchart LR
+    L["A lost stake"] -->|"70 %"| P["This Holdout's prize pool<br/>split by everyone who finishes"]
+    L -->|"10 %"| C["Your comeback<br/>set aside for you"]
+    L -->|"20 %"| X["The project<br/>10 % developer · 10 % operations"]
+    C -->|"you finish the next one"| B1["Back to you<br/>with your payout"]
+    C -->|"you don't"| BR["Boost reserve"]
+    N["A pool nobody won"] --> BR
+    BR -->|"up to +10 %"| LP["Later prize pools"]
+```
+
+**80 % comes back to members. The rest runs Holdout.**
+
+- **The prize pool** is shared by finishers in proportion to their stake:
+  `share = floor(pool × chip / total stake of finishers)`.
+- **The comeback** is exact, never "up to": `min(10 % of the lost stake, your new stake)`. It comes
+  back when you finish the next Holdout of the same kind. Lost on the last day? Join the next one
+  on its first day, or the one after.
+- **The boost reserve** is filled only by comebacks nobody made good and by pools nobody won. It
+  adds up to 10 % to a later pool that has a finisher.
+- **If nobody drops out**, nobody pays anything: everyone gets exactly their stake back.
+
+**Example.** Ten members stake 100 SKR each and three miss a day. The pool is 210 SKR, 30 SKR is
+set aside as three comebacks, and 60 SKR goes to the project. Each of the seven finishers claims
+**130 SKR**: their 100 back plus a 30 share. With 50 SKR in the boost reserve, the pool grows by 21
+and each claims **133 SKR**.
+
+The full rules, the rounding, and why a group can't farm the boost are in
+[Economics](docs/economics.md).
+
+## Privacy: what we never collect
+
+| | |
+|---|---|
+| 🎥 **Video** | Never stored, never uploaded. Each frame goes to the on-device model and is dropped. |
+| 🎙️ **Sound** | Never recorded. There is no microphone permission, and `checkNoAudioPermission` fails the build if one appears. |
+| 🧍 **Body data** | Landmarks live in memory during the sitting only. No trace is sent anywhere. |
+| ⛓️ **On chain** | One `submit_day(day_index, proof_hash)` per completed day: no image, no landmark. |
+| ☁️ **Backup** | Cloud backup and device transfer are off. |
+
+The member app asks for four permissions: camera, internet, network state and notifications. There
+is no Holdout server, no analytics SDK and no ad SDK. The counter's thresholds were tuned on a
+separate, never-distributed tester app, **Holdout Lab**. It has no network access, its recordings
+come only from people who agreed to be filmed, and none of its code is in the member app. Details in
+[Privacy](docs/privacy.md).
+
+## How push-ups are counted
+
+The front camera feeds **MediaPipe Pose Landmarker** on the phone's GPU. A plain-Kotlin rule engine,
+[`kotlin/repcounter`](kotlin/repcounter/), applies the rule to its 33 body landmarks:
+
+1. **Top**: elbow above 160°, body straight within ±10°.
+2. **Bottom**: elbow below 90°, body line held.
+3. **Back to the top**, in 0.8–6 seconds.
+4. **Habit only**: legs straight, on the toes. Knees on the floor don't count.
+
+The phone stands on the floor at **45°** ahead of the shoulder. That is the one angle where the
+camera can tell a push-up from the knees from one on the toes, so every sitting uses it.
+Pre-flight checks (light, whole body, knees visible, angle), a held plank and a 3 · 2 · 1 countdown
+come before the first rep. Refused reps get a coaching cue, never an error. More in
+[Rep counting](docs/rep-counting.md).
+
+## On chain and off chain
+
+| On chain: the [Holdout program](docs/contract.md) | Off chain |
+|---|---|
+| Every stake, pool and reserve, in program-owned vaults | Rep counting, on the phone |
+| Schedule and deadlines, from chain time | The banked reps of a day in progress, on the phone |
+| Each completed day (`submit_day`) | The Daily 25 and its streak, on the phone |
+| The 70 / 10 / 10 / 10 split, the comeback, the boost | Reminders, scheduled on the phone |
+| Settlement and claims | The crank: a loop calling the permissionless instructions |
+| Leaderboard progress and Holdout streaks | Chip prices: operator input from the Jupiter Price API |
+| The faucet's daily budget | Scripted members' wallets (Hackathon rounds only, labelled) |
+
+**Program ID (devnet):**
+[`Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4`](https://explorer.solana.com/address/Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4?cluster=devnet).
+There are 15 instructions, and the accounts and the trust model are listed in
+[Contract](docs/contract.md).
+
+## Install and run
+
+**Option A: the release APK.** _The signed APK will be attached to the repository's Releases._
+Download it on the phone, allow the install, open it.
+
+**Option B: build it yourself** (JDK 21 and the Android SDK; no keys needed):
+
+```bash
+git clone https://github.com/illia-loshchinin/holdout.git
+cd holdout/kotlin
+./gradlew :app:assembleMemberDebug
+adb install -r app/build/outputs/apk/member/debug/app-member-debug.apk
+```
+
+Then connect a Mobile Wallet Adapter wallet **on devnet** and tap **Get test tokens** on **Me** for
+test SKR and fee SOL. Holdouts need a Seeker holding a Seeker Genesis Token. To try one on another
+phone, build with `-Pholdout.seekerGate=off` (debug only).
+
+The signed release, the build options and troubleshooting are in
+[Build and install](docs/build-android.md). The Solana side is in
+[Development](docs/development.md).
+
+## Quality and verification
+
+| | |
+|---|---|
+| **≈ 1,780 Kotlin tests** | `:app` 1,265 (incl. Robolectric and Roborazzi screen tests), `:core` 229, `:repcounter` 150, `:crank` 143 |
+| **≈ 300 contract tests** | TypeScript, `@solana/kit` + LiteSVM: 15 scenario suites and a randomised invariant checker |
+| **65 Rust unit tests** | Settlement maths checked against golden vectors |
+| **278 labelled reps** | From 27 recorded sets, replayed by a regression ratchet that fails on any change |
+
+Every pull request has to pass four CI jobs: `program`, `anchor`, `contract-tests` and `kotlin`.
+They include:
+
+- rustfmt and clippy;
+- a no-oracle guard;
+- the committed IDL and Codama client must equal the build;
+- ktlint and every JVM test;
+- both debug APKs;
+- the no-microphone and no-Lab-code guards;
+- a wording guard against gambling language;
+- this README's weaknesses table must equal `docs/weaknesses.json`.
+
+GitHub Actions is off for this repository for now, so the same jobs run through
+`bash scripts/ci-local.sh --report`. It sets a **CI (local)** commit status, which is the merge
+gate. Every change is specified first (`specs/`), checked against a written
+[constitution](.specify/memory/constitution.md), and reviewed before merge.
 
 ## Known weaknesses
 
-Named here on purpose (constitution XI). Each has its real fix beside it.
+Named on purpose: a judge, a tester or a future member should know where the build is weaker than
+it looks. Each has its real fix beside it.
 
 | What | Why it is like this | Real fix |
 |---|---|---|
@@ -58,35 +264,24 @@ Named here on purpose (constitution XI). Each has its real fix beside it.
 | Reminders are on-device only — no push | No server knows anyone's deadlines. The phone schedules a reminder when a Holdout starts, halfway through each day (with sound) and before its deadline (silently), from chain time, and a day you have done that is not on chain yet stays in the notification shade and is re-posted silently every hour until it is submitted (FR-068). A Holdout you finished gets one notice 15 minutes after its end, when settlement usually has come; it does not check the chain, so it says your claim is *probably* ready (FR-068b). Android may deliver them a few minutes late, not at all after a restart until the app is opened, and never if notifications are declined. The deadline is the chain's, never the reminder's | A push service fed by the chain, alongside the on-device reminders |
 | One key, `operator.json`, is both the crank's fee payer and the only key that can publish the chip set, and it sits as a hot secret on the Fly machine that runs the crank (and in the GitHub Actions fallback) | Opening a cohort every 30 minutes needs a funded payer. A separate payer key was considered and the product owner decided against it (2026-10-11, L14), so this is an accepted risk of the devnet build, not an oversight. Whoever takes the key can re-price the stakes of every Holdout not yet open and spend its float. Worse, it can publish one chip set with an enormous top tier: the program keeps the highest top tier ever published (`max_top_tier` only rises) and the faucet mints exactly that much per claim, and `Config.operator` has no rotation instruction. The faucet then mints absurd amounts or fails, new wallets lose their way to SKR, and only a program upgrade undoes it. The same machine and the GitHub Actions fallback also hold the keypairs of the 56 scripted members (`HOLDOUT_SCRIPTED_KEYS_TGZ_B64`), so a compromise can stop their submissions (forfeits that move real pools), join or leave, and claim their payouts. What it cannot do is touch a real member's stake or a settled payout, which only the program moves | A payer key of its own holding only the float, an operator key kept off the machine (or a multisig), an operator rotation instruction and a cap on the top tier, and the scripted keys held apart, for the mainnet build |
 
-## Layout
+## Documentation
 
-| Path | |
+| Page | What is in it |
 |---|---|
-| `.specify/memory/constitution.md` | The principles every phase is checked against (v2.2.0). Read first. |
-| `specs/001-holdout-hackathon/spec.md` | The product spec: what and why, no stack. With `002-rep-placement-rules`, `003-seeker-id-names` and `004-lab-and-member-apps` it is the only description of what is built. Changed only through the `/speckit-*` skills. |
-| `docs/holdout_decisions.md` | Decision record H1–H37: why the build is what it is, what was rejected, what is still open. Read before changing the mechanic. |
-| `docs/holdout_screen_map.md` · `docs/holdout_lab_screen_map.md` | Every screen of the member app and of Holdout Lab as built: what it shows, where it leads, what is still to draw or to build. |
-| `docs/design/` | The design book: tokens, components and copy rules, mirrored from the design-system artifact. The Compose rules that use it are the `holdout-ui` skill. |
-| `docs/holdout_setup_runbook.md` | The steps only a human can do: toolchain, keys, devnet SOL, the domain and the release keystore, labelled rep-counter sets on real video, testers. |
-| `docs/holdout_demo_video.md` | The demo video for the submission: storyboard, shot list and recording workflow, and the testers' onboarding note (§9). |
-| `docs/archive/` | The hackathon PRD (v2.7, 18 September), kept unmaintained because the screen maps cite its screen numbers. Not a source. |
+| [How it works](docs/how-it-works.md) | The Daily 25, Spark, Habit and Hackathon rounds, the calendar, Seeker gating, scripted members, the app's tabs, the faucet |
+| [Economics](docs/economics.md) | The split, shares, rounding, the comeback, the boost, worked examples |
+| [Rep counting](docs/rep-counting.md) | The pose pipeline, the rule, 45°, Spark vs Habit, how it is tested |
+| [Privacy](docs/privacy.md) | What is processed, stored and sent; permissions; build guards; Holdout Lab |
+| [Contract](docs/contract.md) | Program ID, instructions, accounts, lifecycle, off-chain parts, trust model |
+| [Build and install](docs/build-android.md) | Debug and signed release APKs, `adb install`, build options, troubleshooting |
+| [Development](docs/development.md) | Repository map, the Solana toolchain, CI, guards, how changes are made |
+| [`docs/holdout_decisions.md`](docs/holdout_decisions.md) | The decision record: why the build is what it is, and what was rejected |
+| [`specs/001-holdout-hackathon/`](specs/001-holdout-hackathon/spec.md) | The product spec, with its plan, tasks, data model, contracts and quickstart |
+| [`docs/design/`](docs/design/README.md) | The design book: tokens, components, voice and naming |
 
-When documents disagree: constitution → spec → decision record. The screen maps, the design book and the runbook describe; they decide nothing.
+When documents disagree: constitution → spec → decision record.
 
-## Workflow
+## License
 
-`/speckit-plan` → `/speckit-tasks` → `/speckit-implement`.
-
-`specs/001-holdout-hackathon/quickstart.md` builds, tests and deploys it;
-`docs/holdout_setup_runbook.md` covers the parts that need a domain, a phone or
-a person.
-
-`bash scripts/ci-local.sh` runs the CI workflow's four jobs on your machine —
-the Solana side in WSL, Kotlin on Windows — with the same pass/fail as GitHub
-Actions; `--only kotlin` (or a comma list) runs a subset, and `--report` sets
-the commit status **CI (local)** on the pull request's head commit and keeps one
-comment on the PR with the results. A change to documentation alone — as
-`scripts/needs-ci.sh` decides, where the few docs files a job reads count as
-code — skips the jobs on GitHub, and the `CI` check still reports.
-
-Constitution and spec are written and clarified; amend them rather than regenerating them.
+© 2026 Illia Loshchinin. All rights reserved. The source is public for review and judging only.
+See [LICENSE](LICENSE).
