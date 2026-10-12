@@ -33,8 +33,8 @@ data class YourHoldout(
     val cohort: String,
     /** "Habit · 21-day": the level, bare on a card (DS Naming). */
     val name: String,
-    /** The chip's word: running, lobby, out, settling, claim. */
-    val status: String,
+    /** Which state this is: the chip's word, and what Today's nudges key on. */
+    val kind: YourKind,
     val tone: ChipTone,
     val line: String,
     /** The line in the state's colour — what to do, or when; null when there is none. */
@@ -44,30 +44,35 @@ data class YourHoldout(
     val testDayLength: Long = 0,
     /** The detail line's colour when it is not the chip's: a forfeit's way back is good news beside a warning chip. */
     val detailTone: ChipTone = tone,
-)
+) {
+    /** The chip's word: running, lobby, locked, out, settling, claim. */
+    val status: String get() = kind.word
+}
+
+/** The state of one of the member's own Holdouts that is still going, with the word its chip carries. */
+enum class YourKind(val word: String) {
+    Running("running"),
+    Lobby("lobby"),
+    Locked("locked"),
+    Out("out"),
+    Settling("settling"),
+    Claim("claim"),
+}
 
 /** A Holdout open to join, with Join — greyed out with the reason when the member cannot (FR-006a, FR-006b). */
 data class OpenHoldout(
     val cohort: String,
     val name: String,
-    /** "9,000 SKR at stake · 9 joined": the stakes taken so far and how many joined. */
-    val atStake: String,
+    /** "9,000 SKR": the stakes taken so far, which the card sets in the amount face. */
+    val amount: String,
+    /** "at stake · 9 joined": under the amount. */
+    val note: String,
     val boost: String?,
     val closesIn: String,
     val blocker: String?,
     val test: Boolean,
     val testDayLength: Long = 0,
-) {
-    /** "9,000 SKR": the amount, which the card sets in the amount face. */
-    val amount: String get() = atStake.substringBefore(AT_STAKE).trim()
-
-    /** "at stake · 9 joined". */
-    val note: String get() = if (atStake.contains(AT_STAKE)) AT_STAKE.trim() + atStake.substringAfter(AT_STAKE) else ""
-
-    private companion object {
-        const val AT_STAKE = " at stake"
-    }
-}
+)
 
 /** A Holdout the member is done with: one line, to its detail (claimed) or its forfeit. */
 data class FinishedHoldout(val cohort: String, val line: String, val go: NavEvent)
@@ -89,6 +94,29 @@ object MyHoldoutsModel {
         rosters: Map<SolanaPublicKey, List<MembershipSnapshot>> = emptyMap(),
         bankedToday: (Holdout, Int) -> Int = { _, _ -> 0 },
     ): MyHoldoutsState {
+        val (yours, finished) = sorted(view, now, rosters, bankedToday)
+        val running = view.runningNotMine(now).map { h -> runningRow(h, now, rosters[h.address]) }
+        return MyHoldoutsState(yours, open(view, now), finished, running)
+    }
+
+    /**
+     * Only the member's own Holdouts still going (H0's "Yours"), without the
+     * open and running lists a caller such as Today's nudges would discard.
+     */
+    fun yours(
+        view: ChainView,
+        now: Long,
+        rosters: Map<SolanaPublicKey, List<MembershipSnapshot>> = emptyMap(),
+        bankedToday: (Holdout, Int) -> Int = { _, _ -> 0 },
+    ): List<YourHoldout> = sorted(view, now, rosters, bankedToday).first
+
+    /** The member's Holdouts split into those still going and those finished, the finished newest first. */
+    private fun sorted(
+        view: ChainView,
+        now: Long,
+        rosters: Map<SolanaPublicKey, List<MembershipSnapshot>>,
+        bankedToday: (Holdout, Int) -> Int,
+    ): Pair<List<YourHoldout>, List<FinishedHoldout>> {
         val yours = mutableListOf<YourHoldout>()
         val finished = mutableListOf<Pair<Long, FinishedHoldout>>()
         for (h in view.holdouts) {
@@ -97,11 +125,11 @@ object MyHoldoutsModel {
             val id = h.address.base58()
             // A short test Holdout keeps its own name (G2); the badge on its card says why.
             val name = if (h.isTest) TEST_NAME else Format.level(c)
-            fun card(status: String, tone: ChipTone, line: String, detail: String?, go: NavEvent) = YourHoldout(id, name, status, tone, line, detail, h.isTest, go, c.dayLength)
+            fun card(kind: YourKind, tone: ChipTone, line: String, detail: String?, go: NavEvent) = YourHoldout(id, name, kind, tone, line, detail, h.isTest, go, c.dayLength)
             when (val stage = h.stage(now)) {
                 Stage.NotJoined -> Unit
                 Stage.Lobby, Stage.LobbyLocked -> yours += card(
-                    if (stage == Stage.LobbyLocked) "locked" else "lobby",
+                    if (stage == Stage.LobbyLocked) YourKind.Locked else YourKind.Lobby,
                     if (stage == Stage.LobbyLocked) ChipTone.Neutral else ChipTone.Accent,
                     if (stage == Stage.LobbyLocked) "Joining closed · ${c.memberCount} in · ${Format.skr(m.stake)} staked" else "Joined · ${Format.skr(m.stake)} staked",
                     "starts in ${Format.countdown(c.start - now)}",
@@ -116,7 +144,7 @@ object MyHoldoutsModel {
                         owed == 0 -> "Today's reps are done"
                         else -> "$owed push-ups to go today"
                     }
-                    yours += card("running", ChipTone.Success, "Day ${stage.dayIndex + 1} of ${c.durationDays} · $crowd", detail, NavEvent.SelectTab(Tab.Today))
+                    yours += card(YourKind.Running, ChipTone.Success, "Day ${stage.dayIndex + 1} of ${c.durationDays} · $crowd", detail, NavEvent.SelectTab(Tab.Today))
                 }
                 is Stage.Forfeited -> {
                     val offer = view.comebackOffer(now, c.leagueId).forScreenOf(h.address)
@@ -124,15 +152,15 @@ object MyHoldoutsModel {
                     // Kept under Yours while the Holdout runs or a way back is open; then it is finished (ruling D-D6).
                     if (offer != null || Derive.status(c, now) in GOING) {
                         val winBack = offer?.let { "Win back up to ${Format.skr(it.amount(it.held?.entry?.member?.stake))}" }
-                        yours += card("out", ChipTone.Warning, out.replaceFirstChar { it.uppercase() }, winBack, NavEvent.Open(Screen.Forfeit(id)))
+                        yours += card(YourKind.Out, ChipTone.Warning, out.replaceFirstChar { it.uppercase() }, winBack, NavEvent.Open(Screen.Forfeit(id)))
                             .copy(detailTone = ChipTone.Success)
                     } else {
                         finished += c.start to FinishedHoldout(id, "$name · finished · $out", NavEvent.Open(Screen.Forfeit(id)))
                     }
                 }
-                Stage.Settling -> yours += card("settling", ChipTone.Success, SettlingWords.homeLine(Derive.settleUsuallyIn(c, now)), null, NavEvent.Open(Screen.Detail(id)))
+                Stage.Settling -> yours += card(YourKind.Settling, ChipTone.Success, SettlingWords.homeLine(Derive.settleUsuallyIn(c, now)), null, NavEvent.Open(Screen.Detail(id)))
                 is Stage.ReadyToClaim -> yours += card(
-                    "claim",
+                    YourKind.Claim,
                     ChipTone.Success,
                     "Held out ${m.daysCompleted.coerceAtMost(c.durationDays)} of ${c.durationDays}",
                     "${Format.skr(stage.amount)} waiting for you",
@@ -141,27 +169,28 @@ object MyHoldoutsModel {
                 is Stage.Claimed -> finished += c.start to FinishedHoldout(id, "$name · finished · claimed ${Format.skr(stage.amount)}", NavEvent.Open(Screen.Detail(id)))
             }
         }
-        val open = view.openToJoin(now).map { h ->
-            val c = h.cohort
-            val blocker = Journey.joinBlocker(c, view.profile, view.runningEnd(now), now, runningInBreach = view.runningInBreach(now))
-            OpenHoldout(
-                cohort = h.address.base58(),
-                name = if (h.isTest) TEST_NAME else Format.level(c),
-                atStake = "${Format.skr(Derive.atStake(c))} at stake · ${c.memberCount} joined",
-                boost = h.league?.boostReserve?.takeIf { it > 0uL }?.let(Format::boostLine),
-                closesIn = "Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))}",
-                blocker = when (blocker) {
-                    Journey.JoinBlocker.LobbyPlaceTaken -> "You already hold a place in a Holdout that hasn't started."
-                    Journey.JoinBlocker.Overlaps -> "Starts before your current one ends."
-                    Journey.JoinBlocker.JoiningClosed -> "Joining has closed."
-                    null -> null
-                },
-                test = h.isTest,
-                testDayLength = c.dayLength,
-            )
-        }
-        val running = view.runningNotMine(now).map { h -> runningRow(h, now, rosters[h.address]) }
-        return MyHoldoutsState(yours, open, finished.sortedByDescending { it.first }.map { it.second }, running)
+        return yours to finished.sortedByDescending { it.first }.map { it.second }
+    }
+
+    private fun open(view: ChainView, now: Long): List<OpenHoldout> = view.openToJoin(now).map { h ->
+        val c = h.cohort
+        val blocker = Journey.joinBlocker(c, view.profile, view.runningEnd(now), now, runningInBreach = view.runningInBreach(now))
+        OpenHoldout(
+            cohort = h.address.base58(),
+            name = if (h.isTest) TEST_NAME else Format.level(c),
+            amount = Format.skr(Derive.atStake(c)),
+            note = "at stake · ${c.memberCount} joined",
+            boost = h.league?.boostReserve?.takeIf { it > 0uL }?.let(Format::boostLine),
+            closesIn = "Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))}",
+            blocker = when (blocker) {
+                Journey.JoinBlocker.LobbyPlaceTaken -> "You already hold a place in a Holdout that hasn't started."
+                Journey.JoinBlocker.Overlaps -> "Starts before your current one ends."
+                Journey.JoinBlocker.JoiningClosed -> "Joining has closed."
+                null -> null
+            },
+            test = h.isTest,
+            testDayLength = c.dayLength,
+        )
     }
 
     /**

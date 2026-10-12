@@ -42,14 +42,14 @@ class MyHoldoutsScreenTest {
         compose.setContent { HoldoutTheme { MyHoldoutsScreen(state, onEvent = { events += it }, onJoin = { joins += it }) } }
     }
 
-    private val running = YourHoldout("r", "Habit · 21-day", "running", ChipTone.Success, "Day 12 of 21 · 189 still standing", "15 push-ups to go today", false, NavEvent.SelectTab(Tab.Today))
-    private val lobby = YourHoldout("l", "Spark · 7-day", "lobby", ChipTone.Accent, "Joined · 1,250 SKR staked", "starts in 2d 4h", false, NavEvent.Open(Screen.Lobby("l")))
-    private val locked = YourHoldout("k", "Spark · 7-day", "locked", ChipTone.Neutral, "Joining closed · 14 in · 1,250 SKR staked", "starts in 41m 10s", false, NavEvent.Open(Screen.Lobby("k")))
-    private val out = YourHoldout("o", "Habit · 21-day", "out", ChipTone.Warning, "Out after 6 days", "Win back up to 250 SKR", false, NavEvent.Open(Screen.Forfeit("o")), detailTone = ChipTone.Success)
-    private val settling = YourHoldout("s", "Spark · 7-day", "settling", ChipTone.Success, "You finished · settling, usually within 11m", null, false, NavEvent.Open(Screen.Detail("s")))
-    private val claim = YourHoldout("c", "Spark · 7-day", "claim", ChipTone.Success, "Held out 7 of 7", "1,412 SKR waiting for you", false, NavEvent.Open(Screen.Claim("c")))
-    private val blocked = OpenHoldout("b", "Habit · 21-day", "9,000 SKR at stake · 9 joined", "Prize boost: up to 1,200 SKR", "Joining closes in 2d 3h", "You already hold a place in a Holdout that hasn't started.", false)
-    private val free = OpenHoldout("f", "Spark · 7-day", "12,500 SKR at stake · 14 joined", "Prize boost: up to 480 SKR", "Joining closes in 2d 3h", null, false)
+    private val running = YourHoldout("r", "Habit · 21-day", YourKind.Running, ChipTone.Success, "Day 12 of 21 · 189 still standing", "15 push-ups to go today", false, NavEvent.SelectTab(Tab.Today))
+    private val lobby = YourHoldout("l", "Spark · 7-day", YourKind.Lobby, ChipTone.Accent, "Joined · 1,250 SKR staked", "starts in 2d 4h", false, NavEvent.Open(Screen.Lobby("l")))
+    private val locked = YourHoldout("k", "Spark · 7-day", YourKind.Locked, ChipTone.Neutral, "Joining closed · 14 in · 1,250 SKR staked", "starts in 41m 10s", false, NavEvent.Open(Screen.Lobby("k")))
+    private val out = YourHoldout("o", "Habit · 21-day", YourKind.Out, ChipTone.Warning, "Out after 6 days", "Win back up to 250 SKR", false, NavEvent.Open(Screen.Forfeit("o")), detailTone = ChipTone.Success)
+    private val settling = YourHoldout("s", "Spark · 7-day", YourKind.Settling, ChipTone.Success, "You finished · settling, usually within 11m", null, false, NavEvent.Open(Screen.Detail("s")))
+    private val claim = YourHoldout("c", "Spark · 7-day", YourKind.Claim, ChipTone.Success, "Held out 7 of 7", "1,412 SKR waiting for you", false, NavEvent.Open(Screen.Claim("c")))
+    private val blocked = OpenHoldout("b", "Habit · 21-day", "9,000 SKR", "at stake · 9 joined", "Prize boost: up to 1,200 SKR", "Joining closes in 2d 3h", "You already hold a place in a Holdout that hasn't started.", false)
+    private val free = OpenHoldout("f", "Spark · 7-day", "12,500 SKR", "at stake · 14 joined", "Prize boost: up to 480 SKR", "Joining closes in 2d 3h", null, false)
 
     @Test
     fun `running, lobby and claim - each card says its state and opens its screen`() {

@@ -35,7 +35,7 @@ object Badges {
      * included — or SKR too low for the cheapest chip of a Holdout open to join
      * ([cheapestOpenChip], null when none is open).
      */
-    fun me(skr: ULong, lamports: Long, cheapestOpenChip: ULong?): Boolean = lamports < FaucetClient.MEMBER_CAN_PAY_LAMPORTS || (cheapestOpenChip != null && skr < cheapestOpenChip)
+    fun me(skr: ULong, lamports: Long, cheapestOpenChip: ULong?): Boolean = !FaucetClient.canPayFees(lamports) || (cheapestOpenChip != null && skr < cheapestOpenChip)
 }
 
 /** The four dots at once, and each tab's accessible name. */

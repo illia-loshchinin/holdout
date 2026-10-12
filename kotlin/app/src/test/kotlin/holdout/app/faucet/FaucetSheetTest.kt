@@ -46,6 +46,7 @@ class FaucetSheetTest {
         busy: Boolean = false,
         outcome: FaucetOutcome? = null,
         backLabel: String? = null,
+        ready: Boolean = true,
     ) {
         claims = 0
         backs = 0
@@ -62,6 +63,7 @@ class FaucetSheetTest {
                     onClaim = { claims++ },
                     onBack = { backs++ },
                     backLabel = backLabel,
+                    ready = ready,
                 )
             }
         }
@@ -80,6 +82,17 @@ class FaucetSheetTest {
         compose.onNodeWithText("Once a day · test tokens have no value").assertIsDisplayed()
         compose.onNodeWithText("Get them").assertIsEnabled().performClick()
         assertEquals(1, claims)
+    }
+
+    @Test
+    fun `until the chain has answered the button is off and the sheet says it is reading`() {
+        show(ready = false, backLabel = "Back to the stake sheet")
+
+        compose.onNodeWithText("READING THE CHAIN…").assertIsDisplayed()
+        compose.onNodeWithText("Get them").assertIsNotEnabled()
+        compose.onNodeWithText("Test SKR").assertDoesNotExist()
+        compose.onNodeWithText("Devnet SOL for fees").assertDoesNotExist()
+        compose.onNodeWithText("Back to the stake sheet").assertIsDisplayed().assertIsEnabled()
     }
 
     @Test

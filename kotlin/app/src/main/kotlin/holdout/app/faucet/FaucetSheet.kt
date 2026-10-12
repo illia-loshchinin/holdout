@@ -23,6 +23,8 @@ import holdout.app.ui.HoldoutSheet
 import holdout.app.ui.KeyValueRow
 import holdout.app.ui.PrimaryButton
 import holdout.app.ui.QuietAction
+import holdout.app.ui.Reading
+import holdout.app.ui.SectionLabel
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
@@ -65,6 +67,8 @@ fun FaucetSheet(
     modifier: Modifier = Modifier,
     /** "Back to the stake sheet" when the sheet opened from there; null when it opened from Me. */
     backLabel: String? = null,
+    /** The snapshot and chain time are both read; until then the balances are not shown and the tap is off. */
+    ready: Boolean = true,
 ) {
     val spent = outcome is FaucetOutcome.Funded || outcome is FaucetOutcome.UsedToday || (claimedToday && outcome == null)
     Column(
@@ -76,8 +80,12 @@ fun FaucetSheet(
     ) {
         Text("Get test tokens", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
         HoldoutCard {
-            KeyValueRow("Test SKR", Format.skr(skr))
-            KeyValueRow("Devnet SOL for fees", "%.3f SOL".format(lamports / LAMPORTS_PER_SOL))
+            if (ready) {
+                KeyValueRow("Test SKR", Format.skr(skr))
+                KeyValueRow("Devnet SOL for fees", Format.sol(lamports))
+            } else {
+                Reading { SectionLabel("Reading the chain…") }
+            }
             Body(if (maxTopTier > 0uL) "One tap: ${Format.skr(maxTopTier).removeSuffix(" SKR")} test SKR, plus SOL for fees." else "One tap: test SKR, plus SOL for fees.")
             Outcome(outcome, claimedToday, now)
         }
@@ -86,7 +94,7 @@ fun FaucetSheet(
             spent && backLabel != null -> PrimaryButton(backLabel, onBack)
             spent -> PrimaryButton("Get them", onClaim, enabled = false)
             else -> {
-                PrimaryButton("Get them", onClaim)
+                PrimaryButton("Get them", onClaim, enabled = ready)
                 if (backLabel != null) QuietAction(backLabel, onBack, modifier = Modifier.align(Alignment.CenterHorizontally))
             }
         }
@@ -117,8 +125,6 @@ private fun Outcome(outcome: FaucetOutcome?, claimedToday: Boolean, now: Long) {
 private fun Line(text: String, color: Color) {
     Text(text, style = MaterialTheme.typography.bodyLarge, color = color)
 }
-
-private const val LAMPORTS_PER_SOL = 1e9
 
 private const val PREVIEW_NOW = 1_791_176_400L + 3 * 86_400L
 

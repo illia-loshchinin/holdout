@@ -59,6 +59,24 @@ class MyHoldoutsModelTest {
     }
 
     @Test
+    fun `yours alone is the same list H0 shows, each card carrying its typed kind and the chip word of it`() {
+        val out = holdout(1, start - 5 * day, member(1))
+        val settling = holdout(2, start - 8 * day, member(7, MembershipSnapshot.State.Finished))
+        val claim = holdout(3, start - 9 * day, member(7, MembershipSnapshot.State.Finished), settled = true)
+        val lobby = holdout(4, start + 3 * day, member(0))
+        val v = view(out, settling, claim, lobby)
+
+        val yours = MyHoldoutsModel.yours(v, start)
+        assertEquals(MyHoldoutsModel.build(v, start).yours, yours)
+        val byId = yours.associateBy { it.cohort }
+        assertEquals(YourKind.Out, byId.getValue(out.id).kind)
+        assertEquals(YourKind.Settling, byId.getValue(settling.id).kind)
+        assertEquals(YourKind.Claim, byId.getValue(claim.id).kind)
+        assertEquals(YourKind.Lobby, byId.getValue(lobby.id).kind)
+        yours.forEach { assertEquals(it.kind.word, it.status) }
+    }
+
+    @Test
     fun `finished - claimed Holdouts, and a forfeit once its Holdout has ended with no way back`() {
         val claimed = holdout(1, start - 20 * day, member(7, MembershipSnapshot.State.Claimed), settled = true)
         val oldOut = holdout(2, start - 30 * day, member(2, MembershipSnapshot.State.Forfeited))
@@ -75,7 +93,8 @@ class MyHoldoutsModelTest {
         val joined = holdout(2, start + 2 * day, member(0))
         val s = MyHoldoutsModel.build(view(open, joined), start)
         assertEquals(listOf(open.id), s.open.map { it.cohort })
-        assertEquals("9,000 SKR at stake · 9 joined", s.open[0].atStake)
+        assertEquals("9,000 SKR", s.open[0].amount)
+        assertEquals("at stake · 9 joined", s.open[0].note)
         assertEquals("Joining closes in 1d 23h", s.open[0].closesIn)
         assertNull(s.open[0].blocker)
     }

@@ -40,7 +40,7 @@ object StakeText {
     }
 
     /** The fee sentence with the Holdout's own name (ruling G5); a test Holdout names itself, not a level. */
-    fun fee(c: CohortSnapshot, test: Boolean): String = Format.lostStakeSplit(c).let { if (test) it.replace(Format.level(c), "short test Holdout") else it }
+    fun fee(c: CohortSnapshot, test: Boolean): String = Format.lostStakeSplit(c, name = if (test) "short test Holdout" else Format.level(c))
 
     /** `Joining closes in 8m 30s. A transaction signed now may land too late.`, or null before the last minutes (ES-12). */
     fun closingWarning(secondsToClose: Long): String? = if (secondsToClose in 1..CLOSING_WINDOW_SECONDS) {

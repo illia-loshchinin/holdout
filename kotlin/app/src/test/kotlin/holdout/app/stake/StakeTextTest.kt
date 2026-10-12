@@ -51,6 +51,15 @@ class StakeTextTest {
     }
 
     @Test
+    fun `a test Holdout's fee sentence is pinned word for word`() {
+        assertEquals(
+            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % to short test Holdout boosts and comebacks, " +
+                "20 % to the project. If nobody finishes, the pool goes to the project too.",
+            StakeText.fee(habit, true),
+        )
+    }
+
+    @Test
     fun `the closing warning shows in the last ten minutes only`() {
         assertEquals("Joining closes in 8m 30s. A transaction signed now may land too late.", StakeText.closingWarning(510))
         assertEquals("Joining closes in 10m 00s. A transaction signed now may land too late.", StakeText.closingWarning(600))
