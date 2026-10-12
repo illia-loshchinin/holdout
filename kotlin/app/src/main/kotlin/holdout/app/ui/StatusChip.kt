@@ -31,7 +31,7 @@ enum class ChipTone {
     /** `success`: running, settled, standing. */
     Success,
 
-    /** `warning`: TEST COHORT, out, forfeited. */
+    /** `warning`: DEVNET COHORT, out, forfeited. */
     Warning,
     ;
 

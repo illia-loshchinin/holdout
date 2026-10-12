@@ -73,7 +73,7 @@ class ChipsTest {
         compose.onNodeWithContentDescription("≈ \$10, 500 SKR").assertIsNotSelected()
     }
 
-    private val options = listOf("Spark · 7-day", "Habit · 21-day", "Short test")
+    private val options = listOf("Spark · 7-day", "Habit · 21-day", "Hackathon")
 
     @Test
     fun `choice chips show every option as given, not uppercased`() {

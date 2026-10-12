@@ -199,11 +199,11 @@ class ConnectScreenTest {
     }
 
     @Test
-    fun `a short test Holdout keeps its disclosed badge`() {
+    fun `a Hackathon Holdout keeps its disclosed badge`() {
         val test = holdout(cohort(9, now + day, LeagueParams.FORM_KNEES_ALLOWED, 7, joined = 1, leagueId = LeagueParams.TEST_LEAGUE_MIN))
         show(live = listOf(test))
 
-        compose.onNodeWithText("SHORT TEST COHORT", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("DEVNET COHORT", substring = true).assertIsDisplayed()
     }
 
     @Test

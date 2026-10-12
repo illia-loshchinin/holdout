@@ -122,11 +122,11 @@ class RosterScreenTest {
     }
 
     @Test
-    fun `a short test Holdout wears its badge on the roster`() {
+    fun `a Hackathon Holdout wears its badge on the roster`() {
         val test = Fx.cohort(days = 3, joined = 3, leagueId = 100, dayLength = 600, form = 1)
         show(h = Fx.holdout(test, Fx.member()), members = Fx.roster(3, 0, lasted = 1), at = test.start + 650)
 
-        compose.onNodeWithText("SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET").assertIsDisplayed()
+        compose.onNodeWithText("DEVNET COHORT · 10-MINUTE DAYS").assertIsDisplayed()
     }
 
     @Test

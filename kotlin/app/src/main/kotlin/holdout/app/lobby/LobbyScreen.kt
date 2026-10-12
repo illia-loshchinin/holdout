@@ -43,8 +43,8 @@ import holdout.core.MembershipSnapshot
 
 /** The words of the lobby (board 8; FR-009, ES-12, ruling G3, G9), kept apart from the screen so they are tested alone. */
 object LobbyText {
-    /** A short test Holdout keeps its own name (spec 001 FR-044a). */
-    const val TEST_NAME = "Test Holdout"
+    /** A Hackathon Holdout keeps its own name (spec 001 FR-044a). */
+    const val TEST_NAME = "Hackathon Holdout"
 
     const val LATE_LEAVE = "Leaving closed before your transaction landed. You're still in."
     const val CONTRACT_HOLDS = "held by the contract, not by us"
@@ -85,7 +85,7 @@ object LobbyText {
  *
  * ```
  *  ‹   SPARK · 7-DAY · STARTS IN 2D 4H                 ScreenHeader
- *  [TEST COHORT badge]
+ *  [DEVNET COHORT badge]
  *            Spark · 7-day
  *            STARTS IN   2d 4h  (DisplayStyle, accent)
  *            Everyone starts together.

@@ -54,7 +54,7 @@ class LeaderboardScreenTest {
 
         compose.onNodeWithText("Spark · 7-day").assertIsDisplayed().assertIsSelected()
         compose.onNodeWithText("Habit · 21-day").assertIsDisplayed()
-        compose.onNodeWithText("Short test").assertIsDisplayed()
+        compose.onNodeWithText("Hackathon").assertIsDisplayed()
         compose.onNodeWithText("Leaderboards").assertIsDisplayed()
     }
 
@@ -64,7 +64,7 @@ class LeaderboardScreenTest {
         show(onBoard = { picked += it })
 
         compose.onNodeWithText("Habit · 21-day").performClick()
-        compose.onNodeWithText("Short test").performClick()
+        compose.onNodeWithText("Hackathon").performClick()
 
         assertEquals(listOf(Board.HARD_21D, Board.TEST), picked)
     }
@@ -72,7 +72,7 @@ class LeaderboardScreenTest {
     @Test
     fun `the test board is offered only when the host lists it`() {
         show(shown = listOf(Board.EASY_7D, Board.HARD_21D))
-        compose.onNodeWithText("Short test").assertDoesNotExist()
+        compose.onNodeWithText("Hackathon").assertDoesNotExist()
     }
 
     @Test
@@ -138,17 +138,17 @@ class LeaderboardScreenTest {
     }
 
     @Test
-    fun `the test board wears the test badge and says short test Holdouts, together`() {
+    fun `the test board wears the test badge and says Hackathon Holdouts, together`() {
         show(board = Board.TEST)
 
-        compose.onNodeWithText("SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET").assertIsDisplayed()
-        compose.onNodeWithText("Every short test Holdout on devnet, together. Ranked by share survived, after 3 played.").assertIsDisplayed()
+        compose.onNodeWithText("DEVNET COHORT · 10-MINUTE DAYS").assertIsDisplayed()
+        compose.onNodeWithText("Every Hackathon Holdout on devnet, together. Ranked by share survived, after 3 played.").assertIsDisplayed()
     }
 
     @Test
     fun `the level boards carry no test badge`() {
         show(board = Board.HARD_21D)
-        compose.onNodeWithText("SHORT TEST COHORT", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("DEVNET COHORT", substring = true).assertDoesNotExist()
     }
 
     @Test

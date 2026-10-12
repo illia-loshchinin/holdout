@@ -42,8 +42,8 @@ import holdout.core.Leaderboard.View
 
 /**
  * The leaderboards (L1, board 29; US-10, FR-060…FR-065): all-time, one per
- * level, plus one combined board for the short test Holdouts, which wears its
- * `TEST COHORT` badge (FR-044a). Ranked by [Leaderboard] from on-chain progress
+ * level, plus one combined board for the Hackathon Holdouts, which wears its
+ * `DEVNET COHORT` badge (FR-044a). Ranked by [Leaderboard] from on-chain progress
  * only; each member by Seeker ID or shortened address (spec 003), scripted
  * members labelled, and **no amount anywhere** (FR-063, constitution XIII).
  * Names never reorder the board (FR-008).
@@ -51,8 +51,8 @@ import holdout.core.Leaderboard.View
  * ```
  *  ‹            STANDING                        ScreenHeader · Back goes to where it was opened
  *  Leaderboards                                 headline
- *  ( Spark · 7-day ) ( Habit · 21-day ) ( Short test )   ChoiceChips
- *  [TEST COHORT · 10-MINUTE DAYS]               the test board only
+ *  ( Spark · 7-day ) ( Habit · 21-day ) ( Hackathon )    ChoiceChips
+ *  [DEVNET COHORT · 10-MINUTE DAYS]             the test board only
  *  All-time, from the chain. Ranked by …        the board's copy
  *  YOU'RE RANKED #4                             accent label
  *  RANKED · 12                                  1.  alice.skr          100% survived
@@ -153,11 +153,11 @@ object LeaderboardText {
     fun tab(b: Board): String = when (b) {
         Board.EASY_7D -> "Spark · 7-day"
         Board.HARD_21D -> "Habit · 21-day"
-        Board.TEST -> "Short test"
+        Board.TEST -> "Hackathon"
     }
 
     fun about(b: Board): String = when (b) {
-        Board.TEST -> "Every short test Holdout on devnet, together. Ranked by share survived, after ${Leaderboard.RANKED_AFTER} played."
+        Board.TEST -> "Every Hackathon Holdout on devnet, together. Ranked by share survived, after ${Leaderboard.RANKED_AFTER} played."
         else -> "All-time, from the chain. Ranked by share survived, after ${Leaderboard.RANKED_AFTER} played."
     }
 

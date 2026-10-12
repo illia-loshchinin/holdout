@@ -403,14 +403,14 @@ class StakeSheetTest {
     }
 
     @Test
-    fun `a short test Holdout wears its badge and its own words`() {
+    fun `a Hackathon Holdout wears its badge and its own words`() {
         val test = holdout(leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, dayLength = 600, joined = 3, held = 250uL * skr, cutoff = start, reps = 5)
         show(test, at = start - 750)
-        text("SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET").assertExists()
-        text("Join the Test Holdout").assertExists()
+        text("DEVNET COHORT · 10-MINUTE DAYS").assertExists()
+        text("Join the Hackathon Holdout").assertExists()
         text("5 push-ups a day for 3 days. Joinable right up to its start.").assertExists()
         text("Starts in 12m 30s").assertExists()
-        text("Miss a day and you lose your stake: 70 % to the prize pool, 10 % to short test Holdout boosts and comebacks, 20 % to the project. If nobody finishes, the pool goes to the project too.").assertExists()
+        text("Miss a day and you lose your stake: 70 % to the prize pool, 10 % to Hackathon Holdout boosts and comebacks, 20 % to the project. If nobody finishes, the pool goes to the project too.").assertExists()
     }
 
     @Test

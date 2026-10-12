@@ -123,7 +123,7 @@ object MyHoldoutsModel {
             val m = h.membership ?: continue
             val c = h.cohort
             val id = h.address.base58()
-            // A short test Holdout keeps its own name (G2); the badge on its card says why.
+            // A Hackathon Holdout keeps its own name (G2); the badge on its card says why.
             val name = if (h.isTest) TEST_NAME else Format.level(c)
             fun card(kind: YourKind, tone: ChipTone, line: String, detail: String?, go: NavEvent) = YourHoldout(id, name, kind, tone, line, detail, h.isTest, go, c.dayLength)
             when (val stage = h.stage(now)) {
@@ -212,8 +212,8 @@ object MyHoldoutsModel {
     /** The detail of an Out row once the member holds a place in its comeback round (owner, 12 Oct). */
     const val COMEBACK_JOINED = "Comeback joined"
 
-    /** A short test Holdout's own name on a card (FR-044a, ruling G2); its badge says why. */
-    const val TEST_NAME = "Test Holdout"
+    /** A Hackathon Holdout's own name on a card (FR-044a, ruling G2); its badge says why. */
+    const val TEST_NAME = "Hackathon Holdout"
 
     /** Staking is Seeker-exclusive, said up front (ruling G12). */
     const val SEEKER_LINE = "Holdouts need a Seeker."

@@ -121,8 +121,8 @@ class StandingEmptyScreenTest {
 
     @Test
     fun `a short test Holdout among them wears its badge`() {
-        show(listOf(RunningHoldout("t", "Test Holdout · day 1 of 3", "3 still standing of 3 · prize pool 0 SKR", test = true, testDayLength = 600)), null, mutableListOf())
+        show(listOf(RunningHoldout("t", "Hackathon Holdout · day 1 of 3", "3 still standing of 3 · prize pool 0 SKR", test = true, testDayLength = 600)), null, mutableListOf())
 
-        compose.onNodeWithText("SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET").assertIsDisplayed()
+        compose.onNodeWithText("DEVNET COHORT · 10-MINUTE DAYS").assertIsDisplayed()
     }
 }

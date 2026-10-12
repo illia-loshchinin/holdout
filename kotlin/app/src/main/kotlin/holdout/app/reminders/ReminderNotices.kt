@@ -38,7 +38,7 @@ object ReminderNotices {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL, "Holdout reminders", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "When a Holdout starts, halfway through a day that is not done yet, and when a short test Holdout you finished has probably settled"
+                description = "When a Holdout starts, halfway through a day that is not done yet, and when a Hackathon Holdout you finished has probably settled"
             },
         )
         manager.createNotificationChannel(
@@ -49,7 +49,7 @@ object ReminderNotices {
     }
 
     /** "7-day Holdout", and for the short test cohort its day length too. */
-    fun holdoutLabel(days: Int, test: Boolean, dayLength: Long): String = "$days-day Holdout" + if (test) " · short test Holdout, ${Format.dayLength(dayLength)} days" else ""
+    fun holdoutLabel(days: Int, test: Boolean, dayLength: Long): String = "$days-day Holdout" + if (test) " · Hackathon Holdout, ${Format.dayLength(dayLength)} days" else ""
 
     /** The finished notice (FR-068b): *"You finished your 7-day Holdout"*, with the test cohort's label. */
     fun finishedTitle(days: Int, test: Boolean, dayLength: Long): String = "You finished your ${holdoutLabel(days, test, dayLength)}"

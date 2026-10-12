@@ -15,7 +15,7 @@ import holdout.core.Stage
  * One Holdout open to join, as Today and the connect screen draw it (FR-053,
  * board 3): the level and its tagline, what is at stake and how many have
  * joined, how long joining stays open, and the prize boost the reserve can add
- * ("up to", never a promise). A short test Holdout keeps its own name and its
+ * ("up to", never a promise). A Hackathon Holdout keeps its own name and its
  * badge (FR-044a).
  */
 data class OfferCardState(
@@ -53,8 +53,8 @@ data class OfferCardState(
             )
         }
 
-        /** A short test Holdout's own name (ruling G2: test cohorts keep their own label). */
-        const val TEST_TITLE = "Test Holdout"
+        /** A Hackathon Holdout's own name (ruling G2: test cohorts keep their own label). */
+        const val TEST_TITLE = "Hackathon Holdout"
     }
 }
 

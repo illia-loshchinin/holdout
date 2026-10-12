@@ -144,11 +144,11 @@ class TodayModelTest {
     }
 
     @Test
-    fun `a short test Holdout keeps its own name and counts down to its start`() {
+    fun `a Hackathon Holdout keeps its own name and counts down to its start`() {
         val test = holdout(1, start + 750, leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, reps = 5, dayLength = 600, joined = 3, held = 250uL * skr, cutoff = start + 750)
         val card = OfferCardState.of(test, start)
         assertTrue(card.test)
-        assertEquals("Test Holdout", card.title)
+        assertEquals("Hackathon Holdout", card.title)
         assertEquals("3 days · 5 push-ups a day · joinable right up to its start", card.tagline)
         assertEquals("Starts in 12m 30s", card.timing)
         assertEquals(600, card.testDayLength)

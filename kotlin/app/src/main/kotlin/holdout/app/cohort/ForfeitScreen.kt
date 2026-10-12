@@ -241,7 +241,7 @@ internal object ForfeitText {
 
     fun streakTitle(streak: Int): String = if (streak > 0) "Your $streak-day streak is still alive." else "Your streak is untouched."
 
-    fun nextHoldout(c: CohortSnapshot, test: Boolean): String = if (test) "The next short test Holdout" else "The next ${Format.level(c)}"
+    fun nextHoldout(c: CohortSnapshot, test: Boolean): String = if (test) "The next Hackathon Holdout" else "The next ${Format.level(c)}"
 
     /** No comeback offer: two ways back. */
     fun noOffer(c: CohortSnapshot, nextOpen: Boolean, dailyOpen: Boolean = true): String? = when {

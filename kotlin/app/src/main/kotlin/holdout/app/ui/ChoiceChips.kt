@@ -94,7 +94,7 @@ private fun ChoiceChipsPreview() {
     HoldoutTheme {
         var selected by remember { mutableStateOf<Int?>(1) }
         ChoiceChips(
-            options = listOf("Spark · 7-day", "Habit · 21-day", "Short test"),
+            options = listOf("Spark · 7-day", "Habit · 21-day", "Hackathon"),
             selected = selected,
             onSelect = { selected = it },
             modifier = Modifier.padding(Spacing.screenGutter),

@@ -357,21 +357,21 @@ class ForfeitScreenTest {
     }
 
     @Test
-    fun `a short test Holdout names the boosts after a short test Holdout, as the stake sheet does`() {
+    fun `a Hackathon Holdout names the boosts after a Hackathon Holdout, as the stake sheet does`() {
         val test = Fx.cohort(joined = 10, leagueId = 100, dayLength = 600, days = 3, form = 1)
         val testHoldout = Fx.holdout(test, Fx.member(days = 1, state = MembershipSnapshot.State.Forfeited))
         show(stage = Stage.Forfeited(daysLasted = 1, recorded = true), h = testHoldout)
 
-        val forfeit = "It goes 70 % to this Holdout's prize pool, 10 % to short test Holdout boosts and comebacks, " +
+        val forfeit = "It goes 70 % to this Holdout's prize pool, 10 % to Hackathon Holdout boosts and comebacks, " +
             "20 % to the project. If nobody finishes, the pool goes to the project too."
         compose.onNodeWithText(forfeit).assertExists()
         // The stake sheet's sentence names the same noun.
-        assertTrue("10 % to short test Holdout boosts and comebacks" in StakeText.fee(test, test = true))
+        assertTrue("10 % to Hackathon Holdout boosts and comebacks" in StakeText.fee(test, test = true))
     }
 
     @Test
-    fun `a short test Holdout names the next one as a short test Holdout`() {
-        assertEquals("The next short test Holdout", ForfeitText.nextHoldout(c, test = true))
+    fun `a Hackathon Holdout names the next one as a Hackathon Holdout`() {
+        assertEquals("The next Hackathon Holdout", ForfeitText.nextHoldout(c, test = true))
         assertEquals("The next Habit · 21-day", ForfeitText.nextHoldout(c, test = false))
         assertNull(ForfeitText.offer(offer(), c, now, Journey.JoinBlocker.LobbyPlaceTaken)!!.headline)
         assertTrue(ForfeitText.offer(offer(), c, now, null)!!.headline!!.startsWith("Win back up to"))

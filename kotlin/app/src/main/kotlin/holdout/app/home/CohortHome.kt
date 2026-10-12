@@ -57,7 +57,7 @@ import holdout.core.Stage
  * gets round to recording it (FR-038a).
  *
  * ```
- *  [TEST COHORT badge]
+ *  [DEVNET COHORT badge]
  *  HABIT · 21-DAY · DAY 12 OF 21                          🔥 12      header label, no dates · streak chip
  *  (ring)  25 push-ups                                              BankRing · the day's title
  *          all at once or 10 at a time

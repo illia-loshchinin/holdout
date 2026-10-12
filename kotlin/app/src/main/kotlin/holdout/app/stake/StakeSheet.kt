@@ -50,7 +50,7 @@ import holdout.core.Journey
  * (FR-021a). There is no "← Back": the sheet closes by drag or scrim.
  *
  * ```
- *  [TEST COHORT badge]
+ *  [DEVNET COHORT badge]
  *  Join the Spark · 7-day Holdout                      headlineMedium
  *  Light it up: 25 push-ups a day for 7 days.          Body
  *  ( Starts in 2d 4h )                                 accent tint pill

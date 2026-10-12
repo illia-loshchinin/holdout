@@ -22,13 +22,13 @@ object StakeText {
 
     const val FOOTER = "Test network, test token. Dollar values are approximate."
 
-    /** The word a short test Holdout goes by in a sentence (spec 001 FR-044a; the badge keeps TEST COHORT). */
-    const val TEST_NAME = "Test Holdout"
+    /** The word a Hackathon Holdout goes by in a sentence (spec 001 FR-044a; the badge keeps DEVNET COHORT). */
+    const val TEST_NAME = "Hackathon Holdout"
 
     /** The last minutes before the cutoff (ES-12): a transaction signed now may land too late. */
     const val CLOSING_WINDOW_SECONDS = 600L
 
-    /** `Join the Spark · 7-day Holdout`; `Join the Test Holdout`. */
+    /** `Join the Spark · 7-day Holdout`; `Join the Hackathon Holdout`. */
     fun title(c: CohortSnapshot, test: Boolean): String = if (test) "Join the $TEST_NAME" else "Join the ${Format.holdoutTitle(c)}"
 
     /** `Light it up: 25 push-ups a day for 7 days.` / `Make it stick: …`; a test Holdout says what it is. */

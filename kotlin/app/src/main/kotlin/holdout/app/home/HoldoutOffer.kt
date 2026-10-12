@@ -40,7 +40,7 @@ fun HoldoutOffer(h: Holdout, now: Long, onClick: (() -> Unit)?, modifier: Modifi
 
 /**
  * ```
- *  ┌ [TEST COHORT badge]                                   ┐
+ *  ┌ [DEVNET COHORT badge]                                 ┐
  *  │ Spark · 7-day                               ( Join )  │  titleMedium · outlined pill
  *  │ Light it up · knees allowed                           │  LabelStyle, text-secondary
  *  │ 12,500 SKR  at stake · 14 joined                      │  AmountStyle · LabelStyle

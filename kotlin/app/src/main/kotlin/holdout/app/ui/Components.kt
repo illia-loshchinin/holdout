@@ -120,13 +120,13 @@ object Format {
      * FR-037, FR-041; decided 2026-10-10, shortened 2026-10-11; ruling G5).
      * The level and length are the Holdout's own, and a no-break space keeps
      * every "%" on its number's line. [name] is what the boosts are named
-     * after: the level by default, "short test Holdout" for a test Holdout.
+     * after: the level by default, "Hackathon Holdout" for a test Holdout.
      */
     fun lostStakeSplit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% to $name boosts and comebacks, " +
         "20\u00a0% to the project. If nobody finishes, the pool goes to the project too."
 
-    /** What the boosts in the fee sentence are named after: the level, or "short test Holdout" for a test Holdout (FR-044a); the stake sheet and the forfeit screen both use it. */
-    fun boostName(c: holdout.core.CohortSnapshot, test: Boolean): String = if (test) "short test Holdout" else level(c)
+    /** What the boosts in the fee sentence are named after: the level, or "Hackathon Holdout" for a test Holdout (FR-044a); the stake sheet and the forfeit screen both use it. */
+    fun boostName(c: holdout.core.CohortSnapshot, test: Boolean): String = if (test) "Hackathon Holdout" else level(c)
 
     /** The same split on the forfeit screen, under its **Stake lost** row (ruling G5); [name] as in [lostStakeSplit]. */
     fun lostStakeSplitForfeit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% to $name boosts and comebacks, " +
@@ -337,7 +337,7 @@ fun ChainCheckBox(offline: Boolean, checking: Boolean, onCheck: () -> Unit, modi
 }
 
 /**
- * The short test cohort's label (FR-044a), wherever it appears: the offers
+ * The devnet cohort's label (FR-044a), wherever it appears: the offers
  * on home, the stake sheet, the lobby, the roster and cohort detail. A quiet
  * neutral pill, `surface-3` and `text-secondary` (owner, 12 Oct: a disclosure,
  * not an alarm), and it may wrap on a narrow card.
@@ -345,7 +345,7 @@ fun ChainCheckBox(offline: Boolean, checking: Boolean, onCheck: () -> Unit, modi
 @Composable
 fun TestCohortBadge(dayLengthSeconds: Long, modifier: Modifier = Modifier) {
     Text(
-        text = "SHORT TEST COHORT · ${Format.dayLength(dayLengthSeconds).uppercase()} DAYS · DEVNET",
+        text = "DEVNET COHORT · ${Format.dayLength(dayLengthSeconds).uppercase()} DAYS",
         style = LabelStyle,
         color = HoldoutColors.TextSecondary,
         modifier = modifier

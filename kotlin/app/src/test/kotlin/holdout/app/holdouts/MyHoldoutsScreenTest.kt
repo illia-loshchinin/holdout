@@ -169,11 +169,11 @@ class MyHoldoutsScreenTest {
     }
 
     @Test
-    fun `a short test Holdout wears its badge`() {
+    fun `a Hackathon Holdout wears its badge`() {
         show(MyHoldoutsState(yours = listOf(lobby.copy(name = MyHoldoutsModel.TEST_NAME, test = true, testDayLength = 600))))
 
-        compose.onNodeWithText("SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET").assertIsDisplayed()
-        compose.onNodeWithText("Test Holdout").assertIsDisplayed()
+        compose.onNodeWithText("DEVNET COHORT · 10-MINUTE DAYS").assertIsDisplayed()
+        compose.onNodeWithText("Hackathon Holdout").assertIsDisplayed()
     }
 
     // ---- the model's new words ---------------------------------------------------------------------
@@ -191,15 +191,15 @@ class MyHoldoutsScreenTest {
     }
 
     @Test
-    fun `model - a short test Holdout is a Test Holdout on its card and its offer`() {
+    fun `model - a short test Holdout is a Hackathon Holdout on its card and its offer`() {
         val test = Fx.cohort(days = 3, joined = 3, leagueId = 100, dayLength = 600, form = 1, start = Fx.START - 300)
         val mine = Fx.holdout(test, Fx.member())
         val open = Fx.holdout(Fx.cohort(days = 3, joined = 1, leagueId = 100, dayLength = 600, form = 1, start = Fx.START + 7_200).copy(index = 2, joinCutoff = Fx.START + 7_200), null)
         val s = MyHoldoutsModel.build(ChainView(null, listOf(mine, open), null, 0uL, 0L), Fx.START)
 
-        assertEquals("Test Holdout", s.yours.single().name)
+        assertEquals("Hackathon Holdout", s.yours.single().name)
         assertTrue(s.yours.single().test)
-        assertEquals(listOf("Test Holdout"), s.open.map { it.name })
+        assertEquals(listOf("Hackathon Holdout"), s.open.map { it.name })
     }
 
     @Test
