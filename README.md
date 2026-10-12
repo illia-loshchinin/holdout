@@ -14,7 +14,7 @@
   <img alt="Kotlin and Jetpack Compose" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Built for Solana Seeker" src="https://img.shields.io/badge/built%20for-Solana%20Seeker-80ECFF">
-  <img alt="CI (local)" src="https://img.shields.io/badge/CI-local%20gate-14F195">
+  <a href="https://github.com/illia-loshchinin/holdout/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/illia-loshchinin/holdout/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="License: proprietary" src="https://img.shields.io/badge/license-proprietary-lightgrey">
 </p>
 
@@ -243,9 +243,8 @@ They include:
 - a wording guard against gambling language;
 - this README's weaknesses table must equal `docs/weaknesses.json`.
 
-GitHub Actions is off for this repository for now, so the same jobs run through
-`bash scripts/ci-local.sh --report`. It sets a **CI (local)** commit status, which is the merge
-gate. Every change is specified first (`specs/`), checked against a written
+They run on GitHub Actions for every push and pull request. The same four jobs also run on a
+developer's machine with `bash scripts/ci-local.sh`: the Solana side in WSL, Kotlin on Windows. Every change is specified first (`specs/`), checked against a written
 [constitution](.specify/memory/constitution.md), and reviewed before merge.
 
 ## Known weaknesses

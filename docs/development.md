@@ -66,7 +66,8 @@ cd kotlin
 | `contract-tests` | Codama client = generated client, TypeScript types, the LiteSVM suite and invariants, fixtures unchanged |
 | `kotlin` | ktlint, every JVM test (including Robolectric and Roborazzi screen tests), both debug APKs, the README weaknesses table = `docs/weaknesses.json`, the wording guard |
 
-GitHub Actions is switched off for this repository for now, so the same four jobs run locally:
+They run on GitHub Actions for every push to `001-holdout-hackathon` and `main` and for every pull
+request. The required check is `CI`. The same four jobs run locally too:
 
 ```bash
 bash scripts/ci-local.sh            # all four jobs: the Solana side in WSL, Kotlin on Windows
@@ -74,9 +75,8 @@ bash scripts/ci-local.sh --only kotlin
 bash scripts/ci-local.sh --report   # also sets the "CI (local)" commit status and a PR comment
 ```
 
-A green **CI (local)** status on a pull request's head commit is the merge gate.
-`scripts/needs-ci.sh` decides whether a change is documentation alone. The README counts as code,
-because a job checks its weaknesses table.
+`scripts/needs-ci.sh` decides whether a change is documentation alone. Then the jobs are skipped
+and `CI` still reports. The README counts as code, because a job checks its weaknesses table.
 
 ## Guards worth knowing
 
