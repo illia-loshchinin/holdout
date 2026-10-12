@@ -132,7 +132,7 @@ fun ForfeitScreen(
                 if (!stage.recorded) Text(ForfeitText.PENDING, style = LabelStyle, color = HoldoutColors.TextTertiary)
             }
 
-            val copy = offer?.let { ForfeitText.offer(it, c, now, joinBlocker) }
+            val copy = offer?.let { ForfeitText.offer(it, c, now, joinBlocker, dailyOpen = !daily25Done) }
             if (copy != null) {
                 OfferCard(copy)
             } else {
@@ -270,7 +270,11 @@ internal object ForfeitText {
         val notice: String? = null,
     )
 
-    fun offer(offer: Comeback.Offer, forfeited: CohortSnapshot, now: Long, joinBlocker: Journey.JoinBlocker?): OfferCopy {
+    /**
+     * The offer card for [offer], or null when no round is left to join, hold or wait for and today's
+     * Daily 25 is done ([dailyOpen] false): the "keeps your streak going" sentence would ask for a day already done.
+     */
+    fun offer(offer: Comeback.Offer, forfeited: CohortSnapshot, now: Long, joinBlocker: Journey.JoinBlocker?, dailyOpen: Boolean = true): OfferCopy? {
         val held = offer.held
         val place = held?.entry
         val next = offer.next
@@ -319,7 +323,8 @@ internal object ForfeitText {
                     }
                 }
             }
-            else -> OfferCopy(COMEBACK, null, "Today's Daily 25 keeps your streak going.")
+            dailyOpen -> OfferCopy(COMEBACK, null, "Today's Daily 25 keeps your streak going.")
+            else -> null
         }
     }
 

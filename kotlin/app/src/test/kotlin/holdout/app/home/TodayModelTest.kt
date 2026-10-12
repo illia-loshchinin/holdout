@@ -143,6 +143,21 @@ class TodayModelTest {
     }
 
     @Test
+    fun `a Holdout the member is out of keeps its line until they hold a place in its comeback round`() {
+        val out = holdout(1, start - 5 * day, member(1))
+        val outRow = TodayModel.nudges(view(out), start).single()
+        assertEquals(NudgeTone.Warning, outRow.tone)
+
+        // Joined the comeback round: only its lobby waits, no loss line and no comeback card (owner, 12 Oct walk).
+        val comeback = holdout(2, start + 2 * day, member(0))
+        val v = view(out, comeback)
+        val rows = TodayModel.nudges(v, start)
+        assertEquals(1, rows.size)
+        assertEquals(NavEvent.Open(Screen.Lobby(comeback.address.base58())), rows.single().go)
+        assertNull(TodayModel.comeback(v, start, seekerKnown = true))
+    }
+
+    @Test
     fun `nudges leave out the Holdout on show`() {
         val lobby = holdout(1, start + 2 * day, member = member(0))
         assertTrue(TodayModel.nudges(view(lobby), start, exceptCohort = lobby.address.base58()).isEmpty())

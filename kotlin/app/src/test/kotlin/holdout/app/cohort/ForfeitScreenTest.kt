@@ -345,7 +345,7 @@ class ForfeitScreenTest {
     @Test
     fun `the offer copy never carries a date, a clock time or a dollar figure`() {
         val upcoming = Comeback.Round(start = now + 2 * Fx.DAY, opensAt = now + 6 * 3_600, entry = null, status = null)
-        val copies = listOf(
+        val copies = listOfNotNull(
             ForfeitText.offer(offer(), c, now, null),
             ForfeitText.offer(offer(), c, now, Journey.JoinBlocker.LobbyPlaceTaken),
             ForfeitText.offer(offer(upcoming = upcoming, rounds = listOf(upcoming)), c, now, null),
@@ -373,7 +373,7 @@ class ForfeitScreenTest {
     fun `a short test Holdout names the next one as a short test Holdout`() {
         assertEquals("The next short test Holdout", ForfeitText.nextHoldout(c, test = true))
         assertEquals("The next Habit · 21-day", ForfeitText.nextHoldout(c, test = false))
-        assertNull(ForfeitText.offer(offer(), c, now, Journey.JoinBlocker.LobbyPlaceTaken).headline)
-        assertTrue(ForfeitText.offer(offer(), c, now, null).headline!!.startsWith("Win back up to"))
+        assertNull(ForfeitText.offer(offer(), c, now, Journey.JoinBlocker.LobbyPlaceTaken)!!.headline)
+        assertTrue(ForfeitText.offer(offer(), c, now, null)!!.headline!!.startsWith("Win back up to"))
     }
 }

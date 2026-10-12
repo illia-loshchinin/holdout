@@ -7,6 +7,7 @@ import holdout.app.holdouts.YourKind
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Tab
 import holdout.app.ui.Format
+import holdout.core.Comeback.forScreenOf
 import holdout.core.Derive
 import holdout.core.Stage
 
@@ -97,12 +98,13 @@ object TodayModel {
 
     /**
      * The comeback card, or null: the round to join opens its stake sheet on the
-     * tier of the lost stake; a place held or a round not opened yet opens the
-     * Holdouts tab (FR-037g).
+     * tier of the lost stake; a round not opened yet opens the Holdouts tab
+     * (FR-037g). A place already held has no card: its lobby line says it all
+     * (owner, 12 Oct walk).
      */
     fun comeback(view: ChainView?, now: Long?, seekerKnown: Boolean): ComebackCardState? {
         if (view == null || now == null || view.config == null) return null
-        val nudge = DailyHoldoutLine.nudge(view.comebackOffers(now), now) ?: return null
+        val nudge = DailyHoldoutLine.nudge(view.comebackOffers(now), now)?.takeUnless { it.held } ?: return null
         val go = nudge.joinAddress?.let { NavEvent.OpenStake(it.base58(), nudge.tier, seekerKnown) } ?: NavEvent.SelectTab(Tab.Holdouts)
         return ComebackCardState(nudge.text, go)
     }
@@ -111,11 +113,15 @@ object TodayModel {
      * One line per Holdout of the member's that needs a tap — a lobby, a way
      * back after a forfeit, settling, a claim — each opening its screen. The
      * running one is the screen itself, so it has no line. [exceptCohort] leaves
-     * out the Holdout on show.
+     * out the Holdout on show. A Holdout the member is out of has no line once
+     * they hold a place in its comeback round: what waits for them is that
+     * round's lobby, not the loss (owner, 12 Oct walk).
      */
     fun nudges(view: ChainView?, now: Long?, exceptCohort: String? = null): List<NudgeRowState> {
         if (view == null || now == null || view.config == null) return emptyList()
-        return MyHoldoutsModel.yours(view, now).filter { it.cohort != exceptCohort && it.kind != YourKind.Running }.map { y ->
+        return MyHoldoutsModel.yours(view, now).filter {
+            it.cohort != exceptCohort && it.kind != YourKind.Running && !(it.kind == YourKind.Out && comebackHeld(view, now, it.cohort))
+        }.map { y ->
             when (y.kind) {
                 YourKind.Claim -> NudgeRowState("You finished · claim ${claimAmount(view, now, y.cohort)}", y.go, NudgeTone.Success)
                 YourKind.Lobby -> NudgeRowState("${y.name} lobby · ${y.detail}", y.go)
@@ -123,6 +129,11 @@ object TodayModel {
                 YourKind.Running, YourKind.Locked, YourKind.Settling -> NudgeRowState("${y.name}: ${y.line}", y.go)
             }
         }
+    }
+
+    private fun comebackHeld(view: ChainView, now: Long, cohort: String): Boolean {
+        val h = view.holdouts.firstOrNull { it.address.base58() == cohort } ?: return false
+        return view.comebackOffer(now, h.cohort.leagueId).forScreenOf(h.address)?.held != null
     }
 
     private fun claimAmount(view: ChainView, now: Long, cohort: String): String {

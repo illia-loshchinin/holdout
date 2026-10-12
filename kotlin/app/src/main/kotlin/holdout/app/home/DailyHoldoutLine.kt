@@ -22,8 +22,11 @@ import holdout.core.Derive
  * the word "league" (FR-041).
  */
 object DailyHoldoutLine {
-    /** One comeback nudge on Today: its words, and the round it opens the stake sheet on (null: the Holdouts tab). */
-    data class Nudge(val text: String, val joinAddress: SolanaPublicKey? = null, val tier: Int = 0)
+    /**
+     * One comeback nudge: its words, and the round it opens the stake sheet on (null: the Holdouts tab).
+     * [held]: the member already holds a place in a round of the offer, so there is nothing left to do but wait for it.
+     */
+    data class Nudge(val text: String, val joinAddress: SolanaPublicKey? = null, val tier: Int = 0, val held: Boolean = false)
 
     /**
      * The nudge of one offer, by priority: a round open to join first (the soonest start), then a place
@@ -39,7 +42,7 @@ object DailyHoldoutLine {
         if (toJoin == null) {
             held?.let { offer ->
                 val place = offer.held?.entry ?: return null
-                return Nudge("You're in the ${Format.level(place.cohort)}. Finish it and up to ${Format.skr(offer.amount(place.member?.stake))} of your lost stake comes back.")
+                return Nudge("You're in the ${Format.level(place.cohort)}. Finish it and up to ${Format.skr(offer.amount(place.member?.stake))} of your lost stake comes back.", held = true)
             }
             val offer = waiting ?: return null
             val up = offer.upcoming ?: return null
