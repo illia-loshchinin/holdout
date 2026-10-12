@@ -102,5 +102,6 @@ private fun Shared.youreIn(h: Holdout, n: Long, tier: Int): YoureInState {
         daily25Done = store.isDayComplete(wallet, Store.CHALLENGE, dayIndex),
         test = h.isTest,
         testDayLength = c.dayLength,
+        startsToday = YoureInState.startsToday(c.start, dayIndex),
     )
 }

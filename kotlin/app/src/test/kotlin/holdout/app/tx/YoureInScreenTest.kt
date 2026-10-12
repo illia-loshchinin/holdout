@@ -7,15 +7,19 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import holdout.app.nav.NavEvent
+import holdout.app.storage.Store
 import holdout.app.testutil.AnimationsOff
 import holdout.app.testutil.TALL_PHONE
 import holdout.app.ui.theme.HoldoutTheme
+import holdout.core.HoldoutDay
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /** You're in (board 12; G7, B-D19): what a landed join shows, and its two ways on. */
 @RunWith(RobolectricTestRunner::class)
@@ -74,6 +78,36 @@ class YoureInScreenTest {
         show(state.copy(daily25Done = true))
         text("Do today's Daily 25").assertDoesNotExist()
         text("See the lobby").assertExists()
+    }
+
+    @Test
+    fun `when the Holdout starts within today the lobby is the primary button and the Daily 25 is not offered`() {
+        show(state.copy(startsToday = true))
+        text("Do today's Daily 25").assertDoesNotExist()
+        text("See the lobby").performScrollTo().performClick()
+        assertEquals(listOf<NavEvent>(NavEvent.SeeLobby), events)
+        assertEquals(0, daily)
+    }
+
+    @Test
+    fun `when the Holdout starts on a later day both buttons show`() {
+        show(state.copy(startsToday = false))
+        text("Do today's Daily 25").assertExists()
+        text("See the lobby").assertExists()
+    }
+
+    @Test
+    fun `the rule - same Daily 25 day as today hides the button, a later day or an unknown day keeps it`() {
+        val day = 20_000L
+        val startLaterToday = HoldoutDay.endOf(day) - 60
+        val startTomorrow = HoldoutDay.endOf(day) + 60
+        assertTrue(YoureInState.startsToday(startLaterToday, day))
+        assertFalse(YoureInState.startsToday(startTomorrow, day))
+        assertFalse(YoureInState.startsToday(startLaterToday, Store.UNKNOWN_DAY))
+        // Already done today: as before, only the lobby, whatever the start.
+        assertFalse(state.copy(daily25Done = true, startsToday = false).showDaily25)
+        assertFalse(state.copy(daily25Done = false, startsToday = true).showDaily25)
+        assertTrue(state.copy(daily25Done = false, startsToday = false).showDaily25)
     }
 
     @Test
