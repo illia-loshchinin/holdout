@@ -271,21 +271,29 @@ class HoldoutViewModel(
         val result = send { phase -> _state.update { s -> s.copy(signing = s.signing?.takeIf { it.id == id }?.copy(phase = TxPhase.of(phase)) ?: s.signing) } }
         val lowOnSol = (_state.value.view?.lamports ?: Long.MAX_VALUE) < holdout.app.faucet.FaucetClient.MEMBER_CAN_PAY_LAMPORTS
         val outcome = TxOutcome.of(action, result, lowOnSol)
-        _state.update { s -> s.copy(signing = (s.signing?.takeIf { it.id == id } ?: started).copy(phase = TxPhase.Done(outcome))) }
+        // A result that offers "Try again" frees the action with it: the closing read in [act] would
+        // otherwise drop that tap, and the screen would wait for a wallet nobody asked.
+        _state.update { s -> s.copy(signing = (s.signing?.takeIf { it.id == id } ?: started).copy(phase = TxPhase.Done(outcome)), busy = s.busy && !outcome.canRetry) }
         return result
     }
 
     private fun say(message: String?, warning: Boolean = false) = _state.update { it.copy(message = message, messageIsWarning = warning) }
 
+    /** Actions started: one frees [UiState.busy] at its end only if no later one has taken it since. */
+    private var actions = 0
+
     private fun act(block: suspend () -> Unit) {
         if (_state.value.busy) return
+        val mine = ++actions
         viewModelScope.launch {
             _state.update { it.copy(busy = true, message = null) }
             try {
                 block()
             } finally {
                 refreshNow()
-                _state.update { it.copy(busy = false) }
+                // A failed signature frees the action before this read ends (see [signing]); a retry may
+                // hold it by now, and this action's end must not release the retry's hold.
+                if (mine == actions) _state.update { it.copy(busy = false) }
             }
         }
     }

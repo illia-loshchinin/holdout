@@ -121,6 +121,16 @@ class SigningTest {
         assertEquals(TxOutcome.NoWallet, TxOutcome.of(SignAction.Join, SendResult.NoWallet, lowOnSol = false))
     }
 
+    @Test
+    fun `Try again is offered after a decline or a failure that sent nothing, never when it may still land`() {
+        assertTrue(TxOutcome.Declined.canRetry)
+        assertTrue(TxOutcome.Failed(mayStillLand = false, message = "x").canRetry)
+        assertFalse(TxOutcome.Failed(mayStillLand = true, message = "x").canRetry)
+        assertFalse(TxOutcome.Landed("sig").canRetry)
+        assertFalse(TxOutcome.NotEnoughSol.canRetry)
+        assertFalse(TxOutcome.Refused("x").canRetry)
+    }
+
     private fun remote(code: Int) = JsonRpc20Client.JsonRpc20RemoteException(code, "remote", null)
 
     private companion object {

@@ -66,6 +66,9 @@ sealed interface TxOutcome {
     /** Any other refusal by the program, in words a member can act on. */
     data class Refused(val message: String) : TxOutcome
 
+    /** Whether the result screen offers "Try again": the member declined, or it failed with nothing sent. */
+    val canRetry: Boolean get() = this == Declined || (this is Failed && !mayStillLand)
+
     companion object {
         /**
          * The outcome of [action] from what the wallet and devnet said.
