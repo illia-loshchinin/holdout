@@ -116,6 +116,8 @@ class LobbyScreenTest {
         text("held by the contract, not by us").assertIsDisplayed()
         text("Joining closes in").assertIsDisplayed()
         text("2d 3h").assertIsDisplayed()
+        // The lobby shows SKR only, so it carries no dollar disclaimer (owner, 12 Oct).
+        text("approximate", substring = true).assertDoesNotExist()
     }
 
     @Test

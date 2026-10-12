@@ -49,7 +49,6 @@ object LobbyText {
     const val APPROVE = "Approve in your wallet."
     const val UNTIL_CLOSES = "Until joining closes."
     const val LOCKED_NOTE = "Joining closed. This is the final roster."
-    const val FOOTER = "Dollar values are approximate."
 
     fun name(c: CohortSnapshot, test: Boolean): String = if (test) Format.testName(c) else Format.level(c)
 
@@ -94,7 +93,6 @@ object LobbyText {
  *  └────────────────────────────────────────────────────────┘
  *  FROM THE START · 25 push-ups a day for 7 days. <the level's rule>
  *  Leave — full refund   Until joining closes.            QuietAction (warning)
- *  Dollar values are approximate.
  * ```
  *
  * Leave signs inline (G7): the button reads "Waiting for your wallet…" with
@@ -213,7 +211,6 @@ fun LobbyScreen(
                 }
             }
         }
-        Text(LobbyText.FOOTER, style = LabelStyle, color = HoldoutColors.TextTertiary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
     }
 }
 
