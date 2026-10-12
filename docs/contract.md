@@ -76,7 +76,7 @@ sequenceDiagram
 
 | Part | What it does | Trust |
 |---|---|---|
-| **Crank** ([`kotlin/crank`](../kotlin/crank/); a 10-minute loop packaged for Fly.io, with a GitHub Actions fallback) | Opens Holdouts, records forfeits, settles, releases comebacks, tops up the sponsor, runs scripted members | Every pass except chip pricing is permissionless |
+| **Crank** ([`kotlin/crank`](../kotlin/crank/); a loop packaged for Fly.io, with a GitHub Actions fallback; how often it runs depends on the environment) | Opens Holdouts, records forfeits, settles, releases comebacks, tops up the sponsor, runs scripted members | Every pass except chip pricing is permissionless |
 | **Chip pricing** (`crank chips publish --auto`) | Reads the SKR price from the Jupiter Price API once a week and publishes four SKR amounts | Trusted operator input. The contract never reads a price. |
 | **The app** | Counts reps, signs through Mobile Wallet Adapter, reads chain state | A completed day's proof is client-signed |
 | **Reminders** | Scheduled on the phone from chain time | No server |

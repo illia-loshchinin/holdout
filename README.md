@@ -69,8 +69,11 @@ Built for the Solana Mobile **CLOCK IN** hackathon.
   fails if a microphone permission appears.
 - **Native on Seeker.** Mobile Wallet Adapter with Seed Vault, the Seeker Genesis Token as the key
   to Holdouts, and Seeker ID (`.skr`) names in the roster.
-- **No oracle, no single operator.** The contract never reads a price. Every step that moves a
-  Holdout forward (open, record forfeits, settle, release) can be called by anyone.
+- **No oracle, and no one can hold the money.** The contract never reads a price. The admin sets
+  up the levels and the operator prices the chips. Every step that moves a Holdout forward
+  (opening it, recording missed days, settling, releasing a comeback) follows the contract's rules
+  and can be sent by any wallet. Our crank does it on a schedule, how often depends on the
+  environment, but if it stopped, anyone could finish the job.
 
 ## How it works
 
