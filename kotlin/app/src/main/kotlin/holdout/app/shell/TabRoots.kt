@@ -2,6 +2,7 @@ package holdout.app.shell
 
 import holdout.app.chain.ChainView
 import holdout.app.chain.Holdout
+import holdout.core.CohortStatus
 import holdout.core.Stage
 
 /**
@@ -13,6 +14,17 @@ internal object TabRoots {
     fun active(view: ChainView?, now: Long?): Pair<Holdout, Stage.Active>? {
         if (view == null || now == null) return null
         return view.mine(now).firstNotNullOfOrNull { h -> (h.stage(now) as? Stage.Active)?.let { h to it } }
+    }
+
+    /**
+     * How often the app reads the roster of the Holdout Standing is about: every
+     * 30 s while it runs, but a finished one has no days left to be missed (the
+     * roster closed at the start), so a slow look is enough to keep its late
+     * changes — claims, records — in view.
+     */
+    fun rosterEveryMillis(h: Holdout, now: Long): Long = when (h.status(now)) {
+        CohortStatus.Settling, CohortStatus.Settled -> CHAIN_REFRESH_MILLIS
+        else -> ROSTER_REFRESH_MILLIS
     }
 
     /**

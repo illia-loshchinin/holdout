@@ -55,6 +55,7 @@ import holdout.app.shell.Shared
 import holdout.app.shell.SittingHost
 import holdout.app.shell.StakeSheetHost
 import holdout.app.shell.StandingRoot
+import holdout.app.shell.TabRoots
 import holdout.app.shell.TodayRoot
 import holdout.app.shell.TxFlowHost
 import holdout.app.shell.cohortScope
@@ -460,11 +461,14 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     }
 
     // The Standing dot needs the roster of the Holdout Standing is about, wherever the member is.
-    val standingAbout = shared.standingHoldout()?.address
-    InFrontLoop(standingAbout) {
+    // The only loop on that roster while the Holdout runs (Today's and the detail screens leave it to this one);
+    // a finished Holdout is looked at slowly.
+    val standingAbout = shared.standingHoldout()
+    val standingEvery = if (standingAbout != null && chainNow != null) TabRoots.rosterEveryMillis(standingAbout, chainNow) else ROSTER_REFRESH_MILLIS
+    InFrontLoop(standingAbout?.address to standingEvery) {
         if (standingAbout == null) kotlinx.coroutines.awaitCancellation()
-        holdouts.loadRoster(standingAbout)
-        delay(ROSTER_REFRESH_MILLIS)
+        holdouts.loadRoster(standingAbout.address)
+        delay(standingEvery)
     }
 
     // A day waiting for the network sends itself once the chain answers again, on

@@ -59,6 +59,14 @@ class TabRootsTest {
     }
 
     @Test
+    fun `a running Holdout's roster is read every 30 seconds, a finished one's only slowly`() {
+        assertEquals(ROSTER_REFRESH_MILLIS, TabRoots.rosterEveryMillis(running, START))
+        // The 7-day Holdout started two days before START: it has ended five days later.
+        val ended = START + 6 * DAY
+        assertEquals(CHAIN_REFRESH_MILLIS, TabRoots.rosterEveryMillis(running, ended))
+    }
+
+    @Test
     fun `a lobby place alone is not a Holdout to stand in, and watching is not a place`() {
         assertNull(TabRoots.standing(view(lobby, notMine), START))
         assertNull(TabRoots.standing(view(), START))

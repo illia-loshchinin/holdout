@@ -24,7 +24,6 @@ import holdout.app.ui.ChainCheckBox
 import holdout.core.HoldoutDay
 import holdout.core.LeagueParams
 import holdout.repcounter.Stakes
-import kotlinx.coroutines.delay
 
 /**
  * The Today tab root (screen map T1/T2, ruling G1): T2 while a Holdout runs
@@ -52,10 +51,7 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
     }
     if (running != null && chainNow != null) {
         val (h, stage) = running
-        InFrontLoop(h.address) {
-            holdouts.loadRoster(h.address)
-            delay(ROSTER_REFRESH_MILLIS)
-        }
+        // Its roster is read every 30 s by the app's Standing loop: the running Holdout is the one Standing is about.
         val scope = cohortScope(h)
         // A process killed between banking the last block and marking the day done
         // leaves the target banked and no marker: finish it, as for the Daily 25,
