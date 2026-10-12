@@ -91,6 +91,12 @@ html, body { margin: 0; background: var(--canvas); color: var(--text-primary); f
 .ho-flame-broken .ho-flame-num { color: var(--text-tertiary); }
 .ho-flame-pb svg { fill: var(--celebration); }
 .ho-pb { font: 500 11px/16px var(--font-sans); letter-spacing: .04em; color: var(--on-light); background: var(--inverse-surface); border-radius: var(--radius-pill); padding: 0 6px; }
+.ho-flame-milestone svg { width: 48px; height: 48px; fill: var(--text-primary); }
+.ho-flame-ring { display: inline-grid; place-items: center; width: 88px; height: 88px; border: 2px solid var(--accent); border-radius: var(--radius-pill); animation: ho-milestone-pulse 900ms ease-out 1; }
+.ho-milestone { display: flex; flex-direction: column; align-items: center; gap: var(--space-tight); text-align: center; }
+.ho-milestone-head { font: var(--text-title); color: var(--text-primary); }
+@keyframes ho-milestone-pulse { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .ho-flame-ring { animation: none; } }
 
 /* Gradient — two moments only */
 .ho-sweep { background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end)); }
