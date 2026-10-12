@@ -87,7 +87,8 @@ fun FaucetSheet(
             Outcome(outcome)
         }
         when {
-            busy -> PrimaryButton(Format.WAITING_FOR_WALLET, onClaim, busy = true)
+            // The sponsor pays for a member with no SOL, so no wallet may be asked at all: a neutral label.
+            busy -> PrimaryButton("Sending…", onClaim, busy = true)
             outcome is FaucetOutcome.Funded && backLabel != null -> PrimaryButton(backLabel, onBack)
             else -> {
                 PrimaryButton("Get them", onClaim, enabled = ready)

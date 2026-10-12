@@ -109,7 +109,7 @@ object TodayModel {
         val nudge = DailyHoldoutLine.nudge(view.comebackOffers(now), now)?.takeUnless { it.held } ?: return null
         val round = nudge.joinAddress?.let { a -> view.holdouts.firstOrNull { it.address == a } }
         if (round != null && view.joinBlocker(round, now) != null) return null
-        val go = nudge.joinAddress?.let { NavEvent.OpenStake(it.base58(), nudge.tier, seekerKnown) } ?: NavEvent.SelectTab(Tab.Holdouts)
+        val go = nudge.joinAddress?.let { NavEvent.OpenStake(it.base58(), nudge.tier, seekerKnown) } ?: NavEvent.GoToRoot(Tab.Holdouts)
         return ComebackCardState(nudge.text, go)
     }
 

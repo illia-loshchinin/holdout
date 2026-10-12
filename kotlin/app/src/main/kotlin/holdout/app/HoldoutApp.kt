@@ -393,7 +393,7 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     // A member's "Check again" while the chain can't be reached (spec 005): the
     // snapshot, chain time and the roster on screen, read now. Nothing is sent.
     fun checkChain(roster: SolanaPublicKey?) = holdouts.checkNow { check ->
-        roster?.let { holdouts.loadRoster(it, check) }
+        roster?.let { holdouts.loadRoster(it, check, force = true) }
         readChainTime()
     }
 

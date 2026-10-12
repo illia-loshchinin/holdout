@@ -51,6 +51,23 @@ pub fn require_joinable(
     Ok(())
 }
 
+/// The forfeit a late join may present, or none when it earned no comeback:
+/// every test league shares one progress slot, and while it holds another
+/// league's open pledge, a forfeit in `league_id` opens no comeback there
+/// (`settle_count`, `pledge_of_another_league`) — so it must not open the
+/// late door either. Judged leagues each have their own slot, so for them
+/// this never removes anything.
+pub fn comeback_if_open<T>(profile: &Profile, league_id: u8, comeback: Option<T>) -> Option<T> {
+    if profile
+        .progress(league_id)
+        .pledge_of_another_league(league_id)
+    {
+        None
+    } else {
+        comeback
+    }
+}
+
 /// Whether `cohort` is the comeback round of `membership`, a forfeit in
 /// `missed` (FR-037e): the same rule as `schedule::comeback_round`, read from
 /// the two cohorts alone — cohorts start `cadence` apart, so the cadence is
@@ -585,6 +602,26 @@ mod tests {
             round.start
         )
         .is_ok());
+
+        // A test league's forfeit while the shared slot holds another test league's pledge
+        // earned no comeback, so it opens no late door.
+        let mut p = profile();
+        p.progress_mut(100).open_comeback(25, 101, (1, 1));
+        assert!(comeback_if_open(&p, 100, comeback).is_none());
+        assert!(
+            comeback_if_open(&p, 101, comeback).is_some(),
+            "its own league's pledge"
+        );
+        assert!(
+            comeback_if_open(&profile(), 100, comeback).is_some(),
+            "no pledge held"
+        );
+        let mut judged = profile();
+        judged.progress_mut(1).open_comeback(25, 1, (1, 1));
+        assert!(
+            comeback_if_open(&judged, 0, comeback).is_some(),
+            "judged leagues have slots of their own"
+        );
 
         // The round after is not this miss's round.
         let mut later = cohort(FIRST_START + 2 * cadence, 7);

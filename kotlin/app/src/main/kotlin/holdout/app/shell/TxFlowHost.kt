@@ -28,6 +28,11 @@ internal fun Shared.TxFlowHost(tx: TxFlow, modifier: Modifier = Modifier) {
     val h = holdout(tx.kind.cohort)
     val n = now
     if (h == null || n == null) return Loading(modifier)
+    if (tx.youreIn && n >= h.cohort.start) {
+        // Joined late into a Holdout that has started: "You're in" speaks of a lobby, so go to Today's day instead.
+        androidx.compose.runtime.LaunchedEffect(tx) { dispatch(NavEvent.JoinedUnderWay) }
+        return Loading(modifier)
+    }
     if (tx.youreIn) {
         YoureInScreen(youreIn(h, n, (tx.kind as? TxKind.Join)?.tier ?: 0), onDaily25 = {
             if (dayIndex == Store.UNKNOWN_DAY) offlineDays.sittingStarted(wallet, boot, android.os.SystemClock.elapsedRealtime())

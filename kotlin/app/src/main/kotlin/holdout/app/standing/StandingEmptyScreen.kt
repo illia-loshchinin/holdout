@@ -89,7 +89,7 @@ fun StandingEmptyScreen(
             HoldoutCard {
                 Text(StandingEmptyText.JOIN_TITLE, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
                 Body(StandingEmptyText.JOIN_BODY)
-                PrimaryButton(StandingEmptyText.JOIN_BUTTON, { onEvent(NavEvent.SelectTab(Tab.Holdouts)) })
+                PrimaryButton(StandingEmptyText.JOIN_BUTTON, { onEvent(NavEvent.GoToRoot(Tab.Holdouts)) })
             }
         }
         QuietAction("Leaderboards →", { onEvent(NavEvent.Open(Screen.Leaderboards(Leaderboard.Board.EASY_7D))) })

@@ -103,7 +103,7 @@ class FaucetSheetTest {
     fun `waiting for the wallet disables the button and says so`() {
         show(busy = true)
 
-        compose.onNodeWithText("Waiting for your wallet…").assertIsDisplayed().assertIsNotEnabled()
+        compose.onNodeWithText("Sending…").assertIsDisplayed().assertIsNotEnabled()
         compose.onNodeWithText("Get them").assertDoesNotExist()
     }
 
@@ -137,7 +137,7 @@ class FaucetSheetTest {
     fun `after a claim the button is replaced by the wait while the wallet is asked`() {
         show(outcome = FaucetOutcome.Funded("sig"), busy = true)
 
-        compose.onNodeWithText("Waiting for your wallet…").assertIsDisplayed().assertIsNotEnabled()
+        compose.onNodeWithText("Sending…").assertIsDisplayed().assertIsNotEnabled()
     }
 
     @Test
