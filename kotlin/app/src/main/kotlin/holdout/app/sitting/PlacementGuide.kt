@@ -77,10 +77,10 @@ import holdout.repcounter.Stakes
  * stakes, because a Holdout has a different rule to read.
  *
  * It is the shared bottom sheet (board 16, `HoldoutSheet`) over the dimmed
- * camera. Under its title, on every page, it says the two things that decide
- * whether a rep counts ([GUIDE_HEADLINE], 002 FR-015); the Phone page ends with
- * the level's own rule sentence, or for the Daily 25 that it is counted as the
- * Spark (002 FR-014).
+ * camera, with no intro paragraph under its title. Positioning says where the
+ * phone and the body go; Rules says what counts in this sitting, by its own
+ * form (a Habit asks for the toes, a Spark and the Daily 25 allow the knees;
+ * 002 FR-014); Start says how the count begins.
  */
 @Composable
 fun BoxScope.SetupSheet(
@@ -130,7 +130,7 @@ private fun Modifier.fadeBottomWhileMore(scroll: ScrollState): Modifier = this
 
 private val FadeHeight = 48.dp
 
-/** The sheet's content: title with the level, the three tabs, the page, "Don't show this again" and the buttons. */
+/** The sheet's content: title with the level, the three tabs (Positioning, Rules, Start), the page, "Don't show this again" and the buttons. */
 @Composable
 internal fun SetupGuide(
     stakes: Stakes,
@@ -142,7 +142,7 @@ internal fun SetupGuide(
     modifier: Modifier = Modifier,
 ) {
     var page by remember { mutableIntStateOf(0) }
-    val pages = listOf("1. Phone", "2. Body", "3. Start")
+    val pages = listOf("1. Positioning", "2. Rules", "3. Start")
 
     // One scroll offset for the whole sheet would carry a page's scroll to the next page: every page opens at the top.
     val scroll = rememberScrollState()
@@ -158,8 +158,6 @@ internal fun SetupGuide(
             Text("Before you get down", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
             Text(levelLabel, style = AmountStyle.copy(fontSize = LabelStyle.fontSize), color = HoldoutColors.TextTertiary)
         }
-        // What decides whether a rep counts, first and on every page (002 FR-015, 2026-10-10).
-        Text(GUIDE_HEADLINE, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextPrimary)
 
         Tabs(pages, page) { page = it }
 
@@ -171,8 +169,8 @@ internal fun SetupGuide(
             verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
         ) {
             when (page) {
-                0 -> PhonePage(stakes, detected)
-                1 -> BodyPage(stakes)
+                0 -> PositioningPage(detected)
+                1 -> RulesPage(stakes)
                 else -> StartPage()
             }
         }
@@ -234,49 +232,38 @@ private fun Tabs(titles: List<String>, selected: Int, onSelect: (Int) -> Unit) {
 }
 
 @Composable
-private fun PhonePage(stakes: Stakes, detected: CameraView?) {
-    GuideLine("Stand the phone on the floor, facing where you'll be. Lean it on something.")
+private fun PositioningPage(detected: CameraView?) {
+    GuideLine("Phone on the floor, leaning on something, facing where you'll be.")
     Placement(
         title = "At 45°",
         caption = "Ahead of your shoulder, about 1.5 m away.",
         highlighted = detected == CameraView.OBLIQUE,
     )
-    GuideLine("From there it sees all of you, and the knee nearer to it.")
-    // After FR-015's lines: the level's own sentence, never the other's; the Daily 25 is counted as the Spark (002 FR-014).
-    GuideLine(SittingCopy.ruleCaption(stakes), strong = true)
+    GuideLine("Top of a push-up, hands under your shoulders, turned a little away: it sees you head to feet and your near knee.")
+    GuideLine("Line up with the outline on screen.", strong = true)
 }
 
+/** What counts in this sitting, by its own form (a Hackathon Holdout follows its form like any other), then the line common to all. */
 @Composable
-private fun BodyPage(stakes: Stakes) {
-    // The two things that decide whether a rep counts come first, then the position and the outline (002 FR-015, 2026-10-10).
-    GuideLine("Your whole body in the picture, head to feet.")
-    GuideLine("Your knees clearly visible to the phone.")
-    GuideLine("Top of a push-up: arms straight, hands under your shoulders.")
-    GuideLine("Line up with the outline on screen.")
-    GuideLine(
-        when (stakes) {
-            Stakes.STAKED -> "On your toes, down to just above the floor. Knee push-ups don't count."
-            Stakes.EASY -> "Aim for your toes — knees still count in a Spark."
-            Stakes.DAILY -> "Aim for your toes — knees still count in the Daily 25."
-        },
-        strong = true,
-    )
-    GuideLine("Turn a little away, so the phone sees your near knee.", strong = true)
-    Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(FigureHeight),
-    ) {
-        val box = Rect(size.width * 0.1f, size.height * 0.1f, size.width * 0.9f, size.height * 0.95f)
-        drawPlankFigure(box, HoldoutColors.Accent)
+private fun RulesPage(stakes: Stakes) {
+    when (stakes) {
+        Stakes.STAKED -> {
+            GuideLine("Full push-ups from your toes, down to just above the floor.", strong = true)
+            GuideLine("Knee push-ups, or hips resting on the floor, don't count.", strong = true)
+        }
+        Stakes.EASY -> {
+            GuideLine("Aim for full push-ups from your toes.", strong = true)
+            GuideLine("From the knees still counts, body straight from the knees.", strong = true)
+        }
+        Stakes.DAILY -> GuideLine("From your toes or your knees — both count.", strong = true)
     }
+    GuideLine("All the way down and up — short reps are skipped.")
 }
 
 @Composable
 private fun StartPage() {
     GuideLine("Hold the top for a second. A ring fills, then “three, two, one, go”.")
     GuideLine("Nothing to tap. Each rep beeps; every 10 bank for good.")
-    GuideLine("All the way down and up — short reps are skipped.")
     GuideLine("Stop any time with ✕ in the corner.")
 }
 
@@ -396,14 +383,9 @@ fun DrawScope.drawPlankFigure(box: Rect, color: Color) {
     drawLine(color, p(0.18f, 0.37f), p(0.2f, 0.98f), stroke, StrokeCap.Round)
 }
 
-/** The guide's first line on every page: what decides whether a rep counts (002 FR-015). */
-internal const val GUIDE_HEADLINE =
-    "Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone."
-
 private val TabHeight = 40.dp
 private val TickSize = 16.dp
 private val PlacementHeight = 112.dp
-private val FigureHeight = 96.dp
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000, widthDp = 390, heightDp = 844)
 @Composable
