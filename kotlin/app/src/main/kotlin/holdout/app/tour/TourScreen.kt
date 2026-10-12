@@ -229,9 +229,9 @@ private fun Legend(alpha: Float, number: String, word: String) {
 private const val BAND_2 = 0.55f
 private const val BAND_3 = 0.3f
 
-private enum class Mark { Lock, Shield }
+private enum class Mark { Lock, Shield, Chain }
 
-/** A note in `success` with a drawn mark: the lock on "banked for good", the shield on "private by design". */
+/** A note in `success` with a drawn mark: the lock on "banked for good", the shield on "private by design", the chain on "fair by design". */
 @Composable
 private fun SuccessNote(mark: Mark, title: String, text: String) {
     val shape = MaterialTheme.shapes.medium
@@ -255,6 +255,10 @@ private fun SuccessNote(mark: Mark, title: String, text: String) {
                     Mark.Shield -> {
                         drawPath(PathParser().parsePathString("M10 2 3 5v6c0 4.4 3 7.8 7 9 4-1.2 7-4.6 7-9V5l-7-3Z").toPath(), HoldoutColors.Success, style = stroke)
                         drawPath(PathParser().parsePathString("M6.8 11.2l2.2 2.2 4.2-4.6").toPath(), HoldoutColors.Success, style = stroke)
+                    }
+                    Mark.Chain -> {
+                        drawPath(PathParser().parsePathString("M8.5 11.5a3.2 3.2 0 0 0 4.5 0l3-3a3.2 3.2 0 0 0-4.5-4.5l-1 1").toPath(), HoldoutColors.Success, style = stroke)
+                        drawPath(PathParser().parsePathString("M11.5 8.5a3.2 3.2 0 0 0-4.5 0l-3 3a3.2 3.2 0 0 0 4.5 4.5l1-1").toPath(), HoldoutColors.Success, style = stroke)
                     }
                 }
             }
@@ -383,8 +387,13 @@ private fun CountingCard() {
     }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
         SuccessNote(Mark.Shield, "Private by design", "No microphone, ever. Reps are counted on this phone — no video or body data leaves the app.")
+        // Why the count and the money can be trusted (owner, 12 Oct; board 2c, canvas v232).
+        SuccessNote(Mark.Chain, "Fair by design", FAIR)
     }
 }
+
+private const val FAIR = "A pose model on the phone (Google MediaPipe) tracks your body; Holdout's rules, tuned on labelled sets, " +
+    "count the reps. Each day you finish goes to Solana, where the program holds the stakes and pays out by rules anyone can check."
 
 private val STEPS = listOf(
     "Phone on the floor, at 45°, ahead of your shoulder.",
