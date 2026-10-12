@@ -1,10 +1,10 @@
 # Holdout — screen map (hackathon build)
 
-**Version:** 3.1 · **Date:** 2026-10-12 (v3.1: the PR #62 review fixes — a left lobby stays on screen, system Back in a sitting, a reminder on a re-created app; v3.0 on 2026-10-11, the app as built at the integration tip `b1ba45f` plus the integration pass `6ec0dc3`: the four-tab bar with *Today · Standing · Holdouts · Me*, *My Holdouts* and *Me* built; the levels are *Spark · 7-day* and *Habit · 21-day*; the four-card tour; Holdout's own signing flow and *You're in*; the stake confirm and faucet as sheets; the shortened fee sentence; no calendar dates; earlier: v2.2 on 2026-10-10 made staking Seeker-exclusive, v2.1 and v2.0 the same day) · **Scope:** the devnet hackathon build only. Post-hackathon screens are parked in §9. Holdout Lab, the tester app, has its own map: `holdout_lab_screen_map.md`.
+**Version:** 3.2 · **Date:** 2026-10-12 (v3.2: the three last gaps built and drawn — the pre-flight tip sheet on S3, streak milestones on S6 and T1, the new-phone banner wired on T1 and T2; the canvas at version `1791813534-b0a8`; v3.1: the PR #62 review fixes — a left lobby stays on screen, system Back in a sitting, a reminder on a re-created app; v3.0 on 2026-10-11, the app as built at the integration tip `b1ba45f` plus the integration pass `6ec0dc3`: the four-tab bar with *Today · Standing · Holdouts · Me*, *My Holdouts* and *Me* built; the levels are *Spark · 7-day* and *Habit · 21-day*; the four-card tour; Holdout's own signing flow and *You're in*; the stake confirm and faucet as sheets; the shortened fee sentence; no calendar dates; earlier: v2.2 on 2026-10-10 made staking Seeker-exclusive, v2.1 and v2.0 the same day) · **Scope:** the devnet hackathon build only. Post-hackathon screens are parked in §9. Holdout Lab, the tester app, has its own map: `holdout_lab_screen_map.md`.
 
 **Purpose.** One place that lists every screen the app has, what each one shows, and where a member can go from it. It is the brief for visual design: each card in §5 is one frame (or one set of frames) to draw, and it is read from the code as built.
 
-**Visual base:** the canvas *"Holdout — hero screens"* (claude.ai design canvas, phone boards at 390 × 844, dark; version `1791746298-7062`) and the design book `docs/design/`, which is the source for every token, component and sentence of copy. Cards marked 🎨 are drawn on a board. Every card is written so it can be drawn in the same look (§2).
+**Visual base:** the canvas *"Holdout — hero screens"* (claude.ai design canvas, phone boards at 390 × 844, dark; version `1791813534-b0a8`) and the design book `docs/design/`, which is the source for every token, component and sentence of copy. Cards marked 🎨 are drawn on a board. Every card is written so it can be drawn in the same look (§2).
 
 > **Sources and precedence (rewritten 2026-10-11).** This file describes **the app as built**: every "On screen" list and every quoted sentence is read from `kotlin/app/src/main/kotlin/holdout/app/` at commit `b1ba45f` and the integration pass `6ec0dc3` (branch `claude/holdout-hero-screens-dev-5605d4`: the navigation shell, Today, the stake and signing flows, the sitting, Holdouts and Standing, Me and first run, all restyled to the boards). **Rules come from the spec-kit specs and nothing else:** `specs/001-holdout-hackathon` (the product; its session *2026-10-11 (evening)*: FR-069…FR-069d the four tabs, FR-070…FR-070c the signing flow, ES-20–ES-22, AC-24), `002-rep-placement-rules` (counting, with its level sentences), `003-seeker-id-names`, `004-lab-and-member-apps`, `005-refresh-when-unreachable`, with the constitution (2.3.1) in `.specify/memory/constitution.md`; they change only through the `/speckit-*` skills. Where a spec asks for more than the code has, that is a **gap** in §8, never written as if built. Where a board on the canvas differs from the code, §7 lists it. **The hackathon PRD is history**, not an authority: it is archived, unmaintained, as `docs/archive/holdout_v1_prd_hackathon-build_2026-09-18.md`, and the `PRD #n` and `PRD §n` citations on the cards point into it for the screen's origin only; the spec wins wherever the two differ. Mechanics are decided in the specs, never here.
 
@@ -140,7 +140,7 @@ On a card: **Spark · 7-day**, under it the tagline. In a sentence: *a Spark*, *
 4. **Today never becomes a list.** It shows the day's action, the open Holdouts (T1) and at most one nudge line per other Holdout needing a tap (claim ready, lobby, a way back, settling). The running Holdouts the member could watch are not on Today: they sit on Holdouts and in Standing's empty state.
 5. **A screen that sends a transaction never just fails when funds are short.** The stake sheet shows a notice and **Get test tokens**, which opens the faucet sheet over it and comes back to the stake sheet; a submit short of SOL ends on *Not enough SOL* and the same sheet (ES-0a).
 6. **App open lands on Today**, including from a reminder (N2) — also when the reminder re-creates an app Android killed — and after the tour; returning to a killed app from the launcher or Recents brings back its tab and pushed screens. The first run goes connect → tour → Today.
-7. **Back:** during the signing flow it goes back only when the flow allows it, never while the wallet holds the screen (there is no Cancel; MWA cannot be aborted). Otherwise: close the sheet, step back the tour (not out of it on first run), pop the shown tab's pushed screen, then a non-Today tab goes to Today, and Back from Today leaves the app. Tapping the tab you are on pops it to its root. The sitting has its own way out (✕, then the Stopped screen); system Back does the same, closes the set-up guide first when it is open, and on a finished day acts as its finish button.
+7. **Back:** during the signing flow it goes back only when the flow allows it, never while the wallet holds the screen (there is no Cancel; MWA cannot be aborted). Otherwise: close the sheet, step back the tour (not out of it on first run), pop the shown tab's pushed screen, then a non-Today tab goes to Today, and Back from Today leaves the app. Tapping the tab you are on pops it to its root. The sitting has its own way out (✕, then the Stopped screen); system Back does the same, closes the set-up guide first when it is open, then the tip sheet (it closes the sheet only, the checks keep running), and on a finished day acts as its finish button.
 8. **What the chain does to where you are** (dotted arrows in §4): a lobby that starts leaves every stack (to Today, or Holdouts), and so does one that is left while not on screen; a lobby on screen when its leave lands stays, showing *You left*, until *Back to Holdouts* or Back; a missed deadline seen on Today's root pushes H6; the last day passing moves to Standing; a Holdout settling while H4 is open pushes H7; a join that lands under the stake sheet with no signing flow showing opens the lobby. Only a change seen while the app is open moves anything, and nothing moves under a full-screen step or a sheet.
 
 **Pushed screens** (`Screen` in `nav/Nav.kt`): H3 Lobby · H4 Detail (from a list) · H5 Roster · H6 Forfeit · H7 Claim · L1 Leaderboards · X1 About. The tab and the pushed screens are saved (`nav/NavSaved.kt`, `rememberSaveable` in `HoldoutApp`), so a process killed in the background reopens where the member was. A sheet, the signing flow, a sitting and the tour are not restored (the wallet and camera cannot be resumed; banked reps are on disk and come back through Today's crash page).
@@ -185,7 +185,7 @@ flowchart TB
     subgraph SIT["Sitting · full screen"]
         S1["S1 Camera permission 🎨"]
         S2["S2 Set-up guide · sheet 🎨"]
-        S3["S3 Pre-flight + hold 🎨"]
+        S3["S3 Pre-flight + hold 🎨<br/>+ tip sheet"]
         S4["S4 Countdown 3·2·1 🎨"]
         S5["S5 Counting 🎨"]
         S6["S6 Day complete 🎨"]
@@ -244,6 +244,8 @@ flowchart TB
 
     %% sitting
     S1 --> S2 --> S3
+    S3 -- "How to set up" --> S2
+    S3 -- "Still not green? Tips · sheet" --> S3
     S3 -. "held the top" .-> S4 -.-> S5
     S5 -. "target reached" .-> S6
     S3 -- "✕ Stop" --> S7
@@ -407,7 +409,8 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 - **Devnet unreachable:** the label *Devnet unreachable — the Daily 25 still works* and **Check again** (spec 005); the Daily 25 still works
 - **Reading the chain:** *Reading the chain…* · **Holdouts not live:** *Holdouts are not live on devnet yet*
 - **None open:** a card *The next Holdout opens soon.* / *The Daily 25 is open now.* (ES-15)
-- **Not wired:** **new phone** → *No banked reps on this device today. 25 to go.* (ES-3a): the banner is in the screen (`HomeState.newPhone`) and nothing sets it, §8 gap 3
+- **Milestone** (🎨 board *TodayMilestone*, the *milestone* tweak; FR-049a): when today's Daily 25 took the streak to 7, 14, 21, 28, 30, 50, 60, 90, 100, every further hundred or 365, the chip shows the Streak flame's **milestone state** and the line sits under it, right-aligned (*A week, every day. That's how habits start.*), for the rest of that day; next day it is the plain chip (`StreakMilestones.reachedToday`, `HomeState.milestoneToday`)
+- **New phone** (🎨 board *TodayNewPhone*; ES-3a, FR-069f): a banner in the Daily 25 card, *No banked reps on this device today. 25 to go.*, when this phone first saw the wallet today, the chain shows it in a Holdout that started before today, and nothing is banked here today (`home/NewPhone.kt`, `seen:{wallet}`); gone once a block is banked here, and from the next day
 
 **Exits:** Start / Keep going → S1 · Join → H2 sheet (through the Seeker gate) · How Holdout works → B1 · a nudge → H3 / H4 / H6 / H7 · the comeback card → H2 sheet or the Holdouts tab
 
@@ -422,7 +425,7 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 1. (`SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET` badge on a short test Holdout) · `HABIT · 21-DAY · DAY 12 OF 21`
 2. **189** / 312 (the counter rolls rather than cuts) · `STILL STANDING` · ▲ *3 dropped since yesterday* (green); the whole block is a link to ∿ Standing
 3. Card: **Prize pool** `48,200 SKR` · hairline · **Your share now** `255 SKR` / *if today's standing holds* · *+17 SKR since yesterday* (green) · *+ about 1,200 SKR boost if anyone finishes* (green; only while the level's reserve holds more than 0; FR-037d)
-4. The day: the bank ring (1 of 3 blocks) · **10 banked today** · *15 to go* · **Keep going** (primary)
+4. The day: (the new-phone banner *No banked reps on this device today. 25 to go.* above it, with the Holdout's daily target, when this phone first saw the wallet today, the chain shows it in a Holdout that started before today, and nothing is banked here today; ES-3a, FR-069f, 🎨 board *MainNewPhone*; `home/NewPhone.kt`) · the bank ring (1 of 3 blocks) · **10 banked today** · *15 to go* · **Keep going** (primary)
 5. Nudge rows for the member's other Holdouts (a lobby joined for later, a claim waiting, a way back), one line each
 6. Footer row: flame `12` · `4h 06m` `left` (mono, accent)
 7. Bottom bar, ⌂ active
@@ -441,6 +444,8 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 | Submitted | ring full in green · **Today is done and on chain.** · *Next day opens in 4h 06m.* | — |
 
 **Exits:** Start / Keep going → S1 · Submit → N1 · counter → ∿ H4 · deadline missed → H6 · last day passed → H4 (settling) · a nudge → its screen
+
+No streak milestone here: T2 shows only the Holdout's day.
 
 ---
 
@@ -469,13 +474,15 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 **Exits:** Got it / Skip → S3 · drag down or scrim → S3
 
 #### S3 · Pre-flight and hold the start position
-**MUST · ✅ Built · 🎨 Drawn** (boards *17*, *17d*; the *step* tweak shows Checks / Holding / Blocked) · `sitting/PreflightScreen.kt`
+**MUST · ✅ Built · 🎨 Drawn** (boards *17*, *17d*, *PreflightTips*; the *step* tweak shows Checks / Tips offered / Tip sheet / Holding / Blocked) · `sitting/PreflightScreen.kt`, `sitting/PreflightTipsOffer.kt`, `sitting/PreflightTipsSheet.kt`
 
-**On screen:** camera + the floor/outline guide · five pills turning green: **Lighting · Whole body in frame · Knees visible · Camera view · Background still** (the knees got their own pill, 002 FR-024a; red, it says which way to turn or to move the phone back) · `Looking…` before the first frame · one big coach line, also spoken (*Phone to 45°*, *Knees up*, *Move back*, *Can't see knees*) · under it the sentence that says what to do (each failure states its fix) · once all green, a **hold ring** fills with **Hold…** and *Hold the top. The countdown starts when the ring fills.* · the level's rule sentence (the Daily 25: *counted as the Spark*) · **How to set up** · in a Holdout the time to the deadline (`4h 06m to today's deadline`, warning in the last 10 minutes)
+**On screen:** camera + the floor/outline guide · five pills turning green: **Lighting · Whole body in frame · Knees visible · Camera view · Background still** (the knees got their own pill, 002 FR-024a; red, it says which way to turn or to move the phone back) · `Looking…` before the first frame · one big coach line, also spoken (*Phone to 45°*, *Knees up*, *Move back*, *Can't see knees*) · under it the sentence that says what to do (each failure states its fix) · once all green, a **hold ring** fills with **Hold…** and *Hold the top. The countdown starts when the ring fills.* · the level's rule sentence (the Daily 25: *counted as the Spark*) · **How to set up** · once offered, a text button **Still not green? Tips** under the fix sentence · in a Holdout the time to the deadline (`4h 06m to today's deadline`, warning in the last 10 minutes)
 
-**Variants:** looking… · each pill failing · a Spark placed too far in front is refused (says which way to turn) · loose trousers · *NICE, not built:* after three failures, a **tip sheet** with the common fixes (§8 gap 1)
+**Tip sheet** (002 FR-020a; a `HoldoutSheet` over S3): **Getting the checks green** · one row per check, in the pills' order: the check's pill, then its fix sentence (`PreflightStatus.fix ?: PreflightCheck.fix`, so *Move the phone so it can see all of you* for the camera view); a row that is red now is in the warning colour and read as *Not green yet* · **Open the set-up guide** · **Back to the checks**. **Offered**, in every sitting kind, once the checks have been short of all green for 30 seconds in total (time under the set-up guide does not count) or a check that was green has turned red for the third time, whichever comes first; it stays offered until the sitting ends and never opens by itself.
 
-**Exits:** hold complete → S4 · How to set up → S2 · ✕ → S7 / back
+**Variants:** looking… · each pill failing · a Spark placed too far in front is refused (says which way to turn) · loose trousers · **tips offered** (the button) · **tip sheet** open
+
+**Exits:** hold complete → S4 (a tip sheet still open is dropped) · How to set up → S2 · Still not green? Tips → the tip sheet · ✕ → S7 / back. From the tip sheet: Back to the checks, system Back, a tap outside or a drag → S3 (the checks keep running; no countdown starts by itself); Open the set-up guide → closes the sheet and opens S2, whose closing returns to S3. System Back stops the sitting only when no sheet or guide is open.
 
 #### S4 · Countdown
 **MUST · ✅ Built · 🎨 Drawn** (boards *18*, *18d*) · `sitting/CountdownScreen.kt` — **3 · 2 · 1**, a ring draining over the three seconds, *get ready · stay at the top*; the cue is spoken. **Exits:** → S5
@@ -491,13 +498,15 @@ One continuous camera screen in steps (`SittingViewModel.Step`: PREFLIGHT → CO
 **MUST · ✅ Built · 🎨 Drawn** (boards *19*, *19a*, *19b*, *19d*) · `sitting/DayCompleteScreen.kt` — one of the two places the gradient is allowed (a wash that fades once)
 
 **On screen:** a label (`DAY 12 · 25 REPS`; `THE DAILY 25`) · **25** in green · `DONE`
-- **Daily 25:** the flame with *day streak · +1* · (the upsell card *Stake on yourself next* or the comeback, when one applies — see below) · **Done** → T1
+- **Daily 25:** the flame with *day streak · +1* (or, when the day took the streak to a milestone, the **milestone block**: the flame in its milestone state, **{N}-day streak** and the milestone's line, once, as part of the page; 🎨 board *DayCompleteMilestone*, the *milestone* tweak) · (the upsell card *Stake on yourself next* or the comeback, when one applies — see below) · **Done** → T1
 - **Holdout day:** a card *Counted on this phone.* · *Not on chain yet.* · `Left to submit` `4h 06m` · **Submit day 12** → N1 (Holdout's signing flow), which returns to T2 with the day on chain
 - **Holdout day, offline** (FR-024b): **Done — not sent yet** · *Devnet can't be reached, so day 12 isn't on chain yet. Your 25 are saved on this phone. Open Holdout when it can be, before the deadline (4h 06m left), and approve day 12 in your wallet.* · **Back to today** → T2 (sends nothing; the day waits on the phone). Past the deadline: **Done — too late to send** · *Devnet can't be reached, and day 12's deadline has passed, so it can no longer be sent. Your 25 are saved on this phone.*
 
 **Wired by the host (`shell/SittingHost.kt`, `SittingOffers.kt`):** a Holdout day carries the label `HABIT · 21-DAY · DAY 12 OF 21` and, when the chain already counts the day, "Back to today" instead of Submit; a day finished too late to send goes on to that Holdout's Forfeit (H6). The Daily 25's upsell card appears under the streak: **Stake on yourself next** *Spark · 7-day · joining closes in 1d 3h* — or, in its place, **Get your stake back** with the comeback line. Shown only when the member has no Holdout running or in a lobby, and never to a wallet known this session not to hold a Seeker (C-D8, G12); a tap ends the sitting and opens the stake sheet.
 
 **Exits:** Done → T1 · Submit → N1 → T2 · Back to today → T2
+
+**Milestone lines** (`streak/StreakMilestones.kt`, FR-049a; frozen days do not count): 7 *A week, every day. That's how habits start.* · 14 *Two weeks in. You're making this yours.* · 21 *21 days. That's a habit now.* · 28 *Four weeks without a gap.* · 30 *A month of showing up.* · 50 *50 days. Most people never get here.* · 60 *Two months strong.* · 90 *Three months. This is who you are now.* · 100 *100 days. Triple digits.* · 365 *A year, every day.* · every other hundred *{N} days. Still here, still going.* Personal and cosmetic like the streak (FR-051): on the phone only, unlocks nothing, never paid against.
 
 #### S7 · Stopped part-way
 **SHOULD · ✅ Built** (✕ shows the summary; the crash variant shows once on Today) **· 🎨 Drawn** (boards *20*, *20a* after a crash, *20d* Daily 25) · `sitting/StoppedScreen.kt`, `sitting/SittingMarker.kt` · ES-1, ES-2
@@ -790,21 +799,20 @@ Where the draft said something the spec, the PRD or its own tokens note say diff
 ## 8. What to draw next, and what to build
 
 ### Boards to draw, in order
-**Done:** every screen in this map has a board (version `1791746298-7062`), with its variants as Tweaks and as extra boards (3b–3g, 4c–4f, 8a–8b, 10a, 13a–13c, 14a, 19a–19b, 20a, 26a). The §7 #1–#19 fixes are made. Still to draw:
+**Done:** every screen in this map has a board (version `1791813534-b0a8`, 12 Oct), with its variants as Tweaks and as extra boards (3b–3g, 4c–4f, 8a–8b, 10a, 13a–13c, 14a, 19a–19b, 20a, 26a). The §7 #1–#19 fixes are made. Still to draw:
 1. The §7 #20–#24 follow-ups on the existing boards
-2. The **tip sheet** (S3) and a **streak-milestone state** of the Streak flame, once gaps 1 and 2 are taken up
+2. ~~The **tip sheet** (S3) and a **streak-milestone state** of the Streak flame~~ — ✅ drawn 12 Oct (canvas version `1791813534-b0a8`, design system `1791813251-1cb4`): *Preflight* steps Checks / Tips offered / Tip sheet / Holding / Blocked; the new boards *PreflightTips*, *DayCompleteMilestone*, *TodayMilestone*, *TodayNewPhone*, *MainNewPhone*; the *milestone* tweak on DayComplete and Today, the *newPhone* tweak on Main
 3. The Holdout Lab boards (`holdout_lab_screen_map.md` §6, §9); the share card (board 30) stays parked
 
+### Closed since v3.1 (12 Oct)
+The three last gaps: the **pre-flight tip sheet** (old gap 1; `569c627`) · **streak milestones** on S6 and T1 (old gap 2) and the **new-phone banner** signal on T1 and T2 (old gap 3), both `25b8144`. The design-book sync is `7096877`.
+
 ### Closed since v2.2 (11 Oct)
-The four-tab bar, H0 and W1 (old gap 5) · the crash variant on Today, nav state across process death, the Daily 25 upsell and comeback, the Holdout day-complete label, a too-late day leading to its Forfeit, a reminder tap landing on Today, sheets that wrap their content, no auto-send below the SOL for a fee (integration pass `6ec0dc3`) · the bank ring on T2, Join buttons on T1 and the stake as a sheet (6) · the scripted-member disclosure in first run, as tour card 4 (2) · the *dropped since yesterday* line and the ∿ dot (3) · the Stopped screen (4) · the *Yesterday ended at …* note (7, the new-phone line is gap 3 below) · **You're in** (10) · the thinning chart (11) · the fee sentence in `StakeSheet.kt` and `ForfeitScreen.kt` (12) · the comeback line on Forfeit (13) · the lobby's rule sentence is the level's (14) · **Running now** moved to H0 and H4a (16) · Holdout-owned signing screens, the stake and faucet sheets, Spark / Habit, four tour cards, no dates, no "≈ $" beside payouts.
+The four-tab bar, H0 and W1 (old gap 5) · the crash variant on Today, nav state across process death, the Daily 25 upsell and comeback, the Holdout day-complete label, a too-late day leading to its Forfeit, a reminder tap landing on Today, sheets that wrap their content, no auto-send below the SOL for a fee (integration pass `6ec0dc3`) · the bank ring on T2, Join buttons on T1 and the stake as a sheet (6) · the scripted-member disclosure in first run, as tour card 4 (2) · the *dropped since yesterday* line and the ∿ dot (3) · the Stopped screen (4) · the *Yesterday ended at …* note (7; the new-phone line is closed since v3.1) · **You're in** (10) · the thinning chart (11) · the fee sentence in `StakeSheet.kt` and `ForfeitScreen.kt` (12) · the comeback line on Forfeit (13) · the lobby's rule sentence is the level's (14) · **Running now** moved to H0 and H4a (16) · Holdout-owned signing screens, the stake and faucet sheets, Spark / Habit, four tour cards, no dates, no "≈ $" beside payouts.
 
 ### Code gaps — specified or needed, not built or not wired
 
-| # | Gap | Tier | Where | Why it matters |
-|---|---|---|---|---|
-| 1 | **Pre-flight tip sheet** after three failed checks, with the common fixes (decided: not built for the submission, C-D4) | NICE | S3 | A member who cannot get the checks green has only the one-line fix |
-| 2 | **Streak milestones** (decided 2026-10-10, for after the submission): at 7, 14, 21 and 28 days, a month, 50 days, two months and so on, a one-time flourish on day complete (S6) and on Today (T1) with a motivating line; the design book needs the copy set and a *milestone* state of the Streak flame | NICE | S6, T1 | The daily streak is the free product's only reward; today it is a number and a flame with no moment at the milestones |
-| 3 | **New-phone banner has no signal.** `HomeState.newPhone` draws *No banked reps on this device today. 25 to go.* (ES-3a) and nothing sets it | SHOULD | T1 | A member on a new phone with a running streak sees "25 push-ups" with no word that the count started over |
+None open for the member app: gaps 1–3 of v3.1 are closed above.
 
 ---
 
@@ -813,7 +821,6 @@ The four-tab bar, H0 and W1 (old gap 5) · the crash variant on Today, nav state
 Out of scope for this build. Listed so the design system leaves room for them. Source: the full-vision PRD §10.1, in git history (`git show ba1e06c:docs/archive/holdout_v1_prd_full-vision_2026-09-15.md`), and the hackathon PRD's Phase 2 items.
 
 - ~~**League leaderboards**~~ — built 6–9 Oct (PR 20, H36): **L1** under ∿ Standing. Quarterly and yearly boards stay deferred (FR-060).
-- **Streak milestones** (decided 2026-10-10): the flourishes and motivating lines at 7, 14, 21, 28 days, a month, 50 days, two months…; built after the 13 October submission (§8 gap 2).
 - **Personal stats / profile**: total reps, longest streak, Holdouts cleared. Would grow ◯ Me.
 - **Share cards**: workout, streak, Holdout recap (board 30). Swelfie capture and compose.
 - **Settings**: notifications, help and FAQ, terms, privacy.
