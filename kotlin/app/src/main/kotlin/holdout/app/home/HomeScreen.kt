@@ -97,7 +97,7 @@ data class HomeState(
  *  ( Get back 125 SKR of your lost stake: …  › )                 comeback card
  *  HOLDOUTS OPEN TO JOIN                    Holdouts need a Seeker.
  *  [ Spark · 7-day … (Join) ]  [ Habit · 21-day … (Join) ]        OfferCard
- *  ( ⓘ How Holdout works                          4 cards )
+ *  ( ⓘ How Holdout works                          5 cards )
  * ```
  * Never empty and never "come back later": when today is already done the card
  * says so and the streak carries it. Running Holdouts to watch live on the
@@ -310,7 +310,7 @@ private fun ComebackCard(card: ComebackCardState, onClick: () -> Unit) {
     }
 }
 
-/** "How Holdout works · 4 cards" (board 3): the tour, again, from Today. */
+/** "How Holdout works · 5 cards" (board 3): the tour, again, from Today. */
 @Composable
 private fun TourRow(onClick: () -> Unit) {
     Row(
@@ -324,7 +324,7 @@ private fun TourRow(onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text("How Holdout works", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextPrimary, modifier = Modifier.weight(1f))
-        Text("4 cards", style = LabelStyle, color = HoldoutColors.TextTertiary)
+        Text("5 cards", style = LabelStyle, color = HoldoutColors.TextTertiary)
     }
 }
 

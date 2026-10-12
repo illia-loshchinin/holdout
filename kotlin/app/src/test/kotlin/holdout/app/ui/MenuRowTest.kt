@@ -33,7 +33,7 @@ class MenuRowTest {
 
     @Test
     fun `it is a touch target and reads as one control`() {
-        compose.setContent { HoldoutTheme { MenuRow("How Holdout works", "4 cards", onClick = {}) } }
+        compose.setContent { HoldoutTheme { MenuRow("How Holdout works", "5 cards", onClick = {}) } }
 
         compose.onNodeWithText("How Holdout works").assertHasClickAction()
         compose.onNodeWithText("How Holdout works").assertHeightIsAtLeast(Spacing.touchTarget)

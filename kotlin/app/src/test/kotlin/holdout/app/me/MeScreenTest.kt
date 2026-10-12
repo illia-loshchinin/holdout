@@ -165,7 +165,7 @@ class MeScreenTest {
 
         compose.onNodeWithText("devnet · test token").assertIsDisplayed()
         compose.onNodeWithText("About Holdout").performScrollTo().performClick()
-        compose.onNodeWithText("4 cards").assertIsDisplayed()
+        compose.onNodeWithText("5 cards").assertIsDisplayed()
         compose.onNodeWithText("How Holdout works").performScrollTo().performClick()
         compose.onNodeWithText("Disconnect wallet").performClick()
         compose.onNodeWithText("Switched networks? Disconnect and connect again.").assertIsDisplayed()

@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -74,7 +73,7 @@ import holdout.app.ui.theme.Spacing
  *  HOW IT WORKS · 1 OF 5                     Skip        header · Skip on cards 1–4
  *  1 The Daily 25   2 A Holdout   3 Where a lost stake goes   4 How reps are counted
  *  5 Scripted members
- *  (the card, centred, scrolls when it must)
+ *  (the card, centred; each fits a Seeker, 400 × 829 dp, unscrolled)
  *  ▬ ● ● ●                                               PagerDots
  *  [ Back ] [ Next ]  /  [ Start ] on the last         Back from card 2 on; PrimaryButton
  *  TEST NETWORK · TEST TOKEN
@@ -133,7 +132,8 @@ fun TourScreen(onDone: () -> Unit, modifier: Modifier = Modifier) {
                 }
             }
         }
-        PagerDots(CARDS, card, Modifier.padding(vertical = Spacing.betweenItems))
+        // Tight around the dots, so every card fits a Seeker unscrolled (TourFitTest).
+        PagerDots(CARDS, card, Modifier.padding(vertical = Spacing.tight))
         // Back beside Next from card 2 on, so a card can be read again (owner, 12 Oct); the system Back does the same.
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
             if (card > 0) SecondaryButton("Back", { card-- }, Modifier.weight(1f))
@@ -186,26 +186,8 @@ private fun DailyCard() {
         }
     }
     SuccessNote(Mark.Lock, "Every 10 are banked for good", "Close the app or stop mid-set — banked reps stay.")
+    // No "How reps are counted" here: the card fits a Seeker without scrolling, and card 2 says knees or toes (owner, 12 Oct; board 2a).
     Text("Each day done grows your streak.", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextTertiary)
-    // How the levels differ, moved here from the counting card (owner, 12 Oct; board 2a).
-    HorizontalDivider(color = HoldoutColors.Hairline)
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
-        Text("How reps are counted", style = MaterialTheme.typography.titleSmall, color = HoldoutColors.TextPrimary)
-        FormRules()
-    }
-}
-
-/** The Daily 25 and Spark against Habit: the one way the levels count differently. */
-@Composable
-private fun FormRules() {
-    Text(
-        buildAnnotatedString {
-            append("The Daily 25 and Spark: aim for your toes; knees are allowed.\n")
-            withStyle(SpanStyle(color = HoldoutColors.TextPrimary)) { append("Habit: full push-ups from your toes.") }
-        },
-        style = MaterialTheme.typography.bodyLarge,
-        color = HoldoutColors.TextSecondary,
-    )
 }
 
 /** A 5-wide grid of accent dots whose rows ([ys]) are faded by [alphas]: the Daily 25 in blocks of 10. */
@@ -275,7 +257,7 @@ private const val NOTE_BORDER = 0.32f
 private fun HoldoutCardPage() {
     Title("A Holdout", "Stake SKR with everyone who starts on Monday. Finish, and split what the others lost.")
     ExampleCard()
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
         Body("Spark · 7-day lights it up — knees allowed.\nHabit · 21-day makes it stick — toes only.")
         Text(
             "Changed your mind? Full refund until joining closes.\nHoldouts need a Seeker. The Daily 25 is free for everyone.",
@@ -404,7 +386,8 @@ private const val HABIT_MINIMUM = 12
 
 @Composable
 private fun ScriptedCard() {
-    Title("Scripted members")
+    // Scripted members exist only in the Hackathon rounds on devnet (owner, 12 Oct; board 2d).
+    Title("Scripted members\nfor Hackathon only")
     ScriptedRow(real = SPARK_MINIMUM - SCRIPTED_SHOWN, scripted = SCRIPTED_SHOWN)
     Body("Some members in these Holdouts are scripted.\nReal wallets, same rules, labelled SCRIPTED.")
     Text(

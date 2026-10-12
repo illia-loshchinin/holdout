@@ -276,7 +276,7 @@ class HomeScreenTest {
     fun `How Holdout works opens the tour`() {
         show(fresh)
         text("How Holdout works").performScrollTo().performClick()
-        text("4 cards").assertExists()
+        text("5 cards").assertExists()
         assertEquals(listOf<NavEvent>(NavEvent.OpenTour), events)
     }
 

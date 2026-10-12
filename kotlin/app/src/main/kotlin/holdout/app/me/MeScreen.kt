@@ -94,7 +94,7 @@ data class MeState(
  *  Too little SKR or SOL …                                the Me dot's meaning (only when low)
  *  [ Get test tokens ]                                    PrimaryButton → the faucet sheet
  *  ( About Holdout            devnet · test token › )     MenuRow
- *  ( How Holdout works                  4 cards  › )
+ *  ( How Holdout works                  5 cards  › )
  *                  Disconnect wallet                      QuietAction, warning
  *       Switched networks? Disconnect and connect again.
  * ```
@@ -125,7 +125,7 @@ fun MeScreen(
             if (state.lowOnFunds) Notice("Too little SKR or SOL to stake or submit. Get test tokens first.", warning = true)
             PrimaryButton("Get test tokens", onGetTokens)
             MenuRow("About Holdout", "devnet · test token", onClick = onAbout)
-            MenuRow("How Holdout works", "4 cards", onClick = onTour)
+            MenuRow("How Holdout works", "5 cards", onClick = onTour)
         }
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             QuietAction("Disconnect wallet", onDisconnect, warning = true)

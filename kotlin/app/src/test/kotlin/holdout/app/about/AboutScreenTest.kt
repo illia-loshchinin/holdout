@@ -61,7 +61,7 @@ class AboutScreenTest {
 
         compose.onNodeWithText("How Holdout works").performClick()
         assertEquals(1, tours)
-        compose.onNodeWithText("4 cards").assertIsDisplayed()
+        compose.onNodeWithText("5 cards").assertIsDisplayed()
         compose.onNodeWithText("The three-card tour again").assertDoesNotExist()
     }
 

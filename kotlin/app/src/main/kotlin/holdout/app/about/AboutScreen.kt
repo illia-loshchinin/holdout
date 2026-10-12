@@ -40,7 +40,7 @@ import holdout.app.ui.theme.Spacing
  *  Test network, test token. Nothing here moves real value.      Body
  *  Read from mainnet, never written to it: Seeker ID names, …
  *  ┌ ◇ SCRIPTED  Some members in these Holdouts are scripted. … ┐   HoldoutCard
- *  ( How Holdout works                      4 cards  › )          MenuRow
+ *  ( How Holdout works                      5 cards  › )          MenuRow
  *
  *          Disconnect wallet                   QuietAction, warning
  *   Switched networks? Disconnect and connect again.
@@ -78,7 +78,7 @@ fun AboutScreen(
                     Body("Some members in these Holdouts are scripted. Real wallets, same rules, labelled SCRIPTED.", Modifier.weight(1f))
                 }
             }
-            onTour?.let { MenuRow("How Holdout works", "4 cards", onClick = it) }
+            onTour?.let { MenuRow("How Holdout works", "5 cards", onClick = it) }
         }
         onDisconnect?.let {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {

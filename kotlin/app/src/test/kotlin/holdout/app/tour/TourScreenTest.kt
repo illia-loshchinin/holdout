@@ -48,7 +48,7 @@ class TourScreenTest {
     private fun assertLabel(n: Int) = compose.onNodeWithText("How it works · $n of 5", ignoreCase = true).assertIsDisplayed()
 
     @Test
-    fun `card 1 is the Daily 25, free, banked in tens, with a streak`() {
+    fun `card 1 is the Daily 25, free, banked in tens, with a streak, and no rep rules`() {
         show()
 
         assertLabel(1)
@@ -63,9 +63,8 @@ class TourScreenTest {
         compose.onNodeWithText("Every 10 are banked for good").assertIsDisplayed()
         compose.onNodeWithText("Close the app or stop mid-set — banked reps stay.").assertIsDisplayed()
         compose.onNodeWithText("Each day done grows your streak.").assertExists()
-        compose.onNodeWithText("How reps are counted").assertExists()
-        compose.onNodeWithText("The Daily 25 and Spark: aim for your toes; knees are allowed.", substring = true).assertExists()
-        compose.onNodeWithText("Habit: full push-ups from your toes.", substring = true).assertExists()
+        compose.onNodeWithText("How reps are counted").assertDoesNotExist()
+        compose.onNodeWithText("Habit: full push-ups from your toes.", substring = true).assertDoesNotExist()
         compose.onNodeWithContentDescription("Card 1 of 5").assertIsDisplayed()
         compose.onNodeWithText("Skip").assertIsDisplayed()
         compose.onNodeWithText("Next").assertIsDisplayed()
@@ -154,7 +153,7 @@ class TourScreenTest {
 
         assertLabel(5)
         compose.onNodeWithContentDescription("Card 5 of 5").assertIsDisplayed()
-        compose.onNodeWithText("Scripted members").assertIsDisplayed()
+        compose.onNodeWithText("Scripted members\nfor Hackathon only").assertIsDisplayed()
         compose.onNodeWithText("Some members in these Holdouts are scripted.\nReal wallets, same rules, labelled SCRIPTED.").assertExists()
         compose.onNodeWithText("They only fill a Holdout to its minimum:\n20 per Spark and 12 per Habit.\nTheir days aren't camera-checked.").assertExists()
         compose.onNodeWithText("Start").assertIsDisplayed()
@@ -166,7 +165,8 @@ class TourScreenTest {
     fun `nothing is meant for judges, names Holdout Lab or carries a date`() {
         show()
         repeat(5) {
-            listOf("judge", "hackathon", "Holdout Lab", "Easy", "Hard", "cohort", "league", "earn", "≈").forEach {
+            // "Hackathon" is a round's name now (card 5 says scripted members are for it only), so it is not on this list.
+            listOf("judge", "Holdout Lab", "Easy", "Hard", "cohort", "league", "earn", "≈").forEach {
                 compose.onAllNodes(hasText(it, substring = true, ignoreCase = true)).assertCountEquals(0)
             }
             if (it < 4) next()
@@ -180,7 +180,7 @@ class TourScreenTest {
 
         assertLabel(5)
         assertEquals(0, done)
-        compose.onNodeWithText("Scripted members").assertIsDisplayed()
+        compose.onNodeWithText("Scripted members\nfor Hackathon only").assertIsDisplayed()
     }
 
     @Test
