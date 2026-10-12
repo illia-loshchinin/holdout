@@ -141,6 +141,11 @@ class TourScreenTest {
         compose.onNodeWithText("Habit: full push-ups from your toes.", substring = true).assertDoesNotExist()
         compose.onNodeWithText("Private by design").assertExists()
         compose.onNodeWithText("No microphone, ever. Reps are counted on this phone — no video or body data leaves the app.").assertExists()
+        compose.onNodeWithText("Fair by design").assertExists()
+        compose.onNodeWithText(
+            "A pose model on the phone (Google MediaPipe) tracks your body; Holdout's rules, tuned on labelled sets, count the reps. " +
+                "Each day you finish goes to Solana, where the program holds the stakes and pays out by rules anyone can check.",
+        ).assertExists()
         compose.onAllNodes(hasText("Lab", substring = true)).assertCountEquals(0)
     }
 
