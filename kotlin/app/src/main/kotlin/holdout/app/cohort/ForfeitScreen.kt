@@ -18,6 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import holdout.app.chain.Holdout
 import holdout.app.ui.Body
 import holdout.app.ui.ChainCheckBox
@@ -176,10 +179,24 @@ private fun OfferCard(copy: ForfeitText.OfferCopy) {
         Text(copy.label.uppercase(), style = LabelStyle, color = HoldoutColors.Success)
         copy.headline?.let { Text(it, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary) }
         Body(copy.body)
-        copy.timing?.let { Text(it, style = AmountStyle.copy(fontSize = LabelStyle.fontSize, lineHeight = LabelStyle.lineHeight), color = HoldoutColors.Accent) }
+        copy.timing?.let { Text(timingLine(it, copy.countdowns), style = LabelStyle, color = HoldoutColors.Accent) }
         copy.after?.let { Text(it, style = LabelStyle, color = HoldoutColors.TextTertiary) }
         copy.notice?.let { Notice(it, warning = true) }
     }
+}
+
+/** Mono is for countdowns (design book): the words stay in the text face, only each of the [countdowns] in [text] is mono. */
+private fun timingLine(text: String, countdowns: List<String>): AnnotatedString = buildAnnotatedString {
+    val mono = AmountStyle.toSpanStyle().copy(fontSize = LabelStyle.fontSize)
+    var at = 0
+    for (countdown in countdowns) {
+        val i = text.indexOf(countdown, at)
+        if (i < 0) break
+        append(text.substring(at, i))
+        withStyle(mono) { append(countdown) }
+        at = i + countdown.length
+    }
+    append(text.substring(at))
 }
 
 /** The one primary button, then the quiet way to keep the streak (DS: one primary per screen). */
@@ -222,8 +239,11 @@ internal object ForfeitText {
     private const val ENDED = "Your run has ended."
 
     /** The cause, by what this phone knows: a day finished but not sent reached the chain too late; a day never finished was not finished by its deadline. */
-    fun body(daysLasted: Int, doneOnPhone: Boolean): String =
-        if (doneOnPhone) "It didn't reach the chain in time. $ENDED" else "You didn't finish day ${daysLasted + 1} before its deadline. $ENDED"
+    fun body(daysLasted: Int, doneOnPhone: Boolean): String = if (doneOnPhone) {
+        "It didn't reach the chain in time. $ENDED"
+    } else {
+        "You didn't finish day ${daysLasted + 1} before its deadline. $ENDED"
+    }
     const val PENDING = "Final as of the deadline. The chain shows it shortly."
     const val STREAK_BODY = "A run can end; your streak didn't. That's the habit, and it's yours."
 
@@ -251,8 +271,10 @@ internal object ForfeitText {
         val label: String,
         val headline: String?,
         val body: String,
-        /** The round's start and when joining closes, in mono. */
+        /** The round's start and when joining closes. */
         val timing: String? = null,
+        /** The countdowns inside [timing], in order: the only part set in mono. */
+        val countdowns: List<String> = emptyList(),
         val after: String? = null,
         val notice: String? = null,
     )
@@ -287,18 +309,23 @@ internal object ForfeitText {
                 }
                 when (joinBlocker) {
                     Journey.JoinBlocker.LobbyPlaceTaken -> OfferCopy(COMEBACK, null, "You hold a place in a Holdout that starts later. Leave it first to join one that can bring your stake back.")
-                    else -> OfferCopy(
-                        COMEBACK,
-                        "Win back up to $back",
-                        Format.comebackForfeit(offer.amount(), nextCohort),
-                        timing = "Starts in ${Format.countdown(next.start - now)} · joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(nextCohort, now))}",
-                        after = after,
-                        notice = when (joinBlocker) {
-                            Journey.JoinBlocker.Overlaps -> "This Holdout starts before your current one ends."
-                            Journey.JoinBlocker.JoiningClosed -> "Joining has closed for this Holdout."
-                            else -> null
-                        },
-                    )
+                    else -> {
+                        val startsIn = Format.countdown(next.start - now)
+                        val closesIn = Format.countdown(Derive.timeUntilJoiningCloses(nextCohort, now))
+                        OfferCopy(
+                            COMEBACK,
+                            "Win back up to $back",
+                            Format.comebackForfeit(offer.amount(), nextCohort),
+                            timing = "Starts in $startsIn · joining closes in $closesIn",
+                            countdowns = listOf(startsIn, closesIn),
+                            after = after,
+                            notice = when (joinBlocker) {
+                                Journey.JoinBlocker.Overlaps -> "This Holdout starts before your current one ends."
+                                Journey.JoinBlocker.JoiningClosed -> "Joining has closed for this Holdout."
+                                else -> null
+                            },
+                        )
+                    }
                 }
             }
             else -> OfferCopy(COMEBACK, null, "Today's Daily 25 keeps your streak going.")

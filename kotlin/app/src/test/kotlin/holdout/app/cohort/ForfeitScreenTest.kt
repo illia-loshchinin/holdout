@@ -1,15 +1,18 @@
 package holdout.app.cohort
 
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.text.TextLayoutResult
 import holdout.app.chain.Holdout
 import holdout.app.stake.StakeText
 import holdout.app.testing.Fx
 import holdout.app.testutil.AnimationsOff
 import holdout.app.testutil.TALL_PHONE
+import holdout.app.ui.theme.HoldoutFonts
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.core.CohortStatus
 import holdout.core.Comeback
@@ -23,6 +26,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -181,6 +185,19 @@ class ForfeitScreenTest {
         compose.onNodeWithContentDescription("Back to Holdouts").performClick()
 
         assertEquals(1, taps.back)
+    }
+
+    @Test
+    fun `the comeback timing sets only its two countdowns in the mono face`() {
+        show(offer = offer())
+
+        val node = compose.onNodeWithText("Starts in 2d 4h · joining closes in 1d 3h")
+        val result = mutableListOf<TextLayoutResult>()
+        node.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(result)
+        val text = result.first().layoutInput.text
+        val mono = text.spanStyles.filter { it.item.fontFamily == HoldoutFonts.Mono }
+        assertEquals(listOf("2d 4h", "1d 3h"), mono.map { text.text.substring(it.start, it.end) })
+        assertNotEquals(HoldoutFonts.Mono, result.first().layoutInput.style.fontFamily, "the base style is not mono")
     }
 
     @Test
