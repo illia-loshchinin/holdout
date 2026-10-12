@@ -28,11 +28,13 @@ object AppOpen {
      * Today again; a process the system killed and a reminder's tap that
      * recreates the activity arrive unmarked. An activity the system restored
      * from Recents ([Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY]) comes back
-     * to where it was.
+     * to where it was, and so does one [restored] from a saved state with the
+     * launcher's intent: only a reminder moves a member who returns (FR-069).
      */
-    fun take(intent: Intent?): Boolean {
+    fun take(intent: Intent?, restored: Boolean = false): Boolean {
         if (intent == null || !opensToday(intent) || intent.getBooleanExtra(EXTRA_TAKEN, false)) return false
         intent.putExtra(EXTRA_TAKEN, true)
+        if (restored && intent.action != ACTION_OPEN_TODAY) return false
         return intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0
     }
 }

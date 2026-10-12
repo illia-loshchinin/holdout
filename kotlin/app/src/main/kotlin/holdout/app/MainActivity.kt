@@ -37,9 +37,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         // The same tap reaching an activity made anew: after the system killed the process the saved
-        // tab and screens come back, and a reminder still means Today. A rotation does not: its intent
-        // was taken already.
-        if (AppOpen.take(intent)) main.opens.opened()
+        // tab and screens come back, and a reminder still means Today; the launcher's intent restored
+        // with them does not. A rotation does not either: its intent was taken already.
+        if (AppOpen.take(intent, restored = savedInstanceState != null)) main.opens.opened()
 
         holdSplashForItsAnimation()
 
