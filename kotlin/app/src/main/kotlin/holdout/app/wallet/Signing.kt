@@ -74,7 +74,8 @@ sealed interface TxOutcome {
          * The outcome of [action] from what the wallet and devnet said.
          * [lowOnSol]: the wallet held too little SOL to pay for a transaction when
          * it was sent — a failure then is read as that, short of a devnet that
-         * never answered (`beforeWallet`), which proves nothing about SOL.
+         * never answered (`beforeWallet`), which proves nothing about SOL, and of
+         * a send that [SendResult.Failed.mayStillLand], which left the wallet.
          */
         fun of(action: SignAction, result: SendResult, lowOnSol: Boolean): TxOutcome = when (result) {
             is SendResult.Landed -> Landed(result.signature)
@@ -87,7 +88,9 @@ sealed interface TxOutcome {
                 result.beforeWallet -> Failed(mayStillLand = false, message = result.message)
                 SHORT_OF_SOL.containsMatchIn(result.message) -> NotEnoughSol
                 result.programError != null -> Refused(ProgramErrors.explain(result.programError) ?: result.message)
-                lowOnSol -> NotEnoughSol
+                // Only a send that did not go out can be read as short of SOL from the balance: one that
+                // may still land says so, whatever the balance (the screen must not point at funding).
+                lowOnSol && !result.mayStillLand -> NotEnoughSol
                 else -> Failed(result.mayStillLand, result.message)
             }
         }
@@ -112,7 +115,6 @@ sealed interface TxOutcome {
 object WalletFailures {
     private const val ERROR_AUTHORIZATION_FAILED = -1
     private const val ERROR_NOT_SIGNED = -3
-    private const val ERROR_NOT_SUBMITTED = -4
 
     /** What the client library says when it could not even reach a wallet: nothing was sent. */
     private const val NEVER_OPENED = "Timed out waiting to send association intent"
@@ -120,14 +122,11 @@ object WalletFailures {
     fun of(message: String, error: Throwable?): SendResult.Failed {
         val code = (error as? JsonRpc20Client.JsonRpc20RemoteException)?.code
         val declined = code == ERROR_NOT_SIGNED || code == ERROR_AUTHORIZATION_FAILED
-        // A remote refusal other than "not submitted" came before anything was sent. A session
-        // that broke after the wallet opened (IO, timeout, cancelled) may have sent it.
-        val mayStillLand = when {
-            declined -> false
-            code != null -> code == ERROR_NOT_SUBMITTED
-            message.startsWith(NEVER_OPENED) -> false
-            else -> true
-        }
+        // A remote refusal came from the wallet itself, before anything reached the network. That includes
+        // "not submitted" (-4): one transaction per request, so the wallet signed it but could not send it
+        // (MWA spec, sign_and_send_transactions) - Try again is safe. A session that broke after the wallet
+        // opened (IO, timeout, cancelled) may have sent it.
+        val mayStillLand = code == null && !message.startsWith(NEVER_OPENED)
         return SendResult.Failed(message, ProgramErrorCode.of(message), declined = declined, mayStillLand = mayStillLand)
     }
 }
