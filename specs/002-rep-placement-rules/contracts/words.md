@@ -65,7 +65,7 @@ Title "Before you get down", the sitting's level at its right; tabs **1. Positio
 
 ## The tour's counting card (FR-013) *(amended 2026-10-12)*
 
-- Card 4 of 5 shows the "from above" panel (the guide's "At 45°" top view, about 120 × 74 dp, left of the rep count) labelled "~1.5m ahead of your shoulder", and the line "No microphone, ever. Reps are counted on this phone — no video or body data leaves the app."
+- Card 4 of 5 shows the "from above" panel (the guide's "At 45°" top view **held still** at the bottom of the push-up with the elbows bent, about 120 × 74 dp, left of the rep count) labelled "~1.5m ahead of your shoulder" and marked with two "45°" labels, one beside the elbow (the upper arm's angle with the body) and one at the phone, and the line "No microphone, ever. Reps are counted on this phone — no video or body data leaves the app."
 
 ## Framing (FR-024, FR-010) — the Whole body in frame pill, before the hold
 
