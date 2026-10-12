@@ -116,11 +116,13 @@ object Run {
      * the missed deadline of each forfeit not counted yet). Anyone may join a
      * round opened so, as any open cohort; the new lobby waits until they settle.
      */
-    fun owedComebackRound(league: LeagueSnapshot, profiles: Collection<ProfileSnapshot>, uncountedMisses: Collection<Long>): Long? {
-        val id = league.params.leagueId
-        val recorded = profiles.flatMap { it.leagues }.filter { it.comebackStake > 0uL && it.comebackLeague == id }.map { it.comebackLastRound }
-        val pending = uncountedMisses.map { Schedule.comebackRounds(league.params.firstStart, league.params.cadence, league.params.joinLock, it).last }
-        return (recorded + pending).maxOrNull()
+    fun owedComebackRound(league: LeagueSnapshot, profiles: Collection<ProfileSnapshot>, uncountedMisses: Collection<Long>, now: Long = Long.MIN_VALUE): Long? {
+        val p = league.params
+        val recorded = profiles.flatMap { it.leagues }.filter { it.comebackStake > 0uL && it.comebackLeague == p.leagueId }.map { it.comebackLastRound }
+        val pending = uncountedMisses.map { Schedule.comebackRounds(p.firstStart, p.cadence, p.joinLock, it).last }
+        // A round whose first day is over can take nobody, even late: opening it would be an empty cohort
+        // that only holds the new lobby and the pledge's release (`releasesDue` lets it go then).
+        return (recorded + pending).filter { Schedule.deadlineOf(Schedule.cohortStart(p.firstStart, p.cadence, it), p.dayLength, 0) >= now }.maxOrNull()
     }
 
     /**
@@ -355,7 +357,7 @@ object Run {
                             .filter { !it.counted && (it.member.state == MembershipSnapshot.State.Forfeited || Derive.inBreach(it.member, cohort, now)) }
                             .forEach { misses += Derive.deadlineOf(cohort, it.member.daysCompleted) }
                     }
-                    owedComebackRound(league, early, misses)?.let { owed[id] = it }
+                    owedComebackRound(league, early, misses, now)?.let { owed[id] = it }
                 }
             }
         }

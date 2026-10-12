@@ -476,6 +476,10 @@ class RunTest {
         val lastSecond = first + 3 * week - 1
         assertEquals(4L, Run.owedComebackRound(league0, emptyList(), listOf(lastSecond)), "a miss after the next round closed is owed the one after")
         assertEquals(5L, Run.owedComebackRound(league0, listOf(profileOf(progressOf(0, 100uL, 5, 5))), listOf(midRound)), "the latest owed round wins")
+        // A round whose first day is over can take nobody: it is owed nothing more.
+        val round5DayOneEnds = first + 5 * week + day - 1
+        assertEquals(5L, Run.owedComebackRound(league0, listOf(profileOf(progressOf(0, 100uL, 5, 5))), emptyList(), now = round5DayOneEnds))
+        assertEquals(null, Run.owedComebackRound(league0, listOf(profileOf(progressOf(0, 100uL, 5, 5))), emptyList(), now = round5DayOneEnds + 1))
     }
 
     @Test
