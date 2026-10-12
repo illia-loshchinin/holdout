@@ -195,7 +195,6 @@ export interface CohortAccount {
   memberCount: number;
   heldStake: bigint;
   pool: bigint;
-  boostDue: bigint;
   comebackDue: bigint;
   forfeitsRecorded: number;
   counted: number;
@@ -205,7 +204,7 @@ export interface CohortAccount {
   settled: boolean;
   sharePerTier: [bigint, bigint, bigint, bigint];
   roundingRemainder: bigint;
-  noFinisherFee: bigint;
+  noFinisherBoost: bigint;
   boostReceived: bigint;
   comebackOwed: bigint;
   comebackFunded: bigint;
@@ -234,8 +233,12 @@ export interface LeagueProgress {
   longestStreak: number;
   lastChanged: bigint;
   comebackStake: bigint;
-  comebackFrom: bigint;
-  comebackUntil: bigint;
+  /** The league the pledge belongs to; every test league shares slot 2, so this tells them apart. */
+  comebackLeague: number;
+  /** The first round that makes the comeback good (a cohort index of that league). */
+  comebackRound: number;
+  /** The last round that makes it good: `comebackRound`, or the one after it. */
+  comebackLastRound: number;
 }
 
 export interface RunningSlot { cohort: Address; end: bigint }
@@ -264,9 +267,12 @@ const faucet = struct<Faucet>(
 const leagueProgress = struct<LeagueProgress>(
   {
     cleared: u16, forfeited: u16, currentStreak: u16, longestStreak: u16, lastChanged: i64,
-    comebackStake: u64, comebackFrom: i64, comebackUntil: i64,
+    comebackStake: u64, comebackLeague: u8, comebackRound: u32, comebackLastRound: u32,
   },
-  ['cleared', 'forfeited', 'currentStreak', 'longestStreak', 'lastChanged', 'comebackStake', 'comebackFrom', 'comebackUntil'],
+  [
+    'cleared', 'forfeited', 'currentStreak', 'longestStreak', 'lastChanged',
+    'comebackStake', 'comebackLeague', 'comebackRound', 'comebackLastRound',
+  ],
 );
 
 const runningSlot = struct<RunningSlot>({ cohort: pubkey, end: i64 }, ['cohort', 'end']);
@@ -303,17 +309,17 @@ const cohortCodec = struct<CohortAccount>(
   {
     leagueId: u8, index: u32, start: i64, joinCutoff: i64, durationDays: u8, repsPerDay: u16,
     dayLength: i64, exercise: u8, form: u8, chips: tuple4(u64), memberCount: u32, heldStake: u64,
-    pool: u64, boostDue: u64, comebackDue: u64, forfeitsRecorded: u32, counted: u32, finisherCount: u32,
+    pool: u64, comebackDue: u64, forfeitsRecorded: u32, counted: u32, finisherCount: u32,
     finishersPerTier: tuple4(u32), totalFinisherStake: u64, settled: bool,
-    sharePerTier: tuple4(u64), roundingRemainder: u64, noFinisherFee: u64, boostReceived: u64,
+    sharePerTier: tuple4(u64), roundingRemainder: u64, noFinisherBoost: u64, boostReceived: u64,
     comebackOwed: u64, comebackFunded: u64, comebackClaimed: u64, vaultBump: u8, bump: u8,
   },
   [
     'leagueId', 'index', 'start', 'joinCutoff', 'durationDays', 'repsPerDay',
     'dayLength', 'exercise', 'form', 'chips', 'memberCount', 'heldStake',
-    'pool', 'boostDue', 'comebackDue', 'forfeitsRecorded', 'counted', 'finisherCount',
+    'pool', 'comebackDue', 'forfeitsRecorded', 'counted', 'finisherCount',
     'finishersPerTier', 'totalFinisherStake', 'settled',
-    'sharePerTier', 'roundingRemainder', 'noFinisherFee', 'boostReceived',
+    'sharePerTier', 'roundingRemainder', 'noFinisherBoost', 'boostReceived',
     'comebackOwed', 'comebackFunded', 'comebackClaimed', 'vaultBump', 'bump',
   ],
 );

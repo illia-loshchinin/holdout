@@ -34,13 +34,17 @@ export const ERROR_CODES = {
   WrongDay: 6031,
   DeadlinePassed: 6032,
   DayAlreadyCompleted: 6033,
-  // 6040–6045 · settlement and the claim
+  // 6040–6047 · settlement, the claim and the comeback release
   NotSettling: 6040,
   AlreadySettled: 6041,
   CountIncomplete: 6042,
   NotClaimable: 6043,
   AlreadyClaimed: 6044,
   PreviousCohortUnsettled: 6045,
+  /** `release_comeback` for a profile with no open pledge in the league (FR-037e). */
+  NoComebackToRelease: 6046,
+  /** `release_comeback` while the pledge's last round can still make it good. */
+  ComebackStillOpen: 6047,
   // 6050–6054 · the faucet, and the exercise guard that shares it
   FaucetAlreadyClaimedToday: 6050,
   FaucetCapReached: 6051,

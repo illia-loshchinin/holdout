@@ -50,8 +50,9 @@ export const vaultPda = (cohort: Address): Promise<Address> =>
 
 /**
  * A league's SKR reserve vault (H35): a token account whose authority is the
- * league PDA, created by `create_league`. Boost and comeback reserves live here,
- * credited only when a cohort of the league finalizes (FR-037c, INV-10).
+ * league PDA, created by `create_league`. Boost and comeback reserves live here:
+ * a counted forfeit's pledge arrives with `settle_count`, and a cohort's boost, its
+ * comeback refunds and a no-finisher pool move with `settle_finalize` (FR-037c, INV-10).
  */
 export const reservePda = (leagueId: number): Promise<Address> =>
   derive(PROGRAM_ID, [utf8('reserve'), u8(leagueId)]);

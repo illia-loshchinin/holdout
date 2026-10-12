@@ -92,7 +92,6 @@ const cohort: CohortAccount = {
   memberCount: 12,
   heldStake: 900n,
   pool: 680n,
-  boostDue: 600n,
   comebackDue: 300n,
   forfeitsRecorded: 3,
   counted: 9,
@@ -102,7 +101,7 @@ const cohort: CohortAccount = {
   settled: true,
   sharePerTier: [17n, 0n, 42n, 85n],
   roundingRemainder: 2n,
-  noFinisherFee: 500n,
+  noFinisherBoost: 500n,
   boostReceived: 501n,
   comebackOwed: 77n,
   comebackFunded: 66n,
@@ -129,15 +128,15 @@ const profile: ProfileAccount = {
   leagues: [
     {
       cleared: 5, forfeited: 2, currentStreak: 3, longestStreak: 4, lastChanged: 1_790_600_000n,
-      comebackStake: 25_000_000n, comebackFrom: 1_790_599_999n, comebackUntil: 1_791_809_999n,
+      comebackStake: 25_000_000n, comebackLeague: 0, comebackRound: 7, comebackLastRound: 8,
     },
     {
       cleared: 1, forfeited: 0, currentStreak: 1, longestStreak: 1, lastChanged: 1_791_400_000n,
-      comebackStake: 0n, comebackFrom: 1_791_300_000n, comebackUntil: 1_792_500_000n,
+      comebackStake: 0n, comebackLeague: 0, comebackRound: 0, comebackLastRound: 0,
     },
     {
       cleared: 0, forfeited: 1, currentStreak: 0, longestStreak: 0, lastChanged: 1_790_700_000n,
-      comebackStake: 10_000_000n, comebackFrom: 1_790_699_000n, comebackUntil: 1_790_840_000n,
+      comebackStake: 10_000_000n, comebackLeague: 101, comebackRound: 12, comebackLastRound: 12,
     },
   ],
   running: { cohort: key(0xaa), end: 1_791_800_000n },
@@ -149,9 +148,9 @@ const profile: ProfileAccount = {
 const cases = [
   ['Config', Config, config, 294],
   ['LeagueConfig', LeagueConfig, leagueConfig, 68],
-  ['Cohort', Cohort, cohort, 229],
+  ['Cohort', Cohort, cohort, 221],
   ['Membership', Membership, membership, 101],
-  ['Profile', Profile, profile, 257],
+  ['Profile', Profile, profile, 236],
 ] as const;
 
 describe.each(cases)('%s', (name, layout, expected, space) => {

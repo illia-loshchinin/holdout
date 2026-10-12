@@ -160,12 +160,12 @@ describe('injected state reads back exactly', () => {
     expect(h.tokenBalance(await reservePda(league.leagueId))).toBe(420n);
   });
 
-  it('a cohort holding reserve dues and unclaimed refunds, all in its vault (INV-1)', async () => {
+  it('a cohort holding comeback pledges and unclaimed refunds, all in its vault (INV-1)', async () => {
     const league = h.freshTestLeague();
     const at = await h.injectCohort(league, 0, {
-      heldStake: 400n, pool: 680n, boostDue: 10n, comebackDue: 5n, comebackFunded: 7n, comebackClaimed: 3n,
+      heldStake: 400n, pool: 680n, comebackDue: 5n, comebackFunded: 7n, comebackClaimed: 3n,
     });
-    expect(h.tokenBalance(await vaultPda(at))).toBe(400n + 680n + 10n + 5n + 4n);
+    expect(h.tokenBalance(await vaultPda(at))).toBe(400n + 680n + 5n + 4n);
   });
 
   it('a later cohort starts a week on, on the real cadence', async () => {
@@ -244,17 +244,19 @@ describe('a snapshot flows from the SVM into the invariant checker', () => {
 
     const progress = (over: object) => ({
       cleared: 0, forfeited: 0, currentStreak: 0, longestStreak: 0, lastChanged: 0n,
-      comebackStake: 0n, comebackFrom: 0n, comebackUntil: 0n, ...over,
+      comebackStake: 0n, comebackLeague: 0, comebackRound: 0, comebackLastRound: 0, ...over,
     });
     // The instant of the most recent outcome: cohort b's missed day-0 deadline,
     // which is later than cohort a's end. INV-9 derives it from the counted
     // memberships, so a figure taken from the crank's clock would not match.
     const outcome = BigInt(FIRST_START + WEEK + DAY - 1);
-    // The counted forfeit also opens a comeback for 14 of cohort b's days (FR-037e).
+    // The counted forfeit also opens a comeback for the next round, cohort 2 (FR-037e)...
     const settledProgress = {
       cleared: 1, forfeited: 1, currentStreak: 0, longestStreak: 1, lastChanged: outcome,
-      comebackStake: DEFAULT_CHIPS[3], comebackFrom: outcome, comebackUntil: outcome + 14n * BigInt(DAY),
+      comebackStake: DEFAULT_CHIPS[3], comebackLeague: league.leagueId, comebackRound: 2, comebackLastRound: 2,
     };
+    // ...whose pledge, a tenth of the stake, the league's comeback reserve holds.
+    await fresh.injectLeague(league, { nextIndex: 2, comebackReserve: DEFAULT_CHIPS[3]! / 10n });
     const leagues = [progress({}), progress({}), progress(settledProgress)] as never;
     await fresh.injectProfile(wallet, { leagues });
     fresh.setTime(FIRST_START + 3 * WEEK);
@@ -264,6 +266,16 @@ describe('a snapshot flows from the SVM into the invariant checker', () => {
     // What the old, order-dependent design would have left behind.
     const wrong = [progress({}), progress({}), progress({ ...settledProgress, currentStreak: 1 })] as never;
     await fresh.injectProfile(wallet, { leagues: wrong });
+    try {
+      assertInvariants(await snap(fresh));
+      throw new Error('should have failed');
+    } catch (e) {
+      expect((e as InvariantError).invariant).toBe('INV-9');
+    }
+
+    // A comeback record on the wrong rounds is as wrong as a wrong streak.
+    const rounds = [progress({}), progress({}), progress({ ...settledProgress, comebackRound: 3, comebackLastRound: 3 })] as never;
+    await fresh.injectProfile(wallet, { leagues: rounds });
     try {
       assertInvariants(await snap(fresh));
       throw new Error('should have failed');

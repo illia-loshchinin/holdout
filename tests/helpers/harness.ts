@@ -181,7 +181,7 @@ export const expectProgramError = (result: SendResult, name: ErrorName): void =>
 export type CohortOverrides = Partial<CohortAccount> & {
   /**
    * SKR the vault holds. Defaults to what INV-1 says it must: `heldStake + pool +
-   * boostDue + comebackDue + (comebackFunded − comebackClaimed)`.
+   * comebackDue + (comebackFunded − comebackClaimed)`.
    */
   vaultAmount?: bigint;
 };
@@ -198,7 +198,7 @@ export type LeagueOverrides = Partial<LeagueConfigAccount> & {
 
 /** INV-1's custody figure for a cohort's vault (H35). */
 export const cohortCustody = (c: CohortAccount): bigint =>
-  c.heldStake + c.pool + c.boostDue + c.comebackDue + (c.comebackFunded - c.comebackClaimed);
+  c.heldStake + c.pool + c.comebackDue + (c.comebackFunded - c.comebackClaimed);
 
 const tokenAccountBytes = (mint: Address, owner: Address, amount: bigint): Uint8Array => {
   // SPL Token account, 165 bytes: mint, owner, amount, delegate (None), state
@@ -671,7 +671,6 @@ export class Harness {
       memberCount: 0,
       heldStake: 0n,
       pool: 0n,
-      boostDue: 0n,
       comebackDue: 0n,
       forfeitsRecorded: 0,
       counted: 0,
@@ -681,7 +680,7 @@ export class Harness {
       settled: false,
       sharePerTier: [0n, 0n, 0n, 0n],
       roundingRemainder: 0n,
-      noFinisherFee: 0n,
+      noFinisherBoost: 0n,
       boostReceived: 0n,
       comebackOwed: 0n,
       comebackFunded: 0n,
@@ -736,8 +735,9 @@ export class Harness {
       longestStreak: 0,
       lastChanged: 0n,
       comebackStake: 0n,
-      comebackFrom: 0n,
-      comebackUntil: 0n,
+      comebackLeague: 0,
+      comebackRound: 0,
+      comebackLastRound: 0,
     };
     const profile: ProfileAccount = {
       wallet,
@@ -819,7 +819,6 @@ export class Harness {
           memberCount: c.memberCount,
           heldStake: c.heldStake,
           pool: c.pool,
-          boostDue: c.boostDue,
           comebackDue: c.comebackDue,
           forfeitsRecorded: c.forfeitsRecorded,
           counted: c.counted,
@@ -829,7 +828,7 @@ export class Harness {
           settled: c.settled,
           sharePerTier: c.sharePerTier,
           roundingRemainder: c.roundingRemainder,
-          noFinisherFee: c.noFinisherFee,
+          noFinisherBoost: c.noFinisherBoost,
           boostReceived: c.boostReceived,
           comebackOwed: c.comebackOwed,
           comebackFunded: c.comebackFunded,
@@ -843,6 +842,11 @@ export class Harness {
           leagueId: l.leagueId,
           boostReserve: l.boostReserve,
           comebackReserve: l.comebackReserve,
+          firstStart: Number(l.firstStart),
+          cadence: Number(l.cadence),
+          joinLock: Number(l.joinLock),
+          dayLength: Number(l.dayLength),
+          nextIndex: l.nextIndex,
           reserveVaultAmount: this.tokenBalance(await reservePda(l.leagueId)),
         });
       } else if (same(data, Membership.discriminator)) {
@@ -872,8 +876,9 @@ export class Harness {
         longestStreak: x.longestStreak,
         lastChanged: Number(x.lastChanged),
         comebackStake: x.comebackStake,
-        comebackFrom: Number(x.comebackFrom),
-        comebackUntil: Number(x.comebackUntil),
+        comebackLeague: x.comebackLeague,
+        comebackRound: x.comebackRound,
+        comebackLastRound: x.comebackLastRound,
       });
       const leagues: Record<number, LeagueProgressSnapshot> = {
         0: asSnapshot(p.leagues[0]),

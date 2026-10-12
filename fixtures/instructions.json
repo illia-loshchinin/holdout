@@ -290,6 +290,14 @@
           "role": "0"
         },
         {
+          "address": "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4",
+          "role": "0"
+        },
+        {
+          "address": "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4",
+          "role": "0"
+        },
+        {
           "address": "BPFLoaderUpgradeab1e11111111111111111111111",
           "role": "0"
         },
@@ -338,6 +346,77 @@
         {
           "address": "FwU3mLoR3eWa1xvgRQ2kDWeYFj1usS4f4Xd9sKaSSW1e",
           "role": "1"
+        },
+        {
+          "address": "HbwWxVVRoLMYBAuaAputvbjhoX2nJSPvtkomigL6Loc5",
+          "role": "0"
+        },
+        {
+          "address": "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4",
+          "role": "0"
+        },
+        {
+          "address": "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4",
+          "role": "0"
+        },
+        {
+          "address": "BPFLoaderUpgradeab1e11111111111111111111111",
+          "role": "0"
+        },
+        {
+          "address": "11111111111111111111111111111111",
+          "role": "0"
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "role": "0"
+        }
+      ]
+    },
+    {
+      "name": "join_cohort",
+      "args": {
+        "tier": 3,
+        "comebackMembership": "7XsQy7Bv9hdEsa3w6SVkEU4vQbCxhcTKKZAdictV3cyg",
+        "comebackCohort": "HbwWxVVRoLMYBAuaAputvbjhoX2nJSPvtkomigL6Loc5"
+      },
+      "data": "651762416a83d5da03",
+      "accounts": [
+        {
+          "address": "SysvarC1ock11111111111111111111111111111111",
+          "role": "3"
+        },
+        {
+          "address": "7BRLZEH3QU8imSTGfskDooRRHHCxNc5qj3NtMd85KJGh",
+          "role": "0"
+        },
+        {
+          "address": "6jF7QuNonBWa6BR6nFCyV5fUWfRkoA7Axacin5PWQhRo",
+          "role": "1"
+        },
+        {
+          "address": "FDARVv9DukzeSwcof9FJs1yzvxQJ5fWALbaj5esQjAyG",
+          "role": "1"
+        },
+        {
+          "address": "HAFvSHmBrkFdveFD5FijjSzjXj8PTMoVip2yxJ9LBaUv",
+          "role": "1"
+        },
+        {
+          "address": "4WZscM8E2TPb5ii9Wv1ywTKuv6SmAEB1f74RdTT8Ke7a",
+          "role": "1"
+        },
+        {
+          "address": "FwU3mLoR3eWa1xvgRQ2kDWeYFj1usS4f4Xd9sKaSSW1e",
+          "role": "1"
+        },
+        {
+          "address": "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4",
+          "role": "0"
+        },
+        {
+          "address": "7XsQy7Bv9hdEsa3w6SVkEU4vQbCxhcTKKZAdictV3cyg",
+          "role": "0"
         },
         {
           "address": "HbwWxVVRoLMYBAuaAputvbjhoX2nJSPvtkomigL6Loc5",
@@ -485,7 +564,7 @@
         },
         {
           "address": "DrVtMc7xKKiKpC4dzhzfecnNaBTXddU13AkMnNY7T8v7",
-          "role": "0"
+          "role": "1"
         },
         {
           "address": "6jF7QuNonBWa6BR6nFCyV5fUWfRkoA7Axacin5PWQhRo",
@@ -501,6 +580,10 @@
         },
         {
           "address": "11111111111111111111111111111111",
+          "role": "1"
+        },
+        {
+          "address": "4dzYHLXBcYUHQpdYvtrGyhMybKFqqq4eKZpBAwHyXwCc",
           "role": "1"
         },
         {
@@ -553,10 +636,6 @@
           "role": "1"
         },
         {
-          "address": "11111111111111111111111111111111",
-          "role": "1"
-        },
-        {
           "address": "4dzYHLXBcYUHQpdYvtrGyhMybKFqqq4eKZpBAwHyXwCc",
           "role": "1"
         },
@@ -566,6 +645,60 @@
         },
         {
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "role": "0"
+        }
+      ]
+    },
+    {
+      "name": "release_comeback",
+      "args": {
+        "league": 0,
+        "wallet": "SysvarC1ock11111111111111111111111111111111",
+        "round": null
+      },
+      "data": "e07516f7f35b45da",
+      "accounts": [
+        {
+          "address": "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4",
+          "role": "2"
+        },
+        {
+          "address": "DrVtMc7xKKiKpC4dzhzfecnNaBTXddU13AkMnNY7T8v7",
+          "role": "1"
+        },
+        {
+          "address": "4WZscM8E2TPb5ii9Wv1ywTKuv6SmAEB1f74RdTT8Ke7a",
+          "role": "1"
+        },
+        {
+          "address": "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4",
+          "role": "0"
+        }
+      ]
+    },
+    {
+      "name": "release_comeback",
+      "args": {
+        "league": 0,
+        "wallet": "SysvarC1ock11111111111111111111111111111111",
+        "round": 3
+      },
+      "data": "e07516f7f35b45da",
+      "accounts": [
+        {
+          "address": "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4",
+          "role": "2"
+        },
+        {
+          "address": "DrVtMc7xKKiKpC4dzhzfecnNaBTXddU13AkMnNY7T8v7",
+          "role": "1"
+        },
+        {
+          "address": "4WZscM8E2TPb5ii9Wv1ywTKuv6SmAEB1f74RdTT8Ke7a",
+          "role": "1"
+        },
+        {
+          "address": "HgZtUBS4dEL8xk8qjbXmpcPhPqGqGDbexWrqKLDKk3g8",
           "role": "0"
         }
       ]

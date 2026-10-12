@@ -2,7 +2,8 @@
  * Instruction builders written from the contract rather than generated from the
  * program: `initialize`, `create_league`, `publish_chip_set` and `open_cohort`
  * (contracts/program-instructions §1–§2, task T017b), then `join_cohort` and
- * `leave_cohort` (§3, tasks T054 and T054a).
+ * `leave_cohort` (§3, tasks T054 and T054a), and the settlement family with
+ * `release_comeback` (§2).
  *
  * ## Why these are written by hand
  *
@@ -26,8 +27,9 @@
  *    the developer wallet's associated token account. Every instruction that
  *    moves a fee takes both, operations first ({@link FeeDestinations}).
  *  - A league's reserve vault is the token-account PDA `["reserve", league_id]`
- *    whose authority is the league PDA; `create_league` creates it and
- *    `settle_finalize` draws from and credits it (H35).
+ *    whose authority is the league PDA; `create_league` creates it, `settle_count`
+ *    credits it with each counted forfeit's comeback pledge and `settle_finalize`
+ *    draws the boost and the comeback refunds from it (H35, 2026-10-12).
  *  - The faucet vault is a system-owned PDA holding lamports; `initialize` funds it
  *    to rent exemption and the Operator tops it up by an ordinary transfer.
  *  - `open_cohort` takes the previous cohort as an optional account: the program's
@@ -40,6 +42,10 @@
  *    only the cohort's address and start (data-model §1.5), so `running.end` is
  *    left at 0 and a guard trusting it would skip the overlap rule; the account
  *    is what the rule is checked against instead.
+ *  - `join_cohort` also takes the member's forfeited membership and its cohort as
+ *    two optional accounts, after the running cohort: with them a comeback round
+ *    stays joinable until its first day's deadline (FR-037e). The program's own ID
+ *    in both slots means "none".
  */
 
 import { createHash } from 'node:crypto';
@@ -282,6 +288,22 @@ export const openCohortIx = async (
 
 // ----------------------------------------------------------------- join_cohort
 
+/** A member's forfeited membership and its cohort, the proof of a comeback round (FR-037e). */
+export interface ComebackAccounts {
+  membership: Address;
+  cohort: Address;
+}
+
+/** The comeback accounts for `wallet`'s membership in cohort `index` of a league. */
+export const comebackAccounts = async (
+  wallet: Address,
+  leagueId: number,
+  index: number,
+): Promise<ComebackAccounts> => {
+  const cohort = await cohortPda(leagueId, index);
+  return { membership: await membershipPda(cohort, wallet), cohort };
+};
+
 /**
  * `join_cohort(tier)`. The member signs, pays the rent for their `Membership`
  * (and their `Profile` if this is their first), and the stake moves from their
@@ -297,6 +319,9 @@ export const openCohortIx = async (
  * account and its mint — appended as the remaining accounts the program reads
  * when `genesis_gate_enabled` is on (research R17). With the flag off it is
  * never read, so it is omitted.
+ *
+ * `comeback` is the member's forfeited membership and its cohort ({@link comebackAccounts}):
+ * what keeps a comeback round open to them after its joining has closed.
  */
 export const joinCohortIx = async (
   member: Address,
@@ -306,6 +331,7 @@ export const joinCohortIx = async (
   tier: number,
   runningCohort?: Address,
   genesis?: { token: Address; mint: Address },
+  comeback?: ComebackAccounts,
 ): Promise<Instruction> => {
   const cohort = await cohortPda(leagueId, index);
   return {
@@ -319,6 +345,8 @@ export const joinCohortIx = async (
       rw(await profilePda(member)),
       rw(await associatedTokenPda(member, skrMint)),
       ro(runningCohort ?? PROGRAM_ID),
+      ro(comeback?.membership ?? PROGRAM_ID),
+      ro(comeback?.cohort ?? PROGRAM_ID),
       ro(skrMint),
       ro(SYSTEM_PROGRAM),
       ro(TOKEN_PROGRAM),
@@ -412,10 +440,10 @@ export const forfeitPairs = async (
  * skipped rather than refused — so a page may be repeated and re-ordered freely
  * (research R9, INV-7).
  *
- * Each breached stake splits 70/5/5/10/10 (FR-027, H35): the pool part and the
- * two reserve parts stay in the vault — the reserve parts as `boost_due` /
- * `comeback_due` until the cohort finalizes — while the developer and
- * operations parts leave at once, one batched transfer each per page.
+ * Each breached stake splits 70/10/10/10 (FR-027, H35, 2026-10-12): the pool
+ * part and the comeback pledge stay in the vault — the pledge as `comeback_due`
+ * until the forfeit is counted — while the developer and operations parts leave
+ * at once, one batched transfer each per page.
  */
 export const recordForfeitsIx = async (
   caller: Address,
@@ -448,7 +476,12 @@ export const recordForfeitsIx = async (
  * league's cohort `index - 1` is required for every index but 0: counting runs
  * in cohort order so every profile's streak does too (FR-061a) — and every
  * profile's comeback record, which a counted forfeit opens and a counted finish
- * of a later cohort in its window uses up (FR-037e).
+ * of its round uses up (FR-037e).
+ *
+ * The league (writable) and its reserve vault are accounts here since
+ * 2026-10-12: a counted forfeit's comeback pledge moves from the cohort's vault
+ * into the reserve vault and is booked to `comeback_reserve`, and a pledge this
+ * replaces or releases is booked to `boost_reserve`.
  */
 export const settleCountIx = async (
   caller: Address,
@@ -464,11 +497,12 @@ export const settleCountIx = async (
     accounts: [
       rwSigner(caller),
       ro(await configPda()),
-      ro(await leaguePda(leagueId)),
+      rw(await leaguePda(leagueId)),
       rw(cohort),
       rw(await vaultPda(cohort)),
       rw(fees.operations),
       rw(fees.developer),
+      rw(await reservePda(leagueId)),
       ro(previousCohort ?? PROGRAM_ID),
       ro(TOKEN_PROGRAM),
       ...pairs.flatMap((pair) => [rw(pair.membership), rw(pair.profile)]),
@@ -481,12 +515,13 @@ export const settleCountIx = async (
 
 /**
  * `settle_finalize()`. With finishers it draws the boost from the league's
- * reserve, writes the shares on the boosted pool and funds the comeback
- * refunds; with none it splits the whole pool half to the developer and the
- * rest to operations (FR-037). Either way it then credits the cohort's reserve
- * shares to its league (FR-037c). Like `settle_count` it needs the league's
- * cohort `index - 1`, settled — an empty cohort is never counted, so this is
- * its only ordering check (FR-061a, INV-10).
+ * boost reserve, writes the shares on the boosted pool and draws the comeback
+ * refunds its finishers are owed from the comeback reserve; with none it sends
+ * the whole pool to the league's boost reserve (FR-037, 2026-10-12). It takes no
+ * developer destination: only the operations account, for the rounding
+ * remainder (`fees.developer` is not read). Like `settle_count` it needs the
+ * league's cohort `index - 1`, settled — an empty cohort is never counted, so
+ * this is its only ordering check (FR-061a, INV-10).
  */
 export const settleFinalizeIx = async (
   caller: Address,
@@ -507,7 +542,6 @@ export const settleFinalizeIx = async (
       rw(cohort),
       rw(await vaultPda(cohort)),
       rw(fees.operations),
-      rw(fees.developer),
       rw(await reservePda(leagueId)),
       ro(previous ?? PROGRAM_ID),
       ro(TOKEN_PROGRAM),
@@ -515,6 +549,32 @@ export const settleFinalizeIx = async (
     data: instructionDiscriminator('settle_finalize'),
   };
 };
+
+// ------------------------------------------------------------ release_comeback
+
+/**
+ * `release_comeback()`, permissionless: `caller` signs and nothing else about
+ * them matters. Moves the pledge of `wallet`'s open comeback in the league from
+ * the comeback reserve to the boost reserve once its last round can no longer
+ * make it good (FR-037e). `round` is cohort `comeback_last_round` of the league,
+ * and is required once the league has opened it (`next_index > round`); omit it
+ * (the program's own ID in the slot) while that round is unopened.
+ */
+export const releaseComebackIx = async (
+  caller: Address,
+  leagueId: number,
+  wallet: Address,
+  round?: number,
+): Promise<Instruction> => ({
+  programAddress: PROGRAM_ID,
+  accounts: [
+    roSigner(caller),
+    rw(await leaguePda(leagueId)),
+    rw(await profilePda(wallet)),
+    ro(round === undefined ? PROGRAM_ID : await cohortPda(leagueId, round)),
+  ],
+  data: instructionDiscriminator('release_comeback'),
+});
 
 // ---------------------------------------------------------------- claim_payout
 
