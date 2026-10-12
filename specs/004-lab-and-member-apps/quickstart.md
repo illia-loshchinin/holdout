@@ -75,7 +75,7 @@ bash scripts/pull-traces.sh
 | 1 | Fresh install; on the connect screen | Connect wallet, plus no-wallet help when no wallet app; no video, no judge link | US3-1, FR-012 |
 | 2 | Connect; walk every screen | No text addressed to judges; "Test network, test token." and the scripted-member note in the tour; SCRIPTED labels and the DEVNET COHORT badge where they apply | US3-2, US3-3, FR-013, SC-004 |
 | 3 | Open About Holdout | Devnet notice, the tour again, Disconnect wallet; no weaknesses list, no walkthrough | FR-012, FR-015 |
-| 4 | With a wallet holding a Seeker Genesis Token, find a Hackathon Holdout on Today; with any other wallet, look for it on Home | The Seeker wallet is offered it like any Holdout, badged DEVNET COHORT with its day length, no mention of judges, and can join it; any other wallet cannot join (001 FR-003b) and only sees it in Home's "Running now" list (001 FR-062a) | US3-4, FR-014 |
+| 4 | With a wallet holding a Seeker Genesis Token, find a "Hackathon · {n}-day" on Today; with any other wallet, look for it on Home | The Seeker wallet is offered it like any Holdout, badged DEVNET COHORT with its day length, no mention of judges, and can join it; any other wallet cannot join (001 FR-003b) and only sees it in Home's "Running now" list (001 FR-062a) | US3-4, FR-014 |
 | 5 | Do a Daily 25 sitting and Stop | No label dialog, no readouts, no "rec ·" line | US2-2, FR-010 |
 | 6 | Do 10 Lab sets, then reopen Holdout | Banked reps, streak and settings unchanged | SC-005 |
 
