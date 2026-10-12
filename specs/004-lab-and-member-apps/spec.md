@@ -40,6 +40,12 @@ The constitution changes through `/speckit-constitution`; 001, 002 and 003 chang
 
 ## Clarifications
 
+### Session 2026-10-12
+
+- Q: What does the member app call the short test lobby's Holdouts, and what is the label on them, given that FR-013 names a TEST COHORT label and FR-014 "short test Holdouts"? (FR-013, FR-014; 001 FR-044a) → A: **A "Hackathon Holdout", with the quiet badge "DEVNET COHORT · {day length} DAYS".** The label of FR-013 is that neutral pill, which still carries the day length and says the Holdout runs on devnet; it is no longer called TEST COHORT and is no longer warning-coloured. Members read "Hackathon Holdout" where this spec says "short test Holdout"; the short test lobby keeps that name in the README, the demo video and the pitch deck (the disclosure, 001 FR-044a, amended 2026-10-12). Nothing is addressed to judges and the rules are unchanged. Decided by the product owner on 12 October (the name chosen by his delegate). *(Superseded in its name 2026-10-12, evening: "Hackathon · {n}-day", like a level — the next entry; the badge stays.)*
+- Q: What does the member app call the short test lobby's Holdouts now? (FR-013, FR-014; 001 FR-044a) → A: **"Hackathon · {n}-day" (for example "Hackathon · 3-day"), like a level, and not "Hackathon Holdout".** The quiet badge "DEVNET COHORT · {n}-MINUTE DAYS" stays; the README, the demo video and the pitch deck still disclose the short test lobby; nothing is addressed to judges and the rules are unchanged. Decided by the product owner on 12 October (canvas v235–v238); the wording is 001 FR-044a's.
+- Q: What does the tour card that discloses scripted members say in its title, and may the member app say "Hackathon" there? (FR-012, FR-013; 001 FR-067) → A: **"Scripted members" on one line and "for Hackathon only" on the next.** Scripted members exist only in the Hackathon rounds on devnet, and "Hackathon" is a round's name (001 FR-044a), not a word addressed to judges, so FR-012 is unaffected. The card is card 5 of 5 and, like every tour card, fits one Seeker screen (400 × 829 dp) without scrolling (001 FR-067). Decided by the product owner on 12 October (canvas v261, board 2d; built in `cbabab9`).
+
 ### Session 2026-10-11
 
 - Q: Is the short test lobby open to anyone, as FR-014 and the amendment table say? (FR-014; 001 FR-003b, FR-044a) → A: **No — to every wallet holding a Seeker Genesis Token.** Staking is Seeker-exclusive since 2026-10-10 (001 FR-003b, H38, constitution v2.3.0): joining any staked Holdout, the short test lobby included, needs one; anyone else sees it from Home's "Running now" list and does the Daily 25. The lobby is still labelled and still kept running. Found by the PR #46 `/speckit-analyze` (X2); no behaviour changes.
@@ -89,7 +95,7 @@ A member installs Holdout. Nothing in it can save their camera, keep a trace of 
 Anyone who installs Holdout, a judge included, gets the app a member gets:
 - the connect screen;
 - the tour, with the scripted-member disclosure;
-- Today, Holdouts and the short test lobby, labelled as a short test Holdout.
+- Today, Holdouts and the short test lobby, whose Holdouts are labelled Hackathon Holdouts with the DEVNET COHORT badge.
 
 There is no screen, link or video meant only for judges. The full cycle is shown in the demo video, which is sent as a link with the submission.
 
@@ -102,7 +108,7 @@ There is no screen, link or video meant only for judges. The full cycle is shown
 1. **Given** the connect screen, **When** no wallet is connected, **Then** the only actions are connecting a wallet and, when the phone has no wallet app, help getting one; there is no video and no link for judges.
 2. **Given** a connected member, **When** they browse every screen, **Then** none is titled or labelled for judges, and no in-app video player exists.
 3. **Given** a member on first run, **When** the tour runs, **Then** it still says that some members are scripted and that the app runs on a test network with a test token.
-4. **Given** the short test lobby has a Holdout open, **When** a member sees it, **Then** it is offered like any other Holdout, labelled as a short test Holdout with its day length, and described without any mention of judges.
+4. **Given** the short test lobby has a Holdout open, **When** a member sees it, **Then** it is offered like any other Holdout, as a "Hackathon · {n}-day" wearing the DEVNET COHORT badge with its day length, and described without any mention of judges.
 
 ---
 
@@ -161,10 +167,10 @@ The team finds a counting mistake in a Lab set and fixes it. The next build of e
   Before a wallet is connected, the only things reachable are the connect screen and, when the phone has no wallet app, help getting one (amends 001 FR-001a).
 - **FR-013** The member app keeps every disclosure a member needs:
   - *"Test network, test token."*;
-  - the first-run note that some members are scripted;
+  - the first-run note that some members are scripted — tour card 5, titled "Scripted members" / "for Hackathon only" *(amended 2026-10-12)*;
   - the SCRIPTED label on every scripted member;
-  - the TEST COHORT label, with its day length, on every short test Holdout.
-- **FR-014** The member app keeps the short test lobby: short test Holdouts open continuously, offered beside the 7-day and 21-day Holdouts to every wallet that may stake — one holding a Seeker Genesis Token (001 FR-003b, amended 2026-10-11; anyone else watches it from Home's "Running now" list, 001 FR-062a) — labelled as short test Holdouts and described without reference to judges (amends 001 FR-044a's wording only; its rules are unchanged).
+  - the DEVNET COHORT badge, with its day length, on every Hackathon Holdout *(amended 2026-10-12; was the TEST COHORT label)*.
+- **FR-014** The member app keeps the short test lobby: short test Holdouts open continuously, offered beside the 7-day and 21-day Holdouts to every wallet that may stake — one holding a Seeker Genesis Token (001 FR-003b, amended 2026-10-11; anyone else watches it from Home's "Running now" list, 001 FR-062a) — named "Hackathon · {n}-day", with the DEVNET COHORT badge (amended 2026-10-12, evening; was "Hackathon Holdout"), and described without reference to judges (amends 001 FR-044a's wording only; its rules are unchanged).
 - **FR-015** Known weaknesses are documented in the README only, and the member app has no weaknesses screen (constitution XI requires the README only). Spec 003, on its own branch, makes the matching change to its FR-010.
 - **FR-016** Nothing a member uses changes beyond FR-010 and FR-012: every other screen, rule and transaction stays as it is.
 
@@ -191,6 +197,6 @@ The team finds a counting mistake in a Lab set and fixes it. The next build of e
 - **Distribution.** Testers get Holdout Lab by direct install from the team. Testers already in the beta have agreed in writing to be filmed (the existing consent).
 - **Same counting.** Counting in Lab for a staked mode uses the same checks as a staked sitting, but nothing is staked; "the counting-mode switch" of today becomes Lab's mode choice.
 - **The demo video** is hosted elsewhere and linked in the submission form. Neither app plays or links it.
-- **Names in the app.** The short test lobby keeps its existing name and labels toward members; only text that addresses judges goes.
+- **Names in the app.** The short test lobby's Holdouts are Hackathon Holdouts toward members (2026-10-12), with the DEVNET COHORT badge; only text that addresses judges goes.
 - **Out of scope:** new recording features, uploading sets from Lab, any change to rep-counting rules, the contract or the crank, and the member app's navigation redesign (a later feature).
 - **The deadline.** The member app built from this feature is the one submitted by 13 October 2026, 01:59 CEST.

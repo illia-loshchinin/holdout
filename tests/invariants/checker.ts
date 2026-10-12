@@ -1,5 +1,6 @@
 /**
- * The invariant checker — INV-1…INV-10 of spec §8.4. Task T017, amended for H35.
+ * The invariant checker — INV-1…INV-10 of spec §8.4. Task T017, amended for H35
+ * and again on 2026-10-12 (the guaranteed comeback).
  *
  * Pure functions over a decoded snapshot: no LiteSVM, no RPC, no Kit. Scenario
  * tests call `assertInvariants` after every step and pass the previous snapshot
@@ -9,14 +10,19 @@
  * Amounts are bigint base units. Times are numbers — chain seconds fit a double
  * with room to spare, and arithmetic on them stays readable.
  *
- * ## The money since H35
+ * ## The money since 2026-10-12
  *
- * A forfeited stake splits 70 / 5 / 5 / 10 / 10 (FR-027): the pool part and the
- * two reserve parts (`boost_due`, `comeback_due`) stay in the cohort's vault, the
- * developer and operations parts leave at once. The reserve parts move into the
- * league's reserve vault only when the cohort finalizes (FR-037c, INV-10), after
- * the cohort has drawn its boost and its comeback funding from that same reserve
- * (FR-037d, FR-037e). Nothing carries over between cohorts any more.
+ * A forfeited stake splits 70 / 10 / 10 / 10 (FR-027): the pool part and the
+ * member's comeback pledge (`comeback_due`) stay in the cohort's vault, the
+ * developer and operations parts leave at once. The pledge moves into the
+ * league's reserve vault when the forfeit is *counted* and is booked to the
+ * league's comeback reserve in the same instruction that opens the member's
+ * comeback (FR-037c, FR-037e), so an open comeback is always funded. A pledge
+ * reaches the boost reserve only by being released: replaced by a newer counted
+ * forfeit, left unclaimed by a finish outside the comeback's rounds or above the
+ * new stake, or released by `release_comeback`. A boost draws on the boost
+ * reserve alone (FR-037d), and a cohort nobody finished sends its whole pool
+ * there (FR-037). Nothing carries over between cohorts.
  */
 
 export type Address = string;
@@ -35,8 +41,7 @@ export interface CohortSnapshot {
   memberCount: number;
   heldStake: bigint;
   pool: bigint;
-  /** Reserve shares of this cohort's forfeits, held in its vault until it finalizes. */
-  boostDue: bigint;
+  /** The comeback pledges of this cohort's recorded forfeits, held in its vault until each is counted. */
   comebackDue: bigint;
   forfeitsRecorded: number;
   counted: number;
@@ -46,13 +51,13 @@ export interface CohortSnapshot {
   settled: boolean;
   sharePerTier: [bigint, bigint, bigint, bigint];
   roundingRemainder: bigint;
-  /** A cohort nobody finished: its whole pool, split developer / operations. */
-  noFinisherFee: bigint;
+  /** A cohort nobody finished: its whole pool, sent to the league's boost reserve. */
+  noFinisherBoost: bigint;
   /** What finalization drew from the league's boost reserve into the pool. */
   boostReceived: bigint;
   /** Σ comeback entitlements of its counted finishers. */
   comebackOwed: bigint;
-  /** What finalization drew from the comeback reserve: `min(owed, reserve)`. */
+  /** What finalization drew from the comeback reserve: all of `comebackOwed`, which the reserve always holds. */
   comebackFunded: bigint;
   /** Refunds paid out with claims so far. */
   comebackClaimed: bigint;
@@ -65,6 +70,13 @@ export interface LeagueSnapshot {
   leagueId: number;
   boostReserve: bigint;
   comebackReserve: bigint;
+  /** The league's schedule: a comeback's rounds and their release are read from it. */
+  firstStart: number;
+  cadence: number;
+  joinLock: number;
+  dayLength: number;
+  /** The index the league opens next: cohorts below it exist. */
+  nextIndex: number;
   /** SKR the league's reserve vault token account actually holds. */
   reserveVaultAmount: bigint;
 }
@@ -88,10 +100,12 @@ export interface LeagueProgressSnapshot {
   currentStreak: number;
   longestStreak: number;
   lastChanged: number;
-  /** The latest counted forfeit's stake while it can still earn a comeback; 0 once used. */
+  /** The latest counted forfeit's stake while its comeback is open; 0 once made good or released. */
   comebackStake: bigint;
-  comebackFrom: number;
-  comebackUntil: number;
+  comebackLeague: number;
+  /** The first and the last round (cohort indices of `comebackLeague`) that make it good. */
+  comebackRound: number;
+  comebackLastRound: number;
 }
 
 export interface ProfileSnapshot {
@@ -158,19 +172,20 @@ export const feeOf = (stake: bigint): bigint => (stake * 30n) / 100n;
 
 export interface ForfeitSplit {
   pool: bigint;
-  boost: bigint;
   comeback: bigint;
   developer: bigint;
   operations: bigint;
 }
 
-/** Where one forfeited stake goes: 70 / 5 / 5 / 10 / 10, operations taking the rounding (FR-027, H35; re-split 2026-10-09). */
+/** The member's comeback pledge on a forfeited stake: 10 %, rounded down (FR-037e). */
+export const comebackPledge = (stake: bigint): bigint => (stake * 10n) / 100n;
+
+/** Where one forfeited stake goes: 70 / 10 / 10 / 10, operations taking the rounding (FR-027, H35; re-split 2026-10-12). */
 export const forfeitSplit = (stake: bigint): ForfeitSplit => {
   const fee = feeOf(stake);
-  const boost = (stake * 5n) / 100n;
-  const comeback = (stake * 5n) / 100n;
+  const comeback = comebackPledge(stake);
   const developer = (stake * 10n) / 100n;
-  return { pool: stake - fee, boost, comeback, developer, operations: fee - boost - comeback - developer };
+  return { pool: stake - fee, comeback, developer, operations: fee - comeback - developer };
 };
 
 const min = (a: bigint, b: bigint): bigint => (a < b ? a : b);
@@ -178,22 +193,57 @@ const min = (a: bigint, b: bigint): bigint => (a < b ? a : b);
 /** `min(10 % of the cohort's own pool, the league's boost reserve)` (FR-037d). */
 export const boostFor = (ownPool: bigint, boostReserve: bigint): bigint => min((ownPool * 10n) / 100n, boostReserve);
 
-/** `min(20 % of the forfeited stake, the stake finished on)` (FR-037e). */
+/** `min(the pledge of the forfeited stake, the stake finished on)` (FR-037e). */
 export const comebackOwedFor = (forfeitedStake: bigint, newStake: bigint): bigint =>
-  min((forfeitedStake * 20n) / 100n, newStake);
+  min(comebackPledge(forfeitedStake), newStake);
 
 /** One finisher's refund, scaled pro rata when the reserve funded less than was owed (FR-037e). */
 export const comebackRefund = (entitled: bigint, funded: bigint, owed: bigint): bigint =>
   owed === 0n ? 0n : (entitled * funded) / owed;
 
-/** A no-finisher pool: half (floored) to the developer, the rest to operations (FR-037; was a third until 2026-10-09). */
-export const noFinisherSplit = (pool: bigint): { developer: bigint; operations: bigint } => ({
-  developer: pool / 2n,
-  operations: pool - pool / 2n,
+/** `first_start + index * cadence` (research R11). */
+export const cohortStartOf = (l: Pick<LeagueSnapshot, 'firstStart' | 'cadence'>, index: number): number =>
+  l.firstStart + index * l.cadence;
+
+/** The smallest `k` with `first_start + k * cadence > missed_at`, clamped at 0 (`schedule::comeback_round`). */
+export const comebackRound = (l: Pick<LeagueSnapshot, 'firstStart' | 'cadence'>, missedAt: number): number =>
+  Math.max(0, Math.min(Math.floor((missedAt - l.firstStart) / l.cadence) + 1, 2 ** 32 - 1));
+
+/**
+ * The rounds that make a comeback good (`schedule::comeback_rounds`): the first
+ * cohort of the league to start after the missed deadline, and — when that cohort
+ * had already closed for joining the second after the miss — the one after it.
+ */
+export const comebackRounds = (
+  l: Pick<LeagueSnapshot, 'firstStart' | 'cadence' | 'joinLock'>,
+  missedAt: number,
+): [first: number, last: number] => {
+  const first = comebackRound(l, missedAt);
+  const cutoff = cohortStartOf(l, first) - l.joinLock;
+  return missedAt + 1 < cutoff ? [first, first] : [first, first + 1];
+};
+
+/** A profile's comeback record for one league, as the three slots hold it. */
+export interface ComebackRecord {
+  stake: bigint;
+  league: number;
+  round: number;
+  lastRound: number;
+}
+
+export const NO_COMEBACK: ComebackRecord = { stake: 0n, league: 0, round: 0, lastRound: 0 };
+
+export const comebackOf = (p: LeagueProgressSnapshot): ComebackRecord => ({
+  stake: p.comebackStake,
+  league: p.comebackLeague,
+  round: p.comebackRound,
+  lastRound: p.comebackLastRound,
 });
 
-/** How many of the forfeited cohort's days after the missed deadline a comeback cohort may start. */
-export const COMEBACK_WINDOW_DAYS = 14;
+const sameRecord = (a: ComebackRecord, b: ComebackRecord): boolean =>
+  a.stake === b.stake && a.league === b.league && a.round === b.round && a.lastRound === b.lastRound;
+
+const isOpen = (r: ComebackRecord): boolean => r.stake > 0n;
 
 // ---------------------------------------------------------------- derivations
 
@@ -283,22 +333,56 @@ export const deriveStreak = (
 };
 
 /**
+ * Whether a comeback's pledge can be released at `now` by `release_comeback`:
+ * the latest of its rounds the league has opened — cohort
+ * `min(last, next_index − 1)` — is settled (and with it every earlier one), and a
+ * round not opened yet has had its first day pass (FR-037e). Once true it stays
+ * true — cohorts only settle and the clock only runs forward — so a single
+ * snapshot can tell a profile that was lawfully released from one whose record
+ * was wiped.
+ */
+export const releasable = (
+  league: LeagueSnapshot,
+  cohorts: Iterable<CohortSnapshot>,
+  record: ComebackRecord,
+  now: number,
+): boolean => {
+  const last = record.lastRound;
+  if (league.nextIndex > record.round) {
+    const latest = Math.min(last, league.nextIndex - 1);
+    let settled = false;
+    for (const c of cohorts) if (c.leagueId === league.leagueId && c.index === latest) settled = c.settled;
+    if (!settled) return false;
+  }
+  if (league.nextIndex <= last) return now > cohortStartOf(league, last) + league.dayLength - 1;
+  return true;
+};
+
+/**
  * The comeback record a profile must hold for one league, and what each counted
  * finisher is entitled to, derived rather than trusted (FR-037e).
  *
  * Written only by `settle_count`, in cohort order like the streak, so the same
  * ordering argument applies: walk the member's counted cohorts of the league by
- * start. A counted forfeit opens (or replaces) the record with its stake and
- * missed deadline; a counted finish of a cohort starting after that deadline and
- * no more than 14 of the forfeited cohort's days after it uses the record up and
- * is owed `min(20 % of the forfeited stake, its own stake)`.
+ * start. A counted forfeit replaces the record with its stake and the rounds
+ * that make it good (`comebackRounds`); a counted finish of one of those rounds
+ * is owed `min(10 % of the forfeited stake, its own stake)` and closes the
+ * record; a counted finish of a later cohort lets it lapse. `release_comeback`
+ * leaves no trace in the memberships, so a record cleared by it is recognised in
+ * `checkStreaks` by `releasable` rather than here.
+ *
+ * `known` is false when the league's schedule is not in the snapshot.
  */
 export const deriveComeback = (
   memberships: MembershipSnapshot[],
   cohorts: Map<Address, CohortSnapshot>,
+  leagues: Map<number, LeagueSnapshot>,
   wallet: Address,
   leagueId: number,
-): { comebackStake: bigint; comebackFrom: number; comebackUntil: number; entitled: Map<Address, bigint> } => {
+): { known: boolean; record: ComebackRecord; entitled: Map<Address, bigint> } => {
+  const league = leagues.get(leagueId);
+  const entitled = new Map<Address, bigint>();
+  if (!league) return { known: false, record: NO_COMEBACK, entitled };
   const history = memberships
     .filter((m) => m.wallet === wallet && m.counted)
     .map((m) => ({ m, c: cohorts.get(m.cohort) }))
@@ -306,23 +390,22 @@ export const deriveComeback = (
     .filter((x) => x.c.leagueId === leagueId)
     .sort((a, b) => a.c.start - b.c.start || a.c.index - b.c.index);
 
-  let comebackStake = 0n;
-  let comebackFrom = 0;
-  let comebackUntil = 0;
-  const entitled = new Map<Address, bigint>();
+  let record = NO_COMEBACK;
   for (const { m, c } of history) {
     if (m.state === 'Forfeited') {
-      comebackStake = m.stake;
-      comebackFrom = deadlineOf(c, m.daysCompleted);
-      comebackUntil = comebackFrom + COMEBACK_WINDOW_DAYS * c.dayLength;
+      const [round, lastRound] = comebackRounds(league, deadlineOf(c, m.daysCompleted));
+      record = { stake: m.stake, league: leagueId, round, lastRound };
     } else if (m.state === 'Finished' || m.state === 'Claimed') {
-      if (comebackStake > 0n && c.start > comebackFrom && c.start <= comebackUntil) {
-        entitled.set(m.address, comebackOwedFor(comebackStake, m.stake));
-        comebackStake = 0n;
+      if (!isOpen(record)) continue;
+      if (c.index >= record.round && c.index <= record.lastRound) {
+        entitled.set(m.address, comebackOwedFor(record.stake, m.stake));
+        record = NO_COMEBACK;
+      } else if (c.index > record.lastRound) {
+        record = NO_COMEBACK;
       }
     }
   }
-  return { comebackStake, comebackFrom, comebackUntil, entitled };
+  return { known: true, record, entitled };
 };
 
 // ---------------------------------------------------------------- the checks
@@ -332,12 +415,13 @@ const byAddress = <T extends { address: Address }>(xs: T[]): Map<Address, T> =>
 
 /** What INV-1 says a cohort's vault holds. */
 export const custodyOf = (c: CohortSnapshot): bigint =>
-  c.heldStake + c.pool + c.boostDue + c.comebackDue + (c.comebackFunded - c.comebackClaimed);
+  c.heldStake + c.pool + c.comebackDue + (c.comebackFunded - c.comebackClaimed);
 
 /**
- * INV-1 · a cohort's vault holds its held stakes, its pool, its reserve shares
- * not yet credited and the comeback refunds funded and not yet claimed; a
- * league's reserve vault holds its boost reserve plus its comeback reserve.
+ * INV-1 · a cohort's vault holds its held stakes, its pool, the comeback pledges
+ * of its forfeits not yet counted and the comeback refunds funded and not yet
+ * claimed; a league's reserve vault holds its boost reserve plus its comeback
+ * reserve.
  */
 const checkCustody = (s: Snapshot): void => {
   for (const c of s.cohorts) {
@@ -348,7 +432,7 @@ const checkCustody = (s: Snapshot): void => {
     if (c.vaultAmount !== expected) {
       fail(
         'INV-1',
-        `cohort ${c.address}: vault ${c.vaultAmount} != held ${c.heldStake} + pool ${c.pool} + boost due ${c.boostDue} + comeback due ${c.comebackDue} + unclaimed refunds ${c.comebackFunded - c.comebackClaimed}`,
+        `cohort ${c.address}: vault ${c.vaultAmount} != held ${c.heldStake} + pool ${c.pool} + comeback due ${c.comebackDue} + unclaimed refunds ${c.comebackFunded - c.comebackClaimed}`,
       );
     }
   }
@@ -539,6 +623,7 @@ const checkTallies = (s: Snapshot): void => {
  * and so does the comeback record, which `settle_count` writes beside it.
  */
 const checkStreaks = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void => {
+  const leagues = new Map(s.leagues.map((l) => [l.leagueId, l]));
   for (const p of s.profiles) {
     for (const [idText, progress] of Object.entries(p.leagues)) {
       const leagueId = Number(idText);
@@ -582,16 +667,22 @@ const checkStreaks = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void 
           `${p.wallet} league ${leagueId}: forfeited ${progress.forfeited}, on-chain memberships ${forfeited}`,
         );
       }
-      const comeback = deriveComeback(s.memberships, cohorts, p.wallet, leagueId);
-      if (
-        progress.comebackStake !== comeback.comebackStake ||
-        progress.comebackFrom !== comeback.comebackFrom ||
-        progress.comebackUntil !== comeback.comebackUntil
-      ) {
-        fail(
-          'INV-9',
-          `${p.wallet} league ${leagueId}: comeback ${progress.comebackStake} in (${progress.comebackFrom}, ${progress.comebackUntil}], counted outcomes give ${comeback.comebackStake} in (${comeback.comebackFrom}, ${comeback.comebackUntil}]`,
-        );
+      const comeback = deriveComeback(s.memberships, cohorts, leagues, p.wallet, leagueId);
+      if (comeback.known) {
+        const held = comebackOf(progress);
+        // A pledge `release_comeback` let go leaves no membership behind, so a
+        // cleared record is lawful exactly when the derivation still has it open
+        // and its last round can no longer make it good.
+        const released =
+          isOpen(comeback.record) &&
+          sameRecord(held, NO_COMEBACK) &&
+          releasable(leagues.get(leagueId)!, cohorts.values(), comeback.record, s.now);
+        if (!sameRecord(held, comeback.record) && !released) {
+          fail(
+            'INV-9',
+            `${p.wallet} league ${leagueId}: comeback ${JSON.stringify(held, bigintJson)}, counted outcomes give ${JSON.stringify(comeback.record, bigintJson)}`,
+          );
+        }
       }
     }
   }
@@ -605,14 +696,21 @@ const checkStreaks = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void 
  * test league whose profile slot is shared and left out of the snapshot.
  */
 const checkEntitlements = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): void => {
+  const leagues = new Map(s.leagues.map((l) => [l.leagueId, l]));
+  const ambiguous = walletsInSeveralTestLeagues(s, cohorts);
   const seen = new Set<string>();
   for (const m of s.memberships) {
     const c = cohorts.get(m.cohort);
     if (!c) continue;
+    // Every test league shares one pledge slot, so which of several leagues a
+    // pledge ended up in depends on the crank's order: nothing to derive.
+    if (ambiguous.has(m.wallet)) continue;
     const key = `${m.wallet}/${c.leagueId}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const { entitled } = deriveComeback(s.memberships, cohorts, m.wallet, c.leagueId);
+    const derived = deriveComeback(s.memberships, cohorts, leagues, m.wallet, c.leagueId);
+    if (!derived.known) continue;
+    const { entitled } = derived;
     for (const x of s.memberships) {
       if (x.wallet !== m.wallet || cohorts.get(x.cohort)?.leagueId !== c.leagueId) continue;
       const want = entitled.get(x.address) ?? 0n;
@@ -626,14 +724,253 @@ const checkEntitlements = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): 
   }
 };
 
-/** A league's reserve parts arriving with its cohorts' finalizations this step. */
-interface ReserveMove {
-  /** Reserve shares credited: the cohort's dues, including this step's forfeits. */
-  boostIn: bigint;
-  comebackIn: bigint;
-  /** Drawn out for the cohort's boost and comeback funding. */
-  boostOut: bigint;
-  comebackOut: bigint;
+/** JSON.stringify's replacer for a record holding bigints. */
+const bigintJson = (_k: string, v: unknown): unknown => (typeof v === 'bigint' ? v.toString() : v);
+
+/** Wallets with memberships in more than one test league (id ≥ 100). */
+const walletsInSeveralTestLeagues = (s: Snapshot, cohorts: Map<Address, CohortSnapshot>): Set<Address> => {
+  const leaguesOf = new Map<Address, Set<number>>();
+  for (const m of s.memberships) {
+    const id = cohorts.get(m.cohort)?.leagueId;
+    if (id === undefined || id < 100) continue;
+    leaguesOf.set(m.wallet, (leaguesOf.get(m.wallet) ?? new Set()).add(id));
+  }
+  return new Set([...leaguesOf].filter(([, ids]) => ids.size > 1).map(([wallet]) => wallet));
+};
+
+/**
+ * INV-1 and INV-10 for the leagues · a boost never touches a pledge.
+ *
+ * A league's comeback reserve has to cover every open pledge on a profile and
+ * every refund owed and not yet drawn by a cohort. The pledges are what a member
+ * was promised when their forfeit was counted; a boost draws on the boost
+ * reserve alone, so however the two reserves are drawn, this floor holds.
+ * It is a floor and not an equality because a scenario may inject more reserve
+ * than the pledges explain.
+ */
+const checkPledges = (s: Snapshot): void => {
+  for (const l of s.leagues) {
+    let pledged = 0n;
+    for (const p of s.profiles) {
+      for (const progress of Object.values(p.leagues)) {
+        if (progress.comebackStake > 0n && progress.comebackLeague === l.leagueId) {
+          pledged += comebackPledge(progress.comebackStake);
+        }
+      }
+    }
+    let owedNotDrawn = 0n;
+    for (const c of s.cohorts) {
+      if (c.leagueId === l.leagueId && c.comebackOwed > c.comebackFunded) owedNotDrawn += c.comebackOwed - c.comebackFunded;
+    }
+    if (l.comebackReserve < pledged + owedNotDrawn) {
+      fail(
+        'INV-10',
+        `league ${l.leagueId}: comeback reserve ${l.comebackReserve} is short of the ${pledged} pledged to open comebacks plus the ${owedNotDrawn} owed and not drawn`,
+      );
+    }
+  }
+};
+
+/**
+ * INV-10 · what moves a league's two reserves, and nothing else does.
+ *
+ * Four things move them, each by an amount fixed by the memberships and the
+ * cohort alone:
+ *
+ *  - `settle_count` of a forfeit takes its pledge out of the cohort's vault
+ *    into the reserve vault, booked to the comeback reserve as it opens the
+ *    member's comeback; the member's older pledge in the league, if any, is
+ *    released to the boost reserve;
+ *  - `settle_count` of a finish inside the comeback's rounds makes
+ *    `min(pledge, stake)` owed (it stays in the comeback reserve until drawn)
+ *    and releases the rest, and a finish after the rounds releases the lot;
+ *  - `release_comeback` moves a pledge whose last round is over to the boost
+ *    reserve, and is recognised by a profile's open record vanishing with no
+ *    count to explain it;
+ *  - `settle_finalize` draws the boost (from the boost reserve, at most 10 % of
+ *    the cohort's own pool) and the refunds owed (from the comeback reserve), or,
+ *    for a cohort nobody finished, sends its pool to the boost reserve.
+ *
+ * The sum of the two reserves is checked whatever the profiles look like. The
+ * split between them is replayed per wallet from the previous snapshot's
+ * records, and is skipped (never loosened) for a league where a wallet's record
+ * is not in the snapshot — the test leagues' shared slot, left out when a wallet
+ * sits in several of them.
+ */
+const checkReserves = (
+  prev: Snapshot,
+  next: Snapshot,
+  prevLeagues: Map<number, LeagueSnapshot>,
+  newlyCounted: MembershipSnapshot[],
+  pledgesCounted: Map<Address, bigint>,
+  finalizedIn: Map<number, Finalized[]>,
+): void => {
+  const nextCohorts = new Map(next.cohorts.map((c) => [c.address, c]));
+  for (const l of next.leagues) {
+    const lb = prevLeagues.get(l.leagueId);
+    if (!lb) {
+      if (l.boostReserve !== 0n || l.comebackReserve !== 0n) {
+        fail('INV-10', `league ${l.leagueId} appeared holding ${l.boostReserve} boost and ${l.comebackReserve} comeback reserve`);
+      }
+      continue;
+    }
+    const cohortsOfLeague = next.cohorts.filter((c) => c.leagueId === l.leagueId).sort((a, b) => a.index - b.index);
+    const finalized = (finalizedIn.get(l.leagueId) ?? []).sort((a, b) => a.cohort.index - b.cohort.index);
+    const counted = newlyCounted.filter((m) => nextCohorts.get(m.cohort)?.leagueId === l.leagueId);
+
+    // The sum: every unit that crossed the reserve vault this step.
+    let sum = lb.boostReserve + lb.comebackReserve;
+    for (const c of cohortsOfLeague) sum += pledgesCounted.get(c.address) ?? 0n;
+    for (const f of finalized) {
+      sum +=
+        f.cohort.totalFinisherStake > 0n
+          ? -(f.cohort.boostReceived + f.cohort.comebackFunded)
+          : f.cohort.noFinisherBoost;
+    }
+    if (l.boostReserve + l.comebackReserve !== sum) {
+      fail(
+        'INV-10',
+        `league ${l.leagueId}: reserves ${lb.boostReserve}/${lb.comebackReserve} → ${l.boostReserve}/${l.comebackReserve}, but the pledges counted, the pools sent and the draws of this step make a total of ${sum}`,
+      );
+    }
+
+    // The split, replayed from the profiles' records.
+    let exact = true;
+    let cr = lb.comebackReserve;
+    let br = lb.boostReserve;
+    const records = new Map<Address, ComebackRecord>();
+    const prevRecord = (wallet: Address): ComebackRecord | undefined => {
+      const held = records.get(wallet);
+      if (held) return held;
+      const progress = prev.profiles.find((p) => p.wallet === wallet)?.leagues[l.leagueId];
+      return progress ? comebackOf(progress) : undefined;
+    };
+
+    // (1) counting, cohort by cohort
+    for (const c of cohortsOfLeague) {
+      for (const m of counted.filter((x) => x.cohort === c.address).sort((a, b) => a.wallet.localeCompare(b.wallet))) {
+        const record = prevRecord(m.wallet);
+        if (!record) {
+          exact = false;
+          continue;
+        }
+        const pledge = comebackPledge(m.stake);
+        let entitled = 0n;
+        if (m.state === 'Forfeited') {
+          if (isOpen(record) && record.league !== l.leagueId) {
+            // A test league's shared slot holds another league's pledge: this one is not opened.
+            br += pledge;
+          } else {
+            if (isOpen(record)) {
+              const old = comebackPledge(record.stake);
+              cr -= old;
+              br += old;
+            }
+            const [round, lastRound] = comebackRounds(lb, deadlineOf(c, m.daysCompleted));
+            records.set(m.wallet, { stake: m.stake, league: l.leagueId, round, lastRound });
+            cr += pledge;
+          }
+        } else if (isOpen(record) && record.league === l.leagueId) {
+          const held = comebackPledge(record.stake);
+          if (c.index >= record.round && c.index <= record.lastRound) {
+            entitled = comebackOwedFor(record.stake, m.stake);
+            cr -= held - entitled;
+            br += held - entitled;
+            records.set(m.wallet, NO_COMEBACK);
+          } else if (c.index > record.lastRound) {
+            cr -= held;
+            br += held;
+            records.set(m.wallet, NO_COMEBACK);
+          }
+        }
+        if (m.state !== 'Forfeited' && m.comebackEntitled !== entitled) {
+          fail(
+            'INV-2',
+            `${m.wallet} in ${m.cohort}: counted with a comeback entitlement of ${m.comebackEntitled}, its comeback gives ${entitled}`,
+          );
+        }
+      }
+    }
+
+    // (2) releases: an open record gone with no count to close it
+    for (const p of next.profiles) {
+      const progress = p.leagues[l.leagueId];
+      if (!progress) continue;
+      const held = prevRecord(p.wallet) ?? (prev.profiles.some((q) => q.wallet === p.wallet) ? undefined : NO_COMEBACK);
+      if (!held) {
+        exact = false;
+        continue;
+      }
+      const now = comebackOf(progress);
+      if (sameRecord(now, held)) continue;
+      if (isOpen(held) && sameRecord(now, NO_COMEBACK)) {
+        if (!releasable(l, next.cohorts, held, next.now)) {
+          fail(
+            'INV-10',
+            `${p.wallet} league ${l.leagueId}: comeback of ${held.stake} (rounds ${held.round}–${held.lastRound}) released while its last round can still make it good`,
+          );
+        }
+        const pledge = comebackPledge(held.stake);
+        cr -= pledge;
+        br += pledge;
+        records.set(p.wallet, NO_COMEBACK);
+      } else {
+        fail(
+          'INV-9',
+          `${p.wallet} league ${l.leagueId}: comeback ${JSON.stringify(held, bigintJson)} → ${JSON.stringify(now, bigintJson)}, which neither a count nor a release writes`,
+        );
+      }
+    }
+
+    // (3) finalization, cohort by cohort: the boost from the boost reserve, the
+    // refunds from the comeback reserve, or the whole pool into the boost reserve.
+    for (const { cohort: c, ownPool } of finalized) {
+      if (c.totalFinisherStake > 0n) {
+        if (exact) {
+          const boost = boostFor(ownPool, br);
+          if (c.boostReceived !== boost) {
+            fail(
+              'INV-2',
+              `cohort ${c.address}: boost ${c.boostReceived}, but min(10% of ${ownPool}, boost reserve ${br}) is ${boost}`,
+            );
+          }
+          const funded = c.comebackOwed < cr ? c.comebackOwed : cr;
+          if (c.comebackFunded !== funded) {
+            fail(
+              'INV-2',
+              `cohort ${c.address}: comeback funded ${c.comebackFunded}, but the ${c.comebackOwed} owed and the comeback reserve of ${cr} give ${funded}`,
+            );
+          }
+        }
+        br -= c.boostReceived;
+        cr -= c.comebackFunded;
+      } else {
+        br += c.noFinisherBoost;
+      }
+    }
+
+    if (exact) {
+      if (l.boostReserve !== br || l.comebackReserve !== cr) {
+        fail(
+          'INV-10',
+          `league ${l.leagueId}: reserves ${lb.boostReserve}/${lb.comebackReserve} → ${l.boostReserve}/${l.comebackReserve}, the counts, releases and finalizations of this step give ${br}/${cr}`,
+        );
+      }
+    } else if (counted.length === 0 && finalized.length === 0) {
+      if (l.boostReserve !== lb.boostReserve || l.comebackReserve !== lb.comebackReserve) {
+        fail(
+          'INV-10',
+          `league ${l.leagueId}: reserves ${lb.boostReserve}/${lb.comebackReserve} → ${l.boostReserve}/${l.comebackReserve} with no count or finalization to move them`,
+        );
+      }
+    }
+  }
+};
+
+/** A cohort that finalized in the step being checked, with the pool it raised on its own. */
+interface Finalized {
+  cohort: CohortSnapshot;
+  ownPool: bigint;
 }
 
 /** INV-2, INV-5, INV-6, INV-8, INV-10 — each about a change, so each needs both snapshots. */
@@ -643,7 +980,7 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
   const prevCohorts = new Map(prev.cohorts.map((c) => [c.address, c]));
   const nextCohorts = new Map(next.cohorts.map((c) => [c.address, c]));
   const prevLeagues = new Map(prev.leagues.map((l) => [l.leagueId, l]));
-  const reserveMoves = new Map<number, ReserveMove[]>();
+  const finalizedIn = new Map<number, Finalized[]>();
   let operationsOwed = 0n;
   let developerOwed = 0n;
 
@@ -678,6 +1015,18 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
     }
   }
 
+  // The memberships `settle_count` counted this step, and what each forfeit's
+  // pledge took out of its cohort's vault on the way to the league's reserve.
+  const newlyCounted = next.memberships.filter((m) => {
+    const was = prevMemberships.get(m.address);
+    return m.counted && was !== undefined && !was.counted;
+  });
+  const pledgesCounted = new Map<Address, bigint>();
+  for (const m of newlyCounted) {
+    if (m.state !== 'Forfeited') continue;
+    pledgesCounted.set(m.cohort, (pledgesCounted.get(m.cohort) ?? 0n) + comebackPledge(m.stake));
+  }
+
   for (const c of next.cohorts) {
     const b = before.get(c.address);
     if (!b) continue;
@@ -692,13 +1041,12 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
         const part = forfeitSplit(was.stake);
         return {
           pool: sum.pool + part.pool,
-          boost: sum.boost + part.boost,
           comeback: sum.comeback + part.comeback,
           developer: sum.developer + part.developer,
           operations: sum.operations + part.operations,
         };
       },
-      { pool: 0n, boost: 0n, comeback: 0n, developer: 0n, operations: 0n },
+      { pool: 0n, comeback: 0n, developer: 0n, operations: 0n },
     );
     operationsOwed += split.operations;
     developerOwed += split.developer;
@@ -771,7 +1119,6 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
         fail('INV-6', `cohort ${c.address}: member count changed after settling`);
       }
       if (
-        c.boostDue !== b.boostDue ||
         c.comebackDue !== b.comebackDue ||
         c.boostReceived !== b.boostReceived ||
         c.comebackOwed !== b.comebackOwed ||
@@ -779,8 +1126,8 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
       ) {
         fail('INV-6', `cohort ${c.address}: its reserve figures changed after settling`);
       }
-      if (c.noFinisherFee !== b.noFinisherFee) {
-        fail('INV-6', `cohort ${c.address}: the no-finisher fee changed after settling`);
+      if (c.noFinisherBoost !== b.noFinisherBoost) {
+        fail('INV-6', `cohort ${c.address}: the no-finisher boost changed after settling`);
       }
       if (
         c.finisherCount !== b.finisherCount ||
@@ -795,10 +1142,10 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
     }
 
     // The pool this cohort raised on its own: what it had, plus this step's
-    // forfeits' pool parts (INV-2). Its reserve dues likewise.
+    // forfeits' pool parts (INV-2). Its pledges still in the vault likewise: the
+    // forfeits' 10 % arrives with the record, and leaves with the count.
     const ownPool = b.pool + split.pool;
-    const boostDue = b.boostDue + split.boost;
-    const comebackDue = b.comebackDue + split.comeback;
+    const comebackDue = b.comebackDue + split.comeback - (pledgesCounted.get(c.address) ?? 0n);
 
     if (!c.settled) {
       // INV-2 · only recorded forfeits' pool parts raise a pool before it settles.
@@ -808,19 +1155,21 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
           `cohort ${c.address}: pool ${b.pool} → ${c.pool}, but this step's forfeits pool +${split.pool}`,
         );
       }
-      // INV-10 · the reserve parts wait in the vault: a due that rises by less
-      // than its forfeits' share has been sent somewhere before finalization.
-      if (c.boostDue !== boostDue || c.comebackDue !== comebackDue) {
+      // INV-10 · the pledges wait in the vault until their forfeit is counted: a
+      // due that rises by less than its forfeits' share has been sent somewhere
+      // before the count, and one that falls by more than the counted forfeits'
+      // pledges has paid a pledge to somebody other than the league's reserve.
+      if (c.comebackDue !== comebackDue) {
         fail(
           'INV-10',
-          `cohort ${c.address}: dues ${b.boostDue}/${b.comebackDue} → ${c.boostDue}/${c.comebackDue}, but this step's forfeits owe +${split.boost}/+${split.comeback}`,
+          `cohort ${c.address}: comeback due ${b.comebackDue} → ${c.comebackDue}, but this step's forfeits pledge +${split.comeback} and its counted forfeits move -${pledgesCounted.get(c.address) ?? 0n} to the league`,
         );
       }
       if (
         c.boostReceived !== b.boostReceived ||
         c.comebackFunded !== b.comebackFunded ||
         c.comebackClaimed !== b.comebackClaimed ||
-        c.noFinisherFee !== b.noFinisherFee
+        c.noFinisherBoost !== b.noFinisherBoost
       ) {
         fail('INV-2', `cohort ${c.address}: settlement figures moved before it settled`);
       }
@@ -836,20 +1185,12 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
     if (b.counted !== b.memberCount) {
       fail('INV-5', `cohort ${c.address}: settled with ${b.counted} of ${b.memberCount} members counted`);
     }
-    const league = prevLeagues.get(c.leagueId);
     if (c.totalFinisherStake > 0n) {
-      // FR-037d · the boost is `min(10 % of the cohort's own pool, the reserve
-      // before this step)`. A cohort with no forfeits has no pool and gets none.
+      // FR-037d · no boost beyond 10 % of the cohort's own pool; a cohort with
+      // no forfeits has no pool and gets none. The exact figure — also bounded
+      // by the boost reserve at that instant — is judged with the league below.
       const cap = (ownPool * 10n) / 100n;
-      if (league) {
-        const want = boostFor(ownPool, league.boostReserve);
-        if (c.boostReceived !== want) {
-          fail(
-            'INV-2',
-            `cohort ${c.address}: boost ${c.boostReceived}, but min(10% of ${ownPool}, reserve ${league.boostReserve}) is ${want}`,
-          );
-        }
-      } else if (c.boostReceived > cap) {
+      if (c.boostReceived > cap) {
         fail('INV-2', `cohort ${c.address}: boost ${c.boostReceived} exceeds 10% of its own pool ${ownPool}`);
       }
       // Finalization is the one place a pool moves without a claim, and it
@@ -872,75 +1213,46 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
           `cohort ${c.address}: finalized ${ownPool} + boost ${c.boostReceived} into ${c.pool} owed + ${c.roundingRemainder} remainder`,
         );
       }
-      // FR-037e · the comeback funding is `min(owed, the reserve before this step)`.
-      const fundedCap = league ? min(c.comebackOwed, league.comebackReserve) : c.comebackOwed;
-      if (league ? c.comebackFunded !== fundedCap : c.comebackFunded > fundedCap) {
-        fail(
-          'INV-2',
-          `cohort ${c.address}: comeback funded ${c.comebackFunded}, owed ${c.comebackOwed}${league ? `, reserve ${league.comebackReserve}` : ''}`,
-        );
+      // FR-037e · the refunds are drawn in full: every one owed was pledged.
+      if (c.comebackFunded > c.comebackOwed) {
+        fail('INV-2', `cohort ${c.address}: comeback funded ${c.comebackFunded}, only ${c.comebackOwed} owed`);
       }
       operationsOwed += c.roundingRemainder;
     } else {
+      // FR-037 · nobody finished: the whole pool goes to the league's boost
+      // reserve. The developer and operations took their parts with each forfeit.
       if (c.pool !== 0n) {
         fail('INV-2', `cohort ${c.address}: nobody finished, yet ${c.pool} stayed in the pool`);
       }
-      if (c.noFinisherFee !== ownPool) {
-        fail('INV-2', `cohort ${c.address}: ${ownPool} to send out, but the no-finisher fee records ${c.noFinisherFee}`);
+      if (c.noFinisherBoost !== ownPool) {
+        fail('INV-2', `cohort ${c.address}: ${ownPool} to send to the boost reserve, but the no-finisher boost records ${c.noFinisherBoost}`);
       }
       if (c.boostReceived !== 0n || c.comebackFunded !== 0n) {
         fail('INV-2', `cohort ${c.address}: nobody finished, yet it drew ${c.boostReceived} boost and ${c.comebackFunded} comeback`);
       }
-      const out = noFinisherSplit(c.noFinisherFee);
-      developerOwed += out.developer;
-      operationsOwed += out.operations;
     }
     if (c.comebackClaimed !== b.comebackClaimed) {
       fail('INV-6', `cohort ${c.address}: comeback refunds paid while it finalized`);
     }
-    // FR-037c · the reserve shares are credited at finalization, all of them.
-    if (c.boostDue !== 0n || c.comebackDue !== 0n) {
+    // FR-037c · every pledge has left the vault: all its forfeits are counted.
+    if (c.comebackDue !== 0n) {
+      fail('INV-10', `cohort ${c.address}: finalized with ${c.comebackDue} of comeback pledges still in its vault`);
+    }
+    if (c.comebackDue !== comebackDue) {
       fail(
         'INV-10',
-        `cohort ${c.address}: finalized with ${c.boostDue} boost and ${c.comebackDue} comeback still due to its league`,
+        `cohort ${c.address}: comeback due ${b.comebackDue} → ${c.comebackDue}, but this step's forfeits pledge +${split.comeback} and its counted forfeits move -${pledgesCounted.get(c.address) ?? 0n} to the league`,
       );
     }
-    reserveMoves.set(c.leagueId, [
-      ...(reserveMoves.get(c.leagueId) ?? []),
-      { boostIn: boostDue, comebackIn: comebackDue, boostOut: c.boostReceived, comebackOut: c.comebackFunded },
-    ]);
+    finalizedIn.set(c.leagueId, [...(finalizedIn.get(c.leagueId) ?? []), { cohort: c, ownPool }]);
   }
 
-  // INV-10 · a league's reserves change only in a step where one of its cohorts
-  // finalizes, and then by exactly that cohort's dues less what it drew. A
-  // reserve credited when a forfeit was recorded would let the crank's timing
-  // set some other cohort's boost (FR-037c) — and INV-1 alone cannot see it,
-  // because the reserve vault rises with the counter.
-  for (const l of next.leagues) {
-    const lb = prevLeagues.get(l.leagueId);
-    if (!lb) {
-      if (l.boostReserve !== 0n || l.comebackReserve !== 0n) {
-        fail('INV-10', `league ${l.leagueId} appeared holding ${l.boostReserve} boost and ${l.comebackReserve} comeback reserve`);
-      }
-      continue;
-    }
-    const moves = reserveMoves.get(l.leagueId) ?? [];
-    const boost = moves.reduce((sum, m) => sum + m.boostIn - m.boostOut, lb.boostReserve);
-    const comeback = moves.reduce((sum, m) => sum + m.comebackIn - m.comebackOut, lb.comebackReserve);
-    if (l.boostReserve !== boost || l.comebackReserve !== comeback) {
-      fail(
-        'INV-10',
-        moves.length === 0
-          ? `league ${l.leagueId}: reserves ${lb.boostReserve}/${lb.comebackReserve} → ${l.boostReserve}/${l.comebackReserve} with no cohort of it finalizing`
-          : `league ${l.leagueId}: reserves ${lb.boostReserve}/${lb.comebackReserve} → ${l.boostReserve}/${l.comebackReserve}, finalization gives ${boost}/${comeback}`,
-      );
-    }
-  }
+  checkReserves(prev, next, prevLeagues, newlyCounted, pledgesCounted, finalizedIn);
 
   // INV-2 · the fee is the part of a stake that reaches neither the pool nor a
-  // reserve, and it lands in two accounts: the developer's 10 % and the
-  // operations 10 % plus rounding at once, a no-finisher pool split a half /
-  // the rest, and the rounding remainder to operations. Until those accounts
+  // pledge, and it lands in two accounts: the developer's 10 % and the
+  // operations 10 % plus rounding, both at once when the forfeit is recorded, and
+  // the finalization's rounding remainder to operations. Until those accounts
   // are read the snapshot cannot tell a fee that reached its destination from
   // one that reached somebody else's token account: the vault falls by the same
   // amount either way, so custody and the pool both still balance. Each side is
@@ -1056,6 +1368,7 @@ const checkDeltas = (prev: Snapshot, next: Snapshot): void => {
 export const assertInvariants = (current: Snapshot, previous?: Snapshot): void => {
   const cohorts = new Map(current.cohorts.map((c) => [c.address, c]));
   checkCustody(current);
+  checkPledges(current);
   checkDays(current, cohorts);
   checkSlots(current, cohorts);
   checkTallies(current);

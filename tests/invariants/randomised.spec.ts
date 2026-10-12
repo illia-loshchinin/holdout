@@ -9,7 +9,9 @@
  *    INV-1…INV-9 **after every single step**. Refusals are expected and
  *    ignored: a fuzz run's job is to find a state where an invariant breaks,
  *    not to keep every call legal. The seed is fixed, so a failure is
- *    reproducible.
+ *    reproducible. The walk ends by releasing the comeback pledges of everyone
+ *    who forfeited, too early (refused) and then on time, so the reserves'
+ *    bookkeeping is checked through counts, a boost and releases.
  *
  * 2. **A 1,000-member cohort** through the whole loop, which is spike S3
  *    (research S3): does the paged design hold at the size the plan assumes,
@@ -27,13 +29,14 @@ import { generateKeyPairSigner, type Address, type KeyPairSigner } from '@solana
 import { describe, expect, it } from 'vitest';
 
 import { assertInvariants, assertSameProgress, type Snapshot } from './checker.js';
-import { DEFAULT_CHIPS, FIRST_START, SKR, createHarness, type Harness } from '../helpers/harness.js';
+import { DEFAULT_CHIPS, FIRST_START, SKR, WEEK, createHarness, type Harness } from '../helpers/harness.js';
 import {
   claimPayoutIx,
   forfeitPairs,
   joinCohortIx,
   leaveCohortIx,
   recordForfeitsIx,
+  releaseComebackIx,
   settleCountIx,
   settleFinalizeIx,
   submitDayIx,
@@ -117,7 +120,8 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
   it('holds INV-1…INV-10 after every step of a seeded random walk', async () => {
     // A league with something in reserve, so the finalize the walk ends on draws
     // a boost (FR-037d) — capped at 10 % of whatever pool the walk produced, or
-    // at this odd figure, whichever is smaller — and credits its dues (FR-037c).
+    // at this odd figure, whichever is smaller — from the boost reserve alone, with
+    // the forfeits' pledges booked to the comeback reserve as they are counted (FR-037c).
     const f = await setUp({ boostReserve: 7n * SKR + 3n, comebackReserve: 2n * SKR });
     const next = rng(20260920);
     const members: KeyPairSigner[] = [];
@@ -257,6 +261,32 @@ describe('the randomised invariant suite (T076, spike S3)', () => {
         );
       }
     }
+
+    // ---- release_comeback: pledges nobody can still make good go to the boost reserve.
+    // The league has opened only cohort 0, so the round that makes a miss good is
+    // cohort 1, a week on. Until its first day is over a release is refused.
+    const pledged = await f.h.readLeague(f.league);
+    expect(pledged.comebackReserve, 'the forfeits were counted and pledged').toBeGreaterThan(0n);
+    for (const who of shuffled(members, next)) {
+      await step(async () =>
+        f.h.send([await releaseComebackIx(f.crank.address, f.league, who.address)], f.crank),
+      );
+    }
+    expect((await f.h.readLeague(f.league)).comebackReserve, 'too early: nothing moved').toBe(pledged.comebackReserve);
+
+    f.h.setTime(START + WEEK + DAY_LENGTH + 1);
+    for (const who of shuffled(members, next)) {
+      const repeats = next() < 0.3 ? 2 : 1;
+      for (let r = 0; r < repeats; r += 1) {
+        await step(async () =>
+          f.h.send([await releaseComebackIx(f.crank.address, f.league, who.address)], f.crank),
+        );
+      }
+    }
+    const released = await f.h.readLeague(f.league);
+    // Every pledge went to the boost reserve; what stays is the 2 SKR the league was injected with.
+    expect(released.comebackReserve, 'every pledge released').toBe(2n * SKR);
+    expect(released.boostReserve).toBe(pledged.boostReserve + pledged.comebackReserve - 2n * SKR);
 
     expect(steps, 'the walk actually walked').toBeGreaterThan(100);
     // Every finisher was paid, so nothing of theirs is left in the vault.

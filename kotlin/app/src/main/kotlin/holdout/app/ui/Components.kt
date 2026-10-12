@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -49,33 +50,154 @@ import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
+import holdout.repcounter.Stakes
 import java.math.BigDecimal
+import java.math.RoundingMode
 
 /** Amounts, times and the shared pieces every Holdout screen is built from. */
 object Format {
     /** The mock SKR mint's decimals — `SKR_DECIMALS` in `initialize` (decision H31). */
     const val SKR_DECIMALS = 6
 
-    /** "Easy · 7-day Holdout", "Hard · 21-day Holdout": a Holdout's level is its form (H35). */
+    /** "Waiting for your wallet…": every button that is out with the wallet says so, in these words (ruling G7). */
+    const val WAITING_FOR_WALLET = "Waiting for your wallet…"
+
+    /** The level a form is read as: **Spark** (knees allowed) or **Habit** (toes only). The code's Easy/Hard stay internal (H35). */
+    fun levelName(form: Int): String = when (form) {
+        holdout.core.LeagueParams.FORM_KNEES_ALLOWED -> "Spark"
+        holdout.core.LeagueParams.FORM_TOES -> "Habit"
+        else -> holdout.core.LeagueParams.formName(form)
+    }
+
+    /**
+     * "Spark · 7-day Holdout", "Habit · 21-day Holdout": a Holdout's level is
+     * its form, and this is the one mention of it on a screen (design book, Naming).
+     */
     fun holdoutTitle(c: holdout.core.CohortSnapshot): String = "${level(c)} Holdout"
 
     /**
-     * "Easy · 7-day", "Hard · 21-day": the level and the length. Member copy
+     * "Spark · 7-day", "Habit · 21-day": the level and the length. Member copy
      * names a league's reserves by these, never by the word "league" (FR-041).
      */
-    fun level(c: holdout.core.CohortSnapshot): String = "${holdout.core.LeagueParams.formName(c.form)} · ${c.durationDays}-day"
+    fun level(c: holdout.core.CohortSnapshot): String = "${levelName(c.form)} · ${c.durationDays}-day"
+
+    /** "Light it up · knees allowed" / "Make it stick · toes only": the level's tagline, or null for a form this build does not know. */
+    fun levelTagline(form: Int): String? = when (form) {
+        holdout.core.LeagueParams.FORM_KNEES_ALLOWED -> "Light it up · knees allowed"
+        holdout.core.LeagueParams.FORM_TOES -> "Make it stick · toes only"
+        else -> null
+    }
+
+    fun levelTagline(c: holdout.core.CohortSnapshot): String? = levelTagline(c.form)
 
     /**
-     * Where a lost stake goes, in the sentence the stake sheet and the forfeit
-     * screen share (FR-027, FR-037, FR-041; decided 2026-10-10). [pool] names
-     * the prize pool as that screen sees it. A no-break space keeps every "%"
-     * on its number's line.
+     * "Hackathon · 3-day": the short test Holdout's name, built like a level's ("Spark · 7-day"), from the
+     * cohort's own length (FR-044a; the badge keeps DEVNET COHORT).
      */
-    fun lostStakeSplit(c: holdout.core.CohortSnapshot, pool: String): String = "80 % of it stays with members: 70 % to $pool and 10 % to the boost and comeback reserves of ${level(c)} Holdouts. " +
-        "20 % goes to the project, and so does the prize pool if nobody finishes."
+    fun testName(c: holdout.core.CohortSnapshot): String = testName(c.durationDays)
 
-    /** `46 SKR`, `12.5 SKR`: every amount a member stakes or receives, in SKR (FR-059). */
-    fun skr(baseUnits: ULong): String = BigDecimal(baseUnits.toString()).movePointLeft(SKR_DECIMALS).stripTrailingZeros().toPlainString() + " SKR"
+    /** [testName] for a place that knows only the length in days (a reminder). */
+    fun testName(days: Int): String = "Hackathon · $days-day"
+
+    /** "A quick taste · knees allowed" / "A quick taste · toes only": the test Holdout's tagline, the way a level's is picked by its form. */
+    fun testTagline(c: holdout.core.CohortSnapshot): String = when (c.form) {
+        holdout.core.LeagueParams.FORM_KNEES_ALLOWED -> "A quick taste · knees allowed"
+        holdout.core.LeagueParams.FORM_TOES -> "A quick taste · toes only"
+        else -> "A quick taste"
+    }
+
+    /** True when joining stays open until the cohort starts (a join lock of 0, FR-044a); a league with a lock closes it earlier. */
+    fun joinableToStart(c: holdout.core.CohortSnapshot): Boolean = c.joinCutoff == c.start
+
+    /**
+     * The level's rule sentence, read the same everywhere it appears (design
+     * book, Levels; ruling G2). A Spark screen never shows the Habit sentence:
+     * the Holdout's own form picks it. Null for a form this build does not know.
+     * The words live once, in [Stakes].
+     */
+    fun levelRule(form: Int): String? = when (Stakes.ofForm(form)) {
+        Stakes.EASY -> Stakes.EASY_RULE
+        Stakes.STAKED -> Stakes.STAKED_RULE
+        else -> null
+    }
+
+    fun levelRule(c: holdout.core.CohortSnapshot): String? = levelRule(c.form)
+
+    /** `SPARK · 7-DAY · DAY 3 OF 7`: a running Holdout's header label (no calendar dates, constitution VI; ruling G3). */
+    fun headerLabel(c: holdout.core.CohortSnapshot, day: Int): String = "${level(c)} · day $day of ${c.durationDays}".uppercase()
+
+    /** `SPARK · 7-DAY · STARTS IN 2D 4H`: a Holdout in its lobby. */
+    fun lobbyHeaderLabel(c: holdout.core.CohortSnapshot, secondsToStart: Long): String = "${level(c)} · starts in ${countdown(secondsToStart)}".uppercase()
+
+    /** `SPARK · 7-DAY · FINISHED`: a Holdout that has run its length. */
+    fun finishedHeaderLabel(c: holdout.core.CohortSnapshot): String = "${level(c)} · finished".uppercase()
+
+    /**
+     * Where a lost stake goes, in the sentence the stake sheet shows (FR-027,
+     * FR-037, FR-041; decided 2026-10-10, shortened 2026-10-11, re-split
+     * 2026-10-12: the 10 % is the member's own comeback, and a pool nobody wins
+     * boosts later prizes; ruling G5). The level and length are the Holdout's
+     * own, and a no-break space keeps every "%" on its number's line. [name] is
+     * what the boosts are named after: the level by default, "Hackathon ·
+     * 3-day" (see [testName]) for a test Holdout.
+     */
+    fun lostStakeSplit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% set aside for your comeback, " +
+        "20\u00a0% to the project. If nobody finishes, the pool boosts later $name prizes."
+
+    /** What the boosts in the fee sentence are named after: the level, or [testName] ("Hackathon · 3-day") for a test Holdout (FR-044a); the stake sheet and the forfeit screen both use it. */
+    fun boostName(c: holdout.core.CohortSnapshot, test: Boolean): String = if (test) testName(c) else level(c)
+
+    /** The same split on the forfeit screen, under its **Stake lost** row (ruling G5); [name] as in [lostStakeSplit]. */
+    fun lostStakeSplitForfeit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% set aside for your comeback, " +
+        "20\u00a0% to the project. If nobody finishes, the pool boosts later $name prizes."
+
+    /**
+     * "Prize boost: up to 480 SKR", on an offer: "up to", never a promise (ruling G6). The card already names the
+     * level. The boost comes from comebacks nobody made and pools nobody won, so it is the league's free reserve.
+     */
+    fun boostLine(amount: ULong): String = "Prize boost: up to ${skr(amount)}"
+
+    /** "+ about 1,200 SKR boost if anyone finishes", on a running Holdout (design book, Real copy by moment). */
+    fun runningBoostLine(amount: ULong): String = "+ about ${skr(amount)} boost if anyone finishes"
+
+    /**
+     * On Today while a lost stake's comeback is open (exactly [amount], guaranteed, FR-037e): "Get back 2.5 SKR of
+     * your lost stake: finish the Spark · 7-day starting in 2d 4h." A round already running, joined late, is
+     * "finish the Spark · 7-day that started today" ([startsInSeconds] null).
+     */
+    fun comebackToday(amount: ULong, c: holdout.core.CohortSnapshot, startsInSeconds: Long?): String = "Get back ${skr(amount)} of your lost stake: finish the ${level(c)} " +
+        (if (startsInSeconds == null) "that started today." else "starting in ${countdown(startsInSeconds)}.")
+
+    /** On the forfeit screen after a mid-round miss: "Finish the next Habit · 21-day and 250 SKR comes back." */
+    fun comebackForfeit(amount: ULong, c: holdout.core.CohortSnapshot): String = "Finish the next ${level(c)} and ${skr(amount)} comes back."
+
+    /** The words that name a held place's amount, on every screen: "Win back 250 SKR" (exact, no "up to"). */
+    fun winBack(amount: ULong): String = "Win back ${skr(amount)}"
+
+    /** The claim's **Comeback** row note, under the amount. */
+    const val COMEBACK_CLAIM_NOTE = "part of your last lost stake, back"
+
+    /** Most decimals a member ever reads in an amount; the chain keeps all [SKR_DECIMALS]. */
+    private const val SHOWN_DECIMALS = 2
+
+    /**
+     * `46 SKR`, `12.5 SKR`, `1,560 SKR`: every amount a member stakes or receives, in SKR (FR-059).
+     * Thousands grouped, at most two decimals, rounded DOWN (never overstate what a member gets),
+     * trailing zeros dropped. Display only: the exact base units go to the chain unchanged.
+     */
+    fun skr(baseUnits: ULong): String {
+        val plain = BigDecimal(baseUnits.toString()).movePointLeft(SKR_DECIMALS)
+            .setScale(SHOWN_DECIMALS, RoundingMode.DOWN).stripTrailingZeros().toPlainString()
+        val whole = plain.substringBefore('.')
+        val fraction = plain.substringAfter('.', "")
+        val grouped = whole.reversed().chunked(3).joinToString(",").reversed()
+        return (if (fraction.isEmpty()) grouped else "$grouped.$fraction") + " SKR"
+    }
+
+    private const val LAMPORTS_PER_SOL = 1e9
+
+    /** `0.012 SOL`: a wallet's SOL balance from lamports, three decimals (the fee balance on Me and in the faucet). */
+    fun sol(lamports: Long): String = "%.3f SOL".format(lamports / LAMPORTS_PER_SOL)
 
     /** The fiat label a chip carries — always approximate, never on-chain (FR-059, constitution XIII). */
     val TIER_USD = listOf(10, 25, 50, 100)
@@ -89,7 +211,7 @@ object Format {
      */
     fun opensForJoining(opensAt: Long, now: Long): String = if (opensAt > now) "opens for joining in ${countdown(opensAt - now)}" else "opens for joining shortly"
 
-    /** `3d 4h`, `4h 06m`, `12m 30s`: a countdown, never a date (constitution VI). */
+    /** `3d 4h`, `4h 06m`, `12m 30s`, `58s` under a minute: a countdown, never a date (constitution VI). */
     fun countdown(seconds: Long): String {
         val s = seconds.coerceAtLeast(0)
         val days = s / 86_400
@@ -98,7 +220,8 @@ object Format {
         return when {
             days > 0 -> "${days}d ${hours}h"
             hours > 0 -> "%dh %02dm".format(hours, minutes)
-            else -> "%dm %02ds".format(minutes, s % 60)
+            minutes > 0 -> "%dm %02ds".format(minutes, s % 60)
+            else -> "${s % 60}s"
         }
     }
 
@@ -128,9 +251,12 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
     Text(text.uppercase(), style = LabelStyle, color = HoldoutColors.TextTertiary, modifier = modifier)
 }
 
-/** A hairline card — the only separation on black; there are no shadows (design book, Depth). */
+/**
+ * A hairline card — the only separation on black; there are no shadows (design book, Depth).
+ * [padding] is the card's inset: [Spacing.cardPadding], or less for a card kept compact (Today's Daily 25).
+ */
 @Composable
-fun HoldoutCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+fun HoldoutCard(modifier: Modifier = Modifier, padding: PaddingValues = PaddingValues(Spacing.cardPadding), content: @Composable ColumnScope.() -> Unit) {
     val shape = MaterialTheme.shapes.medium
     Column(
         // Clipped outside the caller's modifier, so a card made clickable ripples inside its corners.
@@ -140,7 +266,7 @@ fun HoldoutCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.
             .fillMaxWidth()
             .background(HoldoutColors.Surface1, shape)
             .border(BorderStroke(1.dp, HoldoutColors.Hairline), shape)
-            .padding(Spacing.cardPadding),
+            .padding(padding),
         verticalArrangement = Arrangement.spacedBy(Spacing.tight),
         content = content,
     )
@@ -244,16 +370,20 @@ fun ChainCheckBox(offline: Boolean, checking: Boolean, onCheck: () -> Unit, modi
 }
 
 /**
- * The short test cohort's label (FR-044a), wherever it appears: the offers
- * on home, the stake sheet, the lobby, the roster and cohort detail.
+ * The devnet cohort's label (FR-044a), wherever it appears: the offers
+ * on home, the stake sheet, the lobby, the roster and cohort detail. A quiet
+ * neutral pill, `surface-3` and `text-secondary` (owner, 12 Oct: a disclosure,
+ * not an alarm), and it may wrap on a narrow card.
  */
 @Composable
 fun TestCohortBadge(dayLengthSeconds: Long, modifier: Modifier = Modifier) {
     Text(
-        text = "SHORT TEST COHORT · ${Format.dayLength(dayLengthSeconds).uppercase()} DAYS · DEVNET",
+        text = "DEVNET COHORT · ${Format.dayLength(dayLengthSeconds).uppercase()} DAYS",
         style = LabelStyle,
-        color = HoldoutColors.Warning,
-        modifier = modifier,
+        color = HoldoutColors.TextSecondary,
+        modifier = modifier
+            .background(HoldoutColors.Surface3, MaterialTheme.shapes.small)
+            .padding(horizontal = Spacing.tight, vertical = Spacing.base),
     )
 }
 

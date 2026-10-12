@@ -30,11 +30,15 @@ nextIndex: number;
 /** How reps are judged, copied to every cohort: [`FORM_TOES`] or [`FORM_KNEES_ALLOWED`]. */
 form: number; 
 /**
- * SKR in the reserve vault set aside for boosts (FR-037d). Credited only
- * when a cohort of this league finalizes (FR-037c, INV-10).
+ * SKR in the reserve vault free for boosts (FR-037d): pools nobody won
+ * and pledges nobody made good (FR-037, FR-037e, INV-10).
  */
 boostReserve: bigint; 
-/** SKR in the reserve vault set aside for comeback refunds (FR-037e). */
+/**
+ * SKR in the reserve vault pledged to members: every open comeback's
+ * pledge and every refund owed but not yet drawn (FR-037e). A boost never
+ * draws on it, so a pledge is always there when its round is finished.
+ */
 comebackReserve: bigint; reserveVaultBump: number; bump: number;  };
 
 export type LeagueConfigArgs = { 
@@ -55,11 +59,15 @@ nextIndex: number;
 /** How reps are judged, copied to every cohort: [`FORM_TOES`] or [`FORM_KNEES_ALLOWED`]. */
 form: number; 
 /**
- * SKR in the reserve vault set aside for boosts (FR-037d). Credited only
- * when a cohort of this league finalizes (FR-037c, INV-10).
+ * SKR in the reserve vault free for boosts (FR-037d): pools nobody won
+ * and pledges nobody made good (FR-037, FR-037e, INV-10).
  */
 boostReserve: number | bigint; 
-/** SKR in the reserve vault set aside for comeback refunds (FR-037e). */
+/**
+ * SKR in the reserve vault pledged to members: every open comeback's
+ * pledge and every refund owed but not yet drawn (FR-037e). A boost never
+ * draws on it, so a pledge is always there when its round is finished.
+ */
 comebackReserve: number | bigint; reserveVaultBump: number; bump: number;  };
 
 /** Gets the encoder for {@link LeagueConfigArgs} account data. */

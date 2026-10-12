@@ -6,7 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { combineCodec, getI64Decoder, getI64Encoder, getStructDecoder, getStructEncoder, getU16Decoder, getU16Encoder, getU64Decoder, getU64Encoder, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder } from '@solana/kit';
+import { combineCodec, getI64Decoder, getI64Encoder, getStructDecoder, getStructEncoder, getU16Decoder, getU16Encoder, getU32Decoder, getU32Encoder, getU64Decoder, getU64Encoder, getU8Decoder, getU8Encoder, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder } from '@solana/kit';
 
 /**
  * One league's record. `cleared` and `forfeited` are plain counters, so the
@@ -22,15 +22,24 @@ export type LeagueProgress = { cleared: number; forfeited: number; currentStreak
  */
 lastChanged: bigint; 
 /**
- * The stake of the latest **counted** forfeit in this league, while it can
- * still earn a comeback; 0 once used (FR-037e). Written only by
- * `settle_count`, so in cohort order like the streak (INV-9).
+ * The stake of the latest **counted** forfeit in this league while its
+ * comeback is open; 0 once made good or released (FR-037e). Its pledge —
+ * [`settlement::comeback_pledge`] of it — sits in the league's comeback
+ * reserve meanwhile. Written by `settle_count`, in cohort order like the
+ * streak (INV-9), and cleared by `release_comeback`.
  */
 comebackStake: bigint; 
-/** That forfeit's missed deadline. */
-comebackFrom: bigint; 
-/** The last instant a cohort may start and still be its comeback. */
-comebackUntil: bigint;  };
+/**
+ * The league that holds the pledge. Every test league shares one slot, so
+ * the slot alone does not say which league's reserve the pledge is in.
+ */
+comebackLeague: number; 
+/**
+ * The first and last cohort index of that league whose finishing makes
+ * it good — one round, or two after a miss on a round's last day
+ * ([`crate::math::schedule::comeback_rounds`]).
+ */
+comebackRound: number; comebackLastRound: number;  };
 
 export type LeagueProgressArgs = { cleared: number; forfeited: number; currentStreak: number; longestStreak: number; 
 /**
@@ -41,22 +50,31 @@ export type LeagueProgressArgs = { cleared: number; forfeited: number; currentSt
  */
 lastChanged: number | bigint; 
 /**
- * The stake of the latest **counted** forfeit in this league, while it can
- * still earn a comeback; 0 once used (FR-037e). Written only by
- * `settle_count`, so in cohort order like the streak (INV-9).
+ * The stake of the latest **counted** forfeit in this league while its
+ * comeback is open; 0 once made good or released (FR-037e). Its pledge —
+ * [`settlement::comeback_pledge`] of it — sits in the league's comeback
+ * reserve meanwhile. Written by `settle_count`, in cohort order like the
+ * streak (INV-9), and cleared by `release_comeback`.
  */
 comebackStake: number | bigint; 
-/** That forfeit's missed deadline. */
-comebackFrom: number | bigint; 
-/** The last instant a cohort may start and still be its comeback. */
-comebackUntil: number | bigint;  };
+/**
+ * The league that holds the pledge. Every test league shares one slot, so
+ * the slot alone does not say which league's reserve the pledge is in.
+ */
+comebackLeague: number; 
+/**
+ * The first and last cohort index of that league whose finishing makes
+ * it good — one round, or two after a miss on a round's last day
+ * ([`crate::math::schedule::comeback_rounds`]).
+ */
+comebackRound: number; comebackLastRound: number;  };
 
 export function getLeagueProgressEncoder(): FixedSizeEncoder<LeagueProgressArgs> {
-    return getStructEncoder([['cleared', getU16Encoder()], ['forfeited', getU16Encoder()], ['currentStreak', getU16Encoder()], ['longestStreak', getU16Encoder()], ['lastChanged', getI64Encoder()], ['comebackStake', getU64Encoder()], ['comebackFrom', getI64Encoder()], ['comebackUntil', getI64Encoder()]]);
+    return getStructEncoder([['cleared', getU16Encoder()], ['forfeited', getU16Encoder()], ['currentStreak', getU16Encoder()], ['longestStreak', getU16Encoder()], ['lastChanged', getI64Encoder()], ['comebackStake', getU64Encoder()], ['comebackLeague', getU8Encoder()], ['comebackRound', getU32Encoder()], ['comebackLastRound', getU32Encoder()]]);
 }
 
 export function getLeagueProgressDecoder(): FixedSizeDecoder<LeagueProgress> {
-    return getStructDecoder([['cleared', getU16Decoder()], ['forfeited', getU16Decoder()], ['currentStreak', getU16Decoder()], ['longestStreak', getU16Decoder()], ['lastChanged', getI64Decoder()], ['comebackStake', getU64Decoder()], ['comebackFrom', getI64Decoder()], ['comebackUntil', getI64Decoder()]]);
+    return getStructDecoder([['cleared', getU16Decoder()], ['forfeited', getU16Decoder()], ['currentStreak', getU16Decoder()], ['longestStreak', getU16Decoder()], ['lastChanged', getI64Decoder()], ['comebackStake', getU64Decoder()], ['comebackLeague', getU8Decoder()], ['comebackRound', getU32Decoder()], ['comebackLastRound', getU32Decoder()]]);
 }
 
 export function getLeagueProgressCodec(): FixedSizeCodec<LeagueProgressArgs, LeagueProgress> {

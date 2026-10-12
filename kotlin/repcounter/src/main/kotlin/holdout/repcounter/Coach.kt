@@ -14,7 +14,9 @@ package holdout.repcounter
  */
 enum class Coach(val words: String) {
     MORE_LIGHT("More light"),
-    AIM_AT_FLOOR("Stand phone up"),
+
+    /** The phone is not standing on the floor yet: the one instruction before any other, said once (owner, 12 Oct). */
+    AIM_AT_FLOOR("Place your phone"),
     GET_IN_VIEW("Get in view"),
     TURN_45("Phone to 45°"),
     GET_DOWN("Get down"),

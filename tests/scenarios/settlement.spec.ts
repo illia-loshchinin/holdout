@@ -11,12 +11,13 @@
  * `record_forfeits` is. `settle_finalize` runs **once** (INV-5, INV-6), and
  * what it writes is written once.
  *
- * A cohort nobody finished sends its whole pool out — half to the developer
- * destination, the rest to operations — and nothing carries over (FR-037, H34,
- * H35), so settling it needs no other cohort and no caller can change where the
- * money goes (FR-030a). Either way a finalizing cohort credits its reserve dues
- * to its league; boosts and comebacks are reserves.spec.ts's subject, and every
- * league here starts with empty reserves, so no boost changes a figure below.
+ * A cohort nobody finished sends its whole pool to its league's boost reserve
+ * (FR-037, 2026-10-12; the developer and operations took their parts as each
+ * forfeit was counted), so settling it needs no other cohort and no caller can
+ * change where the money goes (FR-030a). The forfeiters' comeback pledges moved
+ * to the league's comeback reserve as their forfeits were counted; boosts and
+ * comebacks are reserves.spec.ts's subject, and every league here starts with
+ * empty reserves, so no boost changes a figure below.
  *
  * Each cohort here is index 0 of **its own** test league unless the case is
  * about ordering, so `PreviousCohortUnsettled` (6045) never fires by accident
@@ -26,7 +27,7 @@
 import { generateKeyPairSigner, getAddressDecoder, type Address, type KeyPairSigner } from '@solana/kit';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { assertUnchanged, feeOf, forfeitSplit, noFinisherSplit } from '../invariants/checker.js';
+import { assertUnchanged, feeOf, forfeitSplit } from '../invariants/checker.js';
 import {
   DEFAULT_CHIPS,
   FIRST_START,
@@ -194,7 +195,7 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
     expect(paidA).toBe(stake + settled.sharePerTier[2]!);
   });
 
-  it('sends the rounding remainder to operations, credits the dues to the league, and the claims add up to the unit (AC-3)', async () => {
+  it('sends the rounding remainder to operations, books the pledges to the league, and the claims add up to the unit (AC-3)', async () => {
     const cohort = await cohortAt(0);
     // Three finishers on mixed tiers, so the pool rarely divides evenly.
     const finishers = [await member(0, 0), await member(0, 1), await member(0, 3)];
@@ -205,8 +206,7 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
     const parts = forfeitedStakes.map(forfeitSplit);
     const toOperations = parts.reduce((sum, p) => sum + p.operations, 0n);
     const toDeveloper = parts.reduce((sum, p) => sum + p.developer, 0n);
-    const boostDue = parts.reduce((sum, p) => sum + p.boost, 0n);
-    const comebackDue = parts.reduce((sum, p) => sum + p.comeback, 0n);
+    const pledges = parts.reduce((sum, p) => sum + p.comeback, 0n);
     const poolFromForfeits = forfeitedStakes.reduce((sum, s) => sum + (s - feeOf(s)), 0n);
 
     h.setTime(END);
@@ -222,7 +222,11 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
 
     const counted = await h.readCohort(league, 0);
     expect(counted.pool).toBe(poolFromForfeits);
-    expect([counted.boostDue, counted.comebackDue]).toEqual([boostDue, comebackDue]);
+    // Counting a forfeit moves its pledge out of the cohort's vault into the league's.
+    expect(counted.comebackDue).toBe(0n);
+    const booked = await h.readLeague(league);
+    expect([booked.boostReserve, booked.comebackReserve]).toEqual([0n, pledges]);
+    expect(h.tokenBalance(await reservePda(league))).toBe(pledges);
     expect(h.tokenBalance(fees.operations)).toBe(toOperations);
     expect(h.tokenBalance(fees.developer)).toBe(toDeveloper);
 
@@ -242,12 +246,12 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
     expect(h.tokenBalance(fees.operations)).toBe(toOperations + remainder);
     expect(h.tokenBalance(fees.developer), 'the remainder is operations\' alone').toBe(toDeveloper);
     expect(settled.pool).toBe(poolFromForfeits - remainder);
-    // An empty reserve boosts nothing; the dues move to the league (FR-037c).
+    // An empty boost reserve boosts nothing, and nothing is owed: the pledges stay put.
     expect(settled.boostReceived).toBe(0n);
-    expect([settled.boostDue, settled.comebackDue]).toEqual([0n, 0n]);
+    expect(settled.comebackDue).toBe(0n);
     const reserves = await h.readLeague(league);
-    expect([reserves.boostReserve, reserves.comebackReserve]).toEqual([boostDue, comebackDue]);
-    expect(h.tokenBalance(await reservePda(league))).toBe(boostDue + comebackDue);
+    expect([reserves.boostReserve, reserves.comebackReserve]).toEqual([0n, pledges]);
+    expect(h.tokenBalance(await reservePda(league))).toBe(pledges);
 
     const event = decodeSettled(oneEvent(result, 'CohortSettled'));
     expect(event.finishers).toBe(3);
@@ -461,7 +465,7 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
 
   // --------------------------------------------------- nobody finished at all
 
-  it('splits a no-finisher pool half to the developer and the rest to operations, and nothing carries over (FR-037)', async () => {
+  it('sends a no-finisher pool whole to the league boost reserve, and nothing carries over (FR-037)', async () => {
     const cohort = await cohortAt(0);
     const quitter = await member(0, 3);
     // A later lobby is open: it must receive nothing.
@@ -488,18 +492,17 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
 
     const settled = await h.readCohort(league, 0);
     expect(settled.settled).toBe(true);
-    expect(settled.noFinisherFee).toBe(pool);
+    expect(settled.noFinisherBoost).toBe(pool);
     expect(settled.pool).toBe(0n);
-    // 70 SKR: 35 to the developer (floored), 35 to operations.
-    const out = noFinisherSplit(pool);
-    expect(out.developer).toBe(pool / 2n);
-    expect(h.tokenBalance(fees.developer)).toBe(developerBefore + out.developer);
-    expect(h.tokenBalance(fees.operations)).toBe(operationsBefore + out.operations);
-    // Its reserve shares still reach the league (H35), and the vault ends empty.
+    // The whole 70 SKR goes to the league's boost reserve; neither fee account sees a unit.
+    expect(h.tokenBalance(fees.developer)).toBe(developerBefore);
+    expect(h.tokenBalance(fees.operations)).toBe(operationsBefore);
+    // The forfeiter's pledge went to the comeback reserve when the forfeit was counted.
     const split = forfeitSplit(DEFAULT_CHIPS[3]!);
     const reserves = await h.readLeague(league);
-    expect([reserves.boostReserve, reserves.comebackReserve]).toEqual([split.boost, split.comeback]);
-    expect([settled.boostDue, settled.comebackDue, settled.boostReceived]).toEqual([0n, 0n, 0n]);
+    expect([reserves.boostReserve, reserves.comebackReserve]).toEqual([pool, split.comeback]);
+    expect(h.tokenBalance(await reservePda(league))).toBe(pool + split.comeback);
+    expect([settled.comebackDue, settled.boostReceived]).toEqual([0n, 0n]);
     expect(h.tokenBalance(await vaultPda(cohort))).toBe(0n);
 
     expect(await h.readCohort(league, 1)).toEqual(nextBefore);
@@ -524,7 +527,7 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
 
     const result = await finalize(0);
     expect(result.ok, result.logs.join('\n')).toBe(true);
-    expect((await h.readCohort(league, 0)).noFinisherFee).toBe(pool);
+    expect((await h.readCohort(league, 0)).noFinisherBoost).toBe(pool);
     expect(h.tokenBalance(await vaultPda(cohort))).toBe(0n);
   });
 
@@ -560,7 +563,7 @@ describe('settle_count, settle_finalize and claim_payout (contracts §2, §3)', 
       await harness.sendOrThrow([await settleFinalizeIx(runner.address, fees, id, 0)], runner);
       const settled = await harness.readCohort(id, 0);
       return {
-        fee: settled.noFinisherFee,
+        boost: settled.noFinisherBoost,
         pool: settled.pool,
         toOperations: harness.tokenBalance(fees.operations),
         toDeveloper: harness.tokenBalance(fees.developer),

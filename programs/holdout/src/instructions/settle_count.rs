@@ -11,6 +11,15 @@
 //! refuses cohort *i* until cohort *i − 1* of the league is settled — so every
 //! profile's streak follows the member's own cohorts, whatever the crank did.
 //!
+//! Counting is also where a forfeit's **comeback pledge** becomes the
+//! member's (FR-037c, FR-037e): the 10 % of the stake that waited in the
+//! cohort's vault moves into the league's reserve vault and is booked to the
+//! comeback reserve, and the profile records the one round that can make it
+//! good. A pledge this replaces, or one whose round went by, is released to
+//! the boost reserve here; finishing the round makes it owed instead, and
+//! finalization draws it. The pledge is booked to the reserve in the same
+//! instruction that opens it, so an open comeback is always funded.
+//!
 //! Every pair is validated **before anything is mutated**. Without that, a
 //! caller could count a foreign membership, mark it `counted`, and drive this
 //! cohort's `counted` to `member_count` without its own members ever being
@@ -23,13 +32,14 @@ use crate::{
     errors::HoldoutError,
     events::{ForfeitRecorded, MemberCounted},
     guards,
+    math::schedule,
     math::settlement,
     state::{
         cohort::{Cohort, COHORT_SEED, VAULT_SEED},
         config::{Config, CONFIG_SEED},
-        league::{LeagueConfig, LEAGUE_SEED},
+        league::{LeagueConfig, LEAGUE_SEED, RESERVE_SEED},
         membership::{Membership, MembershipState},
-        profile::{Profile, PROFILE_SEED},
+        profile::{ComebackOnFinish, Profile, PROFILE_SEED},
     },
     vault::transfer_signed,
 };
@@ -47,7 +57,10 @@ pub struct SettleCount<'info> {
     #[account(seeds = [CONFIG_SEED], bump = config.bump)]
     pub config: Box<Account<'info, Config>>,
 
+    /// Writable: pledges are booked to its comeback reserve, and released ones
+    /// to its boost reserve (FR-037c, FR-037e).
     #[account(
+        mut,
         seeds = [LEAGUE_SEED, &[league.league_id]],
         bump = league.bump,
     )]
@@ -78,6 +91,15 @@ pub struct SettleCount<'info> {
         constraint = developer_destination.key() == config.developer_destination @ HoldoutError::AccountMismatch,
     )]
     pub developer_destination: Box<Account<'info, TokenAccount>>,
+
+    /// Where the counted forfeits' pledges go.
+    #[account(
+        mut,
+        seeds = [RESERVE_SEED, &[league.league_id]],
+        bump = league.reserve_vault_bump,
+        constraint = reserve_vault.mint == config.skr_mint @ HoldoutError::AccountMismatch,
+    )]
+    pub reserve_vault: Box<Account<'info, TokenAccount>>,
 
     /// The league's cohort `index - 1`, required for every index but 0.
     pub previous_cohort: Option<Box<Account<'info, Cohort>>>,
@@ -114,6 +136,8 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleCount<'info>>) -> Result<
     let league_id = ctx.accounts.cohort.league_id;
     let mut to_developer: u64 = 0;
     let mut to_operations: u64 = 0;
+    // Pledges leaving the cohort's vault for the reserve vault this page.
+    let mut to_reserve: u64 = 0;
 
     // Validate the whole page first: a page wrong anywhere writes nothing.
     let mut decoded: Vec<(Account<'info, Membership>, Account<'info, Profile>)> =
@@ -217,20 +241,35 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleCount<'info>>) -> Result<
             // The cohort's `end`, identical for everyone who cleared it, so no
             // two finishers can be ordered apart by when they were counted.
             let outcome_at = guards::clear_instant(cohort);
-            let cohort_start = cohort.start;
-            let progress = profile.progress_mut(league_id);
 
-            // A comeback (FR-037e): this cohort started inside the window a
-            // counted forfeit of the same league opened. Counting runs in cohort
-            // order, so which forfeit that is never depends on the crank.
-            if let Some(forfeited_stake) = progress.take_comeback(cohort_start) {
-                let entitled = settlement::comeback_owed(forfeited_stake, stake);
-                membership.comeback_entitled = entitled;
-                let cohort = &mut ctx.accounts.cohort;
-                cohort.comeback_owed = cohort
-                    .comeback_owed
-                    .checked_add(entitled)
-                    .ok_or(error!(HoldoutError::AccountMismatch))?;
+            // A comeback (FR-037e): this cohort is the round a counted forfeit
+            // of the same league opened. Counting runs in cohort order, so which
+            // forfeit that is never depends on the crank.
+            let index = cohort.index;
+            let progress = profile.progress_mut(league_id);
+            match progress.comeback_on_finish(league_id, index) {
+                ComebackOnFinish::MadeGood(forfeited_stake) => {
+                    let pledge = settlement::comeback_pledge(forfeited_stake);
+                    let entitled = settlement::comeback_owed(forfeited_stake, stake);
+                    progress.clear_comeback();
+                    membership.comeback_entitled = entitled;
+                    let cohort = &mut ctx.accounts.cohort;
+                    cohort.comeback_owed = cohort
+                        .comeback_owed
+                        .checked_add(entitled)
+                        .ok_or(error!(HoldoutError::AccountMismatch))?;
+                    // What is owed stays pledged until finalization draws it;
+                    // any part of the pledge above the new stake is free for boosts.
+                    release_pledge(&mut ctx.accounts.league, pledge - entitled)?;
+                }
+                ComebackOnFinish::Lapsed => {
+                    let pledge = progress
+                        .open_pledge_in(league_id)
+                        .ok_or(error!(HoldoutError::AccountMismatch))?;
+                    progress.clear_comeback();
+                    release_pledge(&mut ctx.accounts.league, pledge)?;
+                }
+                ComebackOnFinish::None => {}
             }
 
             let progress = profile.progress_mut(league_id);
@@ -238,18 +277,51 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleCount<'info>>) -> Result<
         } else {
             // Counted in a forfeited state, whenever that forfeit was recorded.
             let outcome_at = guards::forfeit_instant(membership, &ctx.accounts.cohort);
-            let window = settlement::COMEBACK_WINDOW_DAYS * ctx.accounts.cohort.day_length;
             let progress = profile.progress_mut(league_id);
             progress.record_forfeit_counted(outcome_at);
-            // The latest counted forfeit of this league may still be made good
-            // by finishing a later cohort that starts within the window (FR-037e).
-            // A member who left is never counted, so only a real forfeit opens one.
+            // A member who left is never counted, so only a real forfeit
+            // pledges anything.
             if membership.state == MembershipState::Forfeited {
-                progress.open_comeback(
-                    membership.stake,
-                    outcome_at,
-                    outcome_at.saturating_add(window),
-                );
+                let pledge = settlement::comeback_pledge(membership.stake);
+                let cohort = &mut ctx.accounts.cohort;
+                cohort.comeback_due = cohort
+                    .comeback_due
+                    .checked_sub(pledge)
+                    .ok_or(error!(HoldoutError::AccountMismatch))?;
+                to_reserve = to_reserve
+                    .checked_add(pledge)
+                    .ok_or(error!(HoldoutError::AccountMismatch))?;
+
+                let league = &mut ctx.accounts.league;
+                let progress = profile.progress_mut(league_id);
+                if progress.pledge_of_another_league(league_id) {
+                    // Test builds only: every test league shares one slot, and it
+                    // holds another league's open pledge, which only that league
+                    // can release. This forfeit opens no comeback; its pledge is
+                    // free for this league's boosts.
+                    league.boost_reserve = league
+                        .boost_reserve
+                        .checked_add(pledge)
+                        .ok_or(error!(HoldoutError::AccountMismatch))?;
+                } else {
+                    // Only the latest counted forfeit keeps a comeback: one this
+                    // replaces goes to the boost (FR-037e).
+                    if let Some(old) = progress.open_pledge_in(league_id) {
+                        progress.clear_comeback();
+                        release_pledge(league, old)?;
+                    }
+                    let rounds = schedule::comeback_rounds(
+                        league.first_start,
+                        league.cadence,
+                        league.join_lock,
+                        outcome_at,
+                    );
+                    progress.open_comeback(membership.stake, league_id, rounds);
+                    league.comeback_reserve = league
+                        .comeback_reserve
+                        .checked_add(pledge)
+                        .ok_or(error!(HoldoutError::AccountMismatch))?;
+                }
             }
         }
 
@@ -294,6 +366,28 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleCount<'info>>) -> Result<
         seeds,
         to_operations,
     )?;
+    transfer_signed(
+        &token_program,
+        ctx.accounts.vault.to_account_info(),
+        ctx.accounts.reserve_vault.to_account_info(),
+        ctx.accounts.cohort.to_account_info(),
+        seeds,
+        to_reserve,
+    )?;
 
+    Ok(())
+}
+
+/// A pledge nobody will make good: out of the comeback reserve and free for
+/// boosts. Both live in the league's one reserve vault, so no token moves.
+pub(crate) fn release_pledge(league: &mut LeagueConfig, pledge: u64) -> Result<()> {
+    league.comeback_reserve = league
+        .comeback_reserve
+        .checked_sub(pledge)
+        .ok_or(error!(HoldoutError::AccountMismatch))?;
+    league.boost_reserve = league
+        .boost_reserve
+        .checked_add(pledge)
+        .ok_or(error!(HoldoutError::AccountMismatch))?;
     Ok(())
 }

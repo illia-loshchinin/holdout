@@ -27,9 +27,9 @@ class HoldoutPiecesTest {
 
     @Test
     fun `an offer shows the boost the league reserve can add, and nothing while it is empty`() {
-        assertEquals("Prize boost: up to 12.5 SKR from the reserve of Easy · 7-day Holdouts when it settles", boostLine(12_500_000uL, "Easy · 7-day"))
-        assertNull(boostLine(0uL, "Easy · 7-day"))
-        assertNull(boostLine(null, "Easy · 7-day"), "a league not read yet")
+        assertEquals("Prize boost: up to 12.5 SKR", boostLine(12_500_000uL))
+        assertNull(boostLine(0uL))
+        assertNull(boostLine(null), "a league not read yet")
     }
 
     @Test
@@ -37,13 +37,14 @@ class HoldoutPiecesTest {
         val easy = CohortSnapshot(0, 0, 0, 0, 7, 25, 86_400, 0, listOf(1uL, 2uL, 3uL, 4uL), form = holdout.core.LeagueParams.FORM_KNEES_ALLOWED)
         val hard = easy.copy(durationDays = 21, form = holdout.core.LeagueParams.FORM_TOES)
         assertEquals(
-            "80 % of it stays with members: 70 % to the prize pool and 10 % to the boost and comeback reserves of Easy · 7-day Holdouts. " +
-                "20 % goes to the project, and so does the prize pool if nobody finishes.",
-            Format.lostStakeSplit(easy, "the prize pool"),
+            "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% set aside for your comeback, " +
+                "20\u00a0% to the project. If nobody finishes, the pool boosts later Spark \u00b7 7-day prizes.",
+            Format.lostStakeSplit(easy),
         )
-        assertTrue("Hard · 21-day Holdouts" in Format.lostStakeSplit(hard, "this Holdout's prize pool"))
-        assertTrue("league" !in Format.lostStakeSplit(hard, "the prize pool").lowercase())
-        assertTrue(" %" !in Format.lostStakeSplit(easy, "the prize pool"), "a % never starts a line on its own")
+        assertTrue("boosts later Habit \u00b7 21-day prizes." in Format.lostStakeSplit(hard))
+        assertTrue("boosts later Habit \u00b7 21-day prizes." in Format.lostStakeSplitForfeit(hard))
+        assertTrue("league" !in Format.lostStakeSplit(hard).lowercase())
+        assertTrue(" %" !in Format.lostStakeSplit(easy), "a % never starts a line on its own")
     }
 
     @Test
@@ -77,14 +78,17 @@ class HoldoutPiecesTest {
     }
 
     @Test
-    fun `amounts are SKR with the mint's six decimals, and dollars are always approximate`() {
+    fun `amounts are SKR with at most two decimals, rounded down, and dollars are always approximate`() {
         assertEquals("46 SKR", Format.skr(46_000_000uL))
         assertEquals("12.5 SKR", Format.skr(12_500_000uL))
-        assertEquals("0.000001 SKR", Format.skr(1uL))
+        assertEquals("0 SKR", Format.skr(1uL))
         assertEquals("≈ $25", Format.tierUsd(1))
         assertEquals("3d 4h", Format.countdown(3 * 86_400 + 4 * 3_600 + 59))
         assertEquals("4h 06m", Format.countdown(4 * 3_600 + 6 * 60))
-        assertEquals("0m 00s", Format.countdown(-5))
+        assertEquals("0s", Format.countdown(-5))
+        assertEquals("58s", Format.countdown(58))
+        assertEquals("1m 00s", Format.countdown(60))
+        assertEquals("12m 30s", Format.countdown(750))
         assertEquals("10-minute", Format.dayLength(600))
         assertEquals("Ho1d…yoy4", Format.short("Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4"))
     }

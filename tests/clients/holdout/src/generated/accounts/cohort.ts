@@ -24,15 +24,14 @@ chips: Array<bigint>; memberCount: number;
 heldStake: bigint; 
 /**
  * Only forfeited stakes ever enter this, and a boost drawn from the
- * league's reserve of earlier forfeits (INV-2).
+ * league's boost reserve (INV-2).
  */
 pool: bigint; 
 /**
- * The boost-reserve share of this cohort's forfeits, held in its vault
- * until it finalizes and moves to the league (FR-037c).
+ * The comeback pledges of this cohort's recorded forfeits, held in its
+ * vault until each forfeit is counted and its pledge moves to the
+ * league's comeback reserve (FR-037c).
  */
-boostDue: bigint; 
-/** The comeback-reserve share, held likewise (FR-037c). */
 comebackDue: bigint; forfeitsRecorded: number; 
 /**
  * Memberships `settle_count` has processed; settlement finalizes when this
@@ -42,15 +41,18 @@ counted: number; finisherCount: number; finishersPerTier: Array<number>;
 /** The payout denominator, written as finishers are counted (FR-033). */
 totalFinisherStake: bigint; settled: boolean; sharePerTier: Array<bigint>; roundingRemainder: bigint; 
 /**
- * A cohort nobody finished: its whole pool, sent to the developer and
- * operations destinations (FR-037).
+ * A cohort nobody finished: its whole pool, sent to the league's boost
+ * reserve (FR-037).
  */
-noFinisherFee: bigint; 
+noFinisherBoost: bigint; 
 /** The boost this cohort drew from its league's reserve (FR-037d). */
 boostReceived: bigint; 
 /** Comeback refunds owed to its finishers, summed as they are counted (FR-037e). */
 comebackOwed: bigint; 
-/** What finalization drew from the comeback reserve: `min(owed, reserve)`. */
+/**
+ * What finalization drew from the comeback reserve: all of `comeback_owed`,
+ * which the reserve always holds as pledges.
+ */
 comebackFunded: bigint; 
 /** Refunds paid out with claims so far. */
 comebackClaimed: bigint; vaultBump: number; bump: number;  };
@@ -67,15 +69,14 @@ chips: Array<number | bigint>; memberCount: number;
 heldStake: number | bigint; 
 /**
  * Only forfeited stakes ever enter this, and a boost drawn from the
- * league's reserve of earlier forfeits (INV-2).
+ * league's boost reserve (INV-2).
  */
 pool: number | bigint; 
 /**
- * The boost-reserve share of this cohort's forfeits, held in its vault
- * until it finalizes and moves to the league (FR-037c).
+ * The comeback pledges of this cohort's recorded forfeits, held in its
+ * vault until each forfeit is counted and its pledge moves to the
+ * league's comeback reserve (FR-037c).
  */
-boostDue: number | bigint; 
-/** The comeback-reserve share, held likewise (FR-037c). */
 comebackDue: number | bigint; forfeitsRecorded: number; 
 /**
  * Memberships `settle_count` has processed; settlement finalizes when this
@@ -85,27 +86,30 @@ counted: number; finisherCount: number; finishersPerTier: Array<number>;
 /** The payout denominator, written as finishers are counted (FR-033). */
 totalFinisherStake: number | bigint; settled: boolean; sharePerTier: Array<number | bigint>; roundingRemainder: number | bigint; 
 /**
- * A cohort nobody finished: its whole pool, sent to the developer and
- * operations destinations (FR-037).
+ * A cohort nobody finished: its whole pool, sent to the league's boost
+ * reserve (FR-037).
  */
-noFinisherFee: number | bigint; 
+noFinisherBoost: number | bigint; 
 /** The boost this cohort drew from its league's reserve (FR-037d). */
 boostReceived: number | bigint; 
 /** Comeback refunds owed to its finishers, summed as they are counted (FR-037e). */
 comebackOwed: number | bigint; 
-/** What finalization drew from the comeback reserve: `min(owed, reserve)`. */
+/**
+ * What finalization drew from the comeback reserve: all of `comeback_owed`,
+ * which the reserve always holds as pledges.
+ */
 comebackFunded: number | bigint; 
 /** Refunds paid out with claims so far. */
 comebackClaimed: number | bigint; vaultBump: number; bump: number;  };
 
 /** Gets the encoder for {@link CohortArgs} account data. */
 export function getCohortEncoder(): FixedSizeEncoder<CohortArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['leagueId', getU8Encoder()], ['index', getU32Encoder()], ['start', getI64Encoder()], ['joinCutoff', getI64Encoder()], ['durationDays', getU8Encoder()], ['repsPerDay', getU16Encoder()], ['dayLength', getI64Encoder()], ['exercise', getU8Encoder()], ['form', getU8Encoder()], ['chips', getArrayEncoder(getU64Encoder(), { size: 4 })], ['memberCount', getU32Encoder()], ['heldStake', getU64Encoder()], ['pool', getU64Encoder()], ['boostDue', getU64Encoder()], ['comebackDue', getU64Encoder()], ['forfeitsRecorded', getU32Encoder()], ['counted', getU32Encoder()], ['finisherCount', getU32Encoder()], ['finishersPerTier', getArrayEncoder(getU32Encoder(), { size: 4 })], ['totalFinisherStake', getU64Encoder()], ['settled', getBooleanEncoder()], ['sharePerTier', getArrayEncoder(getU64Encoder(), { size: 4 })], ['roundingRemainder', getU64Encoder()], ['noFinisherFee', getU64Encoder()], ['boostReceived', getU64Encoder()], ['comebackOwed', getU64Encoder()], ['comebackFunded', getU64Encoder()], ['comebackClaimed', getU64Encoder()], ['vaultBump', getU8Encoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: COHORT_DISCRIMINATOR }));
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['leagueId', getU8Encoder()], ['index', getU32Encoder()], ['start', getI64Encoder()], ['joinCutoff', getI64Encoder()], ['durationDays', getU8Encoder()], ['repsPerDay', getU16Encoder()], ['dayLength', getI64Encoder()], ['exercise', getU8Encoder()], ['form', getU8Encoder()], ['chips', getArrayEncoder(getU64Encoder(), { size: 4 })], ['memberCount', getU32Encoder()], ['heldStake', getU64Encoder()], ['pool', getU64Encoder()], ['comebackDue', getU64Encoder()], ['forfeitsRecorded', getU32Encoder()], ['counted', getU32Encoder()], ['finisherCount', getU32Encoder()], ['finishersPerTier', getArrayEncoder(getU32Encoder(), { size: 4 })], ['totalFinisherStake', getU64Encoder()], ['settled', getBooleanEncoder()], ['sharePerTier', getArrayEncoder(getU64Encoder(), { size: 4 })], ['roundingRemainder', getU64Encoder()], ['noFinisherBoost', getU64Encoder()], ['boostReceived', getU64Encoder()], ['comebackOwed', getU64Encoder()], ['comebackFunded', getU64Encoder()], ['comebackClaimed', getU64Encoder()], ['vaultBump', getU8Encoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: COHORT_DISCRIMINATOR }));
 }
 
 /** Gets the decoder for {@link Cohort} account data. */
 export function getCohortDecoder(): FixedSizeDecoder<Cohort> {
-    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['leagueId', getU8Decoder()], ['index', getU32Decoder()], ['start', getI64Decoder()], ['joinCutoff', getI64Decoder()], ['durationDays', getU8Decoder()], ['repsPerDay', getU16Decoder()], ['dayLength', getI64Decoder()], ['exercise', getU8Decoder()], ['form', getU8Decoder()], ['chips', getArrayDecoder(getU64Decoder(), { size: 4 })], ['memberCount', getU32Decoder()], ['heldStake', getU64Decoder()], ['pool', getU64Decoder()], ['boostDue', getU64Decoder()], ['comebackDue', getU64Decoder()], ['forfeitsRecorded', getU32Decoder()], ['counted', getU32Decoder()], ['finisherCount', getU32Decoder()], ['finishersPerTier', getArrayDecoder(getU32Decoder(), { size: 4 })], ['totalFinisherStake', getU64Decoder()], ['settled', getBooleanDecoder()], ['sharePerTier', getArrayDecoder(getU64Decoder(), { size: 4 })], ['roundingRemainder', getU64Decoder()], ['noFinisherFee', getU64Decoder()], ['boostReceived', getU64Decoder()], ['comebackOwed', getU64Decoder()], ['comebackFunded', getU64Decoder()], ['comebackClaimed', getU64Decoder()], ['vaultBump', getU8Decoder()], ['bump', getU8Decoder()]]);
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['leagueId', getU8Decoder()], ['index', getU32Decoder()], ['start', getI64Decoder()], ['joinCutoff', getI64Decoder()], ['durationDays', getU8Decoder()], ['repsPerDay', getU16Decoder()], ['dayLength', getI64Decoder()], ['exercise', getU8Decoder()], ['form', getU8Decoder()], ['chips', getArrayDecoder(getU64Decoder(), { size: 4 })], ['memberCount', getU32Decoder()], ['heldStake', getU64Decoder()], ['pool', getU64Decoder()], ['comebackDue', getU64Decoder()], ['forfeitsRecorded', getU32Decoder()], ['counted', getU32Decoder()], ['finisherCount', getU32Decoder()], ['finishersPerTier', getArrayDecoder(getU32Decoder(), { size: 4 })], ['totalFinisherStake', getU64Decoder()], ['settled', getBooleanDecoder()], ['sharePerTier', getArrayDecoder(getU64Decoder(), { size: 4 })], ['roundingRemainder', getU64Decoder()], ['noFinisherBoost', getU64Decoder()], ['boostReceived', getU64Decoder()], ['comebackOwed', getU64Decoder()], ['comebackFunded', getU64Decoder()], ['comebackClaimed', getU64Decoder()], ['vaultBump', getU8Decoder()], ['bump', getU8Decoder()]]);
 }
 
 /** Gets the codec for {@link Cohort} account data. */
@@ -158,5 +162,5 @@ export async function fetchAllMaybeCohort(
 }
 
 export function getCohortSize(): number {
-  return 229;
+  return 221;
 }

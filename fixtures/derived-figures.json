@@ -17,7 +17,6 @@
     "memberCount": 5,
     "heldStake": "185000000",
     "pool": "20000000",
-    "boostDue": "0",
     "comebackDue": "0",
     "forfeitsRecorded": 0,
     "counted": 0,
@@ -37,7 +36,7 @@
       "0"
     ],
     "roundingRemainder": "0",
-    "noFinisherFee": "0",
+    "noFinisherBoost": "0",
     "boostReceived": "0",
     "comebackOwed": "0",
     "comebackFunded": "0",

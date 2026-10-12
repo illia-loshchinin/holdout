@@ -15,7 +15,11 @@ import holdout.app.faucet.FaucetClient
 import holdout.app.faucet.FaucetOutcome
 import holdout.app.storage.Store
 import holdout.app.ui.Format
+import holdout.app.wallet.SendPhase
 import holdout.app.wallet.SendResult
+import holdout.app.wallet.SignAction
+import holdout.app.wallet.TxOutcome
+import holdout.app.wallet.TxPhase
 import holdout.app.wallet.WalletRepository
 import holdout.core.Instructions
 import holdout.core.Journey
@@ -33,6 +37,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.security.MessageDigest
 
 /**
@@ -66,7 +71,17 @@ class HoldoutViewModel(
         val autoSubmit: AutoSubmit = AutoSubmit(),
         /** A member's "Check again" while the chain can't be reached (spec 005). */
         val check: ChainCheck = ChainCheck(),
+        /** A join, a day or a claim the wallet has been asked to sign, for the signing screens (rulings G7); null when none. */
+        val signing: Signing? = null,
     )
+
+    /**
+     * One signature's progress: [id] tells a second attempt from the first,
+     * [phase] is what its screen shows — from the tap to its outcome, a devnet
+     * that does not answer before the wallet opens included (a failure that
+     * moved nothing).
+     */
+    data class Signing(val id: Int, val action: SignAction, val cohort: SolanaPublicKey, val phase: TxPhase, val tier: Int = 0, val day: Int = 0)
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -83,26 +98,37 @@ class HoldoutViewModel(
     /**
      * Reads [cohort]'s roster (one `getProgramAccounts`, sliced — R8); a failed read keeps the last one.
      * It runs in [scope]: a check's roster read is a child of the check, so leaving the front cancels it.
+     * A cohort's read still out answers for any asked meanwhile — the 30-second pass, a screen opened
+     * twice, the Standing dot's own loop — so the same `getProgramAccounts` is never in flight twice.
+     * A [force]d read ("Check again") starts its own anyway: one already out may be hanging, and the
+     * check promises a fresh roster; the newer answer wins either way.
      */
-    fun loadRoster(cohort: SolanaPublicKey, scope: CoroutineScope = viewModelScope) {
-        // Loads overlap — the 30-second pass, a screen opened twice — and a slow
+    fun loadRoster(cohort: SolanaPublicKey, scope: CoroutineScope = viewModelScope, force: Boolean = false) {
+        if (!force && rosterReads[cohort]?.isActive == true) return
+        // A read given up (see [ROSTER_READ_MILLIS]) can still be answered late; a slow
         // early one must not put an older roster back over a newer one.
         val started = ++rosterLoadsStarted
-        scope.launch {
-            // Its own failure ends only this read: as a child of a check it must not cancel the check.
-            val roster =
-                try {
-                    chain.roster(cohort)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    null
-                } ?: return@launch
-            if (started < (newestRoster[cohort] ?: 0)) return@launch
-            newestRoster[cohort] = started
-            _rosters.update { it + (cohort to roster) }
-        }
+        val read =
+            scope.launch {
+                // Its own failure ends only this read: as a child of a check it must not cancel the check.
+                val roster =
+                    try {
+                        withTimeoutOrNull(ROSTER_READ_MILLIS) { chain.roster(cohort) }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        null
+                    } ?: return@launch
+                if (started < (newestRoster[cohort] ?: 0)) return@launch
+                newestRoster[cohort] = started
+                _rosters.update { it + (cohort to roster) }
+            }
+        rosterReads[cohort] = read
+        read.invokeOnCompletion { if (rosterReads[cohort] === read) rosterReads.remove(cohort) }
     }
+
+    /** The roster read now out, by cohort — on the main thread. */
+    private val rosterReads = mutableMapOf<SolanaPublicKey, Job>()
 
     private val _leaderboard = MutableStateFlow<Leaderboard.Snapshot?>(null)
 
@@ -240,17 +266,46 @@ class HoldoutViewModel(
 
     fun clearMessage() = _state.update { it.copy(message = null, lastFaucet = null) }
 
+    /** The signing screens closed: the last signature's progress is no longer shown. */
+    fun clearSigning() = _state.update { it.copy(signing = null) }
+
+    private var signings = 0
+
+    /**
+     * Runs [send] for [action] on [cohort], reporting its phases in
+     * [UiState.signing] from the moment the wallet is asked, and its outcome
+     * when it ends (rulings G7, C-D14).
+     */
+    private suspend fun signing(action: SignAction, cohort: SolanaPublicKey, tier: Int = 0, day: Int = 0, send: suspend (onPhase: (SendPhase) -> Unit) -> SendResult): SendResult {
+        val id = ++signings
+        val started = Signing(id, action, cohort, TxPhase.WaitingForWallet, tier, day)
+        _state.update { it.copy(signing = started) }
+        val result = send { phase -> _state.update { s -> s.copy(signing = s.signing?.takeIf { it.id == id }?.copy(phase = TxPhase.of(phase)) ?: s.signing) } }
+        val lowOnSol = (_state.value.view?.lamports ?: Long.MAX_VALUE) < holdout.app.faucet.FaucetClient.MEMBER_CAN_PAY_LAMPORTS
+        val outcome = TxOutcome.of(action, result, lowOnSol)
+        // A result that offers "Try again" frees the action with it: the closing read in [act] would
+        // otherwise drop that tap, and the screen would wait for a wallet nobody asked.
+        _state.update { s -> s.copy(signing = (s.signing?.takeIf { it.id == id } ?: started).copy(phase = TxPhase.Done(outcome)), busy = s.busy && !outcome.canRetry) }
+        return result
+    }
+
     private fun say(message: String?, warning: Boolean = false) = _state.update { it.copy(message = message, messageIsWarning = warning) }
+
+    /** Actions started: one frees [UiState.busy] at its end only if no later one has taken it since. */
+    private var actions = 0
 
     private fun act(block: suspend () -> Unit) {
         if (_state.value.busy) return
+        val mine = ++actions
         viewModelScope.launch {
             _state.update { it.copy(busy = true, message = null) }
             try {
                 block()
             } finally {
                 refreshNow()
-                _state.update { it.copy(busy = false) }
+                // A failed signature frees the action before this read ends (see [signing]); a retry may
+                // hold it by now, and this action's end must not release the retry's hold.
+                if (mine == actions) _state.update { it.copy(busy = false) }
             }
         }
     }
@@ -265,18 +320,18 @@ class HoldoutViewModel(
             false
         }
         is SendResult.Failed -> {
-            say(ProgramErrors.explain(result.programError) ?: result.message, warning = true)
+            say(if (result.declined) DECLINED else ProgramErrors.explain(result.programError) ?: result.message, warning = true)
             false
         }
     }
 
     // ---- the faucet (T043) -------------------------------------------------
 
-    fun claimFaucet(sender: ActivityResultSender, now: Long) = act {
+    fun claimFaucet(sender: ActivityResultSender) = act {
         val me = address ?: return@act
         val view = _state.value.view ?: return@act
         val config = view.config ?: return@act say("Holdout is not live on devnet yet.", warning = true)
-        val outcome = faucet.claim(sender, me, config, view.profile, view.lamports, now)
+        val outcome = faucet.claim(sender, me, config, view.lamports)
         _state.update { it.copy(lastFaucet = outcome) }
     }
 
@@ -288,8 +343,9 @@ class HoldoutViewModel(
         val config = view.config ?: return@act
         // A running cohort the member has missed a deadline in and nobody has recorded yet still holds the
         // slot (ObligationsOverlap, 6026): its record goes first in the same transaction (FR-037g, ES-17).
-        val instructions = Journey.joinInstructions(Deployment.programId, me, config.skrMint, config.feeDestination, config.developerDestination, h.address, tier, view.joinPlan(now))
-        describe(wallet.send(sender, instructions), "You're in. ${Format.skr(h.cohort.chips[tier])} staked.")
+        val instructions = Journey.joinInstructions(Deployment.programId, me, config.skrMint, config.feeDestination, config.developerDestination, h.address, tier, view.joinPlan(now, h))
+        val result = signing(SignAction.Join, h.address, tier = tier) { onPhase -> wallet.send(sender, instructions, onPhase) }
+        describe(result, "You're in. ${Format.skr(h.cohort.chips[tier])} staked.")
     }
 
     fun leave(sender: ActivityResultSender, h: Holdout) = act {
@@ -317,7 +373,7 @@ class HoldoutViewModel(
             _state.update { it.copy(autoSubmit = it.autoSubmit.sent(h.address.base58(), day)) }
             keepAutoSubmit()
             val ix = Instructions.submitDay(Deployment.programId, me, h.address, day, proofOf(h.address, day, reps))
-            val result = wallet.send(sender, listOf(ix))
+            val result = signing(SignAction.Submit, h.address, day = day) { onPhase -> wallet.send(sender, listOf(ix), onPhase) }
             describe(result, "Day ${day + 1} is on chain.")
             if ((result as? SendResult.Failed)?.beforeWallet == true && me == address) {
                 // Devnet did not answer before the wallet could open: nothing was declined,
@@ -422,12 +478,18 @@ class HoldoutViewModel(
     fun claim(sender: ActivityResultSender, h: Holdout) = act {
         val me = address ?: return@act
         val config = _state.value.view?.config ?: return@act
-        val result = wallet.send(sender, listOf(Instructions.claimPayout(Deployment.programId, me, config.skrMint, h.address)))
+        val result = signing(SignAction.Claim, h.address) { onPhase -> wallet.send(sender, listOf(Instructions.claimPayout(Deployment.programId, me, config.skrMint, h.address)), onPhase) }
         if (describe(result, "Claimed.")) _state.update { it.copy(lastClaim = h.address to (result as SendResult.Landed).signature) }
     }
 
     companion object {
         private const val REFRESH_MILLIS = 30_000L
+
+        /** A roster read that has not answered by now is given up, so one that hangs cannot hold its cohort's reads off for good. */
+        private const val ROSTER_READ_MILLIS = 60_000L
+
+        /** A refusal in the wallet: nothing was signed, so nothing moved. */
+        const val DECLINED = "You declined in your wallet. Nothing was sent."
         const val DAY_ALREADY_COMPLETED = 6033
 
         /** Refusals after which a pending day has nothing left to send: wrong day, deadline passed, already on chain. */
@@ -460,7 +522,6 @@ object ProgramErrors {
         6033 -> "Today is already on chain."
         6043 -> "Nothing to claim here."
         6044 -> "Already claimed."
-        6050 -> "Today's test tokens are already claimed."
         6051, 6052 -> "The faucet can't pay out right now. It is not something you did."
         // The token program's InsufficientFunds: not enough SKR for the chip.
         1 -> "Not enough SKR for that chip. Get test tokens first."

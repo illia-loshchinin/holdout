@@ -14,6 +14,34 @@ object Schedule {
     /** The last second of day [dayIndex]: `start + (k + 1) × day_length − 1`. */
     fun deadlineOf(start: Long, dayLength: Long, dayIndex: Int): Long = start + (dayIndex + 1L) * dayLength - 1
 
+    /** A cohort's join cutoff: `start − join_lock` (FR-008). */
+    fun joinCutoff(start: Long, joinLock: Long): Long = start - joinLock
+
+    /** Start of cohort [index] in a league: `first_start + index × cadence` (R11). */
+    fun cohortStart(firstStart: Long, cadence: Long, index: Long): Long = firstStart + index * cadence
+
+    /**
+     * The first round that can make a forfeit good (FR-037e): the league's first
+     * cohort that starts after the missed deadline — the smallest `k` with
+     * `first_start + k × cadence > missed`. The program's `comeback_round`; an
+     * instant before the first start still lands on round 0.
+     */
+    fun comebackRound(firstStart: Long, cadence: Long, missed: Long): Long = maxOf(Math.floorDiv(missed - firstStart, cadence) + 1, 0L)
+
+    /**
+     * The rounds that can make a forfeit good, first and last (FR-037e) — the
+     * program's `comeback_rounds`. Usually one: the first round after the miss,
+     * still open to join. A miss on the last day of a round lands the second
+     * before the next one starts, after its joining closed; the member then
+     * chooses — join that round late, on its first day, or the one after it.
+     */
+    fun comebackRounds(firstStart: Long, cadence: Long, joinLock: Long, missed: Long): LongRange {
+        val first = comebackRound(firstStart, cadence, missed)
+        val cutoff = joinCutoff(cohortStart(firstStart, cadence, first), joinLock)
+        // Open the second after the miss: `now < cutoff` at `missed + 1`.
+        return if (missed + 1 < cutoff) first..first else first..first + 1
+    }
+
     /**
      * Whole cohort days elapsed at [now], `0` before the start and capped at
      * the duration — the program's `days_elapsed`. While the cohort is
@@ -57,27 +85,25 @@ object Settlement {
         return (pool.big() * chip.big() / totalFinisherStake.big()).toULongExact()
     }
 
-    /** Percents of a forfeited stake for each destination of the fee (FR-027, H35; 70 / 5 / 5 / 10 / 10 since 2026-10-09); operations takes what the floors leave. */
-    const val BOOST_PERCENT = 5
-    const val COMEBACK_PERCENT = 5
+    /**
+     * Percents of a forfeited stake for each destination of the fee (FR-027,
+     * H35; 70 / 10 / 10 / 10 since 2026-10-12); operations takes what the floors
+     * leave. The comeback part is the forfeiting member's own: pledged to them,
+     * it comes back if they finish the next round of the league, and goes to the
+     * boost reserve if they do not (FR-037e). Nothing goes to the boost reserve
+     * at forfeit time.
+     */
+    const val COMEBACK_PERCENT = 10
     const val DEVELOPER_PERCENT = 10
 
     /** The most a boost may add to a cohort's own pool, in percent (FR-037d; 10 since 2026-10-10). */
     const val BOOST_CAP_PERCENT = 10
 
-    /** The share of a counted forfeited stake a comeback refunds, in percent (FR-037e). */
-    const val COMEBACK_REFUND_PERCENT = 20
-
-    /** How many of a cohort's days after the missed deadline a comeback cohort may start (FR-037e). */
-    const val COMEBACK_WINDOW_DAYS = 14
-
     /** Where one forfeited stake goes (FR-027, H35) — the program's `ForfeitSplit`. */
     data class ForfeitSplit(
         /** To this cohort's prize pool. */
         val pool: ULong,
-        /** Held in the cohort's vault until it finalizes, then the league's boost reserve. */
-        val boost: ULong,
-        /** Held likewise, then the league's comeback reserve. */
+        /** The member's comeback pledge: held in the cohort's vault until the forfeit is counted, then in the league's comeback reserve. */
         val comeback: ULong,
         /** To the developer destination at once. */
         val developer: ULong,
@@ -85,52 +111,48 @@ object Settlement {
         val operations: ULong,
     ) {
         /** Everything that did not reach the pool: always [feeOf] the stake. */
-        val fee: ULong get() = boost + comeback + developer + operations
+        val fee: ULong get() = comeback + developer + operations
 
         /** The parts that leave the cohort's vault when the forfeit is recorded. */
         val paidOutNow: ULong get() = developer + operations
     }
 
-    /** Split one forfeited stake 70 / 5 / 5 / 10 / 10, each part floored (FR-027, H35). */
+    /** Split one forfeited stake 70 / 10 / 10 / 10, each part floored (FR-027, H35). */
     fun forfeitSplit(forfeitedStake: ULong): ForfeitSplit {
         val fee = feeOf(forfeitedStake)
-        val boost = percentOf(forfeitedStake, BOOST_PERCENT)
-        val comeback = percentOf(forfeitedStake, COMEBACK_PERCENT)
+        val comeback = comebackPledge(forfeitedStake)
         val developer = percentOf(forfeitedStake, DEVELOPER_PERCENT)
-        // 5 + 5 + 10 of the stake never exceed 30 of it, so this cannot underflow.
-        return ForfeitSplit(forfeitedStake - fee, boost, comeback, developer, fee - boost - comeback - developer)
+        // 10 + 10 of the stake never exceed 30 of it, so this cannot underflow.
+        return ForfeitSplit(forfeitedStake - fee, comeback, developer, fee - comeback - developer)
     }
+
+    /** The comeback pledged to a member who forfeited this stake: 10 %, rounded down (FR-027, FR-037e). */
+    fun comebackPledge(forfeitedStake: ULong): ULong = percentOf(forfeitedStake, COMEBACK_PERCENT)
 
     /**
      * The boost a finishing cohort draws: 10% of its own pool, never more than
      * the league's boost reserve holds (FR-037d). A cohort with no forfeits
-     * gets none.
+     * gets none. The boost reserve never includes a pledge, so a boost cannot
+     * spend one.
      */
     fun boostFor(ownPool: ULong, boostReserve: ULong): ULong = minOf(percentOf(ownPool, BOOST_CAP_PERCENT), boostReserve)
 
-    /** What a comeback owes a finisher: 20% of the forfeited stake, never more than the stake they finished on (FR-037e). */
-    fun comebackOwed(forfeitedStake: ULong, newStake: ULong): ULong = minOf(percentOf(forfeitedStake, COMEBACK_REFUND_PERCENT), newStake)
+    /** What a comeback owes a finisher of its round: the pledge — 10% of the forfeited stake — never more than the stake they finished on (FR-037e). Exact, not "up to". */
+    fun comebackOwed(forfeitedStake: ULong, newStake: ULong): ULong = minOf(comebackPledge(forfeitedStake), newStake)
 
     /**
      * One finisher's refund: `floor(entitled × funded ÷ total_owed)` — their
-     * entitlement, scaled down pro rata when the comeback reserve could not
-     * fund every finisher's in full (FR-037e). `0` when nothing is owed.
+     * entitlement, scaled to what finalization drew. Every owed refund is
+     * pledged in the reserve, so `funded` always equals `total_owed` and this is
+     * the entitlement itself (FR-037e). `0` when nothing is owed.
      */
     fun comebackRefund(entitled: ULong, funded: ULong, totalOwed: ULong): ULong {
         if (totalOwed == 0uL) return 0uL
         return (entitled.big() * funded.big() / totalOwed.big()).toULongExact()
     }
 
-    /**
-     * A cohort nobody finished: its whole pool goes out, half (floored) to the
-     * developer and the rest to operations (FR-037, H34, H35; half each since
-     * 2026-10-09, was a third). Returned as
-     * `(developer, operations)`.
-     */
-    fun noFinisherSplit(pool: ULong): Pair<ULong, ULong> {
-        val developer = pool / 2uL
-        return developer to pool - developer
-    }
+    /** A cohort nobody finished sends its whole pool to the league's boost reserve (FR-037, 2026-10-12): nothing goes to the developer or operations. */
+    fun noFinisherBoost(pool: ULong): ULong = pool
 
     private fun percentOf(amount: ULong, percent: Int): ULong = (amount.big() * BigInteger.valueOf(percent.toLong()) / HUNDRED).toULongExact()
 
@@ -197,6 +219,30 @@ class CohortFigures internal constructor(
 ) {
     /** [Derive.projectedShare], with the pool and denominator already summed. */
     fun projectedShare(member: MembershipSnapshot): ULong = Derive.shareOf(member, cohort, now, projectedPool, standingStake)
+}
+
+/**
+ * [Derive.sinceYesterday]: how many dropped out in the last day, and how much
+ * the pool's growth added to a standing member's share (nothing when nobody
+ * dropped, the Holdout is settled, or the member is out).
+ */
+class SinceYesterday internal constructor(
+    /** Members out now whose missed deadline fell in the last day. */
+    val dropped: Int,
+    private val cohort: CohortSnapshot,
+    private val now: Long,
+    private val poolNow: ULong,
+    private val standingStakeNow: ULong,
+    private val poolThen: ULong,
+    private val standingStakeThen: ULong,
+) {
+    /** What [member]'s projected share grew by since yesterday, `0` if it did not grow. */
+    fun shareGain(member: MembershipSnapshot): ULong {
+        if (cohort.settled || !Derive.standing(member, cohort, now)) return 0uL
+        val then = Settlement.shareForTier(poolThen, member.stake, standingStakeThen)
+        val current = Settlement.shareForTier(poolNow, member.stake, standingStakeNow)
+        return if (current > then) current - then else 0uL
+    }
 }
 
 /**
@@ -358,7 +404,8 @@ object Derive {
      * boostReserve)`, where [boostReserve] is the league's reserve as read now.
      * The real draw happens at finalization, against the reserve as it stands
      * then (earlier cohorts of the league finalize first and draw on it, and
-     * credit their own dues to it), so this is an estimate, never a promise.
+     * pools nobody won and pledges nobody made good are added to it), so this
+     * is an estimate, never a promise.
      *
      * `0` with nobody standing — a cohort with no finishers draws no boost —
      * and `0` with no forfeits, as the program has it. Once settled, the boost
@@ -384,6 +431,37 @@ object Derive {
 
     /** `join_cutoff − now`, never negative: `0` from the cutoff itself, which closes joining (FR-008). */
     fun timeUntilJoiningCloses(c: CohortSnapshot, now: Long): Long = (c.joinCutoff - now).coerceAtLeast(0)
+
+    /**
+     * What the last day changed, for "3 dropped since yesterday" and "+17 SKR
+     * since yesterday" on the running Holdout (N5, FR-038a). It needs nothing
+     * the phone remembers: a member dropped in the last day exactly when they
+     * are not standing and the deadline they missed fell within the last
+     * [CohortSnapshot.dayLength] seconds. The pool a day ago is today's less
+     * what those members' forfeits added, and the standing stake a day ago is
+     * today's plus their stakes, so a member's share a day ago follows.
+     */
+    fun sinceYesterday(c: CohortSnapshot, members: List<MembershipSnapshot>, now: Long): SinceYesterday = sinceYesterday(c, members, now, projectedPool(c, members, now), standingStake(c, members, now))
+
+    /** [sinceYesterday] from a screen's [CohortFigures], which already hold today's pool and standing stake: no second pass over the roster for them. */
+    fun sinceYesterday(figures: CohortFigures, members: List<MembershipSnapshot>): SinceYesterday = sinceYesterday(figures.cohort, members, figures.now, figures.projectedPool, figures.standingStake)
+
+    private fun sinceYesterday(c: CohortSnapshot, members: List<MembershipSnapshot>, now: Long, poolNow: ULong, stakeNow: ULong): SinceYesterday {
+        val dropped = members.filter { m ->
+            !standing(m, c, now) && m.daysCompleted < c.durationDays && deadlineOf(c, m.daysCompleted) > now - c.dayLength
+        }
+        val droppedPool = dropped.fold(0uL) { sum, m -> sum + Settlement.forfeitSplit(m.stake).pool }
+        val droppedStake = dropped.fold(0uL) { sum, m -> sum + m.stake }
+        return SinceYesterday(
+            dropped = dropped.size,
+            cohort = c,
+            now = now,
+            poolNow = poolNow,
+            standingStakeNow = stakeNow,
+            poolThen = if (poolNow >= droppedPool) poolNow - droppedPool else 0uL,
+            standingStakeThen = stakeNow + droppedStake,
+        )
+    }
 
     /** Every figure at once, for one cohort screen. */
     fun figures(

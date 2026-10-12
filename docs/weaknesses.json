@@ -37,9 +37,9 @@
       "fix": "Covered by the attestation fix; cross-device progress later"
     },
     {
-      "what": "Knee push-ups count in the Daily 25 and in Easy Holdouts, by design",
-      "why": "The Daily 25 and Easy Holdouts **count push-ups from the knees on purpose** — a free habit, and a 7-day Holdout, for building strength; only Hard Holdouts refuse them. Every sitting is counted at 45° since 8 Oct, and the Daily 25 is held to the Easy set-up: until then it also accepted the phone head-on, where the legs and hips point into the lens and knee angle, knee and ankle height, hip height, torso angle and body line all read the same for knee push-ups as for honest ones (`fixtures/rep-traces/front-knees-01`), so it counted there what a Holdout refuses",
-      "fix": "Nothing to fix for the knees: the Daily 25 shows how many of the day's reps came from the toes, so a member can see how far they are from Hard"
+      "what": "Knee push-ups count in the Daily 25 and in Spark Holdouts, by design",
+      "why": "The Daily 25 and Spark Holdouts **count push-ups from the knees on purpose** — a free habit, and a 7-day Holdout, for building strength; only Habit Holdouts refuse them. Every sitting is counted at 45° since 8 Oct, and the Daily 25 is held to the Spark set-up: until then it also accepted the phone head-on, where the legs and hips point into the lens and knee angle, knee and ankle height, hip height, torso angle and body line all read the same for knee push-ups as for honest ones (`fixtures/rep-traces/front-knees-01`), so it counted there what a Holdout refuses",
+      "fix": "Nothing to fix for the knees: the Daily 25 shows how many of the day's reps came from the toes, so a member can see how far they are from a Habit"
     },
     {
       "what": "At 45° the body line is checked only coarsely, and the knee rule is 'off the floor'",
@@ -53,7 +53,7 @@
     },
     {
       "what": "A cobra is refused at 45°, but not in every case",
-      "why": "Lying flat and pressing only the chest up, hips on the floor, counted at 45° until the body line was judged on the push back up (honest 157–174°, cobra 120–134°). A cobra done with the body nearly straight, and a rep pushed up from lying on the floor, passed that check; they are refused by how far the hips have risen half-way up the push against the shoulders (honest 0.92–1.06, those 0.63–0.87, line 0.90) — with a margin of 0.02–0.03, measured on two people; in a staked sitting a rep whose rise cannot be read is not credited. From further in front than about 35° that check does not hold, so no sitting starts there; the Daily 25 and Easy, which accept a body line straight to the ankle **or to the knee** (so knee push-ups with the feet raised count), stop at about 40°. Until 8 Oct the Daily 25 started further in front, and cobras got through there: 4 of 5 on one recording (`angled-mixed-03`). Not caught: a rep let down until the hips rest on the floor and pushed up straight in one piece — no landmark reading tells a hip on the floor from a deep honest bottom (four counted on 4 Oct) — and, on a second person whose head covered the near hand at the bottom, two cobras, because the near wrist was misplaced and every arm reading with it",
+      "why": "Lying flat and pressing only the chest up, hips on the floor, counted at 45° until the body line was judged on the push back up (honest 157–174°, cobra 120–134°). A cobra done with the body nearly straight, and a rep pushed up from lying on the floor, passed that check; they are refused by how far the hips have risen half-way up the push against the shoulders (honest 0.92–1.06, those 0.63–0.87, line 0.90) — with a margin of 0.02–0.03, measured on two people; in a staked sitting a rep whose rise cannot be read is not credited. From further in front than about 35° that check does not hold, so no sitting starts there; the Daily 25 and Spark, which accept a body line straight to the ankle **or to the knee** (so knee push-ups with the feet raised count), stop at about 40°. Until 8 Oct the Daily 25 started further in front, and cobras got through there: 4 of 5 on one recording (`angled-mixed-03`). Not caught: a rep let down until the hips rest on the floor and pushed up straight in one piece — no landmark reading tells a hip on the floor from a deep honest bottom (four counted on 4 Oct) — and, on a second person whose head covered the near hand at the bottom, two cobras, because the near wrist was misplaced and every arm reading with it",
       "fix": "The knee-on-the-floor image classifier, extended to hips on the floor; a wrist reading that holds when the head covers the near hand"
     },
     {
@@ -84,7 +84,7 @@
     {
       "what": "The faucet's fee sponsor key ships inside the app",
       "why": "A wallet with zero SOL cannot pay for its own first transaction, and there is no server to sign for it",
-      "fix": "Anyone can extract the key, and empty the 0.05 SOL float it holds, so the contract bounds that instead of assuming it will not happen: one claim per wallet a day, a single daily budget of 0.72 SOL covering **every** lamport that leaves the faucet — top-ups and reimbursements alike — and a permissionless refill, so a drained sponsor is restored by the next crank pass rather than ending onboarding. Real fix: no faucet on mainnet, or a rate-limited relayer"
+      "fix": "Anyone can extract the key, and empty the 0.05 SOL float it holds, so the contract bounds that instead of assuming it will not happen: no wallet is limited (a tester who runs out may claim again), but a single daily budget of 0.72 SOL covering **every** lamport that leaves the faucet — top-ups and reimbursements alike — and a permissionless refill, so a drained sponsor is restored by the next crank pass rather than ending onboarding. Real fix: no faucet on mainnet, or a rate-limited relayer"
     },
     {
       "what": "The program keeps its upgrade authority during judging",
@@ -92,14 +92,14 @@
       "fix": "Used only for defect fixes that change no existing cohort, account layout or fund movement. Real fix: revoke the authority once the contract is final"
     },
     {
-      "what": "The fee funds reserves, a developer share and operations by rule, but the developer and operations shares are ordinary wallets",
-      "why": "Of every forfeited stake, 5% and 5% go to the league's boost and comeback reserves, which only the program can move, and 10% and 10% to the developer and operations wallets named in this README (H35; re-split 2026-10-09). What those two wallets then do with it is not enforced by the contract",
+      "what": "The fee funds a comeback pledge, a developer share and operations by rule, but the developer and operations shares are ordinary wallets",
+      "why": "Of every forfeited stake, 10% is set aside as the forfeiting member's own comeback, in the league's reserve vault, which only the program can move (a comeback nobody makes good, and the pool of a Holdout nobody finished, feed that league's boost reserve there), and 10% and 10% go to the developer and operations wallets named in this README (H35; re-split 2026-10-12, H39). What those two wallets then do with it is not enforced by the contract",
       "fix": "Publish both wallets' addresses and their spending; later, move operations spending on chain or under a multisig"
     },
     {
-      "what": "Easy Holdouts count push-ups from the knees on thin evidence",
-      "why": "Knees-allowed counting at 45 degrees was measured on about 26 recordings from mostly one person: 87% of honest knee reps counted, 3 of 56 cobras slipped through - 2 of them filmed at about 30 degrees, which the Easy camera check now refuses (H35)",
-      "fix": "Record at least 3 people, 100 knee reps and cobras at 30-60 degrees, and replay them before any real money rides on Easy"
+      "what": "Spark Holdouts count push-ups from the knees on thin evidence",
+      "why": "Knees-allowed counting at 45 degrees was measured on about 26 recordings from mostly one person: 87% of honest knee reps counted, 3 of 56 cobras slipped through - 2 of them filmed at about 30 degrees, which the Spark camera check now refuses (H35)",
+      "fix": "Record at least 3 people, 100 knee reps and cobras at 30-60 degrees, and replay them before any real money rides on Spark"
     },
     {
       "what": "A Daily 25 done before the phone has ever read chain time is dated afterwards, from the phone's own uptime clock",

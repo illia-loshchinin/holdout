@@ -1,82 +1,430 @@
 package holdout.app.tour
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import holdout.app.ui.Body
+import holdout.app.ui.HoldoutCard
+import holdout.app.ui.PagerDots
 import holdout.app.ui.PrimaryButton
-import holdout.app.ui.SectionLabel
+import holdout.app.ui.SecondaryButton
 import holdout.app.ui.theme.HoldoutColors
+import holdout.app.ui.theme.HoldoutFonts
+import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
-import holdout.repcounter.Stakes
 
 /**
- * The first-run tour (FR-067, T042): three cards, skippable at any card,
- * re-openable from About Holdout. Members meet the product here, and anyone
- * can run the whole cycle on a short test Holdout (FR-044a).
+ * The first-run tour (FR-067, T042; boards TourDaily, Tour, TourMoney,
+ * TourCounting, Disclosure): five cards, "how it works · N of 5", re-openable
+ * from Me and About.
+ *
+ * ```
+ *  HOW IT WORKS · 1 OF 5                     Skip        header · Skip on cards 1–4
+ *  1 The Daily 25   2 A Holdout   3 Where a lost stake goes   4 How reps are counted
+ *  5 Scripted members
+ *  (the card, centred; each fits a Seeker, 400 × 829 dp, unscrolled)
+ *  ▬ ● ● ●                                               PagerDots
+ *  [ Back ] [ Next ]  /  [ Start ] on the last         Back from card 2 on; PrimaryButton
+ *  TEST NETWORK · TEST TOKEN
+ * ```
+ *
+ * **Skip on cards 1–4 goes to card 5**, not out of the tour: the scripted-member
+ * note is required on first run (spec 004 FR-013). **Back** — the button from
+ * card 2 on, or the system Back — steps back a card; on the first card there is
+ * no button and the system Back is left to the shell. **Start** on the last card finishes
+ * ([onDone]). Nothing here is for judges, and no card names Holdout Lab.
  */
 @Composable
 fun TourScreen(onDone: () -> Unit, modifier: Modifier = Modifier) {
-    var card by remember { mutableIntStateOf(0) }
-    val cards = TOUR
+    var card by rememberSaveable { mutableIntStateOf(0) }
+    BackHandler(enabled = card > 0) { card-- }
+    val last = card == LAST
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(HoldoutColors.Canvas)
-            .padding(Spacing.screenGutter),
-        verticalArrangement = Arrangement.spacedBy(Spacing.betweenSections, Alignment.CenterVertically),
+            .padding(horizontal = Spacing.screenGutter)
+            .padding(top = Spacing.tight, bottom = Spacing.betweenSections),
     ) {
-        Row(Modifier.align(Alignment.End)) {
-            TextButton(onClick = onDone) { Text("Skip", color = HoldoutColors.TextSecondary) }
+        Row(Modifier.fillMaxWidth().heightIn(min = Spacing.touchTarget), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "How it works · ${card + 1} of $CARDS".uppercase(),
+                style = LabelStyle,
+                color = HoldoutColors.TextTertiary,
+                modifier = Modifier.weight(1f),
+            )
+            if (!last) {
+                Text(
+                    "Skip",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = HoldoutColors.TextTertiary,
+                    modifier = Modifier
+                        .clip(MaterialTheme.shapes.small)
+                        .clickable(role = Role.Button) { card = LAST }
+                        .padding(horizontal = Spacing.tight, vertical = Spacing.betweenItems),
+                )
+            }
         }
-        SectionLabel("${card + 1} of ${cards.size}")
-        Text(cards[card].title, style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
-        cards[card].lines.forEach { Body(it) }
-        PrimaryButton(if (card == cards.lastIndex) "Start" else "Next", { if (card == cards.lastIndex) onDone() else card++ })
-        Text("TEST NETWORK · TEST TOKEN", style = LabelStyle, color = HoldoutColors.TextTertiary)
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            key(card) {
+                Column(
+                    modifier = Modifier.heightIn(min = maxHeight).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.betweenSections, Alignment.CenterVertically),
+                ) {
+                    when (card) {
+                        0 -> DailyCard()
+                        1 -> HoldoutCardPage()
+                        2 -> MoneyCard()
+                        3 -> CountingCard()
+                        else -> ScriptedCard()
+                    }
+                }
+            }
+        }
+        // Tight around the dots, so every card fits a Seeker unscrolled (TourFitTest).
+        PagerDots(CARDS, card, Modifier.padding(vertical = Spacing.tight))
+        // Back beside Next from card 2 on, so a card can be read again (owner, 12 Oct); the system Back does the same.
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
+            if (card > 0) SecondaryButton("Back", { card-- }, Modifier.weight(1f))
+            PrimaryButton(if (last) "Start" else "Next", { if (last) onDone() else card++ }, Modifier.weight(2f))
+        }
+        Text(
+            "Test network · test token".uppercase(),
+            style = LabelStyle,
+            color = HoldoutColors.TextTertiary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = Spacing.betweenItems),
+        )
     }
 }
 
-private data class Card(val title: String, val lines: List<String>)
+private const val CARDS = 5
+private const val LAST = CARDS - 1
 
-private val TOUR = listOf(
-    Card(
-        "The Daily 25",
-        listOf(
-            "25 push-ups, free, every day, counted by this phone's camera.",
-            "Do them at once or 10 at a time. It builds your streak and stakes nothing.",
-        ),
-    ),
-    Card(
-        "A Holdout",
-        listOf(
-            "Put SKR on yourself with everyone who starts that Monday: Easy, 7 days, push-ups from the knees count; Hard, 21 days, from your toes.",
-            "Miss a day and your stake goes to the prize pool. Finish, and take back your stake plus a share of what the others left.",
-            "Leave any time before joining closes, for a full refund.",
-            "Some members are scripted: real wallets under the same rules, labelled SCRIPTED wherever they appear.",
-        ),
-    ),
-    Card(
-        "How reps are counted",
-        listOf(
-            "The Daily 25: the phone at 45°, as in a Holdout. Push-ups from the knees are welcome — it tells you how many came from your toes.",
-            "Easy Holdouts: the phone at 45°, push-ups from the knees count.",
-            Stakes.STAKED_RULE.replace("Staked Holdouts", "Hard Holdouts"),
-            "The camera never leaves the phone — no video, no landmarks, nothing uploaded.",
-        ),
-    ),
+// ---- card 1: the Daily 25 ---------------------------------------------------------------------------
+
+@Composable
+private fun Title(text: String, sub: String? = null) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
+        Text(text, style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
+        sub?.let { Body(it) }
+    }
+}
+
+@Composable
+private fun DailyCard() {
+    Title("The Daily 25", "25 push-ups a day. Free. Your way:")
+    HoldoutCard {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.cardPadding), verticalAlignment = Alignment.CenterVertically) {
+            DotGrid(74.dp, 74.dp, 6f, dailyDots(listOf(7f, 22f, 37f, 52f, 67f), listOf(1f, 1f, 1f, 1f, 1f)))
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
+                Text("All at once", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextPrimary)
+                Body("One sitting, all 25.")
+            }
+        }
+    }
+    HoldoutCard {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.cardPadding), verticalAlignment = Alignment.CenterVertically) {
+            DotGrid(74.dp, 90.dp, 6f, dailyDots(listOf(7f, 22f, 45f, 60f, 83f), listOf(1f, 1f, BAND_2, BAND_2, BAND_3)))
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
+                Text("At your own pace", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextPrimary)
+                Legend(1f, "10", "morning")
+                Legend(BAND_2, "10", "lunch")
+                Legend(BAND_3, "5", "evening")
+            }
+        }
+    }
+    SuccessNote(Mark.Lock, "Every 10 are banked for good", "Close the app or stop mid-set — banked reps stay.")
+    // No "How reps are counted" here: the card fits a Seeker without scrolling, and card 2 says knees or toes (owner, 12 Oct; board 2a).
+    Text("Each day done grows your streak.", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextTertiary)
+}
+
+/** A 5-wide grid of accent dots whose rows ([ys]) are faded by [alphas]: the Daily 25 in blocks of 10. */
+private fun dailyDots(ys: List<Float>, alphas: List<Float>): List<DotSpec> = ys.indices.flatMap { r -> (0 until 5).map { c -> DotSpec(7f + 15f * c, ys[r], HoldoutColors.Accent.copy(alpha = alphas[r])) } }
+
+@Composable
+private fun Legend(alpha: Float, number: String, word: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+        Box(Modifier.size(8.dp).background(HoldoutColors.Accent.copy(alpha = alpha), CircleShape))
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(fontFamily = FontFamily.Monospace, color = HoldoutColors.TextPrimary)) { append(number) }
+                append(" $word")
+            },
+            style = MaterialTheme.typography.bodyLarge,
+            color = HoldoutColors.TextSecondary,
+        )
+    }
+}
+
+private const val BAND_2 = 0.55f
+private const val BAND_3 = 0.3f
+
+private enum class Mark { Lock, Shield }
+
+/** A note in `success` with a drawn mark: the lock on "banked for good", the shield on "private by design" and "private and fair by design". */
+@Composable
+private fun SuccessNote(mark: Mark, title: String, text: String) {
+    val shape = MaterialTheme.shapes.medium
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(HoldoutColors.Success.copy(alpha = NOTE_FILL), shape)
+            .border(Spacing.border, HoldoutColors.Success.copy(alpha = NOTE_BORDER), shape)
+            .padding(horizontal = Spacing.cardPadding, vertical = Spacing.betweenItems),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Canvas(Modifier.padding(top = Spacing.base).size(20.dp)) {
+            val stroke = Stroke(1.6f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            scale(size.width / 20f, pivot = Offset.Zero) {
+                when (mark) {
+                    Mark.Lock -> {
+                        drawRoundRect(HoldoutColors.Success, Offset(4f, 9f), Size(12f, 8.5f), CornerRadius(2f), style = stroke)
+                        drawPath(PathParser().parsePathString("M6.5 9V6.5a3.5 3.5 0 0 1 7 0V9").toPath(), HoldoutColors.Success, style = stroke)
+                    }
+                    Mark.Shield -> {
+                        drawPath(PathParser().parsePathString("M10 2 3 5v6c0 4.4 3 7.8 7 9 4-1.2 7-4.6 7-9V5l-7-3Z").toPath(), HoldoutColors.Success, style = stroke)
+                        drawPath(PathParser().parsePathString("M6.8 11.2l2.2 2.2 4.2-4.6").toPath(), HoldoutColors.Success, style = stroke)
+                    }
+                }
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Success)
+            Text(text, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextSecondary)
+        }
+    }
+}
+
+private const val NOTE_FILL = 0.08f
+private const val NOTE_BORDER = 0.32f
+
+// ---- card 2: a Holdout ------------------------------------------------------------------------------
+
+@Composable
+private fun HoldoutCardPage() {
+    Title("A Holdout", "Stake SKR with everyone who starts on Monday. Finish, and split what the others lost.")
+    ExampleCard()
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
+        Body("Spark · 7-day lights it up — knees allowed.\nHabit · 21-day makes it stick — toes only.")
+        Text(
+            "Changed your mind? Full refund until joining closes.\nHoldouts need a Seeker. The Daily 25 is free for everyone.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = HoldoutColors.TextTertiary,
+        )
+    }
+}
+
+// ---- card 3: where a lost stake goes ----------------------------------------------------------------
+
+/**
+ * The split of a lost stake (spec 001 FR-027, FR-037, FR-037e; board TourMoney):
+ * 70 % to the prize pool, 10 % set aside as the member's own comeback, 20 % to
+ * the project — the bar, then a row for each part.
+ */
+@Composable
+private fun MoneyCard() {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
+        Text("Where a lost stake goes", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(fontFamily = HoldoutFonts.Mono, color = HoldoutColors.Accent)) { append("80 %") }
+                append(" comes back to members. The rest runs Holdout.")
+            },
+            style = MaterialTheme.typography.bodyLarge,
+            color = HoldoutColors.TextSecondary,
+        )
+    }
+    HoldoutCard {
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
+            SplitBar()
+            SplitRow("70 %", HoldoutColors.Accent, "This Holdout's prize pool", "Split by everyone who finishes.")
+            SplitRow(
+                "10 %",
+                HoldoutColors.Success,
+                "Your comeback",
+                "Set aside for you. Finish the next Holdout of the same kind and it comes back with your payout.",
+                "Don't, and it joins the boost: up to 10 % more on later prize pools, with every pool nobody won.",
+            )
+            SplitRow("20 %", HoldoutColors.TextSecondary, "The project", "Keeps Holdout running.")
+        }
+    }
+    Text(
+        "Lost on the last day? Join the next one on its first day, or the one after. Nothing is taken from a stake that finishes.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = HoldoutColors.TextTertiary,
+    )
+}
+
+/** 70 · 10 · 20, in the three parts' colours, with a hairline gap between them. */
+@Composable
+private fun SplitBar() {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(14.dp)
+            .clip(CircleShape)
+            .semantics { contentDescription = "Of every lost stake: 70 percent to the prize pool, 10 percent to your comeback, 20 percent to the project." },
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Box(Modifier.weight(70f).fillMaxHeight().background(HoldoutColors.Accent))
+        Box(Modifier.weight(10f).fillMaxHeight().background(HoldoutColors.Success))
+        Box(Modifier.weight(20f).fillMaxHeight().background(HoldoutColors.TextPrimary.copy(alpha = 0.24f)))
+    }
+}
+
+@Composable
+private fun SplitRow(percent: String, colour: Color, title: String, vararg lines: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
+        Text(
+            percent,
+            style = MaterialTheme.typography.titleMedium.copy(fontFamily = HoldoutFonts.Mono),
+            color = colour,
+            modifier = Modifier.width(52.dp),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = HoldoutColors.TextPrimary)
+            lines.forEach { Text(it, style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.TextSecondary) }
+        }
+    }
+}
+
+// ---- card 4: how reps are counted -------------------------------------------------------------------
+
+@Composable
+private fun CountingCard() {
+    val clock = rememberFigureClock()
+    HoldoutCard {
+        TourFigure(clock)
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
+            STEPS.forEachIndexed { i, step ->
+                // Each step is lit while the figure is on it: read in the layer, so a frame recomposes nothing.
+                Text(
+                    buildAnnotatedString {
+                        withStyle(SpanStyle(fontFamily = FontFamily.Monospace, color = HoldoutColors.Accent)) { append("${i + 1}") }
+                        append("  $step")
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = HoldoutColors.TextPrimary,
+                    modifier = Modifier.graphicsLayer { alpha = clock.overlay().stepAlpha[i] },
+                )
+            }
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+        // Private and fair in one note (owner, 12 Oct; board 2c, canvas v247).
+        SuccessNote(Mark.Shield, "Private and fair by design", TRUST)
+    }
+}
+
+private const val TRUST = "An AI model on your phone tracks your body, and Holdout counts your push-ups right there. No microphone, and no video or body data ever leaves your phone. Completed days are submitted to Solana, where a smart contract " +
+    "secures the stakes and determines payouts through transparent, verifiable rules."
+
+private val STEPS = listOf(
+    "Phone on the floor, at 45°, ahead of your shoulder.",
+    "Get into a push-up: head to feet, knees included, inside the outline.",
+    "The checks tick green. Hold the top for a second, then 3 · 2 · 1 and every rep counts.",
 )
+
+// ---- card 5: scripted members -----------------------------------------------------------------------
+
+/** Spark's minimum before scripted members stop joining (spec 001 FR-043), and Habit's. */
+private const val SPARK_MINIMUM = 20
+private const val HABIT_MINIMUM = 12
+
+@Composable
+private fun ScriptedCard() {
+    // Scripted members exist only in the Hackathon rounds on devnet (owner, 12 Oct; board 2d).
+    Title("Scripted members\nfor Hackathon only")
+    ScriptedRow(real = SPARK_MINIMUM - SCRIPTED_SHOWN, scripted = SCRIPTED_SHOWN)
+    Body("Some members in these Holdouts are scripted.\nReal wallets, same rules, labelled SCRIPTED.")
+    Text(
+        "They only fill a Holdout to its minimum:\n$SPARK_MINIMUM per Spark and $HABIT_MINIMUM per Habit.\nTheir days aren't camera-checked.",
+        style = MaterialTheme.typography.bodyLarge,
+        color = HoldoutColors.TextTertiary,
+    )
+}
+
+private const val SCRIPTED_SHOWN = 5
+
+/** A Spark at its minimum: solid dots for real members, dashed rings for the scripted ones that top it up. */
+@Composable
+private fun ScriptedRow(real: Int, scripted: Int) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+        Text("A Spark · 7-day Holdout · ${real + scripted} members".uppercase(), style = LabelStyle, color = HoldoutColors.TextTertiary)
+        Canvas(Modifier.fillMaxWidth().height(24.dp)) {
+            val pitch = size.width / (real + scripted)
+            val r = pitch * 0.34f
+            repeat(real + scripted) { i ->
+                val centre = Offset(pitch * (i + 0.5f), size.height / 2)
+                if (i < real) {
+                    drawCircle(HoldoutColors.TextPrimary.copy(alpha = 0.7f), r, centre)
+                } else {
+                    drawCircle(HoldoutColors.Warning, r, centre, style = Stroke(1.6f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(3f, 3f))))
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("real members", style = LabelStyle.copy(fontFamily = FontFamily.Monospace), color = HoldoutColors.TextPrimary)
+            Text("scripted, up to the minimum", style = LabelStyle.copy(fontFamily = FontFamily.Monospace), color = HoldoutColors.Warning)
+        }
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000, heightDp = 844, widthDp = 390)
+@Composable
+private fun TourPreview() {
+    HoldoutTheme { TourScreen(onDone = {}) }
+}

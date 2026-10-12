@@ -102,7 +102,6 @@ fn cohort() -> Cohort {
         member_count: 12,
         held_stake: 900,
         pool: 680,
-        boost_due: 600,
         comeback_due: 300,
         forfeits_recorded: 3,
         counted: 9,
@@ -112,7 +111,7 @@ fn cohort() -> Cohort {
         settled: true,
         share_per_tier: [17, 0, 42, 85],
         rounding_remainder: 2,
-        no_finisher_fee: 500,
+        no_finisher_boost: 500,
         boost_received: 501,
         comeback_owed: 77,
         comeback_funded: 66,
@@ -148,8 +147,9 @@ fn profile() -> Profile {
                 longest_streak: 4,
                 last_changed: 1_790_600_000,
                 comeback_stake: 25_000_000,
-                comeback_from: 1_790_599_999,
-                comeback_until: 1_791_809_999,
+                comeback_league: 0,
+                comeback_round: 7,
+                comeback_last_round: 8,
             },
             LeagueProgress {
                 cleared: 1,
@@ -158,8 +158,9 @@ fn profile() -> Profile {
                 longest_streak: 1,
                 last_changed: 1_791_400_000,
                 comeback_stake: 0,
-                comeback_from: 1_791_300_000,
-                comeback_until: 1_792_500_000,
+                comeback_league: 0,
+                comeback_round: 0,
+                comeback_last_round: 0,
             },
             LeagueProgress {
                 cleared: 0,
@@ -168,8 +169,9 @@ fn profile() -> Profile {
                 longest_streak: 0,
                 last_changed: 1_790_700_000,
                 comeback_stake: 10_000_000,
-                comeback_from: 1_790_699_000,
-                comeback_until: 1_790_840_000,
+                comeback_league: 101,
+                comeback_round: 12,
+                comeback_last_round: 12,
             },
         ],
         running: RunningSlot {
@@ -232,9 +234,9 @@ fn every_account_is_the_size_the_typescript_side_allocates() {
     // allocate a different account than the program does.
     assert_eq!(8 + Config::INIT_SPACE, 294);
     assert_eq!(8 + LeagueConfig::INIT_SPACE, 68);
-    assert_eq!(8 + Cohort::INIT_SPACE, 229);
+    assert_eq!(8 + Cohort::INIT_SPACE, 221);
     assert_eq!(8 + Membership::INIT_SPACE, 101);
-    assert_eq!(8 + Profile::INIT_SPACE, 257);
+    assert_eq!(8 + Profile::INIT_SPACE, 236);
 }
 
 #[test]

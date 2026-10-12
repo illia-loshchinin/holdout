@@ -96,6 +96,13 @@ class SittingViewModel(
 
     private val trace = recorder
 
+    /**
+     * `sitting:{wallet}:{scope}`, set when counting starts and cleared on every
+     * clean exit (ES-1, ES-2). Holdout Lab, which has a recorder and no wallet,
+     * keeps none.
+     */
+    private val marker: SittingMarker? = if (recorder == null) SittingMarker(store, wallet, scope) else null
+
     enum class Step {
         PREFLIGHT,
         COUNTDOWN,
@@ -155,6 +162,13 @@ class SittingViewModel(
          * member is still holding the phone — unless they asked not to see it.
          */
         val showSetup: Boolean = false,
+        /**
+         * The checks have been short of green for 30 s in total, or a green one has turned red three
+         * times: S3 shows "Still not green? Tips" from now until the sitting ends ([PreflightTipsOffer]).
+         */
+        val tipsOffered: Boolean = false,
+        /** The tip sheet is open over S3. Only the member opens it. */
+        val showTips: Boolean = false,
         /** The one short correction to show big while getting into position. */
         val coach: Coach? = null,
         /** With the pills green and the hold not filling: the sentence that says why (`HoldBlocker.fix`). */
@@ -169,6 +183,8 @@ class SittingViewModel(
         val recordingVideo: Boolean? = null,
         /** Reps the counter credited in this sitting — shown next to the member's own count. */
         val repsCounted: Int = 0,
+        /** The Daily 25 just finished: the streak after it, and whether this day grew it. Null otherwise. */
+        val streak: StreakAfter? = null,
     ) {
         val doneToday: Int get() = banked + looseReps
         val remaining: Int get() = (target - doneToday).coerceAtLeast(0)
@@ -177,6 +193,9 @@ class SittingViewModel(
     private val preflight = Preflight(stakes = stakes)
     private val readyGate = ReadyGate(stakes = stakes)
     private val positionGuide = PositionGuide()
+
+    /** One per sitting, so nothing carries over to the next. */
+    private val tipsOffer = PreflightTipsOffer()
 
     /** Updated from the gravity sensor; drives where the floor is drawn. */
     @Volatile
@@ -230,6 +249,19 @@ class SittingViewModel(
 
     /** Seconds to this Holdout day's deadline; null for the Daily 25, or while the chain is unread. */
     fun deadlineSecondsLeft(): Long? = timeLeftAt?.let { at -> chainSecondsNow()?.let(at) }
+
+    /** A Holdout day (it has a deadline) rather than the Daily 25 or a Lab set. */
+    val isHoldoutDay: Boolean get() = timeLeftAt != null
+
+    /** The Holdout day's number as the member counts it (day 12), or null for the Daily 25 and Lab. */
+    val dayNumber: Int? get() = if (isHoldoutDay) (banking.dayIndex + 1).toInt() else null
+
+    /**
+     * The time under the sitting's bar: a Holdout day's seconds to its deadline,
+     * the Daily 25's seconds left today. Null while the chain is unread, and in
+     * Holdout Lab, which has no clock.
+     */
+    fun timeLeftSeconds(): Long? = if (isHoldoutDay) deadlineSecondsLeft() else secondsLeftToday()
 
     /** Seconds left in today, for the header. Null while the chain is unread. */
     fun secondsLeftToday(): Long? = chainSecondsNow()?.let { now ->
@@ -305,8 +337,14 @@ class SittingViewModel(
                 // picture does — and only then, so it never talks over a pill's own fix.
                 val blocker = readyGate.blocker.takeIf { !_uiState.value.showSetup }
                 val coach = Coach.next(report, guidance, blocker)
+                tipsOffer.onReport(
+                    observation.world.timestampMillis,
+                    preflightPills(report, coach).map { pill -> pill.passing },
+                    reading = _uiState.value.showSetup,
+                )
                 _uiState.update {
                     it.withFrame(observation).copy(
+                        tipsOffered = tipsOffer.offered,
                         preflight = report,
                         readyProgress = readyGate.progress,
                         guidance = guidance,
@@ -414,7 +452,7 @@ class SittingViewModel(
         // The guide is dropped here and never comes back. A silhouette
         // reappearing over somebody mid-set is a distraction they cannot act on
         // without abandoning the set.
-        _uiState.update { it.copy(step = Step.COUNTDOWN, readyProgress = 1f, guidance = null) }
+        _uiState.update { it.copy(step = Step.COUNTDOWN, readyProgress = 1f, guidance = null, showTips = false) }
     }
 
     /** One second of the countdown, driven by the screen's timer. */
@@ -444,6 +482,8 @@ class SittingViewModel(
                 return
             }
             _uiState.update { it.copy(step = Step.COUNTING, hint = null, looseReps = 0) }
+            // From here a crash loses the loose reps, and the next open says what was kept.
+            marker?.start()
         }
         _cues.tryEmit(Cue.Counting)
     }
@@ -477,7 +517,8 @@ class SittingViewModel(
                 // Only the real Daily 25 extends the streak — never a test run.
                 // A day done before chain time was known has no date yet;
                 // OfflineDays records the streak once it has one.
-                if (scope == Store.CHALLENGE && banking.dayIndex != Store.UNKNOWN_DAY) streaks.recordCompletedDay(wallet, banking.dayIndex)
+                val streak = if (scope == Store.CHALLENGE && banking.dayIndex != Store.UNKNOWN_DAY) StreakAfter.record(streaks, wallet, banking.dayIndex) else null
+                marker?.clear()
                 trace?.close()
                 _cues.tryEmit(Cue.DayComplete)
                 _uiState.update {
@@ -486,6 +527,7 @@ class SittingViewModel(
                         banked = outcome.total,
                         looseReps = 0,
                         hint = null,
+                        streak = streak,
                     )
                 }
             }
@@ -504,6 +546,7 @@ class SittingViewModel(
     fun onLeftForeground() {
         synchronized(countdownLock) {
             if (stopped || !_uiState.value.step.inSet) return
+            marker?.clear()
             banking.endSitting()
             backToChecks()
             _uiState.update { it.copy(looseReps = 0, hint = null) }
@@ -513,6 +556,7 @@ class SittingViewModel(
     /** The member stopped, or the screen went away. Loose reps go; blocks stay. */
     fun endSitting(): Int {
         stopped = true
+        marker?.clear()
         trace?.close()
         return banking.endSitting()
     }
@@ -574,6 +618,7 @@ class SittingViewModel(
      * `ViewModelProvider`, so [onCleared] alone would never run.
      */
     fun release() {
+        marker?.clear()
         trace?.close()
     }
 
@@ -638,7 +683,9 @@ class SittingViewModel(
         val last = spoken
         val due = when {
             last == null || last.first != coach -> true
-            coach == Coach.HOLD -> false
+            // "Hold" and "Place your phone" are said once: the member holding the phone can read it, and a
+            // repeat only nags (owner, 12 Oct walk).
+            coach == Coach.HOLD || coach == Coach.AIM_AT_FLOOR -> false
             else -> nowMillis - last.second >= COACH_REPEAT_MILLIS
         }
         if (!due) return
@@ -657,9 +704,19 @@ class SittingViewModel(
         _uiState.update { it.copy(showSetup = false) }
     }
 
-    /** "How to set up" — reopens the guide, whatever was chosen before. */
+    /** "How to set up" — reopens the guide, whatever was chosen before. Opened from the tip sheet, it takes the sheet's place. */
     fun openSetup() {
-        _uiState.update { it.copy(showSetup = true) }
+        _uiState.update { it.copy(showSetup = true, showTips = false) }
+    }
+
+    /** "Still not green? Tips" — only the member opens the sheet; the checks keep running under it. */
+    fun openTips() {
+        _uiState.update { it.copy(showTips = true) }
+    }
+
+    /** The tip sheet was closed, by its button, Back, a tap outside or a drag. It starts nothing. */
+    fun closeTips() {
+        _uiState.update { it.copy(showTips = false) }
     }
 
     fun onError(message: String) {

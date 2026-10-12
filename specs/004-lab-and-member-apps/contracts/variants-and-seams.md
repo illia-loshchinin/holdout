@@ -102,5 +102,5 @@ No wallet, network, faucet, Holdout, tour or About appears in Lab.
 | `WalkthroughScreen`, `Route.Walkthrough`, `beforeWallet` walkthrough | Connect screen, no-wallet help |
 | Connect screen's "For judges: watch a full cycle" or "Watch a full cycle (3 min)" link | "Test network, test token." everywhere it is today |
 | About's "Watch a full cycle", known weaknesses, scripted-wallet list | **About Holdout**: devnet notice, the tour again, Disconnect wallet with its network note, one sentence on scripted members |
-| Home's four TEST switches; sitting readouts and "rec ·" line; label prompt | First-run scripted disclosure, SCRIPTED labels, TEST COHORT labels, the short test lobby |
+| Home's four TEST switches; sitting readouts and "rec ·" line; label prompt | First-run scripted disclosure, SCRIPTED labels, the DEVNET COHORT badge on "Hackathon · {n}-day" rounds, the short test lobby |
 | Links named "About · for judges" and "About · wallet" | One link named **About Holdout** in both places |

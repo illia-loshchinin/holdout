@@ -6,7 +6,7 @@
 
 ## Summary
 
-While the app is in its *"the chain can't be reached"* state (`HoldoutViewModel.UiState.offline`, the last snapshot read failed), a member can ask it to read the chain now: a **Check again** button on every "can't be reached" line, and a pull-down on the home, a Holdout's details and the forfeit screen. A check is the read the app already makes every 30 seconds — the snapshot (`ChainRepository.load`), chain time, and the roster of the Holdout shown — started at once. A small plain-Kotlin gate, `ChainCheck`, holds whether a check is under way and whether the last one found the chain still silent; the view model joins a second request to the first, and a successful read, by a check or by the schedule, clears it. A check sends nothing of its own: once it finds the chain answering, 001 FR-024b's automatic send opens the wallet's approval for a waiting day exactly as when the chain comes back by itself, and the tap follows a decline (spec Clarifications, 2026-10-11).
+While the app is in its *"the chain can't be reached"* state (`HoldoutViewModel.UiState.offline`, the last snapshot read failed), a member can ask it to read the chain now: a **Check again** button on every "can't be reached" line, and a pull-down on Today (the home), a Holdout's details (also Standing's root) and the forfeit screen; the Holdouts tab's root carries the line and the button, and Standing's empty state neither. A check is the read the app already makes every 30 seconds — the snapshot (`ChainRepository.load`), chain time, and the roster of the Holdout shown — started at once, or served by that roster's read already out (one read per Holdout at a time, research R2). A small plain-Kotlin gate, `ChainCheck`, holds whether a check is under way and whether the last one found the chain still silent; the view model joins a second request to the first, and a successful read, by a check or by the schedule, clears it. A check sends nothing of its own: once it finds the chain answering, 001 FR-024b's automatic send opens the wallet's approval for a waiting day exactly as when the chain comes back by itself, and the tap follows a decline (spec Clarifications, 2026-10-11).
 
 ## Technical Context
 
@@ -26,7 +26,7 @@ While the app is in its *"the chain can't be reached"* state (`HoldoutViewModel.
 
 **Constraints**: reads only while in front (FR-008); no send of its own (FR-004); copy per the design book's voice and 001 FR-024b's wording rule
 
-**Scale/Scope**: one gate class, one view-model entry point, one shared UI component, five screens touched (`CohortHome`, the no-Holdout home's `below`, `CohortDetailScreen`, `ForfeitScreen`, and the home state wiring in `HoldoutApp`)
+**Scale/Scope**: one gate class, one view-model entry point, one shared UI component, five screens touched (`CohortHome`, the no-Holdout home's `below`, `CohortDetailScreen`, `ForfeitScreen`, and — since the four tabs — the Holdouts tab's root), wired through `shell/TodayHost.kt`, `StandingHost.kt`, `HoldoutsHost.kt` and `Shared.checkChain`, which `HoldoutApp` builds
 
 ## Constitution Check
 
@@ -79,7 +79,12 @@ kotlin/app/src/main/kotlin/holdout/app/
 ├── cohort/
 │   ├── CohortDetailScreen.kt    # offline/checking/stillUnreachable/onCheck params; ChainUnreachable + pull
 │   └── ForfeitScreen.kt         # the same
-└── HoldoutApp.kt                # readChainTime() shared with the chain-time loop; checkChain(roster) wires every screen; no-Holdout home: CheckAgain under its label, ChainUnreachable over an earlier read
+├── HoldoutApp.kt                # readChainTime() shared with the chain-time loop; checkChain(roster) is built here and handed to the hosts through Shared; the app-wide Standing roster loop (30 s running, 10 min finished)
+└── shell/                       # since the four-tab navigation (001 FR-069) the wiring lives in the hosts, not HoldoutApp.kt alone
+    ├── Shared.kt                # carries checkChain; ROSTER_REFRESH_MILLIS (30 s) and CHAIN_REFRESH_MILLIS (10 min)
+    ├── TodayHost.kt             # Today: the running Holdout's home (CohortHome) and the no-Holdout home (CheckAgain under its label, ChainUnreachable over an earlier read), each with the pull
+    ├── StandingHost.kt          # DetailHost (a Holdout's details, also Standing's root): ChainUnreachable + pull; RosterLoop / rosterReadByApp; the empty state has no check
+    └── HoldoutsHost.kt          # HoldoutsRoot: ChainUnreachable (line + button, no pull); ForfeitHost: ChainUnreachable + pull
 
 kotlin/app/src/test/kotlin/holdout/app/
 ├── ChainCheckTest.kt            # new

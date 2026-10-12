@@ -49,6 +49,7 @@ import { DEFAULT_CHIPS, FIRST_START, SKR } from '../helpers/harness.js';
 import {
   claimFaucetIx,
   claimPayoutIx,
+  comebackAccounts,
   createLeagueIx,
   forfeitPairs,
   initializeIx,
@@ -57,6 +58,7 @@ import {
   openCohortIx,
   publishChipSetIx,
   recordForfeitsIx,
+  releaseComebackIx,
   settleCountIx,
   settleFinalizeIx,
   setFlagsIx,
@@ -183,9 +185,8 @@ const running: CohortAccount = {
   memberCount: 37,
   heldStake: 900n * SKR,
   pool: 176n * SKR,
-  // The reserve shares of the forfeits recorded so far, held in the vault until
-  // the cohort finalizes (FR-037c). Distinct, non-zero values, as in every H35 field.
-  boostDue: 25n * SKR,
+  // The comeback pledges of the forfeits recorded so far, held in the vault until
+  // each forfeit is counted (FR-037c). Distinct, non-zero values, as in every H35 field.
   comebackDue: 12n * SKR + 500_000n,
   forfeitsRecorded: 5,
   counted: 0,
@@ -195,7 +196,7 @@ const running: CohortAccount = {
   settled: false,
   sharePerTier: [0n, 0n, 0n, 0n],
   roundingRemainder: 0n,
-  noFinisherFee: 0n,
+  noFinisherBoost: 0n,
   boostReceived: 0n,
   comebackOwed: 0n,
   comebackFunded: 0n,
@@ -206,7 +207,7 @@ const running: CohortAccount = {
 
 /**
  * The same cohort settled, with its four shares and a remainder written, a
- * boost drawn, its dues credited to the league, and a comeback funded short and
+ * boost drawn, its pledges counted into the league, and a comeback funded and
  * partly claimed — every H35 field non-zero and distinct.
  */
 const settled: CohortAccount = {
@@ -214,7 +215,6 @@ const settled: CohortAccount = {
   memberCount: 37,
   heldStake: 620n * SKR,
   pool: 175n * SKR,
-  boostDue: 0n,
   comebackDue: 0n,
   counted: 37,
   finisherCount: 20,
@@ -229,7 +229,7 @@ const settled: CohortAccount = {
   comebackClaimed: 2n * SKR + 400_000n,
 };
 
-/** A no-finisher cohort: its whole pool went to the developer and operations destinations (FR-037). */
+/** A no-finisher cohort: its whole pool went to the league's boost reserve (FR-037). */
 const noFinishers: CohortAccount = {
   ...running,
   index: 1,
@@ -241,9 +241,8 @@ const noFinishers: CohortAccount = {
   finishersPerTier: [0, 0, 0, 0],
   totalFinisherStake: 0n,
   settled: true,
-  boostDue: 0n,
   comebackDue: 0n,
-  noFinisherFee: 120n * SKR,
+  noFinisherBoost: 120n * SKR,
 };
 
 const membership = (over: Partial<MembershipAccount> = {}): MembershipAccount => ({
@@ -267,14 +266,16 @@ const zeroProgress = {
   longestStreak: 0,
   lastChanged: 0n,
   comebackStake: 0n,
-  comebackFrom: 0n,
-  comebackUntil: 0n,
+  comebackLeague: 0,
+  comebackRound: 0,
+  comebackLastRound: 0,
 };
 
 const profile = (over: Partial<ProfileAccount> = {}): ProfileAccount => ({
   wallet: MEMBER,
   leagues: [
-    // A counted forfeit whose comeback window is still open: 14 days from its missed deadline.
+    // A counted forfeit whose comeback is open: a last-day miss in cohort 2, so
+    // either of the two rounds after it makes it good (FR-037e).
     {
       cleared: 3,
       forfeited: 1,
@@ -282,10 +283,11 @@ const profile = (over: Partial<ProfileAccount> = {}): ProfileAccount => ({
       longestStreak: 3,
       lastChanged: BigInt(FIRST_START + 7 * DAY),
       comebackStake: 25n * SKR,
-      comebackFrom: BigInt(FIRST_START + 2 * DAY - 1),
-      comebackUntil: BigInt(FIRST_START + 16 * DAY - 1),
+      comebackLeague: 0,
+      comebackRound: 3,
+      comebackLastRound: 4,
     },
-    // One that was used up: the stake is zero, the window it had is kept.
+    // One that was made good: closing a comeback clears every field of its record.
     {
       cleared: 1,
       forfeited: 0,
@@ -293,10 +295,22 @@ const profile = (over: Partial<ProfileAccount> = {}): ProfileAccount => ({
       longestStreak: 1,
       lastChanged: BigInt(FIRST_START + 21 * DAY),
       comebackStake: 0n,
-      comebackFrom: BigInt(FIRST_START + 3 * DAY - 1),
-      comebackUntil: BigInt(FIRST_START + 17 * DAY - 1),
+      comebackLeague: 0,
+      comebackRound: 0,
+      comebackLastRound: 0,
     },
-    { ...zeroProgress },
+    // A test league's pledge in the shared slot, which names its league.
+    {
+      cleared: 0,
+      forfeited: 1,
+      currentStreak: 0,
+      longestStreak: 0,
+      lastChanged: BigInt(FIRST_START + 3 * DAY),
+      comebackStake: 10n * SKR,
+      comebackLeague: 101,
+      comebackRound: 12,
+      comebackLastRound: 12,
+    },
   ],
   running: { cohort: key(3), end: BigInt(FIRST_START + 7 * DAY) },
   pending: { cohort: key(0), start: 0n, end: 0n },
@@ -456,6 +470,13 @@ const instructionFixtures = async () => {
     { tier: 0, runningCohort: await cohortPda(0, 1) },
     await joinCohortIx(MEMBER, MINT, 0, 2, 0, await cohortPda(0, 1)),
   );
+  // A comeback round the member joins late, with the proof of the forfeit that
+  // makes it theirs: their forfeited membership in cohort 1 and that cohort (FR-037e).
+  await add(
+    'join_cohort',
+    { tier: 3, comebackMembership: await membershipPda(await cohortPda(0, 1), MEMBER), comebackCohort: await cohortPda(0, 1) },
+    await joinCohortIx(MEMBER, MINT, 0, 2, 3, undefined, undefined, await comebackAccounts(MEMBER, 0, 1)),
+  );
   await add('leave_cohort', {}, await leaveCohortIx(MEMBER, MINT, 0, 2));
   await add(
     'submit_day',
@@ -469,6 +490,8 @@ const instructionFixtures = async () => {
     await settleCountIx(ADMIN, FEES, 0, 2, pairs, await cohortPda(0, 1)),
   );
   await add('settle_finalize', { previousCohort: await cohortPda(0, 1) }, await settleFinalizeIx(ADMIN, FEES, 0, 2, await cohortPda(0, 1)));
+  await add('release_comeback', { league: 0, wallet: MEMBER, round: null }, await releaseComebackIx(ADMIN, 0, MEMBER));
+  await add('release_comeback', { league: 0, wallet: MEMBER, round: 3 }, await releaseComebackIx(ADMIN, 0, MEMBER, 3));
   await add('claim_payout', {}, await claimPayoutIx(MEMBER, MINT, 0, 2));
   await add('claim_faucet', { recipient: MEMBER }, await claimFaucetIx(SPONSOR, MEMBER, MINT, SPONSOR));
   await add('top_up_sponsor', {}, await topUpSponsorIx(ADMIN, SPONSOR));
@@ -491,7 +514,6 @@ const derivedFixtures = () => {
     memberCount: 5,
     heldStake: 185n * SKR,
     pool: 20n * SKR,
-    boostDue: 0n,
     comebackDue: 0n,
     forfeitsRecorded: 0,
     counted: 0,
@@ -501,7 +523,7 @@ const derivedFixtures = () => {
     settled: false,
     sharePerTier: [0n, 0n, 0n, 0n],
     roundingRemainder: 0n,
-    noFinisherFee: 0n,
+    noFinisherBoost: 0n,
     boostReceived: 0n,
     comebackOwed: 0n,
     comebackFunded: 0n,
@@ -622,6 +644,7 @@ describe('the golden fixtures (contracts §7, T029)', () => {
       'record_forfeits',
       'settle_count',
       'settle_finalize',
+      'release_comeback',
       'claim_payout',
       'claim_faucet',
       'top_up_sponsor',

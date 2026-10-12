@@ -64,7 +64,7 @@ class JourneyTest {
     @Test
     fun `a join is blocked by closed joining, a held lobby place, or an overlap`() {
         val other = SolanaPublicKey(ByteArray(32) { 2 })
-        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending, -1)
+        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending)
         val lobby = start - day
         assertNull(Journey.joinBlocker(c, null, null, lobby, runningInBreach = false))
         assertEquals(Journey.JoinBlocker.JoiningClosed, Journey.joinBlocker(c, null, null, start - 3_600, runningInBreach = false))
@@ -77,7 +77,7 @@ class JourneyTest {
     @Test
     fun `a running cohort the member is in breach of does not block a join, one they are standing in still does (ES-17, ES-18)`() {
         val other = SolanaPublicKey(ByteArray(32) { 2 })
-        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending, -1)
+        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending)
         val lobby = start - day
         val overlapping = profile(running = ProfileSnapshot.Running(other, start + 1))
         // Unrecorded or recorded, the breach is read by the caller from chain time; the slot is freed by the join's own record.
@@ -91,7 +91,7 @@ class JourneyTest {
         assertEquals(Journey.JoinBlocker.JoiningClosed, Journey.joinBlocker(c, overlapping, start + 1, start - 3_600, runningInBreach = true))
     }
 
-    private fun planProfile(running: SolanaPublicKey?) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running?.let { ProfileSnapshot.Running(it, start + 7 * day) }, null, -1)
+    private fun planProfile(running: SolanaPublicKey?) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running?.let { ProfileSnapshot.Running(it, start + 7 * day) }, null)
 
     @Test
     fun `the join plan records an unrecorded breach first and names no running cohort (ES-17)`() {
@@ -116,6 +116,32 @@ class JourneyTest {
         assertEquals(Journey.JoinPlan(null, runningAddr), Journey.joinPlan(planProfile(runningAddr), Comeback.Entry(runningAddr, c, null), now))
         assertEquals(Journey.JoinPlan(null, null), Journey.joinPlan(planProfile(null), null, now))
         assertEquals(Journey.JoinPlan(null, null), Journey.joinPlan(null, null, now))
+    }
+
+    @Test
+    fun `a join into the comeback round names the forfeited membership and its cohort, and any other join names none`() = runBlocking {
+        val programId = SolanaPublicKey(ByteArray(32) { 9 })
+        val mint = SolanaPublicKey(ByteArray(32) { 3 })
+        val fee = SolanaPublicKey(ByteArray(32) { 4 })
+        val dev = SolanaPublicKey(ByteArray(32) { 5 })
+        val forfeitedCohort = SolanaPublicKey(ByteArray(32) { 7 })
+        val target = SolanaPublicKey(ByteArray(32) { 8 })
+        val plan = Journey.joinPlan(planProfile(null), null, start + 60, comebackCohort = forfeitedCohort)
+        assertEquals(Journey.JoinPlan(null, null, forfeitedCohort), plan)
+        val join = Journey.joinInstructions(programId, wallet, mint, fee, dev, target, 1, plan).single()
+        assertEquals(Pdas.membership(programId, forfeitedCohort, wallet), join.accounts[8].publicKey)
+        assertEquals(forfeitedCohort, join.accounts[9].publicKey)
+        assertEquals(mint, join.accounts[10].publicKey)
+        val plain = Journey.joinInstructions(programId, wallet, mint, fee, dev, target, 1, Journey.JoinPlan(null, null)).single()
+        assertEquals(listOf(programId, programId), plain.accounts.slice(8..9).map { it.publicKey }, "Anchor's none")
+    }
+
+    @Test
+    fun `a comeback round that is locked or running can still be joined late, any other cannot`() {
+        val locked = start - 100
+        assertEquals(Journey.JoinBlocker.JoiningClosed, Journey.joinBlocker(c, null, null, locked, runningInBreach = false))
+        assertNull(Journey.joinBlocker(c, null, null, locked, runningInBreach = false, lateJoin = true))
+        assertNull(Journey.joinBlocker(c, null, null, start + 600, runningInBreach = false, lateJoin = true))
     }
 
     @Test

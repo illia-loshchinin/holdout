@@ -6,10 +6,9 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Shape and spacing, from the design book's `radius` and `spacing` tokens and
- * two of its `size` tokens (`size-touch`, `size-button`) in
- * `docs/design/tokens.json` (Visual foundations → Shape, Spacing and layout,
- * Depth in `docs/design/README.md`). `size-border`, `size-ring-stroke` and
- * `size-nav` are not named here yet.
+ * five of its `size` tokens (`size-touch`, `size-button`, `size-ring-stroke`,
+ * `size-border`, `size-nav`) in `docs/design/tokens.json` (Visual foundations
+ * → Shape, Spacing and layout, Depth in `docs/design/README.md`).
  *
  * **Depth: none.** No shadows anywhere on black — a surface level plus a
  * hairline does all the separating.
@@ -38,4 +37,13 @@ object Spacing {
     /** Minimum touch target; the primary button is taller still. */
     val touchTarget = 48.dp
     val primaryButtonHeight = 56.dp
+
+    /** `size-ring-stroke`: the bank ring's stroke on its hairline track, and every ring the app draws. */
+    val ringStroke = 4.dp
+
+    /** `size-border`: every hairline border. */
+    val border = 1.dp
+
+    /** `size-nav`: the bottom bar's height. */
+    val navHeight = 64.dp
 }

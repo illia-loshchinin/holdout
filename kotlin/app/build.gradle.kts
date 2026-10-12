@@ -254,6 +254,22 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    // Robolectric reads the merged manifest and resources from the build, so a
+    // Compose test can resolve R.* and start the test-manifest activity.
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            // Robolectric reaches into java.base for raw file descriptors; JDK 17+
+            // seals it off, so the test JVM has to open it (a Robolectric need, not ours).
+            all {
+                it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+                // Roborazzi reads these as system properties; only what is given is passed on.
+                listOf("roborazzi.test.record", "roborazzi.output.dir").forEach { name ->
+                    providers.gradleProperty(name).orNull?.let { value -> it.systemProperty(name, value) }
+                }
+            }
+        }
+    }
     buildFeatures {
         compose = true
         // So the spike affordance below can be compiled out of a release build.
@@ -315,6 +331,18 @@ dependencies {
     testImplementation(kotlin("test-junit"))
     // The view model's chain check runs on viewModelScope; a test Main dispatcher drives it (005 T019).
     testImplementation(libs.kotlinx.coroutines.test)
+    // Compose UI tests as plain JVM unit tests, no device: Robolectric supplies
+    // the Android framework, `createComposeRule()` the Compose host. The BOM
+    // pins ui-test-junit4 to the same Compose version the app compiles against.
+    testImplementation(libs.robolectric)
+    // Screenshots of the stateless screens as PNG, for a look at them without a
+    // phone. The library alone, no Gradle plugin: `captureRoboImage` does nothing
+    // unless recording is switched on (-Proborazzi.test.record=true, forwarded to
+    // the test JVM above), so a normal test run only renders, and writes nothing.
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

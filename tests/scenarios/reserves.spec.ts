@@ -3,19 +3,24 @@
  *
  * What this file holds the contract to:
  *
- *  - **A forfeit splits five ways** (FR-027): 70 % to the pool, 10 % and 5 % held
- *    in the cohort's vault as `boost_due` / `comeback_due`, 5 % to the developer
- *    destination and 10 % — plus whatever the floors leave — to operations.
- *  - **Reserves are credited only at finalization, in cohort order** (FR-037c,
- *    INV-10): what a cohort draws can never depend on when the crank recorded
- *    somebody else's forfeit.
+ *  - **A forfeit splits four ways** (FR-027): 70 % to the pool, 10 % held in the
+ *    cohort's vault as the member's comeback pledge (`comeback_due`), 10 % to the
+ *    developer destination and 10 % — plus whatever the floors leave — to operations.
+ *  - **The pledge is booked when the forfeit is counted, in cohort order**
+ *    (FR-037c, INV-10): `settle_count` moves it into the league's reserve vault and
+ *    onto `comeback_reserve` as it opens the member's comeback, so an open comeback
+ *    is always funded and what a cohort draws can never depend on when the crank
+ *    recorded somebody else's forfeit.
  *  - **The prize boost** (FR-037d): `min(10 % of the cohort's own pool, the
- *    boost reserve)`, drawn before the shares — and nothing for a cohort with no
- *    forfeits, so "everyone finishes, exactly your stake back" still holds.
- *  - **The comeback refund** (FR-037e): forfeit, then finish a later cohort of the
- *    same league that starts within 14 days of the missed deadline, and the claim
- *    pays 20 % of the forfeited stake on top — scaled down pro rata when the
- *    reserve is short.
+ *    boost reserve)`, drawn before the shares from the boost reserve alone — never
+ *    a pledge — and nothing for a cohort with no forfeits, so "everyone finishes,
+ *    exactly your stake back" still holds. The boost reserve is what nobody
+ *    claimed: a cohort nobody finished (FR-037) and a pledge released.
+ *  - **The comeback refund** (FR-037e): forfeit, then finish the league's first
+ *    cohort to start after the missed deadline (or the one after it, for a miss on
+ *    the last day), and the claim pays 10 % of the forfeited stake on top. A
+ *    pledge nobody makes good goes to the boost reserve: replaced by a newer
+ *    counted forfeit, a finish after the round, or `release_comeback`.
  *  - **Form** (constitution V): `create_league` takes 0 or 1 and nothing else,
  *    `open_cohort` copies it, and `create_league` also creates the reserve vault.
  *
@@ -55,6 +60,7 @@ import {
   joinCohortIx,
   openCohortIx,
   recordForfeitsIx,
+  releaseComebackIx,
   settleCountIx,
   settleFinalizeIx,
   submitDayIx,
@@ -74,8 +80,6 @@ const startOf = (index: number) => START + index * CADENCE;
 const endOf = (index: number) => startOf(index) + DURATION * DAY_LENGTH;
 /** The last second of day `k` of cohort `index`. */
 const deadlineOf = (index: number, k: number) => startOf(index) + (k + 1) * DAY_LENGTH - 1;
-/** 14 of the forfeited cohort's days (FR-037e). */
-const WINDOW = 14 * DAY_LENGTH;
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -83,7 +87,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const vectorText = readFileSync(resolve(HERE, '../../fixtures/settlement-vectors.json'), 'utf8');
 const splitVectors = (
   JSON.parse(vectorText.replace(/:\s*(\d{16,})/g, ': "$1"')) as {
-    reserve_vectors: { forfeit_split: Record<'stake' | 'pool' | 'boost' | 'comeback' | 'developer' | 'operations', number | string>[] };
+    reserve_vectors: { forfeit_split: Record<'stake' | 'pool' | 'comeback' | 'developer' | 'operations', number | string>[] };
   }
 ).reserve_vectors.forfeit_split;
 const vectorFor = (stake: bigint) => {
@@ -91,17 +95,20 @@ const vectorFor = (stake: bigint) => {
   if (!v) throw new Error(`no forfeit_split vector for ${stake}`);
   return {
     pool: BigInt(v.pool),
-    boost: BigInt(v.boost),
     comeback: BigInt(v.comeback),
     developer: BigInt(v.developer),
     operations: BigInt(v.operations),
   };
 };
 
-/** `CohortSettled { cohort, finishers, total_finisher_stake, share_per_tier, rounding_remainder, boost, comeback_funded }`. */
+/** `CohortSettled { cohort, finishers, total_finisher_stake, share_per_tier, rounding_remainder, boost, comeback_funded, no_finisher_boost }`. */
 const decodeSettled = (bytes: Uint8Array) => {
   const view = new DataView(bytes.buffer, bytes.byteOffset);
-  return { boost: view.getBigUint64(84, true), comebackFunded: view.getBigUint64(92, true) };
+  return {
+    boost: view.getBigUint64(84, true),
+    comebackFunded: view.getBigUint64(92, true),
+    noFinisherBoost: view.getBigUint64(100, true),
+  };
 };
 
 /** `PayoutClaimed { cohort, wallet, amount, comeback }`. */
@@ -228,7 +235,7 @@ const reservesOf = async (w: World, leagueId = w.league) => {
 // ================================================================== the split
 
 describe('when a forfeit is recorded (FR-027, H35)', () => {
-  it('lands 70 % in the pool, 5 % and 5 % as the cohort\'s dues, 10 % with the developer and the rest with operations', async () => {
+  it('lands 70 % in the pool, 10 % as the member\'s pledge, 10 % with the developer and the rest with operations', async () => {
     const w = await world();
     // Stakes the golden vectors pin, chosen so every floor bites somewhere.
     const chips: [bigint, bigint, bigint, bigint] = [9n, 19n, 1_250n, 25_000_000n];
@@ -256,7 +263,6 @@ describe('when a forfeit is recorded (FR-027, H35)', () => {
 
     const cohort = await w.h.readCohort(w.league, 0);
     expect(cohort.pool).toBe(sum((p) => p.pool));
-    expect(cohort.boostDue).toBe(sum((p) => p.boost));
     expect(cohort.comebackDue).toBe(sum((p) => p.comeback));
     expect(w.h.tokenBalance(w.fees.developer)).toBe(sum((p) => p.developer));
     expect(w.h.tokenBalance(w.fees.operations)).toBe(sum((p) => p.operations));
@@ -264,15 +270,15 @@ describe('when a forfeit is recorded (FR-027, H35)', () => {
     const total = chips.reduce((s, c) => s + c, 0n);
     expect(w.h.tokenBalance(await vaultPda(await cohortPda(w.league, 0)))).toBe(cohortCustody(cohort));
     expect(cohortCustody(cohort) + sum((p) => p.developer + p.operations)).toBe(total);
-    // …and none of it has reached the league yet (FR-037c).
+    // …and none of it has reached the league yet: the pledge waits for the count (FR-037c).
     expect(await reservesOf(w)).toEqual({ boost: 0n, comeback: 0n, vault: 0n });
   });
 });
 
-// ============================================================ credited at finalize
+// ============================================================ booked at the count
 
 describe('given a league whose cohorts settle in order (FR-037c, INV-10)', () => {
-  it('leaves the league untouched through recording and counting, and credits exactly the dues at finalization', async () => {
+  it('leaves the league untouched through recording, books the pledge when the forfeit is counted, and moves nothing more at finalization', async () => {
     const w = await world();
     await cohortAt(w, 0);
     const finisher = await wallet(w);
@@ -283,6 +289,7 @@ describe('given a league whose cohorts settle in order (FR-037c, INV-10)', () =>
     w.h.setTime(deadlineOf(0, 0) + 1);
     await record(w, 0, [quitter]);
     expect(await reservesOf(w)).toEqual({ boost: 0n, comeback: 0n, vault: 0n });
+    expect((await w.h.readCohort(w.league, 0)).comebackDue, 'the pledge waits in the cohort\'s vault').toBe(10n * SKR);
 
     await clearAllDays(w, finisher, 0);
     w.h.setTime(endOf(0));
@@ -290,22 +297,24 @@ describe('given a league whose cohorts settle in order (FR-037c, INV-10)', () =>
       [await settleCountIx(w.crank.address, w.fees, w.league, 0, await forfeitPairs(await cohortPda(w.league, 0), [finisher.address, quitter.address]))],
       w.crank,
     );
-    expect(await reservesOf(w), 'counting moves nothing into the reserve either').toEqual({ boost: 0n, comeback: 0n, vault: 0n });
+    // The count moves the pledge, whole, into the comeback reserve — and nothing into the boost reserve.
+    expect(await reservesOf(w)).toEqual({ boost: 0n, comeback: 10n * SKR, vault: 10n * SKR });
+    expect((await w.h.readCohort(w.league, 0)).comebackDue).toBe(0n);
 
     await w.act([await settleFinalizeIx(w.crank.address, w.fees, w.league, 0)], w.crank);
-    expect(await reservesOf(w)).toEqual({ boost: 5n * SKR, comeback: 5n * SKR, vault: 10n * SKR });
+    expect(await reservesOf(w), 'finalization adds nothing').toEqual({ boost: 0n, comeback: 10n * SKR, vault: 10n * SKR });
     const settled = await w.h.readCohort(w.league, 0);
-    expect([settled.boostDue, settled.comebackDue]).toEqual([0n, 0n]);
+    expect(settled.comebackDue).toBe(0n);
     expect(settled.boostReceived, 'an empty reserve boosts nothing').toBe(0n);
   });
 
   it('does not let a forfeit recorded in a running later cohort change an earlier cohort\'s boost, whichever runs first', async () => {
     /**
-     * Cohort 0: one finisher, one quitter (pool 70, so 20 % is 14), against a
+     * Cohort 0: one finisher, one quitter (pool 70, so 10 % is 7), against a
      * boost reserve of 5. Cohort 1 is running by the time cohort 0 settles, and
-     * one of its members has missed day 0. Crediting cohort 1's 5 SKR boost
-     * share when it is recorded would let the crank lift cohort 0's boost from 5
-     * to 10 just by recording first.
+     * one of its members has missed day 0. Nothing about cohort 1 reaches the
+     * league until its forfeit is counted, so the crank recording it first
+     * cannot lift cohort 0's boost from 5.
      */
     const run = async (recordFirst: boolean) => {
       const w = await world({ boostReserve: 5n * SKR });
@@ -338,7 +347,7 @@ describe('given a league whose cohorts settle in order (FR-037c, INV-10)', () =>
         boost: zero.boostReceived,
         shares: zero.sharePerTier,
         reserves: await reservesOf(w),
-        laterDues: [one.boostDue, one.comebackDue],
+        laterDue: one.comebackDue,
       };
     };
 
@@ -346,9 +355,9 @@ describe('given a league whose cohorts settle in order (FR-037c, INV-10)', () =>
     const settledFirst = await run(false);
     expect(recordedFirst.boost).toBe(5n * SKR);
     expect(recordedFirst).toEqual(settledFirst);
-    // Cohort 0 drew 5 and credited its own 5 + 5; cohort 1's shares wait for it.
-    expect(recordedFirst.reserves).toEqual({ boost: 5n * SKR, comeback: 5n * SKR, vault: 10n * SKR });
-    expect(recordedFirst.laterDues).toEqual([5n * SKR, 5n * SKR]);
+    // Cohort 0 drew the 5 and booked its quitter's pledge; cohort 1's pledge waits for its count.
+    expect(recordedFirst.reserves).toEqual({ boost: 0n, comeback: 10n * SKR, vault: 10n * SKR });
+    expect(recordedFirst.laterDue).toBe(10n * SKR);
   });
 });
 
@@ -381,10 +390,10 @@ describe('given a cohort with finishers at finalization (FR-037d)', () => {
     // The only finisher takes the whole boosted pool: 70 of the quitter's 100, plus the boost.
     expect(settled.sharePerTier[1]).toBe(70n * SKR + boost);
     expect(settled.roundingRemainder).toBe(0n);
-    // Drawn first, then this cohort's own 5 + 5 credited.
+    // The boost came out of the boost reserve; the quitter's pledge was booked at the count.
     expect(await reservesOf(w)).toEqual({
-      boost: reserve - boost + 5n * SKR,
-      comeback: 5n * SKR,
+      boost: reserve - boost,
+      comeback: 10n * SKR,
       vault: reserve - boost + 10n * SKR,
     });
 
@@ -420,13 +429,61 @@ describe('given a cohort with finishers at finalization (FR-037d)', () => {
       expect((await balanceOf(w, who)) - before).toBe(stake);
     }
   });
+
+  it('sends the pool of a cohort nobody finished to the boost reserve, and a later cohort\'s boost draws on it (FR-037)', async () => {
+    const w = await world();
+    await cohortAt(w, 0);
+    await cohortAt(w, 1);
+    const quitters = [await wallet(w), await wallet(w)];
+    const finisher = await wallet(w);
+    const later = await wallet(w);
+    for (const who of quitters) await join(w, who, 0, 3);
+    await join(w, finisher, 1, 1);
+    await join(w, later, 1, 3);
+
+    // Cohort 0: both quit on day 0 and nobody finishes. Its 140 SKR pool is not split
+    // between the fee accounts: every one of them goes to the boost reserve.
+    w.h.setTime(deadlineOf(0, 0) + 1);
+    const feesBefore = [w.h.tokenBalance(w.fees.operations), w.h.tokenBalance(w.fees.developer)];
+    await record(w, 0, quitters);
+    const feesAfterRecord = [w.h.tokenBalance(w.fees.operations), w.h.tokenBalance(w.fees.developer)];
+    w.h.setTime(endOf(0));
+    await w.act(
+      [await settleCountIx(w.crank.address, w.fees, w.league, 0, await forfeitPairs(await cohortPda(w.league, 0), quitters.map((q) => q.address)))],
+      w.crank,
+    );
+    const empty = await w.act([await settleFinalizeIx(w.crank.address, w.fees, w.league, 0)], w.crank);
+    const zero = await w.h.readCohort(w.league, 0);
+    expect(zero.noFinisherBoost).toBe(140n * SKR);
+    expect(zero.pool).toBe(0n);
+    expect(decodeSettled(oneEvent(empty, 'CohortSettled')).noFinisherBoost).toBe(140n * SKR);
+    expect(
+      [w.h.tokenBalance(w.fees.operations), w.h.tokenBalance(w.fees.developer)],
+      'finalizing a cohort nobody finished pays neither fee account',
+    ).toEqual(feesAfterRecord);
+    expect(feesAfterRecord[1]! - feesBefore[1]!).toBe(20n * SKR);
+    expect(await reservesOf(w)).toEqual({ boost: 140n * SKR, comeback: 20n * SKR, vault: 160n * SKR });
+    expect(w.h.tokenBalance(await vaultPda(await cohortPda(w.league, 0)))).toBe(0n);
+
+    // Cohort 1: one finisher, one quitter. Its own pool is 70, so it draws min(7, 140) = 7.
+    await clearAllDays(w, finisher, 1);
+    w.h.setTime(endOf(1));
+    await settle(w, 1, [finisher, later]);
+    const one = await w.h.readCohort(w.league, 1);
+    expect(one.boostReceived).toBe(7n * SKR);
+    expect(one.sharePerTier[1]).toBe(77n * SKR);
+    expect(await reservesOf(w)).toEqual({ boost: 133n * SKR, comeback: 30n * SKR, vault: 163n * SKR });
+  });
 });
 
 // =============================================================== the comeback
 
 describe('given a member who forfeited and came back (FR-037e)', () => {
-  it('pays stake, share and 20 % of the forfeited stake to one who finishes the next cohort of the league within 14 days', async () => {
-    const w = await world();
+  it('pays stake, share and the 10 % pledge to one who finishes the next round — though a boost had drained the boost reserve in between', async () => {
+    // The boost reserve holds 5. Cohort 0's own pool is 280, so its boost would be 28
+    // if it could: it takes the 5 and leaves the boost reserve empty. The pledges
+    // were never the boost's to spend, so the comeback is still funded in full.
+    const w = await world({ boostReserve: 5n * SKR });
     await cohortAt(w, 0);
     await cohortAt(w, 1);
     const comeback = await wallet(w);
@@ -437,7 +494,7 @@ describe('given a member who forfeited and came back (FR-037e)', () => {
     await join(w, steady, 0, 0);
     await join(w, lateQuitter, 1, 3);
 
-    // Cohort 0: four tier-3 forfeits on day 0 — 20 SKR of boost and 20 of comeback due.
+    // Cohort 0: four tier-3 forfeits on day 0 — four pledges of 10 SKR.
     w.h.setTime(deadlineOf(0, 0) + 1);
     await record(w, 0, [comeback, ...quitters]);
     // Free again, the member stakes on the next cohort straight away.
@@ -446,55 +503,95 @@ describe('given a member who forfeited and came back (FR-037e)', () => {
 
     w.h.setTime(endOf(0));
     await settle(w, 0, [comeback, ...quitters, steady]);
+    const zero = await w.h.readCohort(w.league, 0);
+    expect(zero.boostReceived, 'min(10 % of 280, the 5 in the boost reserve)').toBe(5n * SKR);
     const progress = (await w.h.readProfile(comeback.address)).leagues[2]!;
     expect(progress.comebackStake).toBe(DEFAULT_CHIPS[3]);
-    expect(progress.comebackFrom).toBe(BigInt(deadlineOf(0, 0)));
-    expect(progress.comebackUntil).toBe(BigInt(deadlineOf(0, 0) + WINDOW));
-    expect(await reservesOf(w)).toEqual({ boost: 20n * SKR, comeback: 20n * SKR, vault: 40n * SKR });
-
-    // Cohort 1 starts inside the window: 840 s after a deadline the window keeps open for 840.
+    // Cohort 1 is the first to start after the missed deadline, and joining it was still open.
     expect(startOf(1)).toBeGreaterThan(deadlineOf(0, 0));
-    expect(startOf(1)).toBeLessThanOrEqual(deadlineOf(0, 0) + WINDOW);
+    expect([progress.comebackLeague, progress.comebackRound, progress.comebackLastRound]).toEqual([w.league, 1, 1]);
+    expect(await reservesOf(w), 'the boost reserve is empty; all four pledges are intact').toEqual({
+      boost: 0n,
+      comeback: 40n * SKR,
+      vault: 40n * SKR,
+    });
+
     await clearAllDays(w, comeback, 1);
     w.h.setTime(endOf(1));
     await settle(w, 1, [comeback, lateQuitter]);
 
     const one = await w.h.readCohort(w.league, 1);
     const membership = await w.h.readMembership(await cohortPda(w.league, 1), comeback.address);
-    expect(membership.comebackEntitled, '20 % of the 100 SKR forfeited').toBe(20n * SKR);
-    expect(one.comebackOwed).toBe(20n * SKR);
-    expect(one.comebackFunded, 'the reserve held 20').toBe(20n * SKR);
-    expect(one.boostReceived, 'min(10 % of 70, 20)').toBe(7n * SKR);
+    expect(membership.comebackEntitled, '10 % of the 100 SKR forfeited').toBe(10n * SKR);
+    expect(one.comebackOwed).toBe(10n * SKR);
+    expect(one.comebackFunded, 'drawn in full').toBe(10n * SKR);
+    expect(one.boostReceived, 'the boost reserve is empty').toBe(0n);
     expect((await w.h.readProfile(comeback.address)).leagues[2]!.comebackStake, 'used up').toBe(0n);
-    expect(await reservesOf(w)).toEqual({
-      boost: 20n * SKR - 7n * SKR + 5n * SKR,
-      comeback: 20n * SKR - 20n * SKR + 5n * SKR,
-      vault: 23n * SKR,
-    });
+    // The late quitter's own pledge was booked at the count; the refund came out of the first four.
+    expect(await reservesOf(w)).toEqual({ boost: 0n, comeback: 40n * SKR, vault: 40n * SKR });
 
     const before = await balanceOf(w, comeback);
     const claim = await w.act([await claimPayoutIx(comeback.address, w.mint, w.league, 1)], comeback);
     const paid = (await balanceOf(w, comeback)) - before;
-    // Stake 100, the whole boosted pool 70 + 7, and the refund 20.
-    expect(paid).toBe(DEFAULT_CHIPS[3] + 77n * SKR + 20n * SKR);
+    // Stake 100, the pool of cohort 1's one quitter, 70, and the refund, 10.
+    expect(paid).toBe(DEFAULT_CHIPS[3] + 70n * SKR + 10n * SKR);
     expect(decodeClaimed(oneEvent(claim, 'PayoutClaimed'))).toEqual({
       wallet: comeback.address,
       amount: paid,
-      comeback: 20n * SKR,
+      comeback: 10n * SKR,
     });
     const after = await w.h.readCohort(w.league, 1);
-    expect(after.comebackClaimed).toBe(20n * SKR);
+    expect(after.comebackClaimed).toBe(10n * SKR);
     expect(w.h.tokenBalance(await vaultPda(await cohortPda(w.league, 1))), 'nothing left behind').toBe(0n);
   });
 
   it.each([
-    ['counts a cohort starting on the last second of the window', 0, 20n * SKR],
-    ['owes nothing for one starting a second after it', 1, 0n],
-  ])('%s', async (_name, late, owed) => {
+    ['finishes the round after the miss', 1, 10n * SKR],
+    ['finishes only a cohort after the round', 2, 0n],
+  ])('a member who %s: owed %s', async (_name, finished, owed) => {
     const w = await world();
     await cohortAt(w, 0);
-    const nextStart = deadlineOf(0, 0) + WINDOW + late;
-    await cohortAt(w, 1, nextStart);
+    await cohortAt(w, 1);
+    await cohortAt(w, 2);
+    const member = await wallet(w);
+    await join(w, member, 0, 3);
+
+    w.h.setTime(deadlineOf(0, 0) + 1);
+    await record(w, 0, [member]);
+    w.h.setTime(endOf(0));
+    await settle(w, 0, [member]);
+    // Nobody finished cohort 0: its 70 SKR pool is the boost reserve, the pledge is the comeback's.
+    expect(await reservesOf(w)).toEqual({ boost: 70n * SKR, comeback: 10n * SKR, vault: 80n * SKR });
+
+    if (finished === 2) {
+      // The member sits the round out: cohort 1 settles empty.
+      w.h.setTime(endOf(1));
+      await w.act([await settleFinalizeIx(w.crank.address, w.fees, w.league, 1)], w.crank);
+    }
+    await join(w, member, finished, 3);
+    await clearAllDays(w, member, finished);
+    w.h.setTime(endOf(finished));
+    await settle(w, finished, [member]);
+
+    const cohort = await cohortPda(w.league, finished);
+    expect((await w.h.readMembership(cohort, member.address)).comebackEntitled).toBe(owed);
+    expect((await w.h.readCohort(w.league, finished)).comebackOwed).toBe(owed);
+    expect((await w.h.readProfile(member.address)).leagues[2]!.comebackStake, 'closed either way').toBe(0n);
+    // Made good: the pledge stays, owed, and finalization drew it. Let lapse: it joined the boost reserve.
+    expect(await reservesOf(w)).toEqual(
+      owed > 0n
+        ? { boost: 70n * SKR, comeback: 0n, vault: 70n * SKR }
+        : { boost: 80n * SKR, comeback: 0n, vault: 80n * SKR },
+    );
+    const before = await balanceOf(w, member);
+    await w.act([await claimPayoutIx(member.address, w.mint, w.league, finished)], member);
+    expect((await balanceOf(w, member)) - before).toBe(DEFAULT_CHIPS[3] + owed);
+  });
+
+  it('releases the old pledge and opens a new one when the member forfeits the comeback round too', async () => {
+    const w = await world();
+    await cohortAt(w, 0);
+    await cohortAt(w, 1);
     const member = await wallet(w);
     await join(w, member, 0, 3);
 
@@ -503,15 +600,28 @@ describe('given a member who forfeited and came back (FR-037e)', () => {
     await join(w, member, 1, 3);
     w.h.setTime(endOf(0));
     await settle(w, 0, [member]);
+    expect((await w.h.readProfile(member.address)).leagues[2]!).toMatchObject({
+      comebackStake: DEFAULT_CHIPS[3],
+      comebackRound: 1,
+      comebackLastRound: 1,
+    });
+    expect(await reservesOf(w)).toEqual({ boost: 70n * SKR, comeback: 10n * SKR, vault: 80n * SKR });
 
-    await clearAllDays(w, member, 1, nextStart);
-    w.h.setTime(nextStart + DURATION * DAY_LENGTH);
+    // The round itself is forfeited on its first day.
+    w.h.setTime(deadlineOf(1, 0) + 1);
+    await record(w, 1, [member]);
+    w.h.setTime(endOf(1));
     await settle(w, 1, [member]);
 
-    const cohort = await cohortPda(w.league, 1);
-    expect((await w.h.readMembership(cohort, member.address)).comebackEntitled).toBe(owed);
-    expect((await w.h.readCohort(w.league, 1)).comebackOwed).toBe(owed);
-    expect((await w.h.readProfile(member.address)).leagues[2]!.comebackStake).toBe(owed > 0n ? 0n : DEFAULT_CHIPS[3]);
+    // Cohort 1's forfeit replaced the comeback: the old 10 went to the boost reserve with
+    // cohort 1's own 70 (nobody finished it), and a new 10 is pledged for the round after.
+    const progress = (await w.h.readProfile(member.address)).leagues[2]!;
+    expect(progress.comebackStake).toBe(DEFAULT_CHIPS[3]);
+    const nextRound = Math.floor((deadlineOf(1, 0) - START) / CADENCE) + 1;
+    expect(nextRound).toBe(2);
+    expect([progress.comebackLeague, progress.comebackRound, progress.comebackLastRound]).toEqual([w.league, 2, 2]);
+    expect(await reservesOf(w)).toEqual({ boost: 150n * SKR, comeback: 10n * SKR, vault: 160n * SKR });
+    expect((await w.h.readProfile(member.address)).leagues[2]!.forfeited).toBe(2);
   });
 
   it('owes nothing for finishing a cohort of another league, however full that league\'s reserve', async () => {
@@ -537,7 +647,9 @@ describe('given a member who forfeited and came back (FR-037e)', () => {
     await join(w, member, 0, 3, 1);
     w.h.setTime(endOf(0));
     await settle(w, 0, [member], 0);
-    expect((await w.h.readProfile(member.address)).leagues[0]!.comebackStake).toBe(DEFAULT_CHIPS[3]);
+    const open = (await w.h.readProfile(member.address)).leagues[0]!;
+    expect(open.comebackStake).toBe(DEFAULT_CHIPS[3]);
+    expect([open.comebackLeague, open.comebackRound, open.comebackLastRound]).toEqual([0, 1, 1]);
 
     await clearAllDays(w, member, 0, startOf(1), 1);
     w.h.setTime(endOf(1));
@@ -548,26 +660,28 @@ describe('given a member who forfeited and came back (FR-037e)', () => {
     expect((await w.h.readCohort(1, 0)).comebackFunded).toBe(0n);
     expect((await reservesOf(w, 1)).comeback, 'league 1\'s reserve is untouched').toBe(50n * SKR);
     expect((await w.h.readProfile(member.address)).leagues[0]!.comebackStake, 'still open in league 0').toBe(DEFAULT_CHIPS[3]);
+    expect((await reservesOf(w, 0)).comeback, 'and still pledged there').toBe(10n * SKR);
 
     const before = await balanceOf(w, member);
     await w.act([await claimPayoutIx(member.address, w.mint, 1, 0)], member);
     expect((await balanceOf(w, member)) - before, 'exactly the stake').toBe(DEFAULT_CHIPS[3]);
   });
 
-  it('scales every refund down pro rata when the comeback reserve is short, flooring each', async () => {
-    // Two comebacks owed 20 and 10 SKR against a reserve of 5: each gets a sixth
-    // of its entitlement, floored, and one base unit stays in the vault (H35's
-    // known limit). The forfeits are injected as counted comeback records rather
-    // than played out, so this case checks figures, not invariants.
+  it('scales every refund down pro rata if the comeback reserve ever falls short, flooring each', async () => {
+    // Not a state the program reaches — every pledge is booked when its forfeit is
+    // counted — but the claim keeps the formula as defence: two comebacks owed 10
+    // and 5 SKR against a reserve of 5 each get a third of their entitlement,
+    // floored, and one base unit stays in the vault. The comeback records are
+    // injected rather than played out, so this case checks figures, not invariants.
     const w = await world({ comebackReserve: 5n * SKR });
     await cohortAt(w, 0);
     const big = await wallet(w);
     const small = await wallet(w);
     const open = (stake: bigint) => ({
       cleared: 0, forfeited: 1, currentStreak: 0, longestStreak: 0, lastChanged: BigInt(START - 100),
-      comebackStake: stake, comebackFrom: BigInt(START - 100), comebackUntil: BigInt(START + 10_000),
+      comebackStake: stake, comebackLeague: w.league, comebackRound: 0, comebackLastRound: 0,
     });
-    const none = { ...open(0n), forfeited: 0, lastChanged: 0n, comebackFrom: 0n, comebackUntil: 0n };
+    const none = { ...open(0n), forfeited: 0, lastChanged: 0n, comebackLeague: 0 };
     await w.h.injectProfile(big.address, { leagues: [none, none, open(DEFAULT_CHIPS[3])] });
     await w.h.injectProfile(small.address, { leagues: [none, none, open(DEFAULT_CHIPS[2])] });
 
@@ -589,7 +703,7 @@ describe('given a member who forfeited and came back (FR-037e)', () => {
     await w.h.sendOrThrow([await settleFinalizeIx(w.crank.address, w.fees, w.league, 0)], w.crank);
 
     const settled = await w.h.readCohort(w.league, 0);
-    expect(settled.comebackOwed).toBe(30n * SKR);
+    expect(settled.comebackOwed).toBe(15n * SKR);
     expect(settled.comebackFunded, 'all the reserve had').toBe(5n * SKR);
     expect((await reservesOf(w)).comeback).toBe(0n);
 
@@ -602,13 +716,253 @@ describe('given a member who forfeited and came back (FR-037e)', () => {
       expect((await balanceOf(w, who)) - before).toBe(DEFAULT_CHIPS[3] + refund);
       refunds.push(refund);
     }
-    // floor(20 × 5 / 30) and floor(10 × 5 / 30), in SKR base units.
+    // floor(10 × 5 / 15) and floor(5 × 5 / 15), in SKR base units.
     expect(refunds).toEqual([3_333_333n, 1_666_666n]);
     const after = await w.h.readCohort(w.league, 0);
     expect(after.comebackClaimed).toBe(4_999_999n);
     expect(w.h.tokenBalance(await vaultPda(cohort)), 'one unit, short of the finishers to share it').toBe(1n);
     expect(cohortCustody(after)).toBe(1n);
   });
+
+  it('sends a pledge straight to the boost reserve when a test league\'s shared slot already holds another league\'s', async () => {
+    // Every test league shares profile slot 2, so one wallet holds one test-league
+    // comeback at a time. A second league's forfeit opens none: its pledge is free
+    // for that league's boosts, which only that league could release (FR-037e).
+    const w = await world();
+    const other = w.h.freshTestLeague().leagueId;
+    await w.h.injectLeague(other, {
+      durationDays: DURATION,
+      dayLength: BigInt(DAY_LENGTH),
+      firstStart: BigInt(START),
+      cadence: BigInt(CADENCE),
+      joinLock: BigInt(JOIN_LOCK),
+      nextIndex: 1,
+    });
+    await cohortAt(w, 0);
+    await cohortAt(w, 0, startOf(0) + 2 * DAY_LENGTH, other);
+    const member = await wallet(w);
+    await join(w, member, 0, 3);
+
+    w.h.setTime(deadlineOf(0, 0) + 1);
+    await record(w, 0, [member]);
+    // Free again: the second league's cohort is still open.
+    await join(w, member, 0, 3, other);
+    w.h.setTime(endOf(0));
+    await settle(w, 0, [member]);
+    const slot = (await w.h.readProfile(member.address)).leagues[2]!;
+    expect([slot.comebackLeague, slot.comebackStake]).toEqual([w.league, DEFAULT_CHIPS[3]]);
+
+    w.h.setTime(startOf(0) + 2 * DAY_LENGTH + DURATION * DAY_LENGTH);
+    await settle(w, 0, [member], other);
+
+    const after = (await w.h.readProfile(member.address)).leagues[2]!;
+    expect([after.comebackLeague, after.comebackStake], 'the first league keeps the slot').toEqual([w.league, DEFAULT_CHIPS[3]]);
+    expect(await reservesOf(w, other), 'the other league: its pool and its pledge, both for boosts').toEqual({
+      boost: 80n * SKR,
+      comeback: 0n,
+      vault: 80n * SKR,
+    });
+    expect(await reservesOf(w)).toEqual({ boost: 70n * SKR, comeback: 10n * SKR, vault: 80n * SKR });
+  });
+});
+
+// ====================================================== release_comeback
+
+/** `ComebackReleased { wallet, league, round, amount }`. */
+const decodeReleased = (bytes: Uint8Array) => {
+  const view = new DataView(bytes.buffer, bytes.byteOffset);
+  return {
+    wallet: getAddressDecoder().decode(bytes.slice(0, 32)),
+    league: bytes[32],
+    round: view.getUint32(33, true),
+    amount: view.getBigUint64(37, true),
+  };
+};
+
+describe('given a member who never comes back (FR-037e, release_comeback)', () => {
+  const release = async (w: World, caller: KeyPairSigner, who: KeyPairSigner, round?: number) =>
+    w.h.send([await releaseComebackIx(caller.address, w.league, who.address, round)], caller);
+
+  /** The member joins cohort 0 and misses its first day; the forfeit is recorded, not yet counted. */
+  const forfeitedAndSettled = async (w: World) => {
+    await cohortAt(w, 0);
+    const member = await wallet(w);
+    await join(w, member, 0, 3);
+    w.h.setTime(deadlineOf(0, 0) + 1);
+    await record(w, 0, [member]);
+    return member;
+  };
+
+  it('moves the pledge to the boost reserve once the round has settled, for anyone who asks', async () => {
+    const w = await world();
+    const member = await forfeitedAndSettled(w);
+    await cohortAt(w, 1);
+    const stranger = await w.h.newWallet();
+
+    // Nothing to release until the forfeit is counted: the pledge is still in cohort 0's vault.
+    expectProgramError(await release(w, stranger, member, 1), 'NoComebackToRelease');
+
+    w.h.setTime(endOf(0));
+    await settle(w, 0, [member]);
+    expect(await reservesOf(w)).toEqual({ boost: 70n * SKR, comeback: 10n * SKR, vault: 80n * SKR });
+
+    // The round is cohort 1, opened and not yet settled: it can still be finished.
+    expectProgramError(await release(w, stranger, member, 1), 'ComebackStillOpen');
+    // The league has opened the round, so it has to be named — and be the right one.
+    expectProgramError(await release(w, stranger, member), 'AccountMismatch');
+    await cohortAt(w, 2);
+    expectProgramError(await release(w, stranger, member, 2), 'AccountMismatch');
+    expect(await reservesOf(w), 'the refusals moved nothing').toEqual({ boost: 70n * SKR, comeback: 10n * SKR, vault: 80n * SKR });
+
+    // The round settles with nobody in it.
+    w.h.setTime(endOf(1));
+    await w.act([await settleFinalizeIx(w.crank.address, w.fees, w.league, 1)], w.crank);
+    const before = await w.h.snapshot();
+    const result = await release(w, stranger, member, 1);
+    expect(result.ok, result.logs.join('\n')).toBe(true);
+    assertInvariants(await w.h.snapshot(), before);
+
+    expect(decodeReleased(oneEvent(result, 'ComebackReleased'))).toEqual({
+      wallet: member.address,
+      league: w.league,
+      round: 1,
+      amount: 10n * SKR,
+    });
+    expect(await reservesOf(w)).toEqual({ boost: 80n * SKR, comeback: 0n, vault: 80n * SKR });
+    const progress = (await w.h.readProfile(member.address)).leagues[2]!;
+    expect([progress.comebackStake, progress.comebackLeague, progress.comebackRound, progress.comebackLastRound]).toEqual([0n, 0, 0, 0]);
+    // Done once: the member has nothing left to release.
+    expectProgramError(await release(w, stranger, member, 1), 'NoComebackToRelease');
+  });
+
+  it('lets a later cohort\'s boost spend the released pledge — and the member earns nothing for finishing it', async () => {
+    const w = await world();
+    const member = await forfeitedAndSettled(w);
+    await cohortAt(w, 1);
+    await cohortAt(w, 2);
+    const finisher = await wallet(w);
+    const quitter = await wallet(w);
+    await join(w, finisher, 2, 0);
+    await join(w, quitter, 2, 3);
+    w.h.setTime(endOf(0));
+    await settle(w, 0, [member]);
+    w.h.setTime(endOf(1));
+    await w.act([await settleFinalizeIx(w.crank.address, w.fees, w.league, 1)], w.crank);
+    await w.act([await releaseComebackIx(w.crank.address, w.league, member.address, 1)], w.crank);
+
+    await clearAllDays(w, finisher, 2);
+    w.h.setTime(endOf(2));
+    await settle(w, 2, [finisher, quitter]);
+    // Cohort 2's own pool is 70: a boost of 7, out of the 80 the nobody-finished pool and the release made.
+    expect((await w.h.readCohort(w.league, 2)).boostReceived).toBe(7n * SKR);
+    expect(await reservesOf(w)).toEqual({ boost: 73n * SKR, comeback: 10n * SKR, vault: 83n * SKR });
+  });
+
+  it('refuses a release for a round that has not opened until its first day is over, and allows it a second after', async () => {
+    // The league has opened only cohort 0; the round is cohort 1, a week on.
+    const w = await world({ nextIndex: 1 });
+    const member = await forfeitedAndSettled(w);
+    w.h.setTime(endOf(0));
+    await settle(w, 0, [member]);
+    const stranger = await w.h.newWallet();
+
+    w.h.setTime(deadlineOf(1, 0));
+    expectProgramError(await release(w, stranger, member), 'ComebackStillOpen');
+    w.h.setTime(deadlineOf(1, 0) + 1);
+    const before = await w.h.snapshot();
+    const result = await release(w, stranger, member);
+    expect(result.ok, result.logs.join('\n')).toBe(true);
+    assertInvariants(await w.h.snapshot(), before);
+    expect(await reservesOf(w)).toEqual({ boost: 80n * SKR, comeback: 0n, vault: 80n * SKR });
+  });
+
+  it('refuses a profile with no open pledge in the league (6046)', async () => {
+    const w = await world();
+    await cohortAt(w, 0);
+    const member = await wallet(w);
+    await join(w, member, 0, 3);
+    expectProgramError(await release(w, member, member), 'NoComebackToRelease');
+  });
+});
+
+// ===================================== the golden vectors, through the program
+
+describe('given the golden comeback_round vectors (fixtures/settlement-vectors.json)', () => {
+  const vectors = (
+    JSON.parse(vectorText) as {
+      reserve_vectors: {
+        comeback_round: { note: string; first_start: number; cadence: number; join_lock: number; missed_at: number; first: number; last: number }[];
+      };
+    }
+  ).reserve_vectors.comeback_round;
+
+  it('has them', () => {
+    expect(vectors.length).toBeGreaterThanOrEqual(9);
+  });
+
+  it.each(vectors.filter((v) => v.missed_at >= v.first_start).map((v) => [v.note, v] as const))(
+    'opens the same rounds when settle_count counts the forfeit: %s',
+    async (_note, v) => {
+      // Rebuild the miss from the vector: a one-day cohort of the league, whose day 0
+      // ends the second at `missed_at`, counted by the real program.
+      const h = await createHarness({ startTime: v.missed_at - 5 });
+      const mint = (await generateKeyPairSigner()).address;
+      h.injectMint(mint, null, 1_000_000_000n * SKR);
+      const fees = await h.injectFeeDestinations(mint);
+      await h.injectConfig({ skrMint: mint, feeDestination: fees.operations, developerDestination: fees.developer });
+      const league = h.freshTestLeague().leagueId;
+      const index = Math.floor((v.missed_at - v.first_start) / v.cadence);
+      const start = v.first_start + index * v.cadence;
+      const dayLength = v.missed_at + 1 - start;
+      await h.injectLeague(league, {
+        durationDays: 1,
+        dayLength: BigInt(dayLength),
+        firstStart: BigInt(v.first_start),
+        cadence: BigInt(v.cadence),
+        joinLock: BigInt(v.join_lock),
+        nextIndex: index + 1,
+      });
+      if (index > 0) {
+        await h.injectCohort(league, index - 1, {
+          settled: true,
+          start: BigInt(v.first_start + (index - 1) * v.cadence),
+          joinCutoff: BigInt(v.first_start + (index - 1) * v.cadence - v.join_lock),
+          durationDays: 1,
+          dayLength: BigInt(v.cadence),
+        });
+      }
+      const cohort = await h.injectCohort(league, index, {
+        start: BigInt(start),
+        joinCutoff: BigInt(start - v.join_lock),
+        durationDays: 1,
+        dayLength: BigInt(dayLength),
+        memberCount: 1,
+        heldStake: DEFAULT_CHIPS[3],
+      });
+      const member = await h.newWallet();
+      await h.injectMembership(cohort, member.address, { daysCompleted: 0 });
+      await h.injectProfile(member.address);
+      const crank = await h.newWallet();
+
+      h.setTime(v.missed_at + 1);
+      await h.sendOrThrow(
+        [
+          await settleCountIx(
+            crank.address,
+            fees,
+            league,
+            index,
+            await forfeitPairs(cohort, [member.address]),
+            index > 0 ? await cohortPda(league, index - 1) : undefined,
+          ),
+        ],
+        crank,
+      );
+      const progress = (await h.readProfile(member.address)).leagues[2]!;
+      expect([progress.comebackRound, progress.comebackLastRound]).toEqual([v.first, v.last]);
+      expect([progress.comebackLeague, progress.comebackStake]).toEqual([league, DEFAULT_CHIPS[3]]);
+    },
+  );
 });
 
 // ====================================================== form and the reserve vault

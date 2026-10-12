@@ -6,26 +6,25 @@
 //! every finisher and finalisation costs the same whether the cohort holds ten
 //! members or a thousand (research R10).
 //!
-//! ## The league reserve, in cohort order (FR-037c–e, H35)
+//! ## The league reserve (FR-037c–e, H35)
 //!
-//! With finishers, in this order: the cohort draws its **boost** —
-//! `min(10% of its own pool, the boost reserve)` — and the shares are computed
-//! on the boosted pool; it draws `min(comeback owed, the comeback reserve)` for
-//! its finishers' **comeback refunds**; then it **credits** the reserve shares
-//! of its own forfeits to the league. A cohort draws before it credits, so its
-//! own forfeits fund later cohorts, never itself.
+//! With finishers: the cohort draws its **boost** — `min(10% of its own pool,
+//! the boost reserve)` — and the shares are computed on the boosted pool; then
+//! it draws the **comeback refunds** its finishers are owed from the comeback
+//! reserve. Every owed refund was pledged there when its forfeit was counted,
+//! and a boost never draws on the comeback reserve, so the draw is always the
+//! whole of what is owed.
 //!
-//! The reserve moves only here, and both `settle_count` and this instruction
-//! refuse cohort *i* until cohort *i − 1* of the league is settled — this one
-//! too, because a cohort nobody joined is never counted — so finalization runs
-//! in cohort order: what a cohort draws depends only on earlier cohorts of its league,
-//! never on when the crank recorded anyone's forfeit (INV-10, constitution II).
+//! Both instructions refuse cohort *i* until cohort *i − 1* of the league is
+//! settled — this one too, because a cohort nobody joined is never counted — so
+//! finalization runs in cohort order (INV-10, constitution II).
 //!
 //! ## Nobody finished
 //!
-//! Its whole pool goes out — half to the developer, the rest to operations —
-//! and nothing carries over into another cohort (FR-037, H34, H35). Its reserve
-//! shares are still credited to the league.
+//! The developer and operations took their parts as each forfeit was
+//! recorded; the whole prize pool goes to the league's **boost reserve**, for
+//! later cohorts' winners (FR-037, 2026-10-12). The forfeiters' comeback
+//! pledges stay theirs.
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
@@ -76,18 +75,12 @@ pub struct SettleFinalize<'info> {
     )]
     pub vault: Box<Account<'info, TokenAccount>>,
 
-    /// Operations.
+    /// Operations: the rounding remainder of the shares.
     #[account(
         mut,
         constraint = fee_destination.key() == config.fee_destination @ HoldoutError::AccountMismatch,
     )]
     pub fee_destination: Box<Account<'info, TokenAccount>>,
-
-    #[account(
-        mut,
-        constraint = developer_destination.key() == config.developer_destination @ HoldoutError::AccountMismatch,
-    )]
-    pub developer_destination: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -182,8 +175,9 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleFinalize<'info>>) -> Resu
             remainder,
         )?;
 
-        // (3) The comeback refunds this cohort's finishers are owed, as far as
-        // the reserve reaches; each is paid, scaled, with its claim (FR-037e).
+        // (3) The comeback refunds this cohort's finishers are owed, each paid
+        // with its claim (FR-037e). They were pledged in the comeback reserve,
+        // so the `min` never bites; it only keeps a shortfall from failing.
         comeback_funded = ctx
             .accounts
             .cohort
@@ -208,58 +202,27 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleFinalize<'info>>) -> Resu
             .checked_sub(remainder)
             .ok_or(error!(HoldoutError::AccountMismatch))?;
     } else {
-        // Nobody finished: the whole pool goes out and nothing carries over.
+        // Nobody finished: the whole pool goes to the league's boost reserve.
         let pool = ctx.accounts.cohort.pool;
-        let (developer, operations) = settlement::no_finisher_split(pool);
         transfer_signed(
             &token_program,
-            vault.clone(),
-            ctx.accounts.developer_destination.to_account_info(),
-            cohort_info.clone(),
+            vault,
+            reserve_vault,
+            cohort_info,
             cohort_seeds,
-            developer,
+            pool,
         )?;
-        transfer_signed(
-            &token_program,
-            vault.clone(),
-            ctx.accounts.fee_destination.to_account_info(),
-            cohort_info.clone(),
-            cohort_seeds,
-            operations,
-        )?;
+        let league = &mut ctx.accounts.league;
+        league.boost_reserve = league
+            .boost_reserve
+            .checked_add(pool)
+            .ok_or(error!(HoldoutError::AccountMismatch))?;
         let cohort = &mut ctx.accounts.cohort;
-        cohort.no_finisher_fee = pool;
+        cohort.no_finisher_boost = pool;
         cohort.pool = 0;
     }
 
-    // (4) This cohort's own reserve shares go to its league — after it drew,
-    // so they fund later cohorts only (FR-037c).
-    let boost_due = ctx.accounts.cohort.boost_due;
-    let comeback_due = ctx.accounts.cohort.comeback_due;
-    let credit = boost_due
-        .checked_add(comeback_due)
-        .ok_or(error!(HoldoutError::AccountMismatch))?;
-    transfer_signed(
-        &token_program,
-        vault,
-        reserve_vault,
-        cohort_info,
-        cohort_seeds,
-        credit,
-    )?;
-    let league = &mut ctx.accounts.league;
-    league.boost_reserve = league
-        .boost_reserve
-        .checked_add(boost_due)
-        .ok_or(error!(HoldoutError::AccountMismatch))?;
-    league.comeback_reserve = league
-        .comeback_reserve
-        .checked_add(comeback_due)
-        .ok_or(error!(HoldoutError::AccountMismatch))?;
-
     let cohort = &mut ctx.accounts.cohort;
-    cohort.boost_due = 0;
-    cohort.comeback_due = 0;
     cohort.settled = true;
 
     emit!(CohortSettled {
@@ -270,6 +233,7 @@ pub(crate) fn handler<'info>(ctx: Context<'info, SettleFinalize<'info>>) -> Resu
         rounding_remainder: remainder,
         boost,
         comeback_funded,
+        no_finisher_boost: cohort.no_finisher_boost,
     });
 
     Ok(())

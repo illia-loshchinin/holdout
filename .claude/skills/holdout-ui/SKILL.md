@@ -33,12 +33,14 @@ through the `/speckit-*` skills — never edit them from here (see `CLAUDE.md`).
   spacing `.dp` outside `ui/theme/`. If a token has no Kotlin twin yet (see compose-map "Missing"),
   add it to the theme file first — with the exact value from `docs/design/tokens.json` — then use it.
 - **Shared components first.** Use `PrimaryButton`, `SecondaryButton`, `HoldoutCard`, `SectionLabel`,
-  `Body`, `Notice`, `Reading`, `HoldoutLoader`, `Format.*` from `holdout.app.ui`. `Notice` is the one-line
-  notice; the book's **Notice card** (a title, a sentence, a quiet action) is a different component. When the
-  book names a member component that has no shared Composable yet (StatBlock, BankRing, Countdown,
-  StreakFlame, TierChips, StatusChip, NoticeCard, ChoiceChips, Sheet, RosterRow, BottomNav, QuietAction), grep
-  for an inline version first; extract it into `ui/Components.kt` (or its own file in `ui/`) instead of
-  writing a second copy.
+  `Body`, `Notice`, `Reading`, `HoldoutLoader`, `StatBlock`, `StatusChip`, `QuietAction`, `NoticeCard`,
+  `CountdownText`, `StreakFlame`, `BankRing`, `TierChips`, `ChoiceChips`, `RosterRow`, `KeyValueRow`,
+  `ScreenHeader`, `PagerDots`, `ChecklistRow`, `ProgressRing`, `Format.*` from `holdout.app.ui` (the map is in
+  `references/compose-map.md`). `Notice` is the one-line notice; the book's **Notice card** (a title, a
+  sentence, a quiet action) is `NoticeCard`. Levels, rule sentences, header labels, the fee sentence and the
+  boost and comeback lines come from `Format`, never typed again. When the book names a member component
+  that has no shared Composable yet (Sheet, BottomNav), grep for an inline version first; extract it into its
+  own file in `ui/` instead of writing a second copy.
 - **Lab-only components stay out of `src/main`.** Switch, Stepper, Readouts and Dialog exist for Holdout Lab
   only (`docs/design/lab.md`). They live in the Lab source set, `kotlin/app/src/lab/kotlin/holdout/app/ui/`
   or `…/sitting/`, as `TestSwitch`, `LabReadouts` and `TraceLabelDialog` do; the member build never

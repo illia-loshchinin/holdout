@@ -1,12 +1,14 @@
 package holdout.app
 
 import android.animation.ValueAnimator
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -17,9 +19,27 @@ import java.time.Duration
 import java.time.Instant
 
 class MainActivity : ComponentActivity() {
+    // The same instance the screens get from `viewModel()`: it carries "the app was opened" to them.
+    private val main: MainViewModel by viewModels()
+
+    /**
+     * A reminder's tap (or the launcher) reaching an activity that is already
+     * up: the app opens on Today (FR-069).
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (AppOpen.take(intent)) main.opens.opened()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // The same tap reaching an activity made anew: after the system killed the process the saved
+        // tab and screens come back, and a reminder still means Today; the launcher's intent restored
+        // with them does not. A rotation does not either: its intent was taken already.
+        if (AppOpen.take(intent, restored = savedInstanceState != null)) main.opens.opened()
 
         holdSplashForItsAnimation()
 

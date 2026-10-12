@@ -1142,6 +1142,22 @@
           "optional": true
         },
         {
+          "name": "comeback_membership",
+          "docs": [
+            "The member's forfeited membership, when this cohort is its comeback",
+            "round and joining has otherwise closed (FR-037e). Checked by",
+            "`guards::is_comeback_round`, never trusted by address alone."
+          ],
+          "optional": true
+        },
+        {
+          "name": "comeback_cohort",
+          "docs": [
+            "The cohort of `comeback_membership`."
+          ],
+          "optional": true
+        },
+        {
           "name": "skr_mint"
         },
         {
@@ -1631,6 +1647,71 @@
       "args": []
     },
     {
+      "name": "release_comeback",
+      "docs": [
+        "Permissionless: a comeback pledge whose round can no longer be finished",
+        "goes to the boost reserve (FR-037e)."
+      ],
+      "discriminator": [
+        224,
+        117,
+        22,
+        247,
+        243,
+        91,
+        69,
+        218
+      ],
+      "accounts": [
+        {
+          "name": "caller",
+          "docs": [
+            "Anyone. The caller's identity never changes the outcome (FR-030a)."
+          ],
+          "signer": true
+        },
+        {
+          "name": "league",
+          "writable": true
+        },
+        {
+          "name": "profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "profile.wallet",
+                "account": "Profile"
+              }
+            ]
+          }
+        },
+        {
+          "name": "round",
+          "docs": [
+            "The comeback's latest opened round — cohort",
+            "`min(comeback_last_round, league.next_index − 1)` of this league —",
+            "required once its first round has been opened."
+          ],
+          "optional": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "set_flags",
       "docs": [
         "Admin only. The genesis gate this build ships off (research R17)."
@@ -1720,7 +1801,12 @@
           }
         },
         {
-          "name": "league"
+          "name": "league",
+          "docs": [
+            "Writable: pledges are booked to its comeback reserve, and released ones",
+            "to its boost reserve (FR-037c, FR-037e)."
+          ],
+          "writable": true
         },
         {
           "name": "cohort",
@@ -1757,6 +1843,13 @@
           "writable": true
         },
         {
+          "name": "reserve_vault",
+          "docs": [
+            "Where the counted forfeits' pledges go."
+          ],
+          "writable": true
+        },
+        {
           "name": "previous_cohort",
           "docs": [
             "The league's cohort `index - 1`, required for every index but 0."
@@ -1774,7 +1867,7 @@
       "name": "settle_finalize",
       "docs": [
         "Once. Constant-time per-tier shares; with no finishers the whole pool",
-        "goes to the fee destination (FR-030a, FR-037)."
+        "goes to the league's boost reserve (FR-030a, FR-037)."
       ],
       "discriminator": [
         182,
@@ -1849,12 +1942,8 @@
         {
           "name": "fee_destination",
           "docs": [
-            "Operations."
+            "Operations: the rounding remainder of the shares."
           ],
-          "writable": true
-        },
-        {
-          "name": "developer_destination",
           "writable": true
         },
         {
@@ -2165,6 +2254,19 @@
       ]
     },
     {
+      "name": "ComebackReleased",
+      "discriminator": [
+        143,
+        48,
+        226,
+        235,
+        230,
+        101,
+        100,
+        236
+      ]
+    },
+    {
       "name": "DayCompleted",
       "discriminator": [
         29,
@@ -2409,6 +2511,16 @@
       "msg": "The previous cohort of this league must settle first"
     },
     {
+      "code": 6046,
+      "name": "NoComebackToRelease",
+      "msg": "This profile has no open comeback in this league"
+    },
+    {
+      "code": 6047,
+      "name": "ComebackStillOpen",
+      "msg": "This comeback's round can still be finished"
+    },
+    {
       "code": 6050,
       "name": "FaucetAlreadyClaimedToday",
       "msg": "This wallet has already used the faucet today"
@@ -2580,22 +2692,16 @@
             "name": "pool",
             "docs": [
               "Only forfeited stakes ever enter this, and a boost drawn from the",
-              "league's reserve of earlier forfeits (INV-2)."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "boost_due",
-            "docs": [
-              "The boost-reserve share of this cohort's forfeits, held in its vault",
-              "until it finalizes and moves to the league (FR-037c)."
+              "league's boost reserve (INV-2)."
             ],
             "type": "u64"
           },
           {
             "name": "comeback_due",
             "docs": [
-              "The comeback-reserve share, held likewise (FR-037c)."
+              "The comeback pledges of this cohort's recorded forfeits, held in its",
+              "vault until each forfeit is counted and its pledge moves to the",
+              "league's comeback reserve (FR-037c)."
             ],
             "type": "u64"
           },
@@ -2649,10 +2755,10 @@
             "type": "u64"
           },
           {
-            "name": "no_finisher_fee",
+            "name": "no_finisher_boost",
             "docs": [
-              "A cohort nobody finished: its whole pool, sent to the developer and",
-              "operations destinations (FR-037)."
+              "A cohort nobody finished: its whole pool, sent to the league's boost",
+              "reserve (FR-037)."
             ],
             "type": "u64"
           },
@@ -2673,7 +2779,8 @@
           {
             "name": "comeback_funded",
             "docs": [
-              "What finalization drew from the comeback reserve: `min(owed, reserve)`."
+              "What finalization drew from the comeback reserve: all of `comeback_owed`,",
+              "which the reserve always holds as pledges."
             ],
             "type": "u64"
           },
@@ -2766,6 +2873,40 @@
             "docs": [
               "Drawn from the league's comeback reserve for this cohort's finishers (FR-037e)."
             ],
+            "type": "u64"
+          },
+          {
+            "name": "no_finisher_boost",
+            "docs": [
+              "Nobody finished: the whole pool, sent to the league's boost reserve (FR-037)."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ComebackReleased",
+      "docs": [
+        "A comeback pledge nobody made good, released to the boost reserve (FR-037e)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "league",
+            "type": "u8"
+          },
+          {
+            "name": "round",
+            "type": "u32"
+          },
+          {
+            "name": "amount",
             "type": "u64"
           }
         ]
@@ -3067,15 +3208,17 @@
           {
             "name": "boost_reserve",
             "docs": [
-              "SKR in the reserve vault set aside for boosts (FR-037d). Credited only",
-              "when a cohort of this league finalizes (FR-037c, INV-10)."
+              "SKR in the reserve vault free for boosts (FR-037d): pools nobody won",
+              "and pledges nobody made good (FR-037, FR-037e, INV-10)."
             ],
             "type": "u64"
           },
           {
             "name": "comeback_reserve",
             "docs": [
-              "SKR in the reserve vault set aside for comeback refunds (FR-037e)."
+              "SKR in the reserve vault pledged to members: every open comeback's",
+              "pledge and every refund owed but not yet drawn (FR-037e). A boost never",
+              "draws on it, so a pledge is always there when its round is finished."
             ],
             "type": "u64"
           },
@@ -3129,25 +3272,34 @@
           {
             "name": "comeback_stake",
             "docs": [
-              "The stake of the latest **counted** forfeit in this league, while it can",
-              "still earn a comeback; 0 once used (FR-037e). Written only by",
-              "`settle_count`, so in cohort order like the streak (INV-9)."
+              "The stake of the latest **counted** forfeit in this league while its",
+              "comeback is open; 0 once made good or released (FR-037e). Its pledge —",
+              "[`settlement::comeback_pledge`] of it — sits in the league's comeback",
+              "reserve meanwhile. Written by `settle_count`, in cohort order like the",
+              "streak (INV-9), and cleared by `release_comeback`."
             ],
             "type": "u64"
           },
           {
-            "name": "comeback_from",
+            "name": "comeback_league",
             "docs": [
-              "That forfeit's missed deadline."
+              "The league that holds the pledge. Every test league shares one slot, so",
+              "the slot alone does not say which league's reserve the pledge is in."
             ],
-            "type": "i64"
+            "type": "u8"
           },
           {
-            "name": "comeback_until",
+            "name": "comeback_round",
             "docs": [
-              "The last instant a cohort may start and still be its comeback."
+              "The first and last cohort index of that league whose finishing makes",
+              "it good — one round, or two after a miss on a round's last day",
+              "([`crate::math::schedule::comeback_rounds`])."
             ],
-            "type": "i64"
+            "type": "u32"
+          },
+          {
+            "name": "comeback_last_round",
+            "type": "u32"
           }
         ]
       }

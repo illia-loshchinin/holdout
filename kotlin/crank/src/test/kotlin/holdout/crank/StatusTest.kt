@@ -93,7 +93,8 @@ class StatusTest {
         assertEquals(5, first.getValue("forfeitsRecorded").jsonPrimitive.long)
         assertEquals(3, first.getValue("counted").jsonPrimitive.long)
         assertEquals("false", first.getValue("settled").jsonPrimitive.content)
-        assertEquals(0, first.getValue("boostDue").jsonPrimitive.long)
+        assertEquals(0, first.getValue("comebackDue").jsonPrimitive.long)
+        assertEquals(0, first.getValue("noFinisherBoost").jsonPrimitive.long)
         assertEquals(0, first.getValue("comebackFunded").jsonPrimitive.long)
     }
 

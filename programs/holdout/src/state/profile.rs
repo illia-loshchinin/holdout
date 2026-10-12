@@ -7,6 +7,8 @@
 
 use anchor_lang::prelude::*;
 
+use crate::math::settlement;
+
 /// PDA seed prefix, followed by the wallet.
 pub const PROFILE_SEED: &[u8] = b"profile";
 
@@ -36,14 +38,20 @@ pub struct LeagueProgress {
     /// transaction landed, so no caller's timing can reorder two members tied on
     /// a leaderboard (FR-060b). Written through [`LeagueProgress::touch`].
     pub last_changed: i64,
-    /// The stake of the latest **counted** forfeit in this league, while it can
-    /// still earn a comeback; 0 once used (FR-037e). Written only by
-    /// `settle_count`, so in cohort order like the streak (INV-9).
+    /// The stake of the latest **counted** forfeit in this league while its
+    /// comeback is open; 0 once made good or released (FR-037e). Its pledge —
+    /// [`settlement::comeback_pledge`] of it — sits in the league's comeback
+    /// reserve meanwhile. Written by `settle_count`, in cohort order like the
+    /// streak (INV-9), and cleared by `release_comeback`.
     pub comeback_stake: u64,
-    /// That forfeit's missed deadline.
-    pub comeback_from: i64,
-    /// The last instant a cohort may start and still be its comeback.
-    pub comeback_until: i64,
+    /// The league that holds the pledge. Every test league shares one slot, so
+    /// the slot alone does not say which league's reserve the pledge is in.
+    pub comeback_league: u8,
+    /// The first and last cohort index of that league whose finishing makes
+    /// it good — one round, or two after a miss on a round's last day
+    /// ([`crate::math::schedule::comeback_rounds`]).
+    pub comeback_round: u32,
+    pub comeback_last_round: u32,
 }
 
 impl LeagueProgress {
@@ -71,34 +79,66 @@ impl LeagueProgress {
         self.touch(outcome_at);
     }
 
-    /// A forfeit counted at settlement may be made good by finishing a later
-    /// cohort of the league that starts after `missed_at` and by `until`
-    /// (FR-037e). Only the latest counted forfeit is kept: counting runs in
-    /// cohort order, so "latest" never depends on the crank (INV-9).
-    pub fn open_comeback(&mut self, forfeited_stake: u64, missed_at: i64, until: i64) {
+    /// A forfeit counted at settlement may be made good by finishing a cohort
+    /// of `league_id` from `round` to `last_round` (FR-037e). Only the latest counted forfeit is
+    /// kept: counting runs in cohort order, so "latest" never depends on the
+    /// crank (INV-9). The caller releases any pledge this replaces first.
+    pub fn open_comeback(&mut self, forfeited_stake: u64, league_id: u8, rounds: (u32, u32)) {
         self.comeback_stake = forfeited_stake;
-        self.comeback_from = missed_at;
-        self.comeback_until = until;
+        self.comeback_league = league_id;
+        self.comeback_round = rounds.0;
+        self.comeback_last_round = rounds.1;
     }
 
-    /// The forfeited stake a finisher of a cohort starting at `cohort_start`
-    /// makes good, if that cohort is the comeback — and the record is used up.
-    pub fn take_comeback(&mut self, cohort_start: i64) -> Option<u64> {
-        let open = self.comeback_stake > 0
-            && cohort_start > self.comeback_from
-            && cohort_start <= self.comeback_until;
-        if !open {
-            return None;
-        }
-        let stake = self.comeback_stake;
+    /// The pledge still open in `league_id`, if any.
+    pub fn open_pledge_in(&self, league_id: u8) -> Option<u64> {
+        (self.comeback_stake > 0 && self.comeback_league == league_id)
+            .then(|| settlement::comeback_pledge(self.comeback_stake))
+    }
+
+    /// Whether a pledge of another league holds this slot — possible only in
+    /// the slot every test league shares.
+    pub fn pledge_of_another_league(&self, league_id: u8) -> bool {
+        self.comeback_stake > 0 && self.comeback_league != league_id
+    }
+
+    /// Close the comeback, made good or released.
+    pub fn clear_comeback(&mut self) {
         self.comeback_stake = 0;
-        Some(stake)
+        self.comeback_league = 0;
+        self.comeback_round = 0;
+        self.comeback_last_round = 0;
+    }
+
+    /// What finishing cohort `index` of `league_id` does to an open comeback.
+    pub fn comeback_on_finish(&self, league_id: u8, index: u32) -> ComebackOnFinish {
+        if self.comeback_stake == 0 || self.comeback_league != league_id {
+            return ComebackOnFinish::None;
+        }
+        if (self.comeback_round..=self.comeback_last_round).contains(&index) {
+            ComebackOnFinish::MadeGood(self.comeback_stake)
+        } else if index > self.comeback_last_round {
+            ComebackOnFinish::Lapsed
+        } else {
+            ComebackOnFinish::None
+        }
     }
 
     /// Cohorts played — cleared plus forfeited (FR-060a).
     pub fn played(&self) -> u16 {
         self.cleared.saturating_add(self.forfeited)
     }
+}
+
+/// What a finish does to the member's open comeback (FR-037e).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ComebackOnFinish {
+    /// No open comeback in this league, or this cohort comes before its rounds.
+    None,
+    /// This cohort is one of its rounds: the forfeited stake it makes good.
+    MadeGood(u64),
+    /// Its rounds went by without a finish: the pledge goes to the boost.
+    Lapsed,
 }
 
 /// A membership in a cohort that has started. Default = none.
@@ -228,39 +268,56 @@ mod tests {
     }
 
     #[test]
-    fn a_counted_forfeit_opens_a_comeback_that_a_later_cohort_in_its_window_uses_once() {
+    fn a_counted_forfeit_is_made_good_by_its_round_only() {
         let mut p = LeagueProgress::default();
-        // Missed at 1_000, window of 14 days of 100 s: cohorts starting by 2_400.
-        p.open_comeback(250, 1_000, 2_400);
+        p.open_comeback(250, 0, (4, 4));
         assert_eq!(
-            p.take_comeback(1_000),
-            None,
-            "a cohort that started before the breach is not a comeback"
+            p.open_pledge_in(0),
+            Some(25),
+            "10 % of the stake is pledged"
+        );
+        assert_eq!(p.open_pledge_in(1), None, "in its own league only");
+        assert_eq!(
+            p.comeback_on_finish(0, 3),
+            ComebackOnFinish::None,
+            "before the round"
         );
         assert_eq!(
-            p.take_comeback(2_401),
-            None,
-            "nor one that started after the window"
+            p.comeback_on_finish(1, 4),
+            ComebackOnFinish::None,
+            "another league"
         );
+        assert_eq!(p.comeback_on_finish(0, 4), ComebackOnFinish::MadeGood(250));
         assert_eq!(
-            p.take_comeback(2_400),
-            Some(250),
-            "the last second of the window still counts"
+            p.comeback_on_finish(0, 5),
+            ComebackOnFinish::Lapsed,
+            "after the round"
         );
-        assert_eq!(p.take_comeback(2_400), None, "used up");
+        p.clear_comeback();
+        assert_eq!(p.open_pledge_in(0), None);
+        assert_eq!(
+            p.comeback_on_finish(0, 4),
+            ComebackOnFinish::None,
+            "used up"
+        );
     }
 
     #[test]
-    fn only_the_latest_counted_forfeit_can_earn_a_comeback() {
+    fn a_last_day_miss_is_made_good_by_either_of_its_two_rounds() {
         let mut p = LeagueProgress::default();
-        p.open_comeback(250, 1_000, 2_400);
-        p.open_comeback(500, 3_000, 4_400);
-        assert_eq!(
-            p.take_comeback(2_000),
-            None,
-            "the earlier forfeit's window was replaced"
-        );
-        assert_eq!(p.take_comeback(3_500), Some(500));
+        p.open_comeback(250, 0, (4, 5));
+        assert_eq!(p.comeback_on_finish(0, 4), ComebackOnFinish::MadeGood(250));
+        assert_eq!(p.comeback_on_finish(0, 5), ComebackOnFinish::MadeGood(250));
+        assert_eq!(p.comeback_on_finish(0, 6), ComebackOnFinish::Lapsed);
+    }
+
+    #[test]
+    fn a_pledge_of_another_test_league_holds_the_shared_slot() {
+        let mut p = LeagueProgress::default();
+        p.open_comeback(100, 100, (7, 8));
+        assert!(p.pledge_of_another_league(101));
+        assert!(!p.pledge_of_another_league(100));
+        assert_eq!(p.comeback_on_finish(101, 7), ComebackOnFinish::None);
     }
 
     #[test]

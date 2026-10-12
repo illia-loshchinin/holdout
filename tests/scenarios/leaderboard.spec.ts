@@ -85,8 +85,9 @@ const ZERO: LeagueProgress = {
   longestStreak: 0,
   lastChanged: 0n,
   comebackStake: 0n,
-  comebackFrom: 0n,
-  comebackUntil: 0n,
+  comebackLeague: 0,
+  comebackRound: 0,
+  comebackLastRound: 0,
 };
 
 /** The figures a leaderboard reads from one slot. */

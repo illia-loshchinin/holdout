@@ -11,8 +11,9 @@ import kotlin.test.assertTrue
 
 /**
  * The comeback offer against the program's own rule (FR-037e, FR-037g, R22):
- * `LeagueProgress::take_comeback` counts a Holdout when `start > missed` and
- * `start <= missed + 14 × day_length`, `missed = deadline_of(days_completed)`.
+ * `schedule::comeback_rounds` names the forfeit's own league's cohorts `first..last`,
+ * `first` the first to start after `missed = deadline_of(days_completed)`, and the
+ * comeback is exactly `min(10 % of the lost stake, the new stake)`.
  */
 class ComebackTest {
     private val day = 86_400L
@@ -43,88 +44,94 @@ class ComebackTest {
     private fun forfeit21(state: State = State.Forfeited) = entry(twentyOne, state, days = 2)
 
     @Test
-    fun `given a 21-day forfeit on day 2, then exactly two weekly rounds and the one open is joinable`() {
+    fun `given a mid-round miss, then exactly one round, the next weekly one, and it is joinable`() {
         val r1 = entry(cohort(1, s0 + week))
         val offer = assertNotNull(Comeback.offer(listOf(forfeit21(), r1), listOf(leagueOf(1)), now, leagueId = 1))
         assertEquals(missed21, offer.missed)
-        assertEquals(missed21 + 14 * day, offer.until)
-        assertEquals(listOf(s0 + week, s0 + 2 * week), offer.rounds.map { it.start })
+        assertEquals(1L..1L, offer.firstRound..offer.lastRound)
+        assertEquals(listOf(s0 + week), offer.rounds.map { it.start })
         assertEquals(r1, offer.rounds[0].entry)
         assertEquals(CohortStatus.Open, offer.rounds[0].status)
+        assertEquals(r1.cohort.joinCutoff, offer.rounds[0].closesAt, "open: joining closes at the cutoff")
+        assertEquals(false, offer.rounds[0].lateJoin)
         assertTrue(offer.rounds[0].joinable)
         assertEquals(offer.rounds[0], offer.next)
-        assertEquals(offer.rounds[1], offer.after(offer.rounds[0]))
+        assertNull(offer.after(offer.rounds[0]), "no second round after a mid-round miss")
         assertNull(offer.held)
     }
 
     @Test
-    fun `given a 7-day forfeit on day 7, then exactly two rounds`() {
-        // days_completed 6 of 7: the missed deadline is the last second before the next cohort starts, which is already
-        // running (closed) when the breach shows; the one after it is open.
-        val offer = assertNotNull(
-            Comeback.offer(listOf(entry(seven, State.Forfeited, days = 6), entry(cohort(0, s0 + week)), entry(cohort(0, s0 + 2 * week))), listOf(leagueOf(0)), s0 + 7 * day + 500, leagueId = 0),
-        )
+    fun `given a last-day miss, then two rounds, and the first is joinable late until the end of its first day`() {
+        val league = listOf(leagueOf(0))
+        val lost = entry(seven, State.Forfeited, days = 6)
+        val r1 = entry(cohort(0, s0 + week))
+        val r2 = entry(cohort(0, s0 + 2 * week))
+        // days_completed 6 of 7: the missed deadline is the second before round 1 starts, an hour after its joining closed.
+        val justStarted = s0 + week + 500
+        val offer = assertNotNull(Comeback.offer(listOf(lost, r1, r2), league, justStarted, leagueId = 0))
         assertEquals(s0 + week - 1, offer.missed)
+        assertEquals(1L..2L, offer.firstRound..offer.lastRound)
         assertEquals(listOf(s0 + week, s0 + 2 * week), offer.rounds.map { it.start })
+        assertEquals(CohortStatus.Running, offer.rounds[0].status)
+        assertTrue(offer.rounds[0].lateJoin && offer.rounds[0].joinable)
+        assertEquals(s0 + week + day, offer.rounds[0].closesAt, "day 0 ends at the first day's deadline")
+        assertEquals(offer.rounds[0], offer.next)
+        assertEquals(offer.rounds[1], offer.after(offer.rounds[0]))
+        assertTrue(offer.rounds[1].joinable && !offer.rounds[1].lateJoin)
+
+        // The last second of day 0 still takes the member; the next does not, and the second round is the way back.
+        val lastSecond = assertNotNull(Comeback.offer(listOf(lost, r1, r2), league, s0 + week + day - 1, 0))
+        assertEquals(lastSecond.rounds[0], lastSecond.next)
+        val closed = assertNotNull(Comeback.offer(listOf(lost, r1, r2), league, s0 + week + day, 0))
+        assertEquals(false, closed.rounds[0].joinable)
+        assertEquals(closed.rounds[1], closed.next)
+
+        // Locked (inside the join lock) is late too; it is the same round.
+        val locked = assertNotNull(Comeback.offer(listOf(lost, r1), league, s0 + week - 1_000, 0))
+        assertEquals(CohortStatus.Locked, locked.rounds[0].status)
+        assertTrue(locked.rounds[0].lateJoin && locked.rounds[0].joinable)
+        assertNull(locked.rounds[1].entry)
+
+        // Both rounds closed without the member: no offer.
+        assertNull(Comeback.offer(listOf(lost, r1, r2), league, s0 + 2 * week + 1_000, 0))
+    }
+
+    @Test
+    fun `only the member's first comeback round is joinable late`() {
+        val r1 = entry(cohort(1, s0 + week))
+        // A mid-round miss names round 1 alone; once it is Locked it is still the member's, until its first day ends.
+        val locked = assertNotNull(Comeback.offer(listOf(forfeit21(), r1), listOf(leagueOf(1)), s0 + week - 1_000, 1))
+        assertEquals(listOf(s0 + week), locked.rounds.map { it.start }, "the miss named round 1 alone")
+        assertTrue(locked.rounds[0].lateJoin)
+        // A member already holding a place in the round has nothing to join late.
+        val placed = entry(cohort(1, s0 + week), State.Joined)
+        assertEquals(false, assertNotNull(Comeback.offer(listOf(forfeit21(), placed), listOf(leagueOf(1)), s0 + week + 1_000, 1)).rounds[0].joinable)
     }
 
     @Test
     fun `a round that is not opened yet is named and opens at the previous round's start`() {
-        val offer = assertNotNull(Comeback.offer(listOf(forfeit21(), entry(cohort(1, s0 + week))), listOf(leagueOf(1)), now, 1))
+        val lost = entry(seven, State.Forfeited, days = 6)
+        val offer = assertNotNull(Comeback.offer(listOf(lost, entry(cohort(0, s0 + week))), listOf(leagueOf(0)), s0 + week + 500, 0))
         val second = offer.rounds[1]
         assertNull(second.entry)
         assertNull(second.status)
         assertEquals(s0 + week, second.opensAt)
+        assertEquals(s0 + 2 * week - 3_600, second.closesAt, "an unopened round will close at its cutoff")
         assertEquals(false, second.joinable)
+        assertEquals(second, offer.upcoming)
     }
 
     @Test
-    fun `locked and running rounds are closed - no Join - and with none open there is no offer`() {
+    fun `an unopened round inside its join lock is not upcoming - a cohort opened then would already be Locked`() {
         val league = listOf(leagueOf(1))
-        val locked = entry(cohort(1, s0 + week))
-        // Past round 1's join cutoff, before its start: Locked.
-        val lockedNow = s0 + week - 1_000
-        assertEquals(CohortStatus.Locked, Derive.status(locked.cohort, lockedNow))
-        // Round 1 locked and round 2 not opened yet: nothing to join, but nothing closed either (FR-037g).
-        val waiting = assertNotNull(Comeback.offer(listOf(forfeit21(), locked), league, lockedNow, 1))
-        assertNull(waiting.next)
-        assertEquals(waiting.rounds[1], waiting.upcoming)
-        assertEquals(s0 + 2 * week, waiting.upcoming?.start)
-        assertEquals(s0 + week, waiting.upcoming?.opensAt)
-        assertNull(waiting.held)
-        // Once round 1 has started, round 2 is unopened only if the program has not opened it; a started, unopened round is not upcoming.
-        assertNull(Comeback.offer(listOf(forfeit21(), locked), league, s0 + 2 * week + 10, 1), "every round started or closed, none joined")
-        val round2 = entry(cohort(1, s0 + 2 * week))
-        val offer = assertNotNull(Comeback.offer(listOf(forfeit21(), locked, round2), league, lockedNow, 1), "round 2 opened and open")
-        assertEquals(listOf(CohortStatus.Locked, CohortStatus.Open), offer.rounds.map { it.status })
-        assertEquals(offer.rounds[1], offer.next)
-        // Round 1 running, round 2 open.
-        val runningNow = s0 + week + 1_000
-        assertEquals(CohortStatus.Running, Derive.status(locked.cohort, runningNow))
-        assertEquals(CohortStatus.Running, Comeback.offer(listOf(forfeit21(), locked, round2), league, runningNow, 1)!!.rounds[0].status)
-        // Both closed: no offer.
-        assertNull(Comeback.offer(listOf(forfeit21(), locked, round2), league, s0 + 2 * week + 1_000, 1))
-    }
-
-    @Test
-    fun `the window's boundary seconds follow take_comeback`() {
-        val c = twentyOne
-        val missed = Derive.deadlineOf(c, 2)
-        fun leagueStarting(first: Long, cadence: Long) = LeagueSnapshot(LeagueParams.judged(1, first).copy(cadence = cadence), nextIndex = 5)
-        val member = entry(c, State.Forfeited, days = 2)
-        fun open(start: Long) = entry(cohort(1, start, index = 1))
-        // A start equal to `missed` is not a round; the next at +7 days is.
-        val atMissed = Comeback.offer(listOf(member, open(missed + week)), listOf(leagueStarting(missed, week)), now, 1)!!
-        assertEquals(listOf(missed + week, missed + 2 * week), atMissed.rounds.map { it.start })
-        // A start equal to `missed + 14 × dayLength` is a round.
-        val atUntil = Comeback.offer(listOf(member, open(missed + 14 * day)), listOf(leagueStarting(missed, 14 * day)), now, 1)!!
-        assertEquals(listOf(missed + 14 * day), atUntil.rounds.map { it.start })
-        // One second past is not (and nothing else is left).
-        assertNull(Comeback.offer(listOf(member, open(missed + 14 * day + 1)), listOf(leagueStarting(missed, 14 * day + 1)), now, 1))
-        // A cohort the app holds starting at the last second counts as a place; one second later it does not.
-        val heldAt = Comeback.offer(listOf(member, entry(cohort(1, missed + 14 * day, index = 1), State.Joined)), listOf(leagueStarting(missed + 5 * 14 * day, week)), now, 1)
-        assertNotNull(heldAt?.held)
-        assertNull(Comeback.offer(listOf(member, entry(cohort(1, missed + 14 * day + 1, index = 1), State.Joined)), listOf(leagueStarting(missed + 5 * 14 * day, week)), now, 1))
+        val roundStart = s0 + week
+        // Round 1 not opened; one second before its join lock begins it is still to come.
+        val before = assertNotNull(Comeback.offer(listOf(forfeit21()), league, roundStart - 3_601, 1))
+        assertEquals(roundStart, before.upcoming?.start)
+        assertEquals(s0, before.upcoming?.opensAt)
+        // At the lock it cannot be joined once opened: not upcoming, and nothing else is left.
+        assertNull(Comeback.offer(listOf(forfeit21()), league, roundStart - 3_600, 1))
+        assertNull(Comeback.offer(listOf(forfeit21()), league, roundStart - 100, 1))
     }
 
     @Test
@@ -158,7 +165,7 @@ class ComebackTest {
     }
 
     @Test
-    fun `a forfeit in the comeback Holdout replaces the first and opens its own window (ES-19)`() {
+    fun `a forfeit in the comeback Holdout replaces the first and opens its own rounds (ES-19)`() {
         val league = listOf(leagueOf(1))
         val r1 = cohort(1, s0 + week)
         val joinedAndLost = entry(r1, State.Forfeited, days = 1)
@@ -167,23 +174,67 @@ class ComebackTest {
         val t = s0 + week + 2 * day + 100
         val offer = assertNotNull(Comeback.offer(listOf(forfeit21(), joinedAndLost, r2, r3), league, t, 1))
         assertEquals(Derive.deadlineOf(r1, 1), offer.missed)
-        assertEquals(listOf(s0 + 2 * week, s0 + 3 * week), offer.rounds.map { it.start })
+        assertEquals(listOf(s0 + 2 * week), offer.rounds.map { it.start })
     }
 
     @Test
-    fun `the test leagues share one slot`() {
+    fun `another league does not count, even in the slot the test leagues share`() {
         val a = LeagueParams.TEST_LEAGUE_MIN
-        val testLeague = { id: Int -> LeagueSnapshot(LeagueParams.judged(0, s0).copy(leagueId = id, durationDays = 2, dayLength = 600, cadence = 3_600), nextIndex = 5) }
+        fun testLeague(id: Int) = LeagueSnapshot(LeagueParams.judged(0, s0).copy(leagueId = id, durationDays = 2, dayLength = 600, cadence = 3_600, joinLock = 60), nextIndex = 5)
         fun testCohort(id: Int, start: Long) = CohortSnapshot(id, (start - s0) / 3_600, start, start - 60, 2, 25, 600, 0, chips)
+        val leagues = listOf(testLeague(a), testLeague(a + 1))
         val forfeit = entry(testCohort(a, s0), State.Forfeited, days = 0)
         val missed = Derive.deadlineOf(forfeit.cohort, 0)
-        val nextRound = entry(testCohort(a + 1, s0 + 3_600))
-        val offer = assertNotNull(Comeback.offer(listOf(forfeit, nextRound), listOf(testLeague(a), testLeague(a + 1)), missed + 10, a + 1))
+        val ownRound = entry(testCohort(a, s0 + 3_600))
+        val otherRound = entry(testCohort(a + 1, s0 + 3_600))
+        val offer = assertNotNull(Comeback.offer(listOf(forfeit, ownRound, otherRound), leagues, missed + 10, a))
         assertEquals(ProfileSnapshot.slotOf(a), offer.slot)
-        assertEquals(nextRound, offer.next?.entry, "another test league's Holdout is the same slot")
-        assertEquals(ProfileSnapshot.slotOf(a + 9), ProfileSnapshot.slotOf(a))
+        assertEquals(ownRound, offer.next?.entry, "the forfeit's own league's round")
+        assertEquals(listOf(s0 + 3_600), offer.rounds.map { it.start })
+        assertEquals(offer, Comeback.offer(listOf(forfeit, ownRound, otherRound), leagues, missed + 10, a + 1), "the slot is shared, so either id finds the offer")
+        // The other league's cohort is no way back: with only that one open, the own round is merely upcoming.
+        val onlyOther = assertNotNull(Comeback.offer(listOf(forfeit, otherRound), leagues, missed + 10, a))
+        assertNull(onlyOther.next)
+        assertNull(onlyOther.rounds[0].entry)
+        assertEquals(onlyOther.rounds[0], onlyOther.upcoming)
+        // Nor does finishing it use the offer up.
+        val finishedOther = entry(testCohort(a + 1, s0 + 3_600), State.Finished, days = 2)
+        assertNotNull(Comeback.offer(listOf(forfeit, ownRound, finishedOther), leagues, missed + 10, a))
         // A judged league's forfeit is a slot of its own.
-        assertNull(Comeback.offer(listOf(forfeit, nextRound), listOf(testLeague(a), testLeague(a + 1)), missed + 10, leagueId = 0))
+        assertNull(Comeback.offer(listOf(forfeit, ownRound), leagues, missed + 10, leagueId = 0))
+    }
+
+    @Test
+    fun `a test league's open pledge keeps its offer - a forfeit in another test league opens none`() {
+        val a = LeagueParams.TEST_LEAGUE_MIN
+        fun testLeague(id: Int) = LeagueSnapshot(LeagueParams.judged(0, s0).copy(leagueId = id, durationDays = 2, dayLength = 600, cadence = 3_600, joinLock = 60), nextIndex = 5)
+        fun testCohort(id: Int, start: Long) = CohortSnapshot(id, (start - s0) / 3_600, start, start - 60, 2, 25, 600, 0, chips)
+        fun profile(stake: ULong, league: Int) = ProfileSnapshot(
+            wallet,
+            List(ProfileLayout.TEST_LEAGUE_SLOT + 1) { slot ->
+                ProfileSnapshot.LeagueProgress(0, 1, 0, 0, 0, comebackStake = if (slot == ProfileLayout.TEST_LEAGUE_SLOT) stake else 0uL, comebackLeague = league, comebackRound = 1, comebackLastRound = 1)
+            },
+            running = null,
+            pending = null,
+        )
+        val leagues = listOf(testLeague(a), testLeague(a + 1))
+        val olderA = entry(testCohort(a, s0), State.Forfeited, days = 0)
+        val newerB = entry(testCohort(a + 1, s0 + 1_800), State.Forfeited, days = 0)
+        val roundA = entry(testCohort(a, s0 + 3_600))
+        val roundB = entry(testCohort(a + 1, s0 + 3_600 + 1_800))
+        val holdouts = listOf(olderA, newerB, roundA, roundB)
+        val at = Derive.deadlineOf(newerB.cohort, 0) + 10
+        // Without the profile the latest forfeit wins, as before.
+        assertEquals(newerB, assertNotNull(Comeback.offer(holdouts, leagues, at, a)).forfeited)
+        // The slot holds A's pledge: B's forfeit goes to B's boosts, so A's comeback is the one offered.
+        val kept = assertNotNull(Comeback.offer(holdouts, leagues, at, a, profile(25uL, a)))
+        assertEquals(olderA, kept.forfeited)
+        assertEquals(roundA, kept.next?.entry)
+        // B's own pledge, or none recorded yet, leaves B's forfeit the latest.
+        assertEquals(newerB, assertNotNull(Comeback.offer(holdouts, leagues, at, a, profile(25uL, a + 1))).forfeited)
+        assertEquals(newerB, assertNotNull(Comeback.offer(holdouts, leagues, at, a, profile(0uL, a))).forfeited)
+        // A's pledge with no forfeit of A in sight: nothing the phone can name, so no offer rather than B's.
+        assertNull(Comeback.offer(listOf(newerB, roundB), leagues, at, a, profile(25uL, a)))
     }
 
     @Test
@@ -191,7 +242,7 @@ class ComebackTest {
         val r1 = entry(cohort(1, s0 + week), State.Joined, tier = 2)
         val offer = assertNotNull(Comeback.offer(listOf(forfeit21(), r1, entry(cohort(1, s0 + 2 * week))), listOf(leagueOf(1)), now, 1))
         assertEquals(r1, offer.held?.entry)
-        assertEquals(5uL, offer.amount(r1.member!!.stake), "a fifth of the 25 lost, under the 50 staked")
+        assertEquals(2uL, offer.amount(r1.member!!.stake), "a tenth of the 25 lost, under the 50 staked")
         // Locked or running does not matter: the place is held either way.
         val running = Comeback.offer(listOf(forfeit21(), r1), listOf(leagueOf(1)), s0 + week + 3_000, 1)
         assertEquals(r1, running?.held?.entry)
@@ -206,15 +257,15 @@ class ComebackTest {
     }
 
     @Test
-    fun `the amount is min of a fifth of the lost stake and the chip, or a fifth with no chip`() {
+    fun `the amount is exactly min of a tenth of the lost stake and the chip, or a tenth with no chip`() {
         val lostEntry = entry(twentyOne, State.Forfeited, days = 2, tier = 3) // lost 100
         val offer = assertNotNull(Comeback.offer(listOf(lostEntry, entry(cohort(1, s0 + week))), listOf(leagueOf(1)), now, 1))
-        assertEquals(20uL, offer.amount())
-        assertEquals(Settlement.comebackOwed(100uL, 10uL), offer.amount(10uL))
-        assertEquals(10uL, offer.amount(10uL), "capped at the new stake")
-        assertEquals(20uL, offer.amount(25uL))
+        assertEquals(10uL, offer.amount())
+        assertEquals(Settlement.comebackOwed(100uL, 5uL), offer.amount(5uL))
+        assertEquals(5uL, offer.amount(5uL), "capped at the new stake")
+        assertEquals(10uL, offer.amount(25uL))
         val odd = offer.copy(lost = 99uL)
-        assertEquals(19uL, odd.amount(), "floor(99 × 20 / 100)")
+        assertEquals(9uL, odd.amount(), "floor(99 × 10 / 100)")
     }
 
     @Test
@@ -223,36 +274,5 @@ class ComebackTest {
         assertNull(Comeback.offer(listOf(r1), listOf(leagueOf(1)), now, 1))
         assertNull(Comeback.offer(listOf(forfeit21(), r1), emptyList(), now, 1))
         assertTrue(Comeback.offers(emptyList(), emptyList(), now).isEmpty())
-    }
-
-    @Test
-    fun `a round inside its join lock is not upcoming - a cohort opened then would already be Locked`() {
-        val league = listOf(leagueOf(1))
-        val round1 = entry(cohort(1, s0 + week))
-        val round2Start = s0 + 2 * week
-        // Round 1 open; round 2 unopened.
-        val before = assertNotNull(Comeback.offer(listOf(forfeit21(), round1), league, round2Start - 3_601, 1))
-        assertEquals(round2Start, before.upcoming?.start, "one second before its join lock begins")
-        // At and past the lock the round cannot be joined once opened: not upcoming, and with round 1 closed no offer.
-        assertNull(Comeback.offer(listOf(forfeit21(), round1), league, round2Start - 3_600, 1))
-        assertNull(Comeback.offer(listOf(forfeit21(), round1), league, round2Start - 100, 1))
-    }
-
-    @Test
-    fun `the shared test slot takes rounds from the newest test league only, the one still opening cohorts`() {
-        // FR-044a: one test league runs at a time; an older one opens no new cohorts and winds down,
-        // so its schedule would only name rounds that never open (FR-037g).
-        val a = LeagueParams.TEST_LEAGUE_MIN
-        fun testLeague(id: Int, first: Long, cadence: Long) = LeagueSnapshot(LeagueParams.judged(0, s0).copy(leagueId = id, durationDays = 2, dayLength = 600, firstStart = first, cadence = cadence, joinLock = 60), nextIndex = 5)
-        val forfeit = entry(CohortSnapshot(a, 0, s0, s0 - 60, 2, 25, 600, 0, chips), State.Forfeited, days = 0)
-        val missed = Derive.deadlineOf(forfeit.cohort, 0)
-        val leagues = listOf(testLeague(a, s0, 3_600), testLeague(a + 1, s0 + 1_800, 1_800))
-        val offer = assertNotNull(Comeback.offer(listOf(forfeit), leagues, missed + 10, a))
-        // League a + 1 (the newest) every 1800 s from s0 + 1800; league a (retired) is left out.
-        assertEquals(listOf(1_800L, 3_600L, 5_400L, 7_200L).map { s0 + it }, offer.rounds.map { it.start })
-        assertEquals(listOf(0L, 1_800L, 3_600L, 5_400L).map { s0 + it }, offer.rounds.map { it.opensAt }, "each opens one cadence of the newest league before")
-        assertEquals(s0 + 1_800, offer.upcoming?.start)
-        // Same offer whichever test league asks.
-        assertEquals(offer, Comeback.offer(listOf(forfeit), leagues, missed + 10, a + 1))
     }
 }

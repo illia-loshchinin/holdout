@@ -60,12 +60,30 @@ interface Store {
     fun bestToes(wallet: String): Int
     fun setBestToes(wallet: String, toes: Int)
 
+    /**
+     * `seen:{wallet}` (Gap 3, ES-3a): the global day index on which this phone first saw [wallet],
+     * [SEEN_EARLIER] for a wallet it already knew before this key existed, or null while unset.
+     * Set once, when the wallet first connects here; it only feeds the new-phone banner.
+     */
+    fun firstSeenDay(wallet: String): Long?
+    fun setFirstSeenDay(wallet: String, dayIndex: Long)
+
     fun hasSeenTour(wallet: String): Boolean
     fun setSeenTour(wallet: String)
 
     /** Whether the member asked not to see the sitting's set-up guide again, for these [stakes]. */
     fun isSetupGuideHidden(wallet: String, stakes: String): Boolean
     fun hideSetupGuide(wallet: String, stakes: String)
+
+    /**
+     * `sitting:{wallet}:{scope}` (data-model §4, ES-1, ES-2): when counting started
+     * (epoch millis), or null. Written when counting starts and removed on every
+     * clean exit of the sitting; found set when that sitting's screen is next
+     * opened, the app died mid-sitting. [scope] is a cohort or [CHALLENGE]. It
+     * never changes a banked figure and the counter never reads it.
+     */
+    fun sittingStartedAt(wallet: String, scope: String): Long?
+    fun setSittingStartedAt(wallet: String, scope: String, startedAtMillis: Long?)
 
     /**
      * When the last Daily 25 sitting started while chain time was unknown, on
@@ -131,6 +149,14 @@ interface Store {
     fun seekerConfirmation(wallet: String): SeekerConfirmation?
     fun setSeekerConfirmation(wallet: String, confirmation: SeekerConfirmation)
 
+    /**
+     * How many were still standing in [cohort] when [wallet] last looked at its
+     * Standing (`looked:{wallet}:{cohort}`), or null: the Standing tab's dot is
+     * for people who dropped since (DS BottomNav).
+     */
+    fun standingLooked(wallet: String, cohort: String): Int?
+    fun setStandingLooked(wallet: String, cohort: String, standing: Int)
+
     companion object {
         /** Kept Seeker ID entries at most (research R7): every member a judge could meet, under 0.5 MB. */
         const val SEEKER_NAMES_MAX = 5_000
@@ -146,6 +172,9 @@ interface Store {
          * shown as a day: `OfflineDays` moves it onto the day it was done.
          */
         const val UNKNOWN_DAY = Long.MIN_VALUE + 1
+
+        /** The first-seen day of a wallet this phone knew before the key existed: seen before any day, so never "today". */
+        const val SEEN_EARLIER = Long.MIN_VALUE + 2
     }
 }
 
@@ -306,12 +335,24 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         kv.encode("toes_best:$wallet", toes)
     }
 
+    override fun firstSeenDay(wallet: String): Long? = kv.decodeLong("seen:$wallet", UNSET_DAY).takeIf { it != UNSET_DAY }
+
+    override fun setFirstSeenDay(wallet: String, dayIndex: Long) {
+        kv.encode("seen:$wallet", dayIndex)
+    }
+
     override fun hasSeenTour(wallet: String): Boolean = kv.decodeBool("tour:$wallet", false)
 
     override fun isSetupGuideHidden(wallet: String, stakes: String): Boolean = kv.decodeBool("setup_hidden:$wallet:$stakes", false)
 
     override fun hideSetupGuide(wallet: String, stakes: String) {
         kv.encode("setup_hidden:$wallet:$stakes", true)
+    }
+
+    override fun sittingStartedAt(wallet: String, scope: String): Long? = kv.decodeLong("sitting:$wallet:$scope", NO_MARKER).takeIf { it != NO_MARKER }
+
+    override fun setSittingStartedAt(wallet: String, scope: String, startedAtMillis: Long?) {
+        if (startedAtMillis == null) kv.removeValueForKey("sitting:$wallet:$scope") else kv.encode("sitting:$wallet:$scope", startedAtMillis)
     }
 
     override fun setSeenTour(wallet: String) {
@@ -387,6 +428,12 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
 
     override fun setSeekerConfirmation(wallet: String, confirmation: SeekerConfirmation) {
         kv.encode("$SEEKER_CONFIRMED$wallet", confirmation.encode())
+    }
+
+    override fun standingLooked(wallet: String, cohort: String): Int? = kv.decodeInt("looked:$wallet:$cohort", -1).takeIf { it >= 0 }
+
+    override fun setStandingLooked(wallet: String, cohort: String, standing: Int) {
+        kv.encode("looked:$wallet:$cohort", standing)
     }
 
     override fun recordsVideo(): Boolean = kv.decodeBool("records_video", false)
@@ -467,12 +514,24 @@ class InMemoryStore : Store {
         values["toes_best:$wallet"] = toes
     }
 
+    override fun firstSeenDay(wallet: String): Long? = values["seen:$wallet"] as? Long
+
+    override fun setFirstSeenDay(wallet: String, dayIndex: Long) {
+        values["seen:$wallet"] = dayIndex
+    }
+
     override fun hasSeenTour(wallet: String): Boolean = values["tour:$wallet"] as? Boolean ?: false
 
     override fun isSetupGuideHidden(wallet: String, stakes: String): Boolean = values["setup_hidden:$wallet:$stakes"] as? Boolean ?: false
 
     override fun hideSetupGuide(wallet: String, stakes: String) {
         values["setup_hidden:$wallet:$stakes"] = true
+    }
+
+    override fun sittingStartedAt(wallet: String, scope: String): Long? = values["sitting:$wallet:$scope"] as? Long
+
+    override fun setSittingStartedAt(wallet: String, scope: String, startedAtMillis: Long?) {
+        if (startedAtMillis == null) values.remove("sitting:$wallet:$scope") else values["sitting:$wallet:$scope"] = startedAtMillis
     }
 
     override fun setSeenTour(wallet: String) {
@@ -529,6 +588,12 @@ class InMemoryStore : Store {
         values["$SEEKER_CONFIRMED$wallet"] = confirmation
     }
 
+    override fun standingLooked(wallet: String, cohort: String): Int? = values["looked:$wallet:$cohort"] as? Int
+
+    override fun setStandingLooked(wallet: String, cohort: String, standing: Int) {
+        values["looked:$wallet:$cohort"] = standing
+    }
+
     override fun setSeekerName(wallet: String, kept: KeptName) {
         KeptName.toDrop(keptNames(), wallet)?.let { values.remove("$SEEKER_NAME$it") }
         values["$SEEKER_NAME$wallet"] = kept
@@ -541,6 +606,12 @@ class InMemoryStore : Store {
         .mapNotNull { (key, value) -> (value as? KeptName)?.let { key.removePrefix(SEEKER_NAME) to it } }
         .toMap()
 }
+
+/** What MMKV reads for a key never written: no sitting marker (a real start time is never negative). */
+private const val NO_MARKER = -1L
+
+/** What MMKV reads for a first-seen day never written: [Store.NO_DAY], which no real day index is. */
+private const val UNSET_DAY = Store.NO_DAY
 
 /** Key prefix of a kept Seeker ID entry: `seekerName:<wallet base58>` (spec 003 data-model §2). */
 private const val SEEKER_NAME = "seekerName:"

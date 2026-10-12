@@ -3,6 +3,7 @@ package holdout.app.sitting
 import android.Manifest
 import android.content.pm.PackageManager
 import android.hardware.camera2.CameraCharacteristics
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.camera2.interop.Camera2CameraInfo
@@ -14,27 +15,14 @@ import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -46,53 +34,48 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import holdout.app.ui.Body
-import holdout.app.ui.Reading
-import holdout.app.ui.theme.AmountStyle
-import holdout.app.ui.theme.CounterStyle
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 import holdout.app.vision.PhoneTilt
 import holdout.app.vision.VisionAnalyzer
 import holdout.repcounter.Angles
-import holdout.repcounter.Coach
 import holdout.repcounter.ImagePose
 import holdout.repcounter.Lens
 import holdout.repcounter.PoseIndex
+import holdout.repcounter.PositionHint
 import holdout.repcounter.Side
-import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 import kotlin.math.atan
 
 /**
  * The sitting, screen map S1–S6: the camera permission, five pre-flight pills
  * and the held start position, a 3-second countdown, counting with the
- * skeleton overlay and the bank ring, then the day complete.
+ * skeleton overlay and the bars, then the day complete — and, when the member
+ * stops part-way, the Stopped screen.
  *
  * The camera runs only while this screen is on top, and every frame it produces
  * is analysed in process and dropped (FR-022).
+ *
+ * This is the stateful host; every page it shows is a stateless composable of
+ * its own (`CameraPermissionScreen`, `SetupGuide`, `PreflightContent`,
+ * `CountdownContent`, `CountingContent`, `DayCompleteContent`, `StoppedScreen`).
+ * What the member app adds on top of the Lab sitting — the day-complete card,
+ * the streak row, the offer, the Stopped screen — is shown only when [tools] is
+ * null.
  */
 @Composable
 fun SittingScreen(
@@ -100,11 +83,15 @@ fun SittingScreen(
     onFinished: () -> Unit,
     onCancelled: (discarded: Int) -> Unit,
     modifier: Modifier = Modifier,
-    /** The finished screen's button: "Back" for the Daily 25, the submit for a Holdout day. */
-    finishLabel: String = "Back",
     /**
-     * Said on the finished screen above its button, when the day is done but
-     * cannot be sent yet: a title and a sentence (001 FR-024b, 2026-10-10).
+     * The finished screen's button. Null (the member app): "Submit day 12" while
+     * a Holdout day can be sent, "Back to today" when it cannot or is already on
+     * chain, "Done" for the Daily 25. Holdout Lab passes "Back to Lab".
+     */
+    finishLabel: String? = null,
+    /**
+     * Said on the finished screen in the card, when the day is done but cannot
+     * be sent yet: a title and a sentence (001 FR-024b, 2026-10-10).
      */
     finishNote: Pair<String, String>? = null,
     /**
@@ -112,6 +99,16 @@ fun SittingScreen(
      * label question. The member app passes none.
      */
     tools: LabSittingTools? = null,
+    /** The finished screen's top label of a Holdout day, `Format.headerLabel(cohort, day)`; null falls back to "day 12 · 25 reps". */
+    headerLabel: String? = null,
+    /** The set-up guide's level label of a Holdout day, `SittingCopy.levelLabel(cohort)`; null (the Daily 25, Lab) reads it from the stakes. */
+    levelLabel: String? = null,
+    /** The finished Holdout day is already on chain (the signing flow's success): nothing is left to submit. */
+    onChain: Boolean = false,
+    /** What a finished Daily 25 points on to (the next Holdout, or a comeback); null when there is none to offer. */
+    offer: DayCompleteOffer? = null,
+    /** The offer was tapped. */
+    onOffer: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // Nothing drawn over the camera, for recordings that train the knee
@@ -141,16 +138,19 @@ fun SittingScreen(
         hasCamera = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
     }
 
+    /** Whether Android will still show its prompt: not once it was refused with "don't ask again", or twice. */
+    fun promptStillShown(): Boolean {
+        val activity = context.findActivity()
+        return !askedCamera ||
+            (activity != null && androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA))
+    }
+
     /**
-     * Denied once: ask again. Once Android stops showing the prompt ("don't
-     * ask again", or a second denial), only the app's settings page can grant
-     * it, so that is where the button goes.
+     * Allow camera: ask. Once Android stops showing the prompt, only the app's
+     * settings page can grant it, so that is where the button goes.
      */
     fun allowCamera() {
-        val activity = context.findActivity()
-        val promptStillShown = !askedCamera ||
-            (activity != null && androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA))
-        if (promptStillShown) {
+        if (promptStillShown()) {
             requestCamera.launch(Manifest.permission.CAMERA)
         } else {
             context.startActivity(
@@ -173,72 +173,161 @@ fun SittingScreen(
     DisposableEffect(cues) { onDispose { cues.close() } }
     LaunchedEffect(viewModel) { viewModel.cues.collect { cues.play(it) } }
 
+    // What the top of every page says. Holdout Lab names nothing: it has no day and no clock.
+    val member = tools == null
+    val timeLeft = rememberSecondsLeft { viewModel.timeLeftSeconds() }
+    val dayNumber = viewModel.dayNumber
+    val holdoutDay = viewModel.isHoldoutDay
+    val countingLabel = SittingCopy.countingLabel(dayNumber, state.target)
+    fun header(label: String) = SittingHeader(label.takeIf { member }, timeLeft, holdoutDay)
+
+    val finish = { if (tools != null && viewModel.labEnding != null) labelThen = onFinished else onFinished() }
+
+    // Stopped part-way (board 20): shown when anything was banked or discarded in this sitting.
+    val bankedAtStart = remember { viewModel.uiState.value.banked }
+    var stopped by remember { mutableStateOf<StoppedUi?>(null) }
+    val stop = {
+        val discarded = viewModel.endSitting()
+        if (tools != null && viewModel.labEnding != null) {
+            labelThen = { onCancelled(discarded) }
+        } else {
+            val summary = StoppedUi.afterStop(
+                header = countingLabel,
+                reps = state.target,
+                bankedNow = viewModel.uiState.value.banked,
+                bankedAtStart = bankedAtStart,
+                discarded = discarded,
+                secondsLeft = viewModel.timeLeftSeconds(),
+            ).takeIf { member }
+            if (summary != null) stopped = summary else onCancelled(discarded)
+        }
+    }
+
+    // System Back is the X: the nav layer has no Back inside a sitting, so without this the gesture would
+    // background the app and drop the set's loose reps with no Stopped summary. The set-up guide and the tip sheet
+    // register their own handlers after this one, so while one is open Back closes it first. A finished day leaves as its button does.
+    BackHandler(enabled = labelThen == null) {
+        val summary = stopped
+        when {
+            summary != null -> onCancelled(summary.notKept)
+            state.step == SittingViewModel.Step.COMPLETE -> finish()
+            else -> stop()
+        }
+    }
+
+    stopped?.let { summary ->
+        StoppedScreen(summary, onBack = { onCancelled(summary.notKept) }, modifier = modifier)
+        return
+    }
+
+    // The camera is not allowed yet (or not any more): say why it is needed before the system asks (board 15).
+    if (!hasCamera && state.step != SittingViewModel.Step.COMPLETE) {
+        CameraPermissionScreen(
+            label = countingLabel.takeIf { member }.orEmpty(),
+            denied = askedCamera && !promptStillShown(),
+            onAllow = ::allowCamera,
+            onOpenSettings = ::allowCamera,
+            onStop = stop,
+            modifier = modifier,
+        )
+        return
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(HoldoutColors.Canvas),
     ) {
         if (state.step != SittingViewModel.Step.COMPLETE) {
-            if (hasCamera) {
-                CameraFeed(viewModel, recordVideo = tools?.recordVideo == true, onVideoLost = tools?.onSetProblem ?: {})
-                if (!cleanScreen) {
-                    PositionOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
-                    SkeletonOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
-                }
+            CameraFeed(viewModel, recordVideo = tools?.recordVideo == true, onVideoLost = tools?.onSetProblem ?: {})
+            if (!cleanScreen) {
+                PositionOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
+                SkeletonOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
+            }
+        }
+
+        when (state.step) {
+            SittingViewModel.Step.PREFLIGHT -> PreflightContent(
+                ui = preflightUi(state, header(SittingCopy.positionLabel(dayNumber)), state.stakes),
+                onStop = stop,
+                onSetup = viewModel::openSetup,
+                onTips = viewModel::openTips,
+            )
+
+            SittingViewModel.Step.COUNTDOWN -> Countdown(
+                header = header(countingLabel),
+                onStop = stop,
+                onTick = viewModel::onCountdownTick,
+                onDone = viewModel::startCounting,
+            )
+
+            SittingViewModel.Step.COUNTING -> if (cleanScreen) {
+                // Clean screen: the count up in the corner, out of the way of the body.
+                SittingTopBar(null, stop, Modifier.padding(horizontal = Spacing.screenGutter, vertical = Spacing.betweenItems))
             } else {
-                LaunchedEffect(Unit) { requestCamera.launch(Manifest.permission.CAMERA) }
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(Spacing.screenGutter),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems, Alignment.CenterVertically),
-        ) {
-            when (state.step) {
-                SittingViewModel.Step.PREFLIGHT -> {
-                    PreflightPills(state, hasCamera, onAllowCamera = ::allowCamera, cameraAsked = askedCamera)
-                    if (state.guidance?.aligned != true) {
-                        TextButton(onClick = viewModel::openSetup) {
-                            Text("How to set up", color = HoldoutColors.Accent)
-                        }
-                    }
-                }
-                SittingViewModel.Step.COUNTDOWN -> Countdown(
-                    onTick = viewModel::onCountdownTick,
-                    onDone = viewModel::startCounting,
+                CountingContent(
+                    ui = CountingUi(
+                        header = header(countingLabel),
+                        done = state.doneToday,
+                        target = state.target,
+                        banked = state.banked,
+                        loose = state.looseReps,
+                        hint = state.hint,
+                        justBanked = state.justBanked != null,
+                    ),
+                    onStop = stop,
+                    // Holdout Lab only: its readouts, drawn by src/lab code (spec 004 FR-010).
+                    extra = { tools?.readouts?.invoke(state) },
                 )
-                SittingViewModel.Step.COUNTING -> if (cleanScreen) {
-                    // Clean screen: the count up in the corner, out of the way of the body.
-                    Unit
-                } else {
-                    CountingOverlay(state, readouts = tools?.readouts)
-                }
-                SittingViewModel.Step.COMPLETE -> DayComplete(state, finishLabel, finishNote) {
-                    if (tools != null && viewModel.labEnding != null) labelThen = onFinished else onFinished()
-                }
             }
 
-            state.error?.let {
-                Text(it, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Warning)
-            }
+            SittingViewModel.Step.COMPLETE -> DayCompleteContent(
+                ui = if (member) {
+                    DayCompleteUi(
+                        header = headerLabel ?: countingLabel,
+                        reps = state.target,
+                        holdout = dayNumber?.let { HoldoutDayCard(it, timeLeft, onChain, finishNote) },
+                        streak = state.streak.takeIf { !holdoutDay },
+                        offer = offer.takeIf { !holdoutDay },
+                        button = finishLabel ?: DayCompleteUi.buttonFor(dayNumber, finishNote, onChain),
+                    )
+                } else {
+                    DayCompleteUi(null, state.target, null, null, null, finishLabel ?: "Back")
+                },
+                onFinish = finish,
+                onOffer = onOffer,
+            )
         }
 
-        // A Holdout day's deadline stays in view the whole sitting: the home
-        // screen's countdown and last-minutes warning are gone while the camera is up.
-        if (state.step != SittingViewModel.Step.COMPLETE && !cleanScreen) {
-            DeadlineBanner(viewModel, Modifier.align(Alignment.TopCenter).padding(top = Spacing.screenGutter))
+        state.error?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodyLarge,
+                color = HoldoutColors.Warning,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(Spacing.screenGutter),
+            )
         }
 
         // Read while the phone is still in hand: it opens with the sitting, and
         // the countdown cannot start behind it.
         if (state.showSetup && state.step == SittingViewModel.Step.PREFLIGHT) {
-            SetupDialog(
+            SetupSheet(
                 stakes = state.stakes,
                 detected = state.preflight?.view,
                 onDone = viewModel::closeSetup,
+                levelLabel = levelLabel ?: SittingCopy.levelLabel(state.stakes),
+            )
+        }
+
+        // Only the member opens it, from S3; it registers its Back after the sitting's own, so Back closes it first.
+        if (state.showTips && state.step == SittingViewModel.Step.PREFLIGHT && !state.showSetup) {
+            PreflightTipsSheet(
+                tips = preflightUi(state, header(SittingCopy.positionLabel(dayNumber)), state.stakes).tips,
+                onSetup = viewModel::openSetup,
+                onClose = viewModel::closeTips,
             )
         }
 
@@ -278,24 +367,6 @@ fun SittingScreen(
                 )
             }
         }
-
-        if (state.step != SittingViewModel.Step.COMPLETE) {
-            TextButton(
-                onClick = {
-                    val discarded = viewModel.endSitting()
-                    if (tools != null && viewModel.labEnding != null) {
-                        labelThen = { onCancelled(discarded) }
-                    } else {
-                        onCancelled(discarded)
-                    }
-                },
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(Spacing.tight),
-            ) {
-                Text("Stop", color = HoldoutColors.TextSecondary)
-            }
-        }
     }
 }
 
@@ -319,242 +390,6 @@ private fun KeepScreenOn() {
 }
 
 /**
- * The positioning helper: what to fix next, then the pre-flight checks as chips.
- *
- * The outline itself is drawn by [PositionOverlay] over the camera; this is the
- * text half. Once the member is aligned it all goes, leaving the skeleton.
- */
-@Composable
-private fun PreflightPills(
-    state: SittingViewModel.UiState,
-    hasCamera: Boolean,
-    onAllowCamera: () -> Unit = {},
-    cameraAsked: Boolean = false,
-) {
-    if (!hasCamera) {
-        Text(
-            "Holdout counts your reps on this phone, so it needs the camera. " +
-                "No video ever leaves the device.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = HoldoutColors.TextSecondary,
-            textAlign = TextAlign.Center,
-        )
-        // Denied, by accident or not: the sitting must not be a dead end.
-        if (cameraAsked) {
-            PrimaryButton("Allow camera", onAllowCamera)
-        }
-        return
-    }
-
-    val report = state.preflight
-    if (report == null) {
-        Reading { Text("Looking…", style = LabelStyle, color = HoldoutColors.TextTertiary) }
-        return
-    }
-
-    val guidance = state.guidance
-    val aligned = guidance?.aligned == true
-
-    // Fade rather than cut, so it reads as finished instead of broken.
-    val helperAlpha by animateFloatAsState(
-        targetValue = if (aligned) 0f else 1f,
-        animationSpec = tween(durationMillis = 300),
-        label = "helper",
-    )
-
-    // The one correction, big enough to read from the floor — and spoken.
-    state.coach?.let { coach ->
-        Text(
-            text = coach.words,
-            style = CoachStyle,
-            color = if (coach == Coach.HOLD) HoldoutColors.Success else HoldoutColors.TextPrimary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .background(HoldoutColors.Scrim, MaterialTheme.shapes.large)
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-        )
-    }
-    // Every pill is green and the hold is not filling: the reason, in a sentence.
-    state.holdFix?.let { fix ->
-        Text(
-            text = fix,
-            style = LabelStyle,
-            color = HoldoutColors.Warning,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .background(HoldoutColors.Scrim, MaterialTheme.shapes.medium)
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-        )
-    }
-
-    Column(
-        modifier = Modifier.alpha(helperAlpha),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.tight),
-    ) {
-        // FR-019's checks (five since 002 FR-024a gave the knees their own), still run and still gating — just no longer the
-        // main event. Each red chip still states its own fix.
-        report.statuses.forEach { status ->
-            Text(
-                text = if (status.passing) {
-                    status.check.label + (state.preflight.view?.let { " · ${it.name.lowercase()}" } ?: "")
-                } else {
-                    status.fix ?: status.check.label
-                },
-                style = LabelStyle,
-                color = when {
-                    status.passing -> HoldoutColors.Success
-                    status.check.advisory -> HoldoutColors.Warning
-                    else -> HoldoutColors.TextSecondary
-                },
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
-
-    if (aligned) {
-        CircularProgressIndicator(
-            progress = { state.readyProgress },
-            modifier = Modifier.size(96.dp),
-            color = HoldoutColors.Accent,
-            trackColor = HoldoutColors.Surface3,
-        )
-    }
-}
-
-/** The coach's words: read from two metres away, so as big as a line allows. */
-private val CoachStyle = TextStyle(fontSize = 54.sp, lineHeight = 58.sp, fontWeight = FontWeight.Bold)
-
-@Composable
-private fun Countdown(onTick: (Int) -> Unit, onDone: () -> Unit) {
-    var remaining by remember { mutableStateOf(3) }
-    LaunchedEffect(Unit) {
-        while (remaining > 0) {
-            onTick(remaining)
-            kotlinx.coroutines.delay(1_000)
-            remaining -= 1
-        }
-        onDone()
-    }
-    Text("$remaining", style = CounterStyle, color = HoldoutColors.Accent)
-}
-
-/**
- * The count, with a reward on every rep: the number jumps, and a "+1" rises off
- * it and fades. A member mid-set glances at the screen for a fraction of a
- * second; this is what makes that glance land.
- */
-@Composable
-private fun CountingOverlay(state: SittingViewModel.UiState, readouts: (@Composable (SittingViewModel.UiState) -> Unit)?) {
-    val done = state.doneToday
-    var previous by remember { mutableStateOf(done) }
-    val pulse = remember { Animatable(1f) }
-    val rise = remember { Animatable(1f) }
-    LaunchedEffect(done) {
-        if (done > previous) {
-            launch {
-                pulse.snapTo(1.35f)
-                pulse.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
-            }
-            launch {
-                rise.snapTo(0f)
-                rise.animateTo(1f, tween(durationMillis = 750, easing = FastOutSlowInEasing))
-            }
-        }
-        previous = done
-    }
-
-    Box(contentAlignment = Alignment.Center) {
-        Text(
-            "$done",
-            style = CounterStyle,
-            color = HoldoutColors.TextPrimary,
-            modifier = Modifier.scale(pulse.value),
-        )
-        if (rise.value < 1f) {
-            Text(
-                "+1",
-                style = MaterialTheme.typography.headlineLarge,
-                color = HoldoutColors.Success,
-                modifier = Modifier.graphicsLayer {
-                    translationY = -rise.value * 90.dp.toPx() - 40.dp.toPx()
-                    translationX = 70.dp.toPx()
-                    alpha = 1f - rise.value
-                    val grow = 0.8f + 0.5f * rise.value
-                    scaleX = grow
-                    scaleY = grow
-                },
-            )
-        }
-    }
-    Text(
-        "${state.banked} banked · ${state.remaining} to go",
-        style = AmountStyle,
-        color = HoldoutColors.TextSecondary,
-    )
-    // Twice the title size: read from the floor, at arm's length.
-    state.hint?.let {
-        val title = MaterialTheme.typography.titleMedium
-        Text(
-            it,
-            style = title.copy(fontSize = title.fontSize * 2, lineHeight = title.lineHeight * 2),
-            color = HoldoutColors.Accent,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
-    }
-
-    // Holdout Lab only: its readouts, drawn by src/lab code (spec 004 FR-010).
-    readouts?.invoke(state)
-}
-
-/** Time to a Holdout day's deadline, in the warning colour for its last minutes (FR-047); nothing for the Daily 25. */
-@Composable
-private fun DeadlineBanner(viewModel: SittingViewModel, modifier: Modifier) {
-    var left by remember { mutableStateOf(viewModel.deadlineSecondsLeft()) }
-    LaunchedEffect(viewModel) {
-        while (true) {
-            left = viewModel.deadlineSecondsLeft()
-            kotlinx.coroutines.delay(1_000)
-        }
-    }
-    val seconds = left ?: return
-    Text(
-        "${holdout.app.ui.Format.countdown(seconds)} to today's deadline",
-        style = MaterialTheme.typography.titleMedium,
-        color = if (holdout.core.Derive.inWarningWindow(seconds)) HoldoutColors.Warning else HoldoutColors.TextSecondary,
-        modifier = modifier,
-    )
-}
-
-@Composable
-private fun DayComplete(state: SittingViewModel.UiState, label: String, note: Pair<String, String>?, onFinished: () -> Unit) {
-    Text("${state.target}", style = CounterStyle, color = HoldoutColors.Success)
-    Text("done", style = LabelStyle, color = HoldoutColors.TextSecondary)
-    note?.let { (title, sentence) ->
-        Text(title, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Warning, textAlign = TextAlign.Center)
-        Body(sentence, center = true)
-    }
-    PrimaryButton(label, onFinished)
-}
-
-@Composable
-private fun PrimaryButton(label: String, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(Spacing.primaryButtonHeight),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = HoldoutColors.TextPrimary,
-            contentColor = HoldoutColors.OnLight,
-        ),
-    ) {
-        Text(label, style = MaterialTheme.typography.titleMedium)
-    }
-}
-
-/**
  * The floor line and the outline to lie into.
  *
  * Drawn under the skeleton, in the same letterboxed, mirrored frame the
@@ -570,6 +405,9 @@ private fun PositionOverlay(viewModel: SittingViewModel, mirrored: Boolean) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val guidance = state.guidance ?: return
     if (state.frameWidth <= 0 || state.frameHeight <= 0) return
+    // While the phone is not standing on the floor the outline has no floor to sit on: it only covers the
+    // "Stand phone up" words (owner, 12 Oct walk).
+    if (guidance.hint == PositionHint.AIM_AT_THE_FLOOR) return
 
     val alpha by animateFloatAsState(
         targetValue = if (guidance.aligned) 0f else 1f,
@@ -617,15 +455,8 @@ private fun PositionOverlay(viewModel: SittingViewModel, mirrored: Boolean) {
                     ),
                 )
 
-                // What goes in the box: a body at the top of a push-up, shaped
-                // for the placement, so the outline reads as "lie like this".
-                val box = Rect(
-                    left = fit.offsetX + left * fit.width,
-                    top = fit.offsetY + target.top * fit.height,
-                    right = fit.offsetX + (left + 2f * target.halfWidth) * fit.width,
-                    bottom = fit.offsetY + target.bottom * fit.height,
-                )
-                drawPlankFigure(box.deflate(box.minDimension * 0.08f), HoldoutColors.Accent.copy(alpha = 0.7f))
+                // The box alone: a figure inside it sat under the coach's words and said nothing they
+                // don't (owner, 12 Oct walk).
             },
     )
 }

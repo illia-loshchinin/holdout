@@ -7,10 +7,12 @@ import com.solana.publickey.SolanaPublicKey
 import com.solana.transaction.Transaction
 import holdout.core.AccountLayout
 import holdout.core.CohortSnapshot
+import holdout.core.HoldoutDay
 import holdout.core.Instructions
 import holdout.core.LeagueParams
 import holdout.core.MembershipSnapshot
 import holdout.core.Pdas
+import holdout.core.ProfileLayout
 import holdout.core.ProfileSnapshot
 import holdout.core.Rpc
 import kotlinx.coroutines.runBlocking
@@ -132,7 +134,7 @@ class ScriptedTest {
         val c = cohort(index = 1)
         val other = SolanaPublicKey(ByteArray(32) { 8 })
         val now = c.joinCutoff - day
-        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(other, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending, -1)
+        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(other, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending)
         assertTrue(Scripted.canJoin(null, c, null, now), "a wallet that has never played")
         assertTrue(Scripted.canJoin(profile(running = ProfileSnapshot.Running(other, c.start)), c, c.start, now), "back to back")
         assertFalse(Scripted.canJoin(profile(running = ProfileSnapshot.Running(other, c.start + 1)), c, c.start + 1, now))
@@ -220,6 +222,11 @@ class ScriptedTest {
         return le(l.SIZE).put(0, l.DISCRIMINATOR).put(l.COHORT, cohort.bytes).put(l.WALLET, wallet.bytes).putLong(l.STAKE, 10).put(l.DAYS_COMPLETED, days.toByte()).array()
     }
 
+    private fun profileBytes(wallet: SolanaPublicKey, lastFaucetDay: Long): ByteArray {
+        val l = ProfileLayout
+        return le(l.SIZE).put(0, l.DISCRIMINATOR).put(l.WALLET, wallet.bytes).putLong(l.LAST_FAUCET_DAY, lastFaucetDay).array()
+    }
+
     private val env = mapOf("HOLDOUT_RPC_URL" to "http://rpc.test", "HOLDOUT_PROGRAM_ID" to programId.base58(), "HOLDOUT_SCRIPTED_KEYS_DIR" to "/keys/scripted")
 
     @Test
@@ -260,6 +267,26 @@ class ScriptedTest {
         assertNull(stopped.firstOrNull()?.let { s -> submits.firstOrNull { it.message.accounts[0] == s.pubkey } })
         // Every transaction is paid by the scripted wallet itself, never by the faucet's sponsor.
         chain.sent.forEach { assertTrue(it.message.accounts[0] in keys.keys) }
+    }
+
+    @Test
+    fun `a wallet that already took the faucet today claims again - the faucet has no daily limit per wallet`() = runBlocking {
+        val roster = syntheticRoster()
+        val keys = (0 until 56).associate { key(it).publicKey to key(it) }
+        val open = cohort(leagueId = 0, index = 1, memberCount = 3)
+        val now = open.joinCutoff - 3 * day
+        val chain = Chain(now)
+        chain.accounts[Pdas.config(programId)] = configBytes()
+        chain.accounts[Pdas.cohort(programId, 0, 1)] = cohortBytes(open)
+        roster.forEach { chain.accounts[Pdas.profile(programId, it.pubkey)] = profileBytes(it.pubkey, lastFaucetDay = HoldoutDay.indexOf(now)) }
+
+        val byFile = roster.associate { w -> w.fileName to keys.getValue(w.pubkey) }
+        val json = Scripted.run(parseArgs(listOf("scripted", "run")), CrankConfig.from(env), Rpc("http://rpc.test", Rpc20Driver("http://rpc.test", chain)), roster, loadKeypair = { path, _ -> byFile.getValue(java.io.File(path).name) }, pause = {})
+
+        assertEquals(0, json.getValue("failed").jsonPrimitive.int)
+        val joins = chain.sent.filter { "join_cohort" in chain.names(it) }
+        assertEquals(7, joins.size, "3 real members, target 10")
+        joins.forEach { assertEquals(listOf("claim_faucet", "join_cohort"), chain.names(it)) }
     }
 
     @Test

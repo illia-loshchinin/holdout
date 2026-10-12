@@ -75,10 +75,12 @@ pub struct LeagueConfig {
     pub next_index: u32,
     /// How reps are judged, copied to every cohort: [`FORM_TOES`] or [`FORM_KNEES_ALLOWED`].
     pub form: u8,
-    /// SKR in the reserve vault set aside for boosts (FR-037d). Credited only
-    /// when a cohort of this league finalizes (FR-037c, INV-10).
+    /// SKR in the reserve vault free for boosts (FR-037d): pools nobody won
+    /// and pledges nobody made good (FR-037, FR-037e, INV-10).
     pub boost_reserve: u64,
-    /// SKR in the reserve vault set aside for comeback refunds (FR-037e).
+    /// SKR in the reserve vault pledged to members: every open comeback's
+    /// pledge and every refund owed but not yet drawn (FR-037e). A boost never
+    /// draws on it, so a pledge is always there when its round is finished.
     pub comeback_reserve: u64,
     pub reserve_vault_bump: u8,
     pub bump: u8,

@@ -9,9 +9,7 @@ import holdout.app.chain.Deployment
 import holdout.app.wallet.SendResult
 import holdout.app.wallet.WalletRepository
 import holdout.core.ConfigSnapshot
-import holdout.core.HoldoutDay
 import holdout.core.Instructions
-import holdout.core.ProfileSnapshot
 import holdout.core.Rpc
 import holdout.core.Transactions
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
@@ -47,12 +45,9 @@ class SponsorKey private constructor(private val seed: ByteArray, val publicKey:
     }
 }
 
-/** What the faucet sheet shows after a tap (ES-0, ES-0a, ES-0b). */
+/** What the faucet sheet shows after a tap (ES-0, ES-0b). */
 sealed interface FaucetOutcome {
     data class Funded(val signature: String) : FaucetOutcome
-
-    /** One claim a day: [returnsAt] is the next 05:00 UTC, in chain seconds (ES-0a). */
-    data class UsedToday(val returnsAt: Long) : FaucetOutcome
 
     /** The vault or the day's budget is spent, or no sponsor can pay — never the member's fault (ES-0b). */
     data object CannotPayOut : FaucetOutcome
@@ -66,20 +61,18 @@ sealed interface FaucetOutcome {
  * `claim_faucet` from the app (T043, contracts/android-app §3): sponsor-paid
  * for a wallet with no SOL — no member signature at all — and through the
  * wallet, member-paid, for one that has some, or when the sponsor's float is
- * empty (FR-042b).
+ * empty (FR-042b). A wallet may claim as often as it likes: only the faucet's
+ * own day budget and vault limit it, and the program says so.
  */
 class FaucetClient(private val rpc: Rpc, private val wallet: WalletRepository, private val programId: SolanaPublicKey, private val sponsor: SponsorKey? = SponsorKey.bundled) {
-    suspend fun claim(sender: ActivityResultSender, recipient: SolanaPublicKey, config: ConfigSnapshot, profile: ProfileSnapshot?, lamports: Long, now: Long): FaucetOutcome {
-        val today = HoldoutDay.indexOf(now)
-        if (profile?.claimedFaucetOn(today) == true) return FaucetOutcome.UsedToday(HoldoutDay.endOf(today))
-
+    suspend fun claim(sender: ActivityResultSender, recipient: SolanaPublicKey, config: ConfigSnapshot, lamports: Long): FaucetOutcome {
         val viaSponsor = sponsor?.takeIf { it.publicKey == config.sponsor }
-        if (lamports < MEMBER_CAN_PAY_LAMPORTS) return viaSponsor?.let { sponsorPaid(it, recipient, config, today) } ?: FaucetOutcome.CannotPayOut
+        if (!canPayFees(lamports)) return viaSponsor?.let { sponsorPaid(it, recipient, config) } ?: FaucetOutcome.CannotPayOut
         val ix = Instructions.claimFaucet(programId, recipient, recipient, config.skrMint, config.sponsor)
         return when (val sent = wallet.send(sender, listOf(ix))) {
             is SendResult.Landed -> FaucetOutcome.Funded(sent.signature)
             SendResult.NoWallet -> FaucetOutcome.NoWallet
-            is SendResult.Failed -> classify(sent, today) ?: FaucetOutcome.Failed(sent.message)
+            is SendResult.Failed -> classify(sent) ?: FaucetOutcome.Failed(sent.message)
         }
     }
 
@@ -90,7 +83,7 @@ class FaucetClient(private val rpc: Rpc, private val wallet: WalletRepository, p
      * or a claim sent but not yet confirmed, is said as it is, so the member
      * tries again rather than being told the faucet cannot pay.
      */
-    private suspend fun sponsorPaid(key: SponsorKey, recipient: SolanaPublicKey, config: ConfigSnapshot, today: Long): FaucetOutcome {
+    private suspend fun sponsorPaid(key: SponsorKey, recipient: SolanaPublicKey, config: ConfigSnapshot): FaucetOutcome {
         val blockhash = rpc.latestBlockhash() ?: return FaucetOutcome.Failed("${Deployment.networkName} did not answer. Check the connection and try again.")
         // The sponsor both pays and is reimbursed: exactly the mixed-flags case Transactions exists for.
         val message = Transactions.message(listOf(Instructions.claimFaucet(programId, key.publicKey, recipient, config.skrMint, config.sponsor)), blockhash)
@@ -100,18 +93,17 @@ class FaucetClient(private val rpc: Rpc, private val wallet: WalletRepository, p
             when (val answer = rpc.send(bytes)) {
                 is Rpc.Answer.Ok -> WalletRepository.confirm(rpc, answer.value)
                 // Refused before it ran — the float or the day's budget is spent, or the program said no.
-                is Rpc.Answer.Refused -> return classify(WalletRepository.failure(answer.message), today) ?: FaucetOutcome.CannotPayOut
+                is Rpc.Answer.Refused -> return classify(WalletRepository.failure(answer.message)) ?: FaucetOutcome.CannotPayOut
                 is Rpc.Answer.Unanswered -> WalletRepository.confirm(rpc, Base58.encodeToString(signature))
             }
         return when (sent) {
             is SendResult.Landed -> FaucetOutcome.Funded(sent.signature)
-            is SendResult.Failed -> classify(sent, today) ?: FaucetOutcome.Failed(sent.message)
+            is SendResult.Failed -> classify(sent) ?: FaucetOutcome.Failed(sent.message)
             SendResult.NoWallet -> FaucetOutcome.CannotPayOut
         }
     }
 
-    private fun classify(failed: SendResult.Failed, today: Long): FaucetOutcome? = when (failed.programError) {
-        FAUCET_ALREADY_CLAIMED_TODAY -> FaucetOutcome.UsedToday(HoldoutDay.endOf(today))
+    private fun classify(failed: SendResult.Failed): FaucetOutcome? = when (failed.programError) {
         FAUCET_CAP_REACHED, FAUCET_EMPTY -> FaucetOutcome.CannotPayOut
         else -> null
     }
@@ -120,7 +112,9 @@ class FaucetClient(private val rpc: Rpc, private val wallet: WalletRepository, p
         /** Enough SOL for a member to pay a transaction's fee and first-time rent themselves — a claim or a join. */
         const val MEMBER_CAN_PAY_LAMPORTS = 5_000_000L
 
-        const val FAUCET_ALREADY_CLAIMED_TODAY = 6050
+        /** Whether [lamports] is enough SOL to pay a transaction's fee (see [MEMBER_CAN_PAY_LAMPORTS]). */
+        fun canPayFees(lamports: Long): Boolean = lamports >= MEMBER_CAN_PAY_LAMPORTS
+
         const val FAUCET_CAP_REACHED = 6051
         const val FAUCET_EMPTY = 6052
     }

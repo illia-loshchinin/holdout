@@ -114,7 +114,8 @@ class FixtureReplayTest {
                 a.getValue("index").jsonPrimitive.content.toLong(),
                 a.optionalKey("previousCohort"),
             )
-            "join_cohort" -> Instructions.joinCohort(programId, f.accountAt(0), f.accountAt(8), f.accountAt(2), a.getValue("tier").jsonPrimitive.int, a.optionalKey("runningCohort"))
+            // The two optional comeback accounts sit after the running cohort: the cohort is the second, the mint follows.
+            "join_cohort" -> Instructions.joinCohort(programId, f.accountAt(0), f.accountAt(10), f.accountAt(2), a.getValue("tier").jsonPrimitive.int, a.optionalKey("runningCohort"), f.accountAt(9).takeIf { it != programId })
             "leave_cohort" -> Instructions.leaveCohort(programId, f.accountAt(0), mintOf(f), f.accountAt(2))
             "submit_day" -> Instructions.submitDay(programId, f.accountAt(0), f.accountAt(1), a.getValue("dayIndex").jsonPrimitive.int, RepoFiles.hex(a.getValue("proofHash").jsonPrimitive.content))
             "record_forfeits" -> Instructions.recordForfeits(programId, f.accountAt(0), f.accountAt(4), f.accountAt(5), f.accountAt(2), pairsOf(f, from = 7, count = a.getValue("pairs").jsonPrimitive.int))
@@ -125,10 +126,11 @@ class FixtureReplayTest {
                 f.accountAt(6),
                 leagueOf(f),
                 f.accountAt(3),
-                pairsOf(f, from = 9, count = a.getValue("pairs").jsonPrimitive.int),
+                pairsOf(f, from = 10, count = a.getValue("pairs").jsonPrimitive.int),
                 a.optionalKey("previousCohort"),
             )
-            "settle_finalize" -> Instructions.settleFinalize(programId, f.accountAt(0), f.accountAt(5), f.accountAt(6), leagueOf(f), f.accountAt(3), a.optionalKey("previousCohort"))
+            "settle_finalize" -> Instructions.settleFinalize(programId, f.accountAt(0), f.accountAt(5), leagueOf(f), f.accountAt(3), a.optionalKey("previousCohort"))
+            "release_comeback" -> Instructions.releaseComeback(programId, f.accountAt(0), leagueOf(f), a.key("wallet"), f.accountAt(3).takeIf { it != programId })
             "claim_payout" -> Instructions.claimPayout(programId, f.accountAt(0), mintOf(f), f.accountAt(2))
             "claim_faucet" -> Instructions.claimFaucet(programId, f.accountAt(0), a.key("recipient"), f.accountAt(4), f.accountAt(8))
             "top_up_sponsor" -> Instructions.topUpSponsor(programId, f.accountAt(0), f.accountAt(3))
@@ -137,11 +139,11 @@ class FixtureReplayTest {
     }
 
     /** The fixtures' member uses the same stand-in mint as `join_cohort`, whose accounts name it. */
-    private fun mintOf(@Suppress("UNUSED_PARAMETER") f: JsonObject) = instructions.first { it.getValue("name").jsonPrimitive.content == "join_cohort" }.accountAt(8)
+    private fun mintOf(@Suppress("UNUSED_PARAMETER") f: JsonObject) = instructions.first { it.getValue("name").jsonPrimitive.content == "join_cohort" }.accountAt(10)
 
     /**
      * The generator settles cohorts of league 0; the league PDA sits third (and
-     * `settle_finalize`'s reserve vault eighth), both checked by the replay itself.
+     * the reserve vault of `settle_count` eighth, of `settle_finalize` seventh), both checked by the replay itself.
      */
     private fun leagueOf(@Suppress("UNUSED_PARAMETER") f: JsonObject) = 0
 
@@ -155,12 +157,12 @@ class FixtureReplayTest {
                 "initialize", "create_league", "set_flags", "publish_chip_set", "open_cohort", "join_cohort", "leave_cohort", "submit_day",
                 "record_forfeits", "settle_count", "settle_finalize", "claim_payout", "claim_faucet", "top_up_sponsor",
             ),
-            names,
+            names - "release_comeback",
             "an instruction the program gained needs a Kotlin builder and a case here",
         )
         instructions.forEach { f ->
             val ix = rebuild(f)
-            if (f.getValue("name").jsonPrimitive.content == "publish_chip_set") {
+            if (f.getValue("name").jsonPrimitive.content in setOf("publish_chip_set", "release_comeback")) {
                 // The one deliberate difference: in the crank the operator also pays the fee, so the
                 // builder marks it writable. The program only requires a signer (InstructionsTest).
                 assertMatches(f, ix) { roles -> listOf(3) + roles.drop(1) }
@@ -252,13 +254,13 @@ class FixtureReplayTest {
             assertEquals(listOf(f.i("durationDays"), f.i("repsPerDay"), f.i("exercise"), f.i("form")), listOf(c.durationDays, c.repsPerDay, c.exercise, c.form))
             assertEquals(f.getValue("chips").ulongs(), c.chips)
             assertEquals(listOf(f.l("memberCount"), f.l("forfeitsRecorded"), f.l("counted"), f.l("finisherCount")), listOf(c.memberCount, c.forfeitsRecorded, c.counted, c.finisherCount))
-            assertEquals(listOf(f.u("heldStake"), f.u("pool"), f.u("boostDue"), f.u("comebackDue"), f.u("totalFinisherStake")), listOf(c.heldStake, c.pool, c.boostDue, c.comebackDue, c.totalFinisherStake))
+            assertEquals(listOf(f.u("heldStake"), f.u("pool"), f.u("comebackDue"), f.u("totalFinisherStake")), listOf(c.heldStake, c.pool, c.comebackDue, c.totalFinisherStake))
             assertEquals(f.getValue("finishersPerTier").longs(), c.finishersPerTier)
             assertEquals(f.b("settled"), c.settled)
             assertEquals(f.getValue("sharePerTier").ulongs(), c.sharePerTier)
             assertEquals(
-                listOf(f.u("roundingRemainder"), f.u("noFinisherFee"), f.u("boostReceived"), f.u("comebackOwed"), f.u("comebackFunded"), f.u("comebackClaimed")),
-                listOf(c.roundingRemainder, c.noFinisherFee, c.boostReceived, c.comebackOwed, c.comebackFunded, c.comebackClaimed),
+                listOf(f.u("roundingRemainder"), f.u("noFinisherBoost"), f.u("boostReceived"), f.u("comebackOwed"), f.u("comebackFunded"), f.u("comebackClaimed")),
+                listOf(c.roundingRemainder, c.noFinisherBoost, c.boostReceived, c.comebackOwed, c.comebackFunded, c.comebackClaimed),
             )
         }
 
@@ -289,8 +291,9 @@ class FixtureReplayTest {
                         it.i("longestStreak"),
                         it.l("lastChanged"),
                         it.u("comebackStake"),
-                        it.l("comebackFrom"),
-                        it.l("comebackUntil"),
+                        it.i("comebackLeague"),
+                        it.l("comebackRound"),
+                        it.l("comebackLastRound"),
                     )
                 },
                 p.leagues,
@@ -299,7 +302,6 @@ class FixtureReplayTest {
             if (running.getValue("cohort").jsonPrimitive.content == "11111111111111111111111111111111") assertNull(p.running) else assertEquals(ProfileSnapshot.Running(running.key("cohort"), running.l("end")), p.running)
             val pending = f.getValue("pending").jsonObject
             if (pending.getValue("cohort").jsonPrimitive.content == "11111111111111111111111111111111") assertNull(p.pending) else assertEquals(ProfileSnapshot.Pending(pending.key("cohort"), pending.l("start"), pending.l("end")), p.pending)
-            assertEquals(f.l("lastFaucetDay"), p.lastFaucetDay)
         }
         assertFailsWith<IllegalArgumentException> { ProfileSnapshot.decode(ByteArray(ProfileLayout.SIZE)) }
     }
@@ -307,7 +309,7 @@ class FixtureReplayTest {
     @Test
     fun `a lobby place that has started reads as the running cohort, as the program normalises it`() {
         val cohort = SolanaPublicKey(ByteArray(32) { 9 })
-        val p = ProfileSnapshot(cohort, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, null, ProfileSnapshot.Pending(cohort, 1_000, 2_000), ProfileSnapshot.NEVER_CLAIMED)
+        val p = ProfileSnapshot(cohort, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, null, ProfileSnapshot.Pending(cohort, 1_000, 2_000))
         assertEquals(p, p.normalised(999))
         assertEquals(ProfileSnapshot.Running(cohort, 2_000), p.normalised(1_000).running)
         assertNull(p.normalised(1_000).pending)

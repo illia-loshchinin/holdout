@@ -14,6 +14,7 @@ import holdout.core.Pdas
 import holdout.core.ProfileSnapshot
 import holdout.core.ProgramErrorCode
 import holdout.core.Rpc
+import holdout.core.Schedule
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
@@ -34,13 +35,20 @@ import kotlinx.serialization.json.putJsonArray
  *    Each forfeit's developer and operations parts leave at once, to
  *    `Config.developer_destination` and `Config.fee_destination` (H35).
  * 4. **Settle** each league's finished cohorts **oldest first**: page
- *    `settle_count` over the uncounted members, then `settle_finalize`, which
- *    draws the boost and the comeback funding from the league's reserve vault,
- *    credits the cohort's own reserve dues to it, and with no finishers sends
- *    the whole pool out, half to the developer destination and the rest to
- *    operations (FR-037, FR-037c–e).
+ *    `settle_count` over the uncounted members, which moves each counted
+ *    forfeit's comeback pledge into the league's reserve vault and opens (or
+ *    makes good) the member's comeback, then `settle_finalize`, which draws the
+ *    boost and the comeback refunds owed from that vault and, with no
+ *    finishers, sends the whole pool to the league's boost reserve
+ *    (FR-037, FR-037c–e).
  *    Cohort *i* waits while *i − 1* is unsettled — the program refuses it
  *    (6045), so this is not a preference.
+ * 5. **Release** every comeback pledge nobody can make good any more: read each
+ *    profile, and for an open comeback whose last round is settled — or was
+ *    never opened and whose first day has passed — send `release_comeback`,
+ *    which moves the pledge to the league's boost reserve (FR-037e). A refusal
+ *    because it is not due after all (6047) or already released (6046) is an
+ *    expected outcome.
  *
  * Every step is idempotent on-chain, so two cranks, or a crank and a stranger,
  * running at once produce one outcome (FR-030a). A failed step is reported and
@@ -89,11 +97,33 @@ object Run {
      * with a cohort not yet settled. Until every cohort of the older leagues
      * has settled, the newest opens nothing, so a member can never hold
      * outcomes in two test leagues at once and the shared streak stays in
-     * order through a switchover (FR-044a, FR-060).
+     * order through a switchover (FR-044a, FR-060). A retired league in
+     * [owing] holds it too: it still owes a comeback round not opened yet, has
+     * just opened one this pass (not among [cohorts] until the next read), or
+     * what it owes could not be read (FR-037e).
      */
-    fun lobbyHeldBy(retired: Set<Int>, cohorts: Collection<CohortSnapshot>): Int? = cohorts
-        .filter { it.leagueId in retired && !it.settled }
-        .minOfOrNull { it.leagueId }
+    fun lobbyHeldBy(retired: Set<Int>, cohorts: Collection<CohortSnapshot>, owing: Collection<Int> = emptyList()): Int? = (
+        cohorts.filter { it.leagueId in retired && !it.settled }.map { it.leagueId } + owing.filter { it in retired }
+        ).minOrNull()
+
+    /**
+     * The last round a retired test [league] still owes a comeback in, or null
+     * (FR-037e: a comeback is guaranteed). A comeback is made good only in its
+     * own league, so a league retired by a newer one keeps opening its cohorts —
+     * no further than this round — until every comeback it owes can be finished:
+     * the open ones the members' progress records ([profiles]) name, and those
+     * still to be recorded when a forfeited cohort is counted ([uncountedMisses],
+     * the missed deadline of each forfeit not counted yet). Anyone may join a
+     * round opened so, as any open cohort; the new lobby waits until they settle.
+     */
+    fun owedComebackRound(league: LeagueSnapshot, profiles: Collection<ProfileSnapshot>, uncountedMisses: Collection<Long>, now: Long = Long.MIN_VALUE): Long? {
+        val p = league.params
+        val recorded = profiles.flatMap { it.leagues }.filter { it.comebackStake > 0uL && it.comebackLeague == p.leagueId }.map { it.comebackLastRound }
+        val pending = uncountedMisses.map { Schedule.comebackRounds(p.firstStart, p.cadence, p.joinLock, it).last }
+        // A round whose first day is over can take nobody, even late: opening it would be an empty cohort
+        // that only holds the new lobby and the pledge's release (`releasesDue` lets it go then).
+        return (recorded + pending).filter { Schedule.deadlineOf(Schedule.cohortStart(p.firstStart, p.cadence, it), p.dayLength, 0) >= now }.maxOrNull()
+    }
 
     /**
      * The earliest instant after [now] at which one of [leagues] falls due to
@@ -113,7 +143,40 @@ object Run {
     }
 
     /** The program's `schedule::cohort_start`. */
-    fun scheduledStart(league: LeagueSnapshot, index: Long): Long = league.params.firstStart + index * league.params.cadence
+    fun scheduledStart(league: LeagueSnapshot, index: Long): Long = Schedule.cohortStart(league.params.firstStart, league.params.cadence, index)
+
+    /**
+     * One open comeback whose pledge `release_comeback` can move to the boost reserve: [round] is its last round,
+     * [account] the latest of its rounds the league has opened — the cohort the instruction is passed — or null.
+     */
+    data class ReleaseDue(val wallet: SolanaPublicKey, val leagueId: Int, val round: Long, val account: Long? = null)
+
+    /**
+     * The open comebacks due for release at [now] (FR-037e), the program's own
+     * test in `release_comeback`: a comeback is released once **none** of its
+     * rounds can be finished any more. Every round the league has opened must be
+     * settled — the latest of them, `min(last, nextIndex − 1)`, is checked, and
+     * cohorts settle in order — and if the last round is not opened yet, its
+     * first day, by the league's schedule, must have passed: later than joining
+     * closes, and later than its comeback member may join late.
+     * [nextIndex] is each league's next index as it stands after this pass.
+     */
+    fun releasesDue(profiles: Collection<ProfileSnapshot>, leagues: Collection<LeagueSnapshot>, nextIndex: Map<Int, Long>, cohorts: Map<Pair<Int, Long>, CohortSnapshot>, now: Long): List<ReleaseDue> {
+        val byId = leagues.associateBy { it.params.leagueId }
+        return profiles.flatMap { profile ->
+            profile.leagues.mapNotNull { progress ->
+                if (progress.comebackStake == 0uL) return@mapNotNull null
+                val league = byId[progress.comebackLeague] ?: return@mapNotNull null
+                val first = progress.comebackRound
+                val round = progress.comebackLastRound
+                val next = nextIndex[league.params.leagueId] ?: league.nextIndex
+                val latest = if (next > first) minOf(round, next - 1) else null
+                val settled = latest == null || cohorts[league.params.leagueId to latest]?.settled == true
+                val closed = next > round || now > Schedule.deadlineOf(scheduledStart(league, round), league.params.dayLength, 0)
+                if (settled && closed) ReleaseDue(profile.wallet, league.params.leagueId, round, latest) else null
+            }
+        }
+    }
 
     /** Whether the sponsor is below half its float, the only state `top_up_sponsor` accepts. */
     fun sponsorRefillDue(config: ConfigSnapshot, sponsorLamports: Long): Boolean = sponsorLamports.toULong() < config.sponsorFloat / 2uL
@@ -141,6 +204,12 @@ object Run {
     const val FAUCET_CAP_REACHED = 6051
     const val FAUCET_EMPTY = 6052
     const val SPONSOR_FLOAT_SUFFICIENT = 6054
+
+    /** `release_comeback`: the profile has no open comeback in the league (already released or made good). */
+    const val NO_COMEBACK_TO_RELEASE = 6046
+
+    /** `release_comeback`: the comeback's last round can still be finished. */
+    const val COMEBACK_STILL_OPEN = 6047
 
     /** What became of one transaction. */
     enum class Outcome { Landed, Refused, Failed }
@@ -222,10 +291,13 @@ object Run {
         suspend fun send(step: String, instructions: List<TransactionInstruction>): String? = signAndSend(rpc, step, instructions, listOf(payer), args.dryRun, pause, beforeRetrying = "the next pass reads chain state and retries")
 
         // ---- 1. open ---------------------------------------------------------
-        suspend fun openDue(league: LeagueSnapshot) {
+        // Retired test leagues that opened a comeback round this pass.
+        val openedRetired = mutableSetOf<Int>()
+
+        suspend fun openDue(league: LeagueSnapshot, upTo: Long = Long.MAX_VALUE) {
             val id = league.params.leagueId
             val current = league.copy(nextIndex = nextIndex.getValue(id))
-            val due = dueOpens(current, now) { cohorts[id to it]?.start ?: scheduledStart(league, it) }
+            val due = dueOpens(current, now) { cohorts[id to it]?.start ?: scheduledStart(league, it) }.filter { it <= upTo }
             for ((position, index) in due.withIndex()) {
                 val previous = if (index == 0L) null else Pdas.cohort(programId, id, index - 1)
                 val opened =
@@ -241,6 +313,7 @@ object Run {
                 // name this cohort as their predecessor, are reported as planned.
                 if (!args.dryRun) {
                     nextIndex[id] = index + 1
+                    if (upTo != Long.MAX_VALUE) openedRetired += id
                 } else {
                     due.drop(position + 1).forEach { later ->
                         pass.record("open_cohort", "skipped") {
@@ -254,19 +327,66 @@ object Run {
             }
         }
         val retired = retiredTestLeagues(leagues.map { it.params.leagueId })
+        // A retired test league still opens the rounds its comebacks are owed in (FR-037e).
+        val owed = mutableMapOf<Int, Long>()
+        // Retired leagues whose debts could not be read hold the new lobby this pass rather than risk two open test leagues.
+        val owedUnknown = mutableSetOf<Int>()
+        if (retired.isNotEmpty()) {
+            val early = rpc.profiles(programId)
+            if (early == null) {
+                owedUnknown += retired
+                pass.failures++
+                pass.record("open_cohort", "failed") { put("error", "could not list profiles from ${config.rpcUrl} for the comebacks retired test leagues owe") }
+            } else {
+                for (league in leagues.filter { it.params.leagueId in retired }) {
+                    val id = league.params.leagueId
+                    val misses = mutableListOf<Long>()
+                    for (cohort in cohorts.values.filter { it.leagueId == id && !it.settled }) {
+                        val accounts = rpc.membershipAccounts(programId, Pdas.cohort(programId, id, cohort.index))
+                        if (accounts == null) {
+                            owedUnknown += id
+                            pass.failures++
+                            pass.record("open_cohort", "failed") {
+                                put("league", id)
+                                put("index", cohort.index)
+                                put("error", "could not read the members for the comebacks this league owes")
+                            }
+                            continue
+                        }
+                        accounts.map { it.second }
+                            .filter { !it.counted && (it.member.state == MembershipSnapshot.State.Forfeited || Derive.inBreach(it.member, cohort, now)) }
+                            .forEach { misses += Derive.deadlineOf(cohort, it.member.daysCompleted) }
+                    }
+                    owedComebackRound(league, early, misses, now)?.let { owed[id] = it }
+                }
+            }
+        }
+
+        // The retired leagues that hold the new lobby beyond an unsettled cohort it can see.
+        fun owing(): Set<Int> = retired.filter { it in openedRetired || it in owedUnknown || (owed[it] ?: -1L) >= nextIndex.getValue(it) }.toSet()
         for (league in leagues) {
             val id = league.params.leagueId
             if (id in retired) {
-                pass.record("open_cohort", "retired") {
-                    put("league", id)
-                    put("reason", "a newer test league is the lobby; this one opens no more cohorts (FR-044a)")
+                val upTo = owed[id]
+                if (upTo != null && upTo >= nextIndex.getValue(id)) {
+                    pass.record("open_cohort", "comeback") {
+                        put("league", id)
+                        put("upTo", upTo)
+                        put("reason", "a newer test league is the lobby, but this one owes a comeback in its rounds up to $upTo (FR-037e)")
+                    }
+                    openDue(league, upTo)
+                } else {
+                    pass.record("open_cohort", "retired") {
+                        put("league", id)
+                        put("reason", "a newer test league is the lobby; this one opens no more cohorts (FR-044a)")
+                    }
                 }
             } else {
-                val heldBy = if (id >= LeagueParams.TEST_LEAGUE_MIN) lobbyHeldBy(retired, cohorts.values) else null
+                val heldBy = if (id >= LeagueParams.TEST_LEAGUE_MIN) lobbyHeldBy(retired, cohorts.values, owing()) else null
                 if (heldBy != null) {
                     pass.record("open_cohort", "waiting") {
                         put("league", id)
-                        put("reason", "test league $heldBy still has a cohort to settle; the new lobby opens once it has wound down (FR-044a)")
+                        put("reason", "test league $heldBy still has a cohort to open or settle; the new lobby opens once it has wound down (FR-044a)")
                     }
                 } else {
                     openDue(league)
@@ -402,7 +522,7 @@ object Run {
             }
             val outcome =
                 pass.send("settle_finalize", detail) {
-                    send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, onChain.developerDestination, leagueId, address, previousAddress)))
+                    send("settle_finalize $leagueId/$index", listOf(Instructions.settleFinalize(programId, payer.publicKey, onChain.feeDestination, leagueId, address, previousAddress)))
                 }
             // A simulated finalize changed nothing: the next cohort still waits on this one.
             if (outcome != Outcome.Landed || args.dryRun) {
@@ -412,10 +532,37 @@ object Run {
             cohorts[leagueId to index] = counted.copy(settled = true)
         }
 
+        // ---- 5. comebacks nobody can make good any more ------------------------
+        // After settlement, so a pledge the counting just closed is not read as open.
+        val profiles = rpc.profiles(programId)
+        if (profiles == null) {
+            pass.failures++
+            pass.record("release_comeback", "failed") { put("error", "could not list profiles from ${config.rpcUrl}") }
+        } else {
+            for (due in releasesDue(profiles, leagues, nextIndex, cohorts, now)) {
+                // The latest opened round's cohort is passed; a round not opened yet the program judges by the schedule.
+                val round = due.account?.let { Pdas.cohort(programId, due.leagueId, it) }
+                pass.send("release_comeback", {
+                    put("league", due.leagueId)
+                    put("round", due.round)
+                    put("wallet", due.wallet.base58())
+                }, expected = setOf(NO_COMEBACK_TO_RELEASE, COMEBACK_STILL_OPEN)) {
+                    send("release_comeback ${due.leagueId}/${due.round} ${due.wallet.base58()}", listOf(Instructions.releaseComeback(programId, payer.publicKey, due.leagueId, due.wallet, round)))
+                }
+            }
+        }
+
         // The leagues this crank opens in, as they stand after this pass; a lobby
         // held by an older test league waits on settlement, not on a clock.
         val opening = leagues
-            .filter { it.params.leagueId !in retired && (it.params.leagueId < LeagueParams.TEST_LEAGUE_MIN || lobbyHeldBy(retired, cohorts.values) == null) }
+            .filter { l ->
+                val id = l.params.leagueId
+                if (id in retired) {
+                    (owed[id] ?: -1L) >= nextIndex.getValue(id)
+                } else {
+                    id < LeagueParams.TEST_LEAGUE_MIN || lobbyHeldBy(retired, cohorts.values, owing()) == null
+                }
+            }
             .map { it.copy(nextIndex = nextIndex.getValue(it.params.leagueId)) }
         val nextOpen = nextOpenAt(opening, cohorts.values, now)
 

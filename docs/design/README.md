@@ -22,7 +22,21 @@ The look is **native on Seeker**. It should feel like it shipped with the device
 
 **Voice:** a calm coach who can also do maths. Second person ("you", "your stake"), present tense, short sentences, and numbers before adjectives. Say what happened and what to do next. Never guilt-trip, never hype.
 
-**Casing:** sentence case for everything a person reads (*Connect wallet*, *Join the 7-day Holdout*). `label` text is uppercase, applied at the call site (`STILL STANDING`, `HARD · 21-DAY · FROM 21 SEP · DAY 12 OF 21`). What to call things is under **Naming**.
+**Short, and it sells (decided 2026-10-11).** Nobody reads a paragraph on a phone. Every screen is checked against these rules before it ships:
+
+1. **Benefit first, mechanics second.** *"Free, every day: get stronger at your own pace. 25 push-ups, counted by the camera."*
+2. **One idea per line.** A line break beats a comma. Two short sentences beat one long one.
+3. **Never restate the title or the button.** Title *The deadline passed*, body *Your run in this Holdout has ended.* — not the deadline again.
+4. **Show a number once; let the button act.** *15 to go* above **Keep going**, not **Do 15 more**.
+5. **True in the worst case.** *Up to* on every boost, *exactly your stake back* if nobody drops out, dollars only as `≈` beside a tier.
+6. **One name for each thing, everywhere.** *Spark · 7-day*, *stake back*, *Waiting for your wallet…*, and each level's rule sentence word for word.
+7. **Say what happened, then what to do, with no jargon.** *Nothing was sent. Your 1,412 SKR waits here.*
+8. **No dead ends; offer the next good action.** *Until Monday, just keep your streak.*
+9. **Sentence case, even when a line would start with a lowercase brand word.** *The network didn't confirm it.*
+
+Most lines fit in 12 words; a body under a title is one or two of them.
+
+**Casing:** sentence case for everything a person reads (*Connect wallet*, *Join the 7-day Holdout*). `label` text is uppercase, applied at the call site (`STILL STANDING`, `HABIT · 21-DAY · FROM 21 SEP · DAY 12 OF 21`). What to call things is under **Naming**.
 
 **Words to use / never use** (constitution XIII):
 
@@ -36,9 +50,9 @@ The look is **native on Seeker**. It should feel like it shipped with the device
 
 - *"Test network, test token."* on first run and on every staking screen.
 - *"If nobody drops out, you get exactly your stake back."* before every join.
-- *"Stakes and payouts are in SKR; dollar values are approximate."* wherever a USD label appears.
+- *"Dollar values are approximate."* wherever a USD label appears (stakes and payouts are always in SKR).
 - *"Some members in these Holdouts are scripted."* on first run, with a label on each scripted member.
-- *"Miss one and you lose your stake. 80 % of it stays with members: 70 % to the prize pool and 10 % to the boost and comeback reserves of Easy · 7-day Holdouts. 20 % goes to the project, and so does the prize pool if nobody finishes."* wherever a forfeit split shows: the stake sheet and the forfeit screen (*"…so your stake of 1,250 SKR is lost. 80 % of it stays with members: 70 % to this Holdout's prize pool and 10 % …"*), nowhere else. The level and length are the Holdout's own, and a no-break space keeps every % on its number's line. Decided 2026-10-10 and reworded the same day; the rule itself is 70 / 5 / 5 / 10 / 10, and the 10 % comes back as the boost and comeback lines below.
+- *"Miss a day and you lose your stake: 70 % to the prize pool, 10 % to Spark · 7-day boosts and comebacks, 20 % to the project. If nobody finishes, the pool goes to the project too."* wherever a forfeit split shows: the stake sheet and the forfeit screen (*"It goes 70 % to this Holdout's prize pool, 10 % to Habit · 21-day boosts and comebacks, 20 % to the project. If nobody finishes, the pool goes to the project too."*, under a **Stake lost** row), nowhere else. The level and length are the Holdout's own, and a no-break space keeps every % on its number's line. Decided 2026-10-10, shortened 2026-10-11 with every fact kept; the rule itself is 70 / 5 / 5 / 10 / 10, and the 10 % comes back as the boost and comeback lines below.
 
 **Real copy, by moment:**
 
@@ -46,11 +60,19 @@ The look is **native on Seeker**. It should feel like it shipped with the device
 - Stopped part-way: *"17 done — 10 banked, 7 not kept. Come back any time before 5h 12m runs out."*
 - After a crash: *"Your 10 banked reps are safe."*
 - The overnight drop: *"Three dropped since yesterday. Your share went up 17 SKR."*
-- Forfeit: *"You missed day 7."* then *"Your 9-day streak is still alive."* and two ways back: *Today's Daily 25* · the next Holdout of the same league (*The next 21-day Holdout* after a 21-day forfeit).
-- Claim: *"You held out 21 days."* above **Claim 1,560 SKR**.
+- First open: **The Daily 25** — *free, every day: get stronger at your own pace. / 25 push-ups, counted by the camera. Your streak grows.* **A Holdout** — *stake SKR and run 7 or 21 days with others. / Miss a day: your stake joins the prize pool. / Finish: take it back plus a share of the pool.*
+- Forfeit: *"You missed day 7."* then the cause, by what the phone knows: *"You didn't finish day 7 before its deadline. Your run has ended."* (the day was never finished) or *"It didn't reach the chain in time. Your run has ended."* (finished on the phone, not sent). Then the **Stake lost** card and the comeback block with its **Join** (the one primary button). Under it one quiet line in `text-secondary`, no card: *"Your 9-day streak is still alive."* or *"Your streak is untouched."*, and a secondary button **Do today's Daily 25** only while today's Daily 25 isn't done. The comeback timing line (*Starts in 9m 24s · joining closes in 8m 24s*) sets only its countdowns in Mono. With no comeback offer the sentence reads *"Today's Daily 25 keeps your streak going. The next Habit · 21-day starts a new run."* under *Two ways back*; once today's Daily 25 is done: *"The next Habit · 21-day starts a new run."*
+- You're in (after joining): **Do today's Daily 25** only when the Holdout starts on a later day than today and today's 25 aren't done, with **See the lobby** as the secondary button; otherwise **See the lobby** is the one primary button, because a Holdout day on today's day already counts for the streak.
+- Claim: *"You held out 21 days."* above **Claim 1,560 SKR**; the rows are **Stake back** and **Share of the prize pool**.
+- A transaction that failed or was declined: *"The network didn't confirm it."* / *"Nothing was sent."*, then what is still safe: *"Your 1,412 SKR waits here."*
 - Broken streak: *"Your 14-day streak broke. Start a new one today."* There is no save button because there is no grace day.
-- The boost, on an offer: *"Prize boost: up to 480 SKR from the reserve of Easy · 7-day Holdouts when it settles"*, in `success`, only while that reserve holds more than 0. "Up to": the boost is capped at 10 % of the pool and paid only if someone forfeits, so it is never a promised amount. On a running Holdout: *"+ about 1,200 SKR boost from the reserve of Hard · 21-day Holdouts if anyone finishes"*. A reserve is always named by its Holdouts' level and length, never "league".
-- The comeback, on Today while a lost stake's 14-day window is open: *"Finish the Easy · 7-day Holdout starting in 2d 4h and up to 250 SKR of the stake you lost comes back."* On the claim, its own row: **Comeback** `250 SKR` *part of your last lost stake, back*.
+- Streak milestone (decided 2026-10-12), on the day-complete screen and, for the rest of that day, under the streak on Today: the headline *"{N}-day streak"* with the flame in its milestone state, then one line. Milestones are 7, 14, 21, 28, 30, 50, 60, 90, 100, every further 100 days and 365. Frozen days do not count, as for the streak itself. It is part of the page; nothing to dismiss, nothing unlocked.
+  - 7: *"A week, every day. That's how habits start."* · 14: *"Two weeks in. You're making this yours."* · 21: *"21 days. That's a habit now."* · 28: *"Four weeks without a gap."* · 30: *"A month of showing up."* · 50: *"50 days. Most people never get here."* · 60: *"Two months strong."* · 90: *"Three months. This is who you are now."* · 100: *"100 days. Triple digits."* · 365: *"A year, every day."*
+  - Every other hundred (200, 300, …): *"{N} days. Still here, still going."*
+- Pre-flight tips (decided 2026-10-12): once the checks have stayed short of green for a while, a text button under the fix sentence reads *"Still not green? Tips"*. It opens a Sheet titled *"Getting the checks green"*: one row per check in the pills' order, each the pill's label and that check's own fix sentence (no new per-check copy), a check that is red right now marked in `warning` and *"Not green yet"* for screen readers. It ends in **Open the set-up guide** and **Back to the checks**. It never opens by itself.
+- New phone (ES-3a): *"No banked reps on this device today. 25 to go."* on Today with no Holdout; on a running Holdout the number is that day's target.
+- The boost, on an offer: *"Prize boost: up to 480 SKR"*, in `success`, only while that level's reserve holds more than 0; the card already names the level, so the line doesn't. "Up to": the boost is capped at 10 % of the pool and paid only if someone forfeits, so it is never a promised amount. On a running Holdout: *"+ about 1,200 SKR boost if anyone finishes"*. Where a reserve has to be named, it is by its Holdouts' level and length, never "league". There is no *"+N SKR added to the prize pool"* line: a pool nobody finishes goes to the project, so nothing carries over, and an open Holdout has no pool yet.
+- The comeback, on Today while a lost stake's 14-day window is open: *"Get back up to 250 SKR of your lost stake: finish the Spark · 7-day starting in 2d 4h."* On the forfeit screen: *"Finish a Habit · 21-day starting within 14 days: up to 250 SKR comes back."* On the claim, its own row: **Comeback** `250 SKR` *part of your last lost stake, back*.
 - Coach cues, shown large and spoken: *More light · Get in view · Phone to 45° · Arms straight · Hold*. Refused reps: *Go lower · Keep your body straight · Slow down*.
 
 **Emoji:** none in the interface. The streak flame is an icon, not 🔥.
@@ -75,7 +97,7 @@ Each word has one job. **Holdout** names the thing you join, **challenge** names
 | Brand tagline | ***Be the holdout. Stake on yourself.*** |
 | Store title and subtitle | *Holdout — the push-up challenge you stake on* |
 | Website, social, ads | Hook with *challenge*, name with *Holdout*: *"Take the 7-day push-up challenge. Join a Holdout, stake on yourself, finish and share the pool with everyone still standing."* |
-| Onboarding tour | *The Daily 25 is free, every day. A Holdout is Easy, 7 days, push-ups from the knees count; or Hard, 21 days, from your toes.* |
+| Onboarding tour | *25 push-ups a day. Free, counted by your phone.* · *Stake SKR with everyone who starts on Monday. Spark · 7-day: knees allowed. Habit · 21-day: toes only.* |
 | In the app | "Holdout" once per screen; after that, the length and dates name it |
 | Pitch deck, for judges | Holdout, with *cohort* explained once: *"everyone in a Holdout starts and finishes together"* |
 
@@ -83,13 +105,13 @@ Each word has one job. **Holdout** names the thing you join, **challenge** names
 
 | Where | Write | Not |
 | --- | --- | --- |
-| Cards under a *Holdouts* heading | **Hard · 21-day** · from 21 Sep | 21-day Holdout |
-| A finished one | **Easy · 7-day** · 28 Sep – 5 Oct | 7-day Holdout |
-| Header labels | `HARD · 21-DAY · FROM 21 SEP · DAY 12 OF 21` | `21-DAY · COHORT 14` |
-| The one mention on a screen | *Join the 7-day Holdout* | *Join the next 7-day cohort* |
+| Cards under a *Holdouts* heading | **Habit · 21-day** · from 21 Sep | 21-day Holdout |
+| A finished one | **Spark · 7-day** · 28 Sep – 5 Oct | 7-day Holdout |
+| Header labels | `HABIT · 21-DAY · FROM 21 SEP · DAY 12 OF 21` | `21-DAY · COHORT 14` |
+| The one mention on a screen | *Join the Spark · 7-day Holdout* | *Join the next 7-day cohort* |
 | Sentences | *your run in this Holdout has ended* | *your cohort* |
 
-**Levels (decided 2026-10-10).** A Holdout's level is its form, and it comes first: **Easy · 7-day**, where push-ups from the knees count, and **Hard · 21-day**, from the toes only. Each level carries one rule sentence, read the same everywhere it appears: Easy, *"At 45° only. Push-ups from the knees count."*; Hard, *"At 45° only: phone on the floor ahead of your shoulder. Full push-ups from your toes — push-ups from the knees don't count."* An Easy screen never shows the Hard sentence. *Staked* is the code's word for the Hard rules and never a member's.
+**Levels (decided 2026-10-10, renamed 2026-10-11 to Spark / Habit).** A Holdout's level is its form, and it comes first: **Spark · 7-day**, where push-ups from the knees are allowed but never encouraged, and **Habit · 21-day**, from the toes only. The names tell one story, a spark that becomes a habit, and never judge the member: no *Easy* or *Hard* in front of a member (owner's call, 11 Oct; *Sprint / Marathon* was tried the same day and dropped). Taglines: Spark *Light it up · knees allowed*, Habit *Make it stick · toes only*; the stake sheet says *Light it up: 25 push-ups a day for 7 days* / *Make it stick: 25 push-ups a day for 21 days*; a finished Spark's claim opens *Spark lit: you held out 7 days.* and offers **Make it a Habit · 21-day**. Grammar: *a Spark*, *a Habit*, *20 per Spark*. Each level carries one rule sentence, read the same everywhere it appears: Spark, *"At 45° only. Aim for full push-ups from your toes; push-ups from the knees still count."* (inform, never encourage: the toes come first, knees are a permitted fallback; captions say *knees allowed*, decided 2026-10-11); Habit, *"At 45° only: phone on the floor ahead of your shoulder. Full push-ups from your toes — push-ups from the knees don't count."* A Spark screen never shows the Habit sentence. *Staked* is the code's word for the Habit rules and never a member's; the code's `Easy`/`Hard` enum names stay internal.
 
 **The people in it.** There is no noun for the group. Say *still standing*, *everyone who started with you*, *3 dropped since yesterday*. The tab that shows them is **Standing**.
 
@@ -135,7 +157,7 @@ The product has three of its own marks, all built from simple geometry rather th
 - **The streak flame**: active, extended (flips up in `success`), broken (cracked, `text-tertiary`), personal best (`celebration` with a **PB** mark).
 - **The scripted-member diamond (◇)**: always beside a `SCRIPTED` label chip.
 
-**Logo:** the mark and the name. The mark is the app icon's crowd with its H: the same 25 members, the same seven in `accent`, so the icon and the logo are one symbol at two sizes. Beside it sits **Holdout** in Roboto Flex 300 (the `counter` face), title case, `text-primary`, tracking −2%, converted to outlines so it never depends on an installed font. The files are in the **Logo** asset group.
+**Logo:** the mark and the name. The mark is the app icon's crowd with its H: the same 25 members, the same seven in `accent`, so the icon and the logo are one symbol at two sizes. Beside it sits the wordmark **HOLDOUT**: Roboto Medium (500), all capitals, `text-primary`, tracked +22% (0.22 em), converted to outlines so it never depends on an installed font. It is the name as the first-open screen sets it (owner, 12 Oct). In running text the name stays **Holdout**; the capitals belong to the wordmark only. The files are in the **Logo** asset group.
 
 - **Lockups:** horizontal is the default (website header, deck, store banner, social). Stacked is for square spaces (avatar, title slide). The wordmark alone is for places where the icon already sits beside it. The mark alone is the icon without its tile.
 - **Clear space:** two grid steps (the distance between two members' centres) on every side. The files already include it.
@@ -143,7 +165,7 @@ The product has three of its own marks, all built from simple geometry rather th
 - **Ground:** the colour versions live only on black (`canvas`). On a light page someone else controls (a hackathon listing, a partner site, print), use the one-ink black version: the bold H alone, the themed-icon geometry, with the name. Never put the colour version on white.
 - **Never:** recolour the members or the H, stretch or rotate, add a gradient, glow or shadow, re-set the name in another font, rearrange the lockup, or put it on a photo without its black ground.
 
-Inside the app the name is live text, not the outlined file: `ui/Wordmark.kt` sets *Holdout* in the `counter` face at weight 300, tracked −2%, and follows the theme's face. The outlined files are for everything outside the app.
+Inside the app the name is live text, not the outlined file: `ui/Wordmark.kt` sets *HOLDOUT* in the system Roboto at weight 500, 14 sp, tracked +22%, as the first-open screen shows it. The outlined files are for everything outside the app.
 
 Never borrow the Solana logomark as Holdout's own. It may appear only where Solana's brand guidelines allow, and nothing may imply an official Solana or Seeker product.
 

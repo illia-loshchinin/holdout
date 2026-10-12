@@ -409,8 +409,9 @@ class DeriveTest {
     }
 
     @Test
-    fun `given a settled cohort whose comeback reserve fell short, when a finisher claims, then their refund is scaled pro rata`() {
-        // Owed 30 in all, funded 20: a finisher entitled to 10 gets floor(10 × 20 ÷ 30) = 6.
+    fun `given a settled cohort funded below what it owed, when a finisher claims, then their refund is scaled pro rata`() {
+        // The program always draws what is owed (every refund is a pledge), but the scaling stays as the program has it:
+        // owed 30 in all, funded 20, a finisher entitled to 10 gets floor(10 × 20 ÷ 30) = 6.
         val c = cohort(memberCount = 3).copy(settled = true, comebackOwed = 30uL, comebackFunded = 20uL)
         val m = member(1, 7, Finished).copy(comebackEntitled = 10uL)
         assertEquals(6uL, Derive.comebackRefund(m, c))
@@ -445,6 +446,45 @@ class DeriveTest {
         assertEquals(Derive.projectedBoost(c, members, now, 9uL), f.projectedBoost)
         assertEquals(Derive.timeUntilJoiningCloses(c, now), f.timeUntilJoiningCloses)
         members.forEach { assertEquals(Derive.projectedShare(it, c, members, now), f.projectedShare(it)) }
+    }
+
+    @Test
+    fun `given a mid-round miss, when the comeback rounds are worked out, then it is the next round alone`() {
+        val cadence = 7 * day
+        // Day 2 of cohort 3: the next cohort to start is 4, and joining it was still open the second after the miss.
+        val missed = firstStart + 3 * cadence + 3 * day - 1
+        assertEquals(4L, Schedule.comebackRound(firstStart, cadence, missed))
+        assertEquals(4L..4L, Schedule.comebackRounds(firstStart, cadence, 3_600, missed))
+    }
+
+    @Test
+    fun `given a last-day miss, when the comeback rounds are worked out, then the round that just closed and the one after it`() {
+        val cadence = 7 * day
+        val missed = firstStart + 4 * cadence - 1 // the second before cohort 4 starts
+        assertEquals(4L..5L, Schedule.comebackRounds(firstStart, cadence, 3_600, missed))
+        // Cohort 4's join cutoff is an hour before its start: a miss one second before it still leaves joining open, one at it does not.
+        val cutoff = Schedule.joinCutoff(firstStart + 4 * cadence, 3_600)
+        assertEquals(4L..4L, Schedule.comebackRounds(firstStart, cadence, 3_600, cutoff - 2))
+        assertEquals(4L..5L, Schedule.comebackRounds(firstStart, cadence, 3_600, cutoff - 1))
+    }
+
+    @Test
+    fun `given a miss at a cohort's own start, when the first comeback round is worked out, then a start equal to the miss is not after it`() {
+        val cadence = 7 * day
+        assertEquals(5L, Schedule.comebackRound(firstStart, cadence, firstStart + 4 * cadence))
+        assertEquals(4L, Schedule.comebackRound(firstStart, cadence, firstStart + 4 * cadence - 1))
+        assertEquals(0L, Schedule.comebackRound(firstStart, cadence, firstStart - 5 * day), "before the league's first start, round 0")
+    }
+
+    @Test
+    fun `given a forfeited stake, when it is split, then the member's own tenth is pledged and nothing goes to the boost`() {
+        val split = Settlement.forfeitSplit(250_000_000uL)
+        assertEquals(175_000_000uL, split.pool)
+        assertEquals(25_000_000uL, split.comeback)
+        assertEquals(25_000_000uL, split.developer)
+        assertEquals(25_000_000uL, split.operations)
+        assertEquals(Settlement.comebackPledge(250_000_000uL), Settlement.comebackOwed(250_000_000uL, 250_000_000uL))
+        assertEquals(10_000_000uL, Settlement.comebackOwed(250_000_000uL, 10_000_000uL), "never more than the new stake")
     }
 
     @Test

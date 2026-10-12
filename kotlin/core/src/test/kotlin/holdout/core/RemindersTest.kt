@@ -323,9 +323,9 @@ class RemindersTest {
     @Test
     fun `the comeback line - owed on the membership, or open in the progress and not used up by an earlier finish of the league`() {
         val c = cohort()
-        val open = ProfileSnapshot.LeagueProgress(0, 1, 0, 0, 0, comebackStake = 100uL, comebackFrom = start - 10, comebackUntil = start + 30 * 86_400)
+        val open = ProfileSnapshot.LeagueProgress(0, 1, 0, 0, 0, comebackStake = 100uL, comebackLeague = 0, comebackRound = 0, comebackLastRound = 1)
         val none = ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0)
-        fun profile(p: ProfileSnapshot.LeagueProgress) = ProfileSnapshot(wallet, listOf(p, none, none), null, null, -1)
+        fun profile(p: ProfileSnapshot.LeagueProgress) = ProfileSnapshot(wallet, listOf(p, none, none), null, null)
         val m = member(days = 7)
         assertTrue(Reminders.comebackExpected(c, m, profile(open), listOf(c to m)))
         assertEquals(false, Reminders.comebackExpected(c, m, profile(none), listOf(c to m)))
@@ -336,6 +336,9 @@ class RemindersTest {
         val both = listOf(c to m, later to m)
         assertTrue(Reminders.comebackExpected(c, m, profile(open), both))
         assertEquals(false, Reminders.comebackExpected(later, m, profile(open), both))
+        // Another league's cohort, or one past the comeback's last round, earns none.
+        assertEquals(false, Reminders.comebackExpected(c.copy(leagueId = 1), m, profile(open), listOf(c to m)))
+        assertEquals(false, Reminders.comebackExpected(c.copy(index = 2), m, profile(open), listOf(c to m)))
     }
 
     @Test

@@ -15,10 +15,11 @@
  * is skipped rather than refused (research R9).
  *
  * The fee is exactly `floor(stake × 30 ÷ 100)` and the rest is pool (FR-027,
- * FR-028). Since H35 the fee splits again: 10 % boost and 5 % comeback stay in
- * the vault as the cohort's `boost_due` / `comeback_due` until it finalizes, 5 %
- * goes to the developer destination and the operations destination takes the
- * other 10 % plus every unit the floors leave. The league streak is **not** touched here: only `settle_count`
+ * FR-028). Since H35 the fee splits again, and since 2026-10-12 as 10 / 10 / 10:
+ * the member's 10 % comeback pledge stays in the vault as the cohort's
+ * `comeback_due` until the forfeit is counted, 10 % goes to the developer
+ * destination and the operations destination takes the other 10 % plus every unit
+ * the floors leave. The league streak is **not** touched here: only `settle_count`
  * writes it, in cohort order, because a mid-cohort forfeit can be recorded
  * before an earlier cohort of the same league has been counted (FR-061a).
  */
@@ -123,7 +124,7 @@ describe('record_forfeits (contracts §2)', () => {
 
   // -------------------------------------------------------------- the numbers
 
-  it('splits the stake 70 / 5 / 5 / 10 / 10 — pool, boost due, comeback due, developer, operations (FR-027, H35)', async () => {
+  it('splits the stake 70 / 10 / 10 / 10 — pool, comeback pledge due, developer, operations (FR-027, H35)', async () => {
     const member = await joinedMember(3);
     const stake = DEFAULT_CHIPS[3]!;
 
@@ -132,19 +133,18 @@ describe('record_forfeits (contracts §2)', () => {
     expect(result.ok, result.logs.join('\n')).toBe(true);
 
     const after = await h.readCohort(LEAGUE, INDEX);
-    // 100 SKR: 70 to the pool, 5 + 5 held for the league, 10 and 10 paid out now.
+    // 100 SKR: 70 to the pool, 10 held as the member's pledge, 10 and 10 paid out now.
     expect(after.pool).toBe(70n * SKR);
-    expect(after.boostDue).toBe(5n * SKR);
-    expect(after.comebackDue).toBe(5n * SKR);
+    expect(after.comebackDue).toBe(10n * SKR);
     expect(h.tokenBalance(fees.developer)).toBe(10n * SKR);
     expect(h.tokenBalance(fees.operations)).toBe(10n * SKR);
     expect(after.heldStake).toBe(0n);
     expect(after.forfeitsRecorded).toBe(1);
-    // The league is credited only when the cohort finalizes (FR-037c, INV-10).
+    // The league is credited only when the forfeit is counted (FR-037c, INV-10).
     const league = await h.readLeague(LEAGUE);
     expect([league.boostReserve, league.comebackReserve]).toEqual([0n, 0n]);
     // The vault still holds what the cohort says it holds (INV-1): the pool and
-    // both dues, everything but the 20 SKR that left.
+    // the pledge, everything but the 20 SKR that left.
     expect(h.tokenBalance(vault)).toBe(cohortCustody(after));
     expect(h.tokenBalance(vault)).toBe(stake - 20n * SKR);
   });
@@ -173,7 +173,7 @@ describe('record_forfeits (contracts §2)', () => {
     expect(h.tokenBalance(fees.operations)).toBe(split.operations);
     expect(h.tokenBalance(fees.developer)).toBe(split.developer);
     expect(after.pool).toBe(stake - feeOf(stake));
-    expect([after.boostDue, after.comebackDue]).toEqual([split.boost, split.comeback]);
+    expect(after.comebackDue).toBe(split.comeback);
   });
 
   it('records the missed deadline as the outcome instant, never `now` (FR-060b)', async () => {
@@ -278,7 +278,6 @@ describe('record_forfeits (contracts §2)', () => {
     expect(after.forfeitsRecorded).toBe(4);
     expect(h.tokenBalance(fees.operations)).toBe(parts.reduce((sum, p) => sum + p.operations, 0n));
     expect(h.tokenBalance(fees.developer)).toBe(parts.reduce((sum, p) => sum + p.developer, 0n));
-    expect(after.boostDue).toBe(parts.reduce((sum, p) => sum + p.boost, 0n));
     expect(after.comebackDue).toBe(parts.reduce((sum, p) => sum + p.comeback, 0n));
     expect(after.pool).toBe(total - fee);
     expect(after.heldStake).toBe(0n);
@@ -402,7 +401,7 @@ describe('record_forfeits (contracts §2)', () => {
     const after = await h.readCohort(LEAGUE, INDEX);
     expect(after.forfeitsRecorded).toBe(10);
     expect(after.heldStake).toBe(0n);
-    expect(h.tokenBalance(vault)).toBe(after.pool + after.boostDue + after.comebackDue);
+    expect(h.tokenBalance(vault)).toBe(after.pool + after.comebackDue);
   });
 
   it('refuses more than ten pairs in one page (research R9)', async () => {

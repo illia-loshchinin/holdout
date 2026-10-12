@@ -19,8 +19,8 @@ import {
   boostFor,
   comebackOwedFor,
   comebackRefund,
+  comebackRounds,
   forfeitSplit,
-  noFinisherSplit,
   assertSameProgress,
   assertUnchanged,
   deriveStreak,
@@ -51,7 +51,6 @@ const cohort = (over: Partial<CohortSnapshot> = {}): CohortSnapshot => ({
   memberCount: 1,
   heldStake: 100n,
   pool: 0n,
-  boostDue: 0n,
   comebackDue: 0n,
   forfeitsRecorded: 0,
   counted: 0,
@@ -61,7 +60,7 @@ const cohort = (over: Partial<CohortSnapshot> = {}): CohortSnapshot => ({
   settled: false,
   sharePerTier: [0n, 0n, 0n, 0n],
   roundingRemainder: 0n,
-  noFinisherFee: 0n,
+  noFinisherBoost: 0n,
   boostReceived: 0n,
   comebackOwed: 0n,
   comebackFunded: 0n,
@@ -90,8 +89,9 @@ const progress = (over: Partial<LeagueProgressSnapshot> = {}): LeagueProgressSna
   longestStreak: 0,
   lastChanged: 0,
   comebackStake: 0n,
-  comebackFrom: 0,
-  comebackUntil: 0,
+  comebackLeague: 0,
+  comebackRound: 0,
+  comebackLastRound: 0,
   ...over,
 });
 
@@ -141,9 +141,25 @@ const expectViolation = (invariant: string, fn: () => void): void => {
   throw new Error(`expected ${invariant} to fail`);
 };
 
-/** A league's reserve account, holding exactly its two reserves unless told otherwise. */
+const WEEK = 7 * DAY;
+
+/**
+ * A league's reserve account on the real weekly schedule, holding exactly its
+ * two reserves unless told otherwise. `nextIndex` 2: cohorts 0 and 1 exist.
+ */
 const leagueOf = (over: Partial<LeagueSnapshot> = {}): LeagueSnapshot => {
-  const l = { address: 'league-0', leagueId: 0, boostReserve: 0n, comebackReserve: 0n, ...over };
+  const l = {
+    address: 'league-0',
+    leagueId: 0,
+    boostReserve: 0n,
+    comebackReserve: 0n,
+    firstStart: FIRST_START,
+    cadence: WEEK,
+    joinLock: 3_600,
+    dayLength: DAY,
+    nextIndex: 2,
+    ...over,
+  };
   return { reserveVaultAmount: l.boostReserve + l.comebackReserve, ...l };
 };
 
@@ -160,20 +176,20 @@ describe('INV-1 · custody', () => {
     );
   });
 
-  /** Reserve shares not yet credited, and refunds funded but not yet claimed. */
-  const holding = { heldStake: 400n, pool: 680n, boostDue: 10n, comebackDue: 5n, comebackFunded: 7n, comebackClaimed: 3n };
+  /** Pledges whose forfeit is not counted yet, and refunds funded but not yet claimed. */
+  const holding = { heldStake: 400n, pool: 680n, comebackDue: 5n, comebackFunded: 7n, comebackClaimed: 3n };
 
-  it('counts the reserve dues and the unclaimed refunds as the vault\'s too (H35)', () => {
-    expect(() => assertInvariants(snapshot({ cohorts: [cohort({ ...holding, vaultAmount: 1_099n })] }))).not.toThrow();
+  it('counts the pledges not yet counted and the unclaimed refunds as the vault\'s too (H35)', () => {
+    expect(() => assertInvariants(snapshot({ cohorts: [cohort({ ...holding, vaultAmount: 1_089n })] }))).not.toThrow();
     expectViolation('INV-1', () =>
-      assertInvariants(snapshot({ cohorts: [cohort({ ...holding, vaultAmount: 1_098n })] })),
+      assertInvariants(snapshot({ cohorts: [cohort({ ...holding, vaultAmount: 1_088n })] })),
     );
   });
 
   it('fails when more refunds were claimed than the reserve funded', () => {
     expectViolation('INV-1', () =>
       assertInvariants(
-        snapshot({ cohorts: [cohort({ ...holding, comebackClaimed: 8n, vaultAmount: 1_094n })] }),
+        snapshot({ cohorts: [cohort({ ...holding, comebackClaimed: 8n, vaultAmount: 1_084n })] }),
       ),
     );
   });
@@ -579,7 +595,7 @@ describe('INV-2 · finalization lands on an exact pool', () => {
     expectViolation('INV-2', () => assertInvariants(next, prev));
   });
 
-  it('splits a no-finisher pool half to the developer, the rest to operations, and credits its dues', () => {
+  it('sends a no-finisher pool whole to the league boost reserve, touching neither fee account', () => {
     const empty = counted({
       memberCount: 0,
       counted: 0,
@@ -588,47 +604,49 @@ describe('INV-2 · finalization lands on an exact pool', () => {
       totalFinisherStake: 0n,
       heldStake: 0n,
       pool: 81n,
-      boostDue: 5n,
-      comebackDue: 5n,
-      vaultAmount: 91n,
+      vaultAmount: 81n,
     });
     const prev = snapshot({
       now: at,
       cohorts: [empty],
-      leagues: [leagueOf()],
+      leagues: [leagueOf({ boostReserve: 20n, comebackReserve: 6n })],
       memberships: [],
       profiles: [],
-      operationsDestination: 0n,
-      developerDestination: 0n,
+      operationsDestination: 40n,
+      developerDestination: 40n,
     });
-    const settledEmpty = { ...empty, settled: true, pool: 0n, boostDue: 0n, comebackDue: 0n, vaultAmount: 0n, noFinisherFee: 81n };
+    const settledEmpty = { ...empty, settled: true, pool: 0n, vaultAmount: 0n, noFinisherBoost: 81n };
     const after = (over: Partial<Snapshot> = {}) =>
       snapshot({
         now: at,
         cohorts: [settledEmpty],
-        leagues: [leagueOf({ boostReserve: 5n, comebackReserve: 5n })],
+        leagues: [leagueOf({ boostReserve: 101n, comebackReserve: 6n })],
         memberships: [],
         profiles: [],
         developerDestination: 40n,
-        operationsDestination: 41n,
+        operationsDestination: 40n,
         ...over,
       });
     expect(() => assertInvariants(after(), prev)).not.toThrow();
 
-    // Split a third / two thirds, as the rule before 2026-10-09 would: both sides of the account add up.
+    // Split between the developer and operations, as the rule before 2026-10-12 did.
     expectViolation('INV-2', () =>
-      assertInvariants(after({ developerDestination: 27n, operationsDestination: 54n }), prev),
+      assertInvariants(after({ developerDestination: 80n, operationsDestination: 41n }), prev),
     );
-    // The dues left the cohort but never reached the league's books.
-    expectViolation('INV-10', () => assertInvariants(after({ leagues: [leagueOf()] }), prev));
-    // The fee the cohort records has to be the pool it had.
+    // The pool left the cohort but never reached the league's books.
+    expectViolation('INV-10', () => assertInvariants(after({ leagues: [leagueOf({ boostReserve: 20n, comebackReserve: 6n })] }), prev));
+    // It reached the books, but as a pledge: the comeback reserve is not the boost reserve.
+    expectViolation('INV-10', () =>
+      assertInvariants(after({ leagues: [leagueOf({ boostReserve: 20n, comebackReserve: 87n })] }), prev),
+    );
+    // The figure the cohort records has to be the pool it had.
     expectViolation('INV-2', () =>
-      assertInvariants(after({ cohorts: [{ ...settledEmpty, noFinisherFee: 80n }] }), prev),
+      assertInvariants(after({ cohorts: [{ ...settledEmpty, noFinisherBoost: 80n }] }), prev),
     );
   });
 });
 
-describe('INV-2 · the boost is min(10 % of the own pool, the reserve), drawn before the shares (FR-037d)', () => {
+describe('INV-2 · the boost is min(10 % of the own pool, the boost reserve), drawn before the shares (FR-037d)', () => {
   const at = FIRST_START + 8 * DAY;
   const finisher = membership({ state: 'Finished', daysCompleted: 7, counted: true });
   const cleared = [
@@ -639,7 +657,7 @@ describe('INV-2 · the boost is min(10 % of the own pool, the reserve), drawn be
     }),
   ];
 
-  /** One counted finisher staking 100; a forfeit has left 70 in the pool and 10 + 5 due. */
+  /** One counted finisher staking 100; a forfeit has left 70 in the pool and its pledge in the league. */
   const counted = (over: Partial<CohortSnapshot> = {}): CohortSnapshot =>
     cohort({
       memberCount: 1,
@@ -649,27 +667,26 @@ describe('INV-2 · the boost is min(10 % of the own pool, the reserve), drawn be
       totalFinisherStake: 100n,
       heldStake: 100n,
       pool: 70n,
-      boostDue: 10n,
-      comebackDue: 5n,
-      vaultAmount: 185n,
+      vaultAmount: 170n,
       ...over,
     });
 
   /** Finalized with `boost` drawn: the finisher's share is the whole boosted pool. */
-  const finalized = (boost: bigint, reserve: { boost: bigint; comeback: bigint }) => ({
-    cohort: counted({
+  const finalized = (boost: bigint) =>
+    counted({
       settled: true,
       boostReceived: boost,
       pool: 70n + boost,
       sharePerTier: [0n, 0n, 0n, 70n + boost],
-      boostDue: 0n,
-      comebackDue: 0n,
       vaultAmount: 170n + boost,
-    }),
-    league: leagueOf({ boostReserve: reserve.boost - boost + 10n, comebackReserve: reserve.comeback + 5n }),
-  });
+    });
 
-  const step = (reserve: { boost: bigint; comeback: bigint }, boost: bigint) => {
+  /** Reserves before, the boost a finalize claims, and where the books say it came from. */
+  const step = (
+    reserve: { boost: bigint; comeback: bigint },
+    boost: bigint,
+    after: { boost: bigint; comeback: bigint } = { boost: reserve.boost - boost, comeback: reserve.comeback },
+  ) => {
     const prev = snapshot({
       now: at,
       cohorts: [counted()],
@@ -677,16 +694,21 @@ describe('INV-2 · the boost is min(10 % of the own pool, the reserve), drawn be
       memberships: [finisher],
       profiles: cleared,
     });
-    const f = finalized(boost, reserve);
-    const next = snapshot({ now: at, cohorts: [f.cohort], leagues: [f.league], memberships: [finisher], profiles: cleared });
+    const next = snapshot({
+      now: at,
+      cohorts: [finalized(boost)],
+      leagues: [leagueOf({ boostReserve: after.boost, comebackReserve: after.comeback })],
+      memberships: [finisher],
+      profiles: cleared,
+    });
     return () => assertInvariants(next, prev);
   };
 
-  it('accepts 10 % of the own pool when the reserve holds more', () => {
+  it('accepts 10 % of the own pool when the boost reserve holds more', () => {
     expect(step({ boost: 50n, comeback: 20n }, 7n)).not.toThrow();
   });
 
-  it('accepts the whole reserve when it holds less than 10 %', () => {
+  it('accepts the whole boost reserve when it holds less than 10 %', () => {
     expect(step({ boost: 5n, comeback: 0n }, 5n)).not.toThrow();
   });
 
@@ -694,14 +716,19 @@ describe('INV-2 · the boost is min(10 % of the own pool, the reserve), drawn be
     expectViolation('INV-2', step({ boost: 50n, comeback: 20n }, 14n));
   });
 
-  it("catches a boost that drew on the cohort's own dues, credited too early", () => {
-    // With 5 in reserve the boost is 5. Crediting the cohort's own 10 first
-    // would make it min(14, 15) = 14 — the order FR-037d rules out.
-    expectViolation('INV-2', step({ boost: 5n, comeback: 0n }, 14n));
+  it('catches a boost that drew on the pledges when the boost reserve ran dry', () => {
+    // 5 in the boost reserve, 20 pledged: the boost is 5. A boost of 7 that took
+    // its last 2 from the comeback reserve has spent a member's pledge, and the
+    // books still add up — the two reserves share one vault.
+    expectViolation('INV-2', step({ boost: 5n, comeback: 20n }, 7n, { boost: 0n, comeback: 18n }));
+  });
+
+  it('catches a boost taken from the comeback reserve although the boost reserve could pay it', () => {
+    expectViolation('INV-10', step({ boost: 50n, comeback: 20n }, 7n, { boost: 50n, comeback: 13n }));
   });
 
   it('catches a boost paid to a cohort with no forfeits, which keeps "exactly your stake back"', () => {
-    const noForfeits = counted({ pool: 0n, boostDue: 0n, comebackDue: 0n, vaultAmount: 100n });
+    const noForfeits = counted({ pool: 0n, vaultAmount: 100n });
     const prev = snapshot({
       now: at,
       cohorts: [noForfeits],
@@ -717,8 +744,6 @@ describe('INV-2 · the boost is min(10 % of the own pool, the reserve), drawn be
           pool: 10n,
           boostReceived: 10n,
           sharePerTier: [0n, 0n, 0n, 10n],
-          boostDue: 0n,
-          comebackDue: 0n,
           vaultAmount: 110n,
         }),
       ],
@@ -730,10 +755,10 @@ describe('INV-2 · the boost is min(10 % of the own pool, the reserve), drawn be
   });
 });
 
-describe('INV-10 · a league reserve moves only when one of its cohorts finalizes', () => {
+describe('INV-10 · a league reserve moves only through counts, releases and finalizations', () => {
   const at = FIRST_START + 3 * DAY;
 
-  it('catches a reserve topped up with no cohort finalizing', () => {
+  it('catches a reserve topped up with nothing to move it', () => {
     const prev = snapshot({ now: at, leagues: [leagueOf()] });
     expectViolation('INV-10', () =>
       assertInvariants(snapshot({ now: at, leagues: [leagueOf({ boostReserve: 10n })] }), prev),
@@ -741,14 +766,14 @@ describe('INV-10 · a league reserve moves only when one of its cohorts finalize
   });
 
   it("catches a reserve that moved while another league's cohort finalized", () => {
+    // League 1's cohort nobody finished sends its 15 to league 1's boost reserve;
+    // league 0's reserve has nothing to do with it.
     const other = cohort({
       address: 'cohort-X',
       leagueId: 1,
       memberCount: 0,
       heldStake: 0n,
-      pool: 0n,
-      boostDue: 10n,
-      comebackDue: 5n,
+      pool: 15n,
       vaultAmount: 15n,
     });
     const prev = snapshot({
@@ -758,12 +783,12 @@ describe('INV-10 · a league reserve moves only when one of its cohorts finalize
       memberships: [],
       profiles: [],
     });
-    const done = { ...other, settled: true, boostDue: 0n, comebackDue: 0n, vaultAmount: 0n };
+    const done = { ...other, settled: true, pool: 0n, vaultAmount: 0n, noFinisherBoost: 15n };
     const next = (league0: LeagueSnapshot) =>
       snapshot({
         now: FIRST_START + 8 * DAY,
         cohorts: [done],
-        leagues: [league0, leagueOf({ address: 'league-1', leagueId: 1, boostReserve: 10n, comebackReserve: 5n })],
+        leagues: [league0, leagueOf({ address: 'league-1', leagueId: 1, boostReserve: 15n })],
         memberships: [],
         profiles: [],
       });
@@ -807,14 +832,14 @@ describe('INV-5 · the denominator is written once, and not before its time', ()
   });
 });
 
-describe('INV-2 · a forfeit splits five ways (FR-027, H35)', () => {
+describe('INV-2 · a forfeit splits four ways (FR-027, H35)', () => {
   const at = FIRST_START + 3 * DAY;
 
-  /** One member of tier 3, stake 100, about to be forfeited: 70 pool, 5 + 5 due, 10 developer, 10 operations. */
+  /** One member of tier 3, stake 100, about to be forfeited: 70 pool, 10 pledge, 10 developer, 10 operations. */
   const live = cohort({ memberCount: 1, heldStake: 100n, pool: 0n, vaultAmount: 100n });
   const joined = membership();
   const forfeited = { ...joined, state: 'Forfeited' as const };
-  const after = cohort({ memberCount: 1, heldStake: 0n, pool: 70n, boostDue: 5n, comebackDue: 5n, vaultAmount: 80n });
+  const after = cohort({ memberCount: 1, heldStake: 0n, pool: 70n, comebackDue: 10n, vaultAmount: 80n });
   const slots = [profile(inCohortA)];
   /** The missed deadline of day 0, which is the outcome instant a record writes. */
   const missed = FIRST_START + DAY - 1;
@@ -848,8 +873,8 @@ describe('INV-2 · a forfeit splits five ways (FR-027, H35)', () => {
 
   it('catches an operations part that left the vault for somewhere else', () => {
     // Every figure the cohort keeps is right: the stake left held, 70 of it
-    // reached the pool, 10 is due, and the vault fell by 20. The 10 simply never
-    // arrived, and only reading the destination shows it.
+    // reached the pool, 10 is pledged, and the vault fell by 20. The 10 simply
+    // never arrived, and only reading the destination shows it.
     expectViolation('INV-2', () => assertInvariants(next({ operationsDestination: 500n }), prev));
   });
 
@@ -859,27 +884,27 @@ describe('INV-2 · a forfeit splits five ways (FR-027, H35)', () => {
     );
   });
 
-  it('catches a reserve share paid out at once instead of held as due', () => {
+  it('catches a pledge paid out at once instead of held until its forfeit is counted', () => {
     expectViolation('INV-10', () =>
       assertInvariants(
         next({
-          cohorts: [{ ...after, boostDue: 0n, vaultAmount: 75n }],
-          operationsDestination: 515n,
+          cohorts: [{ ...after, comebackDue: 0n, vaultAmount: 70n }],
+          operationsDestination: 520n,
         }),
         prev,
       ),
     );
   });
 
-  it('catches a reserve share credited to the league when the forfeit is recorded', () => {
+  it('catches a pledge credited to the league when the forfeit is recorded', () => {
     // The books balance on both sides — the league's reserve vault holds what its
-    // reserve says — but a reserve credited now would let the crank's timing set
-    // an earlier cohort's boost (FR-037c).
+    // reserve says — but a pledge booked before the count would be open before
+    // the member's comeback is (FR-037c).
     expectViolation('INV-10', () =>
       assertInvariants(
         next({
-          cohorts: [{ ...after, boostDue: 0n, comebackDue: 0n, vaultAmount: 70n }],
-          leagues: [leagueOf({ boostReserve: 10n, comebackReserve: 5n })],
+          cohorts: [{ ...after, comebackDue: 0n, vaultAmount: 70n }],
+          leagues: [leagueOf({ comebackReserve: 10n })],
         }),
         prev,
       ),
@@ -888,16 +913,436 @@ describe('INV-2 · a forfeit splits five ways (FR-027, H35)', () => {
 });
 
 /**
- * A member who forfeited cohort A (day 0 missed, counted) and finished cohort B
- * — by default of the same league a week later: inside the 14-day window, so
- * owed 20 % of the forfeited 100 (FR-037e). B is settled; the reserve funded
- * half of what it owed.
+ * The comeback ledger (FR-037e). A member forfeits cohort A on its first day
+ * (the deadline of day 0 is missed), so the round that makes it good is cohort
+ * B, the next to start. The ledger moves the pledge of 10 — a tenth of the
+ * stake of 100 — from A's vault into the league's reserve vault when the forfeit
+ * is counted, and then:
+ *
+ *  - finishing B makes `min(10, new stake)` owed and releases the rest of the
+ *    pledge to the boost reserve;
+ *  - finishing any later cohort, or being forfeited again, or `release_comeback`
+ *    once B has settled, releases the whole pledge to the boost reserve.
  */
-const comebackWorld = (over: { bStart?: number; bLeague?: number; entitled?: bigint } = {}) => {
+describe('INV-10 · the comeback ledger (FR-037e)', () => {
   const missed = FIRST_START + DAY - 1;
-  const bStart = over.bStart ?? FIRST_START + 7 * DAY;
+  const cohortAt = (index: number, over: Partial<CohortSnapshot> = {}): CohortSnapshot =>
+    cohort({
+      address: `cohort-${'ABCD'[index]}`,
+      index,
+      start: FIRST_START + index * WEEK,
+      joinCutoff: FIRST_START + index * WEEK - 3_600,
+      ...over,
+    });
+  const at = FIRST_START + 3 * WEEK;
+  const forfeitProgress = (over: Partial<LeagueProgressSnapshot> = {}) =>
+    progress({ forfeited: 1, lastChanged: missed, ...over });
+  /** What a counted forfeit writes: stake 100, league 0, the round after the miss. */
+  const open = { comebackStake: 100n, comebackLeague: 0, comebackRound: 1, comebackLastRound: 1 };
+  const lost = (counted: boolean) =>
+    membership({ address: 'm-A', cohort: 'cohort-A', state: 'Forfeited', counted });
+  /** Cohort A with its one forfeit recorded, counted or not. */
+  const forfeitedA = (countedYet: boolean) =>
+    cohortAt(0, {
+      memberCount: 1,
+      heldStake: 0n,
+      pool: 70n,
+      comebackDue: countedYet ? 0n : 10n,
+      counted: countedYet ? 1 : 0,
+      vaultAmount: countedYet ? 70n : 80n,
+    });
+  /** Cohort A, settled with nobody finished: its pool went to the boost reserve. */
+  const settledA = () =>
+    cohortAt(0, { memberCount: 1, counted: 1, heldStake: 0n, pool: 0n, settled: true, noFinisherBoost: 70n, vaultAmount: 0n });
+  const profileOf = (over: Partial<LeagueProgressSnapshot> = {}, more: Partial<ProfileSnapshot> = {}) =>
+    profile({ leagues: { 0: forfeitProgress(over) }, ...more });
+
+  describe('counting a forfeit', () => {
+    const prev = snapshot({
+      now: at,
+      cohorts: [forfeitedA(false)],
+      leagues: [leagueOf()],
+      memberships: [lost(false)],
+      profiles: [profileOf()],
+    });
+    const next = (over: Partial<Snapshot> = {}) =>
+      snapshot({
+        now: at,
+        cohorts: [forfeitedA(true)],
+        leagues: [leagueOf({ comebackReserve: 10n })],
+        memberships: [lost(true)],
+        profiles: [profileOf(open)],
+        ...over,
+      });
+
+    it('moves the pledge into the comeback reserve as it opens the comeback', () => {
+      expect(() => assertInvariants(next(), prev)).not.toThrow();
+    });
+
+    it('catches a pledge booked to the boost reserve, where a boost could spend it', () => {
+      expectViolation('INV-10', () => assertInvariants(next({ leagues: [leagueOf({ boostReserve: 10n })] }), prev));
+    });
+
+    it('catches a pledge that left the cohort and was booked nowhere', () => {
+      expectViolation('INV-10', () => assertInvariants(next({ leagues: [leagueOf()] }), prev));
+    });
+
+    it('catches a comeback opened for the wrong rounds', () => {
+      // A miss on day 0 is made good by the next round only; the round after it is too late.
+      expectViolation('INV-9', () =>
+        assertInvariants(next({ profiles: [profileOf({ ...open, comebackRound: 2, comebackLastRound: 2 })] }), prev),
+      );
+    });
+
+    it('catches a count that left the comeback unopened while the pledge was booked', () => {
+      expectViolation('INV-9', () => assertInvariants(next({ profiles: [profileOf()] }), prev));
+    });
+
+    it('opens a comeback with two rounds after a miss on the last day', () => {
+      // The deadline of the last day is the second before cohort B starts, after
+      // B's joining closed: either B or the round after it makes the pledge good.
+      const lastDay = FIRST_START + 7 * DAY - 1;
+      const lastDayProgress = { forfeited: 1, lastChanged: lastDay };
+      const a = (countedYet: boolean) => ({ ...forfeitedA(countedYet), counted: countedYet ? 1 : 0 });
+      const member = (countedYet: boolean) => ({ ...lost(countedYet), daysCompleted: 6 });
+      expect(comebackRounds(leagueOf(), lastDay)).toEqual([1, 2]);
+      const before = snapshot({
+        now: at,
+        cohorts: [a(false)],
+        leagues: [leagueOf()],
+        memberships: [member(false)],
+        profiles: [profile({ leagues: { 0: progress(lastDayProgress) } })],
+      });
+      const written = snapshot({
+        now: at,
+        cohorts: [a(true)],
+        leagues: [leagueOf({ comebackReserve: 10n })],
+        memberships: [member(true)],
+        profiles: [profile({ leagues: { 0: progress({ ...lastDayProgress, ...open, comebackRound: 1, comebackLastRound: 2 }) } })],
+      });
+      expect(() => assertInvariants(written, before)).not.toThrow();
+      const narrow = snapshot({
+        ...written,
+        profiles: [profile({ leagues: { 0: progress({ ...lastDayProgress, ...open }) } })],
+      });
+      expectViolation('INV-9', () => assertInvariants(narrow, before));
+    });
+  });
+
+  describe('counting a finisher of the round', () => {
+    /** B: one finisher staking `stake`, counted or not yet. */
+    const roundB = (countedYet: boolean, stake = 100n, owed = 0n, over: Partial<CohortSnapshot> = {}) =>
+      cohortAt(1, {
+        memberCount: 1,
+        counted: countedYet ? 1 : 0,
+        finisherCount: countedYet ? 1 : 0,
+        finishersPerTier: countedYet ? [0, 0, 0, 1] : [0, 0, 0, 0],
+        totalFinisherStake: countedYet ? stake : 0n,
+        heldStake: stake,
+        comebackOwed: owed,
+        vaultAmount: stake,
+        ...over,
+      });
+    const finish = (countedYet: boolean, over: Partial<MembershipSnapshot> = {}) =>
+      membership({
+        address: 'm-B',
+        cohort: 'cohort-B',
+        state: countedYet ? 'Finished' : 'Joined',
+        daysCompleted: 7,
+        counted: countedYet,
+        ...over,
+      });
+    const cleared = (over: Partial<LeagueProgressSnapshot> = {}) =>
+      forfeitProgress({ cleared: 1, currentStreak: 1, longestStreak: 1, lastChanged: FIRST_START + 2 * WEEK, ...over });
+
+    const prev = snapshot({
+      now: at,
+      cohorts: [settledA(), roundB(false)],
+      leagues: [leagueOf({ comebackReserve: 10n })],
+      memberships: [lost(true), finish(false)],
+      profiles: [profileOf(open)],
+    });
+    const next = (over: Partial<Snapshot> = {}) =>
+      snapshot({
+        now: at,
+        cohorts: [settledA(), roundB(true, 100n, 10n)],
+        leagues: [leagueOf({ comebackReserve: 10n })],
+        memberships: [lost(true), finish(true, { comebackEntitled: 10n })],
+        profiles: [profile({ leagues: { 0: cleared() } })],
+        ...over,
+      });
+
+    it('makes the pledge owed and keeps it in the comeback reserve until finalization draws it', () => {
+      expect(() => assertInvariants(next(), prev)).not.toThrow();
+    });
+
+    it('catches a pledge released to the boost reserve although the round was finished', () => {
+      expectViolation('INV-10', () =>
+        assertInvariants(next({ leagues: [leagueOf({ boostReserve: 10n })] }), prev),
+      );
+    });
+
+    it('catches a finisher counted without the entitlement it earned', () => {
+      expectViolation('INV-2', () =>
+        assertInvariants(
+          next({
+            cohorts: [settledA(), roundB(true)],
+            memberships: [lost(true), finish(true)],
+          }),
+          prev,
+        ),
+      );
+    });
+
+    it('catches an entitlement above the pledge', () => {
+      expectViolation('INV-2', () =>
+        assertInvariants(
+          next({
+            cohorts: [settledA(), roundB(true, 100n, 20n)],
+            leagues: [leagueOf({ comebackReserve: 20n })],
+            memberships: [lost(true), finish(true, { comebackEntitled: 20n })],
+          }),
+          prev,
+        ),
+      );
+    });
+
+    it('releases the part of the pledge above a smaller new stake to the boost reserve', () => {
+      const small = (countedYet: boolean) => finish(countedYet, { stake: 4n });
+      const before = snapshot({
+        now: at,
+        cohorts: [settledA(), roundB(false, 4n)],
+        leagues: [leagueOf({ comebackReserve: 10n })],
+        memberships: [lost(true), small(false)],
+        profiles: [profileOf(open)],
+      });
+      const after = (reserve: { boost: bigint; comeback: bigint }) =>
+        snapshot({
+          now: at,
+          cohorts: [settledA(), roundB(true, 4n, 4n)],
+          leagues: [leagueOf({ boostReserve: reserve.boost, comebackReserve: reserve.comeback })],
+          memberships: [lost(true), { ...small(true), comebackEntitled: 4n }],
+          profiles: [profile({ leagues: { 0: cleared() } })],
+        });
+      expect(() => assertInvariants(after({ boost: 6n, comeback: 4n }), before)).not.toThrow();
+      expectViolation('INV-10', () => assertInvariants(after({ boost: 0n, comeback: 10n }), before));
+    });
+
+    it('releases the whole pledge when a later round is the one finished', () => {
+      const later = (countedYet: boolean) =>
+        finish(countedYet, { address: 'm-C', cohort: 'cohort-C' });
+      const roundC = (countedYet: boolean, over: Partial<CohortSnapshot> = {}) =>
+        roundB(countedYet, 100n, 0n, { address: 'cohort-C', index: 2, start: FIRST_START + 2 * WEEK, joinCutoff: FIRST_START + 2 * WEEK - 3_600, ...over });
+      const settledB = cohortAt(1, { settled: true, heldStake: 0n, pool: 0n, vaultAmount: 0n });
+      const before = snapshot({
+        now: at,
+        cohorts: [settledA(), settledB, roundC(false)],
+        leagues: [leagueOf({ comebackReserve: 10n, nextIndex: 3 })],
+        memberships: [lost(true), later(false)],
+        profiles: [profileOf(open)],
+      });
+      const after = (reserve: { boost: bigint; comeback: bigint }) =>
+        snapshot({
+          now: at,
+          cohorts: [settledA(), settledB, roundC(true)],
+          leagues: [leagueOf({ boostReserve: reserve.boost, comebackReserve: reserve.comeback, nextIndex: 3 })],
+          memberships: [lost(true), later(true)],
+          profiles: [profile({ leagues: { 0: cleared({ lastChanged: FIRST_START + 3 * WEEK }) } })],
+        });
+      expect(() => assertInvariants(after({ boost: 10n, comeback: 0n }), before)).not.toThrow();
+      expectViolation('INV-10', () => assertInvariants(after({ boost: 0n, comeback: 10n }), before));
+    });
+  });
+
+  describe('finalizing the round', () => {
+    const owedB = cohortAt(1, {
+      memberCount: 1,
+      counted: 1,
+      finisherCount: 1,
+      finishersPerTier: [0, 0, 0, 1],
+      totalFinisherStake: 100n,
+      heldStake: 100n,
+      comebackOwed: 10n,
+      vaultAmount: 100n,
+    });
+    const won = membership({
+      address: 'm-B',
+      cohort: 'cohort-B',
+      state: 'Finished',
+      daysCompleted: 7,
+      counted: true,
+      comebackEntitled: 10n,
+    });
+    const cleared = [
+      profile({
+        leagues: {
+          0: forfeitProgress({ cleared: 1, currentStreak: 1, longestStreak: 1, lastChanged: FIRST_START + 2 * WEEK }),
+        },
+      }),
+    ];
+    const prev = snapshot({
+      now: at,
+      cohorts: [settledA(), owedB],
+      leagues: [leagueOf({ boostReserve: 3n, comebackReserve: 10n })],
+      memberships: [lost(true), won],
+      profiles: cleared,
+    });
+    const next = (funded: bigint, reserve: { boost: bigint; comeback: bigint }) =>
+      snapshot({
+        now: at,
+        cohorts: [
+          settledA(),
+          {
+            ...owedB,
+            settled: true,
+            comebackFunded: funded,
+            vaultAmount: 100n + funded,
+            sharePerTier: [0n, 0n, 0n, 0n],
+          },
+        ],
+        leagues: [leagueOf({ boostReserve: reserve.boost, comebackReserve: reserve.comeback })],
+        memberships: [lost(true), won],
+        profiles: cleared,
+      });
+
+    it('draws what is owed from the comeback reserve, in full', () => {
+      expect(() => assertInvariants(next(10n, { boost: 3n, comeback: 0n }), prev)).not.toThrow();
+    });
+
+    it('catches a refund funded short although the reserve held it', () => {
+      expectViolation('INV-2', () => assertInvariants(next(6n, { boost: 3n, comeback: 4n }), prev));
+    });
+
+    it('catches a refund drawn from the boost reserve', () => {
+      expectViolation('INV-10', () => assertInvariants(next(10n, { boost: 0n, comeback: 3n }), prev));
+    });
+  });
+
+  describe('release_comeback', () => {
+    const settledB = cohortAt(1, { settled: true, heldStake: 0n, pool: 0n, vaultAmount: 0n });
+    const unsettledB = cohortAt(1, { heldStake: 0n, pool: 0n, vaultAmount: 0n });
+    const with_ = (b: CohortSnapshot, record: Partial<LeagueProgressSnapshot>, reserve: { boost: bigint; comeback: bigint }) =>
+      snapshot({
+        now: at,
+        cohorts: [settledA(), b],
+        leagues: [leagueOf({ boostReserve: reserve.boost, comebackReserve: reserve.comeback })],
+        memberships: [lost(true)],
+        profiles: [profileOf(record)],
+      });
+
+    it('moves the pledge of a comeback whose round is settled to the boost reserve', () => {
+      const prev = with_(settledB, open, { boost: 4n, comeback: 10n });
+      const next = with_(settledB, {}, { boost: 14n, comeback: 0n });
+      expect(() => assertInvariants(next, prev)).not.toThrow();
+    });
+
+    it('catches a release that left the pledge in the comeback reserve', () => {
+      const prev = with_(settledB, open, { boost: 4n, comeback: 10n });
+      expectViolation('INV-10', () => assertInvariants(with_(settledB, {}, { boost: 4n, comeback: 10n }), prev));
+    });
+
+    it('catches a release while the round can still be finished', () => {
+      const prev = with_(unsettledB, open, { boost: 4n, comeback: 10n });
+      expectViolation('INV-9', () => assertInvariants(with_(unsettledB, {}, { boost: 14n, comeback: 0n }), prev));
+    });
+
+    it('allows a release before an unopened round has started its first day, and not before', () => {
+      // The league has opened only cohort A; the round is B, whose first day ends a week and a day on.
+      const a = settledA();
+      const world = (nowAt: number, record: Partial<LeagueProgressSnapshot>, reserve: { boost: bigint; comeback: bigint }) =>
+        snapshot({
+          now: nowAt,
+          cohorts: [a],
+          leagues: [leagueOf({ boostReserve: reserve.boost, comebackReserve: reserve.comeback, nextIndex: 1 })],
+          memberships: [lost(true)],
+          profiles: [profileOf(record)],
+        });
+      const firstDayEnd = FIRST_START + WEEK + DAY - 1;
+      const prev = (nowAt: number) => world(nowAt, open, { boost: 0n, comeback: 10n });
+      expect(() => assertInvariants(world(firstDayEnd + 1, {}, { boost: 10n, comeback: 0n }), prev(firstDayEnd + 1))).not.toThrow();
+      expectViolation('INV-9', () =>
+        assertInvariants(world(firstDayEnd, {}, { boost: 10n, comeback: 0n }), prev(firstDayEnd)),
+      );
+    });
+
+    it('waits for the opened first round of a two-round comeback even when the last round never opens', () => {
+      // A last-day miss: rounds 1 and 2. The league has opened cohorts 0 and 1 only, and cohort 2's
+      // first day is long over — but cohort 1 is not settled, so a finish of it may still be uncounted.
+      const two = { ...open, comebackLastRound: 2 };
+      const late = cohortAt(2).start + DAY;
+      const world = (b: CohortSnapshot, record: Partial<LeagueProgressSnapshot>, reserve: { boost: bigint; comeback: bigint }) =>
+        snapshot({
+          now: late,
+          cohorts: [settledA(), b],
+          leagues: [leagueOf({ boostReserve: reserve.boost, comebackReserve: reserve.comeback, nextIndex: 2 })],
+          memberships: [lost(true)],
+          profiles: [profile({ leagues: { 0: forfeitProgress(record) } })],
+        });
+      expectViolation('INV-9', () => assertInvariants(world(unsettledB, {}, { boost: 14n, comeback: 0n })));
+      const prev = world(settledB, two, { boost: 4n, comeback: 10n });
+      expect(() => assertInvariants(world(settledB, {}, { boost: 14n, comeback: 0n }), prev)).not.toThrow();
+    });
+
+    it('catches a record wiped while its round can still make it good, even with no step to compare', () => {
+      expectViolation('INV-9', () => assertInvariants(with_(unsettledB, {}, { boost: 4n, comeback: 0n })));
+      expect(() => assertInvariants(with_(settledB, {}, { boost: 14n, comeback: 0n }))).not.toThrow();
+    });
+  });
+
+  describe('a boost never touches a pledge', () => {
+    const world = (reserve: bigint) =>
+      snapshot({
+        now: at,
+        cohorts: [settledA(), cohortAt(1, { heldStake: 0n, vaultAmount: 0n })],
+        leagues: [leagueOf({ comebackReserve: reserve })],
+        memberships: [lost(true)],
+        profiles: [profileOf(open)],
+      });
+
+    it('holds the comeback reserve to at least the open pledges', () => {
+      expect(() => assertInvariants(world(10n))).not.toThrow();
+      expect(() => assertInvariants(world(40n))).not.toThrow();
+      expectViolation('INV-10', () => assertInvariants(world(9n)));
+    });
+
+    /** The member of the comeback world, finished and counted: 10 owed, `funded` of it drawn. */
+    const owing = (reserve: bigint, funded: bigint) => {
+      const w = comebackWorld({ entitled: 10n, funded });
+      return snapshot({
+        now: FIRST_START + 30 * DAY,
+        cohorts: [w.a, w.b],
+        leagues: [leagueOf({ comebackReserve: reserve, nextIndex: 3 })],
+        memberships: [w.lost, w.won],
+        profiles: w.profiles,
+      });
+    };
+
+    it('adds the refunds owed and not yet drawn', () => {
+      expect(() => assertInvariants(owing(10n, 0n))).not.toThrow();
+      expectViolation('INV-10', () => assertInvariants(owing(9n, 0n)));
+    });
+
+    it('stops counting a refund once it is drawn', () => {
+      expect(() => assertInvariants(owing(0n, 10n))).not.toThrow();
+      expect(() => assertInvariants(owing(4n, 6n))).not.toThrow();
+      expectViolation('INV-10', () => assertInvariants(owing(3n, 6n)));
+    });
+  });
+});
+
+/**
+ * A member who forfeited cohort A (day 0 missed, counted) and finished a later
+ * cohort B of the same league, owed 10 % of the forfeited 100 if B is the
+ * round after the miss (FR-037e). B is settled and its refund funded in full.
+ */
+const comebackWorld = (
+  over: { bIndex?: number; bLeague?: number; entitled?: bigint; funded?: bigint; lostStake?: bigint } = {},
+) => {
+  const bIndex = over.bIndex ?? 1;
   const bLeague = over.bLeague ?? 0;
-  const entitled = over.entitled ?? 20n;
+  const entitled = over.entitled ?? 10n;
+  const funded = over.funded ?? entitled;
+  const bStart = FIRST_START + bIndex * WEEK;
   const a = cohort({
     address: 'cohort-A',
     settled: true,
@@ -905,11 +1350,12 @@ const comebackWorld = (over: { bStart?: number; bLeague?: number; entitled?: big
     counted: 1,
     heldStake: 0n,
     vaultAmount: 0n,
+    noFinisherBoost: 70n,
   });
   const b = cohort({
     address: 'cohort-B',
     leagueId: bLeague,
-    index: bLeague === 0 ? 1 : 0,
+    index: bLeague === 0 ? bIndex : 0,
     start: bStart,
     joinCutoff: bStart - 3_600,
     settled: true,
@@ -922,10 +1368,10 @@ const comebackWorld = (over: { bStart?: number; bLeague?: number; entitled?: big
     heldStake: 100n,
     pool: 80n,
     comebackOwed: entitled,
-    comebackFunded: entitled / 2n,
-    vaultAmount: 180n + entitled / 2n,
+    comebackFunded: funded,
+    vaultAmount: 180n + funded,
   });
-  const lost = membership({ address: 'm-A', cohort: 'cohort-A', state: 'Forfeited', counted: true });
+  const lost = membership({ address: 'm-A', cohort: 'cohort-A', state: 'Forfeited', counted: true, stake: over.lostStake ?? 100n });
   const won = membership({
     address: 'm-B',
     cohort: 'cohort-B',
@@ -934,52 +1380,77 @@ const comebackWorld = (over: { bStart?: number; bLeague?: number; entitled?: big
     counted: true,
     comebackEntitled: entitled,
   });
-  const window = { comebackFrom: missed, comebackUntil: missed + 14 * DAY };
-  const inWindow = bLeague === 0 && bStart > missed && bStart <= window.comebackUntil;
-  const forfeitOnly = { forfeited: 1, lastChanged: missed, ...window, comebackStake: inWindow ? 0n : 100n };
+  const missed = FIRST_START + DAY - 1;
+  const forfeitOnly = { forfeited: 1, lastChanged: missed };
   const clear = { cleared: 1, currentStreak: 1, longestStreak: 1, lastChanged: bStart + 7 * DAY };
   const leagues: Record<number, LeagueProgressSnapshot> =
     bLeague === 0
       ? { 0: progress({ ...forfeitOnly, ...clear }) }
-      : { 0: progress(forfeitOnly), 1: progress(clear) };
+      : // Another league's finish leaves league 0's pledge open: 10 of the 100 stake.
+        {
+          0: progress({ ...forfeitOnly, comebackStake: 100n, comebackLeague: 0, comebackRound: 1, comebackLastRound: 1 }),
+          1: progress(clear),
+        };
   return { a, b, lost, won, profiles: [profile({ leagues })] };
 };
 
-describe('INV-2 · a comeback is earned in the window, in the same league (FR-037e)', () => {
+describe('INV-2 · a comeback is earned in its round, in the same league (FR-037e)', () => {
   const at = FIRST_START + 30 * DAY;
-  const check = (w: ReturnType<typeof comebackWorld>) => () =>
-    assertInvariants(snapshot({ now: at, cohorts: [w.a, w.b], memberships: [w.lost, w.won], profiles: w.profiles }));
+  const check = (w: ReturnType<typeof comebackWorld>, reserve = 0n) => () =>
+    assertInvariants(
+      snapshot({
+        now: at,
+        cohorts: [w.a, w.b],
+        leagues: [leagueOf({ comebackReserve: reserve, nextIndex: 3 }), leagueOf({ address: 'league-1', leagueId: 1 })],
+        memberships: [w.lost, w.won],
+        profiles: w.profiles,
+      }),
+    );
 
-  it('accepts 20 % of the forfeited stake for finishing a later cohort a week on', () => {
+  it('accepts 10 % of the forfeited stake for finishing the round after the miss', () => {
     expect(check(comebackWorld())).not.toThrow();
   });
 
-  it('accepts a cohort starting on the last second of the window', () => {
-    expect(check(comebackWorld({ bStart: FIRST_START + DAY - 1 + 14 * DAY }))).not.toThrow();
-  });
-
-  it('catches an entitlement for a cohort starting one second after the window', () => {
-    expectViolation('INV-2', check(comebackWorld({ bStart: FIRST_START + DAY + 14 * DAY })));
+  it('catches an entitlement for a round after the comeback\'s last', () => {
+    // The miss on day 0 of cohort 0 is made good by cohort 1; finishing cohort 2 lets it lapse.
+    expectViolation('INV-2', check(comebackWorld({ bIndex: 2 })));
+    expect(check(comebackWorld({ bIndex: 2, entitled: 0n }))).not.toThrow();
   });
 
   it('catches an entitlement earned in another league', () => {
-    expectViolation('INV-2', check(comebackWorld({ bLeague: 1 })));
+    // League 1's finish leaves league 0's pledge open (and covered), and earns nothing.
+    expectViolation('INV-2', check(comebackWorld({ bLeague: 1 }), 10n));
+    expect(check(comebackWorld({ bLeague: 1, entitled: 0n }), 10n)).not.toThrow();
   });
 
   it('catches a profile that kept a comeback record its finish used up', () => {
     const w = comebackWorld();
-    const kept = profile({ leagues: { 0: { ...w.profiles[0]!.leagues[0]!, comebackStake: 100n } } });
-    expectViolation('INV-9', check({ ...w, profiles: [kept] }));
+    const kept = profile({
+      leagues: {
+        0: { ...w.profiles[0]!.leagues[0]!, comebackStake: 100n, comebackLeague: 0, comebackRound: 1, comebackLastRound: 1 },
+      },
+    });
+    expectViolation('INV-9', check({ ...w, profiles: [kept] }, 10n));
+  });
+
+  it('catches a comeback no longer open that nothing explains', () => {
+    // League 1's finish above: league 0's record must still be open, since its
+    // round (cohort 1) is neither settled nor past its first day.
+    const w = comebackWorld({ bLeague: 1, entitled: 0n });
+    const wiped = profile({ leagues: { 0: progress({ forfeited: 1, lastChanged: FIRST_START + DAY - 1 }), 1: w.profiles[0]!.leagues[1]! } });
+    expectViolation('INV-9', check({ ...w, profiles: [wiped] }));
   });
 });
 
-describe('INV-2 · a claim pays the comeback refund, scaled to what was funded', () => {
+describe('INV-2 · a claim pays the comeback refund', () => {
   const at = FIRST_START + 30 * DAY;
-  // Owed 20, funded 10: the reserve was short, so the refund is 10.
+  // Owed 10, funded 10: the refund is the whole of it.
   const w = comebackWorld();
+  const leagues = [leagueOf({ nextIndex: 3 })];
   const prev = snapshot({
     now: at,
     cohorts: [w.a, w.b],
+    leagues,
     memberships: [w.lost, w.won],
     profiles: w.profiles,
     walletBalances: { 'wallet-1': 0n },
@@ -988,21 +1459,46 @@ describe('INV-2 · a claim pays the comeback refund, scaled to what was funded',
     snapshot({
       now: at,
       cohorts: [w.a, { ...w.b, heldStake: 0n, pool: 0n, comebackClaimed: 10n, vaultAmount: 0n, ...over }],
+      leagues,
       memberships: [w.lost, { ...w.won, state: 'Claimed' }],
       profiles: w.profiles,
       walletBalances: { 'wallet-1': paid },
     });
 
-  it('accepts stake + share + the pro-rata refund', () => {
+  it('accepts stake + share + the refund', () => {
     expect(() => assertInvariants(claimed(190n), prev)).not.toThrow();
   });
 
-  it('catches the full entitlement paid out of a short reserve', () => {
-    expectViolation('INV-2', () => assertInvariants(claimed(200n), prev));
+  it('catches a claim that left out the refund', () => {
+    expectViolation('INV-2', () => assertInvariants(claimed(180n), prev));
   });
 
   it('catches a refund the cohort did not book as claimed', () => {
     expectViolation('INV-6', () => assertInvariants(claimed(190n, { comebackClaimed: 0n, vaultAmount: 10n }), prev));
+  });
+
+  it('scales the refund to what was funded when the reserve could not cover it', () => {
+    // The program funds every refund in full, but the arithmetic is still pro rata.
+    const short = comebackWorld({ lostStake: 200n, entitled: 20n, funded: 10n });
+    const before = snapshot({
+      now: at,
+      cohorts: [short.a, short.b],
+      leagues: [leagueOf({ nextIndex: 3, comebackReserve: 10n })],
+      memberships: [short.lost, short.won],
+      profiles: short.profiles,
+      walletBalances: { 'wallet-1': 0n },
+    });
+    const after = (paid: bigint) =>
+      snapshot({
+        now: at,
+        cohorts: [short.a, { ...short.b, heldStake: 0n, pool: 0n, comebackClaimed: 10n, vaultAmount: 0n }],
+        leagues: [leagueOf({ nextIndex: 3, comebackReserve: 10n })],
+        memberships: [short.lost, { ...short.won, state: 'Claimed' }],
+        profiles: short.profiles,
+        walletBalances: { 'wallet-1': paid },
+      });
+    expect(() => assertInvariants(after(190n), before)).not.toThrow();
+    expectViolation('INV-2', () => assertInvariants(after(200n), before));
   });
 });
 
@@ -1248,6 +1744,8 @@ describe('INV-9 · streaks follow cohort order, not crank order', () => {
         snapshot({
           now: FIRST_START + 8 * DAY,
           cohorts: [a, b],
+          // The pledge of the counted forfeit, a tenth of its stake, is in the league.
+          leagues: [leagueOf({ comebackReserve: 10n, nextIndex: 2 })],
           memberships,
           profiles: [
             profile({
@@ -1258,10 +1756,12 @@ describe('INV-9 · streaks follow cohort order, not crank order', () => {
                   currentStreak: 0,
                   longestStreak: 1,
                   lastChanged: FORFEITED_B,
-                  // The counted forfeit opens a comeback for 14 days (FR-037e).
+                  // The counted forfeit opens a comeback for cohort 2, the next
+                  // to start after the missed deadline (FR-037e).
                   comebackStake: 100n,
-                  comebackFrom: FORFEITED_B,
-                  comebackUntil: FORFEITED_B + 14 * DAY,
+                  comebackLeague: 0,
+                  comebackRound: 2,
+                  comebackLastRound: 2,
                 }),
               },
             }),
@@ -1334,28 +1834,35 @@ describe('the checker\'s money rules replay the shared vectors (fixtures/settlem
   const text = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../fixtures/settlement-vectors.json'), 'utf8');
   // u64 maxima do not survive a double: quote every long integer before parsing.
   const vectors = JSON.parse(text.replace(/:\s*(\d{16,})/g, ': "$1"')).reserve_vectors as {
-    forfeit_split: Record<'stake' | 'pool' | 'boost' | 'comeback' | 'developer' | 'operations', Big>[];
+    forfeit_split: Record<'stake' | 'pool' | 'comeback' | 'developer' | 'operations', Big>[];
     boost: Record<'own_pool' | 'reserve' | 'boost', Big>[];
     comeback_owed: Record<'forfeited_stake' | 'new_stake' | 'owed', Big>[];
     comeback_refund: Record<'entitled' | 'funded' | 'owed' | 'refund', Big>[];
-    no_finisher_split: Record<'pool' | 'developer' | 'operations', Big>[];
+    comeback_round: Record<'first_start' | 'cadence' | 'join_lock' | 'missed_at' | 'first' | 'last', number>[];
   };
   const n = (v: Big) => BigInt(v);
 
   it('forfeit split', () => {
     for (const v of vectors.forfeit_split) {
       expect(forfeitSplit(n(v.stake)), `split of ${v.stake}`).toEqual({
-        pool: n(v.pool), boost: n(v.boost), comeback: n(v.comeback), developer: n(v.developer), operations: n(v.operations),
+        pool: n(v.pool), comeback: n(v.comeback), developer: n(v.developer), operations: n(v.operations),
       });
     }
   });
 
-  it('boost, comeback owed, comeback refund and the no-finisher split', () => {
+  it('boost, comeback owed and comeback refund', () => {
     for (const v of vectors.boost) expect(boostFor(n(v.own_pool), n(v.reserve))).toBe(n(v.boost));
     for (const v of vectors.comeback_owed) expect(comebackOwedFor(n(v.forfeited_stake), n(v.new_stake))).toBe(n(v.owed));
     for (const v of vectors.comeback_refund) expect(comebackRefund(n(v.entitled), n(v.funded), n(v.owed))).toBe(n(v.refund));
-    for (const v of vectors.no_finisher_split) {
-      expect(noFinisherSplit(n(v.pool))).toEqual({ developer: n(v.developer), operations: n(v.operations) });
+  });
+
+  it('the rounds that make a comeback good', () => {
+    expect(vectors.comeback_round.length).toBeGreaterThan(5);
+    for (const v of vectors.comeback_round) {
+      expect(
+        comebackRounds({ firstStart: v.first_start, cadence: v.cadence, joinLock: v.join_lock }, v.missed_at),
+        JSON.stringify(v),
+      ).toEqual([v.first, v.last]);
     }
   });
 });

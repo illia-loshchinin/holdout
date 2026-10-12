@@ -90,6 +90,17 @@ pub struct CohortSettled {
     pub boost: u64,
     /// Drawn from the league's comeback reserve for this cohort's finishers (FR-037e).
     pub comeback_funded: u64,
+    /// Nobody finished: the whole pool, sent to the league's boost reserve (FR-037).
+    pub no_finisher_boost: u64,
+}
+
+/// A comeback pledge nobody made good, released to the boost reserve (FR-037e).
+#[event]
+pub struct ComebackReleased {
+    pub wallet: Pubkey,
+    pub league: u8,
+    pub round: u32,
+    pub amount: u64,
 }
 
 #[event]

@@ -60,6 +60,25 @@ data class ChainView(
     fun openToJoin(now: Long): List<Holdout> = holdouts.filter { it.status(now) == CohortStatus.Open && it.membership == null }
 
     /**
+     * What the app offers to join: [openToJoin] minus every Holdout the program would refuse the wallet now
+     * (a lobby place already held, a running Holdout that ends after it starts, FR-006a, FR-006b), so a Join
+     * shown is a Join that goes through. The program re-checks all of it.
+     */
+    fun joinable(now: Long): List<Holdout> = openToJoin(now).filter { joinBlocker(it, now) == null }
+
+    /**
+     * Why the program would refuse the wallet a place in [h] at [now], or null when it would take it (FR-006a, FR-006b).
+     * The wallet's own comeback round is taken after its joining closed, until the end of its first day (FR-037e).
+     */
+    fun joinBlocker(h: Holdout, now: Long): Journey.JoinBlocker? = Journey.joinBlocker(h.cohort, profile, runningEnd(now), now, runningInBreach = runningInBreach(now), lateJoin = comebackRound(now, h)?.lateJoin == true)
+
+    /** The round of the wallet's comeback offer that is [h], if it is one (FR-037e). */
+    fun comebackRound(now: Long, h: Holdout): Comeback.Round? = comebackOffer(now, h.cohort.leagueId)?.rounds?.firstOrNull { it.entry?.address == h.address }
+
+    /** Whether the wallet waits in a lobby, open or locked: its one lobby place is taken, so no other join is offered (FR-006a). */
+    fun holdsLobbyPlace(now: Long): Boolean = holdouts.any { it.membership != null && it.stage(now).let { s -> s == Stage.Lobby || s == Stage.LobbyLocked } }
+
+    /**
      * Running Holdouts the wallet is not in — Home's read-only "Running now"
      * list, so any connected wallet, with or without a Seeker, can watch a
      * Holdout thin (FR-062a, FR-003c, constitution XII).
@@ -78,11 +97,17 @@ data class ChainView(
     /** The end of the cohort in the profile's running slot, for the overlap check (FR-006b). */
     fun runningEnd(now: Long): Long? = Journey.runningCohortFor(profile, now)?.let { r -> holdouts.firstOrNull { it.address == r }?.cohort?.let(Derive::end) }
 
-    /** What a join at [now] sends for the profile's running slot: the record of an unrecorded breach first, or the running cohort to name (FR-037g, ES-17). */
-    fun joinPlan(now: Long): Journey.JoinPlan {
+    /**
+     * What a join of [target] at [now] sends for the profile's running slot: the record of an unrecorded breach first,
+     * or the running cohort to name (FR-037g, ES-17). When [target] is the wallet's first comeback round it also names
+     * the forfeited cohort, which is what lets the program take the join after the round's cutoff (FR-037e).
+     */
+    fun joinPlan(now: Long, target: Holdout? = null): Journey.JoinPlan {
         val running = Journey.runningCohortFor(profile, now)
         val h = running?.let { r -> holdouts.firstOrNull { it.address == r } }
-        return Journey.joinPlan(profile, h?.let { Comeback.Entry(it.address, it.cohort, it.membership) }, now)
+        val offer = target?.let { comebackOffer(now, it.cohort.leagueId) }
+        val comeback = offer?.takeIf { o -> o.rounds.firstOrNull()?.entry?.address == target.address }?.forfeited?.address
+        return Journey.joinPlan(profile, h?.let { Comeback.Entry(it.address, it.cohort, it.membership) }, now, comeback)
     }
 
     /**
@@ -96,10 +121,10 @@ data class ChainView(
     private fun comebackLeagues(): List<LeagueSnapshot> = holdouts.mapNotNull { it.league }.distinctBy { it.params.leagueId }
 
     /** What the wallet can still win back of stakes it lost, per level and length (FR-037g); empty when nothing is offered. */
-    fun comebackOffers(now: Long): List<Comeback.Offer> = Comeback.offers(comebackEntries(), comebackLeagues(), now)
+    fun comebackOffers(now: Long): List<Comeback.Offer> = Comeback.offers(comebackEntries(), comebackLeagues(), now, profile)
 
     /** The comeback offer of the slot [leagueId] belongs to, if any. */
-    fun comebackOffer(now: Long, leagueId: Int): Comeback.Offer? = Comeback.offer(comebackEntries(), comebackLeagues(), now, leagueId)
+    fun comebackOffer(now: Long, leagueId: Int): Comeback.Offer? = Comeback.offer(comebackEntries(), comebackLeagues(), now, leagueId, profile)
 }
 
 /** The chain reads the staked side of the app makes: [ChainRepository] on a phone, a fake in the view model's tests (005 T019). */

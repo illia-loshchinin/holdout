@@ -2,17 +2,23 @@
 
 Source of truth is the code named beside each group; this list is for review and for the tour and stake sheet in `specs/001-holdout-hackathon` (T042, T059), which must reuse the same sentences.
 
-## The staked rule — one sentence, everywhere (FR-012, FR-014)
+## The rule sentence — one per level, word for word, everywhere (FR-012, FR-014; amended 2026-10-11)
 
-`Stakes.STAKED_RULE`:
+Members read the two staked levels as **Spark · 7-day** and **Habit · 21-day**; `Easy`, `Hard` and `staked` are the code's internal names and are never member copy. Each level has one rule sentence, held once in `kotlin/repcounter` and read by `Format.levelRule`:
 
-> Staked Holdouts are counted at 45°: stand the phone on the floor ahead of your shoulder, turned to look at you at about 45° — not in front, not straight beside you — and do full push-ups from your toes. Push-ups from the knees, or with the hips resting on the floor at the bottom, do not count.
+**Spark · 7-day** — `Stakes.EASY_RULE`:
 
-Shown today in the set-up guide for staked sittings. Must appear on the stake sheet (001 T059) and the tour's counting card (001 T042).
+> At 45° only. Aim for full push-ups from your toes; push-ups from the knees still count.
+
+**Habit · 21-day** — `Stakes.STAKED_RULE`:
+
+> At 45° only: phone on the floor ahead of your shoulder. Full push-ups from your toes — push-ups from the knees don't count.
+
+Each is shown on the stake sheet of that level (001 T059, T228), and on the pre-flight page of a sitting in that Holdout *(2026-10-12: no longer on the set-up guide, whose Rules tab lists the sitting's own rule lines, below)*. A Spark screen never shows the Habit sentence, nor the reverse. The tour states the knee rule on card 2 ("knees allowed" / "toes only", per level) and the placement on the counting card (card 4 of 5), both in its own words, not by quoting a sentence (FR-013). The Daily 25 shows the caption "counted as the Spark" instead of a level sentence (FR-014). The hips-resting rule (FR-008, 2026-10-04) is applied by the counter and is not part of either sentence. *(Until 2026-10-11 one sentence, "Staked Holdouts are counted at 45° …", served every Holdout.)*
 
 ## Refused placement (FR-004) — `Stakes.cameraFix`, `Preflight`
 
-Every sitting is at 45° *(since 2026-10-08; the Daily 25 said "Put the phone in front of you, or at 45°" until then)*. The band's front edge is about 35° for a Hard Holdout and about 40° for an Easy Holdout and the Daily 25.
+Every sitting is at 45° *(since 2026-10-08; the Daily 25 said "Put the phone in front of you, or at 45°" until then)*. The band's front edge is about 35° for a Hard Holdout (members read Habit · 21-day) and about 40° for an Easy Holdout (Spark · 7-day) and the Daily 25.
 
 - "Turn the phone to 45°" — square head-on, where no side of the body is nearer the phone
 - The phone a little too far in front *(added 2026-10-02 for staked; every sitting since 2026-10-08)*: "The phone is too far in front of you: turn your body slightly to your left (right), away from it" — the coach says "Turn slightly left" or "Turn slightly right"
@@ -20,7 +26,7 @@ Every sitting is at 45° *(since 2026-10-08; the Daily 25 said "Put the phone in
 
 ## Getting into position (FR-018, FR-019) — `Coach`, in priority order, shown large and spoken
 
-More light · Stand phone up · Get in view · Phone to 45° · Get down · Turn slightly left / right / away · Further · Closer · Move left · Move right · Arms straight · Knees up · Can't see knees · Body straight · Hold
+More light · Place your phone · Get in view · Phone to 45° · Get down · Turn slightly left / right / away · Further · Closer · Move left · Move right · Arms straight · Knees up · Can't see knees · Body straight · Hold
 
 "Turn slightly left", "right" and "away" *(added 2026-10-10, FR-018, FR-024a)* sit after "Get down": they turn the body so the phone sees the near knee (the Knees visible pill's fixes below), and are shown only while the Whole body in frame pill passes; while it fails, "Further" comes first. "Turn slightly left" and "right" are also said earlier, with the phone's placement, when a staked phone stands a little too far in front of or beside the member (the Camera view pill's turn fixes).
 
@@ -45,9 +51,24 @@ Every refused rep's reason is said aloud at once *(2026-10-04; it was said only 
 - *(nothing)* — a rep done on the back or standing up *(added 2026-10-07, FR-008a)*: there is nothing to coach, so nothing is said
 - "Hips off the floor" *(added 2026-10-04)* — staked only: the hips or thighs rested on the floor at the bottom, carrying weight, and the body was pushed back up. Resting, not a chest brushing the floor. **Not said yet**: no check can see it until the knee-on-the-floor image classifier judges the hips too; until then such reps count (`angled40-right-floor-20`), and the rule sentence says they do not
 
-## The set-up guide's headline (FR-015) — `GUIDE_HEADLINE`, on every page of the guide
+## The set-up guide (FR-015, FR-015a) — `PlacementGuide.kt`, three tabs *(rewritten 2026-10-12)*
 
-- "Two things decide whether a rep counts: your whole body in the picture, head to feet, and your knees clearly visible to the phone." *(added 2026-10-10)* — under the guide's title, before anything else on each page. The phone page then says "From there it sees all of you, and the knee nearer to it."; the body page opens with the whole-body and knees lines.
+Title "Before you get down", the sitting's level at its right; tabs **1. Positioning · 2. Rules · 3. Start**; no intro paragraph, so "Two things decide whether a rep counts…" and "From there it sees all of you, and the knee nearer to it." (`GUIDE_HEADLINE`, 2026-10-10) are gone. Buttons: Skip (Back from the second tab) and Next (Got it on the last); "Don't show this again".
+
+- **Positioning**: "Phone on the floor, leaning on something, facing where you'll be." · the "At 45°" card (animated top view) with "Ahead of your shoulder, about 1.5 m away." · "Top of a push-up, hands under your shoulders, turned a little away: it sees you head to feet and your near knee." · "Line up with the outline on screen."
+- **Rules**, by form: Habit — "Full push-ups from your toes, down to just above the floor." · "Knee push-ups, or hips resting on the floor, don't count."; Spark — "Aim for full push-ups from your toes." · "From the knees still counts, body straight from the knees."; Daily 25 — "From your toes or your knees — both count."; every sitting — "All the way down and up — short reps are skipped.", then the card **"What you'll hear and see"** (`sittingCues`): beep — a rep counted · "10 banked" — those 10 are saved · "Go lower" — not deep enough, not counted · "Keep your body straight" — hips sagged or piked, not counted · "Slow down" — too fast to read, not counted · "Knees off the floor" — a knee touched, not counted (Habit only) · "Keep your legs in the picture" — the phone lost your knees or feet · "Done" — the day is complete. The refused-rep words are `RepHint`'s.
+- **Start**: "Hold the top for a second. A ring fills, then “three, two, one, go”." · "Nothing to tap. Each rep beeps." · "Every 10 push-ups are saved on your phone." · "Stop any time with ✕ in the corner."
+
+## Pre-flight, first correction (FR-018, FR-019, FR-020b) *(added 2026-10-12)*
+
+- "Place your phone" (was "Stand phone up", `Coach.AIM_AT_FLOOR`) with "On the floor, ahead of your shoulder, turned to you at 45°." under it (`SittingCopy.PLACE_PHONE`); spoken once, like "Hold". The camera outline is hidden until the phone stands, then is the dashed box alone; the coach's words have a soft shadow. No "Under 10 minutes left. Unfinished reps won't count." sentence on the pre-flight or counting page (001 FR-047).
+
+## The tour's counting card (FR-013) *(amended 2026-10-12)*
+
+- **Card 1** carries no rule sentences: it ends with "Each day done grows your streak." *(2026-10-12: the heading "How reps are counted" and the knee rule, put there earlier the same day, are off it so that it fits one Seeker screen, canvas v261)*. **Card 2**, the card on a Holdout, says the knee rule in its own words: "Spark · 7-day lights it up — knees allowed." / "Habit · 21-day makes it stick — toes only."
+- **Card 4** has no heading: the figure, its three steps — "Phone on the floor, at 45°, ahead of your shoulder." · "Get into a push-up: head to feet, knees included, inside the outline." · "The checks tick green. Hold the top for a second, then 3 · 2 · 1 and every rep counts." — one green note with the shield mark, "Private and fair by design": "An AI model on your phone tracks your body, and Holdout counts your push-ups right there. No microphone, and no video or body data ever leaves your phone. Completed days are submitted to Solana, where a smart contract secures the stakes and determines payouts through transparent, verifiable rules."
+
+- Card 4 of 5 shows the "from above" panel (the guide's "At 45°" top view **held still** at the bottom of the push-up with the elbows bent, about 120 × 74 dp, left of the rep count) labelled "~1.5m ahead of your shoulder" and marked with two "45°" labels, one beside the elbow (the upper arm's angle with the body) and one at the phone, and the note's line "No microphone, ever. Reps are counted on this phone — no video or body data leaves the app."
 
 ## Framing (FR-024, FR-010) — the Whole body in frame pill, before the hold
 
@@ -64,6 +85,12 @@ Three fixes, `Preflight.KNEES_FIX`, `KNEES_TURN_LEFT_FIX`, `KNEES_TURN_RIGHT_FIX
 - "Turn your body a little away from the phone, so it sees your knees" — the near knee hidden and that side not known, or no picture pose in the frame (the pill is red, never green); the coach says "Turn slightly away"
 
 The coach ranks the two turn fixes below a failing Whole body in frame pill, so a body partly out of the picture says "Further" (or the head's fix) first.
+
+## Tip sheet (FR-020a) — the pre-flight page, every sitting kind *(added 2026-10-12)*
+
+- **"Still not green? Tips"** — a text button under the fix sentence, shown from the moment the checks have been short of all green for 30 seconds in total in one sitting, or a check that was green has turned red for the third time (whichever is first), until the sitting ends; it never opens the sheet by itself
+- **"Getting the checks green"** — the bottom sheet's title; one row per pill in the pills' order (Lighting · Whole body in frame · Knees visible · Camera view · Background still), each the pill's label and that check's own fix sentence from the sections above — no new per-check copy; a row whose check is red now is marked in the warning colour, with "Not green yet" for screen readers
+- **"Open the set-up guide"** — reopens the guide for this sitting's stakes, as the page's link does; **"Back to the checks"** — closes the sheet. Back, a tap outside and a drag down close it too; the checks keep running underneath
 
 ## Feedback (FR-021)
 

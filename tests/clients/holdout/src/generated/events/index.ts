@@ -9,6 +9,7 @@
 export * from './chipSetPublished';
 export * from './cohortOpened';
 export * from './cohortSettled';
+export * from './comebackReleased';
 export * from './dayCompleted';
 export * from './faucetClaimed';
 export * from './flagsSet';

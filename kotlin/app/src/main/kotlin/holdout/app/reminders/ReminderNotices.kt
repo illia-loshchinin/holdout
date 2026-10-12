@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import holdout.app.AppOpen
 import holdout.app.MainActivity
 import holdout.app.R
 import holdout.app.ui.Format
@@ -37,7 +38,7 @@ object ReminderNotices {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL, "Holdout reminders", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "When a Holdout starts, halfway through a day that is not done yet, and when a short test Holdout you finished has probably settled"
+                description = "When a Holdout starts, halfway through a day that is not done yet, and when a Hackathon round you finished has probably settled"
             },
         )
         manager.createNotificationChannel(
@@ -47,8 +48,8 @@ object ReminderNotices {
         )
     }
 
-    /** "7-day Holdout", and for the short test cohort its day length too. */
-    fun holdoutLabel(days: Int, test: Boolean, dayLength: Long): String = "$days-day Holdout" + if (test) " · short test cohort, ${Format.dayLength(dayLength)} days" else ""
+    /** "7-day Holdout", and for the short test cohort "Hackathon · 7-day (10-minute days)", its day length too. */
+    fun holdoutLabel(days: Int, test: Boolean, dayLength: Long): String = if (test) "${Format.testName(days)} (${Format.dayLength(dayLength)} days)" else "$days-day Holdout"
 
     /** The finished notice (FR-068b): *"You finished your 7-day Holdout"*, with the test cohort's label. */
     fun finishedTitle(days: Int, test: Boolean, dayLength: Long): String = "You finished your ${holdoutLabel(days, test, dayLength)}"
@@ -74,6 +75,15 @@ object ReminderNotices {
     }
 
     /**
+     * What a tap on a notice launches: the app, on Today (FR-069). On top
+     * already, the running activity is reused and told with a new intent
+     * rather than recreated (`MainActivity.onNewIntent`).
+     */
+    fun openAppIntent(context: Context): Intent = Intent(context, MainActivity::class.java)
+        .setAction(AppOpen.ACTION_OPEN_TODAY)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+    /**
      * [silent] puts it on the silent channel (the channel's importance, not the
      * notification's priority, decides at API 26 and up); [ongoing] keeps it in
      * the shade — from Android 14 a member may still swipe it away, and the next
@@ -86,12 +96,7 @@ object ReminderNotices {
             return
         }
         ensureChannels(context)
-        val open = PendingIntent.getActivity(
-            context,
-            requestId,
-            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+        val open = PendingIntent.getActivity(context, requestId, openAppIntent(context), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification =
             NotificationCompat
                 .Builder(context, if (silent) CHANNEL_QUIET else CHANNEL)
