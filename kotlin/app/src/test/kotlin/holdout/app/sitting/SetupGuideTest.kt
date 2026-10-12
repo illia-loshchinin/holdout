@@ -47,8 +47,7 @@ class SetupGuideTest {
     private val startLines = listOf(
         "Hold the top for a second. A ring fills, then “three, two, one, go”.",
         "Nothing to tap. Each rep beeps.",
-        BANKED_KEPT,
-        BANKED_LOST,
+        "Every 10 push-ups are saved on your phone.",
         "Stop any time with ✕ in the corner.",
     )
 

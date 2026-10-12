@@ -309,37 +309,9 @@ private fun CuesCard(stakes: Stakes) {
 private fun StartPage() {
     GuideLine("Hold the top for a second. A ring fills, then “three, two, one, go”.")
     GuideLine("Nothing to tap. Each rep beeps.")
-    BankedInTens()
+    GuideLine("Every 10 push-ups are saved on your phone.")
     GuideLine("Stop any time with ✕ in the corner.")
 }
-
-/** How reps are kept (FR-024, `BankingController`): blocks of ten, the last one may be short (owner, 12 Oct). */
-@Composable
-private fun BankedInTens() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(HoldoutColors.Surface1, MaterialTheme.shapes.medium)
-            .border(Spacing.border, HoldoutColors.Hairline, MaterialTheme.shapes.medium)
-            .padding(Spacing.cardPadding),
-        verticalArrangement = Arrangement.spacedBy(Spacing.tight),
-    ) {
-        Text("Banked in tens", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
-        Text(BANKED_KEPT, style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.TextSecondary)
-        Text(BANKED_LOST, style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.TextSecondary)
-        Text(
-            buildAnnotatedString {
-                withStyle(SpanStyle(fontFamily = HoldoutFonts.Mono, color = HoldoutColors.Accent)) { append("10 + 10 + 5") }
-                append(" across the day completes the 25: the last block can be short.")
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = HoldoutColors.TextSecondary,
-        )
-    }
-}
-
-internal const val BANKED_KEPT = "Your 10th rep banks those 10 on the phone. Stop, close the app, come back later: banked reps stay for the day."
-internal const val BANKED_LOST = "Reps past the last 10 are lost when you stop, so finish the 10 you started."
 
 /** One line of the guide, led by an accent tick: the board's check-circle. */
 @Composable
