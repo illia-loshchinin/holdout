@@ -325,7 +325,7 @@ class RemindersTest {
         val c = cohort()
         val open = ProfileSnapshot.LeagueProgress(0, 1, 0, 0, 0, comebackStake = 100uL, comebackFrom = start - 10, comebackUntil = start + 30 * 86_400)
         val none = ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0)
-        fun profile(p: ProfileSnapshot.LeagueProgress) = ProfileSnapshot(wallet, listOf(p, none, none), null, null, -1)
+        fun profile(p: ProfileSnapshot.LeagueProgress) = ProfileSnapshot(wallet, listOf(p, none, none), null, null)
         val m = member(days = 7)
         assertTrue(Reminders.comebackExpected(c, m, profile(open), listOf(c to m)))
         assertEquals(false, Reminders.comebackExpected(c, m, profile(none), listOf(c to m)))

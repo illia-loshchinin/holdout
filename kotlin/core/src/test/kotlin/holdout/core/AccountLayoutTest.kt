@@ -158,7 +158,6 @@ class AccountLayoutTest {
         )
         assertEquals(ProfileSnapshot.Running(key(0xaa), 1_791_800_000), p.running)
         assertEquals(ProfileSnapshot.Pending(key(0xbb), 1_792_000_000, 1_792_600_000), p.pending)
-        assertEquals(20_351, p.lastFaucetDay)
     }
 
     @Test

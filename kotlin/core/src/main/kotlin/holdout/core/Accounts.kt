@@ -31,6 +31,8 @@ object ProfileLayout {
     const val TEST_LEAGUE_SLOT = 2
     const val RUNNING = 160
     const val PENDING = 200
+
+    /** Still stamped by the program, informational only: the faucet has no daily limit per wallet, so nothing reads it. */
     const val LAST_FAUCET_DAY = 248
     const val BUMP = 256
 
@@ -40,8 +42,7 @@ object ProfileLayout {
 
 /**
  * A wallet's `Profile` (data-model §1.5): its per-league record,
- * the cohort it is running in and the one it waits in the lobby of, and the
- * last faucet day.
+ * and the cohort it is running in and the one it waits in the lobby of.
  *
  * `running` and `pending` are stored as the program last left them; the
  * program normalises them lazily (a pending cohort that has started moves to
@@ -52,8 +53,6 @@ data class ProfileSnapshot(
     val leagues: List<LeagueProgress>,
     val running: Running?,
     val pending: Pending?,
-    /** The global day of the last claim, or `-1` for never (data-model §1.5). */
-    val lastFaucetDay: Long,
 ) {
     data class LeagueProgress(
         val cleared: Int,
@@ -88,9 +87,6 @@ data class ProfileSnapshot(
     /** This wallet's record in [leagueId]'s slot: 0, 1, or the shared test slot for ids ≥ 100. */
     fun progress(leagueId: Int): LeagueProgress = leagues[slotOf(leagueId)]
 
-    /** Whether the faucet has paid this wallet on global day [today]. */
-    fun claimedFaucetOn(today: Long): Boolean = lastFaucetDay == today
-
     /**
      * The slots as the program would read them at [now]: a pending cohort that
      * has started is the running one (the program's `normalise_slots`).
@@ -102,8 +98,6 @@ data class ProfileSnapshot(
     }
 
     companion object {
-        const val NEVER_CLAIMED = -1L
-
         /** The program's `Profile::slot_of`: real leagues their own slot, every other id the shared test slot. */
         fun slotOf(leagueId: Int): Int = if (leagueId < ProfileLayout.TEST_LEAGUE_SLOT) leagueId else ProfileLayout.TEST_LEAGUE_SLOT
 
@@ -122,7 +116,6 @@ data class ProfileSnapshot(
                 },
                 running = if (runningCohort == none) null else Running(runningCohort, r.i64(l.RUNNING + 32)),
                 pending = if (pendingCohort == none) null else Pending(pendingCohort, r.i64(l.PENDING + 32), r.i64(l.PENDING + 40)),
-                lastFaucetDay = r.i64(l.LAST_FAUCET_DAY),
             )
         }
     }

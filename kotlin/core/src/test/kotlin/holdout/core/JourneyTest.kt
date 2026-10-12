@@ -64,7 +64,7 @@ class JourneyTest {
     @Test
     fun `a join is blocked by closed joining, a held lobby place, or an overlap`() {
         val other = SolanaPublicKey(ByteArray(32) { 2 })
-        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending, -1)
+        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending)
         val lobby = start - day
         assertNull(Journey.joinBlocker(c, null, null, lobby, runningInBreach = false))
         assertEquals(Journey.JoinBlocker.JoiningClosed, Journey.joinBlocker(c, null, null, start - 3_600, runningInBreach = false))
@@ -77,7 +77,7 @@ class JourneyTest {
     @Test
     fun `a running cohort the member is in breach of does not block a join, one they are standing in still does (ES-17, ES-18)`() {
         val other = SolanaPublicKey(ByteArray(32) { 2 })
-        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending, -1)
+        fun profile(running: ProfileSnapshot.Running? = null, pending: ProfileSnapshot.Pending? = null) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running, pending)
         val lobby = start - day
         val overlapping = profile(running = ProfileSnapshot.Running(other, start + 1))
         // Unrecorded or recorded, the breach is read by the caller from chain time; the slot is freed by the join's own record.
@@ -91,7 +91,7 @@ class JourneyTest {
         assertEquals(Journey.JoinBlocker.JoiningClosed, Journey.joinBlocker(c, overlapping, start + 1, start - 3_600, runningInBreach = true))
     }
 
-    private fun planProfile(running: SolanaPublicKey?) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running?.let { ProfileSnapshot.Running(it, start + 7 * day) }, null, -1)
+    private fun planProfile(running: SolanaPublicKey?) = ProfileSnapshot(wallet, List(3) { ProfileSnapshot.LeagueProgress(0, 0, 0, 0, 0) }, running?.let { ProfileSnapshot.Running(it, start + 7 * day) }, null)
 
     @Test
     fun `the join plan records an unrecorded breach first and names no running cohort (ES-17)`() {
