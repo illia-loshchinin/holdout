@@ -60,6 +60,14 @@ interface Store {
     fun bestToes(wallet: String): Int
     fun setBestToes(wallet: String, toes: Int)
 
+    /**
+     * `seen:{wallet}` (Gap 3, ES-3a): the global day index on which this phone first saw [wallet],
+     * [SEEN_EARLIER] for a wallet it already knew before this key existed, or null while unset.
+     * Set once, when the wallet first connects here; it only feeds the new-phone banner.
+     */
+    fun firstSeenDay(wallet: String): Long?
+    fun setFirstSeenDay(wallet: String, dayIndex: Long)
+
     fun hasSeenTour(wallet: String): Boolean
     fun setSeenTour(wallet: String)
 
@@ -164,6 +172,9 @@ interface Store {
          * shown as a day: `OfflineDays` moves it onto the day it was done.
          */
         const val UNKNOWN_DAY = Long.MIN_VALUE + 1
+
+        /** The first-seen day of a wallet this phone knew before the key existed: seen before any day, so never "today". */
+        const val SEEN_EARLIER = Long.MIN_VALUE + 2
     }
 }
 
@@ -322,6 +333,12 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
 
     override fun setBestToes(wallet: String, toes: Int) {
         kv.encode("toes_best:$wallet", toes)
+    }
+
+    override fun firstSeenDay(wallet: String): Long? = kv.decodeLong("seen:$wallet", UNSET_DAY).takeIf { it != UNSET_DAY }
+
+    override fun setFirstSeenDay(wallet: String, dayIndex: Long) {
+        kv.encode("seen:$wallet", dayIndex)
     }
 
     override fun hasSeenTour(wallet: String): Boolean = kv.decodeBool("tour:$wallet", false)
@@ -497,6 +514,12 @@ class InMemoryStore : Store {
         values["toes_best:$wallet"] = toes
     }
 
+    override fun firstSeenDay(wallet: String): Long? = values["seen:$wallet"] as? Long
+
+    override fun setFirstSeenDay(wallet: String, dayIndex: Long) {
+        values["seen:$wallet"] = dayIndex
+    }
+
     override fun hasSeenTour(wallet: String): Boolean = values["tour:$wallet"] as? Boolean ?: false
 
     override fun isSetupGuideHidden(wallet: String, stakes: String): Boolean = values["setup_hidden:$wallet:$stakes"] as? Boolean ?: false
@@ -586,6 +609,9 @@ class InMemoryStore : Store {
 
 /** What MMKV reads for a key never written: no sitting marker (a real start time is never negative). */
 private const val NO_MARKER = -1L
+
+/** What MMKV reads for a first-seen day never written: [Store.NO_DAY], which no real day index is. */
+private const val UNSET_DAY = Store.NO_DAY
 
 /** Key prefix of a kept Seeker ID entry: `seekerName:<wallet base58>` (spec 003 data-model §2). */
 private const val SEEKER_NAME = "seekerName:"

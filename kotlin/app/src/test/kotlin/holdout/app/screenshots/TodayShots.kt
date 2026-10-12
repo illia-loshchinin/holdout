@@ -68,6 +68,16 @@ class TodayShots {
     )
 
     @Test
+    fun t1Milestone() = t1(
+        "t1-milestone",
+        fresh.copy(remainingToday = 0, bankedToday = 25, completedToday = true, streak = 7, milestoneToday = true),
+        badge = false,
+    )
+
+    @Test
+    fun t1NewPhone() = t1("t1-new-phone", fresh.copy(newPhone = true))
+
+    @Test
     fun t1PhoneView() = compose.shoot("today", "t1-fresh-phone") {
         Tabbed(Tab.Today, TabBadges(today = true)) { HomeScreen(fresh, onStart = {}, onEvent = {}, onJoin = {}, onCheck = {}) }
     }
@@ -106,7 +116,7 @@ class TodayShots {
         MembershipSnapshot(key(5), 1, 1_250uL * skr, start - day, 10, MembershipSnapshot.State.Joined),
     )
 
-    private fun t2(name: String, banked: Int = 0, todayDone: Boolean = false, pendingDay: Int? = null, at: Long = noon, offline: Boolean = false, canPayFees: Boolean = true, heightDp: Int? = null) = compose.shoot("today", name, heightDp = heightDp) {
+    private fun t2(name: String, banked: Int = 0, todayDone: Boolean = false, pendingDay: Int? = null, at: Long = noon, offline: Boolean = false, canPayFees: Boolean = true, heightDp: Int? = null, newPhone: Boolean = false) = compose.shoot("today", name, heightDp = heightDp) {
         Tabbed(Tab.Today, TabBadges(today = !todayDone)) {
             CohortHome(
                 h = h,
@@ -124,6 +134,7 @@ class TodayShots {
                 onSubmit = {},
                 onDetail = {},
                 onGetTokens = {},
+                newPhone = newPhone,
                 streak = 12,
                 canPayFees = canPayFees,
             )
@@ -135,6 +146,9 @@ class TodayShots {
 
     @Test
     fun t2PartWay() = t2("t2-part-way", banked = 10)
+
+    @Test
+    fun t2NewPhone() = t2("t2-new-phone", newPhone = true)
 
     @Test
     fun t2Last10Minutes() = t2("t2-last-10-minutes", banked = 10, at = start + 12 * day - 1 - 510)

@@ -95,6 +95,7 @@ class CohortHomeTest {
         members: List<MembershipSnapshot>? = roster,
         stillUnreachable: Boolean = false,
         holdout: Holdout = h,
+        newPhone: Boolean = false,
     ) {
         compose.setContent {
             HoldoutTheme {
@@ -115,6 +116,7 @@ class CohortHomeTest {
                     onDetail = { details++ },
                     onGetTokens = { tokens++ },
                     streak = 12,
+                    newPhone = newPhone,
                     canPayFees = canPayFees,
                     stillUnreachable = stillUnreachable,
                     onCheck = { checks++ },
@@ -163,6 +165,31 @@ class CohortHomeTest {
     fun `nothing dropped, nothing said`() {
         show(members = roster.take(4))
         text("dropped since yesterday", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `a new phone says nothing is banked on this device, with the Holdout's own target`() {
+        show(newPhone = true)
+        text("No banked reps on this device today. 25 to go.").assertIsDisplayed()
+        text("Start today's 25").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the new-phone banner takes the target from the Holdout`() {
+        show(newPhone = true, holdout = h.copy(cohort = cohort.copy(repsPerDay = 15)))
+        text("No banked reps on this device today. 15 to go.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the new-phone banner is not drawn on a phone that is not new`() {
+        show()
+        text("No banked reps on this device", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `the new-phone banner leaves once today is done, whatever it was told`() {
+        show(newPhone = true, todayDone = true)
+        text("No banked reps on this device", substring = true).assertDoesNotExist()
     }
 
     @Test

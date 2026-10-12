@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import holdout.app.streak.StreakMilestones
 import holdout.app.ui.Body
 import holdout.app.ui.CountdownText
 import holdout.app.ui.HoldoutCard
@@ -101,6 +102,8 @@ internal data class DayCompleteUi(
  *   │ Left to submit     4h 06m│        │ Spark · 7-day · joining … 1d 3h│
  *   [      Submit day 12      ]         [             Done             ]
  * ```
+ * A Daily 25 that takes the streak to a milestone (7, 14, 21 … `StreakMilestones`) swaps
+ * the streak row for the flame's milestone state, `7-day streak` and the milestone's line.
  */
 @Composable
 internal fun DayCompleteContent(ui: DayCompleteUi, onFinish: () -> Unit, onOffer: () -> Unit, modifier: Modifier = Modifier) {
@@ -138,7 +141,7 @@ internal fun DayCompleteContent(ui: DayCompleteUi, onFinish: () -> Unit, onOffer
                 verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
             ) {
                 ui.holdout?.let { HoldoutCardFor(it) }
-                ui.streak?.let { StreakRow(it) }
+                ui.streak?.let { if (it.milestone) MilestoneRow(it) else StreakRow(it) }
                 ui.offer?.let { Offer(it, onOffer) }
                 PrimaryButton(ui.button, onFinish)
             }
@@ -187,6 +190,23 @@ private fun StreakRow(streak: StreakAfter) {
             style = MaterialTheme.typography.bodyLarge,
             color = HoldoutColors.TextSecondary,
         )
+    }
+}
+
+/**
+ * The streak at a milestone (S6, Gap 2): the flame in its milestone state, the headline
+ * and the line, in place of [StreakRow]. Part of the page; nothing to dismiss.
+ */
+@Composable
+private fun MilestoneRow(streak: StreakAfter) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Spacing.tight),
+    ) {
+        StreakFlame(streak.days, StreakState.Milestone)
+        Text(StreakMilestones.headline(streak.days), style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary)
+        StreakMilestones.line(streak.days)?.let { Body(it, center = true) }
     }
 }
 
@@ -266,4 +286,16 @@ private fun DayCompleteDailyPreview() {
 @Composable
 private fun DayCompleteDailyPlainPreview() {
     HoldoutTheme { DayCompleteContent(DayCompleteUi("The daily 25", 25, null, StreakAfter(13, grew = false), null, "Done"), {}, {}) }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000, widthDp = 390, heightDp = 844)
+@Composable
+private fun DayCompleteMilestonePreview() {
+    HoldoutTheme {
+        DayCompleteContent(
+            DayCompleteUi("The daily 25", 25, null, StreakAfter(7, grew = true), DayCompleteOffer("Stake on yourself next", "Spark · 7-day · joining closes in 1d 3h"), "Done"),
+            {},
+            {},
+        )
+    }
 }

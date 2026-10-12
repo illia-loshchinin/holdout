@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import holdout.app.home.CohortHome
 import holdout.app.home.HomeScreen
 import holdout.app.home.HomeState
+import holdout.app.home.NewPhone
 import holdout.app.home.NudgeRow
 import holdout.app.home.TodayModel
 import holdout.app.nav.NavEvent
@@ -19,6 +20,7 @@ import holdout.app.sitting.BankingController
 import holdout.app.sitting.StoppedScreen
 import holdout.app.sitting.StoppedUi
 import holdout.app.storage.Store
+import holdout.app.streak.StreakMilestones
 import holdout.app.streak.ToesMeter
 import holdout.app.ui.ChainCheckBox
 import holdout.core.HoldoutDay
@@ -61,6 +63,7 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
         }
         val banked = remember(wallet, h.address, stage.dayIndex, refreshToken) { store.bankedReps(wallet, scope, stage.dayIndex.toLong()) }
         val pendingToday = pendingTodayOf(h, stage)
+        val newPhone = remember(wallet, dayIndex, view, banked) { NewPhone.shows(store, wallet, dayIndex, view, banked) }
         CohortHome(
             h = h,
             members = rosters[h.address],
@@ -84,6 +87,7 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
             onDetail = { dispatch(NavEvent.SelectTab(Tab.Standing)) },
             onGetTokens = { dispatch(NavEvent.OpenFaucet) },
             modifier = modifier,
+            newPhone = newPhone,
             streak = streaks.read(wallet, dayIndex).current,
             canPayFees = canPayFees(view),
             checking = chain.check.checking,
@@ -113,6 +117,8 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
         }
     }
     val view = view
+    // This phone met the wallet today, the chain has it in a Holdout from an earlier day, and nothing is banked here (ES-3a).
+    val newPhone = remember(wallet, dayIndex, view, banked) { NewPhone.shows(store, wallet, dayIndex, view, banked) }
     val offline = chain.offline
     val holdoutsBlock = TodayModel.holdouts(view, chainNow, offline)
     // The nudges and the comeback card come from the chain read; with none they are empty.
@@ -126,6 +132,8 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
                 bankedToday = banked,
                 target = DAILY_25,
                 completedToday = complete,
+                newPhone = newPhone,
+                milestoneToday = StreakMilestones.reachedToday(streak),
                 streak = streak.current,
                 freezes = streak.freezes,
                 toes = ToesMeter(store, DAILY_25).read(wallet, dayIndex),

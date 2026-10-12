@@ -1,14 +1,21 @@
 package holdout.app.ui
 
+import android.animation.ValueAnimator
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -30,7 +38,7 @@ import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 
-/** The four states of the daily streak flame (design book, Streak flame). */
+/** The five states of the daily streak flame (design book, Streak flame). */
 enum class StreakState {
     /** A white flame, the number in `text-primary`. */
     Active,
@@ -43,6 +51,12 @@ enum class StreakState {
 
     /** The flame in `celebration` with a **PB** pill. */
     PersonalBest,
+
+    /**
+     * A milestone day (7, 14, 21 … `StreakMilestones`): a larger white flame in an
+     * `accent` ring that pulses once; no pulse when the phone's animations are off.
+     */
+    Milestone,
 }
 
 /**
@@ -53,10 +67,11 @@ enum class StreakState {
  *
  * The accessible name carries the state, since the flame's colour is never
  * the only signal: "12-day streak", "13-day streak, extended today",
- * "Streak broken", "31-day streak, personal best".
+ * "Streak broken", "31-day streak, personal best", "7-day streak, milestone".
  *
  * [chip] draws it small, in a pill on `surface-3` (the Today header, board 5):
- * a 16 dp flame and the number at label size.
+ * a 16 dp flame and the number at label size. As a milestone the flame is
+ * larger and the pill has an `accent` border.
  */
 @Composable
 fun StreakFlame(days: Int, state: StreakState, modifier: Modifier = Modifier, chip: Boolean = false) {
@@ -65,15 +80,30 @@ fun StreakFlame(days: Int, state: StreakState, modifier: Modifier = Modifier, ch
         StreakState.ExtendedToday -> "$days-day streak, extended today"
         StreakState.Broken -> "Streak broken"
         StreakState.PersonalBest -> "$days-day streak, personal best"
+        StreakState.Milestone -> "$days-day streak, milestone"
     }
+    val milestone = state == StreakState.Milestone
     Row(
         modifier = modifier
             .semantics(mergeDescendants = true) { contentDescription = spoken }
-            .then(if (chip) Modifier.background(HoldoutColors.Surface3, MaterialTheme.shapes.extraLarge).padding(horizontal = Spacing.betweenItems, vertical = Spacing.tight) else Modifier),
+            .then(
+                if (chip) {
+                    Modifier
+                        .background(HoldoutColors.Surface3, MaterialTheme.shapes.extraLarge)
+                        .then(if (milestone) Modifier.border(Spacing.border, HoldoutColors.Accent, MaterialTheme.shapes.extraLarge) else Modifier)
+                        .padding(horizontal = Spacing.betweenItems, vertical = Spacing.tight)
+                } else {
+                    Modifier
+                },
+            ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.tight),
     ) {
-        Flame(state, if (chip) CHIP_FLAME_SIZE else FLAME_SIZE)
+        if (milestone) {
+            MilestoneFlame(chip)
+        } else {
+            Flame(state, if (chip) CHIP_FLAME_SIZE else FLAME_SIZE)
+        }
         Text(
             text = "$days",
             style = if (chip) AmountStyle.copy(fontSize = LabelStyle.fontSize) else DisplayStyle,
@@ -96,12 +126,45 @@ fun StreakFlame(days: Int, state: StreakState, modifier: Modifier = Modifier, ch
     }
 }
 
+/**
+ * The milestone flame: larger, in an `accent` ring (the chip has its ring on the
+ * pill instead), and one pulse when it first shows — none when the phone's
+ * animations are off, as for the loaders (`ValueAnimator.areAnimatorsEnabled`).
+ */
+@Composable
+private fun MilestoneFlame(chip: Boolean) {
+    val pulse = remember { Animatable(1f) }
+    val animate = remember { ValueAnimator.areAnimatorsEnabled() }
+    LaunchedEffect(Unit) {
+        if (animate) {
+            pulse.animateTo(PULSE_SCALE, tween(PULSE_MILLIS))
+            pulse.animateTo(1f, tween(PULSE_MILLIS))
+        }
+    }
+    val pulsing = Modifier.graphicsLayer {
+        scaleX = pulse.value
+        scaleY = pulse.value
+    }
+    if (chip) {
+        Box(pulsing) { Flame(StreakState.Milestone, MILESTONE_CHIP_FLAME_SIZE) }
+    } else {
+        Box(
+            modifier = pulsing
+                .size(MILESTONE_RING_SIZE)
+                .border(Spacing.ringStroke, HoldoutColors.Accent, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Flame(StreakState.Milestone, MILESTONE_FLAME_SIZE)
+        }
+    }
+}
+
 @Composable
 private fun Flame(state: StreakState, flameSize: Dp) {
     val outline = remember { PathParser().parsePathString(FLAME).toPath() }
     val crack = remember { PathParser().parsePathString(CRACK).toPath() }
     val fill: Color? = when (state) {
-        StreakState.Active -> HoldoutColors.TextPrimary
+        StreakState.Active, StreakState.Milestone -> HoldoutColors.TextPrimary
         StreakState.ExtendedToday -> HoldoutColors.Success
         StreakState.PersonalBest -> HoldoutColors.Celebration
         StreakState.Broken -> null
@@ -121,6 +184,11 @@ private fun Flame(state: StreakState, flameSize: Dp) {
 
 private val FLAME_SIZE = 36.dp
 private val CHIP_FLAME_SIZE = 16.dp
+private val MILESTONE_FLAME_SIZE = 44.dp
+private val MILESTONE_RING_SIZE = 72.dp
+private val MILESTONE_CHIP_FLAME_SIZE = 24.dp
+private const val PULSE_SCALE = 1.15f
+private const val PULSE_MILLIS = 300
 private const val VIEWBOX = 24f
 private const val BROKEN_STROKE = 1.5f
 
@@ -139,6 +207,18 @@ private fun StreakFlamePreview() {
             StreakFlame(13, StreakState.ExtendedToday)
             StreakFlame(0, StreakState.Broken)
             StreakFlame(31, StreakState.PersonalBest)
+            StreakFlame(30, StreakState.Milestone)
+        }
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+private fun StreakFlameChipPreview() {
+    HoldoutTheme {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
+            StreakFlame(12, StreakState.Active, chip = true)
+            StreakFlame(14, StreakState.Milestone, chip = true)
         }
     }
 }
