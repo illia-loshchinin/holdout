@@ -7,6 +7,7 @@ import holdout.app.nav.Screen
 import holdout.app.nav.Sitting
 import holdout.app.nav.Tab
 import holdout.app.nav.then
+import holdout.app.sitting.SittingViewModel
 import holdout.app.storage.InMemoryStore
 import holdout.app.storage.Store
 import holdout.app.testutil.ChainFixtures.DAY
@@ -70,6 +71,21 @@ class SittingWiringTest {
         assertFalse(dayOnChain(holdout(1, START, member = member(2)), 2))
         assertFalse(dayOnChain(holdout(1, START), 0))
         assertFalse(dayOnChain(null, 0))
+    }
+
+    // ---- item 3b: the finished page asks the chain before it says it can't be reached ------------
+
+    @Test
+    fun `a finished day over a failed read asks the chain again before the page says it is unreachable`() {
+        assertTrue(rechecksAtFinish(SittingViewModel.Step.COMPLETE, offline = true))
+    }
+
+    @Test
+    fun `nothing is asked while the sitting runs, or when the last read answered`() {
+        for (step in listOf(SittingViewModel.Step.PREFLIGHT, SittingViewModel.Step.COUNTDOWN, SittingViewModel.Step.COUNTING)) {
+            assertFalse(rechecksAtFinish(step, offline = true), "$step")
+        }
+        assertFalse(rechecksAtFinish(SittingViewModel.Step.COMPLETE, offline = false))
     }
 
     // ---- item 6: the crash variant on the next open ---------------------------------------------
