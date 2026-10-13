@@ -3,6 +3,7 @@ package holdout.app.vision
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.google.mediapipe.framework.image.BitmapImageBuilder
@@ -77,7 +78,9 @@ class VisionAnalyzer(
                 .build(),
         )
     }.getOrElse {
-        onError("The pose model could not start: ${it.message}")
+        // Logged whole: a release build's failure here can carry no message.
+        Log.e("VisionAnalyzer", "The pose model could not start", it)
+        onError("The pose model could not start: ${it.message ?: it.javaClass.simpleName}")
         null
     }
 
