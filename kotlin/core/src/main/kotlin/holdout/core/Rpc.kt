@@ -59,8 +59,13 @@ class Rpc(
     /** The endpoint's host alone, for messages: a hosted node's URL can carry its API key. */
     private val host: String = runCatching { java.net.URI(endpoint).host }.getOrNull() ?: "the RPC node"
 
-    /** Why a call got no answer, naming the host — and with every URL's query cut, since the HTTP client's own messages quote the full URL. */
-    private fun noAnswer(failure: Throwable): String = "no answer from $host: ${(failure.message ?: failure.javaClass.simpleName).replace(URL_QUERY, "")}"
+    /**
+     * Why a call got no answer, naming the host. The HTTP client's own messages
+     * quote the full URL, and a hosted node's key can sit in its path or its
+     * query, so the endpoint and every URL are cut down to scheme and host.
+     */
+    private fun noAnswer(failure: Throwable): String =
+        "no answer from $host: ${(failure.message ?: failure.javaClass.simpleName).replace(endpoint, host).replace(URL_AFTER_HOST, "$1")}"
 
     companion object {
         /**
@@ -458,8 +463,8 @@ private inline fun <T> attempt(block: () -> T): Result<T> = try {
     Result.failure(e)
 }
 
-/** A URL's query string — where a hosted RPC node's API key travels. */
-private val URL_QUERY = Regex("""(?<=https?://[^\s?\]]{1,512})\?[^\s\],]*""")
+/** Everything in a URL after its host — path and query, where a hosted RPC node's API key travels. */
+private val URL_AFTER_HOST = Regex("""(https?://[^\s/?#\],]+)[^\s\],]*""")
 
 /** Every 30 seconds while a cohort screen is visible (research R8). */
 const val COHORT_REFRESH_MILLIS = 30_000L

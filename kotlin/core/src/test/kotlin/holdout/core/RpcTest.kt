@@ -155,17 +155,23 @@ class RpcTest {
     }
 
     @Test
-    fun `a failure names the node's host, never its API key`() {
-        val keyed = "https://devnet.example-rpc.com/?api-key=SECRET"
-        val heard = mutableListOf<String>()
-        val timeout = FakeHttp { throw java.io.IOException("Request timeout has expired [url=$keyed, request_timeout=10000 ms]") }
-        val rpc = Rpc(keyed, Rpc20Driver(keyed, timeout), onFailure = { _, reason -> heard += reason })
+    fun `a failure names the node's host, never its API key - in the query or in the path`() {
+        for (keyed in listOf("https://devnet.example-rpc.com/?api-key=SECRET", "https://devnet.example-rpc.com/v2/SECRET/")) {
+            val heard = mutableListOf<String>()
+            // The client may quote the endpoint as given, or a form of it (here without its trailing slash, with a port).
+            val quoted = keyed.trimEnd('/').replace(".com/", ".com:443/")
+            val timeout = FakeHttp { throw java.io.IOException("Request timeout has expired [url=$keyed, request_timeout=10000 ms] after $quoted") }
+            val rpc = Rpc(keyed, Rpc20Driver(keyed, timeout), onFailure = { _, reason -> heard += reason })
 
-        assertNull(runBlocking { rpc.balance(programId) })
-        val unanswered = runBlocking { rpc.account(programId) } as Rpc.Answer.Unanswered
+            assertNull(runBlocking { rpc.balance(programId) })
+            val unanswered = runBlocking { rpc.account(programId) } as Rpc.Answer.Unanswered
 
-        assertEquals("no answer from devnet.example-rpc.com: Request timeout has expired [url=https://devnet.example-rpc.com/, request_timeout=10000 ms]", heard.first())
-        assertTrue("SECRET" !in unanswered.message && heard.none { "SECRET" in it })
+            assertEquals(
+                "no answer from devnet.example-rpc.com: Request timeout has expired [url=devnet.example-rpc.com, request_timeout=10000 ms] after https://devnet.example-rpc.com:443",
+                heard.first(),
+            )
+            assertTrue("SECRET" !in unanswered.message && heard.none { "SECRET" in it }, keyed)
+        }
     }
 
     @Test
