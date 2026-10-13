@@ -26,7 +26,7 @@ These come from the brand book and go on the listing, the website and the deck a
 - *If nobody drops out, you get exactly your stake back.*
 - *Stakes and payouts are in SKR; dollar values are approximate.*
 - *Some members in these Holdouts are scripted.*
-- The split, in one sentence: *Miss one and you lose your stake. 80 % of it stays with members: 70 % to the prize pool and 10 % to the boost and comeback reserves of Easy · 7-day Holdouts. 20 % goes to the project, and so does the prize pool if nobody finishes.* (name the level and length of the Holdout in question)
+- The split, in one sentence: *Miss one and you lose your stake. 80 % of it stays with members: 70 % to the prize pool and 10 % set aside for your comeback. 20 % goes to the project. If nobody finishes, the pool boosts later Spark · 7-day prizes.* (name the level and length of the Holdout in question)
 
 Never: *bet, wager, gamble, odds, luck, jackpot, pot, winnings, returns, yield, earnings*, or a dollar figure presented as what someone will receive.
 
