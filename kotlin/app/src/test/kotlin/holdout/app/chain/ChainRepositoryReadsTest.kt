@@ -7,6 +7,7 @@ import com.solana.publickey.SolanaPublicKey
 import holdout.core.AccountLayout
 import holdout.core.CohortSnapshot
 import holdout.core.LeagueSnapshot
+import holdout.core.MembershipSnapshot
 import holdout.core.Pdas
 import holdout.core.Rpc
 import kotlinx.coroutines.CompletableDeferred
@@ -68,6 +69,9 @@ class ChainRepositoryReadsTest {
     /** The not-settled read answers from a slot where the cohort is not there, while a fetch still finds it unsettled. */
     private var unsettledLags = false
 
+    /** When set, what the not-settled read answers whatever the chain holds: a node lagging behind. */
+    private var unsettledAnswer: String? = null
+
     /** Kinds of call to fail next, with how many times; and the calls made, by kind. */
     private val failing = mutableMapOf<String, Int>()
     private val calls = mutableMapOf<String, Int>()
@@ -115,7 +119,7 @@ class ChainRepositoryReadsTest {
     private fun answer(kind: String, body: String): String = when (kind) {
         "config" -> account(configBytes.takeIf { live })
         "cohorts" -> accounts(cohorts)
-        "unsettled" -> if (!unsettledLags && cohorts[AccountLayout.Cohort.SETTLED] == 0.toByte()) accounts(cohorts) else "[]"
+        "unsettled" -> unsettledAnswer ?: if (!unsettledLags && cohorts[AccountLayout.Cohort.SETTLED] == 0.toByte()) accounts(cohorts) else "[]"
         "leagues" -> accounts(leagueBytes)
         "memberships" -> memberships
         "profiles", "forfeits" -> "[]"
@@ -474,6 +478,35 @@ class ChainRepositoryReadsTest {
         now = 90_000
         assertEquals(1, assertNotNull(load()).holdouts.size)
         assertEquals(2, calls["fetch"], "back in the not-settled read: nothing to fetch")
+    }
+
+    @Test
+    fun `a fresh read does not fetch a settled cohort the wallet has already claimed from`() {
+        cohorts = cohort(settled = true)
+        memberships = accounts(membershipBytes.copyOf().also { it[AccountLayout.Membership.STATE] = MembershipSnapshot.State.Claimed.ordinal.toByte() })
+        load(wallet)
+        now = 30_000
+
+        loadFresh(wallet)
+
+        assertNull(calls["fetch"], "nothing it can still claim: nothing to re-fetch")
+    }
+
+    @Test
+    fun `a cohort a lagging node still lists as not settled, but already fetched settled, is shown once, settled`() {
+        load()
+        // It settles; the next pulse fetches it settled.
+        cohorts = cohort(settled = true)
+        now = 30_000
+        load()
+        // A lagging node lists it as not settled again.
+        unsettledAnswer = accounts(cohort())
+        now = 60_000
+
+        val view = assertNotNull(load())
+
+        assertEquals(1, view.holdouts.size)
+        assertTrue(view.holdouts.single().cohort.settled)
     }
 
     @Test

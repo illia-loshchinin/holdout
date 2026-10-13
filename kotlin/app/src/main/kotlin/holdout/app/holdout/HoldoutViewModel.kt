@@ -6,9 +6,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import com.solana.publickey.SolanaPublicKey
+import holdout.app.chain.BoardCounters
 import holdout.app.chain.ChainReads
 import holdout.app.chain.ChainRepository
 import holdout.app.chain.ChainView
+import holdout.app.chain.CohortCounters
 import holdout.app.chain.Deployment
 import holdout.app.chain.Holdout
 import holdout.app.faucet.FaucetClient
@@ -123,7 +125,7 @@ class HoldoutViewModel(
         val counters = countersOf(cohort)
         if (!force) {
             if (rosterReads[cohort]?.isActive == true) return
-            val at = rosterAnsweredAt[cohort]
+            val at = rosterReadAt[cohort]
             if (at != null) {
                 val age = elapsed() - at
                 if (age < MIN_READ_AGE_MILLIS) return
@@ -133,6 +135,7 @@ class HoldoutViewModel(
         // A read given up (see [ROSTER_READ_MILLIS]) can still be answered late; a slow
         // early one must not put an older roster back over a newer one.
         val started = ++rosterLoadsStarted
+        val startedAt = elapsed()
         val read =
             scope.launch {
                 // Its own failure ends only this read: as a child of a check it must not cancel the check.
@@ -146,7 +149,7 @@ class HoldoutViewModel(
                     } ?: return@launch
                 if (started < (newestRoster[cohort] ?: 0)) return@launch
                 newestRoster[cohort] = started
-                rosterAnsweredAt[cohort] = elapsed()
+                rosterReadAt[cohort] = startedAt
                 rosterCounters[cohort] = counters
                 _rosters.update { it + (cohort to roster) }
             }
@@ -157,17 +160,22 @@ class HoldoutViewModel(
     /** The roster read now out, by cohort — on the main thread. */
     private val rosterReads = mutableMapOf<SolanaPublicKey, Job>()
 
-    /** When each cohort's roster last answered, on [elapsed]'s clock — on the main thread. */
-    private val rosterAnsweredAt = mutableMapOf<SolanaPublicKey, Long>()
+    /**
+     * When the read behind each cohort's last roster answer started, on [elapsed]'s clock — on the main thread.
+     * Its age runs from the start, not the answer: the loops ask once per period, and an age measured from the
+     * answer would be a read's latency short of the period on every ask, so each due read would wait a whole
+     * period more (the stand-in review of PR #72).
+     */
+    private val rosterReadAt = mutableMapOf<SolanaPublicKey, Long>()
 
     /** Each cohort's counters as the snapshot showed them when its roster read that answered last started. */
-    private val rosterCounters = mutableMapOf<SolanaPublicKey, List<Any>?>()
+    private val rosterCounters = mutableMapOf<SolanaPublicKey, CohortCounters?>()
 
     /** [cohort]'s counters in the snapshot on screen, or null while it holds no such cohort. */
-    private fun countersOf(cohort: SolanaPublicKey): List<Any>? = _state.value.view?.holdouts?.firstOrNull { it.address == cohort }?.counters
+    private fun countersOf(cohort: SolanaPublicKey): CohortCounters? = _state.value.view?.holdouts?.firstOrNull { it.address == cohort }?.counters
 
     /** Every cohort's forfeits recorded and settlement, which are all that move a leaderboard (FR-060, FR-061a). */
-    private fun boardCounters(): Map<SolanaPublicKey, List<Any>>? = _state.value.view?.holdouts?.associate { it.address to listOf(it.cohort.forfeitsRecorded, it.cohort.counted, it.cohort.settled) }
+    private fun boardCounters(): Map<SolanaPublicKey, BoardCounters>? = _state.value.view?.holdouts?.associate { it.address to BoardCounters.of(it.cohort) }
 
     private val _leaderboard = MutableStateFlow<Leaderboard.Snapshot?>(null)
 
@@ -182,6 +190,9 @@ class HoldoutViewModel(
      */
     fun loadLeaderboard() {
         if (leaderboardRead?.isActive == true) return
+        // After failed reads it waits as the pulse does: the first is asked again at once, then 60, 120, 240 s, at
+        // most 5 minutes — each try is up to four `getProgramAccounts` (the stand-in review of PR #72).
+        leaderboardFailedAt?.let { at -> if (leaderboardFailures >= 2 && elapsed() - at < backoffMillis(leaderboardFailures)) return }
         val counters = boardCounters()
         leaderboardAnsweredAt?.let { at ->
             val age = elapsed() - at
@@ -189,8 +200,16 @@ class HoldoutViewModel(
             if (age < BOARD_MAX_AGE_MILLIS && counters == leaderboardCounters) return
         }
         val started = ++profileLoadsStarted
+        val startedAt = elapsed()
         leaderboardRead = viewModelScope.launch {
-            val read = chain.leaderboard() ?: return@launch
+            val read = chain.leaderboard()
+            if (read == null) {
+                leaderboardFailures++
+                leaderboardFailedAt = startedAt
+                return@launch
+            }
+            leaderboardFailures = 0
+            leaderboardFailedAt = null
             if (started < newestProfiles) return@launch
             newestProfiles = started
             leaderboardAnsweredAt = elapsed()
@@ -205,7 +224,11 @@ class HoldoutViewModel(
     /** The leaderboard read now out, and when the last one answered — on the main thread. */
     private var leaderboardRead: Job? = null
     private var leaderboardAnsweredAt: Long? = null
-    private var leaderboardCounters: Map<SolanaPublicKey, List<Any>>? = null
+    private var leaderboardCounters: Map<SolanaPublicKey, BoardCounters>? = null
+
+    /** Leaderboard reads in a row that failed, and when the last of them started — on the main thread. */
+    private var leaderboardFailures = 0
+    private var leaderboardFailedAt: Long? = null
 
     /** Roster loads started, and per cohort the latest one whose answer was taken — both on the main thread. */
     private var rosterLoadsStarted = 0
@@ -226,7 +249,10 @@ class HoldoutViewModel(
     }
 
     /** How long the pulse waits after its read: 30 s, and after failures 30, 60, 120, 240 s, at most 5 minutes (FR-071). */
-    private fun pulseWait(): Long = if (failedReads <= 1) REFRESH_MILLIS else minOf(REFRESH_MILLIS shl (failedReads - 1).coerceAtMost(4), MAX_BACKOFF_MILLIS)
+    private fun pulseWait(): Long = backoffMillis(failedReads)
+
+    /** The wait after [failures] reads in a row failed: 30 s after none or one, then 60, 120, 240 s, at most 5 minutes. */
+    private fun backoffMillis(failures: Int): Long = if (failures <= 1) REFRESH_MILLIS else minOf(REFRESH_MILLIS shl (failures - 1).coerceAtMost(4), MAX_BACKOFF_MILLIS)
 
     /** Starts reading for [wallet] (or with none, for the connect screen's live list), every 30 s while a live screen is in front. */
     fun watch(wallet: SolanaPublicKey?) {
@@ -250,7 +276,9 @@ class HoldoutViewModel(
         refresher?.cancel()
         refresher = viewModelScope.launch {
             while (true) {
-                live.first { it }
+                // The first read is taken on any screen (a first-run wallet is connected into the tour, which
+                // shows no chain data): the next ones only while a live screen is in front (the stand-in review of PR #72).
+                if (_state.value.view != null) live.first { it }
                 refreshNow(join = true)
                 waitForPulse()
             }

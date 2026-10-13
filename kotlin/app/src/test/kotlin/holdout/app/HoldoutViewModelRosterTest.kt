@@ -94,6 +94,22 @@ class HoldoutViewModelRosterTest {
     }
 
     @Test
+    fun `given a read that took a while to answer, when it is asked for one period after it started, then it reads again`() = runTest(dispatcher) {
+        vm.loadRoster(cohortA)
+        runCurrent()
+        // The node takes 2 s to answer.
+        clock += 2_000
+        chain.rosterReads.single().complete(emptyList())
+        runCurrent()
+
+        clock += HoldoutViewModel.ROSTER_MAX_AGE_MILLIS - 2_000
+        vm.loadRoster(cohortA)
+        runCurrent()
+
+        assertEquals(2, chain.rosterReads.size, "the age runs from when the read started, not when it answered")
+    }
+
+    @Test
     fun `given a roster that answered less than 20 seconds ago, when a screen asks for it, then it is not read again`() = runTest(dispatcher) {
         vm.loadRoster(cohortA)
         runCurrent()

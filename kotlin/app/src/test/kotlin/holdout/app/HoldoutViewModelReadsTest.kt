@@ -380,6 +380,42 @@ class HoldoutViewModelReadsTest {
     }
 
     @Test
+    fun `given two leaderboard reads failed in a row, then the next waits 60 seconds`() = runTest(dispatcher) {
+        vm.loadLeaderboard()
+        runCurrent()
+        chain.boards.last().complete(null)
+        runCurrent()
+        vm.loadLeaderboard()
+        runCurrent()
+        chain.boards.last().complete(null)
+        runCurrent()
+
+        clock += 59_000
+        vm.loadLeaderboard()
+        runCurrent()
+        assertEquals(2, chain.boards.size, "backing off")
+
+        clock += 1_000
+        vm.loadLeaderboard()
+        runCurrent()
+        assertEquals(3, chain.boards.size)
+    }
+
+    @Test
+    fun `given no view yet, when the wallet connects into a screen without live chain data, then the first read is still taken`() = runTest(dispatcher) {
+        vm.setLive(false)
+        vm.watch(wallet)
+        runCurrent()
+        assertEquals(1, chain.reads.size, "the first read, so the view is there when the tour ends")
+        chain.reads.last().complete(answered)
+        runCurrent()
+
+        advanceTimeBy(120_000)
+        runCurrent()
+        assertEquals(1, chain.reads.size, "no pulse after it until a live screen is in front")
+    }
+
+    @Test
     fun `given a leaderboard read that failed, when the boards ask again, then it reads at once`() = runTest(dispatcher) {
         vm.loadLeaderboard()
         runCurrent()

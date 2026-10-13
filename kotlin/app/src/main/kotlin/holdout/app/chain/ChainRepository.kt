@@ -57,11 +57,61 @@ data class Holdout(
     fun stage(now: Long): Stage = Journey.stage(cohort, membership, now)
 
     /** The counters a pulse watches: a change in any means the roster, and the memberships in it, moved (FR-071). */
-    val counters: List<Any> get() = countersOf(cohort)
+    val counters: CohortCounters get() = CohortCounters.of(cohort)
+}
 
+/**
+ * What moves a cohort's roster and the memberships in it that the wallet did not sign (FR-071): a member joined or
+ * left, a forfeit recorded, a member counted, the cohort settled. A submit moves none of them. Each change signal is
+ * one typed key built from [CohortSnapshot] in one place, so a field added to one and not to its readers is not a
+ * silently missed read (the stand-in review of PR #72).
+ */
+data class CohortCounters(val memberCount: Long, val forfeitsRecorded: Long, val counted: Long, val settled: Boolean) {
     companion object {
-        /** See [counters]: member count, forfeits recorded, members counted, settled. A submit moves none of them. */
-        fun countersOf(c: CohortSnapshot): List<Any> = listOf(c.memberCount, c.forfeitsRecorded, c.counted, c.settled)
+        fun of(c: CohortSnapshot) = CohortCounters(c.memberCount, c.forfeitsRecorded, c.counted, c.settled)
+    }
+}
+
+/** What moves a leaderboard (FR-060, FR-061a): a forfeit recorded, a member counted, the cohort settled. */
+data class BoardCounters(val forfeitsRecorded: Long, val counted: Long, val settled: Boolean) {
+    companion object {
+        fun of(c: CohortSnapshot) = BoardCounters(c.forfeitsRecorded, c.counted, c.settled)
+    }
+}
+
+/** What moves a league's boost and comeback reserves as a cohort settles, page by page. */
+private data class Settlement(
+    val counted: Long,
+    val settled: Boolean,
+    val noFinisherBoost: ULong,
+    val boostReceived: ULong,
+    val comebackOwed: ULong,
+    val comebackFunded: ULong,
+    val comebackClaimed: ULong,
+) {
+    companion object {
+        fun of(c: CohortSnapshot) = Settlement(c.counted, c.settled, c.noFinisherBoost, c.boostReceived, c.comebackOwed, c.comebackFunded, c.comebackClaimed)
+    }
+}
+
+/**
+ * A kept read and the order it started in. Reads overlap (a pulse, the read closing an action, a check), and an
+ * older answer put back over a newer one would be kept for minutes, so only the latest read started is kept
+ * (PR #72 review) — one rule for every ordered cache (the stand-in review of PR #72).
+ */
+private class LatestRead<T : Any> {
+    private var started = 0L
+
+    @Volatile var value: T? = null
+        private set
+
+    /** Keeps [v], read by the read numbered [started], unless one started after it already answered. */
+    @Synchronized
+    fun offer(started: Long, v: T) {
+        if (this.started < started) {
+            this.started = started
+            value = v
+        }
     }
 }
 
@@ -179,7 +229,7 @@ class ChainRepository(
     @Volatile private var keptConfig: Pair<Long, ConfigSnapshot>? = null
 
     /** The leagues as last read, when, and how far each cohort's settlement had gone then (see [load]). */
-    private class KeptLeagues(val readAt: Long, val leagues: List<LeagueSnapshot>, val settlement: Map<SolanaPublicKey, List<Any>>)
+    private class KeptLeagues(val readAt: Long, val leagues: List<LeagueSnapshot>, val settlement: Map<SolanaPublicKey, Settlement>)
 
     @Volatile private var keptLeagues: KeptLeagues? = null
 
@@ -188,54 +238,27 @@ class ChainRepository(
      * last read of every cohort; [open] the cohorts the last pulse found not settled, so one that has
      * left the list since is fetched once and kept.
      */
-    private class KeptCohorts(val readAt: Long, val settled: Map<SolanaPublicKey, CohortSnapshot>, val open: Set<SolanaPublicKey>, val started: Long)
+    private class KeptCohorts(val readAt: Long, val settled: Map<SolanaPublicKey, CohortSnapshot>, val open: Set<SolanaPublicKey>)
 
-    @Volatile private var keptCohorts: KeptCohorts? = null
+    /** By read-start order: an older pulse resuming late would put back the settled cohorts from before a fresh read re-fetched them. */
+    private val keptCohorts = LatestRead<KeptCohorts>()
 
     /** Cohort reads started, in order. */
     private val cohortReads = AtomicLong()
 
-    /**
-     * Keeps [k] unless a cohort read started after its own already answered: an older pulse resuming late would
-     * put back the settled cohorts from before a fresh read re-fetched them — a claim's, say — until the next
-     * full read 10 minutes on (PR #72 review). As [keepMemberships].
-     */
-    @Synchronized
-    private fun keepCohorts(k: KeptCohorts) {
-        if ((keptCohorts?.started ?: 0L) < k.started) keptCohorts = k
-    }
+    /** The wallet's memberships as last read, when, and the counters of the cohorts they are in then (see [load]). */
+    private class KeptMemberships(val wallet: SolanaPublicKey, val readAt: Long, val memberships: List<MembershipAccount>, val counters: Map<SolanaPublicKey, CohortCounters?>)
 
-    /**
-     * The wallet's memberships as last read, when, and the counters of the cohorts they are in then (see [load]);
-     * [started] orders the reads that kept them (see [keepMemberships]).
-     */
-    private class KeptMemberships(val wallet: SolanaPublicKey, val readAt: Long, val memberships: List<MembershipAccount>, val counters: Map<SolanaPublicKey, List<Any>>, val started: Long)
-
-    @Volatile private var keptMemberships: KeptMemberships? = null
+    /** By read-start order: a day or a claim moves no counter that re-reads them, so a stale answer would stay for minutes. */
+    private val keptMemberships = LatestRead<KeptMemberships>()
 
     /** Membership reads started, in order. */
     private val membershipReads = AtomicLong()
 
-    /**
-     * Keeps [k] unless a membership read started after its own already answered: reads overlap (a pulse, the
-     * read closing an action), and an older answer put back over a newer one would be kept for minutes —
-     * a day or a claim moves no counter that re-reads it — so a landed action would look undone (PR #72 review).
-     */
-    @Synchronized
-    private fun keepMemberships(k: KeptMemberships) {
-        if ((keptMemberships?.started ?: 0L) < k.started) keptMemberships = k
-    }
+    /** The last cohorts read that answered, and when: the leaderboard's first read reuses it while it is fresh. By read-start order. */
+    private class LastCohorts(val readAt: Long, val cohorts: List<Pair<SolanaPublicKey, CohortSnapshot>>)
 
-    /** The last cohorts read that answered, when, and the order it started in: the leaderboard's first read reuses it while it is fresh. */
-    private class LastCohorts(val readAt: Long, val cohorts: List<Pair<SolanaPublicKey, CohortSnapshot>>, val started: Long)
-
-    @Volatile private var lastCohorts: LastCohorts? = null
-
-    /** Keeps [k] unless a cohort read started after its own already answered, as [keepCohorts] (PR #72 review). */
-    @Synchronized
-    private fun keepLastCohorts(k: LastCohorts) {
-        if ((lastCohorts?.started ?: 0L) < k.started) lastCohorts = k
-    }
+    private val lastCohorts = LatestRead<LastCohorts>()
 
     /** Fresh reads asked for, and the latest of them a fresh read has answered for. */
     private val freshAsked = AtomicLong()
@@ -274,21 +297,23 @@ class ChainRepository(
                 is Rpc.Answer.Ok -> (read.value ?: return ChainView(null, emptyList(), null, 0uL, 0L)).let { runCatching { ConfigSnapshot.decode(it) }.getOrNull() ?: return failed("config does not decode") }
                 else -> return failed("config: $read")
             }.also { keptConfig = now to it }
-        val ownBefore = keptMemberships?.takeIf { it.wallet == wallet }?.memberships.orEmpty().map { it.cohort }.toSet()
+        // Only a settled cohort the wallet can still claim from can move by its own action: one claimed, or forfeited
+        // with no comeback owed, cannot — and a wallet that has joined many rounds would fetch them all (the stand-in review of PR #72).
+        val ownBefore = keptMemberships.value?.takeIf { it.wallet == wallet }?.memberships.orEmpty().filter { it.member.canStillClaim }.map { it.cohort }.toSet()
         val started = cohortReads.incrementAndGet()
         val cohorts = cohorts(now, refetch = if (fresh) ownBefore else emptySet(), started) ?: return failed("cohorts")
-        keepLastCohorts(LastCohorts(clock(), cohorts, started))
+        lastCohorts.offer(started, LastCohorts(clock(), cohorts))
         // The leagues are read again once they are old, when a cohort names one not read yet, or when any
         // cohort's settlement has moved since — a page counted, the cohort finalized, a boost or a comeback
         // refund drawn or paid: settlement is what moves a league's boost and comeback reserves, page by page.
-        val settlement = cohorts.associate { (address, c) -> address to settlementOf(c) }
+        val settlement = cohorts.associate { (address, c) -> address to Settlement.of(c) }
         val leagues =
             keptLeagues?.takeIf { k -> now - k.readAt < SETTINGS_MAX_AGE_MILLIS && k.settlement == settlement && cohorts.all { (_, c) -> k.leagues.any { it.params.leagueId == c.leagueId } } }?.leagues
                 ?: (twice { rpc.leagues(programId) } ?: return failed("leagues")).also { keptLeagues = KeptLeagues(now, it, settlement) }
         val byAddress = cohorts.toMap()
         val memberships =
             wallet?.let { w ->
-                val kept = keptMemberships?.takeIf { it.wallet == w }
+                val kept = keptMemberships.value?.takeIf { it.wallet == w }
                 // Kept until a cohort the wallet is in moves (a forfeit recorded, a member counted, the cohort settled),
                 // until it is old, or until the wallet acts: only those change a membership the wallet did not sign.
                 val keep = !fresh && kept != null && now - kept.readAt < MEMBERSHIPS_MAX_AGE_MILLIS && kept.counters == countersOf(kept.memberships, byAddress)
@@ -296,7 +321,7 @@ class ChainRepository(
                     kept.memberships
                 } else {
                     val started = membershipReads.incrementAndGet()
-                    (twice { rpc.walletMemberships(programId, w) } ?: return failed("the wallet's memberships")).also { keepMemberships(KeptMemberships(w, now, it, countersOf(it, byAddress), started)) }
+                    (twice { rpc.walletMemberships(programId, w) } ?: return failed("the wallet's memberships")).also { keptMemberships.offer(started, KeptMemberships(w, now, it, countersOf(it, byAddress))) }
                 }
             }.orEmpty()
         val mine = memberships.associateBy({ it.cohort }, { it.member })
@@ -326,10 +351,10 @@ class ChainRepository(
      * not-settled list since the last pulse, and each of [refetch] that is settled, is fetched once.
      */
     private suspend fun cohorts(now: Long, refetch: Set<SolanaPublicKey>, started: Long): List<Pair<SolanaPublicKey, CohortSnapshot>>? {
-        val kept = keptCohorts?.takeIf { now - it.readAt < FULL_READ_MILLIS }
+        val kept = keptCohorts.value?.takeIf { now - it.readAt < FULL_READ_MILLIS }
         if (kept == null) {
             val all = twice { rpc.cohorts(programId) } ?: return null
-            keepCohorts(KeptCohorts(now, all.filter { it.second.settled }.toMap(), all.filterNot { it.second.settled }.map { it.first }.toSet(), started))
+            keptCohorts.offer(started, KeptCohorts(now, all.filter { it.second.settled }.toMap(), all.filterNot { it.second.settled }.map { it.first }.toSet()))
             return all
         }
         val open = twice { rpc.unsettledCohorts(programId) } ?: return null
@@ -352,15 +377,19 @@ class ChainRepository(
                 }
             }
         }
-        keepCohorts(KeptCohorts(kept.readAt, settled, openNow + stillOpen.map { it.first }, started))
-        return settled.toList() + open + stillOpen
+        // Settlement only goes one way: a cohort a lagging node still lists as not settled, but already fetched
+        // settled, is shown once, settled (the stand-in review of PR #72).
+        val opened = (open + stillOpen).filterNot { it.first in settled }
+        keptCohorts.offer(started, KeptCohorts(kept.readAt, settled, opened.map { it.first }.toSet()))
+        return settled.toList() + opened
     }
 
-    /** The counters of the cohorts [memberships] are in that move a membership the wallet did not sign. */
-    private fun countersOf(memberships: List<MembershipAccount>, cohorts: Map<SolanaPublicKey, CohortSnapshot>): Map<SolanaPublicKey, List<Any>> = memberships.associate { m -> m.cohort to (cohorts[m.cohort]?.let(Holdout::countersOf) ?: emptyList()) }
+    /** Whether the wallet may still claim from this membership's cohort once it is settled: a finisher's payout, or a comeback refund owed. */
+    private val MembershipSnapshot.canStillClaim: Boolean
+        get() = state == MembershipSnapshot.State.Finished || (state == MembershipSnapshot.State.Forfeited && comebackEntitled > 0uL) || state == MembershipSnapshot.State.Joined
 
-    /** The fields of [c] that move when its settlement moves a league's reserves. */
-    private fun settlementOf(c: CohortSnapshot): List<Any> = listOf(c.counted, c.settled, c.noFinisherBoost, c.boostReceived, c.comebackOwed, c.comebackFunded, c.comebackClaimed)
+    /** The counters of the cohorts [memberships] are in that move a membership the wallet did not sign. */
+    private fun countersOf(memberships: List<MembershipAccount>, cohorts: Map<SolanaPublicKey, CohortSnapshot>): Map<SolanaPublicKey, CohortCounters?> = memberships.associate { m -> m.cohort to cohorts[m.cohort]?.let(CohortCounters::of) }
 
     /** [read], asked once more after [RETRY_MILLIS] when it did not answer: one dropped call does not cost the whole pass. */
     private suspend fun <T> twice(answered: (T) -> Boolean = { it != null }, read: suspend () -> T): T {
@@ -387,7 +416,7 @@ class ChainRepository(
      */
     override suspend fun leaderboard(): Leaderboard.Snapshot? {
         // The snapshot's own cohorts read, when it is recent, is as good a "before" as a new one: it was read before the profiles.
-        val before = lastCohorts?.takeIf { clock() - it.readAt <= COHORTS_REUSE_MILLIS }?.cohorts ?: rpc.cohorts(programId) ?: return null
+        val before = lastCohorts.value?.takeIf { clock() - it.readAt <= COHORTS_REUSE_MILLIS }?.cohorts ?: rpc.cohorts(programId) ?: return null
         val profiles = rpc.profiles(programId) ?: return null
         val forfeits = rpc.uncountedForfeits(programId) ?: return null
         val after = rpc.cohorts(programId)?.map { it.second } ?: return null
