@@ -7,7 +7,7 @@
 #
 # Local runs fill the test cohorts with scripted members (--floor-test, default 10,
 # CRANK_FLOOR_TEST to change) drawn from all 56 wallets, empty or not
-# (--fill-empty; devnet waits for a real member), in each round's last minute,
+# (--fill-empty; devnet waits for a real member), in each round's last 3 minutes,
 # and leave the judged leagues empty so every wallet is free for them.
 set -uo pipefail
 

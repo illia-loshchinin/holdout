@@ -5,7 +5,7 @@
 # the loop wakes a few seconds after it, so the next test cohort is joinable
 # moments after the one before starts, not up to an interval later (FR-044a).
 # Between passes `crank scripted run` runs alone only when it asked to
-# (`nextScriptedAt`, chain time): a Hackathon round's last minute, when it is
+# (`nextScriptedAt`, chain time): a Hackathon round's last 3 minutes, when it is
 # topped up if someone real has joined it, and each day of a round a scripted
 # member still plays (FR-043). It never polls the RPC on a timer: the public
 # devnet RPC rate-limits per IP (owner, 13 October). Runs in the Fly machine, and

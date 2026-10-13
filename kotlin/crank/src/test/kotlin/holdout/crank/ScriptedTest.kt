@@ -131,7 +131,7 @@ class ScriptedTest {
     }
 
     @Test
-    fun `a Hackathon round has no target until its last minute, then its whole floor`() {
+    fun `a Hackathon round has no target until its last 3 minutes, then its whole floor`() {
         val round = cohort(leagueId = 101, memberCount = 1, duration = 3)
         assertEquals(0, Scripted.target(round, 10, round.joinCutoff - 600), "not looked at while its lobby is open")
         assertEquals(0, Scripted.target(round, 10, round.joinCutoff - Scripted.TEST_FILL_LEAD - 1))
@@ -385,7 +385,7 @@ class ScriptedTest {
     private val payerKey = key(90)
     private val stranger = SolanaPublicKey(ByteArray(32) { 77 })
 
-    /** A Hackathon round [before] seconds before its cutoff (its last minute by default), holding [members], after one pass. */
+    /** A Hackathon round [before] seconds before its cutoff (inside its fill window by default), holding [members], after one pass. */
     private fun hackathonPass(
         members: List<SolanaPublicKey>,
         balances: Map<SolanaPublicKey, Long> = emptyMap(),
@@ -425,7 +425,7 @@ class ScriptedTest {
     }
 
     @Test
-    fun `a Hackathon round is looked at only in its last minute - before that a pass reads no roster and asks to wake then`() {
+    fun `a Hackathon round is looked at only in its last 3 minutes - before that a pass reads no roster and asks to wake then`() {
         val (chain, json) = hackathonPass(listOf(stranger), before = 600)
         assertEquals(0, chain.sent.size)
         assertEquals(0, chain.rosterReads, "no roster read while the lobby is open")
@@ -434,7 +434,7 @@ class ScriptedTest {
     }
 
     @Test
-    fun `a Hackathon round a real member has joined is topped up to 10 in its last minute from the idle wallets`() {
+    fun `a Hackathon round a real member has joined is topped up to 10 in its last 3 minutes from the idle wallets`() {
         val (chain, json) = hackathonPass(listOf(stranger))
         val joins = chain.sent.filter { "join_cohort" in chain.names(it) }
         assertEquals(9, joins.size, "1 real member, floor 10")

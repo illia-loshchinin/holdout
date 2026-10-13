@@ -80,11 +80,12 @@ object Scripted {
     const val DEFAULT_FLOOR_TEST = 10
 
     /**
-     * A Hackathon round is looked at once, this many seconds before its join
-     * cutoff (its start, join lock 0), and topped up then — not polled while its
-     * lobby is open (owner, 13 October).
+     * A Hackathon round is looked at once, this many seconds — 3 minutes —
+     * before its join cutoff (its start, join lock 0), and topped up then — not
+     * polled while its lobby is open (owner, 13 October; 60 s that evening at
+     * first).
      */
-    const val TEST_FILL_LEAD = 60L
+    const val TEST_FILL_LEAD = 180L
 
     /** `--fill-lead <s>`: how long before its cutoff a Hackathon round is filled, [TEST_FILL_LEAD] unless said. */
     private fun fillLead(args: Args): Long = args.option("fill-lead")?.let { it.toLongOrNull()?.takeIf { n -> n in 1..3_600 } ?: configError("--fill-lead must be 1..3600 seconds, got $it") } ?: TEST_FILL_LEAD
@@ -343,7 +344,7 @@ object Scripted {
             put("floor", floor)
             val lead = fillLead(args)
             put("target", target(c, floor, now, lead))
-            // When the target next grows: a Hackathon round's last minute, or a lobby's last day.
+            // When the target next grows: a Hackathon round's last 3 minutes, or a lobby's last day.
             nextFillAt(c, floor, now, lead)?.let { put("fillsAt", it) }
             put("members", c.memberCount)
             put("real", members.size - scripted.size)

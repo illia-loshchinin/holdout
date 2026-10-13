@@ -380,7 +380,7 @@ private val STEPS = listOf(
 
 // ---- card 5: scripted members -----------------------------------------------------------------------
 
-/** What scripted members top a Hackathon round up to, in its last minute and once someone real has joined (spec 001 FR-043, FR-044a). */
+/** What scripted members top a Hackathon round up to, in its last 3 minutes and once someone real has joined (spec 001 FR-043, FR-044a). */
 private const val HACKATHON_MINIMUM = 10
 
 @Composable
