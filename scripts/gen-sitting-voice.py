@@ -26,6 +26,11 @@ VOICE = "en-US-AvaNeural"
 RATE = "-15%"
 PITCH = "-4Hz"
 FORMAT = "audio-24khz-48kbitrate-mono-mp3"
+# Silence kept after the last word. The services pad a clip to about 1.9 s, and in the
+# countdown that padding made each word wait for the last one's silence (owner, 14 Oct).
+TAIL_SECONDS = 0.15
+# 24 kHz, 48 kbit/s, MPEG-2 layer III: every frame is 576 samples (24 ms) in 144 bytes.
+FRAME_BYTES, FRAME_SECONDS = 144, 0.024
 
 # (the words the app passes, how they are said). A trailing full stop gives the falling,
 # settled intonation; without it a single word often comes out as a question.
@@ -74,8 +79,11 @@ def slug(words: str) -> str:
 
 def azure(text: str, path: Path, key: str, region: str) -> None:
     ssml = (
-        '<speak version="1.0" xml:lang="en-US"><voice name="%s">'
-        '<prosody rate="%s" pitch="%s">%s</prosody></voice></speak>' % (VOICE, RATE, PITCH, text)
+        '<speak version="1.0" xml:lang="en-US" xmlns:mstts="http://www.w3.org/2001/mstts">'
+        '<voice name="%s"><mstts:silence type="Leading-exact" value="100ms"/>'
+        '<mstts:silence type="Tailing-exact" value="%dms"/>'
+        '<prosody rate="%s" pitch="%s">%s</prosody></voice></speak>'
+        % (VOICE, TAIL_SECONDS * 1000, RATE, PITCH, text)
     )
     req = urllib.request.Request(
         f"https://{region}.tts.speech.microsoft.com/cognitiveservices/v1",
@@ -98,7 +106,15 @@ async def edge(lines, out: Path) -> None:
 
     async def one(words, said):
         async with sem:
-            await edge_tts.Communicate(said, VOICE, rate=RATE, pitch=PITCH).save(str(out / f"{slug(words)}.mp3"))
+            audio, end = bytearray(), 0.0
+            talk = edge_tts.Communicate(said, VOICE, rate=RATE, pitch=PITCH, boundary="WordBoundary")
+            async for chunk in talk.stream():
+                if chunk["type"] == "audio":
+                    audio += chunk["data"]
+                elif chunk["type"] == "WordBoundary":
+                    end = max(end, (chunk["offset"] + chunk["duration"]) / 1e7)
+            frames = min(len(audio) // FRAME_BYTES, int((end + TAIL_SECONDS) / FRAME_SECONDS) + 1)
+            (out / f"{slug(words)}.mp3").write_bytes(bytes(audio[: frames * FRAME_BYTES]))
 
     await asyncio.gather(*(one(w, s) for w, s in lines))
 

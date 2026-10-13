@@ -59,6 +59,8 @@ class SittingCues(context: Context) {
 
     fun play(cue: SittingViewModel.Cue) {
         when (cue) {
+            // The countdown is said on its tick, whatever is still playing: a
+            // word that waits for the last one's end falls behind the count.
             is SittingViewModel.Cue.CountdownTick -> say(
                 when (cue.remaining) {
                     3 -> "three"
@@ -66,10 +68,11 @@ class SittingCues(context: Context) {
                     1 -> "one"
                     else -> return
                 },
+                flush = true,
             )
 
             SittingViewModel.Cue.Counting -> {
-                say("go")
+                say("go", flush = true)
                 tone(ToneGenerator.TONE_PROP_BEEP, 180)
             }
 
@@ -98,8 +101,8 @@ class SittingCues(context: Context) {
     private fun say(text: String, flush: Boolean = false) {
         if (voice.say(text, flush)) return
         if (!speechReady) return
-        // QUEUE_ADD by default: "three, two, one, go" arrives as four separate
-        // cues a second apart and must not cut each other off.
+        // QUEUE_ADD by default: "10 banked" after its chime, or a correction
+        // after another, waits its turn rather than cutting the last one off.
         val mode = if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
         runCatching { speech?.speak(text, mode, null, text) }
     }
