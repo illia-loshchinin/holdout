@@ -51,6 +51,15 @@ Every refused rep's reason is said aloud at once *(2026-10-04; it was said only 
 - *(nothing)* — a rep done on the back or standing up *(added 2026-10-07, FR-008a)*: there is nothing to coach, so nothing is said
 - "Hips off the floor" *(added 2026-10-04)* — staked only: the hips or thighs rested on the floor at the bottom, carrying weight, and the body was pushed back up. Resting, not a chest brushing the floor. **Not said yet**: no check can see it until the knee-on-the-floor image classifier judges the hips too; until then such reps count (`angled40-right-floor-20`), and the rule sentence says they do not
 
+## The voice (FR-019) *(added 2026-10-14, spec Session 2026-10-13/14)*
+
+Every line a sitting says is a recorded clip in `kotlin/app/src/main/assets/voice/`, in one calm voice (Ava, `en-US-AvaNeural`, 15 % slower and 4 Hz lower), recorded by `scripts/gen-sitting-voice.py`: the countdown "three", "two", "one", "go", every `Coach` line above, every `RepHint` line below, "10 banked" to "300 banked" and "Done". Each clip ends 0.15 s after its last word.
+
+- A new or changed spoken line needs its clip recorded: add it to the script and run it again. `VoiceClipsTest` fails while a line the app can say has no clip.
+- A line with no clip, the deadline message (it names the day) and a total past 300, is said by the device's text-to-speech, best effort.
+- The countdown words and "go" are said on their tick and cut off whatever is still playing; a correction, a refused rep's reason and "N banked" wait for the line before them, except that a new correction replaces one still being said.
+- The clips in the app now are a try-out recorded through edge-tts; before a release they are recorded again through Azure Speech in the same voice (T067).
+
 ## The set-up guide (FR-015, FR-015a) — `PlacementGuide.kt`, three tabs *(rewritten 2026-10-12)*
 
 Title "Before you get down", the sitting's level at its right; tabs **1. Positioning · 2. Rules · 3. Start**; no intro paragraph, so "Two things decide whether a rep counts…" and "From there it sees all of you, and the knee nearer to it." (`GUIDE_HEADLINE`, 2026-10-10) are gone. Buttons: Skip (Back from the second tab) and Next (Got it on the last); "Don't show this again".
