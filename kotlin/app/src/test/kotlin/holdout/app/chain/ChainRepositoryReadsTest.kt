@@ -65,6 +65,9 @@ class ChainRepositoryReadsTest {
     private var live = true
     private var memberships = "[]"
 
+    /** The not-settled read answers from a slot where the cohort is not there, while a fetch still finds it unsettled. */
+    private var unsettledLags = false
+
     /** Kinds of call to fail next, with how many times; and the calls made, by kind. */
     private val failing = mutableMapOf<String, Int>()
     private val calls = mutableMapOf<String, Int>()
@@ -112,7 +115,7 @@ class ChainRepositoryReadsTest {
     private fun answer(kind: String, body: String): String = when (kind) {
         "config" -> account(configBytes.takeIf { live })
         "cohorts" -> accounts(cohorts)
-        "unsettled" -> if (cohorts[AccountLayout.Cohort.SETTLED] == 0.toByte()) accounts(cohorts) else "[]"
+        "unsettled" -> if (!unsettledLags && cohorts[AccountLayout.Cohort.SETTLED] == 0.toByte()) accounts(cohorts) else "[]"
         "leagues" -> accounts(leagueBytes)
         "memberships" -> memberships
         "profiles", "forfeits" -> "[]"
@@ -451,6 +454,26 @@ class ChainRepositoryReadsTest {
         val board = assertNotNull(runBlocking { repo.leaderboard() })
 
         assertEquals(listOf(2L), board.cohortsBefore.map { it.counted }, "the leaderboard's first read is the newer one")
+    }
+
+    @Test
+    fun `a cohort the not-settled read misses but a fetch finds unsettled stays shown and is looked for again`() {
+        load()
+        now = 30_000
+        unsettledLags = true
+
+        val view = assertNotNull(load())
+        assertEquals(1, view.holdouts.size, "still shown")
+        assertEquals(1, calls["fetch"])
+
+        now = 60_000
+        assertEquals(1, assertNotNull(load()).holdouts.size)
+        assertEquals(2, calls["fetch"], "looked for again by the next pulse")
+
+        unsettledLags = false
+        now = 90_000
+        assertEquals(1, assertNotNull(load()).holdouts.size)
+        assertEquals(2, calls["fetch"], "back in the not-settled read: nothing to fetch")
     }
 
     @Test

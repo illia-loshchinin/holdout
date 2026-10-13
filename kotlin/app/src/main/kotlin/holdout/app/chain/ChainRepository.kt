@@ -336,15 +336,24 @@ class ChainRepository(
         val openNow = open.map { it.first }.toSet()
         val fetch = ((kept.open - openNow) + refetch.filter { it in kept.settled }).toList()
         val settled = kept.settled.toMutableMap()
+        // Fetched and still not settled: the two calls answered from different slots. It stays open, shown and
+        // looked for again by the next pulse, rather than vanishing until the next full read (PR #72 review).
+        val stillOpen = mutableListOf<Pair<SolanaPublicKey, CohortSnapshot>>()
         if (fetch.isNotEmpty()) {
             val accounts = twice { rpc.multipleAccounts(fetch) } ?: return null
             for ((address, account) in fetch.zip(accounts)) {
                 // A cohort whose account is gone is dropped; one that does not decode is a failed read.
-                if (account == null) settled.remove(address) else settled[address] = runCatching { CohortSnapshot.decode(account.data) }.getOrNull() ?: return null
+                val cohort = account?.let { runCatching { CohortSnapshot.decode(it.data) }.getOrNull() ?: return null }
+                settled.remove(address)
+                when {
+                    cohort == null -> Unit
+                    cohort.settled -> settled[address] = cohort
+                    address !in openNow -> stillOpen += address to cohort
+                }
             }
         }
-        keepCohorts(KeptCohorts(kept.readAt, settled.filterValues { it.settled }, openNow, started))
-        return settled.filterValues { it.settled }.toList() + open
+        keepCohorts(KeptCohorts(kept.readAt, settled, openNow + stillOpen.map { it.first }, started))
+        return settled.toList() + open + stillOpen
     }
 
     /** The counters of the cohorts [memberships] are in that move a membership the wallet did not sign. */
