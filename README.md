@@ -79,8 +79,9 @@ Built for the Solana Mobile **CLOCK IN** hackathon.
   fails if a microphone permission appears.
 - **Native on Seeker.** Mobile Wallet Adapter with Seed Vault, the Seeker Genesis Token as the key
   to Holdouts, and Seeker ID (`.skr`) names in the roster.
-- **No oracle, no withdraw button.** The contract never reads a price, and no
-  instruction lets anyone withdraw a stake or a pool. During judging the upgrade authority is the
+- **No oracle, no admin withdrawal.** The contract never reads a price, and no
+  instruction lets anyone take out a stake or a pool. The one exception is yours: leaving a Holdout
+  before the lobby closes is a full refund. During judging the upgrade authority is the
   one trust assumption left (see [Known weaknesses](#known-weaknesses)). The admin sets up the
   levels and the operator prices the chips. Every step that moves a Holdout forward (opening it,
   recording missed days, settling, releasing a comeback) follows the contract's rules and can be
