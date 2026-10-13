@@ -100,8 +100,9 @@ object Run {
 
     /**
      * The older test league the new lobby waits for, if any: one of [retired]
-     * with a cohort not yet settled. Until every cohort of the older leagues
-     * has settled, the newest opens nothing, so a member can never hold
+     * — the caller passes only the retired leagues of the lobby's own form —
+     * with a cohort not yet settled. Until every cohort of the older leagues of
+     * its form has settled, the newest opens nothing, so a member can never hold
      * outcomes in two test leagues at once and the shared streak stays in
      * order through a switchover (FR-044a, FR-060). A retired league in
      * [owing] holds it too: it still owes a comeback round not opened yet, has
