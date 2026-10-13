@@ -155,6 +155,46 @@ class RpcTest {
     }
 
     @Test
+    fun `a failure names the node's host, never its API key - in the query or in the path`() {
+        for (keyed in listOf("https://devnet.example-rpc.com/?api-key=SECRET", "https://devnet.example-rpc.com/v2/SECRET/")) {
+            val heard = mutableListOf<String>()
+            // The client may quote the endpoint as given, or a form of it (here without its trailing slash, with a port).
+            val quoted = keyed.trimEnd('/').replace(".com/", ".com:443/")
+            val timeout = FakeHttp { throw java.io.IOException("Request timeout has expired [url=$keyed, request_timeout=10000 ms] after $quoted") }
+            val rpc = Rpc(keyed, Rpc20Driver(keyed, timeout), onFailure = { _, reason -> heard += reason })
+
+            assertNull(runBlocking { rpc.balance(programId) })
+            val unanswered = runBlocking { rpc.account(programId) } as Rpc.Answer.Unanswered
+
+            assertEquals(
+                "no answer from devnet.example-rpc.com: Request timeout has expired [url=devnet.example-rpc.com, request_timeout=10000 ms] after https://devnet.example-rpc.com:443",
+                heard.first(),
+            )
+            assertTrue("SECRET" !in unanswered.message && heard.none { "SECRET" in it }, keyed)
+        }
+    }
+
+    @Test
+    fun `a read that fails still returns null, and the failure hook hears the method and why`() {
+        val heard = mutableListOf<Pair<String, String>>()
+        fun rpc(http: FakeHttp) = Rpc("http://rpc.test", Rpc20Driver("http://rpc.test", http), onFailure = { method, reason -> heard += method to reason })
+
+        val limited = FakeHttp { """{"jsonrpc":"2.0","error":{"code":429,"message":"Too many requests for a specific RPC call"},"id":"x"}""" }
+        assertNull(runBlocking { rpc(limited).memberships(programId, cohortKey) })
+        assertNull(runBlocking { rpc(FakeHttp { throw java.io.IOException("offline") }).balance(programId) })
+        assertTrue(runBlocking { rpc(limited).account(programId) } is Rpc.Answer.Refused)
+
+        assertEquals(
+            listOf(
+                "getProgramAccounts" to "Too many requests for a specific RPC call",
+                "getBalance" to "no answer from rpc.test: offline",
+                "getAccountInfo" to "Too many requests for a specific RPC call",
+            ),
+            heard,
+        )
+    }
+
+    @Test
     fun `a member that does not decode fails the read rather than vanishing from the roster`() {
         val bad = Base64.getEncoder().encodeToString(ByteArray(AccountLayout.Membership.ROSTER_SLICE_LENGTH).also { it[50] = 9 }) // state 9
         val http =

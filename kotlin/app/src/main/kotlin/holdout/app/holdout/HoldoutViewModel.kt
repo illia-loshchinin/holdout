@@ -49,7 +49,7 @@ import java.security.MessageDigest
  */
 class HoldoutViewModel(
     private val store: Store,
-    private val rpc: Rpc = Rpc(Deployment.rpcUrl),
+    private val rpc: Rpc = Deployment.rpc(),
     private val chain: ChainReads = ChainRepository(rpc),
     val wallet: WalletRepository = WalletRepository(store, rpc),
     private val faucet: FaucetClient = FaucetClient(rpc, wallet, Deployment.programId),
