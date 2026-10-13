@@ -135,4 +135,14 @@ class InterruptedSittingTest {
 
         assertEquals(7, assertNotNull(consume(store)).banked)
     }
+
+    @Test
+    fun `a sitting started before the day was known, read before its reps were moved, reads them where they are`() {
+        val store = InMemoryStore()
+        store.setSittingDay(wallet, scope, Store.UNKNOWN_DAY)
+        store.setSittingStartedAt(wallet, scope, 1L)
+        store.setBankedReps(wallet, scope, Store.UNKNOWN_DAY, 10)
+
+        assertEquals(10, consume(store)?.banked)
+    }
 }

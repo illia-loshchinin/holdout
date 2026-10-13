@@ -74,7 +74,10 @@ object InterruptedSitting {
      * The reps are read from the day the marker was written for
      * ([Store.sittingDay]), so a member who comes back after the day moved on
      * still hears what was kept. A marker with no day (written by an older
-     * build) or an unknown one falls back to [dayIndex], today's.
+     * build) falls back to [dayIndex], today's. One whose day was not known
+     * when it started reads the reps banked under the unknown day while they
+     * are still there; once the chain's answer has moved them to their day,
+     * that day is the marker's too (`OfflineDays`).
      *
      * @param dayIndex the day it is now in this scope
      * @param header the top label (`SittingCopy.countingLabel`) for the sitting's day, given that day
@@ -90,7 +93,11 @@ object InterruptedSitting {
         secondsLeft: (sittingDay: Long) -> Long?,
     ): StoppedUi? {
         if (store.sittingStartedAt(wallet, scope) == null) return null
-        val sittingDay = store.sittingDay(wallet, scope)?.takeIf { it != Store.UNKNOWN_DAY } ?: dayIndex
+        val sittingDay = when (val kept = store.sittingDay(wallet, scope)) {
+            null -> dayIndex
+            Store.UNKNOWN_DAY -> if (store.bankedReps(wallet, scope, Store.UNKNOWN_DAY) > 0) Store.UNKNOWN_DAY else dayIndex
+            else -> kept
+        }
         store.setSittingStartedAt(wallet, scope, null)
         val banked = store.bankedReps(wallet, scope, sittingDay)
         if (banked <= 0 || banked >= target || store.isDayComplete(wallet, scope, sittingDay)) return null

@@ -85,6 +85,8 @@ class OfflineDays(
             val last = store.lastStreakDay(wallet)
             if (last == Store.NO_DAY || last < settled.day) streaks.recordCompletedDay(wallet, settled.day)
         }
+        // A sitting killed before the day was known kept no day with its marker: its reps are on this day now.
+        if (store.sittingStartedAt(wallet, scope) != null && store.sittingDay(wallet, scope) == Store.UNKNOWN_DAY) store.setSittingDay(wallet, scope, settled.day)
         store.clearDay(wallet, scope, Store.UNKNOWN_DAY)
         store.setToesDay(wallet, Store.UNKNOWN_DAY, 0, 0)
         store.setOfflineSittingMark(wallet, null)
