@@ -252,7 +252,9 @@ class HoldoutViewModel(
                 live.first { it }
                 refreshNow(join = true)
                 // A wake (an answer after failures, a Check again) starts the wait over at its current length.
-                while (withTimeoutOrNull(pulseWait()) { wake.receive() } != null) Unit
+                while (withTimeoutOrNull(pulseWait()) { wake.receive() } != null) {
+                    // Woken: wait again, from now.
+                }
             }
         }
     }

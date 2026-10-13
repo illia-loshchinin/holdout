@@ -236,7 +236,7 @@ class ChainRepository(
                 // until it is old, or until the wallet acts: only those change a membership the wallet did not sign.
                 val keep = !fresh && kept != null && now - kept.readAt < MEMBERSHIPS_MAX_AGE_MILLIS && kept.counters == countersOf(kept.memberships, byAddress)
                 if (keep) {
-                    kept!!.memberships
+                    kept.memberships
                 } else {
                     (twice { rpc.walletMemberships(programId, w) } ?: return failed("the wallet's memberships")).also { keptMemberships = KeptMemberships(w, now, it, countersOf(it, byAddress)) }
                 }
