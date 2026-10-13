@@ -36,12 +36,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.dropWhile
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -225,7 +220,7 @@ class HoldoutViewModel(
     /** Wakes the pulse's wait, so it starts its 30 seconds over: an answer after failures, a Check again. */
     private val wake = Channel<Unit>(Channel.CONFLATED)
 
-    /** The app says whether the screen in front shows live chain data; coming back to one reads at once when the last pulse is 30 s old or more. */
+    /** The app says whether the screen in front shows live chain data; coming back to one reads at once once the pulse's current wait has passed — 30 s, longer while it backs off. */
     fun setLive(isLive: Boolean) {
         live.value = isLive
     }
@@ -264,19 +259,13 @@ class HoldoutViewModel(
 
     /**
      * The pulse's wait after its read ([pulseWait]). A wake (an answer after failures, a Check again) starts it
-     * over at its current length. Past the first 30 seconds — the rest of a wait after failures — a live screen
-     * coming back cuts it short, so the pulse reads at once like any return after 30 s (PR #72 review).
+     * over at its current length. A live screen coming back does not cut it short: while reads fail, the wait
+     * spares the node whatever the member opens, and Check again reads at once (FR-071, spec 005).
      */
     private suspend fun waitForPulse() {
-        while (withTimeoutOrNull(REFRESH_MILLIS) { wake.receive() } != null) {
+        while (withTimeoutOrNull(pulseWait()) { wake.receive() } != null) {
             // Woken: wait again, from now.
         }
-        val rest = pulseWait() - REFRESH_MILLIS
-        if (rest <= 0) return
-        val woken = withTimeoutOrNull(rest) {
-            merge(wake.receiveAsFlow().map { true }, live.dropWhile { it }.filter { it }.map { false }).first()
-        }
-        if (woken == true) waitForPulse()
     }
 
     /** The app left the foreground: no reads until [watch] is called again. The last view stays. */

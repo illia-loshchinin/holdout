@@ -293,18 +293,19 @@ class HoldoutViewModelReadsTest {
     }
 
     @Test
-    fun `given the pulse waiting longer after failures, when a live screen comes back past 30 seconds, then it reads at once`() = runTest(dispatcher) {
+    fun `given the pulse waiting longer after failures, when a live screen comes back past 30 seconds, then it still waits its whole wait`() = runTest(dispatcher) {
         watching()
         nextPass(null)
         nextPass(null)
-        // Two failures: the next pulse would be 60 s away.
+        // Two failures: the next pulse is 60 s away.
         val reads = chain.reads.size
         vm.setLive(false)
         advanceTimeBy(40_000)
-        runCurrent()
-        assertEquals(reads, chain.reads.size)
-
         vm.setLive(true)
+        runCurrent()
+        assertEquals(reads, chain.reads.size, "coming back does not cut the backoff short")
+
+        advanceTimeBy(20_001)
         runCurrent()
         assertEquals(reads + 1, chain.reads.size)
     }
