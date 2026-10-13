@@ -1,0 +1,5 @@
+# The crank image (crank.Dockerfile) needs only the prebuilt JAR and the loop;
+# without this, `fly deploy` uploads the whole checkout (gigabytes of build output).
+*
+!kotlin/crank/build/libs/crank.jar
+!scripts/crank-loop.sh
