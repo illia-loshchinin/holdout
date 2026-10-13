@@ -184,3 +184,9 @@ description: "Task list for 002 rep placement and form rules — as built, with 
 ## Implementation strategy
 
 The MVP — US1 and US2 on the counter — is built and on the phone. Since 2026-10-08 the Daily 25 rehearses the Easy set-up at 45° and the head-on path is gone (T040–T042). What remains: label what only today's counter sees and confirm Claude's labels so the ratchet holds real ground truth (T046, T047), check the Daily 25 at the front edge of its band (T048), then widen the evidence beyond one person (T033) before any classifier work (Phase 8).
+
+## Phase 11: Convergence
+
+- [ ] T067 Re-record every sitting voice clip through Azure Speech (`python scripts/gen-sitting-voice.py` with the owner's `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`; same voice, rate, pitch and 0.15 s tail) and re-run `VoiceClipsTest`, before any release build per spec Session 2026-10-13/14 (missing)
+- [X] T068 Record the recorded calm voice as built — Ava clips in `kotlin/app/src/main/assets/voice/`, `VoiceClips.kt`, `SittingCues.kt` falling back to TextToSpeech, the countdown said on its tick, `scripts/gen-sitting-voice.py`, `VoiceClipsTest` (commits `065a90e`, `5240c3c`) per FR-019 and spec Session 2026-10-13/14 (partial) Done 2026-10-14: `065a90e`, `5240c3c` (`VoiceClipsTest` passes, 58 clips).
+- [X] T069 State in `contracts/words.md` that every spoken line is a recorded clip and a new `Coach` or `RepHint` line needs one (`VoiceClipsTest`), and add a voice check to `quickstart.md`, through `/speckit-plan`, per FR-019 and contracts/words.md (partial) Done 2026-10-14: words.md "The voice" section, quickstart "Voice" row.
