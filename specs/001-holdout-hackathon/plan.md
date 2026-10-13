@@ -55,7 +55,7 @@ Work follows the spec's phasing (spec §3a): **Phase 1** is the full loop and mu
 - **Live period:** no manual intervention from submission through the winners' announcement on 11 November 2026 (FR-042a, FR-043).
 - **Upgrades:** the contract stays upgradeable for defect fixes only (FR-007b, R14).
 
-**Scale/Scope**: two leagues; weekly cohorts of up to 1,000 members each (up to three 21-day cohorts running at once); real members first, topped up by a fixed pool of 56 scripted wallets to a floor of 20 members per 7-day cohort and, on devnet since 2026-10-13, 4 per Hackathon round once a real member has joined it and none per 21-day cohort (R12, FR-043); about 14 app screens with variants, the first-run tour included (PRD §10.1, FR-067); judging 10 October – 9 November 2026.
+**Scale/Scope**: two leagues; weekly cohorts of up to 1,000 members each (up to three 21-day cohorts running at once); real members first, topped up by a fixed pool of 56 scripted wallets to a floor that is, on devnet since 2026-10-13, 10 per Hackathon round — filled in its last minute, once a real member has joined it — and none per 7-day or 21-day cohort (R12, FR-043); two Hackathon lobbies, one per level, a round every 15 minutes in each (FR-044a); about 14 app screens with variants, the first-run tour included (PRD §10.1, FR-067); judging 10 October – 9 November 2026.
 
 No `NEEDS CLARIFICATION` items remain — all are resolved in [research.md](research.md).
 

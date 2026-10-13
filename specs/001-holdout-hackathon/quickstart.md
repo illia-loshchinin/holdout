@@ -142,13 +142,14 @@ npm --prefix tests test -- --grep "full cycle"
 
 ### Beta test on the devnet program
 
-The same compressed idea, but on devnet with real testers and real phones: a test league of **three 10-minute days at 5 reps a day**, a new cohort every 30 minutes (FR-044a, H36) — so each tester, or a single judge, with a wallet holding a Seeker Genesis Token (FR-003b), runs faucet → join → sittings → a deliberate forfeit → settlement → claim in under an hour, and the lobby keeps opening cohorts through the live period.
+The same compressed idea, but on devnet with real testers and real phones: two test leagues, one per form — Hackathon · Spark (Easy) and Hackathon · Habit (Hard) — each of **three 5-minute days at 5 reps a day**, a new cohort every 15 minutes, side by side (FR-044a, owner 2026-10-13) — so each tester, or a single judge, with a wallet holding a Seeker Genesis Token (FR-003b), runs faucet → join → sittings → a deliberate forfeit → settlement → claim in under an hour, and the lobby keeps opening cohorts through the live period.
 
 ```bash
-java -jar kotlin/crank/build/libs/crank.jar init --test-league --first-start <iso>
+java -jar kotlin/crank/build/libs/crank.jar init --test-league --league-id <n> --form easy --first-start <iso>
+java -jar kotlin/crank/build/libs/crank.jar init --test-league --league-id <n + 1> --form hard --first-start <same iso>
 ```
 
-Three 10-minute days at 5 reps, back to back every 30 minutes, joinable right up to each start (join lock 0, so one test cohort is always open), is the default; `--day-seconds`, `--days`, `--reps`, `--cadence` and `--join-lock` override it. If a test league already exists at id 100 with another shape (an earlier seven-day league, or the 5-minute join lock), the command refuses it; pass `--league-id 101`, or the next free id, to create the lobby. The newest test league is the lobby: the crank opens no more cohorts in the older one beyond the last round a comeback it owes needs (anyone may join such a round), then it winds down, and opens the new lobby's first cohort only once every cohort of the older one has settled and it owes no round still to open (FR-044a).
+Three 5-minute days at 5 reps, back to back every 15 minutes, joinable right up to each start (join lock 0, so one test cohort is always open in each lobby), is the default; the crank opens rounds in the newest test league of each form, and an older one winds down; `--day-seconds`, `--days`, `--reps`, `--cadence` and `--join-lock` override it. If a test league already exists at id 100 with another shape (an earlier seven-day league, or the 5-minute join lock), the command refuses it; pass `--league-id 101`, or the next free id, to create the lobby. The newest test league is the lobby: the crank opens no more cohorts in the older one beyond the last round a comeback it owes needs (anyone may join such a round), then it winds down, and opens the new lobby's first cohort only once every cohort of the older one has settled and it owes no round still to open (FR-044a).
 
 **Expected:** 5–7 testers each complete a full cycle on the short test cohort (FR-044a); bugs are fixed the same day. This run is the one the demo video is recorded from, labelled on screen as a short test cohort (constitution v1.4.0; no in-app walkthrough since 2026-10-09).
 
@@ -164,7 +165,7 @@ bash scripts/localnet.sh start && bash scripts/localnet.sh fund
 ```
 
 ```bash
-# Git Bash on Windows: set up the program, then the test league (three 10-minute days, 5 reps) starting in ~20 minutes.
+# Git Bash on Windows: set up the program, then the test league (three 5-minute days, 5 reps) starting in ~20 minutes.
 cd kotlin && ./gradlew :crank:jar && cd ..
 bash scripts/localnet-crank.sh init --operator <operator> --sponsor <sponsor> --treasury <treasury> --rate 0.0213 --fund-faucet 20
 bash scripts/localnet-crank.sh init --test-league --first-start <iso, ~20 min ahead>
@@ -174,7 +175,7 @@ bash scripts/localnet-crank.sh scripted fund
 bash scripts/localnet-crank.sh --loop      # leave running: opens, fills, forfeits, settles
 ```
 
-The loop runs `scripted run --floor-7d 0 --floor-21d 0 --floor-test 4 --fill-empty`: locally every test round is filled, so a whole cycle can be watched with nobody on a phone. Devnet passes no flags and waits for a real member before topping a Hackathon round up to 4 (FR-043, 2026-10-13).
+The loop runs `scripted run --floor-7d 0 --floor-21d 0 --floor-test 10 --fill-empty`: locally every test round is filled in its last minute, so a whole cycle can be watched with nobody on a phone. Devnet passes no flags and tops a Hackathon round up to 10 in its last minute only once a real member has joined it (FR-043, 2026-10-13).
 
 ```bash
 # The app on a phone over USB, reading and sending to the local validator.
