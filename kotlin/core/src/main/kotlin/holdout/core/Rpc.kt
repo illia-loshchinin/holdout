@@ -80,6 +80,12 @@ class Rpc(
          */
         const val READ_COMMITMENT = "confirmed"
 
+        /** The most addresses one `getMultipleAccounts` takes. */
+        const val MULTIPLE_ACCOUNTS_MAX = 100
+
+        /** An SPL token account's amount in base units, or null for data too short to be one. */
+        fun tokenAmountOf(data: ByteArray): ULong? = if (data.size < 72) null else java.nio.ByteBuffer.wrap(data, 64, 8).order(java.nio.ByteOrder.LITTLE_ENDIAN).long.toULong()
+
         /** The `getProgramAccounts` params for [query] — split out so the exact request is testable. */
         fun programAccountsParams(programId: SolanaPublicKey, query: ProgramAccountsQuery): JsonArray = buildJsonArray {
             add(JsonPrimitive(programId.base58()))
@@ -199,7 +205,7 @@ class Rpc(
      * not exist yet (a wallet that has never claimed), null when the read failed.
      */
     suspend fun tokenAmount(tokenAccount: SolanaPublicKey): ULong? = when (val read = account(tokenAccount)) {
-        is Answer.Ok -> read.value?.let { if (it.size < 72) null else java.nio.ByteBuffer.wrap(it, 64, 8).order(java.nio.ByteOrder.LITTLE_ENDIAN).long.toULong() } ?: 0uL
+        is Answer.Ok -> read.value?.let(::tokenAmountOf) ?: 0uL
         else -> null
     }
 
@@ -270,6 +276,43 @@ class Rpc(
                 }
             }
         }
+    }
+
+    /** One account as [multipleAccounts] reads it: its data and its lamports. */
+    class AccountInfo(val data: ByteArray, val lamports: Long)
+
+    /**
+     * Several accounts in one `getMultipleAccounts` per [MULTIPLE_ACCOUNTS_MAX]
+     * addresses, in [addresses]' order: each account, or null where none exists.
+     * Null as a whole when any call failed — unknown, never "none of them" (R8).
+     * A wallet with no data still answers with its lamports.
+     */
+    suspend fun multipleAccounts(addresses: List<SolanaPublicKey>): List<AccountInfo?>? {
+        val all = mutableListOf<AccountInfo?>()
+        for (chunk in addresses.chunked(MULTIPLE_ACCOUNTS_MAX)) {
+            val params =
+                buildJsonArray {
+                    add(JsonArray(chunk.map { JsonPrimitive(it.base58()) }))
+                    add(
+                        buildJsonObject {
+                            put("encoding", "base64")
+                            put("commitment", READ_COMMITMENT)
+                        },
+                    )
+                }
+            val result = call("getMultipleAccounts", params) as? JsonObject ?: return null
+            val values = runCatching { result.getValue("value").jsonArray }.getOrNull() ?: return null
+            if (values.size != chunk.size) return null
+            for (value in values) {
+                all +=
+                    if (value is JsonNull) {
+                        null
+                    } else {
+                        runCatching { AccountInfo(base64Data(value), value.jsonObject.getValue("lamports").jsonPrimitive.long) }.getOrNull() ?: return null
+                    }
+            }
+        }
+        return all
     }
 
     /**

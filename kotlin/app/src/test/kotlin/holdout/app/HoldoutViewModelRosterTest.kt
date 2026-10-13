@@ -80,13 +80,13 @@ class HoldoutViewModelRosterTest {
     }
 
     @Test
-    fun `given a cohort's read has answered, when it is asked for again 20 seconds later, then it reads again`() = runTest(dispatcher) {
+    fun `given a cohort's read has answered, when it is asked for again once its age is reached, then it reads again`() = runTest(dispatcher) {
         vm.loadRoster(cohortA)
         runCurrent()
         chain.rosterReads.single().complete(emptyList())
         runCurrent()
 
-        clock += HoldoutViewModel.MIN_READ_AGE_MILLIS
+        clock += HoldoutViewModel.ROSTER_MAX_AGE_MILLIS
         vm.loadRoster(cohortA)
         runCurrent()
 

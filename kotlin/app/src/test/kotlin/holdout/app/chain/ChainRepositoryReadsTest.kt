@@ -16,12 +16,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
- * How often the app's snapshot reads each account (R8): one failed call is asked
- * again before the pass gives up, `Config` and the leagues are kept between passes,
- * and the leaderboard takes a fresh cohorts read from the snapshot. No network: the
- * HTTP layer is a fake that answers each call from the program's golden bytes.
+ * How the app's snapshot reads the chain (FR-071, R8): a pulse with nothing changed is the cohorts
+ * not settled yet and one `getMultipleAccounts` for the wallet; settled cohorts, `Config`, the leagues
+ * and the wallet's memberships are kept until what moves them does. One failed call is asked again
+ * before the pass gives up. No network: the HTTP layer is a fake that answers each call from the
+ * program's golden bytes.
  */
 class ChainRepositoryReadsTest {
     private val programId = SolanaPublicKey.from("Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4")
@@ -35,85 +37,133 @@ class ChainRepositoryReadsTest {
 
     /** One account's golden bytes from the vectors file, which maps each account name to its hex. */
     private fun vector(name: String): ByteArray = hex(Regex(""""$name"\s*:\s*"([0-9a-f]+)"""").find(vectors)!!.groupValues[1])
+
     private val leagueId = LeagueSnapshot.decode(leagueBytes).params.leagueId
 
-    /** The golden cohort, moved into the golden league (or [league]), settled or not, with [counted] members counted. */
-    private fun cohort(league: Int = leagueId, settled: Boolean = false, counted: Int = 0): ByteArray = vector("Cohort").also {
+    /** The golden cohort, moved into the golden league (or [league]), settled or not, with [counted] members counted of [members]. */
+    private fun cohort(league: Int = leagueId, settled: Boolean = false, counted: Int = 0, members: Int = 1): ByteArray = vector("Cohort").also {
         it[AccountLayout.Cohort.LEAGUE_ID] = league.toByte()
         it[AccountLayout.Cohort.SETTLED] = if (settled) 1 else 0
-        for (i in 0 until 4) it[AccountLayout.Cohort.COUNTED + i] = (counted shr (8 * i)).toByte()
+        u32(it, AccountLayout.Cohort.COUNTED, counted)
+        u32(it, AccountLayout.Cohort.MEMBER_COUNT, members)
+    }
+
+    /** The golden membership, moved into [cohortKey] and onto [wallet]. */
+    private val membershipBytes = vector("Membership").also {
+        cohortKey.bytes.copyInto(it, AccountLayout.Membership.COHORT)
+        wallet.bytes.copyInto(it, AccountLayout.Membership.WALLET)
     }
 
     private var now = 0L
     private val pauses = mutableListOf<Long>()
 
-    /** What each kind of call answers, by its name below; a kind left out fails. Calls are counted by kind. */
-    private val answers = mutableMapOf<String, () -> String?>()
+    /** The program's one cohort as the chain holds it now, whether `Config` exists, and the wallet's memberships. */
+    private var cohorts = cohort()
+    private var live = true
+    private var memberships = "[]"
+
+    /** Kinds of call to fail next, with how many times; and the calls made, by kind. */
+    private val failing = mutableMapOf<String, Int>()
     private val calls = mutableMapOf<String, Int>()
 
-    /** Fails the next [n] calls of [kind], then answers it as before. */
     private fun failNext(kind: String, n: Int = 1) {
-        val then = answers.getValue(kind)
-        var left = n
-        answers[kind] = { if (left-- > 0) null else then() }
+        failing[kind] = n
     }
 
     private val http =
         object : HttpNetworkDriver {
             override suspend fun makeHttpRequest(request: HttpRequest): String {
-                val kind = kindOf(request.body.orEmpty())
+                val body = request.body.orEmpty()
+                val kind = kindOf(body)
                 calls[kind] = (calls[kind] ?: 0) + 1
-                val result = answers[kind]?.invoke() ?: return """{"jsonrpc":"2.0","error":{"code":429,"message":"Too many requests"},"id":"x"}"""
-                return """{"jsonrpc":"2.0","result":$result,"id":"x"}"""
+                val left = failing[kind] ?: 0
+                if (left > 0) {
+                    failing[kind] = left - 1
+                    return """{"jsonrpc":"2.0","error":{"code":429,"message":"Too many requests"},"id":"x"}"""
+                }
+                return """{"jsonrpc":"2.0","result":${answer(kind, body)},"id":"x"}"""
             }
         }
 
-    /** Which read [body] is: its method, and for `getProgramAccounts` the account size it filters on. */
+    /** Which read [body] is: its method, and for `getProgramAccounts` the accounts it filters on. */
     private fun kindOf(body: String): String = when (Regex(""""method"\s*:\s*"(\w+)"""").find(body)!!.groupValues[1]) {
         "getAccountInfo" -> if (configAddress in body) "config" else "account"
-        "getBalance" -> "balance"
-        "getProgramAccounts" ->
+        "getMultipleAccounts" -> if (wallet.base58() in body) "wallet" else "fetch"
+        "getProgramAccounts" -> {
+            val memcmps = Regex("memcmp").findAll(body).count()
             when (Regex(""""dataSize"\s*:\s*(\d+)""").find(body)!!.groupValues[1].toInt()) {
-                AccountLayout.Cohort.SIZE -> "cohorts"
+                AccountLayout.Cohort.SIZE -> if (memcmps > 1) "unsettled" else "cohorts"
                 LeagueSnapshot.SIZE -> "leagues"
-                AccountLayout.Membership.SIZE -> if (Regex("memcmp").findAll(body).count() > 2) "forfeits" else "memberships"
+                AccountLayout.Membership.SIZE -> if (memcmps > 2) "forfeits" else "memberships"
                 else -> "profiles"
             }
+        }
         else -> "other"
+    }
+
+    private fun answer(kind: String, body: String): String = when (kind) {
+        "config" -> account(configBytes.takeIf { live })
+        "cohorts" -> accounts(cohorts)
+        "unsettled" -> if (cohorts[AccountLayout.Cohort.SETTLED] == 0.toByte()) accounts(cohorts) else "[]"
+        "leagues" -> accounts(leagueBytes)
+        "memberships" -> memberships
+        "profiles", "forfeits" -> "[]"
+        // No profile, no SKR account, and the wallet itself with 5 lamports.
+        "wallet" -> """{"context":{"slot":1},"value":[null,null,{"data":["","base64"],"lamports":5,"owner":"11111111111111111111111111111111"}]}"""
+        "fetch" -> """{"context":{"slot":1},"value":[${if (cohortKey.base58() in body) info(cohorts) else "null"}]}"""
+        else -> account(null)
     }
 
     private val repo = ChainRepository(Rpc("http://rpc.test", Rpc20Driver("http://rpc.test", http)), programId, clock = { now }, pause = { pauses += it }, log = {})
 
-    private fun account(bytes: ByteArray?) = """{"context":{"slot":1},"value":${bytes?.let { """{"data":["${b64(it)}","base64"],"lamports":1,"owner":"${programId.base58()}"}""" } ?: "null"}}"""
+    private fun info(bytes: ByteArray) = """{"data":["${b64(bytes)}","base64"],"lamports":1,"owner":"${programId.base58()}"}"""
 
-    private fun accounts(vararg bytes: ByteArray) = bytes.joinToString(",", "[", "]") { """{"pubkey":"${cohortKey.base58()}","account":{"data":["${b64(it)}","base64"],"lamports":1,"owner":"${programId.base58()}"}}""" }
+    private fun account(bytes: ByteArray?) = """{"context":{"slot":1},"value":${bytes?.let(::info) ?: "null"}}"""
 
-    private var cohorts = cohort()
-
-    init {
-        answers["config"] = { account(configBytes) }
-        answers["cohorts"] = { accounts(cohorts) }
-        answers["leagues"] = { accounts(leagueBytes) }
-        answers["memberships"] = { "[]" }
-        answers["profiles"] = { "[]" }
-        answers["forfeits"] = { "[]" }
-        answers["account"] = { account(null) }
-        answers["balance"] = { """{"context":{"slot":1},"value":5}""" }
-    }
+    private fun accounts(vararg bytes: ByteArray) = bytes.joinToString(",", "[", "]") { """{"pubkey":"${cohortKey.base58()}","account":${info(it)}}""" }
 
     private fun load(wallet: SolanaPublicKey? = null) = runBlocking { repo.load(wallet) }
+
+    private fun loadFresh(wallet: SolanaPublicKey? = null) = runBlocking { repo.loadFresh(wallet) }
+
+    // ---- a pulse with nothing changed ---------------------------------------
+
+    @Test
+    fun `after the first pass, a pulse with nothing changed is two calls, the cohorts not settled and the wallet's accounts`() {
+        load(wallet)
+        calls.clear()
+        now = 30_000
+
+        val view = assertNotNull(load(wallet))
+
+        assertEquals(mapOf("unsettled" to 1, "wallet" to 1), calls)
+        assertEquals(5L, view.lamports)
+        assertEquals(1, view.holdouts.size)
+    }
+
+    @Test
+    fun `the wallet's profile, SKR and SOL come from one call`() {
+        val view = assertNotNull(load(wallet))
+
+        assertEquals(1, calls["wallet"])
+        assertNull(view.profile)
+        assertEquals(0uL, view.skr)
+        assertEquals(5L, view.lamports)
+        assertNull(calls["account"])
+    }
+
+    // ---- failures ---------------------------------------------------------------
 
     @Test
     fun `a call that fails once is asked again after a short wait, and the pass still answers`() {
         failNext("cohorts")
-        failNext("balance")
+        failNext("wallet")
 
         val view = assertNotNull(load(wallet))
 
         assertEquals(5L, view.lamports)
-        assertEquals(1, view.holdouts.size)
         assertEquals(2, calls["cohorts"])
-        assertEquals(2, calls["balance"])
+        assertEquals(2, calls["wallet"])
         assertEquals(listOf(ChainRepository.RETRY_MILLIS, ChainRepository.RETRY_MILLIS), pauses)
     }
 
@@ -125,23 +175,71 @@ class ChainRepositoryReadsTest {
 
         assertEquals(2, calls["cohorts"])
         assertNull(calls["memberships"])
-        assertNull(calls["balance"])
+        assertNull(calls["wallet"])
     }
 
     @Test
-    fun `config and the leagues are read on the first pass and kept for ten minutes`() {
+    fun `a pulse whose not-settled read fails twice leaves the view unknown`() {
+        load()
+        failNext("unsettled", 2)
+        now = 30_000
+
+        assertNull(load())
+    }
+
+    // ---- settled cohorts are kept ---------------------------------------------
+
+    @Test
+    fun `a cohort that settles is fetched once when it leaves the not-settled list, then kept`() {
+        load()
+        cohorts = cohort(settled = true)
+        now = 30_000
+        assertTrue(assertNotNull(load()).holdouts.single().cohort.settled)
+        assertEquals(1, calls["fetch"])
+
+        now = 60_000
+        assertEquals(1, assertNotNull(load()).holdouts.size)
+        assertEquals(1, calls["fetch"])
+        assertEquals(1, calls["cohorts"])
+    }
+
+    @Test
+    fun `every cohort is read whole again once the kept ones are ten minutes old`() {
+        load()
+        now = ChainRepository.FULL_READ_MILLIS - 1
+        load()
+        assertEquals(1, calls["cohorts"])
+
+        now = ChainRepository.FULL_READ_MILLIS
+        load()
+        assertEquals(2, calls["cohorts"])
+    }
+
+    // ---- Config and the leagues ---------------------------------------------------
+
+    @Test
+    fun `Config is read on the first pass and kept for an hour`() {
+        load()
+        now = ChainRepository.CONFIG_MAX_AGE_MILLIS - 1
+        load()
+        assertEquals(1, calls["config"])
+
+        now = ChainRepository.CONFIG_MAX_AGE_MILLIS
+        load()
+        assertEquals(2, calls["config"])
+    }
+
+    @Test
+    fun `the leagues are kept for ten minutes when nothing moves them`() {
         load()
         now = 30_000
         load()
         now = ChainRepository.SETTINGS_MAX_AGE_MILLIS - 1
         load()
-        assertEquals(1, calls["config"])
         assertEquals(1, calls["leagues"])
-        assertEquals(3, calls["cohorts"])
 
         now = ChainRepository.SETTINGS_MAX_AGE_MILLIS
         load()
-        assertEquals(2, calls["config"])
         assertEquals(2, calls["leagues"])
     }
 
@@ -202,13 +300,76 @@ class ChainRepositoryReadsTest {
 
     @Test
     fun `a program not live here is not kept, so it is read again next pass`() {
-        answers["config"] = { account(null) }
+        live = false
 
         assertEquals(ChainView(null, emptyList(), null, 0uL, 0L), load())
         load()
 
         assertEquals(2, calls["config"])
     }
+
+    // ---- the wallet's memberships ---------------------------------------------
+
+    @Test
+    fun `the wallet's memberships are kept while the cohorts they are in do not move`() {
+        memberships = accounts(membershipBytes)
+        assertNotNull(assertNotNull(load(wallet)).holdouts.single().membership)
+        now = 30_000
+
+        val view = assertNotNull(load(wallet))
+
+        assertEquals(1, calls["memberships"])
+        assertNotNull(view.holdouts.single().membership)
+    }
+
+    @Test
+    fun `a cohort the wallet is in that moves has its memberships read again`() {
+        memberships = accounts(membershipBytes)
+        load(wallet)
+        cohorts = cohort(members = 2)
+        now = 30_000
+
+        load(wallet)
+
+        assertEquals(2, calls["memberships"])
+    }
+
+    @Test
+    fun `the wallet's memberships are read again after five minutes with nothing moved`() {
+        load(wallet)
+        now = ChainRepository.MEMBERSHIPS_MAX_AGE_MILLIS - 1
+        load(wallet)
+        assertEquals(1, calls["memberships"])
+
+        now = ChainRepository.MEMBERSHIPS_MAX_AGE_MILLIS
+        load(wallet)
+        assertEquals(2, calls["memberships"])
+    }
+
+    @Test
+    fun `a fresh read, after the wallet's own action, reads its memberships and its own settled cohorts again`() {
+        cohorts = cohort(settled = true)
+        memberships = accounts(membershipBytes)
+        load(wallet)
+        now = 30_000
+
+        assertNotNull(loadFresh(wallet))
+
+        assertEquals(2, calls["memberships"])
+        assertEquals(1, calls["fetch"])
+    }
+
+    @Test
+    fun `another wallet's memberships are read at once`() {
+        load(wallet)
+        now = 30_000
+
+        load(SolanaPublicKey(ByteArray(32) { 8 }))
+
+        assertEquals(2, calls["memberships"])
+    }
+
+    // ---- the leaderboard ---------------------------------------------------------
 
     @Test
     fun `the leaderboard takes the snapshot's cohorts read of the last 30 seconds as its first read`() {
@@ -236,6 +397,10 @@ class ChainRepositoryReadsTest {
         fun b64(bytes: ByteArray): String = Base64.getEncoder().encodeToString(bytes)
 
         fun hex(s: String): ByteArray = ByteArray(s.length / 2) { s.substring(2 * it, 2 * it + 2).toInt(16).toByte() }
+
+        fun u32(bytes: ByteArray, offset: Int, value: Int) {
+            for (i in 0 until 4) bytes[offset + i] = (value shr (8 * i)).toByte()
+        }
 
         /** A file committed elsewhere in the repository: the program's golden vectors (research R2). */
         fun repoFile(relative: String): String {
