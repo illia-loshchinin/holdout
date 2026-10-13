@@ -380,18 +380,18 @@ private val STEPS = listOf(
 
 // ---- card 5: scripted members -----------------------------------------------------------------------
 
-/** Spark's minimum before scripted members stop joining (spec 001 FR-043), and Habit's. */
+/** Spark's minimum before scripted members stop joining (spec 001 FR-043), and a Hackathon round's once someone real joins. */
 private const val SPARK_MINIMUM = 20
-private const val HABIT_MINIMUM = 12
+private const val HACKATHON_MINIMUM = 4
 
 @Composable
 private fun ScriptedCard() {
-    // Scripted members exist only in the Hackathon rounds on devnet (owner, 12 Oct; board 2d).
-    Title("Scripted members\nfor Hackathon only")
+    // On devnet scripted members play Spark and the Hackathon rounds, not Habit (owner, 13 Oct).
+    Title("Scripted members\nin Spark and Hackathon")
     ScriptedRow(real = SPARK_MINIMUM - SCRIPTED_SHOWN, scripted = SCRIPTED_SHOWN)
     Body("Some members in these Holdouts are scripted.\nReal wallets, same rules, labelled SCRIPTED.")
     Text(
-        "They only fill a Holdout to its minimum:\n$SPARK_MINIMUM per Spark and $HABIT_MINIMUM per Habit.\nTheir days aren't camera-checked.",
+        "They only top a Holdout up: a Spark to $SPARK_MINIMUM,\na Hackathon to $HACKATHON_MINIMUM once someone real joins.\nTheir days aren't camera-checked.",
         style = MaterialTheme.typography.bodyLarge,
         color = HoldoutColors.TextTertiary,
     )

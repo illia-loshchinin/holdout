@@ -63,7 +63,8 @@ round is a real Holdout under the same contract and the same rules, with shorter
 - a new round every 30 minutes, joinable right up to its start;
 - labelled **DEVNET COHORT · 10-MINUTE DAYS** wherever it appears, with its own *Hackathon*
   leaderboard;
-- topped up with scripted members like any Holdout (see below).
+- topped up to 4 members by scripted members once someone real has joined it (see below); a
+  round nobody has joined stays empty.
 
 A Hackathon round lets one person run join → sittings → miss or finish → settlement → claim
 alone in half an hour. The demo video is recorded from one. Real Spark and Habit Holdouts always
@@ -74,7 +75,7 @@ mainnet build never carries it.
 
 A Holdout must never look empty to someone who installs the app during judging. Real members come
 first. **Scripted members** top a Holdout up to a minimum and then stop joining: 20 per Spark,
-12 per Habit, and a few in every Hackathon round.
+and 4 per Hackathon round once someone real has joined it. Habit gets none on devnet.
 
 - They are ordinary wallets run by automation, under exactly the same contract rules. Their
   stakes are real test SKR, their forfeits fund real prizes, and a scripted finisher takes its

@@ -4,7 +4,10 @@
 # run` reports a cohort open falling due before then (`nextOpenAt`, chain time):
 # the loop wakes a few seconds after it, so the next test cohort is joinable
 # moments after the one before starts, not up to an interval later (FR-044a).
-# Runs in the Fly machine and in the GitHub Actions fallback (with --once).
+# Between passes `crank scripted run` runs alone every CRANK_SCRIPTED_POLL_SECONDS
+# (default 60, 0 to switch off), so a Hackathon round tops up soon after someone
+# real joins it (FR-043). Runs in the Fly machine, and in the GitHub Actions
+# fallback with --once (then scripted polls until CRANK_ONCE_POLL_UNTIL).
 #
 # Keys come from the environment, never from the image or the repository:
 #   HOLDOUT_PAYER_KEY_JSON        the payer's Solana CLI keypair (a JSON array)
@@ -62,9 +65,46 @@ pass() {
   return $scripted
 }
 
+# Between full passes, `scripted run` alone every CRANK_SCRIPTED_POLL_SECONDS
+# (default 60): a Hackathon round gets scripted members only once someone real
+# joins it (FR-043), and its lobby lasts 30 minutes, so a judge who joins finds
+# it topped up within a minute rather than up to a pass later. A poll that
+# does nothing prints nothing.
+poll_scripted() {
+  local out
+  # Killed at the deadline it was given: every step is idempotent, and the next pass re-reads the chain.
+  out="$(timeout "$1" java -jar "$JAR" scripted run)"
+  local status=$?
+  if (( status != 0 )) || grep -q '"step"' <<< "$out"; then
+    echo "=== $(date -u +%FT%TZ) crank scripted run (poll)"
+    echo "$out"
+    (( status != 0 )) && echo "=== poll ended with a failure; the next one retries (exit $status)"
+  fi
+  return 0
+}
+
+# Polls until the absolute time [$1] and never past it: a poll starts only when
+# the interval and CRANK_POLL_MIN_SECONDS (default 20) of run time still fit,
+# and is stopped at the deadline, so the next full pass is never pushed back.
+polls_until() {
+  local deadline=$1 poll="${CRANK_SCRIPTED_POLL_SECONDS:-60}" least="${CRANK_POLL_MIN_SECONDS:-20}" left
+  [[ -n "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" ]] && (( poll > 0 )) || return 0
+  while (( deadline - $(date +%s) > poll + least )); do
+    sleep "$poll"
+    left=$(( deadline - $(date +%s) ))
+    (( left > 0 )) || return 0
+    poll_scripted "$left"
+  done
+}
+
+# One pass, then `scripted run` alone every CRANK_SCRIPTED_POLL_SECONDS until
+# CRANK_ONCE_POLL_UNTIL (epoch seconds; the GitHub Actions fallback sets it from
+# its job's start, crank.yml), or for CRANK_ONCE_POLL_SECONDS (default 0).
 if [[ "${1:-}" == "--once" ]]; then
   pass
-  exit $?
+  status=$?
+  polls_until "${CRANK_ONCE_POLL_UNTIL:-$(( $(date +%s) + ${CRANK_ONCE_POLL_SECONDS:-0} ))}"
+  exit $status
 fi
 
 # Seconds to sleep: the interval, or until 5 s after the next open falls due
@@ -81,5 +121,8 @@ next_sleep() {
 while true; do
   : > "$SUMMARY"
   pass || echo "=== pass ended with a failure; the next pass retries (exit $?)"
-  sleep "$(next_sleep)"
+  deadline=$(( $(date +%s) + $(next_sleep) ))
+  polls_until "$deadline"
+  rest=$(( deadline - $(date +%s) ))
+  (( rest > 0 )) && sleep "$rest"
 done
