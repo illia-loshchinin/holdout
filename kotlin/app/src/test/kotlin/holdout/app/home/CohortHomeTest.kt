@@ -251,9 +251,9 @@ class CohortHomeTest {
     @Test
     fun `offline before the sitting - the chain can't be reached, the reps still count once sent, and Check again`() {
         show(offline = true)
-        text("${Deployment.networkName} can't be reached right now.").assertIsDisplayed()
+        text("${Deployment.networkName} isn't answering").assertIsDisplayed()
         text("You can still do today's reps. The day only counts once it reaches the chain before the deadline.").assertIsDisplayed()
-        text("Check again").performClick()
+        text("Retry").performClick()
         assertEquals(1, checks)
         text("Start today's 25").assertIsDisplayed()
     }
@@ -261,7 +261,7 @@ class CohortHomeTest {
     @Test
     fun `a failed check says the chain still can't be reached`() {
         show(offline = true, stillUnreachable = true)
-        text("${Deployment.networkName} still can't be reached.").assertIsDisplayed()
+        text("${Deployment.networkName} still isn't answering").assertIsDisplayed()
     }
 
     @Test
@@ -269,7 +269,7 @@ class CohortHomeTest {
         show(pendingDay = 11, offline = true)
         text("Done — waiting for network").assertIsDisplayed()
         text("Your 25 are saved on this phone. It only counts once it reaches the chain before the deadline: it's sent when Holdout is open and back online, and you approve it in your wallet.").assertIsDisplayed()
-        text("Check again").performClick()
+        text("Retry").performClick()
         assertEquals(1, checks)
         text("4h 06m").assertIsDisplayed()
     }

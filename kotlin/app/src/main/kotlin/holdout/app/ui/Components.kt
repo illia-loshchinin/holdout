@@ -326,7 +326,7 @@ fun Reading(content: @Composable () -> Unit) {
 @Composable
 fun CheckAgain(checking: Boolean, stillUnreachable: Boolean, onCheck: () -> Unit, modifier: Modifier = Modifier, network: String = Deployment.networkName) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.tight), horizontalAlignment = Alignment.CenterHorizontally) {
-        SecondaryButton(if (checking) CheckAgainCopy.checking(network) else CheckAgainCopy.BUTTON, onCheck, busy = checking)
+        SecondaryButton(if (checking) CheckAgainCopy.CHECKING else CheckAgainCopy.BUTTON, onCheck, busy = checking)
         if (stillUnreachable && !checking) Notice(CheckAgainCopy.stillUnreachable(network), warning = true)
     }
 }

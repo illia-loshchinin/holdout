@@ -49,6 +49,12 @@ object HoldoutColors {
     /** Coral. Forfeit, the last-10-minutes warning, faucet exhausted. Never a harsh red. */
     val Warning = Color(0xFFFF623A)
 
+    /**
+     * Soft warm. A nudge, not an alarm: the devnet status bar's dot and ring and the sitting's
+     * last-10-minutes line. Losses and errors stay [Warning].
+     */
+    val SoftWarm = Color(0xFFFFB08F)
+
     /** Solana Purple. Decoration only, never text: purple that has to be read is [CelebrationText]. */
     val Celebration = Color(0xFF9945FF)
 

@@ -216,8 +216,8 @@ class CohortDetailScreenTest {
         var checks = 0
         show(offline = true, onCheck = { checks++ })
 
-        compose.onNodeWithText("Devnet can't be reached right now.").assertIsDisplayed()
-        compose.onNodeWithText("Check again").performClick()
+        compose.onNodeWithText("Devnet isn't answering").assertIsDisplayed()
+        compose.onNodeWithText("Retry").performClick()
         assertEquals(1, checks)
     }
 

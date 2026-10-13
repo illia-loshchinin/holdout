@@ -86,8 +86,8 @@ fun AppShell(
 }
 
 private fun Tab.icon() = when (this) {
-    Tab.Today -> NavIcons.House
+    Tab.Today -> NavIcons.Today
     Tab.Standing -> NavIcons.Pulse
-    Tab.Holdouts -> NavIcons.List
-    Tab.Me -> NavIcons.Person
+    Tab.Holdouts -> NavIcons.Holdouts
+    Tab.Me -> NavIcons.Me
 }

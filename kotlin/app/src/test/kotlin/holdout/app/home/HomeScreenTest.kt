@@ -261,9 +261,9 @@ class HomeScreenTest {
     fun `chain unreachable with nothing read - the Daily 25 still works, and Check again`() {
         show(fresh.copy(secondsLeftToday = null, holdouts = HoldoutsBlock.Unreachable))
         text("UNREACHABLE — THE DAILY 25 STILL WORKS", substring = true).assertIsDisplayed()
-        text("${Deployment.networkName} can't be reached right now.").assertIsDisplayed()
+        text("${Deployment.networkName} isn't answering").assertIsDisplayed()
         text("left today").assertDoesNotExist()
-        text("Check again").performClick()
+        text("Retry").performClick()
         assertEquals(1, checks)
         text("Start").assertIsDisplayed()
     }
@@ -271,7 +271,7 @@ class HomeScreenTest {
     @Test
     fun `an earlier read shown while unreachable says so above the offers`() {
         show(fresh.copy(holdouts = HoldoutsBlock.Open(listOf(spark), stale = true), stillUnreachable = true))
-        text("${Deployment.networkName} still can't be reached.").assertIsDisplayed()
+        text("${Deployment.networkName} still isn't answering").assertIsDisplayed()
         text("Spark · 7-day").assertIsDisplayed()
     }
 
