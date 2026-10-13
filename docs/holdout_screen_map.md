@@ -684,7 +684,7 @@ Only a confirmed absence of the token shows *Not a Seeker*; no network, a rate l
 **On screen (as built, top → bottom)**
 1. back · `STANDING` · **Leaderboards**
 2. Board chips, one selected: **Spark · 7-day** · **Habit · 21-day** · **Hackathon** (only when a test league exists; it carries the `DEVNET COHORT · 10-MINUTE DAYS` badge)
-3. One line under the chips: *All-time, from the chain. Ranked by share survived, after 3 played.* (test board: *Every Hackathon Holdout on devnet, together. Ranked by share survived, after 3 played.*)
+3. One line under the chips: *All-time, from the chain. Ranked by share survived, after 3 played.* (test board: *Every Hackathon round on devnet, together. Ranked by share survived, after 3 played.*)
 4. Your standing, one line: `YOU'RE RANKED #4` · `YOU'RE 2 HOLDOUTS AWAY FROM BEING RANKED` · `PLAY 3 OF THESE HOLDOUTS TO BE RANKED`
 5. `RANKED · 12` then rows: `1.` **alice.skr** or `ABcd…wxYZ` (Seeker ID when the wallet holds one, shortened address otherwise, spec 003) · `· you` on yours · right: **86% survived** · under: *6 of 7 cleared · streak 4 · best 6*; `SCRIPTED · ` where it applies. Empty: *Nobody has played 3 of these yet.*
 6. `NOT RANKED YET · 31` then rows marked `·` with *… · 2 more to be ranked*
