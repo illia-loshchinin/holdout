@@ -176,11 +176,11 @@ object Format {
      * your lost stake: finish the Spark · 7-day starting in 2d 4h." A round already running, joined late, is
      * "finish the Spark · 7-day that started today" ([startsInSeconds] null).
      */
-    fun comebackToday(amount: ULong, c: holdout.core.CohortSnapshot, startsInSeconds: Long?): String = "Get back ${skr(amount)} of your lost stake: finish the ${level(c)} " +
+    fun comebackToday(amount: ULong, c: holdout.core.CohortSnapshot, startsInSeconds: Long?): String = "Get back ${skr(amount)} of your lost stake: finish the ${holdoutName(c)} " +
         (if (startsInSeconds == null) "that started today." else "starting in ${countdown(startsInSeconds)}.")
 
     /** On the forfeit screen after a mid-round miss: "Finish the next Habit · 21-day and 250 SKR comes back." */
-    fun comebackForfeit(amount: ULong, c: holdout.core.CohortSnapshot): String = "Finish the next ${level(c)} and ${skr(amount)} comes back."
+    fun comebackForfeit(amount: ULong, c: holdout.core.CohortSnapshot): String = "Finish the next ${holdoutName(c)} and ${skr(amount)} comes back."
 
     /** The words that name a held place's amount, on every screen: "Win back 250 SKR" (exact, no "up to"). */
     fun winBack(amount: ULong): String = "Win back ${skr(amount)}"
