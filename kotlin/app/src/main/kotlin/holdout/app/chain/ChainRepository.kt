@@ -162,8 +162,8 @@ class ChainRepository(
     /** `Config` as last read, and when (R8): it changes rarely, so it is read on the first pass and then every [SETTINGS_MAX_AGE_MILLIS]. */
     @Volatile private var keptConfig: Pair<Long, ConfigSnapshot>? = null
 
-    /** The leagues as last read, when, and which cohorts had settled then (see [load]). */
-    private class KeptLeagues(val readAt: Long, val leagues: List<LeagueSnapshot>, val settled: Set<SolanaPublicKey>)
+    /** The leagues as last read, when, and how far each cohort's settlement had gone then (see [load]). */
+    private class KeptLeagues(val readAt: Long, val leagues: List<LeagueSnapshot>, val settlement: Map<SolanaPublicKey, List<Any>>)
 
     @Volatile private var keptLeagues: KeptLeagues? = null
 
@@ -182,12 +182,13 @@ class ChainRepository(
             }.also { keptConfig = now to it }
         val cohorts = twice { rpc.cohorts(programId) } ?: return failed("cohorts")
         lastCohorts = clock() to cohorts
-        // The leagues are read again once they are old, when a cohort names one not read yet, or when a
-        // cohort has settled since: a settlement is what moves a league's boost and comeback reserves.
-        val settled = cohorts.filter { it.second.settled }.map { it.first }.toSet()
+        // The leagues are read again once they are old, when a cohort names one not read yet, or when any
+        // cohort's settlement has moved since — a page counted, the cohort finalized, a boost or a comeback
+        // refund drawn or paid: settlement is what moves a league's boost and comeback reserves, page by page.
+        val settlement = cohorts.associate { (address, c) -> address to settlementOf(c) }
         val leagues =
-            keptLeagues?.takeIf { k -> now - k.readAt < SETTINGS_MAX_AGE_MILLIS && k.settled == settled && cohorts.all { (_, c) -> k.leagues.any { it.params.leagueId == c.leagueId } } }?.leagues
-                ?: (twice { rpc.leagues(programId) } ?: return failed("leagues")).also { keptLeagues = KeptLeagues(now, it, settled) }
+            keptLeagues?.takeIf { k -> now - k.readAt < SETTINGS_MAX_AGE_MILLIS && k.settlement == settlement && cohorts.all { (_, c) -> k.leagues.any { it.params.leagueId == c.leagueId } } }?.leagues
+                ?: (twice { rpc.leagues(programId) } ?: return failed("leagues")).also { keptLeagues = KeptLeagues(now, it, settlement) }
         val mine = wallet?.let { twice { rpc.walletMemberships(programId, it) } ?: return failed("the wallet's memberships") }.orEmpty().associateBy({ it.cohort }, { it.member })
         // A read that failed is unknown, not absent: no profile or a zero balance would
         // be shown as real (faucet offered to a funded wallet, a join without its
@@ -207,6 +208,9 @@ class ChainRepository(
                 .sortedWith(compareBy({ it.cohort.leagueId }, { it.cohort.index }))
         return ChainView(config, holdouts, profile, skr, lamports)
     }
+
+    /** The fields of [c] that move when its settlement moves a league's reserves. */
+    private fun settlementOf(c: CohortSnapshot): List<Any> = listOf(c.counted, c.settled, c.noFinisherBoost, c.boostReceived, c.comebackOwed, c.comebackFunded, c.comebackClaimed)
 
     /** [read], asked once more after [RETRY_MILLIS] when it did not answer: one dropped call does not cost the whole pass. */
     private suspend fun <T> twice(answered: (T) -> Boolean = { it != null }, read: suspend () -> T): T {

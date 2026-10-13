@@ -37,10 +37,11 @@ class ChainRepositoryReadsTest {
     private fun vector(name: String): ByteArray = hex(Regex(""""$name"\s*:\s*"([0-9a-f]+)"""").find(vectors)!!.groupValues[1])
     private val leagueId = LeagueSnapshot.decode(leagueBytes).params.leagueId
 
-    /** The golden cohort, moved into the golden league (or [league]), settled or not. */
-    private fun cohort(league: Int = leagueId, settled: Boolean = false): ByteArray = vector("Cohort").also {
+    /** The golden cohort, moved into the golden league (or [league]), settled or not, with [counted] members counted. */
+    private fun cohort(league: Int = leagueId, settled: Boolean = false, counted: Int = 0): ByteArray = vector("Cohort").also {
         it[AccountLayout.Cohort.LEAGUE_ID] = league.toByte()
         it[AccountLayout.Cohort.SETTLED] = if (settled) 1 else 0
+        for (i in 0 until 4) it[AccountLayout.Cohort.COUNTED + i] = (counted shr (8 * i)).toByte()
     }
 
     private var now = 0L
@@ -179,6 +180,24 @@ class ChainRepositoryReadsTest {
         now = 60_000
         load()
         assertEquals(2, calls["leagues"])
+    }
+
+    @Test
+    fun `a settlement counted in part since, not yet final, has the leagues read again`() {
+        load()
+        cohorts = cohort(counted = 1)
+        now = 30_000
+        load()
+        assertEquals(2, calls["leagues"])
+
+        cohorts = cohort(counted = 2)
+        now = 60_000
+        load()
+        assertEquals(3, calls["leagues"])
+
+        now = 90_000
+        load()
+        assertEquals(3, calls["leagues"])
     }
 
     @Test
