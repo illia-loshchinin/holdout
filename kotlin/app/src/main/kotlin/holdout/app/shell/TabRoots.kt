@@ -18,14 +18,15 @@ internal object TabRoots {
     }
 
     /**
-     * How often the app reads the roster of the Holdout Standing is about: every
-     * 30 s while it runs, but a finished one has no days left to be missed (the
-     * roster closed at the start), so a slow look is enough to keep its late
-     * changes — claims, records — in view.
+     * How old a Holdout's roster may grow before it is read again with none of
+     * its cohort's counters moved (FR-071): 30 s while it runs, because a
+     * member's submit shows in no counter; otherwise 10 minutes — a lobby's
+     * joins and leaves, and a finished one's records and settlement, move the
+     * counters, which the app's pulse sees and which read the roster at once.
      */
     fun rosterEveryMillis(h: Holdout, now: Long): Long = when (h.status(now)) {
-        CohortStatus.Settling, CohortStatus.Settled -> CHAIN_REFRESH_MILLIS
-        else -> ROSTER_REFRESH_MILLIS
+        CohortStatus.Running -> ROSTER_REFRESH_MILLIS
+        else -> CHAIN_REFRESH_MILLIS
     }
 
     /**

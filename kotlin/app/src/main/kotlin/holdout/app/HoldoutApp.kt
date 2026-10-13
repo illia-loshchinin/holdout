@@ -243,6 +243,9 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             clockViewModel.retry.networkBack()
         }
     }
+    // The pulse reads only while a screen showing live chain data is in front (FR-071).
+    val liveChain = nav.showsLiveChain
+    LaunchedEffect(liveChain) { holdouts.setLive(liveChain) }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     LaunchedEffect(address, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
@@ -486,14 +489,16 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     }
 
     // The Standing dot needs the roster of the Holdout Standing is about, wherever the member is.
-    // The only loop on that roster while the Holdout runs (Today's and the detail screens leave it to this one);
-    // a finished Holdout is looked at slowly.
+    // The only loop on that roster (Today's and the detail screens leave it to this one): it looks every
+    // 30 s and reads when the cohort's counters moved or the roster has grown old — 30 s while the
+    // Holdout runs its days, 10 minutes otherwise (FR-071).
     val standingAbout = shared.standingHoldout()
     val standingEvery = if (standingAbout != null && chainNow != null) TabRoots.rosterEveryMillis(standingAbout, chainNow) else ROSTER_REFRESH_MILLIS
-    InFrontLoop(standingAbout?.address to standingEvery) {
-        if (standingAbout == null) kotlinx.coroutines.awaitCancellation()
-        holdouts.loadRoster(standingAbout.address)
-        delay(standingEvery)
+    // Like the pulse, it reads only while a screen showing live chain data is in front (FR-071).
+    InFrontLoop(Triple(standingAbout?.address, standingEvery, liveChain)) {
+        if (standingAbout == null || !liveChain) kotlinx.coroutines.awaitCancellation()
+        holdouts.loadRoster(standingAbout.address, maxAgeMillis = standingEvery)
+        delay(ROSTER_REFRESH_MILLIS)
     }
 
     // A day waiting for the network sends itself once the chain answers again, on

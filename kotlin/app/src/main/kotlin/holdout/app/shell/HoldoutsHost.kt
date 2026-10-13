@@ -54,8 +54,8 @@ internal fun Shared.HoldoutsRoot(modifier: Modifier = Modifier) {
     val claimed = TabRoots.claimedOnHoldouts(v, n)
     InFrontLoop(claimed) {
         if (claimed.isEmpty()) kotlinx.coroutines.awaitCancellation()
-        claimed.forEach { holdouts.loadRoster(it) }
-        delay(CHAIN_REFRESH_MILLIS)
+        claimed.forEach { holdouts.loadRoster(it, maxAgeMillis = CHAIN_REFRESH_MILLIS) }
+        delay(ROSTER_REFRESH_MILLIS)
     }
     MyHoldoutsScreen(
         state = state,
