@@ -61,9 +61,9 @@ round is a real Holdout under the same contract and the same rules, with shorter
 open at the same time, one per form: **Hackathon · Spark** (knees allowed) and **Hackathon ·
 Habit** (toes only). Each round:
 
-- three 5-minute days, 5 reps a day: 15 minutes in all;
-- a new round every 15 minutes, joinable right up to its start;
-- labelled **DEVNET COHORT · 5-MINUTE DAYS** wherever it appears, with one combined *Hackathon*
+- three 10-minute days, 5 reps a day: about 30 minutes in all;
+- a new round every 30 minutes, joinable right up to its start;
+- labelled **DEVNET COHORT · 10-MINUTE DAYS** wherever it appears, with one combined *Hackathon*
   leaderboard;
 - topped up to 10 members by scripted members in its last minute, once someone real has joined
   it (see below); a round nobody has joined stays empty.

@@ -86,6 +86,9 @@ object Scripted {
      */
     const val TEST_FILL_LEAD = 60L
 
+    /** `--fill-lead <s>`: how long before its cutoff a Hackathon round is filled, [TEST_FILL_LEAD] unless said. */
+    private fun fillLead(args: Args): Long = args.option("fill-lead")?.let { it.toLongOrNull()?.takeIf { n -> n in 1..3_600 } ?: configError("--fill-lead must be 1..3600 seconds, got $it") } ?: TEST_FILL_LEAD
+
     /**
      * What a wallet should hold above the faucet's `sol_top_up` before it
      * claims and joins: a first claim's profile and token-account rent, a
@@ -116,8 +119,8 @@ object Scripted {
 
     fun checkArgs(args: Args) {
         when (args.words.getOrNull(1)) {
-            "plan" -> args.allow("cohort", "floor-7d", "floor-21d", "floor-test", "fill-empty")
-            "run" -> args.allow("floor-7d", "floor-21d", "floor-test", "fill-empty", "last-start")
+            "plan" -> args.allow("cohort", "floor-7d", "floor-21d", "floor-test", "fill-empty", "fill-lead")
+            "run" -> args.allow("floor-7d", "floor-21d", "floor-test", "fill-empty", "last-start", "fill-lead")
             "leave" -> args.allow("cohort")
             "fund" -> args.allow("lamports")
             else -> configError("unknown command '${args.words.joinToString(" ")}'; try --help")
@@ -171,25 +174,25 @@ object Scripted {
      * How many members [c] should hold at [now]: half the floor (rounded up)
      * while the lobby is open, the whole floor from 24 hours before the cutoff,
      * and no target at all once joining has closed. A Hackathon round has no
-     * target until its last [TEST_FILL_LEAD] seconds, then its whole floor.
+     * target until its last [lead] seconds ([TEST_FILL_LEAD] by default), then its whole floor.
      */
-    fun target(c: CohortSnapshot, floor: Int, now: Long): Int = when {
+    fun target(c: CohortSnapshot, floor: Int, now: Long, lead: Long = TEST_FILL_LEAD): Int = when {
         floor <= 0 || now >= c.joinCutoff -> 0
-        needsRealMember(c.leagueId) -> if (now >= testFillAt(c)) floor else 0
+        needsRealMember(c.leagueId) -> if (now >= testFillAt(c, lead)) floor else 0
         now >= c.joinCutoff - FULL_FLOOR_BEFORE_CUTOFF -> floor
         else -> (floor + 1) / 2
     }
 
-    /** When a Hackathon round is looked at and topped up: [TEST_FILL_LEAD] seconds before its join cutoff. */
-    fun testFillAt(c: CohortSnapshot): Long = c.joinCutoff - TEST_FILL_LEAD
+    /** When a Hackathon round is looked at and topped up: [lead] seconds before its join cutoff. */
+    fun testFillAt(c: CohortSnapshot, lead: Long = TEST_FILL_LEAD): Long = c.joinCutoff - lead
 
     /**
      * When [c]'s target next grows after [now], or null: a Hackathon round's
      * fill window, or the full floor 24 hours before a lobby's cutoff.
      */
-    fun nextFillAt(c: CohortSnapshot, floor: Int, now: Long): Long? {
+    fun nextFillAt(c: CohortSnapshot, floor: Int, now: Long, lead: Long = TEST_FILL_LEAD): Long? {
         if (floor <= 0) return null
-        val at = if (needsRealMember(c.leagueId)) testFillAt(c) else c.joinCutoff - FULL_FLOOR_BEFORE_CUTOFF
+        val at = if (needsRealMember(c.leagueId)) testFillAt(c, lead) else c.joinCutoff - FULL_FLOOR_BEFORE_CUTOFF
         return at.takeIf { it > now && it < c.joinCutoff }
     }
 
@@ -202,7 +205,8 @@ object Scripted {
         val tomorrow = Derive.dayIndex(c, now) + 1
         if (tomorrow >= c.durationDays) return null
         val plays = members.any { m ->
-            m.state == MembershipSnapshot.State.Joined && !Derive.inBreach(m, c, now) &&
+            m.state == MembershipSnapshot.State.Joined &&
+                !Derive.inBreach(m, c, now) &&
                 forfeitDayOf(cohort, m.wallet, c.durationDays).let { it == null || tomorrow < it }
         }
         return if (plays) c.start + tomorrow * c.dayLength else null
@@ -213,7 +217,7 @@ object Scripted {
      * [members] is the roster read just before filling, when there is one: real
      * members who joined after [c] was read count too.
      */
-    fun deficit(c: CohortSnapshot, floor: Int, now: Long, members: Int = 0): Int = (target(c, floor, now) - maxOf(c.memberCount.toInt(), members)).coerceAtLeast(0)
+    fun deficit(c: CohortSnapshot, floor: Int, now: Long, members: Int = 0, lead: Long = TEST_FILL_LEAD): Int = (target(c, floor, now, lead) - maxOf(c.memberCount.toInt(), members)).coerceAtLeast(0)
 
     /** Whether [leagueId]'s cohorts get scripted members only once a real member has joined: the Hackathon rounds (FR-043). */
     fun needsRealMember(leagueId: Int): Boolean = leagueId >= LeagueParams.TEST_LEAGUE_MIN
@@ -240,7 +244,7 @@ object Scripted {
             val groups = roster.filter { it.league == "21d" }.map { it.group }.distinct().sorted()
             if (groups.isEmpty()) emptyList() else roster.filter { it.group == groups[(index % groups.size).toInt()] }.sortedBy { it.index }
         }
-        // A Hackathon round starts every 15 minutes in each of two lobbies, and each wallet
+        // A Hackathon round starts every 30 minutes in each of two lobbies, and each wallet
         // holds one lobby place and one running Holdout at a time (FR-006a, FR-006b): the
         // wallets Spark and Habit leave idle on devnet, the starting point moved on each
         // round so the same few never play them all, and half the pool apart between
@@ -337,15 +341,16 @@ object Scripted {
             put("index", c.index)
             put("status", Derive.status(c, now).name)
             put("floor", floor)
-            put("target", target(c, floor, now))
+            val lead = fillLead(args)
+            put("target", target(c, floor, now, lead))
             // When the target next grows: a Hackathon round's last minute, or a lobby's last day.
-            nextFillAt(c, floor, now)?.let { put("fillsAt", it) }
+            nextFillAt(c, floor, now, lead)?.let { put("fillsAt", it) }
             put("members", c.memberCount)
             put("real", members.size - scripted.size)
             put("scripted", scripted.size)
             val waiting = waitsForReal(c.leagueId, args) && !hasRealMember(members, scriptedKeys)
             put("waitingForRealMember", waiting)
-            put("deficit", if (waiting) 0 else deficit(c, floor, now, members.size))
+            put("deficit", if (waiting) 0 else deficit(c, floor, now, members.size, lead))
             putJsonArray("pool") {
                 poolFor(roster, c.leagueId, c.index, floors).forEach { w ->
                     addJsonObject {
@@ -372,6 +377,7 @@ object Scripted {
     ): JsonObject {
         checkArgs(args)
         val floors = floors(args)
+        val lead = fillLead(args)
         val lastStart = args.option("last-start")?.let { runCatching { Instant.parse(it).epochSecond }.getOrNull() ?: configError("--last-start must be an instant, got $it") } ?: DEFAULT_LAST_START
         val keysDir = config.scriptedKeysDir ?: configError("HOLDOUT_SCRIPTED_KEYS_DIR is not set")
         val programId = config.programId
@@ -436,8 +442,8 @@ object Scripted {
 
             // ---- fill an open lobby to its target -----------------------------
             if (status == CohortStatus.Open && c.start <= lastStart && pool.isNotEmpty()) {
-                nextFillAt(c, floor, now)?.let(wakes::add)
-                if (target(c, floor, now) == 0) continue
+                nextFillAt(c, floor, now, lead)?.let(wakes::add)
+                if (target(c, floor, now, lead) == 0) continue
                 // The cohort and its roster read again, together: a member who joined or
                 // left since the cohort list was read moves the deficit either way.
                 val fresh = rpc.cohortRead(programId, address) ?: failed("could not read cohort ${c.leagueId}/${c.index} and its roster")
@@ -445,7 +451,7 @@ object Scripted {
                 if (waitsForReal(c.leagueId, args) && !hasRealMember(fresh.members, scriptedKeys)) continue
                 // Scripted members already in it submit their first day once it starts.
                 if (fresh.members.any { it.wallet in scriptedKeys }) wakes += c.start
-                var needed = deficit(fresh.cohort, floor, now, fresh.members.size)
+                var needed = deficit(fresh.cohort, floor, now, fresh.members.size, lead)
                 if (needed == 0) continue
                 val inCohort = fresh.members.map { it.wallet }.toSet()
                 for (w in pool) {

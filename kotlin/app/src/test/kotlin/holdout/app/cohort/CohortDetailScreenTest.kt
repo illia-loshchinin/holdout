@@ -144,11 +144,11 @@ class CohortDetailScreenTest {
 
     @Test
     fun `a Hackathon Holdout wears its badge`() {
-        val test = Fx.cohort(joined = 10, leagueId = 100, dayLength = 300, days = 3, form = 1)
+        val test = Fx.cohort(joined = 10, leagueId = 100, dayLength = 600, days = 3, form = 1)
         val h = Fx.holdout(test, Fx.member(days = 1))
         show(h = h, members = Fx.roster(3, 0, lasted = 1), at = test.start + 650)
 
-        compose.onNodeWithText("DEVNET COHORT · 5-MINUTE DAYS").assertIsDisplayed()
+        compose.onNodeWithText("DEVNET COHORT · 10-MINUTE DAYS").assertIsDisplayed()
     }
 
     @Test

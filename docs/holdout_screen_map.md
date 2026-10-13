@@ -90,7 +90,7 @@ Every new board reuses these. The values are the draft's tokens note; the design
 | Header labels (Today, Lobby, Detail, Forfeit, Claim, signing flow) | `HABIT · 21-DAY · DAY 12 OF 21` · lobby `SPARK · 7-DAY · STARTS IN 2D 4H` · locked `SPARK · 7-DAY · LOCKED · STARTS IN 41M 10S` · finished `SPARK · 7-DAY · FINISHED` | `21-DAY · FROM 21 SEP · DAY 12 OF 21` |
 | An offer's timing | `Joining closes in 2d 3h` (a short test Holdout: `Starts in 12m 30s`) | `Starts Mon 12 Oct, 07:00 your time` |
 | The only mention on a screen (stake sheet, *You're in*, the claim's upsell) | Join the Spark · 7-day Holdout | — |
-| A short test Holdout in a sentence | *Hackathon · Spark* or *Hackathon · Habit*, by its form (since 13 Oct; *Hackathon · {n}-day* on 12 Oct, *Hackathon Holdout* before, *Test Holdout* before that). Its badge is the neutral pill **DEVNET COHORT · 5-MINUTE DAYS** (surface-3, text-secondary; was the warning-coloured **SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET**); the README still discloses the short test lobby, FR-044a | — |
+| A short test Holdout in a sentence | *Hackathon · Spark* or *Hackathon · Habit*, by its form (since 13 Oct; *Hackathon · {n}-day* on 12 Oct, *Hackathon Holdout* before, *Test Holdout* before that). Its badge is the neutral pill **DEVNET COHORT · 10-MINUTE DAYS** (surface-3, text-secondary; was the warning-coloured **SHORT TEST COHORT · 10-MINUTE DAYS · DEVNET**); the README still discloses the short test lobby, FR-044a | — |
 | Sentences | *your run has ended* | — |
 
 Never *cohort* or *league* in anything a member reads (but for that badge), and no names for the lengths: the number of days is the label.
@@ -408,7 +408,7 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 6. Offer cards, each with an outlined **Join** — and a tap anywhere on a card does what Join does (FR-053, 12 Oct; level, tagline, what is at stake, how long joining stays open, the boost; `home/HoldoutOffer.kt`):
    - **Spark · 7-day** · *Light it up · knees allowed* · `12,500 SKR` *at stake · 14 joined* · *Joining closes in 2d 3h* (accent) · *Prize boost: up to 480 SKR* (green, only while the level's reserve holds more than 0; "up to", never a promise)
    - **Habit · 21-day** · *Make it stick · toes only* · `9,000 SKR` *at stake · 9 joined* · *Joining closes in 2d 3h*
-   - a Hackathon Holdout, with its badge `DEVNET COHORT · 5-MINUTE DAYS` (a quiet neutral pill): **Hackathon · Spark** (or **Hackathon · Habit**; both are open at once, Spark first) · *3 days · 5 push-ups a day · joinable right up to its start* · *Starts in 12m 30s* (no mention of judges, spec 004 FR-014)
+   - a Hackathon Holdout, with its badge `DEVNET COHORT · 10-MINUTE DAYS` (a quiet neutral pill): **Hackathon · Spark** (or **Hackathon · Habit**; both are open at once, Spark first) · *3 days · 5 push-ups a day · joinable right up to its start* · *Starts in 12m 30s* (no mention of judges, spec 004 FR-014)
 7. Row: ⓘ **How Holdout works** · `5 cards`
 8. Bottom bar, ⌂ active
 
@@ -431,7 +431,7 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 **Entered from:** app open while standing in a running Holdout · N2 reminder · H3 at start time · S6/S7 · a submit that landed · ∿ Standing's tab
 
 **On screen (as built, top → bottom)**
-1. (`DEVNET COHORT · 5-MINUTE DAYS` badge on a Hackathon Holdout) · `HABIT · 21-DAY · DAY 12 OF 21` on the left, the streak chip on the right (flame and days; white while active, extended once the day is on chain; no milestone here)
+1. (`DEVNET COHORT · 10-MINUTE DAYS` badge on a Hackathon Holdout) · `HABIT · 21-DAY · DAY 12 OF 21` on the left, the streak chip on the right (flame and days; white while active, extended once the day is on chain; no milestone here)
 2. (the new-phone banner *No banked reps on this device today. 25 to go.* above the day, with the Holdout's daily target, when this phone first saw the wallet today, the chain shows it in a Holdout that started before today, and nothing is banked here today; ES-3a, FR-069f, 🎨 board *MainNewPhone*; `home/NewPhone.kt`)
 3. The day: the bank ring (1 of 3 blocks) beside **25 push-ups** (or **10 of 25 banked**) · *all at once or 10 at a time* (or *15 to go*) · `4h 06m` `left` (mono, accent) · the day button (primary), **Start today's 25** / **Keep going**
 4. The crowd strip (one card, the whole card a tap): **189 of 312 still standing · your share 255 SKR** `›` (the share only when the member stands in it and it is above 0 — nothing has dropped yet, no *· your share …*) · under it ▲ *3 dropped since yesterday* (green; only when more than 0)
@@ -683,7 +683,7 @@ Only a confirmed absence of the token shows *Not a Seeker*; no network, a rate l
 
 **On screen (as built, top → bottom)**
 1. back · `STANDING` · **Leaderboards**
-2. Board chips, one selected: **Spark · 7-day** · **Habit · 21-day** · **Hackathon** (only when a test league exists; it carries the `DEVNET COHORT · 5-MINUTE DAYS` badge)
+2. Board chips, one selected: **Spark · 7-day** · **Habit · 21-day** · **Hackathon** (only when a test league exists; it carries the `DEVNET COHORT · 10-MINUTE DAYS` badge)
 3. One line under the chips: *All-time, from the chain. Ranked by share survived, after 3 played.* (test board: *Every Hackathon Holdout on devnet, together. Ranked by share survived, after 3 played.*)
 4. Your standing, one line: `YOU'RE RANKED #4` · `YOU'RE 2 HOLDOUTS AWAY FROM BEING RANKED` · `PLAY 3 OF THESE HOLDOUTS TO BE RANKED`
 5. `RANKED · 12` then rows: `1.` **alice.skr** or `ABcd…wxYZ` (Seeker ID when the wallet holds one, shortened address otherwise, spec 003) · `· you` on yours · right: **86% survived** · under: *6 of 7 cleared · streak 4 · best 6*; `SCRIPTED · ` where it applies. Empty: *Nobody has played 3 of these yet.*
@@ -875,7 +875,7 @@ The paths design has to make smooth, with the screens they cross. Times are PRD 
 - **J4 — Change your mind before the start:** `☰ H0` → `H3` → **Leave — full refund** ✍ → `H0`. After the cutoff `H3` is locked.
 - **J5 — Miss a day, and the way back:** `T2` → *(deadline)* → `H6` → **Do today's Daily 25** (`S1…`, while it is not done) or, from the comeback offer, **Win back {amount}** → **Join the next …** (`H2` on the lost chip → J2; after a miss on a round's last day **Join the …** that started today, a late join until the end of its day 1, or the one after it); `T1` carries the comeback card until the comeback round's joining has closed without the member (the next round only, not 14 days), and finishing that round pays the exact comeback with the claim (`H7`); a comeback nobody makes good goes to the boost
 - **J6 — Finish and get paid:** `T2` (last day) → `∿ H4` *settling* (usually within 15 minutes of the end) → *(settled)* → `N2` finished notice or the `☰ H0` card → `H7` → **Claim** ✍ `N1` → **CLAIMED** → **Done** → `☰ H0` *Finished*; after a Spark, **Make it a Habit · 21-day** → `H2`
-- **J7 — Anyone, a judge included, sees the whole cycle:** the demo video (sent with the submission) · or, connected with a wallet holding a Seeker Genesis Token, `T1` → a short test Holdout → `H2` (Seeker gate, then the stake confirm) → its 5-minute days → settlement → `H7` claim, in about a quarter of an hour (FR-044a, FR-003b) · or, without one, `∿ H4a` **Running now** → `H4` → `H5`, watching a Holdout thin (FR-062a)
+- **J7 — Anyone, a judge included, sees the whole cycle:** the demo video (sent with the submission) · or, connected with a wallet holding a Seeker Genesis Token, `T1` → a short test Holdout → `H2` (Seeker gate, then the stake confirm) → its 10-minute days → settlement → `H7` claim, in about a quarter of an hour (FR-044a, FR-003b) · or, without one, `∿ H4a` **Running now** → `H4` → `H5`, watching a Holdout thin (FR-062a)
 - **J8 — Offline:** `T1` the Daily 25 works with no network. `T2` warns before starting; at the end *"Done — not sent yet"* · **Back to today** (nothing is sent while the chain can't be reached); `T2` shows *"Done — waiting for network"*; the day is sent, with the wallet's approval, once Holdout is open and the chain answers again — and only before the deadline (*"Done — tap to submit"* only if that send was declined or failed).
 - **J9 — Where do I stand:** `∿ H4` → **Leaderboards** → `L1` (Spark · 7-day) → *You're 2 Holdouts away from being ranked* → back to `∿`.
 - **J10 — Watch before you stake:** `∿ Standing` with nothing of yours → `H4a` **Running now** → `H4` → `H5` → back → **Join one to have a crowd** → `☰ H0` (Now, *Open to join*) → **Join**, or a tap on the card → J2.

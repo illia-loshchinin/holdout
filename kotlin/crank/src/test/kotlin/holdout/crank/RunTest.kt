@@ -474,7 +474,7 @@ class RunTest {
         val chain = Chain(first + 60, sponsorLamports = 30_000_000)
         chain.accounts[Pdas.config(programId)] = configBytes(sponsorFloat = 50_000_000)
         listOf(101 to LeagueParams.FORM_KNEES_ALLOWED, 102 to LeagueParams.FORM_TOES).forEach { (id, form) ->
-            chain.accounts[Pdas.league(programId, id)] = leagueBytes(LeagueSnapshot(LeagueParams(id, 3, 5, 0, form, first, 300, 900, 0), nextIndex = 1))
+            chain.accounts[Pdas.league(programId, id)] = leagueBytes(LeagueSnapshot(LeagueParams(id, 3, 5, 0, form, first, 600, 1_800, 0), nextIndex = 1))
             chain.accounts[Pdas.cohort(programId, id, 0)] = cohortBytes(testCohort(id, 0, start = first))
         }
         pass(chain)

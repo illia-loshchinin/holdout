@@ -112,8 +112,8 @@ class YoureInScreenTest {
 
     @Test
     fun `a test Holdout wears its badge, and no dollar figure appears`() {
-        show(state.copy(test = true, testDayLength = 300))
-        text("DEVNET COHORT · 5-MINUTE DAYS").assertIsDisplayed()
+        show(state.copy(test = true, testDayLength = 600))
+        text("DEVNET COHORT · 10-MINUTE DAYS").assertIsDisplayed()
         compose.onAllNodes(hasText("≈", substring = true)).assertCountEquals(0)
     }
 }

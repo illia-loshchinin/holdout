@@ -87,7 +87,7 @@ object Reminders {
      * How long before a deadline (FR-068): a quarter of the day, at most 3 hours
      * — 3 hours before a 24-hour day's deadline, 15 minutes before a one-hour
      * day's. Never less than the 10 minutes Android may take to deliver it
-     * ([MIN_WINDOW_SECONDS]), nor more than the day itself: a 5-minute test
+     * ([MIN_WINDOW_SECONDS]), nor more than the day itself: a 10-minute test
      * day is reminded as it opens.
      */
     fun leadSeconds(dayLength: Long): Long = minOf(3 * 3_600L, maxOf(dayLength / 4, MIN_WINDOW_SECONDS), dayLength - 1)
@@ -276,7 +276,7 @@ object Reminders {
      * How late the phone may deliver a reminder: a third of the lead, and never
      * under [MIN_WINDOW_SECONDS]. So a one-hour day's reminder comes 15 to 5
      * minutes before its deadline, and a 24-hour day's 3 to 2 hours before:
-     * always before the deadline itself. A 5-minute test day's comes at any
+     * always before the deadline itself. A 10-minute test day's comes at any
      * point of the day — the window is the whole day — and one that would land
      * after the deadline is not shown (ReminderReceiver).
      */

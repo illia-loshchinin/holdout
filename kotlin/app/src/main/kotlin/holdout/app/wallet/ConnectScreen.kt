@@ -324,7 +324,7 @@ private fun LiveRow(row: LiveRowData, now: Long, roster: List<MembershipSnapshot
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
             val day = (Derive.dayIndex(c, now) + 1).coerceIn(1, c.durationDays)
             Text(
-                text = if (running != null) Format.headerLabel(c, day) else Format.level(c).uppercase(),
+                text = if (running != null) Format.headerLabel(c, day) else Format.holdoutName(c).uppercase(),
                 style = LabelStyle,
                 color = HoldoutColors.TextTertiary,
                 modifier = Modifier.weight(1f),

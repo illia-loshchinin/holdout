@@ -352,8 +352,8 @@ class CohortHomeTest {
 
     @Test
     fun `a Hackathon Holdout wears its badge`() {
-        val test = h.copy(cohort = cohort.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, dayLength = 300))
-        show(holdout = test, at = start + 5 * 300 + 100, members = null)
-        text("DEVNET COHORT · 5-MINUTE DAYS").performScrollTo().assertIsDisplayed()
+        val test = h.copy(cohort = cohort.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, dayLength = 600))
+        show(holdout = test, at = start + 5 * 600 + 100, members = null)
+        text("DEVNET COHORT · 10-MINUTE DAYS").performScrollTo().assertIsDisplayed()
     }
 }

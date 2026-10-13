@@ -45,7 +45,7 @@ class LeaderboardScreenTest {
         onBoard: (Board) -> Unit = {},
         onBack: () -> Unit = {},
     ) {
-        compose.setContent { HoldoutTheme { LeaderboardScreen(board, shown, view, me, onBoard, onBack, testDayLengthSeconds = 300) } }
+        compose.setContent { HoldoutTheme { LeaderboardScreen(board, shown, view, me, onBoard, onBack, testDayLengthSeconds = 600) } }
     }
 
     @Test
@@ -141,7 +141,7 @@ class LeaderboardScreenTest {
     fun `the test board wears the test badge and says Hackathon rounds, together`() {
         show(board = Board.TEST)
 
-        compose.onNodeWithText("DEVNET COHORT · 5-MINUTE DAYS").assertIsDisplayed()
+        compose.onNodeWithText("DEVNET COHORT · 10-MINUTE DAYS").assertIsDisplayed()
         compose.onNodeWithText("Every Hackathon round on devnet, together. Ranked by share survived, after 3 played.").assertIsDisplayed()
     }
 

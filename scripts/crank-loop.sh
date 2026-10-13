@@ -77,7 +77,7 @@ next_scripted() {
 
 # A `scripted run` that failed without saying when to wake (it could not read
 # the chain) is tried again in CRANK_RETRY_SECONDS (default 30): a scripted
-# member's 5-minute day must not wait out a whole interval.
+# member's 10-minute day must not wait out a whole interval.
 retry_scripted() {
   [[ -n "$(next_scripted)" ]] && return 0
   printf '{"nextScriptedAt":%s}\n' "$(( $(date +%s) + ${CRANK_RETRY_SECONDS:-30} ))" >> "$SCRIPTED"

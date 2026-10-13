@@ -131,14 +131,17 @@ object Format {
 
     fun levelRule(c: holdout.core.CohortSnapshot): String? = levelRule(c.form)
 
-    /** `SPARK · 7-DAY · DAY 3 OF 7`: a running Holdout's header label (no calendar dates, constitution VI; ruling G3). */
-    fun headerLabel(c: holdout.core.CohortSnapshot, day: Int): String = "${level(c)} · day $day of ${c.durationDays}".uppercase()
+    /** What the app calls [c]: its level ("Spark · 7-day"), or for a Hackathon round [testName] ("Hackathon · Spark", FR-044a). */
+    fun holdoutName(c: holdout.core.CohortSnapshot): String = if (c.leagueId >= holdout.core.LeagueParams.TEST_LEAGUE_MIN) testName(c) else level(c)
+
+    /** `SPARK · 7-DAY · DAY 3 OF 7` (`HACKATHON · SPARK · DAY 1 OF 3`): a running Holdout's header label (no calendar dates, constitution VI; ruling G3). */
+    fun headerLabel(c: holdout.core.CohortSnapshot, day: Int): String = "${holdoutName(c)} · day $day of ${c.durationDays}".uppercase()
 
     /** `SPARK · 7-DAY · STARTS IN 2D 4H`: a Holdout in its lobby. */
-    fun lobbyHeaderLabel(c: holdout.core.CohortSnapshot, secondsToStart: Long): String = "${level(c)} · starts in ${countdown(secondsToStart)}".uppercase()
+    fun lobbyHeaderLabel(c: holdout.core.CohortSnapshot, secondsToStart: Long): String = "${holdoutName(c)} · starts in ${countdown(secondsToStart)}".uppercase()
 
     /** `SPARK · 7-DAY · FINISHED`: a Holdout that has run its length. */
-    fun finishedHeaderLabel(c: holdout.core.CohortSnapshot): String = "${level(c)} · finished".uppercase()
+    fun finishedHeaderLabel(c: holdout.core.CohortSnapshot): String = "${holdoutName(c)} · finished".uppercase()
 
     /**
      * Where a lost stake goes, in the sentence the stake sheet shows (FR-027,

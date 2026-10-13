@@ -50,8 +50,8 @@ object ReminderNotices {
     }
 
     /**
-     * "7-day Holdout", and for the short test cohort "Hackathon · Spark (5-minute days)", its day length too.
-     * Without a [form] (an alarm an earlier build set) the test cohort is "Hackathon · 3-day (5-minute days)".
+     * "7-day Holdout", and for the short test cohort "Hackathon · Spark (10-minute days)", its day length too.
+     * Without a [form] (an alarm an earlier build set) the test cohort is "Hackathon · 3-day (10-minute days)".
      */
     fun holdoutLabel(days: Int, test: Boolean, dayLength: Long, form: Int = Reminders.FORM_UNKNOWN): String = if (test) "${Format.testName(form, days)} (${Format.dayLength(dayLength)} days)" else "$days-day Holdout"
 

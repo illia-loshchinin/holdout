@@ -403,7 +403,7 @@ class ForfeitScreenTest {
 
     @Test
     fun `a Hackathon round names the boosts after its own name, as the stake sheet does`() {
-        val test = Fx.cohort(joined = 10, leagueId = 100, dayLength = 300, days = 3, form = 1)
+        val test = Fx.cohort(joined = 10, leagueId = 100, dayLength = 600, days = 3, form = 1)
         val testHoldout = Fx.holdout(test, Fx.member(days = 1, state = MembershipSnapshot.State.Forfeited))
         show(stage = Stage.Forfeited(daysLasted = 1, recorded = true), h = testHoldout)
 

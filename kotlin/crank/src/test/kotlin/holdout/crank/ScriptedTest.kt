@@ -140,20 +140,22 @@ class ScriptedTest {
         assertEquals(0, Scripted.target(round, 10, round.joinCutoff), "joining has closed")
         assertEquals(round.joinCutoff - Scripted.TEST_FILL_LEAD, Scripted.nextFillAt(round, 10, round.joinCutoff - 600))
         assertNull(Scripted.nextFillAt(round, 10, round.joinCutoff - 30), "inside the window: filled now, not later")
+        assertEquals(10, Scripted.target(round, 10, round.joinCutoff - 100, lead = 120), "--fill-lead widens the window")
+        assertEquals(round.joinCutoff - 120, Scripted.nextFillAt(round, 10, round.joinCutoff - 600, lead = 120))
     }
 
     @Test
     fun `a running cohort asks to wake for tomorrow's day only while a scripted member still plays it`() {
-        val c = cohort(leagueId = 101, duration = 3).copy(dayLength = 300)
+        val c = cohort(leagueId = 101, duration = 3).copy(dayLength = 600)
         val key = SolanaPublicKey(ByteArray(32) { 4 })
         val now = c.start + 10
         val wallets = (0 until 40).map { SolanaPublicKey(ByteArray(32) { b -> (it + b).toByte() }) }
         val finisher = wallets.first { Scripted.forfeitDayOf(key, it, 3) == null }
         val quitsTomorrow = wallets.first { Scripted.forfeitDayOf(key, it, 3) == 1 }
         fun member(w: SolanaPublicKey) = MembershipSnapshot(w, 0, 10uL, c.start, 0, MembershipSnapshot.State.Joined)
-        assertEquals(c.start + 300, Scripted.nextDayAt(c, key, listOf(member(finisher)), now))
+        assertEquals(c.start + 600, Scripted.nextDayAt(c, key, listOf(member(finisher)), now))
         assertNull(Scripted.nextDayAt(c, key, listOf(member(quitsTomorrow)), now), "it stops on day 1: nothing to submit")
-        assertNull(Scripted.nextDayAt(c, key, listOf(member(finisher)), c.start + 2 * 300 + 10), "the last day: no tomorrow")
+        assertNull(Scripted.nextDayAt(c, key, listOf(member(finisher)), c.start + 2 * 600 + 10), "the last day: no tomorrow")
         assertNull(Scripted.nextDayAt(c, key, emptyList(), now))
     }
 

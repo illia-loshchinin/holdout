@@ -65,14 +65,14 @@ class SittingCopyTest {
     }
 
     @Test
-    fun `a Holdout day's guide label reads the length from its cohort, not from the stakes`() {
+    fun `a Holdout day's guide label reads its cohort - a Hackathon round by its name, not the stakes`() {
         val chips = listOf(1uL, 2uL, 3uL, 4uL)
         val habit3 = CohortSnapshot(100, 0, 0, 0, 3, 5, 600, 0, chips, form = LeagueParams.FORM_TOES)
         val spark3 = CohortSnapshot(101, 0, 0, 0, 3, 5, 600, 0, chips, form = LeagueParams.FORM_KNEES_ALLOWED)
-        assertEquals("habit · 3-day", SittingCopy.levelLabel(habit3))
-        assertEquals("spark · 3-day", SittingCopy.levelLabel(spark3))
+        assertEquals("hackathon · habit", SittingCopy.levelLabel(habit3))
+        assertEquals("hackathon · spark", SittingCopy.levelLabel(spark3))
         // The same casing as the stakes-keyed label of the regular lengths.
-        val habit21 = habit3.copy(durationDays = 21)
+        val habit21 = habit3.copy(leagueId = 1, durationDays = 21)
         assertEquals(SittingCopy.levelLabel(Stakes.STAKED), SittingCopy.levelLabel(habit21))
     }
 

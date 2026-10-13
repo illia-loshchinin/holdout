@@ -138,7 +138,7 @@ class MyHoldoutsModelTest {
         val older = holdout(1, start - 30 * day, member(7, MembershipSnapshot.State.Claimed), settled = true)
         val newer = holdout(2, start - 20 * day, member(7, MembershipSnapshot.State.Claimed), settled = true)
         val waiting = holdout(3, start - 9 * day, member(7, MembershipSnapshot.State.Finished), settled = true)
-        val test = holdout(4, start - 25 * day, member(2, MembershipSnapshot.State.Forfeited)).let { it.copy(cohort = it.cohort.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, dayLength = 300)) }
+        val test = holdout(4, start - 25 * day, member(2, MembershipSnapshot.State.Forfeited)).let { it.copy(cohort = it.cohort.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, dayLength = 600)) }
         val s = MyHoldoutsModel.build(view(older, newer, waiting, test), start)
 
         assertEquals(listOf(newer.id, older.id), s.won.map { it.cohort })

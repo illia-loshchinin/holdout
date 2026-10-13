@@ -126,7 +126,7 @@ private fun OfferCardTestPreview() {
                 timing = "Starts in 12m 30s",
                 boost = null,
                 test = true,
-                testDayLength = 300,
+                testDayLength = 600,
             ),
             onJoin = {},
         )

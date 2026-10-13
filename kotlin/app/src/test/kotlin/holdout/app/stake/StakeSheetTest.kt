@@ -411,9 +411,9 @@ class StakeSheetTest {
 
     @Test
     fun `a Hackathon Holdout wears its badge and its own words`() {
-        val test = holdout(leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, dayLength = 300, joined = 3, held = 250uL * skr, cutoff = start, reps = 5)
+        val test = holdout(leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, dayLength = 600, joined = 3, held = 250uL * skr, cutoff = start, reps = 5)
         show(test, at = start - 750)
-        text("DEVNET COHORT · 5-MINUTE DAYS").assertExists()
+        text("DEVNET COHORT · 10-MINUTE DAYS").assertExists()
         text("Join the Hackathon · Spark Holdout").assertExists()
         text("A quick taste: 5 push-ups a day for 3 days. Joinable right up to its start.").assertExists()
         text("Starts in 12m 30s").assertExists()

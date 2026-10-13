@@ -84,7 +84,7 @@ class FormatCopyTest {
 
     @Test
     fun `a Hackathon round is named by its form, Spark for knees and Habit for toes, and by its length when the form is unknown`() {
-        val easy = spark.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, durationDays = 3, dayLength = 300)
+        val easy = spark.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, durationDays = 3, dayLength = 600)
         val hard = easy.copy(form = LeagueParams.FORM_TOES)
         assertEquals("Hackathon · Spark", Format.testName(easy))
         assertEquals("Hackathon · Habit", Format.testName(hard))
