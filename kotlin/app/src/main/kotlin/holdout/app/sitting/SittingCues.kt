@@ -25,6 +25,9 @@ import java.util.Locale
  * The per-rep blip is deliberately the shortest, quietest-sounding tone here,
  * so the chime every ten still stands out as the bigger moment.
  *
+ * The words are the recorded calm voice ([VoiceClips]); a line with no clip —
+ * the deadline, a total past 300 — is said by the device's own speech.
+ *
  * **This is audio out, not audio in.** FR-022a and OD-3 forbid the microphone
  * and forbid audio as a *verification* signal; `RECORD_AUDIO` is not declared
  * anywhere and the manifest check in quickstart §4 still passes. Playback needs
@@ -36,10 +39,12 @@ class SittingCues(context: Context) {
         ToneGenerator(AudioManager.STREAM_MUSIC, VOLUME)
     }.getOrNull()
 
+    private val voice = VoiceClips(context)
+
     private var speechReady = false
 
     /**
-     * Best effort. A device with no engine, or no English voice, does a sitting
+     * The fallback for a line with no recorded clip. Best effort. A device with no engine, or no English voice, does a sitting
      * with tones alone — speech is the nicer half of this, never the necessary
      * half.
      */
@@ -54,6 +59,8 @@ class SittingCues(context: Context) {
 
     fun play(cue: SittingViewModel.Cue) {
         when (cue) {
+            // The countdown is said on its tick, whatever is still playing: a
+            // word that waits for the last one's end falls behind the count.
             is SittingViewModel.Cue.CountdownTick -> say(
                 when (cue.remaining) {
                     3 -> "three"
@@ -61,10 +68,11 @@ class SittingCues(context: Context) {
                     1 -> "one"
                     else -> return
                 },
+                flush = true,
             )
 
             SittingViewModel.Cue.Counting -> {
-                say("go")
+                say("go", flush = true)
                 tone(ToneGenerator.TONE_PROP_BEEP, 180)
             }
 
@@ -91,14 +99,20 @@ class SittingCues(context: Context) {
     }
 
     private fun say(text: String, flush: Boolean = false) {
+        if (voice.say(text, flush)) {
+            // A flushed clip also cuts off a fallback line still being spoken.
+            if (flush) runCatching { speech?.stop() }
+            return
+        }
         if (!speechReady) return
-        // QUEUE_ADD by default: "three, two, one, go" arrives as four separate
-        // cues a second apart and must not cut each other off.
+        // QUEUE_ADD by default: "10 banked" after its chime, or a correction
+        // after another, waits its turn rather than cutting the last one off.
         val mode = if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
         runCatching { speech?.speak(text, mode, null, text) }
     }
 
     fun close() {
+        voice.close()
         runCatching { tones?.release() }
         runCatching {
             speech?.stop()
