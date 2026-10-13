@@ -64,8 +64,7 @@ class Rpc(
      * quote the full URL, and a hosted node's key can sit in its path or its
      * query, so the endpoint and every URL are cut down to scheme and host.
      */
-    private fun noAnswer(failure: Throwable): String =
-        "no answer from $host: ${(failure.message ?: failure.javaClass.simpleName).replace(endpoint, host).replace(URL_AFTER_HOST, "$1")}"
+    private fun noAnswer(failure: Throwable): String = "no answer from $host: ${(failure.message ?: failure.javaClass.simpleName).replace(endpoint, host).replace(URL_AFTER_HOST, "$1")}"
 
     companion object {
         /**
