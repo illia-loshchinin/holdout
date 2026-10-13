@@ -165,14 +165,17 @@ object Journey {
     /**
      * The way back after forfeiting [forfeited] (US-4): of the Holdouts [open] to
      * join, the earliest-starting one in the same league — the league the member
-     * chose, and the one whose rounds make a comeback good (FR-037e). Every test league is
-     * one lobby, so a test cohort's way back is any test league's. Never another
-     * league's: with none of its own open, there is no offer (FR-003).
+     * chose, and the one whose rounds make a comeback good (FR-037e). A test
+     * cohort has two Hackathon lobbies open at once, one per form: with none of
+     * its own league open (a league winding down), the earliest round of a test
+     * league of the same form, the new lobby of its level. Never the other form's
+     * Hackathon lobby, and never another non-test league's: with none of its own
+     * open, there is no offer (FR-003).
      */
     fun <T> wayBack(forfeited: CohortSnapshot, open: List<T>, cohortOf: (T) -> CohortSnapshot): T? {
         fun isTest(leagueId: Int) = leagueId >= LeagueParams.TEST_LEAGUE_MIN
-        val sameLeague: (CohortSnapshot) -> Boolean =
-            if (isTest(forfeited.leagueId)) { c -> isTest(c.leagueId) } else { c -> c.leagueId == forfeited.leagueId }
-        return open.filter { sameLeague(cohortOf(it)) }.minByOrNull { cohortOf(it).start }
+        val own = open.filter { cohortOf(it).leagueId == forfeited.leagueId }.minByOrNull { cohortOf(it).start }
+        if (own != null || !isTest(forfeited.leagueId)) return own
+        return open.filter { isTest(cohortOf(it).leagueId) && cohortOf(it).form == forfeited.form }.minByOrNull { cohortOf(it).start }
     }
 }

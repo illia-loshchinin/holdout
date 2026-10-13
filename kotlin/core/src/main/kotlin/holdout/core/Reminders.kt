@@ -37,6 +37,8 @@ data class Reminder(
     val tick: Int = 0,
     /** Only for [Kind.Finished]: this finish should earn a comeback refund (FR-037e), so the notice says so. */
     val comeback: Boolean = false,
+    /** The cohort's form ([LeagueParams.FORM_TOES], [LeagueParams.FORM_KNEES_ALLOWED]), so a notice can name a Hackathon round by it; [Reminders.FORM_UNKNOWN] when it is not said. */
+    val form: Int = Reminders.FORM_UNKNOWN,
 ) {
     enum class Kind {
         Start,
@@ -78,11 +80,14 @@ data class Reminder(
 }
 
 object Reminders {
+    /** A [Reminder.form] that is not known (an alarm scheduled by an earlier build): notices fall back to the cohort's length. */
+    const val FORM_UNKNOWN = -1
+
     /**
      * How long before a deadline (FR-068): a quarter of the day, at most 3 hours
      * — 3 hours before a 24-hour day's deadline, 15 minutes before a one-hour
      * day's. Never less than the 10 minutes Android may take to deliver it
-     * ([MIN_WINDOW_SECONDS]), nor more than the day itself: a 10-minute test
+     * ([MIN_WINDOW_SECONDS]), nor more than the day itself: a 5-minute test
      * day is reminded as it opens.
      */
     fun leadSeconds(dayLength: Long): Long = minOf(3 * 3_600L, maxOf(dayLength / 4, MIN_WINDOW_SECONDS), dayLength - 1)
@@ -188,7 +193,7 @@ object Reminders {
         val window = windowSeconds(c.dayLength)
         val longDay = hasMidday(c.dayLength)
         val lead = leadSeconds(c.dayLength)
-        fun reminder(kind: Reminder.Kind, day: Int, at: Long, tick: Int = 0) = Reminder(kind, address, c.leagueId, day, at, Derive.deadlineOf(c, day), c.repsPerDay, c.durationDays, c.dayLength, m.daysCompleted, tick)
+        fun reminder(kind: Reminder.Kind, day: Int, at: Long, tick: Int = 0) = Reminder(kind, address, c.leagueId, day, at, Derive.deadlineOf(c, day), c.repsPerDay, c.durationDays, c.dayLength, m.daysCompleted, tick, form = c.form)
         fun deliverable(at: Long, deadline: Long, within: Long = window) = minOf(at + within, deadline) > now
         buildList {
             // Not once the first day is on chain: an alarm still waiting in its
@@ -233,7 +238,7 @@ object Reminders {
         if (!counting || c.settled || now >= at) return null
         return Reminder(
             Reminder.Kind.Finished, cohortAddress(c), c.leagueId, c.durationDays, at, at + FINISHED_HORIZON_SECONDS,
-            c.repsPerDay, c.durationDays, c.dayLength, m.daysCompleted, comeback = comebackFor(c, m),
+            c.repsPerDay, c.durationDays, c.dayLength, m.daysCompleted, comeback = comebackFor(c, m), form = c.form,
         )
     }
 
@@ -271,7 +276,7 @@ object Reminders {
      * How late the phone may deliver a reminder: a third of the lead, and never
      * under [MIN_WINDOW_SECONDS]. So a one-hour day's reminder comes 15 to 5
      * minutes before its deadline, and a 24-hour day's 3 to 2 hours before:
-     * always before the deadline itself. A 10-minute test day's comes at any
+     * always before the deadline itself. A 5-minute test day's comes at any
      * point of the day — the window is the whole day — and one that would land
      * after the deadline is not shown (ReminderReceiver).
      */

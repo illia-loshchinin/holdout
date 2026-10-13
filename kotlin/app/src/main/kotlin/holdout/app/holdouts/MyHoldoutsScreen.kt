@@ -271,7 +271,7 @@ private val PREVIEW = MyHoldoutsState(
     ),
     won = listOf(
         PastHoldout("f", "Spark · 7-day", "Held out 7 of 7 · 12 of 14 finished", "1,180 SKR", NavEvent.Open(Screen.Detail("f"))),
-        PastHoldout("g", "Hackathon · 3-day", "Held out 3 of 3 · 4 of 5 finished", "605.42 SKR", NavEvent.Open(Screen.Detail("g"))),
+        PastHoldout("g", "Hackathon · Spark", "Held out 3 of 3 · 4 of 5 finished", "605.42 SKR", NavEvent.Open(Screen.Detail("g"))),
     ),
     lost = listOf(PastHoldout("x", "Habit · 21-day", "Out on day 5 of 21", "2,500 SKR", NavEvent.Open(Screen.Forfeit("x")))),
 )

@@ -52,7 +52,7 @@ import holdout.core.Leaderboard.View
  *  ‹            STANDING                        ScreenHeader · Back goes to where it was opened
  *  Leaderboards                                 headline
  *  ( Spark · 7-day ) ( Habit · 21-day ) ( Hackathon )    ChoiceChips
- *  [DEVNET COHORT · 10-MINUTE DAYS]             the test board only
+ *  [DEVNET COHORT · 5-MINUTE DAYS]              the test board only
  *  All-time, from the chain. Ranked by …        the board's copy
  *  YOU'RE RANKED #4                             accent label
  *  RANKED · 12                                  1.  alice.skr          100% survived
@@ -136,8 +136,8 @@ private fun Line(place: String, r: Leaderboard.Row, me: SolanaPublicKey?, ranked
 private val LINE_HEIGHT = 52.dp
 private val PLACE_WIDTH = 32.dp
 
-/** A short test day, 10 minutes, when no test league has been read yet. */
-private const val TEST_DAY_SECONDS = 600L
+/** A short test day, 5 minutes, when no test league has been read yet. */
+private const val TEST_DAY_SECONDS = 300L
 
 /**
  * The wallet a leaderboard row names, from its `LazyColumn` key: rows are

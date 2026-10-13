@@ -148,7 +148,7 @@ object MyHoldoutsModel {
             val m = h.membership ?: continue
             val c = h.cohort
             val id = h.address.base58()
-            // A Hackathon Holdout keeps its own name, "Hackathon · 3-day" (G2); the badge on its card says why.
+            // A Hackathon Holdout keeps its own name, by its form: "Hackathon · Spark" (G2); the badge on its card says why.
             val name = if (h.isTest) Format.testName(c) else Format.level(c)
             fun card(kind: YourKind, tone: ChipTone, line: String, detail: String?, go: NavEvent) = YourHoldout(id, name, kind, tone, line, detail, h.isTest, go, c.dayLength)
             when (val stage = h.stage(now)) {
@@ -210,7 +210,7 @@ object MyHoldoutsModel {
     }
 
     /** Only what the program would take (FR-006a, FR-006b): a Join shown always goes through. */
-    private fun open(view: ChainView, now: Long): List<OpenHoldout> = view.joinable(now).map { h ->
+    private fun open(view: ChainView, now: Long): List<OpenHoldout> = view.joinable(now).sortedWith(compareBy({ it.cohort.start }, { -it.cohort.form })).map { h ->
         val c = h.cohort
         OpenHoldout(
             cohort = h.address.base58(),

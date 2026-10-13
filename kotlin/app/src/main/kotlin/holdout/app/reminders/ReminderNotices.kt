@@ -15,6 +15,7 @@ import holdout.app.MainActivity
 import holdout.app.R
 import holdout.app.ui.Format
 import holdout.core.Derive
+import holdout.core.Reminders
 
 /**
  * The notifications a reminder shows (FR-068): their channels, wording and
@@ -48,11 +49,14 @@ object ReminderNotices {
         )
     }
 
-    /** "7-day Holdout", and for the short test cohort "Hackathon · 7-day (10-minute days)", its day length too. */
-    fun holdoutLabel(days: Int, test: Boolean, dayLength: Long): String = if (test) "${Format.testName(days)} (${Format.dayLength(dayLength)} days)" else "$days-day Holdout"
+    /**
+     * "7-day Holdout", and for the short test cohort "Hackathon · Spark (5-minute days)", its day length too.
+     * Without a [form] (an alarm an earlier build set) the test cohort is "Hackathon · 3-day (5-minute days)".
+     */
+    fun holdoutLabel(days: Int, test: Boolean, dayLength: Long, form: Int = Reminders.FORM_UNKNOWN): String = if (test) "${Format.testName(form, days)} (${Format.dayLength(dayLength)} days)" else "$days-day Holdout"
 
     /** The finished notice (FR-068b): *"You finished your 7-day Holdout"*, with the test cohort's label. */
-    fun finishedTitle(days: Int, test: Boolean, dayLength: Long): String = "You finished your ${holdoutLabel(days, test, dayLength)}"
+    fun finishedTitle(days: Int, test: Boolean, dayLength: Long, form: Int = Reminders.FORM_UNKNOWN): String = "You finished your ${holdoutLabel(days, test, dayLength, form)}"
 
     /**
      * It reads no chain (FR-068a), so it says *probably*; the comeback line has
@@ -70,8 +74,8 @@ object ReminderNotices {
      * ongoing, and gone at the deadline. Re-posting under the same [id] updates
      * it in place, which is how it comes back every hour.
      */
-    fun postNotSent(context: Context, requestId: Int, id: Int, day: Int, days: Int, dayLength: Long, test: Boolean, leftSeconds: Long, silent: Boolean = true) {
-        post(context, requestId, id, notSentTitle(day), notSentText(leftSeconds, holdoutLabel(days, test, dayLength)), silent = silent, ongoing = true, leftSeconds = leftSeconds)
+    fun postNotSent(context: Context, requestId: Int, id: Int, day: Int, days: Int, dayLength: Long, test: Boolean, leftSeconds: Long, silent: Boolean = true, form: Int = Reminders.FORM_UNKNOWN) {
+        post(context, requestId, id, notSentTitle(day), notSentText(leftSeconds, holdoutLabel(days, test, dayLength, form)), silent = silent, ongoing = true, leftSeconds = leftSeconds)
     }
 
     /**

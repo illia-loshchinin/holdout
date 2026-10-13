@@ -153,9 +153,9 @@ class TourScreenTest {
 
         assertLabel(5)
         compose.onNodeWithContentDescription("Card 5 of 5").assertIsDisplayed()
-        compose.onNodeWithText("Scripted members\nin Spark and Hackathon").assertIsDisplayed()
+        compose.onNodeWithText("Scripted members\nin Hackathon only").assertIsDisplayed()
         compose.onNodeWithText("Some members in these Holdouts are scripted.\nReal wallets, same rules, labelled SCRIPTED.").assertExists()
-        compose.onNodeWithText("They only top a Holdout up: a Spark to 20,\na Hackathon to 4 once someone real joins.\nTheir days aren't camera-checked.").assertExists()
+        compose.onNodeWithText("They only top a Hackathon round up\nto 10, once someone real joins.\nTheir days aren't camera-checked.").assertExists()
         compose.onNodeWithText("Start").assertIsDisplayed()
         compose.onNodeWithText("Next").assertDoesNotExist()
         compose.onNodeWithText("Skip").assertDoesNotExist()
@@ -165,7 +165,7 @@ class TourScreenTest {
     fun `nothing is meant for judges, names Holdout Lab or carries a date`() {
         show()
         repeat(5) {
-            // "Hackathon" is a round's name now (card 5 names it beside Spark), so it is not on this list.
+            // "Hackathon" is a round's name now (card 5 names it), so it is not on this list.
             listOf("judge", "Holdout Lab", "Easy", "Hard", "cohort", "league", "earn", "≈").forEach {
                 compose.onAllNodes(hasText(it, substring = true, ignoreCase = true)).assertCountEquals(0)
             }
@@ -180,7 +180,7 @@ class TourScreenTest {
 
         assertLabel(5)
         assertEquals(0, done)
-        compose.onNodeWithText("Scripted members\nin Spark and Hackathon").assertIsDisplayed()
+        compose.onNodeWithText("Scripted members\nin Hackathon only").assertIsDisplayed()
     }
 
     @Test

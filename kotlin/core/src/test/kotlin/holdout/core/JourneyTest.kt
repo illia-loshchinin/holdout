@@ -175,9 +175,29 @@ class JourneyTest {
 
         assertEquals(twentyOneSoon, Journey.wayBack(c.copy(leagueId = LeagueParams.LEAGUE_21D), offers) { it }, "a 21-day forfeit: the earliest 21-day Holdout, though a 7-day one starts sooner")
         assertEquals(sevenSoon, Journey.wayBack(c, offers) { it })
-        // Every test league is one lobby: a test cohort's way back is the test lobby, whatever its id.
+        // A winding-down test league hands its members to the open test lobby of their form.
         assertEquals(testLobby, Journey.wayBack(c.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN + 1), offers) { it })
         assertNull(Journey.wayBack(c.copy(leagueId = LeagueParams.LEAGUE_21D), listOf(sevenSoon, testLobby)) { it }, "none of its league open: no offer, not another league's")
         assertNull(Journey.wayBack(c, emptyList<CohortSnapshot>()) { it })
     }
+
+    @Test
+    fun `after a Hackathon forfeit the way back is its own league, else a test league of its form, never the other form's`() {
+        val spark = LeagueParams.TEST_LEAGUE_MIN
+        val habit = LeagueParams.TEST_LEAGUE_MIN + 1
+        fun round(leagueId: Int, form: Int, hours: Int) = c.copy(leagueId = leagueId, form = form, start = start + hours * 3_600L)
+        val sparkLater = round(spark, LeagueParams.FORM_KNEES_ALLOWED, 2)
+        val sparkSoon = round(spark, LeagueParams.FORM_KNEES_ALLOWED, 1)
+        val habitSoonest = round(habit, LeagueParams.FORM_TOES, 0)
+        val habitLater = round(habit, LeagueParams.FORM_TOES, 3)
+        val offers = listOf(habitLater, sparkLater, habitSoonest, sparkSoon)
+
+        assertEquals(sparkSoon, Journey.wayBack(round(spark, LeagueParams.FORM_KNEES_ALLOWED, -5), offers) { it }, "Spark forfeit: the earliest open Spark round, though a Habit round starts sooner")
+        assertEquals(habitSoonest, Journey.wayBack(round(habit, LeagueParams.FORM_TOES, -5), offers) { it })
+        assertEquals(sparkSoon, Journey.wayBack(round(spark + 7, LeagueParams.FORM_KNEES_ALLOWED, -5), offers) { it }, "a winding-down Spark league: the open Spark lobby, earliest first")
+        assertNull(Journey.wayBack(round(spark + 7, LeagueParams.FORM_KNEES_ALLOWED, -5), listOf(habitSoonest, habitLater)) { it }, "only the other form's Hackathon is open: no offer")
+        assertNull(Journey.wayBack(round(spark, LeagueParams.FORM_KNEES_ALLOWED, -5), listOf(sevenSoon(), habitSoonest)) { it }, "not a non-test league either")
+    }
+
+    private fun sevenSoon() = c.copy(leagueId = LeagueParams.LEAGUE_7D, form = LeagueParams.FORM_KNEES_ALLOWED, start = start)
 }

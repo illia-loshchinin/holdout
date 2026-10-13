@@ -119,14 +119,14 @@ private fun OfferCardTestPreview() {
     HoldoutTheme {
         OfferCard(
             PREVIEW.copy(
-                title = "Hackathon · 3-day",
+                title = "Hackathon · Spark",
                 tagline = "A quick taste · knees allowed",
                 atStake = "250 SKR",
                 joined = "at stake · 3 joined",
                 timing = "Starts in 12m 30s",
                 boost = null,
                 test = true,
-                testDayLength = 600,
+                testDayLength = 300,
             ),
             onJoin = {},
         )

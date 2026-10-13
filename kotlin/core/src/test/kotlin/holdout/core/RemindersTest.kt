@@ -41,15 +41,28 @@ class RemindersTest {
     }
 
     @Test
-    fun `a 10-minute test day is reminded as it opens, and its first day by the start reminder alone`() {
-        assertEquals(599L, Reminders.leadSeconds(600))
-        val c = cohort(dayLength = 600, reps = 5)
+    fun `a 5-minute test day is reminded as it opens, and its first day by the start reminder alone`() {
+        assertEquals(299L, Reminders.leadSeconds(300))
+        val c = cohort(dayLength = 300, reps = 5)
         val r = schedule(c, member(), now = start - 60)
         assertEquals(Reminder.Kind.Start, r.first().kind)
         assertTrue(r.none { it.kind == Reminder.Kind.Deadline && it.dayIndex == 0 }, "day 1 opens with the start: one notification, not two")
         val deadlines = r.filter { it.kind == Reminder.Kind.Deadline }
         assertEquals((1 until 7).toList(), deadlines.map { it.dayIndex })
-        deadlines.forEach { assertEquals(start + it.dayIndex * 600L, it.at, "day ${it.dayIndex} reminded as it opens") }
+        deadlines.forEach { assertEquals(start + it.dayIndex * 300L, it.at, "day ${it.dayIndex} reminded as it opens") }
+    }
+
+    @Test
+    fun `every reminder carries its cohort's form, so a Hackathon round can be named by it`() {
+        for (form in listOf(LeagueParams.FORM_KNEES_ALLOWED, LeagueParams.FORM_TOES)) {
+            val c = cohort(dayLength = 300, days = 3, reps = 5).copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, form = form)
+            val running = schedule(c, member(), now = start - 60)
+            assertTrue(running.isNotEmpty() && running.all { it.form == form }, "form $form")
+            val done = finished(c, member(days = 3, state = MembershipSnapshot.State.Finished), start)
+            assertTrue(done.isNotEmpty() && done.all { it.form == form }, "finished notice, form $form")
+        }
+        // A reminder that does not say has no form.
+        assertEquals(Reminders.FORM_UNKNOWN, Reminder(Reminder.Kind.Start, address, 100, 0, start, start + 300, 5, 3, 300).form)
     }
 
     @Test

@@ -141,7 +141,7 @@ class MyHoldoutsScreenTest {
     }
 
     private val won = PastHoldout("w", "Spark · 7-day", "Held out 7 of 7 · 12 of 14 finished", "1,180 SKR", NavEvent.Open(Screen.Detail("w")))
-    private val wonTest = PastHoldout("t", "Hackathon · 3-day", "Held out 3 of 3", "605.42 SKR", NavEvent.Open(Screen.Detail("t")))
+    private val wonTest = PastHoldout("t", "Hackathon · Spark", "Held out 3 of 3", "605.42 SKR", NavEvent.Open(Screen.Detail("t")))
     private val lost = PastHoldout("x", "Habit · 21-day", "Out on day 5 of 21", "2,500 SKR", NavEvent.Open(Screen.Forfeit("x")))
 
     private fun past(state: MyHoldoutsState) {
@@ -243,10 +243,10 @@ class MyHoldoutsScreenTest {
 
     @Test
     fun `a Hackathon Holdout wears its badge`() {
-        show(MyHoldoutsState(yours = listOf(lobby.copy(name = "Hackathon · 3-day", test = true, testDayLength = 600))))
+        show(MyHoldoutsState(yours = listOf(lobby.copy(name = "Hackathon · Spark", test = true, testDayLength = 300))))
 
-        compose.onNodeWithText("DEVNET COHORT · 10-MINUTE DAYS").assertIsDisplayed()
-        compose.onNodeWithText("Hackathon · 3-day").assertIsDisplayed()
+        compose.onNodeWithText("DEVNET COHORT · 5-MINUTE DAYS").assertIsDisplayed()
+        compose.onNodeWithText("Hackathon · Spark").assertIsDisplayed()
     }
 
     // ---- the model's new words ---------------------------------------------------------------------
@@ -265,14 +265,14 @@ class MyHoldoutsScreenTest {
 
     @Test
     fun `model - a short test Holdout is named Hackathon, with its length, on its card and its offer`() {
-        val test = Fx.cohort(days = 3, joined = 3, leagueId = 100, dayLength = 600, form = 1, start = Fx.START - 300)
+        val test = Fx.cohort(days = 3, joined = 3, leagueId = 100, dayLength = 300, form = 1, start = Fx.START - 300)
         val mine = Fx.holdout(test, Fx.member())
-        val open = Fx.holdout(Fx.cohort(days = 3, joined = 1, leagueId = 100, dayLength = 600, form = 1, start = Fx.START + 7_200).copy(index = 2, joinCutoff = Fx.START + 7_200), null)
+        val open = Fx.holdout(Fx.cohort(days = 3, joined = 1, leagueId = 100, dayLength = 300, form = 1, start = Fx.START + 7_200).copy(index = 2, joinCutoff = Fx.START + 7_200), null)
         val s = MyHoldoutsModel.build(ChainView(null, listOf(mine, open), null, 0uL, 0L), Fx.START)
 
-        assertEquals("Hackathon · 3-day", s.yours.single().name)
+        assertEquals("Hackathon · Spark", s.yours.single().name)
         assertTrue(s.yours.single().test)
-        assertEquals(listOf("Hackathon · 3-day"), s.open.map { it.name })
+        assertEquals(listOf("Hackathon · Spark"), s.open.map { it.name })
     }
 
     @Test

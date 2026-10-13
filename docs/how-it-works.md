@@ -54,28 +54,31 @@ If nobody drops out, you get exactly your stake back. The full money rules are i
 A day done on the phone counts once it reaches the chain before that day's deadline. The phone
 keeps a finished day that is waiting for a network and sends it as soon as it can.
 
-## Hackathon · 3-day
+## Hackathon · Spark and Hackathon · Habit
 
 Nobody can wait 7 days to see a payout, so devnet also runs **Hackathon** rounds. A Hackathon
-round is a real Holdout under the same contract and the same rules, with shorter days:
+round is a real Holdout under the same contract and the same rules, with shorter days. Two are
+open at the same time, one per form: **Hackathon · Spark** (knees allowed) and **Hackathon ·
+Habit** (toes only). Each round:
 
-- three 10-minute days, 5 reps a day: about 30 minutes in all;
-- a new round every 30 minutes, joinable right up to its start;
-- labelled **DEVNET COHORT · 10-MINUTE DAYS** wherever it appears, with its own *Hackathon*
+- three 5-minute days, 5 reps a day: 15 minutes in all;
+- a new round every 15 minutes, joinable right up to its start;
+- labelled **DEVNET COHORT · 5-MINUTE DAYS** wherever it appears, with one combined *Hackathon*
   leaderboard;
-- topped up to 4 members by scripted members once someone real has joined it (see below); a
-  round nobody has joined stays empty.
+- topped up to 10 members by scripted members in its last minute, once someone real has joined
+  it (see below); a round nobody has joined stays empty.
 
 A Hackathon round lets one person run join → sittings → miss or finish → settlement → claim
-alone in half an hour. The demo video is recorded from one. Real Spark and Habit Holdouts always
+alone in a quarter of an hour. The demo video is recorded from one. Real Spark and Habit Holdouts always
 use 24-hour days. Short days exist only in a program built with the `test-leagues` feature, and a
 mainnet build never carries it.
 
 ## Scripted members (disclosed)
 
 A Holdout must never look empty to someone who installs the app during judging. Real members come
-first. **Scripted members** top a Holdout up to a minimum and then stop joining: 20 per Spark,
-and 4 per Hackathon round once someone real has joined it. Habit gets none on devnet.
+first. **Scripted members** top a Holdout up to a minimum and then stop joining. On devnet they
+play the Hackathon rounds only: each is topped up to 10 members in its last minute, once someone
+real has joined it. Spark and Habit get none.
 
 - They are ordinary wallets run by automation, under exactly the same contract rules. Their
   stakes are real test SKR, their forfeits fund real prizes, and a scripted finisher takes its

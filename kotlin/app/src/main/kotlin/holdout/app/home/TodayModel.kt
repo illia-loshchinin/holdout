@@ -15,7 +15,7 @@ import holdout.core.Stage
  * One Holdout open to join, as Today and the connect screen draw it (FR-053,
  * board 3): the level and its tagline, what is at stake and how many have
  * joined, how long joining stays open, and the prize boost the reserve can add
- * ("up to", never a promise). A Hackathon Holdout keeps its own name ("Hackathon · 3-day") and its
+ * ("up to", never a promise). A Hackathon Holdout keeps its own name, by its form ("Hackathon · Spark", "Hackathon · Habit"; both are open at once, Spark first) and its
  * badge (FR-044a).
  */
 data class OfferCardState(
@@ -93,7 +93,7 @@ object TodayModel {
         view == null || now == null -> if (offline) HoldoutsBlock.Unreachable else HoldoutsBlock.Reading
         view.config == null -> HoldoutsBlock.NotLive
         view.holdsLobbyPlace(now) -> HoldoutsBlock.Hidden
-        else -> HoldoutsBlock.Open(view.joinable(now).sortedBy { it.cohort.start }.map { OfferCardState.of(it, now) }, stale = offline)
+        else -> HoldoutsBlock.Open(view.joinable(now).sortedWith(compareBy({ it.cohort.start }, { -it.cohort.form })).map { OfferCardState.of(it, now) }, stale = offline)
     }
 
     /**

@@ -23,7 +23,8 @@ class StakeTextTest {
     fun `the title joins the level by name`() {
         assertEquals("Join the Spark · 7-day Holdout", StakeText.title(spark, test = false))
         assertEquals("Join the Habit · 21-day Holdout", StakeText.title(habit, test = false))
-        assertEquals("Join the Hackathon · 7-day Holdout", StakeText.title(spark, test = true))
+        assertEquals("Join the Hackathon · Spark Holdout", StakeText.title(spark, test = true))
+        assertEquals("Join the Hackathon · Habit Holdout", StakeText.title(habit, test = true))
     }
 
     @Test
@@ -49,17 +50,18 @@ class StakeTextTest {
     }
 
     @Test
-    fun `a test Holdout's fee sentence does not name a level`() {
+    fun `a test Holdout's fee sentence names the Hackathon by its form, not its length`() {
         val fee = StakeText.fee(spark, true)
-        assertTrue("boosts later Hackathon · 7-day prizes." in fee, fee)
-        assertFalse("Spark" in fee)
+        assertTrue("boosts later Hackathon · Spark prizes." in fee, fee)
+        assertFalse("7-day" in fee)
+        assertTrue("boosts later Hackathon · Habit prizes." in StakeText.fee(habit, true))
     }
 
     @Test
     fun `a test Holdout's fee sentence is pinned word for word`() {
         assertEquals(
             "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
-                "20 % to the project. If nobody finishes, the pool boosts later Hackathon · 21-day prizes.",
+                "20 % to the project. If nobody finishes, the pool boosts later Hackathon · Habit prizes.",
             StakeText.fee(habit, true),
         )
     }
