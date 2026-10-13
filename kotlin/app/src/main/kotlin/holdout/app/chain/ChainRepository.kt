@@ -188,9 +188,22 @@ class ChainRepository(
      * last read of every cohort; [open] the cohorts the last pulse found not settled, so one that has
      * left the list since is fetched once and kept.
      */
-    private class KeptCohorts(val readAt: Long, val settled: Map<SolanaPublicKey, CohortSnapshot>, val open: Set<SolanaPublicKey>)
+    private class KeptCohorts(val readAt: Long, val settled: Map<SolanaPublicKey, CohortSnapshot>, val open: Set<SolanaPublicKey>, val started: Long)
 
     @Volatile private var keptCohorts: KeptCohorts? = null
+
+    /** Cohort reads started, in order. */
+    private val cohortReads = AtomicLong()
+
+    /**
+     * Keeps [k] unless a cohort read started after its own already answered: an older pulse resuming late would
+     * put back the settled cohorts from before a fresh read re-fetched them — a claim's, say — until the next
+     * full read 10 minutes on (PR #72 review). As [keepMemberships].
+     */
+    @Synchronized
+    private fun keepCohorts(k: KeptCohorts) {
+        if ((keptCohorts?.started ?: 0L) < k.started) keptCohorts = k
+    }
 
     /**
      * The wallet's memberships as last read, when, and the counters of the cohorts they are in then (see [load]);
@@ -286,10 +299,11 @@ class ChainRepository(
      * not-settled list since the last pulse, and each of [refetch] that is settled, is fetched once.
      */
     private suspend fun cohorts(now: Long, refetch: Set<SolanaPublicKey>): List<Pair<SolanaPublicKey, CohortSnapshot>>? {
+        val started = cohortReads.incrementAndGet()
         val kept = keptCohorts?.takeIf { now - it.readAt < FULL_READ_MILLIS }
         if (kept == null) {
             val all = twice { rpc.cohorts(programId) } ?: return null
-            keptCohorts = KeptCohorts(now, all.filter { it.second.settled }.toMap(), all.filterNot { it.second.settled }.map { it.first }.toSet())
+            keepCohorts(KeptCohorts(now, all.filter { it.second.settled }.toMap(), all.filterNot { it.second.settled }.map { it.first }.toSet(), started))
             return all
         }
         val open = twice { rpc.unsettledCohorts(programId) } ?: return null
@@ -303,7 +317,7 @@ class ChainRepository(
                 if (account == null) settled.remove(address) else settled[address] = runCatching { CohortSnapshot.decode(account.data) }.getOrNull() ?: return null
             }
         }
-        keptCohorts = KeptCohorts(kept.readAt, settled.filterValues { it.settled }, openNow)
+        keepCohorts(KeptCohorts(kept.readAt, settled.filterValues { it.settled }, openNow, started))
         return settled.filterValues { it.settled }.toList() + open
     }
 

@@ -73,8 +73,8 @@ class ChainRepositoryReadsTest {
         failing[kind] = n
     }
 
-    /** When set, the next memberships call answers what the chain held when it was made, but only once this completes. */
-    private var holdNextMemberships: CompletableDeferred<Unit>? = null
+    /** Per kind of call, the next one answers what the chain held when it was made, but only once this completes. */
+    private val holdNext = mutableMapOf<String, CompletableDeferred<Unit>>()
 
     private val http =
         object : HttpNetworkDriver {
@@ -88,7 +88,7 @@ class ChainRepositoryReadsTest {
                     return """{"jsonrpc":"2.0","error":{"code":429,"message":"Too many requests"},"id":"x"}"""
                 }
                 val result = answer(kind, body)
-                if (kind == "memberships") holdNextMemberships?.also { holdNextMemberships = null }?.await()
+                holdNext.remove(kind)?.await()
                 return """{"jsonrpc":"2.0","result":$result,"id":"x"}"""
             }
         }
@@ -372,7 +372,7 @@ class ChainRepositoryReadsTest {
         load(wallet)
         now = 30_000
         val held = CompletableDeferred<Unit>()
-        holdNextMemberships = held
+        holdNext["memberships"] = held
         runBlocking {
             // A fresh read goes out while the join has not landed, and is slow to answer.
             val older = async { repo.loadFresh(wallet) }
@@ -389,6 +389,29 @@ class ChainRepositoryReadsTest {
 
         assertEquals(3, calls["memberships"], "the pulse reuses what is kept")
         assertNotNull(view.holdouts.single().membership, "and what is kept is the newer answer")
+    }
+
+    @Test
+    fun `an older pulse that resumes after a fresh read does not put the settled cohorts back as they were`() {
+        cohorts = cohort(settled = true, counted = 1)
+        memberships = accounts(membershipBytes)
+        load(wallet)
+        now = 30_000
+        val held = CompletableDeferred<Unit>()
+        holdNext["unsettled"] = held
+        runBlocking {
+            // A pulse goes out and is slow to answer.
+            val older = async { repo.load(wallet) }
+            yield()
+            // The wallet's settled cohort moves; the fresh read after its action re-fetches it and answers first.
+            cohorts = cohort(settled = true, counted = 2)
+            assertEquals(2L, assertNotNull(repo.loadFresh(wallet)).holdouts.single().cohort.counted)
+            held.complete(Unit)
+            assertEquals(1L, assertNotNull(older.await()).holdouts.single().cohort.counted, "the older pulse answers what it kept")
+        }
+        now = 60_000
+
+        assertEquals(2L, assertNotNull(load(wallet)).holdouts.single().cohort.counted, "what is kept is the fresh read's")
     }
 
     @Test

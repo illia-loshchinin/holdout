@@ -36,7 +36,12 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.dropWhile
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -252,12 +257,26 @@ class HoldoutViewModel(
             while (true) {
                 live.first { it }
                 refreshNow(join = true)
-                // A wake (an answer after failures, a Check again) starts the wait over at its current length.
-                while (withTimeoutOrNull(pulseWait()) { wake.receive() } != null) {
-                    // Woken: wait again, from now.
-                }
+                waitForPulse()
             }
         }
+    }
+
+    /**
+     * The pulse's wait after its read ([pulseWait]). A wake (an answer after failures, a Check again) starts it
+     * over at its current length. Past the first 30 seconds — the rest of a wait after failures — a live screen
+     * coming back cuts it short, so the pulse reads at once like any return after 30 s (PR #72 review).
+     */
+    private suspend fun waitForPulse() {
+        while (withTimeoutOrNull(REFRESH_MILLIS) { wake.receive() } != null) {
+            // Woken: wait again, from now.
+        }
+        val rest = pulseWait() - REFRESH_MILLIS
+        if (rest <= 0) return
+        val woken = withTimeoutOrNull(rest) {
+            merge(wake.receiveAsFlow().map { true }, live.dropWhile { it }.filter { it }.map { false }).first()
+        }
+        if (woken == true) waitForPulse()
     }
 
     /** The app left the foreground: no reads until [watch] is called again. The last view stays. */
@@ -320,9 +339,11 @@ class HoldoutViewModel(
         // An answer to a read started after the loss is the network back: the send
         // re-arms now (T098). One already out when it went proves nothing.
         val back = started > readsBeforeLoss
-        // An answer after failures starts the pulse's wait over at 30 s.
-        if (view != null && failedReads > 0) wake.trySend(Unit)
+        val wasFailing = failedReads > 0
         failedReads = if (view == null) failedReads + 1 else 0
+        // An answer after failures starts the pulse's wait over at 30 s: woken after the count is reset,
+        // so a pulse resuming at once does not take its wait from the old one (speckit-analyze F1 of #72).
+        if (view != null && wasFailing) wake.trySend(Unit)
         _state.update {
             if (view == null) {
                 // One read that did not answer is not yet "can't be reached": the last view stays until
