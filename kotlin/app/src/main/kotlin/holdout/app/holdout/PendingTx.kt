@@ -12,7 +12,7 @@ import holdout.core.MembershipSnapshot
  * same action on the same Holdout stays shut until a chain read settles it
  * (PR #62 review) — a second one would pay another fee for a result that
  * could contradict the first. [day] is the Holdout day of a submit, else 0;
- * [sentAt] is `elapsedRealtime` when the outcome came back.
+ * [sentAt] is `elapsedRealtime` when the send reached the network (the Confirming step).
  */
 data class PendingTx(val action: SignAction, val cohort: SolanaPublicKey, val day: Int, val sentAt: Long) {
     fun isFor(action: SignAction, cohort: SolanaPublicKey, day: Int = 0): Boolean = this.action == action && this.cohort == cohort && (action != SignAction.Submit || this.day == day)
