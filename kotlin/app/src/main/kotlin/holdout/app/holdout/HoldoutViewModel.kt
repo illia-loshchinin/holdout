@@ -309,7 +309,18 @@ class HoldoutViewModel(
                 false -> card.copy(outcome = TxOutcome.Failed(mayStillLand = false, message = ""))
             }
         }
-        return copy(pending = still, unseen = after)
+        // A result still on screen that said it may land now says how it ended: landed, or not and "Try again" (PR #67 review).
+        val shown = signing?.let { sig ->
+            val done = (sig.phase as? TxPhase.Done)?.outcome as? TxOutcome.Failed
+            val send = settled.firstOrNull { it.isFor(sig.action, sig.cohort, sig.day) }
+            if (done?.mayStillLand != true || send == null) {
+                sig
+            } else {
+                sig.copy(phase = TxPhase.Done(if (send.landedIn(view)) TxOutcome.Landed(null) else TxOutcome.Failed(mayStillLand = false, message = done.message)))
+            }
+        }
+        // And the warning it left on the screen it was sent from no longer stands.
+        return copy(pending = still, unseen = after, signing = shown, message = message.takeUnless { messageIsWarning }, messageIsWarning = false)
     }
 
     private var signings = 0

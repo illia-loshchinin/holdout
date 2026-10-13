@@ -449,4 +449,30 @@ class HoldoutViewModelPendingTest {
 
         assertEquals(listOf(2), state.unseen.map { it.day }, "day 3's send leaves day 2's card")
     }
+
+    @Test
+    fun `a result still on screen that said it may land says it didn't once a read settles it unlanded`() = runTest(dispatcher) {
+        watching()
+        claimNotConfirmed()
+        assertEquals(TxPhase.Done(TxOutcome.Failed(mayStillLand = true, message = "timed out")), state.signing?.phase)
+        assertNotNull(state.message)
+        clock += PendingTx.LANDS_WITHIN_MILLIS
+        dispatcher.scheduler.advanceTimeBy(30_001)
+        runCurrent()
+        answer(view)
+
+        assertEquals(TxPhase.Done(TxOutcome.Failed(mayStillLand = false, message = "timed out")), state.signing?.phase)
+        assertNull(state.message, "the warning it left no longer stands")
+    }
+
+    @Test
+    fun `a result still on screen that said it may land says it landed once a read shows it`() = runTest(dispatcher) {
+        watching()
+        claimNotConfirmed()
+        dispatcher.scheduler.advanceTimeBy(30_001)
+        runCurrent()
+        answer(ChainFixtures.view(claimed))
+
+        assertEquals(TxPhase.Done(TxOutcome.Landed(null)), state.signing?.phase)
+    }
 }
