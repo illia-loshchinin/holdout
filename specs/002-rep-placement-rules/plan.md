@@ -16,7 +16,7 @@ The evidence is the phone's own: Holdout Lab (spec 004; debug builds before 2026
 
 **Language/Version**: Kotlin 2.4.10, Java 17 bytecode (as `specs/001-holdout-hackathon/plan.md`). Node 22 for the labelling tool.
 
-**Primary Dependencies**: MediaPipe Tasks Vision Pose Landmarker (full model, GPU, live stream), CameraX (preview, analysis and — Holdout Lab only — `VideoCapture` in one 3:4 `UseCaseGroup`), Jetpack Compose, MMKV, Android `TextToSpeech` and `ToneGenerator`. No new dependency.
+**Primary Dependencies**: MediaPipe Tasks Vision Pose Landmarker (full model, GPU, live stream), CameraX (preview, analysis and — Holdout Lab only — `VideoCapture` in one 3:4 `UseCaseGroup`), Jetpack Compose, MMKV, Android `TextToSpeech` and `ToneGenerator`, and *(2026-10-13/14)* `MediaPlayer` playing the recorded voice clips in `assets/voice` (spec Session 2026-10-13/14). No new dependency.
 
 **Storage**: MMKV for the set-up guide preference (`setup_hidden:<wallet>:<stakes>`). Holdout Lab only (`holdout.app.lab`, the `labDebug` build; spec 004): trace files and videos in Lab's private `files/traces/`, pulled over USB into git-ignored `phone_traces/`; labels files beside them; promoted sittings committed to `fixtures/rep-traces/` as trace (gzip) and labels, never video.
 
