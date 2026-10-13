@@ -2,7 +2,7 @@
 
 Network name `N` = `Deployment.networkName` ("Devnet" on the devnet build).
 
-## Where it shows (only while the last chain read failed)
+## Where it shows (only while the chain can't be reached: two snapshot reads in a row failed — 001 FR-071)
 
 | Screen | Line already there / added | Check again button | Pull |
 |---|---|---|---|

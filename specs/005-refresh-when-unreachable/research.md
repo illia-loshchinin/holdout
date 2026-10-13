@@ -2,7 +2,7 @@
 
 ## R1 — What "the chain can't be reached" is
 
-- **Decision**: the check is offered exactly while `HoldoutViewModel.UiState.offline` is true — the last snapshot read (`ChainRepository.load`) returned nothing.
+- **Decision**: the check is offered exactly while `HoldoutViewModel.UiState.offline` is true — two snapshot reads (`ChainRepository.load`) in a row returned nothing, or the first while there is no view yet (001 FR-071, since 2026-10-13; before, the last one).
 - **Rationale**: it is the state every existing "can't be reached" line already keys on (`CohortHome`, the no-Holdout home's *"Devnet unreachable — the Daily 25 still works"*, `sittingNote`), so the button appears and goes with the words it sits under. A dropped `adb reverse` or a dead RPC both set it; the phone's own network state is not consulted (spec edge case: never "You're offline").
 - **Alternatives**: `ConnectivityManager` state — rejected, it is the phone's network, not the chain, and missed the owner's case entirely.
 
