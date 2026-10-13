@@ -290,8 +290,7 @@ class ChainRepository(
     }
 
     /** The counters of the cohorts [memberships] are in that move a membership the wallet did not sign. */
-    private fun countersOf(memberships: List<MembershipAccount>, cohorts: Map<SolanaPublicKey, CohortSnapshot>): Map<SolanaPublicKey, List<Any>> =
-        memberships.associate { m -> m.cohort to (cohorts[m.cohort]?.let(Holdout::countersOf) ?: emptyList()) }
+    private fun countersOf(memberships: List<MembershipAccount>, cohorts: Map<SolanaPublicKey, CohortSnapshot>): Map<SolanaPublicKey, List<Any>> = memberships.associate { m -> m.cohort to (cohorts[m.cohort]?.let(Holdout::countersOf) ?: emptyList()) }
 
     /** The fields of [c] that move when its settlement moves a league's reserves. */
     private fun settlementOf(c: CohortSnapshot): List<Any> = listOf(c.counted, c.settled, c.noFinisherBoost, c.boostReceived, c.comebackOwed, c.comebackFunded, c.comebackClaimed)
