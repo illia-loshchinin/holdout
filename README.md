@@ -4,8 +4,7 @@
 
 <p align="center">
   <b>Be the holdout. Stake on yourself.</b><br>
-  25 push-ups a day, counted by your phone. Stake SKR with everyone who starts on Monday.<br>
-  Finish, and take your stake back plus a share of what the others lost.
+  Streaks are easy to skip. Your own money isn't.
 </p>
 
 <p align="center">
@@ -18,10 +17,19 @@
   <img alt="License: proprietary" src="https://img.shields.io/badge/license-proprietary-lightgrey">
 </p>
 
-Holdout is a Solana Mobile app where you stake on yourself. Anyone can do the free **Daily 25**:
-25 push-ups, counted on the phone, that build a streak. On top of it sit **Holdouts**, 7-day and
-21-day runs with a stake in SKR. Miss a day and your stake goes to the people still standing.
-Finish, and you get your stake back plus a share of the pool.
+Holdout is a push-up commitment dApp on Solana. **Real proof of work.**
+Train your discipline, and put SKR behind your word.
+
+Most habit apps take your word for it. Here your phone counts every rep on the device, and no
+video ever leaves it. Each finished Holdout day is one signed transaction. Your stake sits in a
+program-owned vault, only the contract's rules can move it, and every payout is settled on chain.
+
+Finish 7 or 21 days of 25 push-ups and your stake comes back, plus a share of what others lost.
+Miss a day and you lose it, but 80 % of every lost stake stays with members and only 20 % runs the
+project. If everyone finishes, nobody pays.
+
+Devnet with test SKR for now. Staking needs a Seeker. No Seeker? The free **Daily 25** needs only
+a wallet.
 
 Built for the Solana Mobile **CLOCK IN** hackathon.
 
@@ -56,13 +64,13 @@ Built for the Solana Mobile **CLOCK IN** hackathon.
 ## What makes Holdout different
 
 - **Your phone counts every rep.** An on-device AI model watches the push-up and a written rule
-  decides what counts. Nobody reports their own reps.
+  decides what counts. You never report your own reps.
 - **Rules tuned on real recordings.** A separate tester app, Holdout Lab, records labelled sets
   (knees, toes, cobras). Every rule change is replayed against all of them before it ships.
 - **Money moves only when someone misses a day.** Nobody pays to take part. If everyone finishes,
   everyone gets exactly their stake back.
 - **A fall is not the end.** 10 % of a lost stake is set aside for that member. They finish the next
-  Holdout of the same kind and get it back, up to the size of their new stake.
+  Holdout of the same kind and get it back, capped at the size of their new stake.
 - **80 % of every lost stake stays with members.** 70 % goes to this Holdout's prize pool and 10 %
   to the member's own comeback. 20 % runs the project. The contract enforces it.
 - **Discipline ranks you, money never does.** Leaderboards rank by the share of Holdouts you
@@ -71,8 +79,9 @@ Built for the Solana Mobile **CLOCK IN** hackathon.
   fails if a microphone permission appears.
 - **Native on Seeker.** Mobile Wallet Adapter with Seed Vault, the Seeker Genesis Token as the key
   to Holdouts, and Seeker ID (`.skr`) names in the roster.
-- **No oracle, and no one can hold the money.** The contract never reads a price, and no
-  instruction lets anyone withdraw a stake or a pool. During judging the upgrade authority is the
+- **No oracle, no admin withdrawal.** The contract never reads a price, and no
+  instruction lets anyone take out a stake or a pool. The one exception is yours: leaving a Holdout
+  before the lobby closes is a full refund. During judging the upgrade authority is the
   one trust assumption left (see [Known weaknesses](#known-weaknesses)). The admin sets up the
   levels and the operator prices the chips. Every step that moves a Holdout forward (opening it,
   recording missed days, settling, releasing a comeback) follows the contract's rules and can be
@@ -94,7 +103,7 @@ For Spark and Habit:
 
 - **Join** by picking one of four chips (≈ $10 / $25 / $50 / $100 in SKR). Joining and leaving
   close one hour before the start. Until then, leaving is a full refund.
-- **Do 25 push-ups a day**, all at once or in blocks of 10. Every 10 are banked for good. When the
+- **Do 25 push-ups a day**, all at once or in blocks of 10. Every 10 are banked on the phone. When the
   day is done, your wallet signs one transaction.
 - **Miss a day** and your stake is lost. The crank records it, by chain time, not your phone's clock.
 - **Finish**, and once the Holdout settles, claim your stake plus your share.
@@ -235,7 +244,7 @@ The signed release, the build options and troubleshooting are in
 
 | | |
 |---|---|
-| **≈ 1,780 Kotlin tests** | `:app` 1,269 (incl. Robolectric and Roborazzi screen tests), `:core` 229, `:repcounter` 150, `:crank` 144 |
+| **≈ 1,790 Kotlin tests** | `:app` 1,269 (incl. Robolectric and Roborazzi screen tests), `:core` 229, `:repcounter` 150, `:crank` 144 |
 | **≈ 300 contract tests** | TypeScript, `@solana/kit` + LiteSVM: 15 scenario suites and a randomised invariant checker |
 | **66 Rust unit tests** | Settlement maths checked against golden vectors |
 | **278 labelled reps** | From 27 recorded sets, replayed by a regression ratchet that fails on any change |
