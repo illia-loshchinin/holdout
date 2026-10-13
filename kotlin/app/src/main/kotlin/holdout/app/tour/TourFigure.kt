@@ -98,7 +98,8 @@ internal fun TourFigure(clock: FigureClock, modifier: Modifier = Modifier) {
     val data by produceState<FigureData?>(null) {
         value = withContext(Dispatchers.Default) { FigureCache.of(context).get() }
     }
-    val measurer = rememberTextMeasurer()
+    // The default cache holds 8 layouts; one frame draws a few dozen, so each frame re-measured them all.
+    val measurer = rememberTextMeasurer(cacheSize = TEXT_CACHE)
     val density = LocalDensity.current
     Canvas(
         modifier
@@ -198,10 +199,12 @@ private fun DrawScope.arc(y: Float, sweep: Float, width: Float) {
     drawArc(HoldoutColors.Accent, -90f, sweep, false, Offset(254f, y - 6f), Size(12f, 12f), style = Stroke(width, cap = StrokeCap.Round))
 }
 
+/** The check mark at the top of a row, parsed once: a row moves it down with [translate]. */
+private val TICK = PathParser().parsePathString("M256.8 0.2 l2.2 2.2 4-4.4").toPath()
+
 private fun DrawScope.tick(y: Float) {
     drawCircle(HoldoutColors.Success.copy(alpha = 0.16f), 6.5f, Offset(260f, y))
-    val path = PathParser().parsePathString("M256.8 ${y + 0.2f} l2.2 2.2 4-4.4").toPath()
-    drawPath(path, HoldoutColors.Success, style = Stroke(1.5f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    translate(top = y) { drawPath(TICK, HoldoutColors.Success, style = Stroke(1.5f, cap = StrokeCap.Round, join = StrokeJoin.Round)) }
 }
 
 private fun DrawScope.label(text: String, baseline: Float, alpha: Float, measurer: TextMeasurer, density: Density) {
@@ -348,6 +351,9 @@ internal class FigureCache(
         }
     }
 }
+
+/** Layouts the text measurer keeps: every distinct run the loop draws (scene, poses, panel, digits, counts), with room to spare. */
+private const val TEXT_CACHE = 128
 
 private const val WIDTH = 400f
 private const val HEIGHT = 240f

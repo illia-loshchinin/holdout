@@ -151,9 +151,6 @@ object Settlement {
         return (entitled.big() * funded.big() / totalOwed.big()).toULongExact()
     }
 
-    /** A cohort nobody finished sends its whole pool to the league's boost reserve (FR-037, 2026-10-12): nothing goes to the developer or operations. */
-    fun noFinisherBoost(pool: ULong): ULong = pool
-
     private fun percentOf(amount: ULong, percent: Int): ULong = (amount.big() * BigInteger.valueOf(percent.toLong()) / HUNDRED).toULongExact()
 
     private val FEE_PERCENT = BigInteger.valueOf(30)
@@ -221,29 +218,8 @@ class CohortFigures internal constructor(
     fun projectedShare(member: MembershipSnapshot): ULong = Derive.shareOf(member, cohort, now, projectedPool, standingStake)
 }
 
-/**
- * [Derive.sinceYesterday]: how many dropped out in the last day, and how much
- * the pool's growth added to a standing member's share (nothing when nobody
- * dropped, the Holdout is settled, or the member is out).
- */
-class SinceYesterday internal constructor(
-    /** Members out now whose missed deadline fell in the last day. */
-    val dropped: Int,
-    private val cohort: CohortSnapshot,
-    private val now: Long,
-    private val poolNow: ULong,
-    private val standingStakeNow: ULong,
-    private val poolThen: ULong,
-    private val standingStakeThen: ULong,
-) {
-    /** What [member]'s projected share grew by since yesterday, `0` if it did not grow. */
-    fun shareGain(member: MembershipSnapshot): ULong {
-        if (cohort.settled || !Derive.standing(member, cohort, now)) return 0uL
-        val then = Settlement.shareForTier(poolThen, member.stake, standingStakeThen)
-        val current = Settlement.shareForTier(poolNow, member.stake, standingStakeNow)
-        return if (current > then) current - then else 0uL
-    }
-}
+/** [Derive.sinceYesterday]: how many members dropped out in the last day (the Holdout's "3 dropped since yesterday"). */
+class SinceYesterday internal constructor(val dropped: Int)
 
 /**
  * The figures every cohort screen shows (data-model §5, T032) — derived from
@@ -433,34 +409,16 @@ object Derive {
     fun timeUntilJoiningCloses(c: CohortSnapshot, now: Long): Long = (c.joinCutoff - now).coerceAtLeast(0)
 
     /**
-     * What the last day changed, for "3 dropped since yesterday" and "+17 SKR
-     * since yesterday" on the running Holdout (N5, FR-038a). It needs nothing
+     * What the last day changed, for "3 dropped since yesterday" on the running
+     * Holdout (N5, FR-038a), from a screen's [CohortFigures]. It needs nothing
      * the phone remembers: a member dropped in the last day exactly when they
      * are not standing and the deadline they missed fell within the last
-     * [CohortSnapshot.dayLength] seconds. The pool a day ago is today's less
-     * what those members' forfeits added, and the standing stake a day ago is
-     * today's plus their stakes, so a member's share a day ago follows.
+     * [CohortSnapshot.dayLength] seconds.
      */
-    fun sinceYesterday(c: CohortSnapshot, members: List<MembershipSnapshot>, now: Long): SinceYesterday = sinceYesterday(c, members, now, projectedPool(c, members, now), standingStake(c, members, now))
-
-    /** [sinceYesterday] from a screen's [CohortFigures], which already hold today's pool and standing stake: no second pass over the roster for them. */
-    fun sinceYesterday(figures: CohortFigures, members: List<MembershipSnapshot>): SinceYesterday = sinceYesterday(figures.cohort, members, figures.now, figures.projectedPool, figures.standingStake)
-
-    private fun sinceYesterday(c: CohortSnapshot, members: List<MembershipSnapshot>, now: Long, poolNow: ULong, stakeNow: ULong): SinceYesterday {
-        val dropped = members.filter { m ->
-            !standing(m, c, now) && m.daysCompleted < c.durationDays && deadlineOf(c, m.daysCompleted) > now - c.dayLength
-        }
-        val droppedPool = dropped.fold(0uL) { sum, m -> sum + Settlement.forfeitSplit(m.stake).pool }
-        val droppedStake = dropped.fold(0uL) { sum, m -> sum + m.stake }
-        return SinceYesterday(
-            dropped = dropped.size,
-            cohort = c,
-            now = now,
-            poolNow = poolNow,
-            standingStakeNow = stakeNow,
-            poolThen = if (poolNow >= droppedPool) poolNow - droppedPool else 0uL,
-            standingStakeThen = stakeNow + droppedStake,
-        )
+    fun sinceYesterday(figures: CohortFigures, members: List<MembershipSnapshot>): SinceYesterday {
+        val c = figures.cohort
+        val now = figures.now
+        return SinceYesterday(members.count { m -> !standing(m, c, now) && m.daysCompleted < c.durationDays && deadlineOf(c, m.daysCompleted) > now - c.dayLength })
     }
 
     /** Every figure at once, for one cohort screen. */
