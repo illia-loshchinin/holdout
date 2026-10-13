@@ -99,7 +99,11 @@ class SittingCues(context: Context) {
     }
 
     private fun say(text: String, flush: Boolean = false) {
-        if (voice.say(text, flush)) return
+        if (voice.say(text, flush)) {
+            // A flushed clip also cuts off a fallback line still being spoken.
+            if (flush) runCatching { speech?.stop() }
+            return
+        }
         if (!speechReady) return
         // QUEUE_ADD by default: "10 banked" after its chime, or a correction
         // after another, waits its turn rather than cutting the last one off.

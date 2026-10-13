@@ -33,14 +33,19 @@ class VoiceClips(context: Context) {
     private var player: MediaPlayer? = null
     private var closed = false
 
-    /** Plays [words], or returns false when there is no clip for them. */
+    /**
+     * Plays [words], or returns false when there is no clip for them. A flush
+     * stops the clips either way: a line with no clip is said by the device's
+     * speech, and must not talk over a clip still playing.
+     */
     fun say(words: String, flush: Boolean = false): Boolean {
-        val file = "${slug(words)}.mp3"
-        if (closed || file !in clips) return false
+        if (closed) return false
         if (flush) {
             waiting.clear()
             stop()
         }
+        val file = "${slug(words)}.mp3"
+        if (file !in clips) return false
         waiting.addLast(file)
         if (player == null) next()
         return true
