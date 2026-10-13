@@ -470,6 +470,23 @@ class RunTest {
     }
 
     @Test
+    fun `an Easy league winding down holds only the new Easy lobby, never the Hard one`() = runBlocking {
+        val chain = Chain(first + 60, sponsorLamports = 30_000_000)
+        chain.accounts[Pdas.config(programId)] = configBytes(sponsorFloat = 50_000_000)
+        // Easy 100 is retired by Easy 102 and still has a cohort to settle; Hard 101 is the Habit lobby.
+        listOf(100 to LeagueParams.FORM_KNEES_ALLOWED, 101 to LeagueParams.FORM_TOES, 102 to LeagueParams.FORM_KNEES_ALLOWED).forEach { (id, form) ->
+            chain.accounts[Pdas.league(programId, id)] = leagueBytes(LeagueSnapshot(LeagueParams(id, 3, 5, 0, form, first, 600, 1_800, 0), nextIndex = 1))
+            chain.accounts[Pdas.cohort(programId, id, 0)] = cohortBytes(testCohort(id, 0, start = first))
+        }
+        val json = pass(chain)
+        val opens = chain.sentTx.filter { chain.nameOf(it) == "open_cohort" }.map { t -> t.message.accounts }
+        assertTrue(opens.any { Pdas.cohort(programId, 101, 1) in it }, "the Hard lobby opens its next round")
+        assertTrue(opens.none { Pdas.cohort(programId, 102, 1) in it }, "the new Easy lobby waits for Easy 100")
+        val steps = json.getValue("steps").jsonArray.map { it.jsonObject }.filter { it.getValue("step").jsonPrimitive.content == "open_cohort" }
+        assertEquals("waiting", steps.single { it["league"]?.jsonPrimitive?.int == 102 }.getValue("status").jsonPrimitive.content)
+    }
+
+    @Test
     fun `a pass opens the next round of both Hackathon lobbies, one per form, side by side`() = runBlocking {
         val chain = Chain(first + 60, sponsorLamports = 30_000_000)
         chain.accounts[Pdas.config(programId)] = configBytes(sponsorFloat = 50_000_000)

@@ -70,16 +70,17 @@ pass() {
   return $scripted
 }
 
-# When `scripted run` asked to run again (chain time, epoch seconds), or nothing.
+# The earliest time `scripted run` asked to run again (chain time, epoch
+# seconds), or nothing: its summary and any retry appended below.
 next_scripted() {
-  grep -o '"nextScriptedAt":[0-9]*' "$SCRIPTED" 2>/dev/null | head -n 1 | cut -d: -f2
+  grep -o '"nextScriptedAt":[0-9]*' "$SCRIPTED" 2>/dev/null | cut -d: -f2 | sort -n | head -n 1
 }
 
-# A `scripted run` that failed without saying when to wake (it could not read
-# the chain) is tried again in CRANK_RETRY_SECONDS (default 30): a scripted
-# member's 10-minute day must not wait out a whole interval.
+# A `scripted run` that failed is tried again within CRANK_RETRY_SECONDS
+# (default 30), even when its summary asked for a later wake (a round's start):
+# a join or a scripted member's 10-minute day must not wait out a whole
+# interval, nor the lobby's close (Codex review of #70).
 retry_scripted() {
-  [[ -n "$(next_scripted)" ]] && return 0
   printf '{"nextScriptedAt":%s}\n' "$(( $(date +%s) + ${CRANK_RETRY_SECONDS:-30} ))" >> "$SCRIPTED"
 }
 

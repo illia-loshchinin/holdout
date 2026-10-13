@@ -332,6 +332,10 @@ object Run {
             }
         }
         val retired = retiredTestLeagues(leagues.associate { it.params.leagueId to it.params.form })
+        // A retired league holds only the lobby that replaced it, the newest of its own form: an
+        // Easy league winding down never stops the Hard lobby (Codex review of #70).
+        val formOf = leagues.associate { it.params.leagueId to it.params.form }
+        fun retiredOfForm(form: Int): Set<Int> = retired.filter { formOf[it] == form }.toSet()
         // A retired test league still opens the rounds its comebacks are owed in (FR-037e).
         val owed = mutableMapOf<Int, Long>()
         // Retired leagues whose debts could not be read hold the new lobby this pass rather than risk two open test leagues.
@@ -387,7 +391,7 @@ object Run {
                     }
                 }
             } else {
-                val heldBy = if (id >= LeagueParams.TEST_LEAGUE_MIN) lobbyHeldBy(retired, cohorts.values, owing()) else null
+                val heldBy = if (id >= LeagueParams.TEST_LEAGUE_MIN) lobbyHeldBy(retiredOfForm(league.params.form), cohorts.values, owing()) else null
                 if (heldBy != null) {
                     pass.record("open_cohort", "waiting") {
                         put("league", id)
@@ -565,7 +569,7 @@ object Run {
                 if (id in retired) {
                     (owed[id] ?: -1L) >= nextIndex.getValue(id)
                 } else {
-                    id < LeagueParams.TEST_LEAGUE_MIN || lobbyHeldBy(retired, cohorts.values, owing()) == null
+                    id < LeagueParams.TEST_LEAGUE_MIN || lobbyHeldBy(retiredOfForm(l.params.form), cohorts.values, owing()) == null
                 }
             }
             .map { it.copy(nextIndex = nextIndex.getValue(it.params.leagueId)) }
