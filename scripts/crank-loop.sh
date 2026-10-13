@@ -4,10 +4,13 @@
 # run` reports a cohort open falling due before then (`nextOpenAt`, chain time):
 # the loop wakes a few seconds after it, so the next test cohort is joinable
 # moments after the one before starts, not up to an interval later (FR-044a).
-# Between passes `crank scripted run` runs alone every CRANK_SCRIPTED_POLL_SECONDS
-# (default 60, 0 to switch off), so a Hackathon round tops up soon after someone
-# real joins it (FR-043). Runs in the Fly machine, and in the GitHub Actions
-# fallback with --once (then scripted polls until CRANK_ONCE_POLL_UNTIL).
+# Between passes `crank scripted run` runs alone only when it asked to
+# (`nextScriptedAt`, chain time): a Hackathon round's last minute, when it is
+# topped up if someone real has joined it, and each day of a round a scripted
+# member still plays (FR-043). It never polls the RPC on a timer: the public
+# devnet RPC rate-limits per IP (owner, 13 October). Runs in the Fly machine, and
+# in the GitHub Actions fallback with --once (then scripted wakes until
+# CRANK_ONCE_POLL_UNTIL).
 #
 # Keys come from the environment, never from the image or the repository:
 #   HOLDOUT_PAYER_KEY_JSON        the payer's Solana CLI keypair (a JSON array)
@@ -50,6 +53,7 @@ fi
 chmod 600 "$KEYS"/*.json "$KEYS"/scripted/*.json 2>/dev/null || true
 
 SUMMARY="$KEYS/last-run.json"
+SCRIPTED="$KEYS/last-scripted.json"
 
 pass() {
   echo "=== $(date -u +%FT%TZ) crank run"
@@ -57,53 +61,76 @@ pass() {
   local run=${PIPESTATUS[0]} scripted=0
   if [[ -n "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" ]]; then
     echo "=== $(date -u +%FT%TZ) crank scripted run"
-    java -jar "$JAR" scripted run
-    scripted=$?
+    java -jar "$JAR" scripted run | tee "$SCRIPTED"
+    scripted=${PIPESTATUS[0]}
+    (( scripted != 0 )) && retry_scripted
   fi
   # Either failing fails the pass: an underfilled cohort or a missed scripted day is a failure too.
   (( run != 0 )) && return $run
   return $scripted
 }
 
-# Between full passes, `scripted run` alone every CRANK_SCRIPTED_POLL_SECONDS
-# (default 60): a Hackathon round gets scripted members only once someone real
-# joins it (FR-043), and its lobby lasts 30 minutes, so a judge who joins finds
-# it topped up within a minute rather than up to a pass later. A poll that
-# does nothing prints nothing.
-poll_scripted() {
-  local out
-  # Killed at the deadline it was given: every step is idempotent, and the next pass re-reads the chain.
+# When `scripted run` asked to run again (chain time, epoch seconds), or nothing.
+next_scripted() {
+  grep -o '"nextScriptedAt":[0-9]*' "$SCRIPTED" 2>/dev/null | head -n 1 | cut -d: -f2
+}
+
+# A `scripted run` that failed without saying when to wake (it could not read
+# the chain) is tried again in CRANK_RETRY_SECONDS (default 30): a scripted
+# member's 5-minute day must not wait out a whole interval.
+retry_scripted() {
+  [[ -n "$(next_scripted)" ]] && return 0
+  printf '{"nextScriptedAt":%s}\n' "$(( $(date +%s) + ${CRANK_RETRY_SECONDS:-30} ))" >> "$SCRIPTED"
+}
+
+# `scripted run` alone, killed at the deadline it was given ($1 seconds): every
+# step is idempotent, and the next pass re-reads the chain. One that does
+# nothing prints nothing.
+wake_scripted() {
+  local out status
   out="$(timeout "$1" java -jar "$JAR" scripted run)"
-  local status=$?
+  status=$?
+  printf '%s\n' "$out" > "$SCRIPTED"
   if (( status != 0 )) || grep -q '"step"' <<< "$out"; then
-    echo "=== $(date -u +%FT%TZ) crank scripted run (poll)"
+    echo "=== $(date -u +%FT%TZ) crank scripted run (wake)"
     echo "$out"
-    (( status != 0 )) && echo "=== poll ended with a failure; the next one retries (exit $status)"
+    (( status != 0 )) && echo "=== wake ended with a failure; it is tried again (exit $status)"
   fi
+  (( status != 0 )) && retry_scripted
   return 0
 }
 
-# Polls until the absolute time [$1] and never past it: a poll starts only when
-# the interval and CRANK_POLL_MIN_SECONDS (default 20) of run time still fit,
-# and is stopped at the deadline, so the next full pass is never pushed back.
-polls_until() {
-  local deadline=$1 poll="${CRANK_SCRIPTED_POLL_SECONDS:-60}" least="${CRANK_POLL_MIN_SECONDS:-20}" left
-  [[ -n "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" ]] && (( poll > 0 )) || return 0
-  while (( deadline - $(date +%s) > poll + least )); do
-    sleep "$poll"
+# Until the absolute time [$1], and never past it: sleeps to each time `scripted
+# run` asked for (plus CRANK_WAKE_MARGIN_SECONDS, default 2, for the chain
+# clock; at least CRANK_WAKE_GAP_SECONDS, default 5, after the last one) and
+# runs it there. A wake starts only while CRANK_POLL_MIN_SECONDS (default 20)
+# of run time still fit, and is stopped at the deadline, so the next full pass
+# is never pushed back; a wake due later is left to that pass.
+scripted_until() {
+  local deadline=$1 least="${CRANK_POLL_MIN_SECONDS:-20}" margin="${CRANK_WAKE_MARGIN_SECONDS:-2}" gap="${CRANK_WAKE_GAP_SECONDS:-5}"
+  local next at left
+  [[ -n "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" ]] || return 0
+  while true; do
+    next="$(next_scripted)"
+    [[ -n "$next" ]] || return 0
+    at=$(( next + margin ))
+    (( at < $(date +%s) + gap )) && at=$(( $(date +%s) + gap ))
+    (( deadline - at > least )) || return 0
+    sleep $(( at - $(date +%s) ))
     left=$(( deadline - $(date +%s) ))
     (( left > 0 )) || return 0
-    poll_scripted "$left"
+    wake_scripted "$left"
   done
 }
 
-# One pass, then `scripted run` alone every CRANK_SCRIPTED_POLL_SECONDS until
+# One pass, then `scripted run` alone whenever it asks, until
 # CRANK_ONCE_POLL_UNTIL (epoch seconds; the GitHub Actions fallback sets it from
 # its job's start, crank.yml), or for CRANK_ONCE_POLL_SECONDS (default 0).
 if [[ "${1:-}" == "--once" ]]; then
+  : > "$SCRIPTED"
   pass
   status=$?
-  polls_until "${CRANK_ONCE_POLL_UNTIL:-$(( $(date +%s) + ${CRANK_ONCE_POLL_SECONDS:-0} ))}"
+  scripted_until "${CRANK_ONCE_POLL_UNTIL:-$(( $(date +%s) + ${CRANK_ONCE_POLL_SECONDS:-0} ))}"
   exit $status
 fi
 
@@ -120,9 +147,10 @@ next_sleep() {
 
 while true; do
   : > "$SUMMARY"
+  : > "$SCRIPTED"
   pass || echo "=== pass ended with a failure; the next pass retries (exit $?)"
   deadline=$(( $(date +%s) + $(next_sleep) ))
-  polls_until "$deadline"
+  scripted_until "$deadline"
   rest=$(( deadline - $(date +%s) ))
   (( rest > 0 )) && sleep "$rest"
 done

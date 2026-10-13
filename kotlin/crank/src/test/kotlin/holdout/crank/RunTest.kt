@@ -459,10 +459,28 @@ class RunTest {
     }
 
     @Test
-    fun `only the newest test league opens cohorts - an older one winds down`() {
-        assertEquals(setOf(100, 101), Run.retiredTestLeagues(listOf(0, 1, 100, 101, 102)))
-        assertEquals(emptySet<Int>(), Run.retiredTestLeagues(listOf(0, 1, 100)), "one test league is the lobby")
-        assertEquals(emptySet<Int>(), Run.retiredTestLeagues(listOf(0, 1)), "the judged leagues are never retired")
+    fun `only the newest test league of each form opens cohorts - an older one winds down`() {
+        val easy = LeagueParams.FORM_KNEES_ALLOWED
+        val hard = LeagueParams.FORM_TOES
+        assertEquals(setOf(100, 101), Run.retiredTestLeagues(mapOf(0 to easy, 1 to hard, 100 to easy, 101 to easy, 102 to easy)))
+        assertEquals(setOf(100), Run.retiredTestLeagues(mapOf(0 to easy, 1 to hard, 100 to easy, 101 to easy, 102 to hard)), "Hackathon · Spark and Hackathon · Habit are both lobbies")
+        assertEquals(setOf(100, 101), Run.retiredTestLeagues(mapOf(100 to easy, 101 to hard, 102 to hard, 103 to easy)), "the newest of each form: 103 and 102")
+        assertEquals(emptySet<Int>(), Run.retiredTestLeagues(mapOf(0 to easy, 1 to hard, 100 to easy)), "one test league is the lobby")
+        assertEquals(emptySet<Int>(), Run.retiredTestLeagues(mapOf(0 to easy, 1 to hard)), "the judged leagues are never retired")
+    }
+
+    @Test
+    fun `a pass opens the next round of both Hackathon lobbies, one per form, side by side`() = runBlocking {
+        val chain = Chain(first + 60, sponsorLamports = 30_000_000)
+        chain.accounts[Pdas.config(programId)] = configBytes(sponsorFloat = 50_000_000)
+        listOf(101 to LeagueParams.FORM_KNEES_ALLOWED, 102 to LeagueParams.FORM_TOES).forEach { (id, form) ->
+            chain.accounts[Pdas.league(programId, id)] = leagueBytes(LeagueSnapshot(LeagueParams(id, 3, 5, 0, form, first, 300, 900, 0), nextIndex = 1))
+            chain.accounts[Pdas.cohort(programId, id, 0)] = cohortBytes(testCohort(id, 0, start = first))
+        }
+        pass(chain)
+        val opens = chain.sentTx.filter { chain.nameOf(it) == "open_cohort" }.map { t -> t.message.accounts }
+        assertEquals(2, opens.size)
+        assertTrue(opens.any { Pdas.cohort(programId, 101, 1) in it } && opens.any { Pdas.cohort(programId, 102, 1) in it }, "both lobbies open their next round as the current one starts")
     }
 
     @Test

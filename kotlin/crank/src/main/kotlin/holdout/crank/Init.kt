@@ -245,12 +245,14 @@ object Init {
     private const val INVALID_LEAGUE_TIMING = 6010
 
     /**
-     * The short test lobby, by default (FR-044a, decision H36, 2026-10-06; was
-     * seven days, H32): **three 10-minute days at 5 reps a day, a new cohort every
-     * 30 minutes**, so a single judge lives through a whole cycle in about an hour,
-     * waiting at most half an hour for the next start.
+     * The short test lobby, by default (FR-044a, owner 2026-10-13; three
+     * 10-minute days every 30 minutes before, H36; seven days before that, H32):
+     * **three 5-minute days at 5 reps a day, a new cohort every 15 minutes**, so
+     * a single judge lives through a whole cycle in about half an hour, waiting at
+     * most 15 minutes for the next start. Devnet runs two, one per `--form`
+     * (Hackathon · Spark and Hackathon · Habit), created with the same timing.
      */
-    const val DEFAULT_TEST_DAY_SECONDS = 600L
+    const val DEFAULT_TEST_DAY_SECONDS = 300L
     const val DEFAULT_TEST_DAYS = 3L
     const val DEFAULT_TEST_REPS = 5L
 
@@ -267,7 +269,7 @@ object Init {
     /**
      * The short test league's parameters from the command line (quickstart §5):
      * `--first-start` is required — any instant the admin chooses; `--day-seconds`,
-     * `--days` and `--reps` default to three 10-minute days at 5 reps; `--form`
+     * `--days` and `--reps` default to three 5-minute days at 5 reps; `--form`
      * to Easy ([DEFAULT_TEST_FORM]);
      * `--cadence` defaults to back-to-back cohorts (`days × day-seconds`) and
      * `--join-lock` to [DEFAULT_TEST_JOIN_LOCK].

@@ -29,7 +29,7 @@ jobs:
     # the timeout leaves margin for a slow build and the pass's transactions.
     timeout-minutes: 12
     steps:
-      - name: Note when the scripted polls must stop
+      - name: Note when the scripted wakes must stop
         run: echo "CRANK_ONCE_POLL_UNTIL=$(( $(date +%s) + 570 ))" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v4
@@ -45,12 +45,12 @@ jobs:
         working-directory: kotlin
         run: ./gradlew --no-daemon :crank:jar
 
-      - name: One pass, then scripted polls every minute
+      - name: One pass, then scripted wakes when a Hackathon round or a scripted day falls due
         env:
           HOLDOUT_RPC_URL: https://api.devnet.solana.com
           HOLDOUT_PROGRAM_ID: Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4
           HOLDOUT_PAYER_KEY_JSON: ${{ secrets.HOLDOUT_PAYER_KEY_JSON }}
           HOLDOUT_SCRIPTED_KEYS_TGZ_B64: ${{ secrets.HOLDOUT_SCRIPTED_KEYS_TGZ_B64 }}
           CRANK_JAR: kotlin/crank/build/libs/crank.jar
-          # CRANK_ONCE_POLL_UNTIL (set above): after the pass, a Hackathon round tops up soon after someone real joins (FR-043).
+          # CRANK_ONCE_POLL_UNTIL (set above): after the pass, `scripted run` wakes for a Hackathon round's last minute and each scripted day (FR-043).
         run: bash scripts/crank-loop.sh --once

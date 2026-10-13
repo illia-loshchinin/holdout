@@ -79,13 +79,25 @@ class ScriptedTest {
         assertEquals(listOf("21d-a", "21d-b", "21d-c", "21d-a"), (0L..3L).map { Scripted.poolFor(roster, 1, it).map { w -> w.group }.distinct().single() })
         assertEquals(8, Scripted.Floors(test = 8).of(100))
         val hackathon = Scripted.poolFor(roster, 102, 5)
-        assertEquals(36, hackathon.size, "a Hackathon round draws on the 36 wallets Habit leaves idle")
-        assertTrue(hackathon.all { it.league == "21d" })
+        assertEquals(56, hackathon.size, "a Hackathon round draws on every wallet Spark and Habit leave idle")
+        val withSpark = Scripted.poolFor(roster, 102, 5, Scripted.Floors(sevenDay = 20))
+        assertEquals(36, withSpark.size, "a Spark floor keeps its twenty out of the Hackathon pool")
+        assertTrue(withSpark.all { it.league == "21d" })
     }
 
     @Test
-    fun `on devnet Spark keeps 20, Habit gets none and a Hackathon round gets 4 once someone real joins`() {
-        assertEquals(listOf(20, 0, 4), listOf(0, 1, 100).map { Scripted.Floors().of(it) })
+    fun `the two Hackathon lobbies start half a pool apart, so their rounds reach for different wallets`() {
+        val roster = syntheticRoster()
+        (0L until 8L).forEach { k ->
+            val spark = Scripted.poolFor(roster, 101, k).take(10).map { it.pubkey }
+            val habit = Scripted.poolFor(roster, 102, k).take(10).map { it.pubkey }
+            assertTrue(spark.intersect(habit.toSet()).isEmpty(), "round $k: the first ten of each lobby are disjoint")
+        }
+    }
+
+    @Test
+    fun `on devnet Spark and Habit get none and a Hackathon round gets 10 once someone real joins`() {
+        assertEquals(listOf(0, 0, 10), listOf(0, 1, 100).map { Scripted.Floors().of(it) })
         assertFalse(Scripted.needsRealMember(LeagueParams.LEAGUE_7D))
         assertFalse(Scripted.needsRealMember(LeagueParams.LEAGUE_21D))
         assertTrue(Scripted.needsRealMember(LeagueParams.TEST_LEAGUE_MIN))
@@ -113,6 +125,36 @@ class ScriptedTest {
         assertEquals(17, Scripted.deficit(c, 20, late, members = 2), "a roster read short never adds places")
         assertEquals(6, Scripted.target(cohort(leagueId = 1), 12, early))
         assertEquals(0, Scripted.target(c, 0, early))
+        assertEquals(c.joinCutoff - day, Scripted.nextFillAt(c, 20, early), "the loop wakes for the full floor")
+        assertNull(Scripted.nextFillAt(c, 20, late), "nothing more to wait for")
+        assertNull(Scripted.nextFillAt(c, 0, early), "no floor, no wake")
+    }
+
+    @Test
+    fun `a Hackathon round has no target until its last minute, then its whole floor`() {
+        val round = cohort(leagueId = 101, memberCount = 1, duration = 3)
+        assertEquals(0, Scripted.target(round, 10, round.joinCutoff - 600), "not looked at while its lobby is open")
+        assertEquals(0, Scripted.target(round, 10, round.joinCutoff - Scripted.TEST_FILL_LEAD - 1))
+        assertEquals(10, Scripted.target(round, 10, round.joinCutoff - Scripted.TEST_FILL_LEAD))
+        assertEquals(9, Scripted.deficit(round, 10, round.joinCutoff - 30))
+        assertEquals(0, Scripted.target(round, 10, round.joinCutoff), "joining has closed")
+        assertEquals(round.joinCutoff - Scripted.TEST_FILL_LEAD, Scripted.nextFillAt(round, 10, round.joinCutoff - 600))
+        assertNull(Scripted.nextFillAt(round, 10, round.joinCutoff - 30), "inside the window: filled now, not later")
+    }
+
+    @Test
+    fun `a running cohort asks to wake for tomorrow's day only while a scripted member still plays it`() {
+        val c = cohort(leagueId = 101, duration = 3).copy(dayLength = 300)
+        val key = SolanaPublicKey(ByteArray(32) { 4 })
+        val now = c.start + 10
+        val wallets = (0 until 40).map { SolanaPublicKey(ByteArray(32) { b -> (it + b).toByte() }) }
+        val finisher = wallets.first { Scripted.forfeitDayOf(key, it, 3) == null }
+        val quitsTomorrow = wallets.first { Scripted.forfeitDayOf(key, it, 3) == 1 }
+        fun member(w: SolanaPublicKey) = MembershipSnapshot(w, 0, 10uL, c.start, 0, MembershipSnapshot.State.Joined)
+        assertEquals(c.start + 300, Scripted.nextDayAt(c, key, listOf(member(finisher)), now))
+        assertNull(Scripted.nextDayAt(c, key, listOf(member(quitsTomorrow)), now), "it stops on day 1: nothing to submit")
+        assertNull(Scripted.nextDayAt(c, key, listOf(member(finisher)), c.start + 2 * 300 + 10), "the last day: no tomorrow")
+        assertNull(Scripted.nextDayAt(c, key, emptyList(), now))
     }
 
     @Test
@@ -174,9 +216,12 @@ class ScriptedTest {
         // Lamports by wallet; anyone not listed holds 1 SOL, which needs no top-up.
         val balances = mutableMapOf<SolanaPublicKey, Long>()
 
+        // Roster reads (`getProgramAccounts` filtered by cohort): what a pass costs the RPC.
+        var rosterReads = 0
+
         fun names(t: Transaction) = t.message.instructions.map { ix ->
             if (t.message.accounts[ix.programIdIndex.toInt()] == Instructions.SYSTEM_PROGRAM) return@map "transfer"
-            listOf("claim_faucet", "join_cohort", "submit_day").first { Instructions.discriminator(it).contentEquals(ix.data.copyOf(8)) }
+            listOf("claim_faucet", "join_cohort", "submit_day", "leave_cohort").first { Instructions.discriminator(it).contentEquals(ix.data.copyOf(8)) }
         }
 
         override suspend fun makeHttpRequest(request: HttpRequest): String {
@@ -189,6 +234,7 @@ class ScriptedTest {
                     val filters = options.getValue("filters").jsonArray.map { it.jsonObject }
                     val size = filters.first { "dataSize" in it }.getValue("dataSize").jsonPrimitive.int
                     val cohortFilter = filters.mapNotNull { it["memcmp"]?.jsonObject }.firstOrNull { it.getValue("offset").jsonPrimitive.int == AccountLayout.Membership.COHORT }
+                    if (cohortFilter != null) rosterReads++
                     val slice = options["dataSlice"]?.jsonObject
                     val entries = accounts.filter { it.value.size == size }
                         .filter { cohortFilter == null || SolanaPublicKey(it.value.copyOfRange(8, 40)).base58() == cohortFilter.getValue("bytes").jsonPrimitive.content }
@@ -274,7 +320,7 @@ class ScriptedTest {
 
         val byFile = roster.associate { w -> w.fileName to keys.getValue(w.pubkey) }
         val json = Scripted.run(
-            parseArgs(listOf("scripted", "run")),
+            parseArgs(listOf("scripted", "run", "--floor-7d", "20")),
             CrankConfig.from(env),
             Rpc("http://rpc.test", Rpc20Driver("http://rpc.test", chain)),
             roster,
@@ -287,6 +333,7 @@ class ScriptedTest {
         joins.forEach { assertEquals(listOf("claim_faucet", "join_cohort"), chain.names(it), "a wallet with no SKR claims first, in the same transaction") }
         val submits = chain.sent.filter { "submit_day" in chain.names(it) }
         assertEquals(submitters.map { it.pubkey }, submits.map { it.message.accounts[0] }, "only the member not scheduled to have forfeited")
+        assertTrue(json.getValue("nextScriptedAt").jsonPrimitive.content.toLong() > now, "the pass says when to run it again")
         assertNull(stopped.firstOrNull()?.let { s -> submits.firstOrNull { it.message.accounts[0] == s.pubkey } })
         // Every transaction is paid by the scripted wallet itself, never by the faucet's sponsor.
         chain.sent.forEach { assertTrue(it.message.accounts[0] in keys.keys) }
@@ -304,7 +351,7 @@ class ScriptedTest {
         roster.forEach { chain.accounts[Pdas.profile(programId, it.pubkey)] = profileBytes(it.pubkey, lastFaucetDay = HoldoutDay.indexOf(now)) }
 
         val byFile = roster.associate { w -> w.fileName to keys.getValue(w.pubkey) }
-        val json = Scripted.run(parseArgs(listOf("scripted", "run")), CrankConfig.from(env), Rpc("http://rpc.test", Rpc20Driver("http://rpc.test", chain)), roster, loadKeypair = { path, _ -> byFile.getValue(java.io.File(path).name) }, pause = {})
+        val json = Scripted.run(parseArgs(listOf("scripted", "run", "--floor-7d", "20")), CrankConfig.from(env), Rpc("http://rpc.test", Rpc20Driver("http://rpc.test", chain)), roster, loadKeypair = { path, _ -> byFile.getValue(java.io.File(path).name) }, pause = {})
 
         assertEquals(0, json.getValue("failed").jsonPrimitive.int)
         val joins = chain.sent.filter { "join_cohort" in chain.names(it) }
@@ -325,7 +372,7 @@ class ScriptedTest {
 
         val byFile = roster.associate { w -> w.fileName to keys.getValue(w.pubkey) }
         val json = assertFailsWith<CrankSummaryException> {
-            Scripted.run(parseArgs(listOf("scripted", "run")), CrankConfig.from(env), Rpc("http://rpc.test", Rpc20Driver("http://rpc.test", chain)), roster, loadKeypair = { path, _ -> byFile.getValue(java.io.File(path).name) }, pause = {})
+            Scripted.run(parseArgs(listOf("scripted", "run", "--floor-7d", "20")), CrankConfig.from(env), Rpc("http://rpc.test", Rpc20Driver("http://rpc.test", chain)), roster, loadKeypair = { path, _ -> byFile.getValue(java.io.File(path).name) }, pause = {})
         }.summary
         assertEquals(2, json.getValue("failed").jsonPrimitive.int)
         assertEquals(7, chain.sent.count { "join_cohort" in chain.names(it) }, "all 7 places filled by the wallets after the refused ones")
@@ -336,17 +383,18 @@ class ScriptedTest {
     private val payerKey = key(90)
     private val stranger = SolanaPublicKey(ByteArray(32) { 77 })
 
-    /** A Hackathon round 10 minutes before its cutoff, holding [members], after one pass. */
+    /** A Hackathon round [before] seconds before its cutoff (its last minute by default), holding [members], after one pass. */
     private fun hackathonPass(
         members: List<SolanaPublicKey>,
         balances: Map<SolanaPublicKey, Long> = emptyMap(),
         flags: List<String> = emptyList(),
         withPayer: Boolean = true,
+        before: Long = 30,
     ): Pair<Chain, JsonObject> = runBlocking {
         val roster = syntheticRoster()
         val keys = (0 until 56).associate { key(it).publicKey to key(it) }
         val round = cohort(leagueId = 100, index = 0, memberCount = members.size.toLong(), duration = 3)
-        val chain = Chain(round.joinCutoff - 600)
+        val chain = Chain(round.joinCutoff - before)
         val roundKey = Pdas.cohort(programId, 100, 0)
         chain.accounts[Pdas.config(programId)] = configBytes()
         chain.accounts[roundKey] = cohortBytes(round)
@@ -371,14 +419,25 @@ class ScriptedTest {
         val scripted = Scripted.poolFor(syntheticRoster(), 100, 0).first().pubkey
         assertEquals(0, hackathonPass(listOf(scripted)).first.sent.size, "a scripted member alone does not count as someone real")
         val local = hackathonPass(emptyList(), flags = listOf("--fill-empty")).first
-        assertEquals(4, local.sent.count { "join_cohort" in local.names(it) }, "a local run fills empty rounds, to watch a cycle alone")
+        assertEquals(10, local.sent.count { "join_cohort" in local.names(it) }, "a local run fills empty rounds, to watch a cycle alone")
     }
 
     @Test
-    fun `a Hackathon round a real member has joined is topped up to 4 from the 21-day wallets`() {
-        val (chain, _) = hackathonPass(listOf(stranger))
+    fun `a Hackathon round is looked at only in its last minute - before that a pass reads no roster and asks to wake then`() {
+        val (chain, json) = hackathonPass(listOf(stranger), before = 600)
+        assertEquals(0, chain.sent.size)
+        assertEquals(0, chain.rosterReads, "no roster read while the lobby is open")
+        val round = cohort(leagueId = 100, index = 0, duration = 3)
+        assertEquals(round.joinCutoff - Scripted.TEST_FILL_LEAD, json.getValue("nextScriptedAt").jsonPrimitive.content.toLong())
+    }
+
+    @Test
+    fun `a Hackathon round a real member has joined is topped up to 10 in its last minute from the idle wallets`() {
+        val (chain, json) = hackathonPass(listOf(stranger))
         val joins = chain.sent.filter { "join_cohort" in chain.names(it) }
-        assertEquals(3, joins.size, "1 real member, floor 4")
+        assertEquals(9, joins.size, "1 real member, floor 10")
+        val round = cohort(leagueId = 100, index = 0, duration = 3)
+        assertEquals(round.start, json.getValue("nextScriptedAt").jsonPrimitive.content.toLong(), "it wakes again for the first day")
         val idle = Scripted.poolFor(syntheticRoster(), 100, 0).map { it.pubkey }.toSet()
         joins.forEach { assertTrue(it.message.accounts[0] in idle) }
     }
@@ -388,7 +447,7 @@ class ScriptedTest {
         val pool = Scripted.poolFor(syntheticRoster(), 100, 0)
         val (chain, _) = hackathonPass(listOf(stranger), pool.associate { it.pubkey to FAUCET_TOP_UP })
         val joins = chain.sent.filter { "join_cohort" in chain.names(it) }
-        assertEquals(3, joins.size)
+        assertEquals(9, joins.size)
         joins.forEach {
             assertEquals(listOf("transfer", "claim_faucet", "join_cohort"), chain.names(it))
             assertEquals(payerKey.publicKey, it.message.accounts[0], "the payer pays the fee too")
@@ -409,16 +468,16 @@ class ScriptedTest {
         assertEquals(0, none.first.sent.size)
         assertEquals(0, none.second.getValue("failed").jsonPrimitive.int)
         val rich = hackathonPass(listOf(stranger), withPayer = false)
-        assertEquals(3, rich.first.sent.count { "join_cohort" in rich.first.names(it) }, "wallets that hold enough SOL need no payer")
+        assertEquals(9, rich.first.sent.count { "join_cohort" in rich.first.names(it) }, "wallets that hold enough SOL need no payer")
     }
 
     @Test
-    fun `consecutive Hackathon rounds start at different wallets, and every one of the 36 takes a turn`() {
+    fun `consecutive Hackathon rounds start at different wallets, and every one of the 56 takes a turn`() {
         val roster = syntheticRoster()
-        val firsts = (0L until 36L).map { Scripted.poolFor(roster, 100, it).take(3).map { w -> w.pubkey } }
+        val firsts = (0L until 56L).map { Scripted.poolFor(roster, 100, it).take(3).map { w -> w.pubkey } }
         assertTrue(firsts.zipWithNext().all { (a, b) -> a.intersect(b.toSet()).isEmpty() }, "the next round's first three are new")
-        assertEquals(36, firsts.flatten().toSet().size)
-        assertEquals(36, Scripted.poolFor(roster, 100, 7).toSet().size, "a rotation, not a subset")
+        assertEquals(56, firsts.flatten().toSet().size)
+        assertEquals(56, Scripted.poolFor(roster, 100, 7).toSet().size, "a rotation, not a subset")
     }
 
     @Test
@@ -433,7 +492,7 @@ class ScriptedTest {
     @Test
     fun `plan reports a Hackathon round nobody real has joined as waiting, with nothing to add`() = runBlocking {
         val round = cohort(leagueId = 100, index = 0, memberCount = 1, duration = 3)
-        val chain = Chain(round.joinCutoff - 600)
+        val chain = Chain(round.joinCutoff - 30)
         val roundKey = Pdas.cohort(programId, 100, 0)
         val scripted = Scripted.poolFor(syntheticRoster(), 100, 0).first().pubkey
         chain.accounts[roundKey] = cohortBytes(round)
@@ -444,7 +503,46 @@ class ScriptedTest {
         val waiting = plan()
         assertTrue(waiting.getValue("waitingForRealMember").jsonPrimitive.content.toBoolean())
         assertEquals(0, waiting.getValue("deficit").jsonPrimitive.int)
-        assertEquals(3, plan("--fill-empty").getValue("deficit").jsonPrimitive.int, "a local run fills it to 4")
+        assertEquals(9, plan("--fill-empty").getValue("deficit").jsonPrimitive.int, "a local run fills it to 10")
+    }
+
+    // ---- leave -------------------------------------------------------------
+
+    private fun leave(chain: Chain, cohort: SolanaPublicKey): JsonObject = runBlocking {
+        val roster = syntheticRoster()
+        val keys = (0 until 56).associate { key(it).publicKey to key(it) }
+        val byFile = roster.associate { w -> w.fileName to keys.getValue(w.pubkey) }
+        Scripted.leave(parseArgs(listOf("scripted", "leave", "--cohort", cohort.base58())), CrankConfig.from(env), Rpc("http://rpc.test", Rpc20Driver("http://rpc.test", chain)), roster, loadKeypair = { path, _ -> byFile.getValue(java.io.File(path).name) }, pause = {})
+    }
+
+    @Test
+    fun `scripted leave takes every scripted member out of an open lobby with leave_cohort, and never a real member`() = runBlocking {
+        val spark = cohort(leagueId = 0, index = 0, memberCount = 3)
+        val chain = Chain(spark.joinCutoff - 5 * day)
+        val sparkKey = Pdas.cohort(programId, 0, 0)
+        chain.accounts[Pdas.config(programId)] = configBytes()
+        chain.accounts[sparkKey] = cohortBytes(spark)
+        val scripted = syntheticRoster().filter { it.group == "7d" }.take(2).map { it.pubkey }
+        (scripted + stranger).forEach { chain.accounts[Pdas.membership(programId, sparkKey, it)] = membershipBytes(sparkKey, it, 0) }
+        val json = leave(chain, sparkKey)
+        assertEquals(listOf("leave_cohort"), chain.sent.flatMap { chain.names(it) }.distinct())
+        assertEquals(scripted.toSet(), chain.sent.map { it.message.accounts[0] }.toSet(), "each scripted wallet signs and pays its own leave")
+        assertEquals(2, json.getValue("scripted").jsonPrimitive.int)
+        assertEquals(1, json.getValue("real").jsonPrimitive.int)
+        assertEquals(0, json.getValue("failed").jsonPrimitive.int)
+    }
+
+    @Test
+    fun `scripted leave refuses a cohort whose joining has closed - no refund is left to take`() = runBlocking {
+        val spark = cohort(leagueId = 0, index = 0, memberCount = 1)
+        val chain = Chain(spark.joinCutoff)
+        val sparkKey = Pdas.cohort(programId, 0, 0)
+        chain.accounts[Pdas.config(programId)] = configBytes()
+        chain.accounts[sparkKey] = cohortBytes(spark)
+        val scripted = syntheticRoster().first().pubkey
+        chain.accounts[Pdas.membership(programId, sparkKey, scripted)] = membershipBytes(sparkKey, scripted, 0)
+        assertEquals(EXIT_FAILED, assertFailsWith<CrankException> { leave(chain, sparkKey) }.exitCode)
+        assertTrue(chain.sent.isEmpty())
     }
 
     private companion object {

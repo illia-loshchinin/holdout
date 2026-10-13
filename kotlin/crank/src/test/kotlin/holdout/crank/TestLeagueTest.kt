@@ -97,9 +97,9 @@ class TestLeagueTest {
     }
 
     @Test
-    fun `by default the test league is the test lobby - three 10-minute days at 5 reps, a new cohort every 30 minutes, back to back and joinable up to each start, as league 100`() {
+    fun `by default the test league is the test lobby - three 5-minute days at 5 reps, a new cohort every 15 minutes, back to back and joinable up to each start, as league 100`() {
         val p = Init.testLeagueParams(parseArgs(listOf("init", "--test-league") + quickstart))
-        assertEquals(LeagueParams(100, 3, 5, 0, LeagueParams.FORM_KNEES_ALLOWED, Instant.parse(start).epochSecond, 600, 1_800, 0), p, "three 10-minute days, a cohort every 30 minutes, joinable until it starts, Easy by default (FR-044a, H35, H36)")
+        assertEquals(LeagueParams(100, 3, 5, 0, LeagueParams.FORM_KNEES_ALLOWED, Instant.parse(start).epochSecond, 300, 900, 0), p, "three 5-minute days, a cohort every 15 minutes, joinable until it starts, Easy by default (FR-044a, owner 2026-10-13)")
         val quick = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--day-seconds", "3600", "--reps", "10", "--days", "3") + quickstart))
         assertEquals(listOf(3_600L, 10L, 3L, 10_800L), listOf(quick.dayLength, quick.repsPerDay.toLong(), quick.durationDays.toLong(), quick.cadence), "every default can be overridden")
         val custom = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--league-id", "101", "--cadence", "600", "--join-lock", "60") + quickstart))
@@ -132,7 +132,7 @@ class TestLeagueTest {
         val json = testLeague(chain, *quickstart)
         assertEquals("sent", json.getValue("status").jsonPrimitive.content)
         assertEquals(100, json.getValue("league").jsonPrimitive.int)
-        assertEquals(600, json.getValue("daySeconds").jsonPrimitive.long)
+        assertEquals(300, json.getValue("daySeconds").jsonPrimitive.long)
         val tx = chain.sent.single()
         assertEquals(admin.publicKey, tx.message.accounts[0])
         val ix = tx.message.instructions.single()
@@ -145,16 +145,16 @@ class TestLeagueTest {
         assertEquals(listOf(mint, runBlocking { Pdas.reserveVault(programId, 100) }), accounts.subList(3, 5))
     }
 
-    /** League 100 as stored on chain: [days] days of 600 s at 5 reps, a cohort every [cadence] s, joining closing [joinLock] s before each start, Easy. */
-    private fun existingLeague(days: Int, cadence: Long, joinLock: Long = 0) = ByteBuffer.allocate(holdout.core.LeagueSnapshot.SIZE).order(ByteOrder.LITTLE_ENDIAN).apply {
-        put(0, holdout.core.LeagueSnapshot.DISCRIMINATOR).put(8, 100.toByte()).put(9, days.toByte()).putShort(10, 5).putLong(13, 600).putLong(21, now + 3_600).putLong(29, cadence).putLong(37, joinLock).putInt(45, 1)
+    /** League 100 as stored on chain: [days] days of [daySeconds] s at 5 reps, a cohort every [cadence] s, joining closing [joinLock] s before each start, Easy. */
+    private fun existingLeague(days: Int, cadence: Long, joinLock: Long = 0, daySeconds: Long = 300) = ByteBuffer.allocate(holdout.core.LeagueSnapshot.SIZE).order(ByteOrder.LITTLE_ENDIAN).apply {
+        put(0, holdout.core.LeagueSnapshot.DISCRIMINATOR).put(8, 100.toByte()).put(9, days.toByte()).putShort(10, 5).putLong(13, daySeconds).putLong(21, now + 3_600).putLong(29, cadence).putLong(37, joinLock).putInt(45, 1)
             .put(holdout.core.LeagueSnapshot.FORM, LeagueParams.FORM_KNEES_ALLOWED.toByte())
     }.array()
 
     @Test
     fun `a league that exists with the same shape is left alone`() {
         val chain = Chain()
-        chain.league = existingLeague(days = 3, cadence = 1_800)
+        chain.league = existingLeague(days = 3, cadence = 900)
         val json = testLeague(chain, *quickstart)
         assertEquals("skipped", json.getValue("status").jsonPrimitive.content)
         assertEquals(1, json.getValue("nextIndex").jsonPrimitive.long)
@@ -164,13 +164,16 @@ class TestLeagueTest {
     @Test
     fun `a league that exists with another shape is refused, naming --league-id, not passed off as done`() {
         val chain = Chain()
-        chain.league = existingLeague(days = 7, cadence = 4_200, joinLock = 300) // the earlier seven-day test league
+        chain.league = existingLeague(days = 7, cadence = 4_200, joinLock = 300, daySeconds = 600) // the earlier seven-day test league
         val e = assertFailsWith<CrankException> { testLeague(chain, *quickstart) }
         assertEquals(EXIT_CONFIG, e.exitCode)
         assertTrue(e.message!!.contains("--league-id"), e.message)
         assertTrue(chain.sent.isEmpty())
         // Today's shape but the 5-minute lock it had until 2026-10-07: refused too.
-        chain.league = existingLeague(days = 3, cadence = 1_800, joinLock = 300)
+        chain.league = existingLeague(days = 3, cadence = 900, joinLock = 300)
+        assertEquals(EXIT_CONFIG, assertFailsWith<CrankException> { testLeague(chain, *quickstart) }.exitCode)
+        // The 10-minute days league 100 has run since 2026-10-13: a new lobby needs a free id.
+        chain.league = existingLeague(days = 3, cadence = 1_800, daySeconds = 600)
         assertEquals(EXIT_CONFIG, assertFailsWith<CrankException> { testLeague(chain, *quickstart) }.exitCode)
     }
 

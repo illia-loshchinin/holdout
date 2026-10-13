@@ -27,7 +27,8 @@ import kotlinx.serialization.json.putJsonArray
  * order that cannot strand anything.
  *
  * 1. **Open** every league's due cohorts — index 0 at once, index *i* once
- *    cohort *i − 1* has started.
+ *    cohort *i − 1* has started. Test leagues open only in the newest of
+ *    each form (FR-044a).
  * 2. **Refill** the faucet sponsor when it holds less than half its float
  *    (FR-042b). A refusal — float sufficient, the day's budget spent, the vault
  *    empty — is an expected outcome, reported and retried next pass.
@@ -79,17 +80,21 @@ object Run {
     }
 
     /**
-     * The test leagues that open no more cohorts: every one but the newest.
-     * Streaks are written when a cohort is counted, after it ends, so two test
-     * leagues of different lengths running together could count a member's
-     * outcomes out of order on the one progress record they share. The newest
-     * test league is the lobby; an older one winds down, its cohorts still
-     * forfeited and settled as usual (FR-044a, FR-060).
+     * The test leagues that open no more cohorts: every one but the newest of
+     * each form. Devnet runs one test lobby per level — Hackathon · Spark
+     * (Easy) and Hackathon · Habit (Hard) — side by side, created with the same
+     * days, day length, cadence and first start, so their rounds end in the
+     * order they start (owner, 13 October). Streaks are written when a cohort
+     * is counted, after it ends, so test leagues of different lengths running
+     * together could count a member's outcomes out of order on the one
+     * progress record they share: an older test league of a form winds down,
+     * its cohorts still forfeited and settled as usual (FR-044a, FR-060).
+     * [forms] maps each league id to its form.
      */
-    fun retiredTestLeagues(leagueIds: Collection<Int>): Set<Int> {
-        val tests = leagueIds.filter { it >= LeagueParams.TEST_LEAGUE_MIN }
-        val lobby = tests.maxOrNull() ?: return emptySet()
-        return tests.filter { it != lobby }.toSet()
+    fun retiredTestLeagues(forms: Map<Int, Int>): Set<Int> {
+        val tests = forms.filterKeys { it >= LeagueParams.TEST_LEAGUE_MIN }
+        val lobbies = tests.entries.groupBy({ it.value }, { it.key }).values.map { it.max() }.toSet()
+        return tests.keys - lobbies
     }
 
     /**
@@ -326,7 +331,7 @@ object Run {
                 }
             }
         }
-        val retired = retiredTestLeagues(leagues.map { it.params.leagueId })
+        val retired = retiredTestLeagues(leagues.associate { it.params.leagueId to it.params.form })
         // A retired test league still opens the rounds its comebacks are owed in (FR-037e).
         val owed = mutableMapOf<Int, Long>()
         // Retired leagues whose debts could not be read hold the new lobby this pass rather than risk two open test leagues.
@@ -372,13 +377,13 @@ object Run {
                     pass.record("open_cohort", "comeback") {
                         put("league", id)
                         put("upTo", upTo)
-                        put("reason", "a newer test league is the lobby, but this one owes a comeback in its rounds up to $upTo (FR-037e)")
+                        put("reason", "a newer test league of its form is the lobby, but this one owes a comeback in its rounds up to $upTo (FR-037e)")
                     }
                     openDue(league, upTo)
                 } else {
                     pass.record("open_cohort", "retired") {
                         put("league", id)
-                        put("reason", "a newer test league is the lobby; this one opens no more cohorts (FR-044a)")
+                        put("reason", "a newer test league of its form is the lobby; this one opens no more cohorts (FR-044a)")
                     }
                 }
             } else {

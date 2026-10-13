@@ -5,10 +5,10 @@
 #   bash scripts/localnet-crank.sh <crank command…>   one command, e.g. status
 #   bash scripts/localnet-crank.sh --loop             crank run + scripted run every 30 s
 #
-# Local runs fill the test cohorts with scripted members (--floor-test, default 4,
-# CRANK_FLOOR_TEST to change) drawn from the 36 21-day wallets, empty or not
-# (--fill-empty; devnet waits for a real member), and leave the judged
-# leagues empty so every wallet is free for them.
+# Local runs fill the test cohorts with scripted members (--floor-test, default 10,
+# CRANK_FLOOR_TEST to change) drawn from all 56 wallets, empty or not
+# (--fill-empty; devnet waits for a real member), in each round's last minute,
+# and leave the judged leagues empty so every wallet is free for them.
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -39,7 +39,7 @@ if [[ "${1:-}" == "--loop" ]]; then
     echo "=== $(date -u +%FT%TZ)"
     crank run
     echo
-    crank scripted run --floor-7d 0 --floor-21d 0 --floor-test "${CRANK_FLOOR_TEST:-4}" --fill-empty
+    crank scripted run --floor-7d 0 --floor-21d 0 --floor-test "${CRANK_FLOOR_TEST:-10}" --fill-empty
     echo
     sleep "${CRANK_INTERVAL_SECONDS:-30}"
   done

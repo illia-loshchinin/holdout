@@ -37,7 +37,7 @@ data class ScriptedWallet(val pubkey: SolanaPublicKey, val league: String, val g
 }
 
 /**
- * `crank scripted plan|run|fund` (T087, T088, research R12, FR-043).
+ * `crank scripted plan|run|leave|fund` (T087, T088, research R12, FR-043).
  *
  * Scripted members are real wallets under the same contract rules as anyone:
  * they claim the faucet, stake, submit days and forfeit. What is scripted is
@@ -46,15 +46,21 @@ data class ScriptedWallet(val pubkey: SolanaPublicKey, val league: String, val g
  * and the roster live here and in the committed public list alone (FR-043a).
  *
  * - **Fill to a floor, real members first.** A cohort is topped up only to
- *   its league's floor — on devnet 20 for Spark, 4 for a Hackathon round and
- *   none for Habit (owner, 13 October) — counting everyone already in it: to
+ *   its league's floor — on devnet 10 for a Hackathon round and none for
+ *   Spark or Habit (owner, 13 October) — counting everyone already in it: to
  *   half the floor while its lobby is open, to the whole floor from 24 hours
- *   before the join cutoff. Never over, never leaving. A Hackathon round is
- *   filled only once a real member has joined it: an empty one stays empty.
+ *   before the join cutoff. A Hackathon round is looked at only in its last
+ *   [TEST_FILL_LEAD] seconds before the cutoff, and filled then only if a real
+ *   member has joined it: an empty one stays empty. Never over; a scripted
+ *   member leaves only when `scripted leave` sends it.
  * - **Which wallets.** The 7-day league plays the same 20 every week; the
  *   21-day league rotates three groups of 12 by cohort index, so no wallet is
- *   ever asked to overlap itself (FR-006b). Test leagues draw on all 36
- *   21-day wallets, idle while Habit's floor is 0.
+ *   ever asked to overlap itself (FR-006b). Test leagues draw on every wallet
+ *   whose league's floor is 0 — all 56 on devnet.
+ * - **When to wake.** A pass reports `nextScriptedAt`: the next Hackathon fill
+ *   window, the next stage of a lobby's fill, or the next day of a running
+ *   cohort a scripted member still plays. The loop sleeps until then rather
+ *   than polling the RPC (owner, 13 October).
  * - **SOL.** The payer tops a wallet up in its join transaction, so its
  *   faucet claim mints SKR only and never spends testers' lamport budget.
  * - **Tiers and forfeits** come from a hash of the cohort and the wallet, so
@@ -64,13 +70,21 @@ data class ScriptedWallet(val pubkey: SolanaPublicKey, val league: String, val g
  *   forfeited by today; on its forfeit day a wallet simply stops.
  */
 object Scripted {
-    const val DEFAULT_FLOOR_7D = 20
+    /** None on devnet: judges will not run a 7-day Holdout, so its wallets play the Hackathon rounds (owner, 13 October; 20 before). */
+    const val DEFAULT_FLOOR_7D = 0
 
     /** None on devnet: judges will not run a 21-day Holdout, so its wallets play the Hackathon rounds (owner, 13 October). */
     const val DEFAULT_FLOOR_21D = 0
 
-    /** A Hackathon round's floor, once a real member has joined it (owner, 13 October). */
-    const val DEFAULT_FLOOR_TEST = 4
+    /** A Hackathon round's floor, once a real member has joined it (owner, 13 October; 4 that morning). */
+    const val DEFAULT_FLOOR_TEST = 10
+
+    /**
+     * A Hackathon round is looked at once, this many seconds before its join
+     * cutoff (its start, join lock 0), and topped up then — not polled while its
+     * lobby is open (owner, 13 October).
+     */
+    const val TEST_FILL_LEAD = 60L
 
     /**
      * What a wallet should hold above the faucet's `sol_top_up` before it
@@ -94,6 +108,9 @@ object Scripted {
     /** Share of scripted members who finish their cohort (R12). */
     const val FINISH_SHARE = 0.40
 
+    /** How soon a pass that failed to land a scripted day asks to run again. */
+    const val RETRY_SECONDS = 30L
+
     /** Transfers per `scripted fund` transaction. */
     private const val FUND_BATCH = 10
 
@@ -101,6 +118,7 @@ object Scripted {
         when (args.words.getOrNull(1)) {
             "plan" -> args.allow("cohort", "floor-7d", "floor-21d", "floor-test", "fill-empty")
             "run" -> args.allow("floor-7d", "floor-21d", "floor-test", "fill-empty", "last-start")
+            "leave" -> args.allow("cohort")
             "fund" -> args.allow("lamports")
             else -> configError("unknown command '${args.words.joinToString(" ")}'; try --help")
         }
@@ -140,17 +158,54 @@ object Scripted {
             LeagueParams.LEAGUE_21D -> twentyOneDay
             else -> test
         }
+
+        /** The floor of a roster entry's own league (`7d` or `21d`): a wallet whose league's floor is 0 is free for the Hackathon rounds. */
+        fun ofRoster(league: String): Int = when (league) {
+            "7d" -> sevenDay
+            "21d" -> twentyOneDay
+            else -> 0
+        }
     }
 
     /**
      * How many members [c] should hold at [now]: half the floor (rounded up)
      * while the lobby is open, the whole floor from 24 hours before the cutoff,
-     * and no target at all once joining has closed.
+     * and no target at all once joining has closed. A Hackathon round has no
+     * target until its last [TEST_FILL_LEAD] seconds, then its whole floor.
      */
     fun target(c: CohortSnapshot, floor: Int, now: Long): Int = when {
         floor <= 0 || now >= c.joinCutoff -> 0
+        needsRealMember(c.leagueId) -> if (now >= testFillAt(c)) floor else 0
         now >= c.joinCutoff - FULL_FLOOR_BEFORE_CUTOFF -> floor
         else -> (floor + 1) / 2
+    }
+
+    /** When a Hackathon round is looked at and topped up: [TEST_FILL_LEAD] seconds before its join cutoff. */
+    fun testFillAt(c: CohortSnapshot): Long = c.joinCutoff - TEST_FILL_LEAD
+
+    /**
+     * When [c]'s target next grows after [now], or null: a Hackathon round's
+     * fill window, or the full floor 24 hours before a lobby's cutoff.
+     */
+    fun nextFillAt(c: CohortSnapshot, floor: Int, now: Long): Long? {
+        if (floor <= 0) return null
+        val at = if (needsRealMember(c.leagueId)) testFillAt(c) else c.joinCutoff - FULL_FLOOR_BEFORE_CUTOFF
+        return at.takeIf { it > now && it < c.joinCutoff }
+    }
+
+    /**
+     * When a scripted member of running cohort [c] next has a day to submit
+     * after [now]: the start of tomorrow's day, if any of [members] still
+     * plays it (`Joined`, not past its forfeit day), else null.
+     */
+    fun nextDayAt(c: CohortSnapshot, cohort: SolanaPublicKey, members: List<MembershipSnapshot>, now: Long): Long? {
+        val tomorrow = Derive.dayIndex(c, now) + 1
+        if (tomorrow >= c.durationDays) return null
+        val plays = members.any { m ->
+            m.state == MembershipSnapshot.State.Joined && !Derive.inBreach(m, c, now) &&
+                forfeitDayOf(cohort, m.wallet, c.durationDays).let { it == null || tomorrow < it }
+        }
+        return if (plays) c.start + tomorrow * c.dayLength else null
     }
 
     /**
@@ -172,22 +227,28 @@ object Scripted {
     /** Whether [members] hold anyone not on the scripted list: what a Hackathon round waits for (FR-043). */
     fun hasRealMember(members: List<MembershipSnapshot>, scripted: Set<SolanaPublicKey>): Boolean = members.any { it.wallet !in scripted }
 
-    /** Where consecutive test rounds start in their pool: coprime with 36, so every wallet takes turns. */
+    /** Where consecutive test rounds start in their pool: coprime with 36 and 56, so every wallet takes turns. */
     private const val TEST_POOL_STRIDE = 5
 
-    /** The wallets that may play [leagueId]'s cohort [index]: the 7-day twenty, the 21-day group whose turn it is, or for a test league all 36 21-day wallets. */
-    fun poolFor(roster: List<ScriptedWallet>, leagueId: Int, index: Long): List<ScriptedWallet> = when (leagueId) {
+    /**
+     * The wallets that may play [leagueId]'s cohort [index]: the 7-day twenty, the 21-day group whose turn it is,
+     * or for a test league every wallet whose own league's floor in [floors] is 0.
+     */
+    fun poolFor(roster: List<ScriptedWallet>, leagueId: Int, index: Long, floors: Floors = Floors()): List<ScriptedWallet> = when (leagueId) {
         LeagueParams.LEAGUE_7D -> roster.filter { it.group == "7d" }.sortedBy { it.index }
         LeagueParams.LEAGUE_21D -> {
             val groups = roster.filter { it.league == "21d" }.map { it.group }.distinct().sorted()
             if (groups.isEmpty()) emptyList() else roster.filter { it.group == groups[(index % groups.size).toInt()] }.sortedBy { it.index }
         }
-        // A Hackathon round starts every 30 minutes and each wallet holds one running
-        // Holdout at a time (FR-006b): the 36 wallets Habit leaves idle on devnet,
-        // the starting point moved on each round so the same few never play them all.
+        // A Hackathon round starts every 15 minutes in each of two lobbies, and each wallet
+        // holds one lobby place and one running Holdout at a time (FR-006a, FR-006b): the
+        // wallets Spark and Habit leave idle on devnet, the starting point moved on each
+        // round so the same few never play them all, and half the pool apart between
+        // leagues so the two lobbies' rounds rarely reach for the same wallets.
         else -> {
-            val pool = roster.filter { it.league == "21d" }.sortedWith(compareBy({ it.group }, { it.index }))
-            if (pool.isEmpty()) pool else pool.indices.map { pool[((index * TEST_POOL_STRIDE + it) % pool.size).toInt()] }
+            val pool = roster.filter { floors.ofRoster(it.league) == 0 }.sortedWith(compareBy({ it.league }, { it.group }, { it.index }))
+            val offset = (leagueId - LeagueParams.TEST_LEAGUE_MIN).toLong() * (pool.size / 2)
+            if (pool.isEmpty()) pool else pool.indices.map { pool[((index * TEST_POOL_STRIDE + offset + it) % pool.size).toInt()] }
         }
     }
 
@@ -266,7 +327,8 @@ object Scripted {
         val c = rpc.accountData(address)?.let { runCatching { CohortSnapshot.decode(it) }.getOrNull() } ?: failed("no cohort at $address")
         val members = rpc.memberships(config.programId, address) ?: failed("could not read the roster of $address")
         val scriptedKeys = roster.map { it.pubkey }.toSet()
-        val floor = floors(args).of(c.leagueId)
+        val floors = floors(args)
+        val floor = floors.of(c.leagueId)
         val scripted = members.filter { it.wallet in scriptedKeys }
         return buildJsonObject {
             put("command", "scripted plan")
@@ -276,6 +338,8 @@ object Scripted {
             put("status", Derive.status(c, now).name)
             put("floor", floor)
             put("target", target(c, floor, now))
+            // When the target next grows: a Hackathon round's last minute, or a lobby's last day.
+            nextFillAt(c, floor, now)?.let { put("fillsAt", it) }
             put("members", c.memberCount)
             put("real", members.size - scripted.size)
             put("scripted", scripted.size)
@@ -283,7 +347,7 @@ object Scripted {
             put("waitingForRealMember", waiting)
             put("deficit", if (waiting) 0 else deficit(c, floor, now, members.size))
             putJsonArray("pool") {
-                poolFor(roster, c.leagueId, c.index).forEach { w ->
+                poolFor(roster, c.leagueId, c.index, floors).forEach { w ->
                     addJsonObject {
                         put("wallet", w.pubkey.base58())
                         put("group", w.group)
@@ -315,7 +379,7 @@ object Scripted {
         val onChain =
             rpc.accountData(Pdas.config(programId))?.let { runCatching { ConfigSnapshot.decode(it) }.getOrNull() }
                 ?: configError("the program at $programId is not initialized (or Config could not be read)")
-        // Settled cohorts are left out: a scripted pass needs only lobbies and running cohorts, and it runs every minute.
+        // Settled cohorts are left out: a scripted pass needs only lobbies and running cohorts.
         val cohorts = (rpc.unsettledCohorts(programId) ?: failed("could not list cohorts")).sortedWith(compareBy({ it.second.leagueId }, { it.second.index }))
         val byAddress = cohorts.toMap()
         val keys = mutableMapOf<SolanaPublicKey, Keypair>()
@@ -333,6 +397,9 @@ object Scripted {
 
         val steps = mutableListOf<JsonObject>()
         var failures = 0
+        // When the loop should run this again (chain time): the next fill window or scripted day.
+        val wakes = mutableListOf<Long>()
+        val byKey = roster.associateBy { it.pubkey }
 
         // True when the transaction landed (or simulated cleanly).
         suspend fun attempt(step: String, detail: JsonObjectBuilder.() -> Unit, block: suspend () -> String?): Boolean {
@@ -361,21 +428,23 @@ object Scripted {
         for ((address, c) in cohorts) {
             val status = Derive.status(c, now)
             val floor = floors.of(c.leagueId)
-            val pool = poolFor(roster, c.leagueId, c.index)
-            if (pool.isEmpty()) continue
+            val pool = poolFor(roster, c.leagueId, c.index, floors)
             val detail: JsonObjectBuilder.() -> Unit = {
                 put("league", c.leagueId)
                 put("index", c.index)
             }
 
             // ---- fill an open lobby to its target -----------------------------
-            if (status == CohortStatus.Open && c.start <= lastStart) {
+            if (status == CohortStatus.Open && c.start <= lastStart && pool.isNotEmpty()) {
+                nextFillAt(c, floor, now)?.let(wakes::add)
                 if (target(c, floor, now) == 0) continue
                 // The cohort and its roster read again, together: a member who joined or
                 // left since the cohort list was read moves the deficit either way.
                 val fresh = rpc.cohortRead(programId, address) ?: failed("could not read cohort ${c.leagueId}/${c.index} and its roster")
                 // A Hackathon round nobody real has joined stays empty (FR-043).
                 if (waitsForReal(c.leagueId, args) && !hasRealMember(fresh.members, scriptedKeys)) continue
+                // Scripted members already in it submit their first day once it starts.
+                if (fresh.members.any { it.wallet in scriptedKeys }) wakes += c.start
                 var needed = deficit(fresh.cohort, floor, now, fresh.members.size)
                 if (needed == 0) continue
                 val inCohort = fresh.members.map { it.wallet }.toSet()
@@ -426,6 +495,7 @@ object Scripted {
                     if (joined) {
                         needed--
                         payerSpendable -= topUp
+                        wakes += c.start
                     }
                 }
             }
@@ -433,19 +503,22 @@ object Scripted {
             // ---- submit today's day for every scripted member due to -----------
             if (status == CohortStatus.Running) {
                 val members = rpc.memberships(programId, address) ?: failed("could not read the roster of cohort ${c.leagueId}/${c.index}")
-                val scripted = pool.associateBy { it.pubkey }
+                // Every scripted wallet, not only today's pool: one that joined under other floors still plays its days.
+                nextDayAt(c, address, members.filter { it.wallet in scriptedKeys }, now)?.let(wakes::add)
                 for (m in members) {
-                    val w = scripted[m.wallet] ?: continue
+                    val w = byKey[m.wallet] ?: continue
                     if (!shouldSubmit(c, address, m, now)) continue
                     val day = Derive.dayIndex(c, now)
                     val key = keyOf(w)
-                    attempt("submit_day", {
+                    val submitted = attempt("submit_day", {
                         detail()
                         put("wallet", w.pubkey.base58())
                         put("day", day)
                     }) {
                         signAndSend(rpc, "scripted submit ${c.leagueId}/${c.index} day $day", listOf(Instructions.submitDay(programId, w.pubkey, address, day, proofOf(address, w.pubkey, day))), listOf(key), args.dryRun, pause, beforeRetrying = "the next pass re-reads the roster")
                     }
+                    // A day that did not land is retried soon, while it is still today.
+                    if (!submitted) wakes += now + RETRY_SECONDS
                 }
             }
         }
@@ -454,6 +527,91 @@ object Scripted {
             put("command", "scripted run")
             put("dryRun", args.dryRun)
             put("chainTime", now)
+            put("failed", failures)
+            wakes.filter { it > now }.minOrNull()?.let { put("nextScriptedAt", it) }
+            putJsonArray("steps") { steps.forEach { add(it) } }
+        }
+        if (failures > 0) throw CrankSummaryException(EXIT_FAILED, summary)
+        return summary
+    }
+
+    // ---- leave -------------------------------------------------------------
+
+    /**
+     * `scripted leave --cohort <address>`: every scripted wallet holding a place
+     * in that cohort's lobby leaves it, through the program's own `leave_cohort`
+     * — a full refund while joining is open (FR-009). Real members are never
+     * touched. Used once on devnet to take the scripted members out of the
+     * first Spark · 7-day when Spark's floor dropped to 0 (owner, 13 October).
+     */
+    suspend fun leave(
+        args: Args,
+        config: CrankConfig,
+        rpc: Rpc,
+        roster: List<ScriptedWallet> = roster(),
+        loadKeypair: (path: String, role: String) -> Keypair = Keypair::load,
+        pause: suspend (Long) -> Unit = { delay(it) },
+    ): JsonObject {
+        checkArgs(args)
+        val text = args.option("cohort") ?: configError("scripted leave needs --cohort <address>")
+        val address = runCatching { SolanaPublicKey.from(text) }.getOrNull() ?: configError("--cohort is not a public key: $text")
+        val keysDir = config.scriptedKeysDir ?: configError("HOLDOUT_SCRIPTED_KEYS_DIR is not set")
+        val programId = config.programId
+        val now = (rpc.chainTime() ?: failed("could not read chain time from ${config.rpcUrl}")).unixSeconds
+        val onChain =
+            rpc.accountData(Pdas.config(programId))?.let { runCatching { ConfigSnapshot.decode(it) }.getOrNull() }
+                ?: configError("the program at $programId is not initialized (or Config could not be read)")
+        val read = rpc.cohortRead(programId, address) ?: failed("could not read cohort $address and its roster")
+        val c = read.cohort
+        val status = Derive.status(c, now)
+        if (status != CohortStatus.Open || now >= c.joinCutoff) {
+            failed("cohort ${c.leagueId}/${c.index} is $status: leave_cohort refunds only while joining is open (FR-009, 6021)")
+        }
+        val byKey = roster.associateBy { it.pubkey }
+        val leaving = read.members.filter { it.wallet in byKey && it.state == MembershipSnapshot.State.Joined }
+        val steps = mutableListOf<JsonObject>()
+        var failures = 0
+        for (m in leaving) {
+            val w = byKey.getValue(m.wallet)
+            val key = loadKeypair(File(keysDir, w.fileName).path, "scripted ${w.fileName}")
+            if (key.publicKey != w.pubkey) configError("${w.fileName} holds ${key.publicKey}, but scripted-wallets.json lists ${w.pubkey}")
+            steps += try {
+                val signature = signAndSend(
+                    rpc,
+                    "scripted leave ${c.leagueId}/${c.index} ${w.pubkey.base58()}",
+                    listOf(Instructions.leaveCohort(programId, w.pubkey, onChain.skrMint, address)),
+                    listOf(key),
+                    args.dryRun,
+                    pause,
+                    beforeRetrying = "run scripted leave again: a wallet that has left is no longer in the roster",
+                )
+                buildJsonObject {
+                    put("step", "leave_cohort")
+                    put("status", if (args.dryRun) "simulated" else "sent")
+                    put("wallet", w.pubkey.base58())
+                    signature?.let { put("signature", it) }
+                }
+            } catch (e: CrankException) {
+                if (e.exitCode == EXIT_CONFIG) throw e
+                failures++
+                buildJsonObject {
+                    put("step", "leave_cohort")
+                    put("status", "failed")
+                    put("wallet", w.pubkey.base58())
+                    put("error", e.message)
+                }
+            }
+        }
+        val summary = buildJsonObject {
+            put("command", "scripted leave")
+            put("dryRun", args.dryRun)
+            put("chainTime", now)
+            put("cohort", address.base58())
+            put("league", c.leagueId)
+            put("index", c.index)
+            put("members", read.members.size)
+            put("real", read.members.count { it.wallet !in byKey })
+            put("scripted", leaving.size)
             put("failed", failures)
             putJsonArray("steps") { steps.forEach { add(it) } }
         }
