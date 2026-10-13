@@ -60,7 +60,7 @@ class HoldoutViewModel(
     data class UiState(
         /** Null until the first read answers; the screens say "reading devnet" rather than showing nothing. */
         val view: ChainView? = null,
-        /** The last read failed; [view] is the previous one, if any. */
+        /** The chain can't be reached: two snapshot reads in a row failed, or the first with no view yet (001 FR-071); [view] is the previous one, if any. */
         val offline: Boolean = false,
         /** An action is waiting on the wallet or on devnet. */
         val busy: Boolean = false,
@@ -283,7 +283,7 @@ class HoldoutViewModel(
 
     /**
      * The member's "Check again", by the button or the pull (spec 005): while
-     * the last read failed, reads the chain now — the snapshot here and, at
+     * the chain can't be reached ([UiState.offline]), reads the chain now — the snapshot here and, at
      * the same time, [alsoRead] (chain time, the roster on screen). A second
      * ask while one is out joins it. Only while in front, as every read
      * (FR-008). It sends nothing: a waiting day goes on as 001 FR-024b says

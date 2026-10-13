@@ -20,7 +20,7 @@ import holdout.core.HoldoutDay
 import holdout.repcounter.Stakes
 import kotlinx.coroutines.flow.first
 
-/** The finished page of a Holdout day reads the chain again when the last read failed (see [SittingHost]). */
+/** The finished page of a Holdout day reads the chain again while it can't be reached (see [SittingHost]). */
 internal fun rechecksAtFinish(step: SittingViewModel.Step, offline: Boolean): Boolean = step == SittingViewModel.Step.COMPLETE && offline
 
 /**
