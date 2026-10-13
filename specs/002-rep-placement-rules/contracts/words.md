@@ -53,11 +53,11 @@ Every refused rep's reason is said aloud at once *(2026-10-04; it was said only 
 
 ## The voice (FR-019) *(added 2026-10-14, spec Session 2026-10-13/14)*
 
-Every line a sitting says is a recorded clip in `kotlin/app/src/main/assets/voice/`, in one calm voice (Ava, `en-US-AvaNeural`, 15 % slower and 4 Hz lower), recorded by `scripts/gen-sitting-voice.py`: the countdown "three", "two", "one", "go", every `Coach` line above, every `RepHint` line below, "10 banked" to "300 banked" and "Done". Each clip ends 0.15 s after its last word.
+Every fixed line a sitting says is a recorded clip in `kotlin/app/src/main/assets/voice/`, in one calm voice (Ava, `en-US-AvaNeural`, 15 % slower and 4 Hz lower), recorded by `scripts/gen-sitting-voice.py`: the countdown "three", "two", "one", "go", every `Coach` line above, every `RepHint` line below, "10 banked" to "300 banked" and "Done". Each clip ends 0.15 s after its last word.
 
 - A new or changed spoken line needs its clip recorded: add it to the script and run it again. `VoiceClipsTest` fails while a line the app can say has no clip.
 - A line with no clip, the deadline message (it names the day) and a total past 300, is said by the device's text-to-speech, best effort.
-- The countdown words and "go" are said on their tick and cut off whatever is still playing; a correction, a refused rep's reason and "N banked" wait for the line before them, except that a new correction replaces one still being said.
+- The countdown words and "go" are said on their tick, cutting off whatever is still playing. A correction, a refused rep's reason and the deadline message also replace whatever is still being said: only the latest is worth hearing. "N banked" and "Done" follow their chime and wait for the line before them.
 - The clips in the app now are a try-out recorded through edge-tts; before a release they are recorded again through Azure Speech in the same voice (T067).
 
 ## The set-up guide (FR-015, FR-015a) — `PlacementGuide.kt`, three tabs *(rewritten 2026-10-12)*

@@ -95,7 +95,8 @@ kotlin/app/src/main/kotlin/holdout/app/
 ├── sitting/PlacementGuide.kt    # SetupSheet: Positioning / Rules / Start tabs, the 45° band per stakes, the cues card (2026-10-12)
 ├── sitting/PreflightTipsOffer.kt # FR-020a: the tip trigger (30 s short of green in total, not counting time under the set-up guide, or the third green-to-red turn) in the sitting's state
 ├── sitting/PreflightTipsSheet.kt # FR-020a: the "Getting the checks green" sheet (rows from the pills' fix sentences)
-├── sitting/SittingCues.kt       # rep tone, banked chime, speech
+├── sitting/SittingCues.kt       # rep tone, banked chime, the spoken lines (recorded clip first, TextToSpeech for a line with none)
+├── sitting/VoiceClips.kt        # the recorded voice (2026-10-13/14): one clip per line in assets/voice/, played in order, a flush cuts off
 ├── sitting/SittingRecorder.kt   # the trace seam: Lab passes a recorder, the member app none
 ├── sitting/SittingVideo.kt      # the video seam, bound with the preview and the analysis
 ├── sitting/LabSittingTools.kt   # what Lab adds to a sitting (readouts, label prompt, video); the member app passes none
@@ -106,6 +107,9 @@ kotlin/app/src/lab/kotlin/holdout/app/   # Holdout Lab only (spec 004)
 ├── sitting/TraceLabelDialog.kt  # "What did you just do?"
 ├── sitting/LabReadouts.kt       # under the count: analysis FPS, elbow, body line, knee
 └── sitting/SittingVideoFactory.kt  # CameraX VideoCapture beside the trace; the member flavour's copy in src/member returns null
+
+kotlin/app/src/main/assets/voice/   # the sitting's recorded lines, Ava (spec Session 2026-10-13/14); VoiceClipsTest checks every line has one
+scripts/gen-sitting-voice.py        # records them: Azure Speech with AZURE_SPEECH_KEY/REGION, else edge-tts (try-out only)
 
 docs/weaknesses.json    # the known weaknesses, rendered into README.md by scripts/render-weaknesses.mjs
 
