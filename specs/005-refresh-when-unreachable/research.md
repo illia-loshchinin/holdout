@@ -2,7 +2,7 @@
 
 ## R1 — What "the chain can't be reached" is
 
-- **Decision**: the check is offered exactly while `HoldoutViewModel.UiState.offline` is true — two snapshot reads (`ChainRepository.load`) in a row returned nothing, or the first while there is no view yet (001 FR-071, since 2026-10-13; before, the last one).
+- **Decision**: the check is offered exactly while `HoldoutViewModel.UiState.offline` is true — two snapshot reads (`ChainRepository.load`, or `loadFresh` for a check, 001 FR-071) in a row returned nothing, or the first while there is no view yet (001 FR-071, since 2026-10-13; before, the last one).
 - **Rationale**: it is the state every existing "can't be reached" line already keys on (`CohortHome`, the no-Holdout home's *"Devnet unreachable — the Daily 25 still works"*, `sittingNote`), so the button appears and goes with the words it sits under. A dropped `adb reverse` or a dead RPC both set it; the phone's own network state is not consulted (spec edge case: never "You're offline").
 - **Alternatives**: `ConnectivityManager` state — rejected, it is the phone's network, not the chain, and missed the owner's case entirely.
 
@@ -26,7 +26,7 @@
 
 ## R5 — A check sends nothing of its own
 
-- **Decision**: the check does not call `submitDay` or touch `AutoSubmit`. When its read answers, `refreshNow()` applies it as any read, and `SendWaitingDay` / `CohortHome` decide what the waiting day shows, as today.
+- **Decision**: the check does not call `submitDay` or touch `AutoSubmit`. When its read answers, `refreshNow(fresh = true)` applies it as any read, and `SendWaitingDay` / `CohortHome` decide what the waiting day shows, as today.
 - **Rationale**: FR-004; 001 FR-024b is unchanged. `AutoSubmit.step` resets its gate while `offline`, so the first answer after an unreachable spell — by a check or by the schedule — makes the Phase 2 automatic send (T098) due: the wallet's approval opens by itself, and *"Done — tap to submit"* follows a decline. The owner chose to keep that (spec Clarifications, 2026-10-11).
 
 ## R6 — Copy
