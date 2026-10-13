@@ -145,6 +145,12 @@ class Rpc(
         return runCatching { accounts.map { it.address to CohortSnapshot.decode(it.data) } }.getOrNull()
     }
 
+    /** The cohorts not settled yet — lobbies, running and settling ones: what a scripted pass reads every minute. */
+    suspend fun unsettledCohorts(programId: SolanaPublicKey): List<Pair<SolanaPublicKey, CohortSnapshot>>? {
+        val accounts = programAccounts(programId, AccountQueries.unsettledCohorts()) ?: return null
+        return runCatching { accounts.map { it.address to CohortSnapshot.decode(it.data) } }.getOrNull()
+    }
+
     /** Every wallet's `Profile` — the league leaderboards' only input (FR-060, R8). */
     /** Every recorded forfeit settlement has not counted yet — see [AccountQueries.uncountedForfeits]. */
     suspend fun uncountedForfeits(programId: SolanaPublicKey): List<MembershipAccount>? {
@@ -554,6 +560,14 @@ object AccountQueries {
         val l = AccountLayout.Cohort
         return ProgramAccountsQuery(
             filters = listOf(AccountFilter.DataSize(l.SIZE), AccountFilter.Memcmp(0, l.DISCRIMINATOR)),
+        )
+    }
+
+    /** [cohorts] with `settled == false`. */
+    fun unsettledCohorts(): ProgramAccountsQuery {
+        val l = AccountLayout.Cohort
+        return ProgramAccountsQuery(
+            filters = listOf(AccountFilter.DataSize(l.SIZE), AccountFilter.Memcmp(0, l.DISCRIMINATOR), AccountFilter.Memcmp(l.SETTLED, byteArrayOf(0))),
         )
     }
 }

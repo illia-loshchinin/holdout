@@ -18,7 +18,7 @@
 | Android Studio / SDK | Current stable; compile/target SDK 37, min SDK 26 | Windows |
 | Devices | A Solana Seeker with Seed Vault Wallet; one ordinary Android phone with an MWA wallet | — |
 | Domain | One domain or subdomain for the MWA identity URI, with a Digital Asset Links file | — |
-| Devnet SOL | Program deploy rent (computed from the built `holdout.so` with `solana rent <bytes>` before the deploy; the program-data account is sized at about twice the binary and the deploy buffer is held temporarily); ~1.12 SOL for the 56 scripted wallets by 22 Sep (R12); 25 SOL in the faucet vault by 8 Oct (R13) | — |
+| Devnet SOL | Program deploy rent (computed from the built `holdout.so` with `solana rent <bytes>` before the deploy; the program-data account is sized at about twice the binary and the deploy buffer is held temporarily); ~1.12 SOL for the 56 scripted wallets by 22 Sep (R12), and from 13 Oct the crank's payer covers each scripted join's rent and fees, topped up in the join (≈ 0.0017 SOL a join; a Hackathon round costs nothing until someone real joins it); 25 SOL in the faucet vault by 8 Oct (R13) | — |
 | GitHub | A repository judges can clone, pushed from the first commit (FR-066) | — |
 
 Commands in §3, §5 and §6 run inside WSL2. When an agent runs Anchor or Surfpool commands, prefix them with `NO_DNA=1`.
@@ -173,6 +173,8 @@ bash scripts/localnet-crank.sh init --test-league --league-id 102 --cadence 600 
 bash scripts/localnet-crank.sh scripted fund
 bash scripts/localnet-crank.sh --loop      # leave running: opens, fills, forfeits, settles
 ```
+
+The loop runs `scripted run --floor-7d 0 --floor-21d 0 --floor-test 4 --fill-empty`: locally every test round is filled, so a whole cycle can be watched with nobody on a phone. Devnet passes no flags and waits for a real member before topping a Hackathon round up to 4 (FR-043, 2026-10-13).
 
 ```bash
 # The app on a phone over USB, reading and sending to the local validator.

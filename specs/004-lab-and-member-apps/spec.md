@@ -40,11 +40,15 @@ The constitution changes through `/speckit-constitution`; 001, 002 and 003 chang
 
 ## Clarifications
 
+### Session 2026-10-13
+
+- Q: What is tour card 5's title now that on devnet scripted members play Spark and the Hackathon rounds, not Habit? (FR-012, FR-013; 001 FR-043, FR-067) → A: **"Scripted members" on one line and "in Spark and Hackathon" on the next**, and its closing lines read "They only top a Holdout up: a Spark to 20, / a Hackathon to 4 once someone real joins. / Their days aren't camera-checked." It still fits one Seeker screen, and "Hackathon" is still a round's name, so FR-012 is unaffected. Decided by the product owner on 13 October (001, Session 2026-10-13).
+
 ### Session 2026-10-12
 
 - Q: What does the member app call the short test lobby's Holdouts, and what is the label on them, given that FR-013 names a TEST COHORT label and FR-014 "short test Holdouts"? (FR-013, FR-014; 001 FR-044a) → A: **A "Hackathon Holdout", with the quiet badge "DEVNET COHORT · {day length} DAYS".** The label of FR-013 is that neutral pill, which still carries the day length and says the Holdout runs on devnet; it is no longer called TEST COHORT and is no longer warning-coloured. Members read "Hackathon Holdout" where this spec says "short test Holdout"; the short test lobby keeps that name in the README, the demo video and the pitch deck (the disclosure, 001 FR-044a, amended 2026-10-12). Nothing is addressed to judges and the rules are unchanged. Decided by the product owner on 12 October (the name chosen by his delegate). *(Superseded in its name 2026-10-12, evening: "Hackathon · {n}-day", like a level — the next entry; the badge stays.)*
 - Q: What does the member app call the short test lobby's Holdouts now? (FR-013, FR-014; 001 FR-044a) → A: **"Hackathon · {n}-day" (for example "Hackathon · 3-day"), like a level, and not "Hackathon Holdout".** The quiet badge "DEVNET COHORT · {n}-MINUTE DAYS" stays; the README, the demo video and the pitch deck still disclose the short test lobby; nothing is addressed to judges and the rules are unchanged. Decided by the product owner on 12 October (canvas v235–v238); the wording is 001 FR-044a's.
-- Q: What does the tour card that discloses scripted members say in its title, and may the member app say "Hackathon" there? (FR-012, FR-013; 001 FR-067) → A: **"Scripted members" on one line and "for Hackathon only" on the next.** Scripted members exist only in the Hackathon rounds on devnet, and "Hackathon" is a round's name (001 FR-044a), not a word addressed to judges, so FR-012 is unaffected. The card is card 5 of 5 and, like every tour card, fits one Seeker screen (400 × 829 dp) without scrolling (001 FR-067). Decided by the product owner on 12 October (canvas v261, board 2d; built in `cbabab9`).
+- Q: What does the tour card that discloses scripted members say in its title, and may the member app say "Hackathon" there? (FR-012, FR-013; 001 FR-067) → A: **"Scripted members" on one line and "for Hackathon only" on the next.** *(Superseded 2026-10-13: "in Spark and Hackathon".)* Scripted members exist only in the Hackathon rounds on devnet, and "Hackathon" is a round's name (001 FR-044a), not a word addressed to judges, so FR-012 is unaffected. The card is card 5 of 5 and, like every tour card, fits one Seeker screen (400 × 829 dp) without scrolling (001 FR-067). Decided by the product owner on 12 October (canvas v261, board 2d; built in `cbabab9`).
 
 ### Session 2026-10-11
 
@@ -167,7 +171,7 @@ The team finds a counting mistake in a Lab set and fixes it. The next build of e
   Before a wallet is connected, the only things reachable are the connect screen and, when the phone has no wallet app, help getting one (amends 001 FR-001a).
 - **FR-013** The member app keeps every disclosure a member needs:
   - *"Test network, test token."*;
-  - the first-run note that some members are scripted — tour card 5, titled "Scripted members" / "for Hackathon only" *(amended 2026-10-12)*;
+  - the first-run note that some members are scripted — tour card 5, titled "Scripted members" / "in Spark and Hackathon" *(amended 2026-10-13; "for Hackathon only" from 12 October)*;
   - the SCRIPTED label on every scripted member;
   - the DEVNET COHORT badge, with its day length, on every Hackathon Holdout *(amended 2026-10-12; was the TEST COHORT label)*.
 - **FR-014** The member app keeps the short test lobby: short test Holdouts open continuously, offered beside the 7-day and 21-day Holdouts to every wallet that may stake — one holding a Seeker Genesis Token (001 FR-003b, amended 2026-10-11; anyone else watches it from Home's "Running now" list, 001 FR-062a) — named "Hackathon · {n}-day", with the DEVNET COHORT badge (amended 2026-10-12, evening; was "Hackathon Holdout"), and described without reference to judges (amends 001 FR-044a's wording only; its rules are unchanged).

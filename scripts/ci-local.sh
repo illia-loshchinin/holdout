@@ -235,6 +235,7 @@ npm_ci_if_needed() {
 job_kotlin() {
   step "ktlint" bash -c 'cd kotlin && ./gradlew ktlintCheck' &&
   step "JVM unit tests" bash -c 'cd kotlin && ./gradlew :core:test :repcounter:test :crank:test :app:testMemberDebugUnitTest :app:testLabDebugUnitTest' &&
+  step "crank-loop.sh deadline" bash scripts/test-crank-loop.sh &&
   step "Debug APKs, the member app and Holdout Lab" bash -c 'cd kotlin && ./gradlew :app:assembleMemberDebug :app:assembleLabDebug' &&
   step "Weaknesses table matches its source" node scripts/render-weaknesses.mjs --check &&
   step "The app's wording" bash scripts/check-wording.sh
