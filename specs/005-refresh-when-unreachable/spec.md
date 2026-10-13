@@ -66,7 +66,7 @@ Devnet can't be reached and the member is on a screen built from chain data — 
 
 **Acceptance Scenarios**:
 
-1. **Given** the home of a running Holdout while Devnet can't be reached, **When** the member pulls down or taps Check again, **Then** the app reads the chain snapshot, chain time and that Holdout's roster at once (or takes the answer of that roster's read already out), and the counter and pool redraw from the answer.
+1. **Given** the home of a running Holdout while Devnet can't be reached, **When** the member pulls down or taps Check again, **Then** the app reads the chain snapshot, chain time and that Holdout's roster at once, each read its own (FR-003), and the counter and pool redraw from the answer.
 2. **Given** the home with no Holdout reading *"Devnet unreachable — the Daily 25 still works"*, **When** the member checks again and the chain answers, **Then** the Holdouts open to join and running now appear.
 3. **Given** a Holdout's details or the forfeit screen while Devnet can't be reached, **Then** it shows *"Devnet can't be reached right now."* with Check again; **When** the member checks and the chain answers, **Then** the line goes and the screen redraws.
 4. **Given** any of these screens while the chain answers, **When** the member pulls down, **Then** nothing happens: no indicator and no read.
