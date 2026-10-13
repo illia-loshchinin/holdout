@@ -52,5 +52,5 @@ jobs:
           HOLDOUT_PAYER_KEY_JSON: ${{ secrets.HOLDOUT_PAYER_KEY_JSON }}
           HOLDOUT_SCRIPTED_KEYS_TGZ_B64: ${{ secrets.HOLDOUT_SCRIPTED_KEYS_TGZ_B64 }}
           CRANK_JAR: kotlin/crank/build/libs/crank.jar
-          # CRANK_ONCE_POLL_UNTIL (set above): after the pass, `scripted run` wakes for a Hackathon round's last 3 minutes and each scripted day (FR-043).
+          # CRANK_ONCE_POLL_UNTIL (set above): after the pass, `scripted run` wakes every minute while a Hackathon lobby has room, and for each scripted day (FR-043).
         run: bash scripts/crank-loop.sh --once

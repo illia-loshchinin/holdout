@@ -49,16 +49,17 @@ data class ScriptedWallet(val pubkey: SolanaPublicKey, val league: String, val g
  *   its league's floor — on devnet 10 for a Hackathon round and none for
  *   Spark or Habit (owner, 13 October) — counting everyone already in it: to
  *   half the floor while its lobby is open, to the whole floor from 24 hours
- *   before the join cutoff. A Hackathon round is looked at only in its last
- *   [TEST_FILL_LEAD] seconds before the cutoff, and filled then only if a real
+ *   before the join cutoff. A Hackathon round's lobby is checked every
+ *   [TEST_CHECK_SECONDS] while it is open, from the member count the cohort
+ *   list already carries, and topped up to its whole floor as soon as a real
  *   member has joined it: an empty one stays empty. Never over; a scripted
  *   member leaves only when `scripted leave` sends it.
  * - **Which wallets.** The 7-day league plays the same 20 every week; the
  *   21-day league rotates three groups of 12 by cohort index, so no wallet is
  *   ever asked to overlap itself (FR-006b). Test leagues draw on every wallet
  *   whose league's floor is 0 — all 56 on devnet.
- * - **When to wake.** A pass reports `nextScriptedAt`: the next Hackathon fill
- *   window, the next stage of a lobby's fill, or the next day of a running
+ * - **When to wake.** A pass reports `nextScriptedAt`: the next check of an
+ *   open Hackathon lobby, the next stage of a lobby's fill, or the next day of a running
  *   cohort a scripted member still plays. The loop sleeps until then rather
  *   than polling the RPC (owner, 13 October).
  * - **SOL.** The payer tops a wallet up in its join transaction, so its
@@ -80,15 +81,15 @@ object Scripted {
     const val DEFAULT_FLOOR_TEST = 10
 
     /**
-     * A Hackathon round is looked at once, this many seconds — 3 minutes —
-     * before its join cutoff (its start, join lock 0), and topped up then — not
-     * polled while its lobby is open (owner, 13 October; 60 s that evening at
-     * first).
+     * How often an open Hackathon lobby is checked for a real member (owner,
+     * 13 October, after a member joined inside a 3-minute window and played
+     * alone): the check reads only the cohort list's member count, and a
+     * roster only when the round has members and room.
      */
-    const val TEST_FILL_LEAD = 180L
+    const val TEST_CHECK_SECONDS = 60L
 
-    /** `--fill-lead <s>`: how long before its cutoff a Hackathon round is filled, [TEST_FILL_LEAD] unless said. */
-    private fun fillLead(args: Args): Long = args.option("fill-lead")?.let { it.toLongOrNull()?.takeIf { n -> n in 1..3_600 } ?: configError("--fill-lead must be 1..3600 seconds, got $it") } ?: TEST_FILL_LEAD
+    /** `--test-check <s>`: how often an open Hackathon lobby is checked, [TEST_CHECK_SECONDS] unless said. */
+    private fun testCheck(args: Args): Long = args.option("test-check")?.let { it.toLongOrNull()?.takeIf { n -> n in 10..3_600 } ?: configError("--test-check must be 10..3600 seconds, got $it") } ?: TEST_CHECK_SECONDS
 
     /**
      * What a wallet should hold above the faucet's `sol_top_up` before it
@@ -120,8 +121,8 @@ object Scripted {
 
     fun checkArgs(args: Args) {
         when (args.words.getOrNull(1)) {
-            "plan" -> args.allow("cohort", "floor-7d", "floor-21d", "floor-test", "fill-empty", "fill-lead")
-            "run" -> args.allow("floor-7d", "floor-21d", "floor-test", "fill-empty", "last-start", "fill-lead")
+            "plan" -> args.allow("cohort", "floor-7d", "floor-21d", "floor-test", "fill-empty")
+            "run" -> args.allow("floor-7d", "floor-21d", "floor-test", "fill-empty", "last-start", "test-check")
             "leave" -> args.allow("cohort")
             "fund" -> args.allow("lamports")
             else -> configError("unknown command '${args.words.joinToString(" ")}'; try --help")
@@ -174,27 +175,26 @@ object Scripted {
     /**
      * How many members [c] should hold at [now]: half the floor (rounded up)
      * while the lobby is open, the whole floor from 24 hours before the cutoff,
-     * and no target at all once joining has closed. A Hackathon round has no
-     * target until its last [lead] seconds ([TEST_FILL_LEAD] by default), then its whole floor.
+     * and no target at all once joining has closed. A Hackathon round's target
+     * is its whole floor while its lobby is open (once someone real is in it).
      */
-    fun target(c: CohortSnapshot, floor: Int, now: Long, lead: Long = TEST_FILL_LEAD): Int = when {
+    fun target(c: CohortSnapshot, floor: Int, now: Long): Int = when {
         floor <= 0 || now >= c.joinCutoff -> 0
-        needsRealMember(c.leagueId) -> if (now >= testFillAt(c, lead)) floor else 0
+        needsRealMember(c.leagueId) -> floor
         now >= c.joinCutoff - FULL_FLOOR_BEFORE_CUTOFF -> floor
         else -> (floor + 1) / 2
     }
 
-    /** When a Hackathon round is looked at and topped up: [lead] seconds before its join cutoff. */
-    fun testFillAt(c: CohortSnapshot, lead: Long = TEST_FILL_LEAD): Long = c.joinCutoff - lead
-
     /**
-     * When [c]'s target next grows after [now], or null: a Hackathon round's
-     * fill window, or the full floor 24 hours before a lobby's cutoff.
+     * When [c]'s lobby should be looked at again after [now], or null: a
+     * Hackathon round with room, every [check] seconds until its cutoff (a real
+     * member may join at any moment); another lobby, when its full floor falls
+     * due 24 hours before its cutoff.
      */
-    fun nextFillAt(c: CohortSnapshot, floor: Int, now: Long, lead: Long = TEST_FILL_LEAD): Long? {
-        if (floor <= 0) return null
-        val at = if (needsRealMember(c.leagueId)) testFillAt(c, lead) else c.joinCutoff - FULL_FLOOR_BEFORE_CUTOFF
-        return at.takeIf { it > now && it < c.joinCutoff }
+    fun nextFillAt(c: CohortSnapshot, floor: Int, now: Long, check: Long = TEST_CHECK_SECONDS): Long? {
+        if (floor <= 0 || now >= c.joinCutoff) return null
+        if (needsRealMember(c.leagueId)) return if (c.memberCount >= floor) null else minOf(now + check, c.joinCutoff - 1).takeIf { it > now }
+        return (c.joinCutoff - FULL_FLOOR_BEFORE_CUTOFF).takeIf { it > now }
     }
 
     /**
@@ -218,7 +218,7 @@ object Scripted {
      * [members] is the roster read just before filling, when there is one: real
      * members who joined after [c] was read count too.
      */
-    fun deficit(c: CohortSnapshot, floor: Int, now: Long, members: Int = 0, lead: Long = TEST_FILL_LEAD): Int = (target(c, floor, now, lead) - maxOf(c.memberCount.toInt(), members)).coerceAtLeast(0)
+    fun deficit(c: CohortSnapshot, floor: Int, now: Long, members: Int = 0): Int = (target(c, floor, now) - maxOf(c.memberCount.toInt(), members)).coerceAtLeast(0)
 
     /** Whether [leagueId]'s cohorts get scripted members only once a real member has joined: the Hackathon rounds (FR-043). */
     fun needsRealMember(leagueId: Int): Boolean = leagueId >= LeagueParams.TEST_LEAGUE_MIN
@@ -342,16 +342,15 @@ object Scripted {
             put("index", c.index)
             put("status", Derive.status(c, now).name)
             put("floor", floor)
-            val lead = fillLead(args)
-            put("target", target(c, floor, now, lead))
-            // When the target next grows: a Hackathon round's last 3 minutes, or a lobby's last day.
-            nextFillAt(c, floor, now, lead)?.let { put("fillsAt", it) }
+            put("target", target(c, floor, now))
+            // When the lobby is looked at next: a Hackathon round's next check, or a lobby's last day.
+            nextFillAt(c, floor, now)?.let { put("fillsAt", it) }
             put("members", c.memberCount)
             put("real", members.size - scripted.size)
             put("scripted", scripted.size)
             val waiting = waitsForReal(c.leagueId, args) && !hasRealMember(members, scriptedKeys)
             put("waitingForRealMember", waiting)
-            put("deficit", if (waiting) 0 else deficit(c, floor, now, members.size, lead))
+            put("deficit", if (waiting) 0 else deficit(c, floor, now, members.size))
             putJsonArray("pool") {
                 poolFor(roster, c.leagueId, c.index, floors).forEach { w ->
                     addJsonObject {
@@ -378,14 +377,17 @@ object Scripted {
     ): JsonObject {
         checkArgs(args)
         val floors = floors(args)
-        val lead = fillLead(args)
+        val check = testCheck(args)
         val lastStart = args.option("last-start")?.let { runCatching { Instant.parse(it).epochSecond }.getOrNull() ?: configError("--last-start must be an instant, got $it") } ?: DEFAULT_LAST_START
         val keysDir = config.scriptedKeysDir ?: configError("HOLDOUT_SCRIPTED_KEYS_DIR is not set")
         val programId = config.programId
         val now = (rpc.chainTime() ?: failed("could not read chain time from ${config.rpcUrl}")).unixSeconds
-        val onChain =
+        // Read only when a wallet is about to join: a check that finds nobody new costs no more calls.
+        var config0: ConfigSnapshot? = null
+        suspend fun onChain(): ConfigSnapshot = config0 ?: (
             rpc.accountData(Pdas.config(programId))?.let { runCatching { ConfigSnapshot.decode(it) }.getOrNull() }
                 ?: configError("the program at $programId is not initialized (or Config could not be read)")
+            ).also { config0 = it }
         // Settled cohorts are left out: a scripted pass needs only lobbies and running cohorts.
         val cohorts = (rpc.unsettledCohorts(programId) ?: failed("could not list cohorts")).sortedWith(compareBy({ it.second.leagueId }, { it.second.index }))
         val byAddress = cohorts.toMap()
@@ -399,12 +401,13 @@ object Scripted {
         // The payer is also the key that opens cohorts: top-ups stop above PAYER_RESERVE_LAMPORTS, and
         // without a payer (or its balance) a wallet that needs SOL simply waits for a later pass.
         val payer = config.payerKeypair?.let { loadKeypair(it, "payer") }
-        var payerSpendable = payer?.let { rpc.balance(it.publicKey) }?.minus(PAYER_RESERVE_LAMPORTS) ?: 0L
+        var payerSpendable: Long? = null
+        suspend fun spendable(): Long = payerSpendable ?: ((payer?.let { rpc.balance(it.publicKey) }?.minus(PAYER_RESERVE_LAMPORTS) ?: 0L).also { payerSpendable = it })
         val scriptedKeys = roster.map { it.pubkey }.toSet()
 
         val steps = mutableListOf<JsonObject>()
         var failures = 0
-        // When the loop should run this again (chain time): the next fill window or scripted day.
+        // When the loop should run this again (chain time): the next lobby check or scripted day.
         val wakes = mutableListOf<Long>()
         val byKey = roster.associateBy { it.pubkey }
 
@@ -443,17 +446,32 @@ object Scripted {
 
             // ---- fill an open lobby to its target -----------------------------
             if (status == CohortStatus.Open && c.start <= lastStart && pool.isNotEmpty()) {
-                nextFillAt(c, floor, now, lead)?.let(wakes::add)
-                if (target(c, floor, now, lead) == 0) continue
+                // A Hackathon lobby is checked again a minute on only while it still has room;
+                // another lobby wakes when its full floor falls due.
+                val wake = nextFillAt(c, floor, now, check)
+                val test = needsRealMember(c.leagueId)
+                if (!test) wake?.let(wakes::add)
+                val checkAgain = { if (test) wake?.let(wakes::add) }
+                if (target(c, floor, now) == 0) continue
+                // A Hackathon lobby nobody has joined needs no roster read: the cohort list's count says so.
+                if (waitsForReal(c.leagueId, args) && c.memberCount == 0L) {
+                    checkAgain()
+                    continue
+                }
+                if (c.memberCount >= floor) continue
                 // The cohort and its roster read again, together: a member who joined or
                 // left since the cohort list was read moves the deficit either way.
                 val fresh = rpc.cohortRead(programId, address) ?: failed("could not read cohort ${c.leagueId}/${c.index} and its roster")
                 // A Hackathon round nobody real has joined stays empty (FR-043).
-                if (waitsForReal(c.leagueId, args) && !hasRealMember(fresh.members, scriptedKeys)) continue
+                if (waitsForReal(c.leagueId, args) && !hasRealMember(fresh.members, scriptedKeys)) {
+                    checkAgain()
+                    continue
+                }
                 // Scripted members already in it submit their first day once it starts.
                 if (fresh.members.any { it.wallet in scriptedKeys }) wakes += c.start
-                var needed = deficit(fresh.cohort, floor, now, fresh.members.size, lead)
+                var needed = deficit(fresh.cohort, floor, now, fresh.members.size)
                 if (needed == 0) continue
+                val cfg = onChain()
                 val inCohort = fresh.members.map { it.wallet }.toSet()
                 for (w in pool) {
                     if (needed == 0) break
@@ -468,11 +486,11 @@ object Scripted {
                     if (!canJoin(profile, c, runningEnd, now)) continue
                     val tier = tierOf(address, w.pubkey)
                     // A read that failed is not an empty account: skip the wallet this pass rather than spend its faucet claim.
-                    val balance = rpc.tokenAmount(Pdas.associatedToken(w.pubkey, onChain.skrMint)) ?: continue
+                    val balance = rpc.tokenAmount(Pdas.associatedToken(w.pubkey, cfg.skrMint)) ?: continue
                     val needsFaucet = balance < c.chips[tier]
                     val lamports = rpc.balance(w.pubkey) ?: continue
-                    val topUp = solTopUp(lamports, onChain.solTopUp.toLong())
-                    if (topUp > 0 && (payer == null || topUp > payerSpendable)) {
+                    val topUp = solTopUp(lamports, cfg.solTopUp.toLong())
+                    if (topUp > 0 && (payer == null || topUp > spendable())) {
                         steps += buildJsonObject {
                             put("step", "join")
                             put("status", "skipped")
@@ -494,17 +512,19 @@ object Scripted {
                         val ixs = buildList {
                             // First, so the claim finds the faucet's top-up already held and moves no lamports; the payer then pays the fee too.
                             if (topUp > 0) add(Instructions.systemTransfer(payer!!.publicKey, w.pubkey, topUp.toULong()))
-                            if (needsFaucet) add(Instructions.claimFaucet(programId, w.pubkey, w.pubkey, onChain.skrMint, onChain.sponsor))
-                            add(Instructions.joinCohort(programId, w.pubkey, onChain.skrMint, address, tier, running))
+                            if (needsFaucet) add(Instructions.claimFaucet(programId, w.pubkey, w.pubkey, cfg.skrMint, cfg.sponsor))
+                            add(Instructions.joinCohort(programId, w.pubkey, cfg.skrMint, address, tier, running))
                         }
                         signAndSend(rpc, "scripted join ${c.leagueId}/${c.index}", ixs, if (topUp > 0) listOf(payer!!, key) else listOf(key), args.dryRun, pause, beforeRetrying = "the next pass re-reads the roster")
                     }
                     if (joined) {
                         needed--
-                        payerSpendable -= topUp
+                        payerSpendable = spendable() - topUp
                         wakes += c.start
                     }
                 }
+                // Places a wallet could not take this pass (short of SOL, a failed join) are tried at the next check.
+                if (needed > 0) checkAgain()
             }
 
             // ---- submit today's day for every scripted member due to -----------

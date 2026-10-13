@@ -138,7 +138,7 @@ private fun usage(): JsonObject = buildJsonObject {
         "crank <command> [--dry-run]; commands: status, chips publish --rate <usd-per-skr> [--decimals <n>], chips publish --auto, " +
             "init [--admin <keypair>] --operator <pubkey> --sponsor <pubkey> --treasury <pubkey> --developer <pubkey> --rate <usd-per-skr> [--first-start <iso>] [--fund-faucet <sol>], " +
             "init --test-league --first-start <iso> [--day-seconds <n, default 600>] [--days <n, default 3>] [--reps <n, default 5>] [--form <easy|hard, default easy>] [--league-id <100..255>] [--cadence <s>] [--join-lock <s>], " +
-            "run, scripted plan --cohort <address> | scripted run [--floor-7d <n, default 0>] [--floor-21d <n, default 0>] [--floor-test <n, default 10>] [--fill-empty] [--last-start <iso>] [--fill-lead <s, default 180>] | scripted leave --cohort <address> | scripted fund [--lamports <n>] (contracts/crank-cli.md)",
+            "run, scripted plan --cohort <address> | scripted run [--floor-7d <n, default 0>] [--floor-21d <n, default 0>] [--floor-test <n, default 10>] [--fill-empty] [--last-start <iso>] [--test-check <s, default 60>] | scripted leave --cohort <address> | scripted fund [--lamports <n>] (contracts/crank-cli.md)",
     )
 }
 

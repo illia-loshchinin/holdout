@@ -386,7 +386,7 @@ The submission is the app's final state, so nothing in it is for judges only (sp
 #### B2 · Scripted-member disclosure — card 5 of the tour
 **SHOULD · ✅ Built (as tour card 5) · 🎨 Drawn** (board *Disclosure*) · PRD #3, FR-043a, spec 004 FR-013
 
-**Job:** before anyone joins, say plainly that Holdouts during judging include scripted members: real wallets under the same rules, whose days are not camera-verified, filling a Holdout only up to its minimum (only in a Hackathon round, topped up to 10 in its last 3 minutes and only once someone real has joined it; none in Spark or Habit, 13 Oct). The text also lives on H5's note and X1.
+**Job:** before anyone joins, say plainly that Holdouts during judging include scripted members: real wallets under the same rules, whose days are not camera-verified, filling a Holdout only up to its minimum (only in a Hackathon round, topped up to 10 within a minute of someone real joining it; none in Spark or Habit, 13 Oct). The text also lives on H5's note and X1.
 
 ---
 

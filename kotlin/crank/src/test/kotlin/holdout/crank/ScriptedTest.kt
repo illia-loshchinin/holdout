@@ -131,17 +131,15 @@ class ScriptedTest {
     }
 
     @Test
-    fun `a Hackathon round has no target until its last 3 minutes, then its whole floor`() {
+    fun `a Hackathon lobby's target is its whole floor while it is open, and it is checked every minute while it has room`() {
         val round = cohort(leagueId = 101, memberCount = 1, duration = 3)
-        assertEquals(0, Scripted.target(round, 10, round.joinCutoff - 600), "not looked at while its lobby is open")
-        assertEquals(0, Scripted.target(round, 10, round.joinCutoff - Scripted.TEST_FILL_LEAD - 1))
-        assertEquals(10, Scripted.target(round, 10, round.joinCutoff - Scripted.TEST_FILL_LEAD))
+        assertEquals(10, Scripted.target(round, 10, round.joinCutoff - 600), "filled as soon as someone real is in it")
         assertEquals(9, Scripted.deficit(round, 10, round.joinCutoff - 30))
         assertEquals(0, Scripted.target(round, 10, round.joinCutoff), "joining has closed")
-        assertEquals(round.joinCutoff - Scripted.TEST_FILL_LEAD, Scripted.nextFillAt(round, 10, round.joinCutoff - 600))
-        assertNull(Scripted.nextFillAt(round, 10, round.joinCutoff - 30), "inside the window: filled now, not later")
-        assertEquals(10, Scripted.target(round, 10, round.joinCutoff - 100, lead = 120), "--fill-lead widens the window")
-        assertEquals(round.joinCutoff - 120, Scripted.nextFillAt(round, 10, round.joinCutoff - 600, lead = 120))
+        assertEquals(round.joinCutoff - 600 + Scripted.TEST_CHECK_SECONDS, Scripted.nextFillAt(round, 10, round.joinCutoff - 600))
+        assertEquals(round.joinCutoff - 1, Scripted.nextFillAt(round, 10, round.joinCutoff - 30), "the last check falls before the cutoff")
+        assertNull(Scripted.nextFillAt(round.copy(memberCount = 10), 10, round.joinCutoff - 600), "a full round needs no check")
+        assertEquals(round.joinCutoff - 480, Scripted.nextFillAt(round, 10, round.joinCutoff - 600, check = 120), "--test-check sets the interval")
     }
 
     @Test
@@ -385,13 +383,13 @@ class ScriptedTest {
     private val payerKey = key(90)
     private val stranger = SolanaPublicKey(ByteArray(32) { 77 })
 
-    /** A Hackathon round [before] seconds before its cutoff (inside its fill window by default), holding [members], after one pass. */
+    /** A Hackathon round [before] seconds before its cutoff, holding [members], after one pass. */
     private fun hackathonPass(
         members: List<SolanaPublicKey>,
         balances: Map<SolanaPublicKey, Long> = emptyMap(),
         flags: List<String> = emptyList(),
         withPayer: Boolean = true,
-        before: Long = 30,
+        before: Long = 600,
     ): Pair<Chain, JsonObject> = runBlocking {
         val roster = syntheticRoster()
         val keys = (0 until 56).associate { key(it).publicKey to key(it) }
@@ -425,21 +423,21 @@ class ScriptedTest {
     }
 
     @Test
-    fun `a Hackathon round is looked at only in its last 3 minutes - before that a pass reads no roster and asks to wake then`() {
-        val (chain, json) = hackathonPass(listOf(stranger), before = 600)
+    fun `an empty Hackathon lobby costs no roster read and is checked again a minute later`() {
+        val (chain, json) = hackathonPass(emptyList())
         assertEquals(0, chain.sent.size)
-        assertEquals(0, chain.rosterReads, "no roster read while the lobby is open")
+        assertEquals(0, chain.rosterReads, "the cohort list's member count says nobody is in it")
         val round = cohort(leagueId = 100, index = 0, duration = 3)
-        assertEquals(round.joinCutoff - Scripted.TEST_FILL_LEAD, json.getValue("nextScriptedAt").jsonPrimitive.content.toLong())
+        assertEquals(round.joinCutoff - 600 + Scripted.TEST_CHECK_SECONDS, json.getValue("nextScriptedAt").jsonPrimitive.content.toLong())
     }
 
     @Test
-    fun `a Hackathon round a real member has joined is topped up to 10 in its last 3 minutes from the idle wallets`() {
+    fun `a Hackathon round a real member has joined is topped up to 10 at the next check, from the idle wallets`() {
         val (chain, json) = hackathonPass(listOf(stranger))
         val joins = chain.sent.filter { "join_cohort" in chain.names(it) }
         assertEquals(9, joins.size, "1 real member, floor 10")
         val round = cohort(leagueId = 100, index = 0, duration = 3)
-        assertEquals(round.start, json.getValue("nextScriptedAt").jsonPrimitive.content.toLong(), "it wakes again for the first day")
+        assertEquals(round.start, json.getValue("nextScriptedAt").jsonPrimitive.content.toLong(), "full: no more checks, only its first day")
         val idle = Scripted.poolFor(syntheticRoster(), 100, 0).map { it.pubkey }.toSet()
         joins.forEach { assertTrue(it.message.accounts[0] in idle) }
     }

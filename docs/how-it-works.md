@@ -65,7 +65,7 @@ Habit** (toes only). Each round:
 - a new round every 30 minutes, joinable right up to its start;
 - labelled **DEVNET COHORT · 10-MINUTE DAYS** wherever it appears, with one combined *Hackathon*
   leaderboard;
-- topped up to 10 members by scripted members in its last 3 minutes, once someone real has joined
+- topped up to 10 members by scripted members within a minute of someone real joining
   it (see below); a round nobody has joined stays empty.
 
 A Hackathon round lets one person run join → sittings → miss or finish → settlement → claim
@@ -77,8 +77,8 @@ mainnet build never carries it.
 
 A Holdout must never look empty to someone who installs the app during judging. Real members come
 first. **Scripted members** top a Holdout up to a minimum and then stop joining. On devnet they
-play the Hackathon rounds only: each is topped up to 10 members in its last 3 minutes, once someone
-real has joined it. Spark and Habit get none.
+play the Hackathon rounds only: each is topped up to 10 members within a minute of someone
+real joining it. Spark and Habit get none.
 
 - They are ordinary wallets run by automation, under exactly the same contract rules. Their
   stakes are real test SKR, their forfeits fund real prizes, and a scripted finisher takes its
