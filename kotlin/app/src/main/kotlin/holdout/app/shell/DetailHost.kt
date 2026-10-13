@@ -47,7 +47,7 @@ internal fun Shared.DetailHost(id: String, modifier: Modifier = Modifier) {
         checking = chain.check.checking,
         stillUnreachable = chain.check.stillUnreachable,
         onCheck = { checkChain(h.address) },
-        onLeaderboards = { dispatch(NavEvent.Open(Screen.Leaderboards(Leaderboard.Board.of(h.cohort.leagueId)))) },
+        readAgoSeconds = readAgoSeconds,
         onForfeit = { dispatch(NavEvent.Open(Screen.Forfeit(id))) },
         day = if (active != null && inputs != null) dayState(h, active, n, inputs) else null,
         onStartDay = { active?.let { startDay(h, it.dayIndex) } },

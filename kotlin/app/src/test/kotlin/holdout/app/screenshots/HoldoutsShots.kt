@@ -95,6 +95,13 @@ class HoldoutsShots {
         Tabbed(Tab.Holdouts) { MyHoldoutsScreen(MyHoldoutsState(yours = listOf(running, lobby), open = listOf(free)), onEvent = {}, onJoin = {}, running = watch) }
     }
 
+    @Test
+    fun h0DevnetBar() = compose.shoot("holdouts", "h0-devnet-bar", heightDp = 1500) {
+        Tabbed(Tab.Holdouts) {
+            MyHoldoutsScreen(MyHoldoutsState(yours = listOf(running, lobby), open = listOf(free)), onEvent = {}, onJoin = {}, running = watch, offline = true, readAgoSeconds = 240)
+        }
+    }
+
     // ---- H4 detail -------------------------------------------------------------------------------------
 
     private val now = Fx.START + 4 * Fx.DAY + 600
@@ -104,7 +111,12 @@ class HoldoutsShots {
 
     @Test
     fun detailRunningPushed() = compose.shoot("standing", "detail-running-pushed", heightDp = 1500) {
-        CohortDetailScreen(mine, roster, mine.stage(now), now, null, {}, {}, onLeaderboards = {})
+        CohortDetailScreen(mine, roster, mine.stage(now), now, null, {}, {})
+    }
+
+    @Test
+    fun detailDevnetBar() = compose.shoot("standing", "detail-devnet-bar", heightDp = 1500) {
+        CohortDetailScreen(mine, roster, mine.stage(now), now, null, {}, {}, offline = true, readAgoSeconds = 240)
     }
 
     private val finishedCohort = Fx.cohort(joined = 10, start = Fx.START - 7 * Fx.DAY)
@@ -113,7 +125,7 @@ class HoldoutsShots {
     @Test
     fun detailSettling() = compose.shoot("standing", "detail-settling", heightDp = 1300) {
         val at = finishedCohort.start + 7 * Fx.DAY + 240
-        CohortDetailScreen(finishedH, Fx.roster(3, 0, finished = true), finishedH.stage(at), at, null, {}, {}, onLeaderboards = {})
+        CohortDetailScreen(finishedH, Fx.roster(3, 0, finished = true), finishedH.stage(at), at, null, {}, {})
     }
 
     @Test
@@ -121,7 +133,7 @@ class HoldoutsShots {
         val done = Fx.cohort(joined = 20, start = Fx.START - 9 * Fx.DAY, settled = true, finishers = 11, share = 162_000_000uL)
         val stage = Stage.Claimed(amount = 1_662_000_000uL, stake = 1_250_000_000uL, share = 162_000_000uL, comeback = 250_000_000uL)
         val h = Fx.holdout(done, Fx.member(days = 7, state = MembershipSnapshot.State.Claimed))
-        CohortDetailScreen(h, Fx.roster(11, 9, finished = true), stage, Fx.START + 10 * Fx.DAY, "4Bx9pQ7Qk2abcdef7Qk2", {}, {}, onLeaderboards = {})
+        CohortDetailScreen(h, Fx.roster(11, 9, finished = true), stage, Fx.START + 10 * Fx.DAY, "4Bx9pQ7Qk2abcdef7Qk2", {}, {})
     }
 
     // ---- H5 roster, L1 leaderboards ---------------------------------------------------------------------
@@ -190,6 +202,14 @@ class HoldoutsShots {
             now = nowF,
             onJoin = {},
             members = Fx.roster(standing = 19, out = 1, lasted = 11, going = 11),
+        )
+    }
+
+    @Test
+    fun forfeitDevnetBar() = compose.shoot("holdouts", "forfeit-devnet-bar", heightDp = 1500) {
+        ForfeitScreen(
+            h = hf, stage = Stage.Forfeited(daysLasted = 11, recorded = true), streak = 12, onDaily25 = {}, onNextHoldout = {}, onBack = {},
+            offer = offer, now = nowF, onJoin = {}, members = Fx.roster(standing = 19, out = 1, lasted = 11, going = 11), offline = true, readAgoSeconds = 240,
         )
     }
 

@@ -1,7 +1,9 @@
 package holdout.app.cohort
 
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -80,6 +82,11 @@ class ForfeitScreenTest {
         doneOnPhone: Boolean = true,
         daily25Done: Boolean = false,
         canJoin: Boolean = true,
+        offline: Boolean = false,
+        still: Boolean = false,
+        checking: Boolean = false,
+        readAgo: Long? = 240,
+        onCheck: () -> Unit = {},
     ) {
         compose.setContent {
             HoldoutTheme {
@@ -99,9 +106,56 @@ class ForfeitScreenTest {
                     doneOnPhone = doneOnPhone,
                     daily25Done = daily25Done,
                     canJoin = canJoin,
+                    offline = offline,
+                    stillUnreachable = still,
+                    checking = checking,
+                    readAgoSeconds = readAgo,
+                    onCheck = onCheck,
                 )
             }
         }
+    }
+
+    // ---- the devnet bar (FR-069h) ---------------------------------------------------------------------
+
+    @Test
+    fun `devnet not answering - the bar sits directly under the header with the age of what is shown`() {
+        var checks = 0
+        show(offline = true, onCheck = { checks++ })
+
+        compose.onNodeWithText("Devnet isn't answering").assertIsDisplayed()
+        compose.onNodeWithText("Showing what it said 4m ago.").assertIsDisplayed()
+        val header = compose.onNodeWithText("HABIT · 21-DAY · DAY 12 OF 21").fetchSemanticsNode().positionInRoot.y
+        val bar = compose.onNodeWithText("Devnet isn't answering").fetchSemanticsNode().positionInRoot.y
+        val headline = compose.onNodeWithText("You missed day 12.").fetchSemanticsNode().positionInRoot.y
+        assertTrue(header < bar && bar < headline, "header $header, bar $bar, headline $headline")
+        compose.onNodeWithText("Retry").performClick()
+        assertEquals(1, checks)
+    }
+
+    @Test
+    fun `after a failed retry it says still, and while checking Retry is off`() {
+        show(offline = true, still = true)
+        compose.onNodeWithText("Devnet still isn't answering").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a check in flight reads Checking and cannot be pressed`() {
+        show(offline = true, checking = true)
+        compose.onNodeWithText("Checking…").assertIsDisplayed().assertIsNotEnabled()
+    }
+
+    @Test
+    fun `no can't-be-reached row and no Check again button, online or not`() {
+        show(offline = true)
+        compose.onNodeWithText("can't be reached", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Check again").assertDoesNotExist()
+    }
+
+    @Test
+    fun `devnet answering - no bar`() {
+        show()
+        compose.onNodeWithText("Devnet isn't answering").assertDoesNotExist()
     }
 
     @Test

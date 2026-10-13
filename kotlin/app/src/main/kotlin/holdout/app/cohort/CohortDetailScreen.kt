@@ -19,12 +19,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
+import holdout.app.chain.Deployment
 import holdout.app.chain.Holdout
 import holdout.app.claim.PayoutRows
 import holdout.app.home.DayState
 import holdout.app.ui.Body
 import holdout.app.ui.ChainCheckBox
-import holdout.app.ui.ChainUnreachable
+import holdout.app.ui.DevnetBar
+import holdout.app.ui.DevnetBarCopy
 import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
 import holdout.app.ui.KeyValueRow
@@ -46,13 +48,14 @@ import holdout.core.Stage
 
 /**
  * The Holdout detail (H4, board 13; US-7, FR-038, FR-062a): a Holdout's screen, pushed over what opened it (FR-069b),
- * also the page a watcher reaches from "Running now". Days to go, the member's own record, the share they would get
+ * also the page a watcher reaches from "Running now". The member's own day, the share they would get
  * if the crowd held here, and how the crowd thinned day by day. It also carries
  * the quiet end states: **You finished · settling** until finalisation, with
  * how long that usually takes counted from the end (FR-035a), and **claimed**.
  *
  * ```
  *  ‹  HABIT · 21-DAY · DAY 12 OF 21           ScreenHeader
+ *  (devnet bar while devnet is silent)         DevnetBar, directly under the header
  *  [You're watching this one]                  a watcher's note
  *  DAY 12 · 25 push-ups · 4h 06m left  [Start]  the member's day while it is open (YourDayStrip, FR-069b)
  *  ┌ You finished · settling … ┐               settling card, success border
@@ -61,8 +64,8 @@ import holdout.core.Stage
  *  ┌ HOW THE CROWD THINNED  ~chart~ ┐          ThinningChart
  *  ┌ Prize pool  48,200 SKR         ┐          KeyValueRows
  *  │ + about 1,200 SKR boost if anyone finishes
- *  │ Days to go 9 · Days done 11 of 21 days · Your share now 255 SKR
- *  [ The roster ] [ Leaderboards ]             SecondaryButtons
+ *  │ Your share now 255 SKR                    (the header already says the day)
+ *  [ Members ]                                 SecondaryButton
  * ```
  */
 @Composable
@@ -76,13 +79,13 @@ fun CohortDetailScreen(
     /** Back to the screen that opened this one (FR-069b); null draws no back arrow. */
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
-    /** The last chain read failed (spec 005): the line, Check again and the pull. */
+    /** The last chain read failed (spec 005, FR-069h): the devnet bar under the header, and the pull. */
     offline: Boolean = false,
     checking: Boolean = false,
     stillUnreachable: Boolean = false,
     onCheck: () -> Unit = {},
-    /** L1, the leaderboards of this Holdout's level (Me holds them since 13 October; FR-069d); null shows no button. */
-    onLeaderboards: (() -> Unit)? = null,
+    /** How old the read the screen shows is, in seconds, for the bar's "Showing what it said 4m ago."; null when unknown. */
+    readAgoSeconds: Long? = null,
     /** A member who is out reaches their forfeit screen from here; null shows no card. */
     onForfeit: (() -> Unit)? = null,
     /** The member's day, for the strip at the top (FR-069b): null on a Holdout they only watch, or past the last day. */
@@ -108,7 +111,7 @@ fun CohortDetailScreen(
             ScreenHeader(DetailText.label(c, now), onBack = onBack)
             if (h.isTest) TestCohortBadge(c.dayLength, Modifier.align(Alignment.CenterHorizontally))
             if (member == null) Watching()
-            if (offline) ChainUnreachable(checking, stillUnreachable, onCheck)
+            if (offline) DevnetBar(Deployment.networkName, stillUnreachable, checking, DevnetBarCopy.showing(readAgoSeconds), onCheck)
             // Only while the member stands in the running Holdout with a day open or just done.
             if (day != null && member != null && stage is Stage.Active) YourDayStrip(day, onStartDay, onSubmitDay, onGetTokens)
 
@@ -136,25 +139,18 @@ fun CohortDetailScreen(
                 figures?.projectedBoost?.takeIf { running && it > 0uL }?.let {
                     Text(Format.runningBoostLine(it), style = LabelStyle, color = HoldoutColors.Success)
                 }
-                if (running) KeyValueRow("Days to go", DetailText.daysToGo(c, now).toString())
-                HorizontalDivider(color = HoldoutColors.Hairline, thickness = Spacing.border)
                 if (member != null) {
-                    KeyValueRow("Days done", DetailText.daysDone(member.daysCompleted, c))
                     if (figures != null && Derive.standing(member, c, now) && !c.settled) {
                         KeyValueRow("Your share now", Format.skr(figures.projectedShare(member)), success = true)
                         Text(DetailText.SHARE_NOTE, style = LabelStyle, color = HoldoutColors.TextTertiary, textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth())
                     }
                 } else {
-                    KeyValueRow("Days done", DetailText.daysDone(DetailText.daysPassed(c, now), c))
                     Text(DetailText.WATCHER_NOTE, style = LabelStyle, color = HoldoutColors.TextTertiary)
                 }
             }
             if (members == null) Reading { Body("Reading devnet…") }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
-                SecondaryButton("The roster", onRoster, Modifier.weight(1f))
-                onLeaderboards?.let { SecondaryButton("Leaderboards", it, Modifier.weight(1f)) }
-            }
+            SecondaryButton(DetailText.MEMBERS, onRoster, Modifier.fillMaxWidth())
         }
     }
 }

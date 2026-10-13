@@ -61,6 +61,8 @@ class HoldoutViewModel(
         val view: ChainView? = null,
         /** The last read failed; [view] is the previous one, if any. */
         val offline: Boolean = false,
+        /** When [view] was read: the monotonic clock in milliseconds at the last answer, for "Showing what it said 4m ago." (FR-069h); null before the first. */
+        val viewReadAt: Long? = null,
         /** An action is waiting on the wallet or on devnet. */
         val busy: Boolean = false,
         /** What the last action said, for the screen it was taken on. */
@@ -80,6 +82,9 @@ class HoldoutViewModel(
         /** The outcomes of signatures the member left before they came back, oldest first, a Notice card each on the screen they went to (at most [UnseenTx.MAX_CARDS]). */
         val unseen: List<UnseenTx> = emptyList(),
     ) {
+        /** Whole seconds since [view] was read, at monotonic time [nowMillis]; null before any read answered. */
+        fun readAgoSeconds(nowMillis: Long): Long? = viewReadAt?.let { ((nowMillis - it) / 1_000).coerceAtLeast(0) }
+
         /** The transaction that keeps [action] on [cohort] shut, if one may still land. */
         fun pendingFor(action: SignAction, cohort: SolanaPublicKey, day: Int = 0): PendingTx? = pending.firstOrNull { it.isFor(action, cohort, day) }
     }
@@ -223,7 +228,7 @@ class HoldoutViewModel(
             if (view == null) {
                 it.copy(offline = true)
             } else {
-                it.copy(view = view, offline = false, autoSubmit = if (back) it.autoSubmit.answered() else it.autoSubmit, check = it.check.answered()).settle(view, readAt)
+                it.copy(view = view, offline = false, viewReadAt = elapsed(), autoSubmit = if (back) it.autoSubmit.answered() else it.autoSubmit, check = it.check.answered()).settle(view, readAt)
             }
         }
         if (view != null && back) keepAutoSubmit()

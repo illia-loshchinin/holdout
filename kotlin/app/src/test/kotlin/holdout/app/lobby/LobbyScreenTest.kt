@@ -102,7 +102,7 @@ class LobbyScreenTest {
     }
 
     @Test
-    fun `See who's in opens the roster`() {
+    fun `See who's in opens the members`() {
         show()
         text("See who's in →").performClick()
         assertEquals(1, rosters)
@@ -161,10 +161,10 @@ class LobbyScreenTest {
     }
 
     @Test
-    fun `locked - the final roster, no leave, and the reminder only when notifications are on`() {
+    fun `locked - the final list of members, no leave, and the reminder only when notifications are on`() {
         show(now = lockedNow, notificationsOn = true)
         text("SPARK · 7-DAY · LOCKED · STARTS IN 41M 10S").assertIsDisplayed()
-        text("Joining closed. This is the final roster.").assertIsDisplayed()
+        text("Joining closed. This is the final list of members.").assertIsDisplayed()
         text("Leave — full refund").assertDoesNotExist()
         text("Until it starts, just keep your streak. We'll remind you.").assertIsDisplayed()
     }

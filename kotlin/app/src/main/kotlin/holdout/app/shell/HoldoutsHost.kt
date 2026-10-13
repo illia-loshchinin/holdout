@@ -24,7 +24,6 @@ import holdout.app.stake.SeekerGateSheet
 import holdout.app.stake.SeekerStatus
 import holdout.app.stake.StakeSheet
 import holdout.app.storage.Store
-import holdout.app.ui.ChainUnreachable
 import holdout.app.ui.Format
 import holdout.app.ui.SectionLabel
 import holdout.app.wallet.SignAction
@@ -71,8 +70,12 @@ internal fun Shared.HoldoutsRoot(modifier: Modifier = Modifier) {
         onJoin = { cohort -> dispatch(NavEvent.OpenStake(cohort, seekerKnown = seekerKnown)) },
         modifier = modifier,
         canJoin = !knownNotSeeker,
+        offline = chain.offline,
+        stillUnreachable = chain.check.stillUnreachable,
+        checking = chain.check.checking,
+        onCheck = { checkChain(null) },
+        readAgoSeconds = readAgoSeconds,
         header = {
-            if (chain.offline) ChainUnreachable(chain.check.checking, chain.check.stillUnreachable, { checkChain(null) })
             if (v != null && v.config == null) SectionLabel("Holdouts are not live on ${Deployment.networkName.lowercase()} yet")
         },
     )
@@ -129,6 +132,7 @@ internal fun Shared.ForfeitHost(id: String, modifier: Modifier = Modifier) {
         checking = chain.check.checking,
         stillUnreachable = chain.check.stillUnreachable,
         onCheck = { checkChain(h.address) },
+        readAgoSeconds = readAgoSeconds,
         offer = offer,
         // The missed day is the one after the days on chain; finished on this phone means it was too late to send.
         doneOnPhone = store.isDayComplete(wallet, cohortScope(h), (h.membership?.daysCompleted ?: 0).toLong()),

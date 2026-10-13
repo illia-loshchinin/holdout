@@ -20,7 +20,7 @@ import holdout.app.ui.theme.HoldoutFonts
 import holdout.app.ui.theme.LabelStyle
 
 /**
- * The member's day at the top of Standing while their Holdout runs and today's
+ * The member's day at the top of a Holdout's screen while their Holdout runs and today's
  * day is open (FR-069b): `DAY 2 · 5 push-ups · 6m 24s left` and the same day
  * button as Today — Start, Keep going, Submit day N — so the day starts here
  * without a trip to the other tab. On the chain it is one quiet line.
@@ -28,7 +28,7 @@ import holdout.app.ui.theme.LabelStyle
  *
  * ```
  *  ┌ DAY 2 · 5 push-ups · 6m 24s left ┐   label, countdown in mono
- *  │ [ Start today's 5 ]               │   the day button (DayActions)
+ *  │ [ Start ]                         │   the day button (DayActions)
  *  └───────────────────────────────────┘
  *  Day 2 is done and on chain.              on chain: no card, no button
  * ```

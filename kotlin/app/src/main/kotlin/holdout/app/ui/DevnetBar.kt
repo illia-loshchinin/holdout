@@ -90,6 +90,12 @@ fun DevnetBar(
     }
 }
 
+/** The sub line of the bar on a screen that shows what devnet last said (Holdouts, a Holdout's screen, the forfeit). */
+object DevnetBarCopy {
+    /** "Showing what it said 4m ago." — [ageSeconds] of the last read that answered; null when no read time is on record. */
+    fun showing(ageSeconds: Long?): String = "Showing what it said ${ageSeconds?.let { "${Format.ago(it)} ago" } ?: "earlier"}."
+}
+
 @Composable
 private fun Dot() {
     Box(Modifier.size(DOT_SIZE).clip(CircleShape).background(HoldoutColors.SoftWarm))

@@ -65,6 +65,9 @@ internal class Shared(
 ) {
     val view: ChainView? get() = chain.view
 
+    /** How old the read behind [view] is, in seconds, for the devnet bar's "Showing what it said 4m ago." — recomputed as chain time ticks. */
+    val readAgoSeconds: Long? get() = chain.readAgoSeconds(android.os.SystemClock.elapsedRealtime())
+
     /** The global day of chain time (05:00 UTC), or [Store.UNKNOWN_DAY]. */
     val dayIndex: Long get() = now?.let { HoldoutDay.indexOf(it) } ?: Store.UNKNOWN_DAY
 

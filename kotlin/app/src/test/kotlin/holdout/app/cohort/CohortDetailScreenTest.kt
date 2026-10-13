@@ -48,9 +48,11 @@ class CohortDetailScreenTest {
         signature: String? = null,
         onBack: (() -> Unit)? = null,
         onRoster: () -> Unit = {},
-        onLeaderboards: (() -> Unit)? = {},
         onForfeit: (() -> Unit)? = null,
         offline: Boolean = false,
+        still: Boolean = false,
+        checking: Boolean = false,
+        readAgo: Long? = 240,
         onCheck: () -> Unit = {},
         day: DayState? = null,
         onStartDay: () -> Unit = {},
@@ -61,7 +63,7 @@ class CohortDetailScreenTest {
             HoldoutTheme {
                 CohortDetailScreen(
                     h, members, stage, at, signature, onRoster, onBack,
-                    offline = offline, onCheck = onCheck, onLeaderboards = onLeaderboards, onForfeit = onForfeit,
+                    offline = offline, stillUnreachable = still, checking = checking, readAgoSeconds = readAgo, onCheck = onCheck, onForfeit = onForfeit,
                     day = day, onStartDay = onStartDay, onSubmitDay = onSubmitDay, onGetTokens = onGetTokens,
                 )
             }
@@ -78,17 +80,18 @@ class CohortDetailScreenTest {
     }
 
     @Test
-    fun `running - pool, the boost line, days to go excluding today, days done and the share if the crowd holds`() {
+    fun `running - pool, the boost line and the share if the crowd holds, with no day-count rows`() {
         show()
 
         compose.onNodeWithText("Prize pool").assertIsDisplayed()
         // 10 % of the 3,000 SKR pool, under the 480 SKR reserve: the boost is "up to", never a promise.
         compose.onNodeWithText("+ about 300 SKR boost if anyone finishes").assertIsDisplayed()
-        compose.onNodeWithText("Days to go").assertIsDisplayed()
-        compose.onNodeWithText("2").assertIsDisplayed()
-        compose.onNodeWithText("4 of 7 days").assertIsDisplayed()
         compose.onNodeWithText("Your share now").assertIsDisplayed()
         compose.onNodeWithText(DetailText.SHARE_NOTE).assertIsDisplayed()
+        // The header already says "DAY 5 OF 7" (FR-069b, 2026-10-13): the rows repeated it.
+        compose.onNodeWithText("Days to go").assertDoesNotExist()
+        compose.onNodeWithText("Days done").assertDoesNotExist()
+        compose.onNodeWithText("4 of 7 days").assertDoesNotExist()
     }
 
     @Test
@@ -114,22 +117,21 @@ class CohortDetailScreenTest {
     }
 
     @Test
-    fun `the roster and the leaderboards buttons go where they say`() {
-        var roster = 0
-        var boards = 0
-        show(onRoster = { roster++ }, onLeaderboards = { boards++ })
+    fun `the button to the members reads Members and goes there - and there is no leaderboards button`() {
+        var members = 0
+        show(onRoster = { members++ })
 
-        compose.onNodeWithText("The roster").performClick()
-        compose.onNodeWithText("Leaderboards").performClick()
-
-        assertEquals(1, roster)
-        assertEquals(1, boards)
+        compose.onNodeWithText("Members").performClick()
+        assertEquals(1, members)
+        compose.onNodeWithText("The roster").assertDoesNotExist()
+        // Me is the only way to the leaderboards (FR-060, FR-069d).
+        compose.onNodeWithText("Leaderboards").assertDoesNotExist()
     }
 
     @Test
-    fun `no leaderboards button when the host gives none`() {
-        show(onLeaderboards = null)
-        compose.onNodeWithText("Leaderboards").assertDoesNotExist()
+    fun `no member-facing word of the screen says roster`() {
+        show()
+        compose.onNodeWithText("roster", substring = true, ignoreCase = true).assertDoesNotExist()
     }
 
     @Test
@@ -139,7 +141,8 @@ class CohortDetailScreenTest {
         compose.onNodeWithText(DetailText.WATCHING).assertIsDisplayed()
         compose.onNodeWithText(DetailText.WATCHER_NOTE).assertIsDisplayed()
         compose.onNodeWithText("Your share now").assertDoesNotExist()
-        compose.onNodeWithText("Days done").assertIsDisplayed()
+        compose.onNodeWithText("Days done").assertDoesNotExist()
+        compose.onNodeWithText("Days to go").assertDoesNotExist()
     }
 
     @Test
@@ -212,13 +215,43 @@ class CohortDetailScreenTest {
     }
 
     @Test
-    fun `offline - the line stays and Check again asks for a read`() {
+    fun `offline - the devnet bar sits under the header with the age of what is shown, and Retry asks for a read`() {
         var checks = 0
         show(offline = true, onCheck = { checks++ })
 
         compose.onNodeWithText("Devnet isn't answering").assertIsDisplayed()
+        compose.onNodeWithText("Showing what it said 4m ago.").assertIsDisplayed()
+        val header = compose.onNodeWithText("SPARK · 7-DAY · DAY 5 OF 7").fetchSemanticsNode().positionInRoot.y
+        val bar = compose.onNodeWithText("Devnet isn't answering").fetchSemanticsNode().positionInRoot.y
+        val counter = compose.onNodeWithText("STILL STANDING").fetchSemanticsNode().positionInRoot.y
+        assertTrue(header < bar && bar < counter, "header $header, bar $bar, counter $counter")
         compose.onNodeWithText("Retry").performClick()
         assertEquals(1, checks)
+    }
+
+    @Test
+    fun `offline after a failed retry says still, and while checking Retry cannot be pressed`() {
+        show(offline = true, still = true)
+        compose.onNodeWithText("Devnet still isn't answering").assertIsDisplayed()
+    }
+
+    @Test
+    fun `offline while checking - Retry reads Checking and is off`() {
+        show(offline = true, checking = true)
+        compose.onNodeWithText("Checking…").assertIsDisplayed().assertIsNotEnabled()
+    }
+
+    @Test
+    fun `offline - no can't-be-reached row and no Check again button`() {
+        show(offline = true)
+        compose.onNodeWithText("can't be reached", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Check again").assertDoesNotExist()
+    }
+
+    @Test
+    fun `online - no devnet bar`() {
+        show()
+        compose.onNodeWithText("Devnet isn't answering").assertDoesNotExist()
     }
 
     // ---- the day strip (FR-069b): the member's day, at the top of Standing while it is open ----

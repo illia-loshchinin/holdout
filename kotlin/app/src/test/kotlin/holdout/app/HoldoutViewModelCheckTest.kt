@@ -50,6 +50,9 @@ class HoldoutViewModelCheckTest {
 
     private lateinit var vm: HoldoutViewModel
 
+    /** The monotonic clock the view model reads, in milliseconds: the test moves it. */
+    private var elapsedMillis = 0L
+
     private class FakeChain : ChainReads {
         val reads = mutableListOf<CompletableDeferred<ChainView?>>()
 
@@ -67,7 +70,7 @@ class HoldoutViewModelCheckTest {
         Dispatchers.setMain(dispatcher)
         // Every chain read goes to the fake. The Rpc (and the faucet built on it) is never
         // called by a check; it points at a closed local port so a stray call fails, not hangs.
-        vm = HoldoutViewModel(store, rpc = Rpc("http://127.0.0.1:1"), chain = chain)
+        vm = HoldoutViewModel(store, rpc = Rpc("http://127.0.0.1:1"), chain = chain, elapsed = { elapsedMillis })
     }
 
     @AfterTest
@@ -86,6 +89,27 @@ class HoldoutViewModelCheckTest {
         chain.reads.last().complete(null)
         runCurrent()
         assertTrue(state.offline)
+    }
+
+    @Test
+    fun `given a read that answered, when later reads fail, then the time of that answer stays for the devnet bar's age`() = runTest(dispatcher) {
+        assertEquals(null, state.viewReadAt)
+        vm.watch(walletA)
+        runCurrent()
+        elapsedMillis = 5_000
+        chain.reads.last().complete(answered)
+        runCurrent()
+        assertEquals(5_000L, state.viewReadAt)
+
+        // The next scheduled read finds the chain silent, 4 minutes later: the old answer is still what is shown, and it is that old.
+        elapsedMillis = 245_000
+        advanceTimeBy(30_001)
+        runCurrent()
+        chain.reads.last().complete(null)
+        runCurrent()
+        assertTrue(state.offline)
+        assertEquals(5_000L, state.viewReadAt)
+        assertEquals(240L, state.readAgoSeconds(elapsedMillis))
     }
 
     @Test

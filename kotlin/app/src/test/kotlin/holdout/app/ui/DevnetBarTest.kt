@@ -116,4 +116,21 @@ class DevnetBarTest {
         val bounds = node.getUnclippedBoundsInRoot()
         assertTrue(bounds.height.value >= 48f, "height ${bounds.height}")
     }
+
+    @Test
+    fun `the age of what a screen still shows is its largest two units, never seconds past a minute`() {
+        assertEquals("58s", Format.ago(58))
+        assertEquals("0s", Format.ago(-3))
+        assertEquals("4m", Format.ago(245))
+        assertEquals("1h 05m", Format.ago(3_900))
+        assertEquals("2d 3h", Format.ago(2 * 86_400 + 3 * 3_600 + 59))
+    }
+
+    @Test
+    fun `the sub line of a screen showing an earlier read says how old it is`() {
+        assertEquals("Showing what it said 4m ago.", DevnetBarCopy.showing(240))
+        assertEquals("Showing what it said 58s ago.", DevnetBarCopy.showing(58))
+        // No read time on record: still honest, no invented figure.
+        assertEquals("Showing what it said earlier.", DevnetBarCopy.showing(null))
+    }
 }
