@@ -84,6 +84,18 @@ class NewPhoneTest {
     }
 
     @Test
+    fun `an offline first run that trained here on an earlier day is not new to the wallet once the day is known`() {
+        NewPhone.markSeen(store, wallet, Store.UNKNOWN_DAY)
+        // Days went by offline: a Daily 25 done here, filed under its own day once the chain answered.
+        StreakStore(store).recordCompletedDay(wallet, today - 1)
+
+        NewPhone.markSeen(store, wallet, today)
+
+        assertEquals(Store.SEEN_EARLIER, store.firstSeenDay(wallet))
+        assertFalse(shows())
+    }
+
+    @Test
     fun `an offline first run on a phone that knew the wallet before is still seen before`() {
         store.setSeenTour(wallet)
         NewPhone.markSeen(store, wallet, Store.UNKNOWN_DAY)

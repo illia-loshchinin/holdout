@@ -27,15 +27,15 @@ object NewPhone {
      * Keeps the day this phone first saw [wallet], once. A wallet the phone knew before the key
      * existed (its tour seen, or any streak or banked-rep record) counts as seen before, so an
      * update never shows the banner. With the day unknown (an offline first run) a new wallet is
-     * kept as [Store.SEEN_PENDING] and the first call with a known day makes that its day: what
-     * this phone holds of the wallet by then (a tour seen, reps banked offline) is its own use
-     * since, not a sign it knew the wallet before, so it is not looked at again.
+     * kept as [Store.SEEN_PENDING] and the first call with a known day settles it: that day, unless
+     * the wallet trained on this phone meanwhile (a streak, or reps banked offline), so the phone is
+     * not new to it today. The tour it saw on that first run is not such a sign: the first run shows it.
      */
     fun markSeen(store: Store, wallet: String, dayIndex: Long) {
         val seen = store.firstSeenDay(wallet)
         if (seen != null && seen != Store.SEEN_PENDING) return
         if (seen == Store.SEEN_PENDING) {
-            if (dayIndex != Store.UNKNOWN_DAY) store.setFirstSeenDay(wallet, dayIndex)
+            if (dayIndex != Store.UNKNOWN_DAY) store.setFirstSeenDay(wallet, if (trainedHere(store, wallet, dayIndex)) Store.SEEN_EARLIER else dayIndex)
         } else if (knownHere(store, wallet, dayIndex)) {
             store.setFirstSeenDay(wallet, Store.SEEN_EARLIER)
         } else {
@@ -50,8 +50,11 @@ object NewPhone {
     }
 
     /** The phone holds something of this wallet from before the first-seen key: a seen tour, a streak, or reps banked. */
-    private fun knownHere(store: Store, wallet: String, dayIndex: Long): Boolean {
-        if (store.hasSeenTour(wallet) || store.streak(wallet) > 0 || store.longestStreak(wallet) > 0 || store.lastStreakDay(wallet) != Store.NO_DAY) return true
+    private fun knownHere(store: Store, wallet: String, dayIndex: Long): Boolean = store.hasSeenTour(wallet) || trainedHere(store, wallet, dayIndex)
+
+    /** The phone holds training of this wallet: a streak, or reps banked or a day completed around [dayIndex]. */
+    private fun trainedHere(store: Store, wallet: String, dayIndex: Long): Boolean {
+        if (store.streak(wallet) > 0 || store.longestStreak(wallet) > 0 || store.lastStreakDay(wallet) != Store.NO_DAY) return true
         val days = if (dayIndex == Store.UNKNOWN_DAY) listOf(Store.UNKNOWN_DAY) else listOf(Store.UNKNOWN_DAY, dayIndex, dayIndex - 1)
         return days.any { store.bankedReps(wallet, Store.CHALLENGE, it) > 0 || store.isDayComplete(wallet, Store.CHALLENGE, it) }
     }
