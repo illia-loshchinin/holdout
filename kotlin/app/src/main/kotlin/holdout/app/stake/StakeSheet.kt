@@ -1,13 +1,17 @@
 package holdout.app.stake
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -20,7 +24,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import holdout.app.chain.Holdout
 import holdout.app.faucet.FaucetClient
 import holdout.app.ui.Body
@@ -42,9 +54,10 @@ import holdout.core.Journey
 /**
  * The stake confirm, the content of the bottom sheet (board 4 · 4c; ruling G8;
  * US-6, FR-041, FR-059): what the member joins, the four chips with their exact
- * SKR and approximate dollar labels, what is at stake now, the rule of counting
- * and where a lost stake goes — all read **before anything is staked**
- * (FR-021a). There is no "← Back": the sheet closes by drag or scrim.
+ * SKR and approximate dollar labels, what is at stake now, the one line on losing
+ * with *How it works* beside it, and the rule of counting — all read **before
+ * anything is staked** (FR-021a, FR-041). Where a lost stake goes is the tour's
+ * card 4, one tap away. There is no "← Back": the sheet closes by drag or scrim.
  *
  * ```
  *  [DEVNET COHORT badge]
@@ -56,8 +69,9 @@ import holdout.core.Journey
  *  ┌ At stake now     12,500 SKR  14 joined │
  *  └ Joining closes in             2d 3h ┘              warning colour in the last minutes
  *  If nobody drops out, you get exactly your stake back.
- *  Miss a day and you lose your stake: 70 % …            fee sentence
+ *  Miss a day and you lose your stake.   (? How it works)  the one line, the tour at card 2 beside it
  *  Full refund until joining closes.
+ *  Prize boost: up to 480 SKR                          its own line, only while the reserve holds > 0
  *  At 45° only. Aim for full push-ups from your toes; …  the level's rule
  *  Allow notifications and … (notifications off only)
  *  A transaction signed now may land too late.          warning, last minutes
@@ -101,6 +115,8 @@ fun StakeSheet(
     canStake: Boolean = true,
     /** The notification reason (FR-068a) shows only while notifications are off (ruling G9). */
     showNotificationReason: Boolean = true,
+    /** The *How it works* action beside the one line: opens the tour at card 2 and comes back here (FR-041). */
+    onHowItWorks: () -> Unit = {},
 ) {
     val c = h.cohort
     val test = h.isTest
@@ -161,8 +177,16 @@ fun StakeSheet(
 
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
             Text(StakeText.NO_DROPOUT, style = LabelStyle, color = HoldoutColors.TextPrimary)
-            Text(StakeText.fee(c, test), style = LabelStyle, color = HoldoutColors.TextSecondary)
-            Text(StakeText.FULL_REFUND, style = LabelStyle, color = HoldoutColors.TextSecondary)
+            // The one line on losing, with where the money goes one tap away in the tour (FR-041); the refund under it.
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
+                    Text(StakeText.MISS_A_DAY, style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.TextPrimary)
+                    Text(StakeText.FULL_REFUND, style = LabelStyle, color = HoldoutColors.TextSecondary)
+                }
+                HowItWorks(onHowItWorks)
+            }
+            // What the level's reserve can add, when it holds anything (FR-053): a line of its own.
+            StakeText.boost(h.league?.boostReserve)?.let { Text(it, style = LabelStyle, color = HoldoutColors.Success) }
             // How reps are counted here: the level's rule, a line of its own.
             Text(Format.levelRule(c) ?: Format.levelRule(holdout.core.LeagueParams.FORM_TOES).orEmpty(), style = LabelStyle, color = HoldoutColors.TextPrimary)
             if (showNotificationReason) Text(StakeText.NOTIFICATION_REASON, style = LabelStyle, color = HoldoutColors.TextTertiary)
@@ -187,6 +211,30 @@ fun StakeSheet(
         Text(StakeText.FOOTER, style = LabelStyle, color = HoldoutColors.TextTertiary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
     }
 }
+
+/** The ? mark and *How it works*: a 48 dp target that opens the tour at card 2 and comes back to this sheet (FR-041). */
+@Composable
+private fun HowItWorks(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .defaultMinSize(minHeight = Spacing.touchTarget)
+            .clip(MaterialTheme.shapes.small)
+            .clickable(role = Role.Button, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.tight),
+    ) {
+        Canvas(Modifier.size(HELP_MARK)) {
+            val stroke = Stroke(width = 1.4f, cap = StrokeCap.Round)
+            scale(size.minDimension / HELP_MARK.value, pivot = Offset.Zero) {
+                drawCircle(HoldoutColors.Accent, radius = 6.5f, center = Offset(8f, 8f), style = stroke)
+                drawPath(PathParser().parsePathString("M6.4 6.2a1.7 1.7 0 1 1 2.4 1.6c-.5.2-.8.6-.8 1.1v.4M8 11.2v.1").toPath(), HoldoutColors.Accent, style = stroke)
+            }
+        }
+        Text(StakeText.HOW_IT_WORKS, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = HoldoutColors.Accent)
+    }
+}
+
+private val HELP_MARK = 16.dp
 
 /** The ES-12 warning, why the join cannot go ahead (if it cannot), and the stake button. */
 @Composable

@@ -233,5 +233,7 @@ internal fun Shared.StakeSheetHost(sheet: Sheet.Stake, seekerGate: SeekerGate) {
             }
         },
         showNotificationReason = !notificationsOn,
+        // The tour at card 2, "Two kinds of Holdout"; finishing it or Back reopens this sheet on the chip picked (FR-041).
+        onHowItWorks = { dispatch(NavEvent.OpenTour(startCard = 2, returnTo = sheet)) },
     )
 }

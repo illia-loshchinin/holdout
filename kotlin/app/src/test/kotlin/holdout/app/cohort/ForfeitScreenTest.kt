@@ -12,7 +12,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.text.TextLayoutResult
 import holdout.app.chain.Holdout
 import holdout.app.holdouts.MyHoldoutsModel
-import holdout.app.stake.StakeText
 import holdout.app.testing.Fx
 import holdout.app.testutil.AnimationsOff
 import holdout.app.testutil.TALL_PHONE
@@ -487,8 +486,8 @@ class ForfeitScreenTest {
         val forfeit = "It goes 70 % to this Holdout's prize pool, 10 % set aside for your comeback, " +
             "20 % to the project. If nobody finishes, the pool boosts later Hackathon · 3-day prizes."
         compose.onNodeWithText(forfeit).assertExists()
-        // The stake sheet's sentence names the same noun.
-        assertTrue("the pool boosts later Hackathon · 3-day prizes." in StakeText.fee(test, test = true))
+        // The stake sheet no longer carries the sentence (FR-041, 2026-10-13); the name it gave the boosts is still the boost name.
+        assertEquals("Hackathon · 3-day", holdout.app.ui.Format.boostName(test, true))
     }
 
     @Test

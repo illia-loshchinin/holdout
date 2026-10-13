@@ -56,7 +56,7 @@ class StakeSheetFitTest {
     private fun holdout(form: Int = LeagueParams.FORM_KNEES_ALLOWED, days: Int = 7, leagueId: Int = LeagueParams.LEAGUE_7D, dayLength: Long = day, cutoff: Long = start - 3_600, reps: Int = 25, joined: Long = 14) = Holdout(
         address = SolanaPublicKey(ByteArray(32) { 3 }),
         cohort = CohortSnapshot(leagueId, 1, start, cutoff, days, reps, dayLength, 0, listOf(460uL * skr, 1_170uL * skr, 2_340uL * skr, 4_690uL * skr), memberCount = joined, heldStake = 12_890uL * skr, form = form),
-        league = if (leagueId < LeagueParams.TEST_LEAGUE_MIN) LeagueSnapshot(LeagueParams.judged(leagueId, start), nextIndex = 3) else null,
+        league = if (leagueId < LeagueParams.TEST_LEAGUE_MIN) LeagueSnapshot(LeagueParams.judged(leagueId, start), nextIndex = 3, boostReserve = 480uL * skr) else null,
         membership = null,
     )
 
