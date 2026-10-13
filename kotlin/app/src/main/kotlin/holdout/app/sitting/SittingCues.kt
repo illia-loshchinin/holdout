@@ -25,6 +25,9 @@ import java.util.Locale
  * The per-rep blip is deliberately the shortest, quietest-sounding tone here,
  * so the chime every ten still stands out as the bigger moment.
  *
+ * The words are the recorded calm voice ([VoiceClips]); a line with no clip —
+ * the deadline, a total past 300 — is said by the device's own speech.
+ *
  * **This is audio out, not audio in.** FR-022a and OD-3 forbid the microphone
  * and forbid audio as a *verification* signal; `RECORD_AUDIO` is not declared
  * anywhere and the manifest check in quickstart §4 still passes. Playback needs
@@ -36,10 +39,12 @@ class SittingCues(context: Context) {
         ToneGenerator(AudioManager.STREAM_MUSIC, VOLUME)
     }.getOrNull()
 
+    private val voice = VoiceClips(context)
+
     private var speechReady = false
 
     /**
-     * Best effort. A device with no engine, or no English voice, does a sitting
+     * The fallback for a line with no recorded clip. Best effort. A device with no engine, or no English voice, does a sitting
      * with tones alone — speech is the nicer half of this, never the necessary
      * half.
      */
@@ -91,6 +96,7 @@ class SittingCues(context: Context) {
     }
 
     private fun say(text: String, flush: Boolean = false) {
+        if (voice.say(text, flush)) return
         if (!speechReady) return
         // QUEUE_ADD by default: "three, two, one, go" arrives as four separate
         // cues a second apart and must not cut each other off.
@@ -99,6 +105,7 @@ class SittingCues(context: Context) {
     }
 
     fun close() {
+        voice.close()
         runCatching { tones?.release() }
         runCatching {
             speech?.stop()
