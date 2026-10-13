@@ -4,7 +4,7 @@
 # Fly's scheduled machines run at most hourly, so the 10-minute cadence is a
 # loop in an always-on machine instead (the smallest size is enough). Between
 # passes `scripted run` wakes only when it asked to (`nextScriptedAt`): once a
-# minute while a Hackathon lobby has room, reading only the cohort list unless
+# minute while a Hackathon lobby is open, reading only the cohort list unless
 # someone is in it, and at the start of each day of a round. The loop stops at
 # once if HOLDOUT_RPC_URL (a secret) or HOLDOUT_PROGRAM_ID is missing.
 #

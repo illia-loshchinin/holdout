@@ -6,7 +6,7 @@
 # moments after the one before starts, not up to an interval later (FR-044a).
 # Between passes `crank scripted run` runs alone only when it asked to
 # (`nextScriptedAt`, chain time, moved onto this machine's clock by its
-# `localTime`): every minute while a Hackathon lobby has room, so it is topped
+# `localTime`): every minute while a Hackathon lobby is open, so it is topped
 # up soon after someone real joins it, and each day of a round a scripted member
 # still plays (FR-043). An empty lobby's check reads only the cohort list, never
 # a roster, and a wake reads a running cohort's roster only when a day has begun
