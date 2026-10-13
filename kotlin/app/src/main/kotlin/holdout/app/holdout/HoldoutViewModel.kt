@@ -53,6 +53,8 @@ class HoldoutViewModel(
     private val chain: ChainReads = ChainRepository(rpc),
     val wallet: WalletRepository = WalletRepository(store, rpc),
     private val faucet: FaucetClient = FaucetClient(rpc, wallet, Deployment.programId),
+    /** The monotonic clock, in milliseconds: how long ago a transaction that may still land was sent. */
+    private val elapsed: () -> Long = { android.os.SystemClock.elapsedRealtime() },
 ) : ViewModel() {
     data class UiState(
         /** Null until the first read answers; the screens say "reading devnet" rather than showing nothing. */
@@ -73,7 +75,14 @@ class HoldoutViewModel(
         val check: ChainCheck = ChainCheck(),
         /** A join, a day or a claim the wallet has been asked to sign, for the signing screens (rulings G7); null when none. */
         val signing: Signing? = null,
-    )
+        /** Sent, not confirmed, and may land yet: the same action on the same Holdout stays shut until a read settles each (PR #62 review). */
+        val pending: List<PendingTx> = emptyList(),
+        /** The outcome of a signature the member left before it came back, for a Notice card on the screen they went to; null when none. */
+        val unseen: UnseenTx? = null,
+    ) {
+        /** The transaction that keeps [action] on [cohort] shut, if one may still land. */
+        fun pendingFor(action: SignAction, cohort: SolanaPublicKey, day: Int = 0): PendingTx? = pending.firstOrNull { it.isFor(action, cohort, day) }
+    }
 
     /**
      * One signature's progress: [id] tells a second attempt from the first,
@@ -193,6 +202,8 @@ class HoldoutViewModel(
     private suspend fun refreshNow() {
         val wallet = address
         val started = ++refreshesStarted
+        // Only a transaction that may still land needs the read's start time; one sent while it is out is not settled by its age.
+        val readAt = if (_state.value.pending.isEmpty()) null else elapsed()
         val view = chain.load(wallet)
         // The wallet changed while this read was out: its answer is not the new wallet's.
         if (wallet != address) return
@@ -208,7 +219,7 @@ class HoldoutViewModel(
             if (view == null) {
                 it.copy(offline = true)
             } else {
-                it.copy(view = view, offline = false, autoSubmit = if (back) it.autoSubmit.answered() else it.autoSubmit, check = it.check.answered())
+                it.copy(view = view, offline = false, autoSubmit = if (back) it.autoSubmit.answered() else it.autoSubmit, check = it.check.answered()).settle(view, readAt)
             }
         }
         if (view != null && back) keepAutoSubmit()
@@ -269,6 +280,27 @@ class HoldoutViewModel(
     /** The signing screens closed: the last signature's progress is no longer shown. */
     fun clearSigning() = _state.update { it.copy(signing = null) }
 
+    /** The member dismissed the card of an outcome they had left ("OK"). */
+    fun dismissUnseen() = _state.update { it.copy(unseen = null) }
+
+    /**
+     * What a read started at [readAt] that answered with [view] settles: each
+     * transaction that may still land and now has — or now can't — opens its
+     * action again. One the member left the screen of says how it ended: a
+     * landed one needs no card, one that never landed says so.
+     */
+    private fun UiState.settle(view: ChainView, readAt: Long?): UiState {
+        val (settled, still) = pending.partition { it.settledBy(view, readAt) }
+        if (settled.isEmpty()) return this
+        val left = unseen?.takeIf { u -> settled.any { u.isFor(it) } }
+        val after = when {
+            left == null -> unseen
+            settled.first { left.isFor(it) }.landedIn(view) -> null
+            else -> left.copy(outcome = TxOutcome.Failed(mayStillLand = false, message = ""))
+        }
+        return copy(pending = still, unseen = after)
+    }
+
     private var signings = 0
 
     /**
@@ -279,13 +311,25 @@ class HoldoutViewModel(
     private suspend fun signing(action: SignAction, cohort: SolanaPublicKey, tier: Int = 0, day: Int = 0, send: suspend (onPhase: (SendPhase) -> Unit) -> SendResult): SendResult {
         val id = ++signings
         val started = Signing(id, action, cohort, TxPhase.WaitingForWallet, tier, day)
-        _state.update { it.copy(signing = started) }
+        // A card about the same action's last outcome is old news once it is tried again.
+        _state.update { s -> s.copy(signing = started, unseen = s.unseen?.takeUnless { it.action == action && it.cohort == cohort }) }
         val result = send { phase -> _state.update { s -> s.copy(signing = s.signing?.takeIf { it.id == id }?.copy(phase = TxPhase.of(phase)) ?: s.signing) } }
         val lowOnSol = (_state.value.view?.lamports ?: Long.MAX_VALUE) < holdout.app.faucet.FaucetClient.MEMBER_CAN_PAY_LAMPORTS
         val outcome = TxOutcome.of(action, result, lowOnSol)
+        val pending = (outcome as? TxOutcome.Failed)?.takeIf { it.mayStillLand }?.let { PendingTx(action, cohort, day, elapsed()) }
         // A result that offers "Try again" frees the action with it: the closing read in [act] would
         // otherwise drop that tap, and the screen would wait for a wallet nobody asked.
-        _state.update { s -> s.copy(signing = (s.signing?.takeIf { it.id == id } ?: started).copy(phase = TxPhase.Done(outcome)), busy = s.busy && !outcome.canRetry) }
+        _state.update { s ->
+            val shown = s.signing?.takeIf { it.id == id }
+            s.copy(
+                // Its screen closed meanwhile (the member left it while confirming): the outcome is kept
+                // for the screen they went to instead, not put back where nothing shows it (PR #62 review).
+                signing = shown?.copy(phase = TxPhase.Done(outcome)) ?: s.signing,
+                unseen = if (shown == null && outcome !is TxOutcome.Landed) UnseenTx(action, cohort, day, outcome) else s.unseen,
+                pending = if (pending == null) s.pending else s.pending.filterNot { it.isFor(action, cohort, day) } + pending,
+                busy = s.busy && !outcome.canRetry,
+            )
+        }
         return result
     }
 
@@ -339,6 +383,7 @@ class HoldoutViewModel(
 
     fun join(sender: ActivityResultSender, h: Holdout, tier: Int, now: Long) = act {
         val me = address ?: return@act
+        if (_state.value.pendingFor(SignAction.Join, h.address) != null) return@act
         val view = _state.value.view ?: return@act
         val config = view.config ?: return@act
         // A running cohort the member has missed a deadline in and nobody has recorded yet still holds the
@@ -366,6 +411,8 @@ class HoldoutViewModel(
         // Recorded before anything else, so a send that never starts — another
         // action still busy — leaves the day pending, not nothing.
         store.setPendingCohortDay(me.base58(), h.address.base58(), day)
+        // A send of this day that may still land holds it: the day stays pending until a read settles that one.
+        if (_state.value.pendingFor(SignAction.Submit, h.address, day) != null) return
         act {
             // Sent — from the sitting's exit, a tap or by itself: not sent by itself again
             // until the connection drops and returns, even before the chain shows it landed.
@@ -465,6 +512,8 @@ class HoldoutViewModel(
      */
     fun autoSubmitDue(h: Holdout, pendingDay: Int?, todayDone: Boolean): Boolean {
         val s = _state.value
+        // A send of that day that may still land: nothing goes by itself until a read settles it.
+        if (pendingDay != null && s.pendingFor(SignAction.Submit, h.address, pendingDay) != null) return false
         val step = s.autoSubmit.step(h.address.base58(), pendingDay, todayDone, s.offline, s.busy)
         if (step.next != s.autoSubmit) {
             _state.update { it.copy(autoSubmit = step.next) }
@@ -477,6 +526,7 @@ class HoldoutViewModel(
 
     fun claim(sender: ActivityResultSender, h: Holdout) = act {
         val me = address ?: return@act
+        if (_state.value.pendingFor(SignAction.Claim, h.address) != null) return@act
         val config = _state.value.view?.config ?: return@act
         val result = signing(SignAction.Claim, h.address) { onPhase -> wallet.send(sender, listOf(Instructions.claimPayout(Deployment.programId, me, config.skrMint, h.address)), onPhase) }
         if (describe(result, "Claimed.")) _state.update { it.copy(lastClaim = h.address to (result as SendResult.Landed).signature) }

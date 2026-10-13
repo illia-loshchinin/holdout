@@ -20,11 +20,16 @@ class SittingMarkerWiringTest {
         val store = InMemoryStore()
         val marker = SittingMarker(store, wallet, Store.CHALLENGE) { 1234L }
 
-        marker.start()
+        marker.start(21_000L)
         assertEquals(1234L, store.sittingStartedAt(wallet, Store.CHALLENGE))
+        assertEquals(21_000L, store.sittingDay(wallet, Store.CHALLENGE))
+
+        marker.moveTo(21_001L)
+        assertEquals(21_001L, store.sittingDay(wallet, Store.CHALLENGE))
 
         marker.clear()
         assertNull(store.sittingStartedAt(wallet, Store.CHALLENGE))
+        assertNull(store.sittingDay(wallet, Store.CHALLENGE))
     }
 
     @Test

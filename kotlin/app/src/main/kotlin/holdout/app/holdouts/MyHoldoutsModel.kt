@@ -252,4 +252,7 @@ object MyHoldoutsModel {
 
     /** Staking is Seeker-exclusive, said up front (ruling G12). */
     const val SEEKER_LINE = "Holdouts need a Seeker."
+
+    /** In place of every Join once this session's Seeker check found no Genesis Token (ruling G12, PR #62 review). */
+    const val SEEKER_ONLY = "Joining is for Seeker owners. You can still do the Daily 25 and watch every Holdout."
 }

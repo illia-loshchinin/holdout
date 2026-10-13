@@ -1,5 +1,6 @@
 package holdout.app
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -76,6 +77,8 @@ import holdout.app.streak.StreakStore
 import holdout.app.tour.TourScreen
 import holdout.app.ui.Format
 import holdout.app.ui.LocalSeekerNames
+import holdout.app.ui.NoticeCard
+import holdout.app.ui.theme.Spacing
 import holdout.app.wallet.ConnectScreen
 import holdout.app.wallet.SignAction
 import holdout.app.wallet.TxPhase
@@ -542,6 +545,19 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             }
         },
         modifier = modifier,
+        // A join, a day or a claim the member left while it confirmed says how it ended, where they went (PR #62 review).
+        notice = {
+            chain.unseen?.let { u ->
+                NoticeCard(
+                    u.title,
+                    u.text,
+                    Modifier.padding(start = Spacing.screenGutter, end = Spacing.screenGutter, top = Spacing.screenGutter),
+                    warning = u.warning,
+                    actionText = "OK",
+                    onAction = holdouts::dismissUnseen,
+                )
+            }
+        },
     )
 }
 

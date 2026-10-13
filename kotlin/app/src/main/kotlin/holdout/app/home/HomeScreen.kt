@@ -27,6 +27,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import holdout.app.chain.Deployment
+import holdout.app.holdouts.MyHoldoutsModel
 import holdout.app.nav.NavEvent
 import holdout.app.streak.StreakMilestones
 import holdout.app.streak.ToesMeter
@@ -61,6 +62,8 @@ data class HomeState(
     val target: Int,
     val completedToday: Boolean,
     val streak: Int,
+    /** The longest streak this member ever had: a 0 streak with a longest above 0 is a broken one, a 0 with none is a member who never trained (as on Me). */
+    val longestStreak: Int = 0,
     /** Null while chain time is unknown — the screen says nothing rather than guessing. */
     val secondsLeftToday: Long?,
     /** Streak freezes held, 0–2 (H35): each keeps the streak through one missed day. */
@@ -81,6 +84,8 @@ data class HomeState(
     /** "Check again" is out / found the chain still silent (spec 005). */
     val checking: Boolean = false,
     val stillUnreachable: Boolean = false,
+    /** False once this session's Seeker check found no Genesis Token: the offers show without a Join, and one line says why (G12). */
+    val canJoin: Boolean = true,
 )
 
 /**
@@ -128,7 +133,9 @@ fun HomeScreen(
                     state.milestoneToday -> StreakState.Milestone
                     state.completedToday -> StreakState.ExtendedToday
                     state.streak > 0 -> StreakState.Active
-                    else -> StreakState.Broken
+                    // Broken only once there was a streak to break; a member who never trained has a plain 0.
+                    state.longestStreak > 0 -> StreakState.Broken
+                    else -> StreakState.Active
                 },
                 chip = true,
             )
@@ -166,7 +173,8 @@ fun HomeScreen(
                         SectionLabel("Holdouts open to join")
                         Text(TodayModel.SEEKER_LINE, style = LabelStyle, color = HoldoutColors.TextTertiary)
                     }
-                    block.cards.forEach { OfferCard(it, onJoin = { onJoin(it.cohort) }) }
+                    if (!state.canJoin) Body(MyHoldoutsModel.SEEKER_ONLY)
+                    block.cards.forEach { OfferCard(it, onJoin = if (state.canJoin) ({ onJoin(it.cohort) }) else null) }
                 }
             }
         }

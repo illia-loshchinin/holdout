@@ -26,15 +26,20 @@ object NewPhone {
     /**
      * Keeps the day this phone first saw [wallet], once. A wallet the phone knew before the key
      * existed (its tour seen, or any streak or banked-rep record) counts as seen before, so an
-     * update never shows the banner. With the day unknown (the chain not read yet) a new wallet
-     * keeps nothing, and the next call with a known day is its first.
+     * update never shows the banner. With the day unknown (an offline first run) a new wallet is
+     * kept as [Store.SEEN_PENDING] and the first call with a known day makes that its day: what
+     * this phone holds of the wallet by then (a tour seen, reps banked offline) is its own use
+     * since, not a sign it knew the wallet before, so it is not looked at again.
      */
     fun markSeen(store: Store, wallet: String, dayIndex: Long) {
-        if (store.firstSeenDay(wallet) != null) return
-        if (knownHere(store, wallet, dayIndex)) {
+        val seen = store.firstSeenDay(wallet)
+        if (seen != null && seen != Store.SEEN_PENDING) return
+        if (seen == Store.SEEN_PENDING) {
+            if (dayIndex != Store.UNKNOWN_DAY) store.setFirstSeenDay(wallet, dayIndex)
+        } else if (knownHere(store, wallet, dayIndex)) {
             store.setFirstSeenDay(wallet, Store.SEEN_EARLIER)
-        } else if (dayIndex != Store.UNKNOWN_DAY) {
-            store.setFirstSeenDay(wallet, dayIndex)
+        } else {
+            store.setFirstSeenDay(wallet, if (dayIndex != Store.UNKNOWN_DAY) dayIndex else Store.SEEN_PENDING)
         }
     }
 

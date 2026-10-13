@@ -57,12 +57,38 @@ class NewPhoneTest {
     }
 
     @Test
-    fun `an unknown day keeps nothing for a new wallet, so the next known day is its first`() {
+    fun `an unknown day keeps the wallet as pending, and the first known day becomes its day`() {
         NewPhone.markSeen(store, wallet, Store.UNKNOWN_DAY)
-        assertNull(store.firstSeenDay(wallet))
+        assertEquals(Store.SEEN_PENDING, store.firstSeenDay(wallet))
+
+        NewPhone.markSeen(store, wallet, Store.UNKNOWN_DAY)
+        assertEquals(Store.SEEN_PENDING, store.firstSeenDay(wallet), "still pending while the day is unknown")
 
         NewPhone.markSeen(store, wallet, today)
         assertEquals(today, store.firstSeenDay(wallet))
+
+        NewPhone.markSeen(store, wallet, today + 2)
+        assertEquals(today, store.firstSeenDay(wallet), "resolved once")
+    }
+
+    @Test
+    fun `an offline first run that saw the tour still gets the banner once the day is known`() {
+        NewPhone.markSeen(store, wallet, Store.UNKNOWN_DAY)
+        // The member's own first run goes on offline: the tour, and then the chain answers.
+        store.setSeenTour(wallet)
+
+        NewPhone.markSeen(store, wallet, today)
+
+        assertEquals(today, store.firstSeenDay(wallet), "what this run left is not knowing the wallet from before")
+        assertTrue(shows())
+    }
+
+    @Test
+    fun `an offline first run on a phone that knew the wallet before is still seen before`() {
+        store.setSeenTour(wallet)
+        NewPhone.markSeen(store, wallet, Store.UNKNOWN_DAY)
+
+        assertEquals(Store.SEEN_EARLIER, store.firstSeenDay(wallet))
     }
 
     // ---- the upgrade rule ----------------------------------------------------------------------------

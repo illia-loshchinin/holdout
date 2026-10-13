@@ -22,6 +22,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import holdout.app.chain.Holdout
+import holdout.app.holdouts.MyHoldoutsModel
 import holdout.app.ui.Body
 import holdout.app.ui.ChainCheckBox
 import holdout.app.ui.ChainUnreachable
@@ -101,6 +102,8 @@ fun ForfeitScreen(
     members: List<MembershipSnapshot>? = null,
     /** Opens the place the member holds in a round of the offer; null shows no such button. */
     onSeePlace: (() -> Unit)? = null,
+    /** False once this session's Seeker check found no Genesis Token: no Join, one line says why (G12). */
+    canJoin: Boolean = true,
     /** The missed day was finished on this phone and never reached the chain: the cause sentence says so (FR-024b, ES-3b). */
     doneOnPhone: Boolean = false,
     /** Today's Daily 25 is done on this phone: the Daily 25 button and its sentences give way. */
@@ -138,13 +141,13 @@ fun ForfeitScreen(
             if (copy != null) {
                 OfferCard(copy)
             } else {
-                ForfeitText.noOffer(c, onNextHoldout != null, dailyOpen = !daily25Done)?.let { words ->
+                ForfeitText.noOffer(c, onNextHoldout != null && canJoin, dailyOpen = !daily25Done)?.let { words ->
                     if (!daily25Done) SectionLabel("Two ways back")
                     Body(words)
                 }
             }
 
-            Buttons(h, offer, joinBlocker, onNextHoldout, onJoin, onSeePlace)
+            Buttons(h, offer, joinBlocker, onNextHoldout, onJoin, onSeePlace, canJoin)
 
             // A run ending never ends the streak: one quiet line, not a card.
             Text(ForfeitText.streakTitle(streak), style = LabelStyle, color = HoldoutColors.TextSecondary)
@@ -217,13 +220,16 @@ private fun ColumnScope.Buttons(
     onNextHoldout: (() -> Unit)?,
     onJoin: () -> Unit,
     onSeePlace: (() -> Unit)?,
+    canJoin: Boolean,
 ) {
     val c = h.cohort
     val next = offer?.next
     val nextCohort = next?.entry?.cohort
     when {
+        offer?.held != null && onSeePlace != null -> PrimaryButton("See your place", onSeePlace)
+        // A wallet that cannot stake (G12): the line that says so stands in for any Join.
+        !canJoin -> if (offer?.held == null && (onNextHoldout != null || nextCohort != null)) Body(MyHoldoutsModel.SEEKER_ONLY)
         offer == null -> if (onNextHoldout != null) PrimaryButton(ForfeitText.nextHoldout(c, h.isTest), onNextHoldout)
-        offer.held != null && onSeePlace != null -> PrimaryButton("See your place", onSeePlace)
         // The round that has started or is locked is not "the next": the member joins it late — today's once it runs.
         offer.held == null && nextCohort != null && joinBlocker == null -> PrimaryButton(
             when {

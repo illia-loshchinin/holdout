@@ -84,6 +84,8 @@ fun MyHoldoutsScreen(
     onJoin: (cohort: String) -> Unit,
     modifier: Modifier = Modifier,
     header: @Composable ColumnScope.() -> Unit = {},
+    /** False once this session's Seeker check found no Genesis Token: the offers show without a Join, and one line says why (G12). */
+    canJoin: Boolean = true,
 ) {
     // The choice survives rotation and a process death; it is Now until the member picks Past.
     var tab by rememberSaveable { mutableIntStateOf(NOW) }
@@ -122,7 +124,8 @@ fun MyHoldoutsScreen(
                 Text(MyHoldoutsModel.SEEKER_LINE, style = LabelStyle, color = HoldoutColors.TextTertiary)
             }
             if (state.open.isEmpty()) Body("The next Holdout opens soon.")
-            state.open.forEach { OfferCard(it) { onJoin(it.cohort) } }
+            if (!canJoin && state.open.isNotEmpty()) Body(MyHoldoutsModel.SEEKER_ONLY)
+            state.open.forEach { OfferCard(it, onJoin = if (canJoin) ({ onJoin(it.cohort) }) else null) }
         }
     }
 }
@@ -206,13 +209,13 @@ private fun YourCard(card: YourHoldout, onClick: () -> Unit) {
  * take is not listed (FR-006a, FR-006b). The Join is a 44 dp pill at the card's end; a tap anywhere on the card does the same.
  */
 @Composable
-private fun OfferCard(offer: OpenHoldout, onJoin: () -> Unit) {
-    // The whole card joins, as the pill does (owner, 12 Oct canvas): the stake sheet is the confirm.
-    HoldoutCard(Modifier.clickable(onClickLabel = "Join ${offer.name}", onClick = onJoin)) {
+private fun OfferCard(offer: OpenHoldout, onJoin: (() -> Unit)?) {
+    // The whole card joins, as the pill does (owner, 12 Oct canvas): the stake sheet is the confirm. Without a Join it is only read.
+    HoldoutCard(if (onJoin == null) Modifier else Modifier.clickable(onClickLabel = "Join ${offer.name}", onClick = onJoin)) {
         if (offer.test) TestCohortBadge(offer.testDayLength)
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
             Text(offer.name, style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary, modifier = Modifier.weight(1f))
-            JoinPill(onClick = onJoin)
+            onJoin?.let { JoinPill(onClick = it) }
         }
         // Under the title row, not beside the Join: the stake line gets the card's whole width and stays on one line.
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.tight), verticalAlignment = Alignment.Bottom) {

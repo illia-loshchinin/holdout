@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import holdout.app.chain.Deployment
 import holdout.app.claim.ClaimScreen
 import holdout.app.cohort.ForfeitScreen
+import holdout.app.holdout.waitLine
 import holdout.app.holdouts.MyHoldoutsModel
 import holdout.app.holdouts.MyHoldoutsScreen
 import holdout.app.lobby.LobbyScreen
@@ -26,6 +27,7 @@ import holdout.app.storage.Store
 import holdout.app.ui.ChainUnreachable
 import holdout.app.ui.Format
 import holdout.app.ui.SectionLabel
+import holdout.app.wallet.SignAction
 import holdout.core.CohortStatus
 import holdout.core.Comeback.forScreenOf
 import holdout.core.Journey
@@ -60,6 +62,7 @@ internal fun Shared.HoldoutsRoot(modifier: Modifier = Modifier) {
         onEvent = dispatch,
         onJoin = { cohort -> dispatch(NavEvent.OpenStake(cohort, seekerKnown = seekerKnown)) },
         modifier = modifier,
+        canJoin = !knownNotSeeker,
         header = {
             if (chain.offline) ChainUnreachable(chain.check.checking, chain.check.stillUnreachable, { checkChain(null) })
             if (v != null && v.config == null) SectionLabel("Holdouts are not live on ${Deployment.networkName.lowercase()} yet")
@@ -139,6 +142,7 @@ internal fun Shared.ForfeitHost(id: String, modifier: Modifier = Modifier) {
         joinBlocker = round?.entry?.let { e -> Journey.joinBlocker(e.cohort, v.profile, v.runningEnd(n), n, runningInBreach = v.runningInBreach(n), lateJoin = round.lateJoin) },
         // The stake sheet on the lost stake's chip (FR-037g).
         onJoin = { round?.entry?.let { e -> dispatch(NavEvent.OpenStake(e.address.base58(), offer?.tier ?: 0, seekerKnown)) } },
+        canJoin = !knownNotSeeker,
     )
 }
 
@@ -150,8 +154,10 @@ internal fun Shared.ClaimHost(id: String, modifier: Modifier = Modifier) {
     if (h == null || n == null) return Loading(modifier)
     RosterLoop(h)
     val claimSignature = chain.lastClaim?.takeIf { it.first == h.address }?.second
+    // A claim that may still land keeps Claim shut, and says so, until a chain read settles it.
+    val pending = chain.pendingFor(SignAction.Claim, h.address)
     ClaimScreen(
-        h, h.stage(n), chain.busy, chain.message, chain.messageIsWarning, claimSignature,
+        h, h.stage(n), chain.busy || pending != null, pending?.waitLine() ?: chain.message, chain.messageIsWarning && pending == null, claimSignature,
         onClaim = { holdouts.claim(sender, h) },
         onBack = { dispatch(NavEvent.Back) },
         modifier = modifier,
@@ -188,6 +194,7 @@ internal fun Shared.StakeSheetHost(sheet: Sheet.Stake, seekerGate: SeekerGate) {
     val v = view
     if (h == null || n == null || v == null) return Loading()
     RosterLoop(h)
+    val pending = chain.pendingFor(SignAction.Join, h.address)
     StakeSheet(
         h = h,
         skrBalance = v.skr,
@@ -195,9 +202,10 @@ internal fun Shared.StakeSheetHost(sheet: Sheet.Stake, seekerGate: SeekerGate) {
         now = n,
         // A running Holdout the member has missed a deadline in does not block: the join sends its record too (ES-17).
         joinBlocker = v.joinBlocker(h, n),
-        busy = chain.busy,
-        message = chain.message,
-        messageIsWarning = chain.messageIsWarning,
+        // A join of this Holdout that may still land keeps Stake shut, and says so, until a chain read settles it.
+        busy = chain.busy || pending != null,
+        message = pending?.waitLine() ?: chain.message,
+        messageIsWarning = chain.messageIsWarning && pending == null,
         onStake = { tier -> joinAsking(h, tier, n) },
         onGetTokens = { dispatch(NavEvent.OpenFaucet) },
         initialTier = sheet.tier,
