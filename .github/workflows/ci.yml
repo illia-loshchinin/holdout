@@ -32,10 +32,15 @@ name: CI
 # A pull request's run already tests its merge with the base, and the base is
 # merged into a branch before it lands (CLAUDE.md), so a merge into
 # 001-holdout-hackathon is not run again; main, which only takes releases, is.
+#
+# A draft pull request runs nothing (bash scripts/ci-local.sh is the check
+# before a PR is marked ready, CLAUDE.md); marking it ready starts the run, and
+# every push after that runs again.
 on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 # A new push supersedes the run in flight on the same ref; a finished run on main
@@ -64,6 +69,7 @@ jobs:
   # manual run, or a push with nothing to compare against, runs everything.
   changes:
     name: Code or documentation alone
+    if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -360,7 +366,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [changes, program, anchor, contract-tests, kotlin]
-    if: always()
+    if: always() && github.event.pull_request.draft != true
     steps:
       - name: Check the results
         run: |

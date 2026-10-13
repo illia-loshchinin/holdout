@@ -80,6 +80,7 @@ anchor, contract tests), the Kotlin job, both, or neither for documentation alon
 still let `CI` report. The README counts as code (Kotlin side), because a job checks its
 weaknesses table; fixtures, `.github/` and any script the list does not name reach both sides.
 A merge into `001-holdout-hackathon` is not run again: the pull request's run already tested it.
+A draft pull request runs nothing: check it with `ci-local.sh`, and marking it ready starts the run.
 
 ## Guards worth knowing
 
