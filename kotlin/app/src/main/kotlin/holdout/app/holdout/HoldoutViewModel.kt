@@ -307,7 +307,9 @@ class HoldoutViewModel(
         val started = ++refreshesStarted
         // Only a transaction that may still land needs the read's start time; one sent while it is out is not settled by its age.
         val readAt = if (_state.value.pending.isEmpty()) null else elapsed()
-        val view = if (fresh) chain.loadFresh(wallet) else chain.load(wallet)
+        // While one may still land, every read re-reads the memberships: none of the counters a kept one
+        // waits on moves for a day or a claim, so a kept membership would settle it unlanded (PR #72 review).
+        val view = if (fresh || readAt != null) chain.loadFresh(wallet) else chain.load(wallet)
         // The wallet changed while this read was out: its answer is not the new wallet's.
         if (wallet != address) return
         // Reads overlap — the 30-second pass, a pull to refresh, the one after an
