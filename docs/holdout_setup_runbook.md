@@ -111,7 +111,7 @@ What has to be funded, and from which key:
 | Scripted wallets | `operator` | ~1.12 SOL, 0.02 each, once; since 13 October the crank's payer (`operator`) also tops a wallet up in each scripted join, ≈ 0.0017 SOL a join, and stops 2 SOL above zero |
 | Sponsor float | `sponsor` | 0.05 SOL |
 | Faucet vault | `admin`, at `crank init` | **25 SOL** — it must last the whole judging period, to 11 November, with no top-up (FR-042a) |
-| Cohort rent | the crank payer, which is the `operator` key (decided 2026-10-11, L14; its risk is a README weakness) | the two test lobbies (Hackathon · Spark and Hackathon · Habit, since 13 October) each open a cohort every 30 minutes, 0.0033 SOL each, about **0.32 SOL a day**: about 9 SOL to 11 November, about 15 SOL to 30 November; plus about 0.002 SOL per scripted join, up to 9 a round someone real has joined. Nothing returns it on devnet (L14, H24) |
+| Cohort rent | the crank payer, which is the `operator` key (decided 2026-10-11, L14; its risk is a README weakness) | the two test lobbies (Hackathon · Spark and Hackathon · Habit, since 13 October) each open a cohort every 10 minutes (since 13 October evening, leagues 102 and 103), 0.0033 SOL each, about **0.95 SOL a day**: about 27 SOL to 11 November, about 45 SOL to 30 November; plus about 0.002 SOL per scripted join, up to 9 a round someone real has joined. Nothing returns it on devnet (L14, H24) |
 
 Devnet airdrops are rate-limited and often fail, which is the whole reason the
 faucet exists. Collect a bit at a time, from more than one source

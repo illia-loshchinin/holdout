@@ -38,7 +38,7 @@ data class OfferCardState(
             val test = h.isTest
             return OfferCardState(
                 cohort = h.address.base58(),
-                title = if (test) Format.testName(c) else Format.level(c),
+                title = Format.holdoutName(c),
                 tagline = if (test) Format.testTagline(c) else Format.levelTagline(c) ?: "${c.repsPerDay} push-ups a day",
                 atStake = Format.skr(Derive.atStake(c)),
                 joined = "at stake · ${c.memberCount} joined",

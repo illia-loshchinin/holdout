@@ -247,10 +247,10 @@ object Init {
     /**
      * The short test lobby, by default (FR-044a, decision H36, 2026-10-06; was
      * seven days, H32): **three 10-minute days at 5 reps a day, a new cohort every
-     * 30 minutes**, so a single judge lives through a whole cycle in about an hour,
-     * waiting at most half an hour for the next start. Devnet runs two, one per
-     * `--form` (Hackathon · Spark and Hackathon · Habit), with the same timing and
-     * rounds starting together (owner, 13 October).
+     * 10 minutes**, so a single judge lives through a whole cycle in about half an
+     * hour, waiting at most 10 minutes for the next start (owner, 13 October; every
+     * 30 minutes before). Devnet runs two, one per `--form` (Hackathon · Spark and
+     * Hackathon · Habit), with the same timing and rounds starting together.
      */
     const val DEFAULT_TEST_DAY_SECONDS = 600L
     const val DEFAULT_TEST_DAYS = 3L
@@ -271,7 +271,8 @@ object Init {
      * `--first-start` is required — any instant the admin chooses; `--day-seconds`,
      * `--days` and `--reps` default to three 10-minute days at 5 reps; `--form`
      * to Easy ([DEFAULT_TEST_FORM]);
-     * `--cadence` defaults to back-to-back cohorts (`days × day-seconds`) and
+     * `--cadence` defaults to one cohort a day (`day-seconds`), so rounds overlap and
+     * one is always about to start, and
      * `--join-lock` to [DEFAULT_TEST_JOIN_LOCK].
      */
     fun testLeagueParams(args: Args): LeagueParams {
@@ -293,7 +294,7 @@ object Init {
                 }
             } ?: configError("init --test-league needs --first-start: a test league starts when the admin chooses")
         // Cohorts may overlap: a new one every few minutes lets a tester join at any time.
-        val cadence = args.option("cadence")?.let { number("cadence", MIN_TEST_DAY_SECONDS..Long.MAX_VALUE / 1024) } ?: (days * daySeconds)
+        val cadence = args.option("cadence")?.let { number("cadence", MIN_TEST_DAY_SECONDS..Long.MAX_VALUE / 1024) } ?: daySeconds
         val joinLock = args.option("join-lock")?.let { number("join-lock", 0L..cadence) } ?: minOf(DEFAULT_TEST_JOIN_LOCK, cadence)
         return LeagueParams(leagueId.toInt(), days.toInt(), reps.toInt(), LeagueParams.EXERCISE_PUSHUP, form, firstStart, daySeconds, cadence, joinLock)
     }

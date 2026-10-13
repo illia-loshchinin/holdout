@@ -62,14 +62,15 @@ open at the same time, one per form: **Hackathon · Spark** (knees allowed) and 
 Habit** (toes only). Each round:
 
 - three 10-minute days, 5 reps a day: about 30 minutes in all;
-- a new round every 30 minutes, joinable right up to its start;
+- a new round every 10 minutes, so rounds overlap and one is always about to start, joinable right
+  up to its start;
 - labelled **DEVNET COHORT · 10-MINUTE DAYS** wherever it appears, with one combined *Hackathon*
   leaderboard;
 - topped up to 10 members by scripted members within a minute of someone real joining
   it (see below); a round nobody has joined stays empty.
 
 A Hackathon round lets one person run join → sittings → miss or finish → settlement → claim
-alone in a quarter of an hour. The demo video is recorded from one. Real Spark and Habit Holdouts always
+alone in about half an hour. The demo video is recorded from one. Real Spark and Habit Holdouts always
 use 24-hour days. Short days exist only in a program built with the `test-leagues` feature, and a
 mainnet build never carries it.
 

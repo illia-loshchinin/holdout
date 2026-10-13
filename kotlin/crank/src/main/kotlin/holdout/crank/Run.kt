@@ -21,6 +21,7 @@ import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import java.time.Instant
 
 /**
  * `crank run` (T071, contracts/crank-cli.md): one automation pass, in the one
@@ -272,6 +273,7 @@ object Run {
         rpc: Rpc,
         loadKeypair: (path: String, role: String) -> Keypair = Keypair::load,
         pause: suspend (Long) -> Unit = { delay(it) },
+        localClock: () -> Long = { Instant.now().epochSecond },
     ): JsonObject {
         checkArgs(args)
         val programId = config.programId
@@ -279,6 +281,8 @@ object Run {
         val pass = Pass(args.dryRun)
 
         val now = (rpc.chainTime() ?: failed("could not read chain time from ${config.rpcUrl}")).unixSeconds
+        // This machine's clock at that read: the loop moves `nextOpenAt` by the chain clock's lag.
+        val localTime = localClock()
         val configAddress = Pdas.config(programId)
         val onChain =
             when (val read = rpc.account(configAddress)) {
@@ -331,11 +335,12 @@ object Run {
                 }
             }
         }
-        val retired = retiredTestLeagues(leagues.associate { it.params.leagueId to it.params.form })
+        val formOf = leagues.associate { it.params.leagueId to it.params.form }
+        val retired = retiredTestLeagues(formOf)
         // A retired league holds only the lobby that replaced it, the newest of its own form: an
         // Easy league winding down never stops the Hard lobby (Codex review of #70).
-        val formOf = leagues.associate { it.params.leagueId to it.params.form }
-        fun retiredOfForm(form: Int): Set<Int> = retired.filter { formOf[it] == form }.toSet()
+        val retiredByForm = retired.groupBy { formOf.getValue(it) }.mapValues { it.value.toSet() }
+        fun retiredOfForm(form: Int): Set<Int> = retiredByForm[form].orEmpty()
         // A retired test league still opens the rounds its comebacks are owed in (FR-037e).
         val owed = mutableMapOf<Int, Long>()
         // Retired leagues whose debts could not be read hold the new lobby this pass rather than risk two open test leagues.
@@ -580,6 +585,7 @@ object Run {
                 put("command", "run")
                 put("dryRun", args.dryRun)
                 put("chainTime", now)
+                put("localTime", localTime)
                 put("failed", pass.failures)
                 nextOpen?.let { put("nextOpenAt", it) }
                 putJsonArray("steps") { pass.steps.forEach { add(it) } }

@@ -132,7 +132,7 @@ object Format {
     fun levelRule(c: holdout.core.CohortSnapshot): String? = levelRule(c.form)
 
     /** What the app calls [c]: its level ("Spark · 7-day"), or for a Hackathon round [testName] ("Hackathon · Spark", FR-044a). */
-    fun holdoutName(c: holdout.core.CohortSnapshot): String = if (c.leagueId >= holdout.core.LeagueParams.TEST_LEAGUE_MIN) testName(c) else level(c)
+    fun holdoutName(c: holdout.core.CohortSnapshot): String = if (holdout.app.chain.Deployment.isTestLeague(c.leagueId)) testName(c) else level(c)
 
     /** `SPARK · 7-DAY · DAY 3 OF 7` (`HACKATHON · SPARK · DAY 1 OF 3`): a running Holdout's header label (no calendar dates, constitution VI; ruling G3). */
     fun headerLabel(c: holdout.core.CohortSnapshot, day: Int): String = "${holdoutName(c)} · day $day of ${c.durationDays}".uppercase()
