@@ -47,8 +47,24 @@ import java.util.Base64
 class Rpc(
     private val endpoint: String = DEVNET,
     driver: Rpc20Driver = Rpc20Driver(endpoint, KtorNetworkDriver()),
+    /**
+     * Told each call the cluster refused or did not answer, with its reason —
+     * a rate limit, a timeout, a node error. A read still returns only null;
+     * this is how the app's log says why (the app passes it, the crank not).
+     */
+    private val onFailure: (method: String, reason: String) -> Unit = { _, _ -> },
 ) {
     private val rpc = driver
+
+    /** The endpoint's host alone, for messages: a hosted node's URL can carry its API key. */
+    private val host: String = runCatching { java.net.URI(endpoint).host }.getOrNull() ?: "the RPC node"
+
+    /**
+     * Why a call got no answer, naming the host. The HTTP client's own messages
+     * quote the full URL, and a hosted node's key can sit in its path or its
+     * query, so the endpoint and every URL are cut down to scheme and host.
+     */
+    private fun noAnswer(failure: Throwable): String = "no answer from $host: ${(failure.message ?: failure.javaClass.simpleName).replace(endpoint, host).replace(URL_AFTER_HOST, "$1")}"
 
     companion object {
         /**
@@ -397,11 +413,13 @@ class Rpc(
     )
 
     private suspend fun call(method: String, params: JsonArray): JsonElement? = attempt {
-        rpc.makeRequest(
-            JsonRpc20Request(method, params, method),
-            JsonElement.serializer(),
-        ).takeIf { it.error == null }?.result
-    }.getOrNull()
+        val response = rpc.makeRequest(JsonRpc20Request(method, params, method), JsonElement.serializer())
+        response.error?.let { onFailure(method, it.message) }
+        response.takeIf { it.error == null }?.result
+    }.getOrElse {
+        onFailure(method, noAnswer(it))
+        null
+    }
 
     /**
      * Like [call], but keeps the node's reason when it refuses, and tells a
@@ -412,14 +430,23 @@ class Rpc(
         response.error?.let { Answer.Refused(it.message) }
             ?: response.result?.let { Answer.Ok(it) }
             ?: Answer.Unanswered("$method returned neither a result nor an error")
-    }.getOrElse { Answer.Unanswered("$method got no answer from $endpoint: ${it.message}") }
+    }.getOrElse { Answer.Unanswered("$method got ${noAnswer(it)}") }
+        .also {
+            when (it) {
+                is Answer.Refused -> onFailure(method, it.message)
+                is Answer.Unanswered -> onFailure(method, it.message)
+                is Answer.Ok -> Unit
+            }
+        }
 
     private suspend fun request(method: String, params: JsonArray? = null): Long? = attempt {
-        rpc.makeRequest(
-            JsonRpc20Request(method, params ?: JsonArray(emptyList()), method),
-            Long.serializer(),
-        ).takeIf { it.error == null }?.result
-    }.getOrNull()
+        val response = rpc.makeRequest(JsonRpc20Request(method, params ?: JsonArray(emptyList()), method), Long.serializer())
+        response.error?.let { onFailure(method, it.message) }
+        response.takeIf { it.error == null }?.result
+    }.getOrElse {
+        onFailure(method, noAnswer(it))
+        null
+    }
 }
 
 /**
@@ -434,6 +461,9 @@ private inline fun <T> attempt(block: () -> T): Result<T> = try {
 } catch (e: Exception) {
     Result.failure(e)
 }
+
+/** Everything in a URL after its host — path and query, where a hosted RPC node's API key travels. */
+private val URL_AFTER_HOST = Regex("""(https?://[^\s/?#\],]+)[^\s\],]*""")
 
 /** Every 30 seconds while a cohort screen is visible (research R8). */
 const val COHORT_REFRESH_MILLIS = 30_000L
