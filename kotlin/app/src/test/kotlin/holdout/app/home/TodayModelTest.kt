@@ -227,4 +227,70 @@ class TodayModelTest {
         assertNull(TodayModel.comeback(view(cfg = null), start, seekerKnown = false))
         assertTrue(TodayModel.nudges(view(cfg = null), start).isEmpty())
     }
+
+    // ---- the compact offer card and the quiet row (FR-053, FR-069a) -----------------------------------
+
+    @Test
+    fun `the compact card's meta reads joined and closes in, with no boost`() {
+        val card = OfferCardState.of(holdout(1, start, boost = 480uL * skr), start - 2 * day - 3 * 3_600)
+        assertEquals("14 joined · closes in 2d 2h", card.compactMeta)
+    }
+
+    @Test
+    fun `a Hackathon card's compact meta counts down to its start`() {
+        val test = holdout(1, start + 750, leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, reps = 5, dayLength = 600, joined = 3, held = 250uL * skr, cutoff = start + 750)
+        assertEquals("3 joined · starts in 12m 30s", OfferCardState.of(test, start).compactMeta)
+    }
+
+    @Test
+    fun `while a Holdout runs the offers are one row - how many are open and the smallest stake among them`() {
+        val big = holdout(1, start + 2 * day, held = 12_500uL * skr)
+        val small = holdout(2, start + 3 * day, form = LeagueParams.FORM_TOES, days = 21, leagueId = LeagueParams.LEAGUE_21D, held = 9_000uL * skr)
+        val row = assertNotNull(TodayModel.offersRow(view(big, small), start))
+        assertEquals(2, row.open)
+        assertEquals("9,000 SKR", row.from)
+        assertEquals("2 open to join · from 9,000 SKR ›", row.line)
+    }
+
+    @Test
+    fun `the offers row counts only what the program would take behind a running Holdout`() {
+        val running = holdout(1, start - 2 * day, member = member(2))
+        val overlapping = holdout(2, start + 3 * day)
+        val backToBack = holdout(3, start + 5 * day, held = 8_000uL * skr)
+        val v = view(running, overlapping, backToBack, profile = profile(running = ProfileSnapshot.Running(running.address, start + 5 * day)))
+        val row = assertNotNull(TodayModel.offersRow(v, start))
+        assertEquals(1, row.open)
+        assertEquals("8,000 SKR", row.from)
+    }
+
+    @Test
+    fun `no offers row while a lobby place is held, with nothing to join, or before the chain answers`() {
+        val lobby = holdout(1, start + 2 * day, member = member(0))
+        val other = holdout(2, start + 3 * day)
+        assertNull(TodayModel.offersRow(view(lobby, other), start))
+        assertNull(TodayModel.offersRow(view(holdout(3, start - 3 * day)), start))
+        assertNull(TodayModel.offersRow(null, null))
+        assertNull(TodayModel.offersRow(view(other, cfg = null), start))
+    }
+
+    // ---- the Daily 25's foot: one quiet line to Me ---------------------------------------------------
+
+    @Test
+    fun `the foot counts the days to the next streak freeze`() {
+        assertEquals("2 more days to a streak freeze", TodayModel.streakFoot(streak = 12, freezes = 0))
+        assertEquals("1 more day to a streak freeze", TodayModel.streakFoot(streak = 13, freezes = 0))
+        assertEquals("7 more days to a streak freeze", TodayModel.streakFoot(streak = 14, freezes = 0))
+        assertEquals("6 more days to a streak freeze", TodayModel.streakFoot(streak = 1, freezes = 0))
+    }
+
+    @Test
+    fun `the foot with freezes held says how many missed days they cover`() {
+        assertEquals("1 freeze held · covers one missed day", TodayModel.streakFoot(streak = 12, freezes = 1))
+        assertEquals("2 freezes held · cover two missed days", TodayModel.streakFoot(streak = 12, freezes = 2))
+    }
+
+    @Test
+    fun `the foot with no streak says what earns the first freeze`() {
+        assertEquals("7 days in a row earn a streak freeze", TodayModel.streakFoot(streak = 0, freezes = 0))
+    }
 }

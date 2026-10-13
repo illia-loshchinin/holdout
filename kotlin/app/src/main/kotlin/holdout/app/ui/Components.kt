@@ -123,8 +123,11 @@ object Format {
 
     fun levelRule(c: holdout.core.CohortSnapshot): String? = levelRule(c.form)
 
-    /** `SPARK · 7-DAY · DAY 3 OF 7`: a running Holdout's header label (no calendar dates, constitution VI; ruling G3). */
-    fun headerLabel(c: holdout.core.CohortSnapshot, day: Int): String = "${level(c)} · day $day of ${c.durationDays}".uppercase()
+    /**
+     * `SPARK · 7-DAY · DAY 3 OF 7`: a running Holdout's header label (no calendar dates, constitution VI; ruling G3);
+     * a [test] Holdout keeps its own name, `HACKATHON · 3-DAY · DAY 2 OF 3`.
+     */
+    fun headerLabel(c: holdout.core.CohortSnapshot, day: Int, test: Boolean = false): String = "${if (test) testName(c) else level(c)} · day $day of ${c.durationDays}".uppercase()
 
     /** `SPARK · 7-DAY · STARTS IN 2D 4H`: a Holdout in its lobby. */
     fun lobbyHeaderLabel(c: holdout.core.CohortSnapshot, secondsToStart: Long): String = "${level(c)} · starts in ${countdown(secondsToStart)}".uppercase()

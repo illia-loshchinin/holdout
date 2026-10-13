@@ -32,7 +32,7 @@ class DayHeroTest {
             HoldoutTheme {
                 DayHero(
                     label = label,
-                    countdown = "14h 02m left",
+                    countdown = { Text("14h 02m left") },
                     number = "25",
                     unit = "push-ups",
                     bars = { BankBars(target = 25, banked = 10) },

@@ -10,17 +10,14 @@ import androidx.compose.ui.Modifier
 import holdout.app.home.CohortHome
 import holdout.app.home.HomeScreen
 import holdout.app.home.HomeState
-import holdout.app.home.NudgeRow
 import holdout.app.home.TodayModel
 import holdout.app.nav.NavEvent
-import holdout.app.nav.Screen
 import holdout.app.nav.Sitting
 import holdout.app.sitting.BankingController
 import holdout.app.sitting.StoppedScreen
 import holdout.app.sitting.StoppedUi
 import holdout.app.storage.Store
 import holdout.app.streak.StreakMilestones
-import holdout.app.streak.ToesMeter
 import holdout.app.ui.ChainCheckBox
 import holdout.core.HoldoutDay
 
@@ -71,8 +68,8 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
             mayStillLand = day.mayStillLand,
             onStart = { startDay(h, stage.dayIndex) },
             onSubmit = { submitDayOf(h, it) },
-            // Its screen opens over Today (FR-069b); Back returns here.
-            onDetail = { dispatch(NavEvent.Open(Screen.Detail(h.address.base58()))) },
+            // The crowd strip opens its screen over Today (FR-069b), the chip and the offers row switch tabs; Back returns here.
+            onEvent = dispatch,
             onGetTokens = { dispatch(NavEvent.OpenFaucet) },
             modifier = modifier,
             newPhone = newPhone,
@@ -81,7 +78,10 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
             checking = chain.check.checking,
             stillUnreachable = chain.check.stillUnreachable,
             onCheck = { checkChain(h.address) },
-            otherHoldouts = { TodayModel.nudges(view, chainNow, exceptCohort = h.address.base58()).forEach { NudgeRow(it) { dispatch(it.go) } } },
+            nudges = TodayModel.nudges(view, chainNow, exceptCohort = h.address.base58()),
+            // A wallet this session found holds no Seeker gets no card whose tap is a stake it cannot make (G12).
+            comeback = TodayModel.comeback(view, chainNow, seekerKnown).takeUnless { knownNotSeeker },
+            offers = TodayModel.offersRow(view, chainNow),
         )
         return
     }
@@ -126,12 +126,12 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
                 streak = streak.current,
                 longestStreak = streak.longest,
                 freezes = streak.freezes,
-                toes = ToesMeter(store, DAILY_25).read(wallet, dayIndex),
                 yesterdayNote = yesterday,
                 secondsLeftToday = if (offline) null else chainNow?.let { HoldoutDay.secondsLeftIn(it) },
                 nudges = nudges,
                 comeback = comeback,
                 holdouts = holdoutsBlock,
+                offline = offline,
                 checking = chain.check.checking,
                 stillUnreachable = chain.check.stillUnreachable,
                 canJoin = !knownNotSeeker,

@@ -16,7 +16,7 @@ internal fun DayTone.color(): Color = when (this) {
 }
 
 /**
- * The day's button, as Today and Standing's day strip both draw it: Start today's N,
+ * The day's button, as Today and Standing's day strip both draw it: Start,
  * Keep going or Submit day N run [onStart] or [onSubmit] with the day's index; a
  * day short of SOL says so, with its way out; a send under way is the busy button.
  */

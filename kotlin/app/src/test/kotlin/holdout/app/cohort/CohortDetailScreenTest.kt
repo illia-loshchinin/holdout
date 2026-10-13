@@ -232,14 +232,14 @@ class CohortDetailScreenTest {
         show(day = day, onStartDay = { starts++ })
 
         compose.onNodeWithText("DAY 5 · 25 push-ups · ${Format.countdown(day.timeLeft!!)} left").assertIsDisplayed()
-        compose.onNodeWithText("Start today's 25").performClick()
+        compose.onNodeWithText("Start").performClick()
         assertEquals(1, starts)
     }
 
     @Test
     fun `the day strip sits above the counter`() {
         show(day = today())
-        val strip = compose.onNodeWithText("Start today's 25").fetchSemanticsNode().positionInRoot.y
+        val strip = compose.onNodeWithText("Start").fetchSemanticsNode().positionInRoot.y
         val counter = compose.onNodeWithText("STILL STANDING").fetchSemanticsNode().positionInRoot.y
         assertTrue(strip < counter)
     }
@@ -255,7 +255,7 @@ class CohortDetailScreenTest {
         show(day = today(done = true), stage = Stage.Active(4, true))
 
         compose.onNodeWithText("Day 5 is done and on chain.").assertIsDisplayed()
-        compose.onNodeWithText("Start today's 25").assertDoesNotExist()
+        compose.onNodeWithText("Start").assertDoesNotExist()
         compose.onNodeWithText("DAY 5 · 25 push-ups", substring = true).assertDoesNotExist()
         compose.onNodeWithText("left", substring = true).assertDoesNotExist()
     }
@@ -291,7 +291,7 @@ class CohortDetailScreenTest {
     @Test
     fun `no strip for a Holdout the member only watches`() {
         show(h = Fx.holdout(cohort, null), day = today())
-        compose.onNodeWithText("Start today's 25").assertDoesNotExist()
+        compose.onNodeWithText("Start").assertDoesNotExist()
         compose.onNodeWithText("DAY 5 · 25 push-ups", substring = true).assertDoesNotExist()
     }
 
@@ -300,12 +300,12 @@ class CohortDetailScreenTest {
         val done = Fx.cohort(joined = 10, start = Fx.START - 7 * Fx.DAY)
         val h = Fx.holdout(done, Fx.member(days = 7, state = MembershipSnapshot.State.Finished))
         show(h = h, members = Fx.roster(3, 0, finished = true), at = done.start + 7 * Fx.DAY + 240, day = today())
-        compose.onNodeWithText("Start today's 25").assertDoesNotExist()
+        compose.onNodeWithText("Start").assertDoesNotExist()
     }
 
     @Test
     fun `no strip when the host gives none`() {
         show()
-        compose.onNodeWithText("Start today's 25").assertDoesNotExist()
+        compose.onNodeWithText("Start").assertDoesNotExist()
     }
 }

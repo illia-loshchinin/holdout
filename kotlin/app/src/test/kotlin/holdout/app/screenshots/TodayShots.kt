@@ -7,10 +7,13 @@ import holdout.app.home.CohortHome
 import holdout.app.home.HoldoutsBlock
 import holdout.app.home.HomeScreen
 import holdout.app.home.HomeState
+import holdout.app.home.NudgeRowState
+import holdout.app.home.NudgeTone
 import holdout.app.home.OfferCardState
+import holdout.app.home.OffersRow
+import holdout.app.nav.NavEvent
 import holdout.app.nav.Tab
 import holdout.app.nav.TabBadges
-import holdout.app.streak.ToesMeter
 import holdout.app.testutil.AnimationsOff
 import holdout.core.CohortSnapshot
 import holdout.core.LeagueParams
@@ -46,9 +49,10 @@ class TodayShots {
         streak = 12,
         secondsLeftToday = 14_760,
         holdouts = HoldoutsBlock.Open(listOf(spark, habit)),
+        nudges = listOf(NudgeRowState("You finished · claim 1,412 SKR", NavEvent.TourDone, NudgeTone.Success)),
     )
 
-    private fun t1(name: String, state: HomeState, badge: Boolean = true) = compose.shoot("today", name, heightDp = 1150) {
+    private fun t1(name: String, state: HomeState, badge: Boolean = true) = compose.shoot("today", name) {
         Tabbed(Tab.Today, TabBadges(today = badge)) {
             HomeScreen(state, onStart = {}, onEvent = {}, onJoin = {}, onCheck = {})
         }
@@ -61,11 +65,7 @@ class TodayShots {
     fun t1PartWay() = t1("t1-part-way", fresh.copy(remainingToday = 15, bankedToday = 10, freezes = 1))
 
     @Test
-    fun t1Done() = t1(
-        "t1-done",
-        fresh.copy(remainingToday = 0, bankedToday = 25, completedToday = true, streak = 13, toes = ToesMeter.Meter(toes = 18, measured = 25, best = 25, week = listOf(10, 16, 14, 22, 25, 18, 24))),
-        badge = false,
-    )
+    fun t1Done() = t1("t1-done", fresh.copy(remainingToday = 0, bankedToday = 25, completedToday = true, streak = 13), badge = false)
 
     @Test
     fun t1Milestone() = t1(
@@ -76,6 +76,12 @@ class TodayShots {
 
     @Test
     fun t1NewPhone() = t1("t1-new-phone", fresh.copy(newPhone = true))
+
+    @Test
+    fun t1Unreachable() = t1("t1-devnet-bar", fresh.copy(secondsLeftToday = null, holdouts = HoldoutsBlock.Unreachable, nudges = emptyList()))
+
+    @Test
+    fun t1LobbyHeld() = t1("t1-lobby-held", fresh.copy(holdouts = HoldoutsBlock.Hidden, nudges = listOf(NudgeRowState("Spark · 7-day lobby · starts in 2d 0h", NavEvent.TourDone))))
 
     @Test
     fun t1PhoneView() = compose.shoot("today", "t1-fresh-phone") {
@@ -116,7 +122,7 @@ class TodayShots {
         MembershipSnapshot(key(5), 1, 1_250uL * skr, start - day, 10, MembershipSnapshot.State.Joined),
     )
 
-    private fun t2(name: String, banked: Int = 0, todayDone: Boolean = false, pendingDay: Int? = null, at: Long = noon, offline: Boolean = false, canPayFees: Boolean = true, heightDp: Int? = null, newPhone: Boolean = false) = compose.shoot("today", name, heightDp = heightDp) {
+    private fun t2(name: String, banked: Int = 0, todayDone: Boolean = false, pendingDay: Int? = null, at: Long = noon, offline: Boolean = false, canPayFees: Boolean = true, mayStillLand: Boolean = false, heightDp: Int? = null, newPhone: Boolean = false) = compose.shoot("today", name, heightDp = heightDp) {
         Tabbed(Tab.Today, TabBadges(today = !todayDone)) {
             CohortHome(
                 h = h,
@@ -132,11 +138,14 @@ class TodayShots {
                 messageIsWarning = false,
                 onStart = {},
                 onSubmit = {},
-                onDetail = {},
+                onEvent = {},
                 onGetTokens = {},
                 newPhone = newPhone,
                 streak = 12,
                 canPayFees = canPayFees,
+                mayStillLand = mayStillLand,
+                nudges = listOf(NudgeRowState("You finished · claim 1,412 SKR", NavEvent.TourDone, NudgeTone.Success)),
+                offers = OffersRow(2, "9,000 SKR"),
             )
         }
     }
@@ -158,4 +167,16 @@ class TodayShots {
 
     @Test
     fun t2DoneNotSent() = t2("t2-done-not-sent", pendingDay = 11)
+
+    @Test
+    fun t2Offline() = t2("t2-devnet-bar", offline = true)
+
+    @Test
+    fun t2DoneWaitingForNetwork() = t2("t2-done-waiting", pendingDay = 11, offline = true)
+
+    @Test
+    fun t2ShortOfSol() = t2("t2-short-of-sol", pendingDay = 11, canPayFees = false)
+
+    @Test
+    fun t2SentNotConfirmed() = t2("t2-sent-not-confirmed", pendingDay = 11, mayStillLand = true)
 }

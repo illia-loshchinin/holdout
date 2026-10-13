@@ -1,19 +1,29 @@
 package holdout.app.home
 
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.chain.Deployment
 import holdout.app.chain.Holdout
+import holdout.app.nav.NavEvent
+import holdout.app.nav.Screen
+import holdout.app.nav.Tab
 import holdout.app.testutil.AnimationsOff
 import holdout.app.testutil.TALL_PHONE
+import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
+import holdout.app.ui.theme.Spacing
 import holdout.core.CohortSnapshot
 import holdout.core.LeagueParams
 import holdout.core.LeagueSnapshot
@@ -25,12 +35,13 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
- * Today with a Holdout running (T2, board 5 · 5b; FR-038, FR-046, FR-047,
- * FR-024b, FR-069a): the day first — the day button in each state and the
- * deadline — with the crowd as one strip that opens Standing, and the callbacks.
- * Habit · 21-day, day 12, with 5 started.
+ * Today with a Holdout running (T2, board Today in a Holdout; FR-038, FR-046, FR-047, FR-024b, FR-069a,
+ * FR-069h): the Holdout's day in the one 312 dp hero — the number, the bars, the sub line and the day
+ * button in each state — with the crowd as the hero's footer strip, the rows group, the one quiet offers
+ * row and the devnet bar, and the callbacks. Habit · 21-day, day 12, with 5 started.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TALL_PHONE)
@@ -80,7 +91,7 @@ class CohortHomeTest {
 
     private var started = 0
     private val submitted = mutableListOf<Int>()
-    private var details = 0
+    private val events = mutableListOf<NavEvent>()
     private var tokens = 0
     private var checks = 0
 
@@ -95,11 +106,15 @@ class CohortHomeTest {
         at: Long = now,
         members: List<MembershipSnapshot>? = roster,
         stillUnreachable: Boolean = false,
+        checking: Boolean = false,
+        mayStillLand: Boolean = false,
         holdout: Holdout = h,
         newPhone: Boolean = false,
         message: String? = null,
         messageIsWarning: Boolean = false,
         index: Int = 11,
+        offers: OffersRow? = null,
+        rows: List<String> = emptyList(),
     ) {
         compose.setContent {
             HoldoutTheme {
@@ -117,13 +132,17 @@ class CohortHomeTest {
                     messageIsWarning = messageIsWarning,
                     onStart = { started++ },
                     onSubmit = { submitted += it },
-                    onDetail = { details++ },
+                    onEvent = { events += it },
                     onGetTokens = { tokens++ },
                     streak = 12,
                     newPhone = newPhone,
                     canPayFees = canPayFees,
+                    mayStillLand = mayStillLand,
+                    checking = checking,
                     stillUnreachable = stillUnreachable,
                     onCheck = { checks++ },
+                    offers = offers,
+                    nudges = rows.map { NudgeRowState(it, NavEvent.Open(Screen.Claim("c"))) },
                 )
             }
         }
@@ -131,23 +150,56 @@ class CohortHomeTest {
 
     private fun text(s: String, substring: Boolean = false) = compose.onNode(hasText(s, substring = substring))
 
+    private fun colourOf(s: String): androidx.compose.ui.graphics.Color {
+        val result = mutableListOf<TextLayoutResult>()
+        compose.onNode(hasText(s)).fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(result)
+        return result.first().layoutInput.style.color
+    }
+
+    // ---- the hero's frame and header ------------------------------------------------------------------
+
     @Test
-    fun `the header names the level and the day, with no date`() {
+    fun `the Holdout's day is in the one 312 dp hero, labelled with the level and the day, no date`() {
         show()
+        text("TODAY").assertIsDisplayed()
         text("HABIT · 21-DAY · DAY 12 OF 21").assertIsDisplayed()
+        assertEquals(312f, compose.onNodeWithTag("day-hero").getUnclippedBoundsInRoot().height.value)
     }
 
     @Test
-    fun `the crowd is one strip under the day - standing of started, the member's share - and opens Standing`() {
+    fun `the streak chip is a button to Me`() {
+        show()
+        compose.onNodeWithContentDescription("12-day streak. Opens your streak on Me.").performClick()
+        assertEquals(listOf<NavEvent>(NavEvent.SelectTab(Tab.Me)), events)
+    }
+
+    @Test
+    fun `on chain the chip shows the day extended`() {
+        show(todayDone = true)
+        compose.onNodeWithContentDescription("12-day streak, extended today. Opens your streak on Me.").assertExists()
+    }
+
+    // ---- the crowd strip: the hero's footer ----------------------------------------------------------
+
+    @Test
+    fun `the crowd is the hero's footer strip - standing of started, the member's share - and opens the Holdout's screen`() {
         show()
         // Pool 975 SKR over 5,000 standing: 243.75 for the member.
         text("4 of 5 still standing · your share 243.75 SKR").assertIsDisplayed()
         text("4 of 5 still standing", substring = true).performClick()
-        assertEquals(1, details)
+        assertEquals(listOf<NavEvent>(NavEvent.Open(Screen.Detail(h.address.base58()))), events)
     }
 
     @Test
-    fun `the counter, the pool card and the boost line are Standing's, not Today's`() {
+    fun `the strip sits inside the hero frame`() {
+        show()
+        val hero = compose.onNodeWithTag("day-hero").getUnclippedBoundsInRoot()
+        val strip = text("4 of 5 still standing", substring = true).getUnclippedBoundsInRoot()
+        assertTrue(strip.top >= hero.top && strip.bottom <= hero.bottom, "strip $strip in hero $hero")
+    }
+
+    @Test
+    fun `the counter, the pool card and the boost line are the Holdout screen's, not Today's`() {
         show()
         text("Prize pool").assertDoesNotExist()
         text("Your share now").assertDoesNotExist()
@@ -182,65 +234,41 @@ class CohortHomeTest {
     }
 
     @Test
-    fun `the streak chip is in the header row, and the footer is gone`() {
-        show()
-        compose.onNodeWithContentDescription("12-day streak").assertExists()
-        compose.onNodeWithContentDescription("12-day streak").assertIsDisplayed()
-    }
-
-    @Test
     fun `nothing dropped, nothing said`() {
         show(members = roster.take(4))
         text("dropped since yesterday", substring = true).assertDoesNotExist()
     }
 
-    @Test
-    fun `a new phone says nothing is banked on this device, with the Holdout's own target`() {
-        show(newPhone = true)
-        text("No banked reps on this device today. 25 to go.").assertIsDisplayed()
-        text("Start today's 25").assertIsDisplayed()
-    }
+    // ---- the day, state by state ------------------------------------------------------------------------
 
     @Test
-    fun `the new-phone banner takes the target from the Holdout`() {
-        show(newPhone = true, holdout = h.copy(cohort = cohort.copy(repsPerDay = 15)))
-        text("No banked reps on this device today. 15 to go.").assertIsDisplayed()
-    }
-
-    @Test
-    fun `the new-phone banner is not drawn on a phone that is not new`() {
+    fun `to do - 25 push-ups, the bars empty, it counts as the Daily 25 too, and Start`() {
         show()
-        text("No banked reps on this device", substring = true).assertDoesNotExist()
-    }
-
-    @Test
-    fun `the new-phone banner leaves once today is done, whatever it was told`() {
-        show(newPhone = true, todayDone = true)
-        text("No banked reps on this device", substring = true).assertDoesNotExist()
-    }
-
-    @Test
-    fun `to do - nothing banked, the way to do it and Start today's 25`() {
-        show()
-        text("25 push-ups").assertIsDisplayed()
-        text("all at once or 10 at a time").assertIsDisplayed()
-        text("Start today's 25").performClick()
+        text("25").assertIsDisplayed()
+        text("PUSH-UPS").assertIsDisplayed()
+        compose.onNodeWithContentDescription("0 of 3 blocks banked").assertExists()
+        text("Counts as your Daily 25 too.").assertIsDisplayed()
+        text("Start").performClick()
         assertEquals(1, started)
+        text("Start today's 25").assertDoesNotExist()
     }
 
     @Test
-    fun `part-way - what is banked, what is left and Keep going`() {
+    fun `part-way - what is left, the first bar, what is banked for good and Keep going`() {
         show(banked = 10)
-        text("10 of 25 banked").assertIsDisplayed()
-        text("15 to go").assertIsDisplayed()
+        text("15").assertIsDisplayed()
+        text("TO GO").assertIsDisplayed()
+        compose.onNodeWithContentDescription("1 of 3 blocks banked").assertExists()
+        text("10 banked for good").assertIsDisplayed()
         text("Keep going").performClick()
         assertEquals(1, started)
     }
 
     @Test
-    fun `the last 10 minutes warn that unfinished reps won't count, and never refuse to start`() {
+    fun `the last 10 minutes warn in words, that unfinished reps won't count, and never refuse to start`() {
         show(banked = 10, at = start + 12 * day - 1 - 510)
-        text("15 push-ups still needed").assertIsDisplayed()
+        text("15").assertIsDisplayed()
+        text("STILL NEEDED").assertIsDisplayed()
         text("Under 10 minutes left. Unfinished reps won't count.").assertIsDisplayed()
         compose.onNodeWithContentDescription("Under 10 minutes left, 8m 30s").assertExists()
         text("Keep going").assertIsEnabled()
@@ -249,65 +277,54 @@ class CohortHomeTest {
     }
 
     @Test
-    fun `offline before the sitting - the chain can't be reached, the reps still count once sent, and Check again`() {
-        show(offline = true)
-        text("${Deployment.networkName} isn't answering").assertIsDisplayed()
-        text("You can still do today's reps. The day only counts once it reaches the chain before the deadline.").assertIsDisplayed()
-        text("Retry").performClick()
-        assertEquals(1, checks)
-        text("Start today's 25").assertIsDisplayed()
-    }
-
-    @Test
-    fun `a failed check says the chain still can't be reached`() {
-        show(offline = true, stillUnreachable = true)
-        text("${Deployment.networkName} still isn't answering").assertIsDisplayed()
-    }
-
-    @Test
-    fun `done and offline - waiting for network, sent when Holdout is open, with the time left`() {
-        show(pendingDay = 11, offline = true)
-        text("Done — waiting for network").assertIsDisplayed()
-        text("Your 25 are saved on this phone. It only counts once it reaches the chain before the deadline: it's sent when Holdout is open and back online, and you approve it in your wallet.").assertIsDisplayed()
-        text("Retry").performClick()
-        assertEquals(1, checks)
-        text("4h 06m").assertIsDisplayed()
+    fun `the time left sits in the hero header while the day is open`() {
+        show()
+        text("left").assertExists()
+        compose.onNodeWithContentDescription("4h 06m left").assertExists()
     }
 
     @Test
     fun `done and online, the send under way - the wallet is out and the button says so`() {
         show(pendingDay = 11, busy = true)
-        text("Done — sending to the chain").assertIsDisplayed()
+        text("DONE").assertIsDisplayed()
         text("Waiting for your wallet…").assertIsNotEnabled()
-        text("Your 25 are counted on this phone. It only counts once it reaches the chain before the deadline: approve it in your wallet.").assertIsDisplayed()
+        text("Approve it in your wallet to put day 12 on chain.").assertIsDisplayed()
     }
 
     @Test
     fun `done and the send did not land - tap to submit day 12`() {
         show(pendingDay = 11, autoSendTried = true)
-        text("Done — tap to submit").assertIsDisplayed()
+        text("Counted on this phone. It counts once it is on chain.").assertIsDisplayed()
         text("Submit day 12").performClick()
         assertEquals(listOf(11), submitted)
     }
 
     @Test
-    fun `done but short of SOL - the day can't be submitted, and Get test tokens is the way`() {
-        show(pendingDay = 11, canPayFees = false)
-        text("Today's 25 are done").assertIsDisplayed()
-        text("Not on chain yet.").assertIsDisplayed()
-        text("Not enough devnet SOL for the fee. Test tokens include some.").assertIsDisplayed()
+    fun `done and a send that may still land - Submit is shut and the day says why`() {
+        show(pendingDay = 11, autoSendTried = true, mayStillLand = true)
+        text("Day 12 may still land. Sending opens again once devnet answers.").assertIsDisplayed()
         text("Submit day 12").assertIsNotEnabled()
+    }
+
+    @Test
+    fun `done but short of SOL - Get test tokens is the button and the sub line says why`() {
+        show(pendingDay = 11, canPayFees = false)
+        text("DONE").assertIsDisplayed()
+        text("Not enough devnet SOL to put day 12 on chain.").assertIsDisplayed()
+        text("Submit day 12").assertDoesNotExist()
         text("Get test tokens").performClick()
         assertEquals(1, tokens)
         assertEquals(emptyList(), submitted)
     }
 
     @Test
-    fun `submitted - today is on chain and day 13 opens in a countdown, with no deadline countdown`() {
+    fun `submitted - on chain, the bars full, and day 13 opens in a countdown instead of a deadline`() {
         show(todayDone = true)
-        text("Today is done and on chain.").assertIsDisplayed()
+        text("ON CHAIN").assertIsDisplayed()
+        compose.onNodeWithContentDescription("3 of 3 blocks banked").assertExists()
+        text("Streak +1. It counted as your Daily 25.").assertIsDisplayed()
         text("Day 13 opens in 4h 06m.").assertIsDisplayed()
-        text("Start today's 25").assertDoesNotExist()
+        text("Start").assertDoesNotExist()
         text("left").assertDoesNotExist()
         text("Next day opens", substring = true).assertDoesNotExist()
     }
@@ -323,7 +340,7 @@ class CohortHomeTest {
     @Test
     fun `the landed day's message is not repeated under the done card`() {
         show(todayDone = true, message = "Day 12 is on chain.", messageIsWarning = false)
-        text("Today is done and on chain.").assertIsDisplayed()
+        text("ON CHAIN").assertIsDisplayed()
         text("Day 12 is on chain.").assertDoesNotExist()
     }
 
@@ -333,27 +350,149 @@ class CohortHomeTest {
         text("Declined in your wallet.").assertIsDisplayed()
     }
 
+    // ---- a new phone ----------------------------------------------------------------------------------
+
     @Test
-    fun `the time left sits with the day while it is open`() {
-        show()
-        text("left").assertExists()
-        compose.onNodeWithContentDescription("4h 06m left").assertExists()
+    fun `a new phone says nothing is banked on this device, with the Holdout's own target, and keeps Start`() {
+        show(newPhone = true)
+        text("No banked reps on this device today. 25 to go.").assertIsDisplayed()
+        text("Start").assertIsDisplayed()
     }
 
     @Test
-    fun `no Daily 25 link and no roster or details buttons - the strip is the way to Standing`() {
+    fun `the new-phone line takes the target from the Holdout`() {
+        show(newPhone = true, holdout = h.copy(cohort = cohort.copy(repsPerDay = 15)))
+        text("No banked reps on this device today. 15 to go.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the new-phone line is not drawn on a phone that is not new`() {
         show()
+        text("No banked reps on this device", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `the new-phone line leaves once today is done, whatever it was told`() {
+        show(newPhone = true, todayDone = true)
+        text("No banked reps on this device", substring = true).assertDoesNotExist()
+    }
+
+    // ---- the rows group and the quiet offers row ------------------------------------------------------
+
+    @Test
+    fun `the rows group sits after the hero with the section gap above it`() {
+        show(rows = listOf("You finished · claim 1,412 SKR"))
+        val hero = compose.onNodeWithTag("day-hero").getUnclippedBoundsInRoot()
+        val row = text("You finished · claim 1,412 SKR").getUnclippedBoundsInRoot()
+        assertEquals(Spacing.betweenSections.value, (row.top - hero.bottom).value, 0.5f)
+    }
+
+    @Test
+    fun `while a Holdout runs the offers are one quiet row in the secondary colour, and it opens Holdouts`() {
+        show(offers = OffersRow(open = 2, from = "9,000 SKR"))
+        val line = "2 open to join · from 9,000 SKR ›"
+        text(line).assertIsDisplayed()
+        assertEquals(HoldoutColors.TextSecondary, colourOf(line))
+        val layout = mutableListOf<TextLayoutResult>()
+        compose.onNode(hasText(line)).fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layout)
+        assertEquals(emptyList(), layout.first().layoutInput.text.spanStyles, "no accent or money-colour span")
+        text(line).performClick()
+        assertEquals(listOf<NavEvent>(NavEvent.SelectTab(Tab.Holdouts)), events)
+    }
+
+    @Test
+    fun `no offers row without offers, and no cards ever`() {
+        show()
+        text("open to join", substring = true).assertDoesNotExist()
+        text("Join").assertDoesNotExist()
         text("The Daily 25", substring = true).assertDoesNotExist()
-        text("Who's still standing").assertDoesNotExist()
-        text("Holdout details").assertDoesNotExist()
-        text("About Holdout").assertDoesNotExist()
         text("HOLDOUTS OPEN TO JOIN").assertDoesNotExist()
     }
 
     @Test
-    fun `a Hackathon Holdout wears its badge`() {
-        val test = h.copy(cohort = cohort.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, dayLength = 600))
-        show(holdout = test, at = start + 5 * 600 + 100, members = null)
-        text("DEVNET COHORT · 10-MINUTE DAYS").performScrollTo().assertIsDisplayed()
+    fun `no roster or details buttons - the strip is the way to the Holdout`() {
+        show()
+        text("Who's still standing").assertDoesNotExist()
+        text("Holdout details").assertDoesNotExist()
+        text("About Holdout").assertDoesNotExist()
+    }
+
+    // ---- the devnet bar (FR-069h) ---------------------------------------------------------------------
+
+    @Test
+    fun `offline before the sitting - the bar says devnet isn't answering, the reps still count, and Retry, and Start stays`() {
+        show(offline = true)
+        text("${Deployment.networkName} isn't answering").assertIsDisplayed()
+        text("Your reps still count on this phone.").assertIsDisplayed()
+        text("Retry").performClick()
+        assertEquals(1, checks)
+        text("Start").assertIsEnabled()
+    }
+
+    @Test
+    fun `the bar sits directly under the header, above the hero`() {
+        show(offline = true)
+        val header = text("TODAY").getUnclippedBoundsInRoot()
+        val bar = text("${Deployment.networkName} isn't answering").getUnclippedBoundsInRoot()
+        val hero = compose.onNodeWithTag("day-hero").getUnclippedBoundsInRoot()
+        assertTrue(bar.top > header.bottom, "bar ${bar.top} under header ${header.bottom}")
+        assertTrue(bar.bottom <= hero.top && hero.top - bar.bottom < 80.dp, "bar ${bar.bottom}, hero ${hero.top}")
+    }
+
+    @Test
+    fun `no can't-be-reached row, no Check again button and no old notice anywhere`() {
+        show(offline = true)
+        text("can't be reached", substring = true).assertDoesNotExist()
+        text("Check again").assertDoesNotExist()
+        text("You can still do today's reps", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `a failed check says devnet still isn't answering`() {
+        show(offline = true, stillUnreachable = true)
+        text("${Deployment.networkName} still isn't answering").assertIsDisplayed()
+    }
+
+    @Test
+    fun `while checking the bar reads Checking and cannot be pressed`() {
+        show(offline = true, checking = true)
+        text("Checking…").assertIsDisplayed().assertIsNotEnabled()
+    }
+
+    @Test
+    fun `done and offline - the disabled waiting button over what happens next, and the bar`() {
+        show(pendingDay = 11, offline = true)
+        text("Done — waiting for network").assertIsDisplayed().assertIsNotEnabled()
+        text("Saved on this phone. It sends when devnet answers.").assertIsDisplayed()
+        text("${Deployment.networkName} isn't answering").assertIsDisplayed()
+        text("Retry").performClick()
+        assertEquals(1, checks)
+        text("4h 06m").assertIsDisplayed()
+        assertEquals(emptyList(), submitted)
+    }
+
+    @Test
+    fun `on chain and offline the bar still tells the figures are an earlier read`() {
+        show(todayDone = true, offline = true)
+        text("${Deployment.networkName} isn't answering").assertIsDisplayed()
+        text("Your reps still count on this phone.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the bar is not drawn while devnet answers`() {
+        show()
+        text("isn't answering", substring = true).assertDoesNotExist()
+    }
+
+    // ---- a Hackathon round ----------------------------------------------------------------------------
+
+    @Test
+    fun `a Hackathon Holdout wears its badge in the header and its own name on the hero`() {
+        val test = h.copy(cohort = cohort.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, dayLength = 600, durationDays = 3, repsPerDay = 5))
+        show(holdout = test, at = start + 1 * 600 + 100, members = null, index = 1)
+        text("DEVNET COHORT · 10-MINUTE DAYS").assertIsDisplayed()
+        text("HACKATHON · 3-DAY · DAY 2 OF 3").assertIsDisplayed()
+        compose.onNodeWithContentDescription("0 of 1 blocks banked").assertExists()
+        assertEquals(312f, compose.onNodeWithTag("day-hero").getUnclippedBoundsInRoot().height.value)
     }
 }

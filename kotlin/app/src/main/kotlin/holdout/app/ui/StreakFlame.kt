@@ -7,6 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -27,6 +28,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -38,6 +40,9 @@ import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
+
+/** What a streak chip that is a button says it does, at the end of its accessible name (001 FR-069a). */
+private const val OPENS_ME = "Opens your streak on Me"
 
 /** The five states of the daily streak flame (design book, Streak flame). */
 enum class StreakState {
@@ -69,13 +74,15 @@ enum class StreakState {
  * The accessible name carries the state, since the flame's colour is never
  * the only signal: "12-day streak", "13-day streak, extended today",
  * "Streak broken", "31-day streak, personal best", "7-day streak, milestone".
+ * With [onClick] (Today's chip, which opens Me) the chip is a button and its name ends
+ * "Opens your streak on Me."; the chip's touch target is lifted to 48 dp by Compose.
  *
  * [chip] draws it small, in a pill on `surface-3` (the Today header, board 5):
  * a 16 dp flame and the number at label size. As a milestone the flame is
  * larger and the pill has an `accent` border.
  */
 @Composable
-fun StreakFlame(days: Int, state: StreakState, modifier: Modifier = Modifier, chip: Boolean = false) {
+fun StreakFlame(days: Int, state: StreakState, modifier: Modifier = Modifier, chip: Boolean = false, onClick: (() -> Unit)? = null) {
     val spoken = when (state) {
         StreakState.Active -> "$days-day streak"
         StreakState.ExtendedToday -> "$days-day streak, extended today"
@@ -86,7 +93,8 @@ fun StreakFlame(days: Int, state: StreakState, modifier: Modifier = Modifier, ch
     val milestone = state == StreakState.Milestone
     Row(
         modifier = modifier
-            .semantics(mergeDescendants = true) { contentDescription = spoken }
+            .then(if (onClick != null) Modifier.clickable(onClickLabel = OPENS_ME, role = Role.Button, onClick = onClick) else Modifier)
+            .semantics(mergeDescendants = true) { contentDescription = if (onClick != null) "$spoken. $OPENS_ME." else spoken }
             .then(
                 if (chip) {
                     Modifier
