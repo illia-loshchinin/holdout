@@ -79,6 +79,9 @@ object Scripted {
      */
     const val JOIN_RESERVE_LAMPORTS = 10_000_000L
 
+    /** What the payer keeps for opening cohorts and settling: scripted top-ups stop above it. */
+    const val PAYER_RESERVE_LAMPORTS = 2_000_000_000L
+
     /** The last cohort start that gets scripted members: Monday 9 November 2026, 05:00 UTC (R12). */
     val DEFAULT_LAST_START: Long = Instant.parse("2026-11-09T05:00:00Z").epochSecond
 
@@ -166,17 +169,27 @@ object Scripted {
     /** Lamports the payer sends a wallet holding [balance] before it claims and joins, so the claim takes none from the faucet (FR-043a). */
     fun solTopUp(balance: Long, faucetTopUp: Long): Long = (faucetTopUp + JOIN_RESERVE_LAMPORTS - balance).coerceAtLeast(0)
 
+    /** Whether [members] hold anyone not on the scripted list: what a Hackathon round waits for (FR-043). */
+    fun hasRealMember(members: List<MembershipSnapshot>, scripted: Set<SolanaPublicKey>): Boolean = members.any { it.wallet !in scripted }
+
+    /** Where consecutive test rounds start in their pool: coprime with 36, so every wallet takes turns. */
+    private const val TEST_POOL_STRIDE = 5
+
     /** The wallets that may play [leagueId]'s cohort [index]: the 7-day twenty, the 21-day group whose turn it is, or for a test league all 36 21-day wallets. */
     fun poolFor(roster: List<ScriptedWallet>, leagueId: Int, index: Long): List<ScriptedWallet> = when (leagueId) {
-        LeagueParams.LEAGUE_7D -> roster.filter { it.group == "7d" }
+        LeagueParams.LEAGUE_7D -> roster.filter { it.group == "7d" }.sortedBy { it.index }
         LeagueParams.LEAGUE_21D -> {
             val groups = roster.filter { it.league == "21d" }.map { it.group }.distinct().sorted()
-            if (groups.isEmpty()) emptyList() else roster.filter { it.group == groups[(index % groups.size).toInt()] }
+            if (groups.isEmpty()) emptyList() else roster.filter { it.group == groups[(index % groups.size).toInt()] }.sortedBy { it.index }
         }
         // A Hackathon round starts every 30 minutes and each wallet holds one running
-        // Holdout at a time (FR-006b): the 36 wallets Habit leaves idle on devnet.
-        else -> roster.filter { it.league == "21d" }
-    }.sortedBy { it.index }
+        // Holdout at a time (FR-006b): the 36 wallets Habit leaves idle on devnet,
+        // the starting point moved on each round so the same few never play them all.
+        else -> {
+            val pool = roster.filter { it.league == "21d" }.sortedWith(compareBy({ it.group }, { it.index }))
+            if (pool.isEmpty()) pool else pool.indices.map { pool[((index * TEST_POOL_STRIDE + it) % pool.size).toInt()] }
+        }
+    }
 
     private fun seed(cohort: SolanaPublicKey, wallet: SolanaPublicKey, salt: String): Long {
         val digest = MessageDigest.getInstance("SHA-256").apply {
@@ -266,8 +279,9 @@ object Scripted {
             put("members", c.memberCount)
             put("real", members.size - scripted.size)
             put("scripted", scripted.size)
-            put("needsRealMember", waitsForReal(c.leagueId, args))
-            put("deficit", if (waitsForReal(c.leagueId, args) && scripted.size == members.size) 0 else deficit(c, floor, now, members.size))
+            val waiting = waitsForReal(c.leagueId, args) && !hasRealMember(members, scriptedKeys)
+            put("waitingForRealMember", waiting)
+            put("deficit", if (waiting) 0 else deficit(c, floor, now, members.size))
             putJsonArray("pool") {
                 poolFor(roster, c.leagueId, c.index).forEach { w ->
                     addJsonObject {
@@ -301,7 +315,8 @@ object Scripted {
         val onChain =
             rpc.accountData(Pdas.config(programId))?.let { runCatching { ConfigSnapshot.decode(it) }.getOrNull() }
                 ?: configError("the program at $programId is not initialized (or Config could not be read)")
-        val cohorts = (rpc.cohorts(programId) ?: failed("could not list cohorts")).sortedWith(compareBy({ it.second.leagueId }, { it.second.index }))
+        // Settled cohorts are left out: a scripted pass needs only lobbies and running cohorts, and it runs every minute.
+        val cohorts = (rpc.unsettledCohorts(programId) ?: failed("could not list cohorts")).sortedWith(compareBy({ it.second.leagueId }, { it.second.index }))
         val byAddress = cohorts.toMap()
         val keys = mutableMapOf<SolanaPublicKey, Keypair>()
         fun keyOf(w: ScriptedWallet): Keypair = keys.getOrPut(w.pubkey) {
@@ -310,8 +325,10 @@ object Scripted {
             k
         }
 
-        // Loaded on the first top-up only: a pass that sends no SOL needs no payer.
-        val payer by lazy { loadKeypair(config.requirePayer(), "payer") }
+        // The payer is also the key that opens cohorts: top-ups stop above PAYER_RESERVE_LAMPORTS, and
+        // without a payer (or its balance) a wallet that needs SOL simply waits for a later pass.
+        val payer = config.payerKeypair?.let { loadKeypair(it, "payer") }
+        var payerSpendable = payer?.let { rpc.balance(it.publicKey) }?.minus(PAYER_RESERVE_LAMPORTS) ?: 0L
         val scriptedKeys = roster.map { it.pubkey }.toSet()
 
         val steps = mutableListOf<JsonObject>()
@@ -354,12 +371,11 @@ object Scripted {
             // ---- fill an open lobby to its target -----------------------------
             if (status == CohortStatus.Open && c.start <= lastStart) {
                 if (target(c, floor, now) == 0) continue
-                // A Hackathon round nobody real has joined stays empty (FR-043).
-                if (waitsForReal(c.leagueId, args) && c.memberCount == 0L) continue
                 // The cohort and its roster read again, together: a member who joined or
                 // left since the cohort list was read moves the deficit either way.
                 val fresh = rpc.cohortRead(programId, address) ?: failed("could not read cohort ${c.leagueId}/${c.index} and its roster")
-                if (waitsForReal(c.leagueId, args) && fresh.members.all { it.wallet in scriptedKeys }) continue
+                // A Hackathon round nobody real has joined stays empty (FR-043).
+                if (waitsForReal(c.leagueId, args) && !hasRealMember(fresh.members, scriptedKeys)) continue
                 var needed = deficit(fresh.cohort, floor, now, fresh.members.size)
                 if (needed == 0) continue
                 val inCohort = fresh.members.map { it.wallet }.toSet()
@@ -380,6 +396,16 @@ object Scripted {
                     val needsFaucet = balance < c.chips[tier]
                     val lamports = rpc.balance(w.pubkey) ?: continue
                     val topUp = solTopUp(lamports, onChain.solTopUp.toLong())
+                    if (topUp > 0 && (payer == null || topUp > payerSpendable)) {
+                        steps += buildJsonObject {
+                            put("step", "join")
+                            put("status", "skipped")
+                            detail()
+                            put("wallet", w.pubkey.base58())
+                            put("reason", if (payer == null) "needs $topUp lamports and HOLDOUT_PAYER_KEYPAIR is not set" else "needs $topUp lamports and the payer is down to its reserve of $PAYER_RESERVE_LAMPORTS")
+                        }
+                        continue
+                    }
                     val key = keyOf(w)
                     // Only a join that landed fills a place; after a failed one the next wallet is tried.
                     val joined = attempt("join", {
@@ -391,13 +417,16 @@ object Scripted {
                     }) {
                         val ixs = buildList {
                             // First, so the claim finds the faucet's top-up already held and moves no lamports; the payer then pays the fee too.
-                            if (topUp > 0) add(Instructions.systemTransfer(payer.publicKey, w.pubkey, topUp.toULong()))
+                            if (topUp > 0) add(Instructions.systemTransfer(payer!!.publicKey, w.pubkey, topUp.toULong()))
                             if (needsFaucet) add(Instructions.claimFaucet(programId, w.pubkey, w.pubkey, onChain.skrMint, onChain.sponsor))
                             add(Instructions.joinCohort(programId, w.pubkey, onChain.skrMint, address, tier, running))
                         }
-                        signAndSend(rpc, "scripted join ${c.leagueId}/${c.index}", ixs, if (topUp > 0) listOf(payer, key) else listOf(key), args.dryRun, pause, beforeRetrying = "the next pass re-reads the roster")
+                        signAndSend(rpc, "scripted join ${c.leagueId}/${c.index}", ixs, if (topUp > 0) listOf(payer!!, key) else listOf(key), args.dryRun, pause, beforeRetrying = "the next pass re-reads the roster")
                     }
-                    if (joined) needed--
+                    if (joined) {
+                        needed--
+                        payerSpendable -= topUp
+                    }
                 }
             }
 

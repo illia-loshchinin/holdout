@@ -7,7 +7,7 @@
 # Between passes `crank scripted run` runs alone every CRANK_SCRIPTED_POLL_SECONDS
 # (default 60, 0 to switch off), so a Hackathon round tops up soon after someone
 # real joins it (FR-043). Runs in the Fly machine, and in the GitHub Actions
-# fallback with --once (then CRANK_ONCE_POLL_SECONDS of scripted polls).
+# fallback with --once (then scripted polls until CRANK_ONCE_POLL_UNTIL).
 #
 # Keys come from the environment, never from the image or the repository:
 #   HOLDOUT_PAYER_KEY_JSON        the payer's Solana CLI keypair (a JSON array)
@@ -72,7 +72,8 @@ pass() {
 # does nothing prints nothing.
 poll_scripted() {
   local out
-  out="$(java -jar "$JAR" scripted run)"
+  # Killed at the deadline it was given: every step is idempotent, and the next pass re-reads the chain.
+  out="$(timeout "$1" java -jar "$JAR" scripted run)"
   local status=$?
   if (( status != 0 )) || grep -q '"step"' <<< "$out"; then
     echo "=== $(date -u +%FT%TZ) crank scripted run (poll)"
@@ -82,25 +83,27 @@ poll_scripted() {
   return 0
 }
 
-# Polls until the absolute time [$1], only while a whole interval still fits:
-# a poll's own run time counts against the deadline, so the next full pass is
-# not pushed back by the transactions a poll sent.
+# Polls until the absolute time [$1] and never past it: a poll starts only when
+# the interval and CRANK_POLL_MIN_SECONDS (default 20) of run time still fit,
+# and is stopped at the deadline, so the next full pass is never pushed back.
 polls_until() {
-  local deadline=$1 poll="${CRANK_SCRIPTED_POLL_SECONDS:-60}"
+  local deadline=$1 poll="${CRANK_SCRIPTED_POLL_SECONDS:-60}" least="${CRANK_POLL_MIN_SECONDS:-20}" left
   [[ -n "${HOLDOUT_SCRIPTED_KEYS_DIR:-}" ]] && (( poll > 0 )) || return 0
-  while (( $(date +%s) + poll < deadline )); do
+  while (( deadline - $(date +%s) > poll + least )); do
     sleep "$poll"
-    poll_scripted
+    left=$(( deadline - $(date +%s) ))
+    (( left > 0 )) || return 0
+    poll_scripted "$left"
   done
 }
 
-# One pass, then `scripted run` alone every CRANK_SCRIPTED_POLL_SECONDS for
-# CRANK_ONCE_POLL_SECONDS more (default 0): the GitHub Actions fallback starts
-# a pass every 10 minutes and sets this so it polls too (crank.yml).
+# One pass, then `scripted run` alone every CRANK_SCRIPTED_POLL_SECONDS until
+# CRANK_ONCE_POLL_UNTIL (epoch seconds; the GitHub Actions fallback sets it from
+# its job's start, crank.yml), or for CRANK_ONCE_POLL_SECONDS (default 0).
 if [[ "${1:-}" == "--once" ]]; then
   pass
   status=$?
-  polls_until $(( $(date +%s) + ${CRANK_ONCE_POLL_SECONDS:-0} ))
+  polls_until "${CRANK_ONCE_POLL_UNTIL:-$(( $(date +%s) + ${CRANK_ONCE_POLL_SECONDS:-0} ))}"
   exit $status
 fi
 
