@@ -21,11 +21,11 @@ Holdout is a push-up commitment dApp on Solana. **Real proof of work.**
 Train your discipline, and put SKR behind your word.
 
 Most habit apps take your word for it. Here your phone counts every rep on the device, and no
-video ever leaves it. Each finished day is one signed transaction. Your stake sits in a
+video ever leaves it. Each finished Holdout day is one signed transaction. Your stake sits in a
 program-owned vault, only the contract's rules can move it, and every payout is settled on chain.
 
 Finish 7 or 21 days of 25 push-ups and your stake comes back, plus a share of what others lost.
-Miss a day and you lose it: 70 % to the finishers, 10 % held for your comeback, 20 % to run the
+Miss a day and you lose it: 70 % to the prize pool, 10 % held for your comeback, 20 % to run the
 project. If everyone finishes, nobody pays.
 
 Devnet with test SKR for now. Staking needs a Seeker. No Seeker? The free **Daily 25** needs only
