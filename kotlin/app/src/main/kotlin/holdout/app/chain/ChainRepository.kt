@@ -1,5 +1,6 @@
 package holdout.app.chain
 
+import android.util.Log
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.BuildConfig
 import holdout.core.CohortSnapshot
@@ -16,6 +17,8 @@ import holdout.core.ProfileSnapshot
 import holdout.core.Rpc
 import holdout.core.Stage
 
+private const val LOG_TAG = "Chain"
+
 /** The deployment this build talks to (`app/build.gradle.kts`). Devnet, always. */
 object Deployment {
     val programId: SolanaPublicKey = SolanaPublicKey.from(BuildConfig.PROGRAM_ID)
@@ -23,6 +26,9 @@ object Deployment {
 
     /** What the member is told failed to answer: devnet, or in a local test build the local validator. */
     val networkName: String = if (rpcUrl == holdout.core.Rpc.DEVNET) "Devnet" else "The local validator"
+
+    /** The app's client for [rpcUrl]: every call the cluster refuses or does not answer is logged with its reason. */
+    fun rpc(): Rpc = Rpc(rpcUrl, onFailure = { method, reason -> Log.w(LOG_TAG, "$method failed: $reason") })
 
     /** A test league (FR-044a): the short test cohort, labelled wherever it appears. */
     fun isTestLeague(leagueId: Int): Boolean = leagueId >= holdout.core.LeagueParams.TEST_LEAGUE_MIN
@@ -137,30 +143,42 @@ interface ChainReads {
     suspend fun leaderboard(): Leaderboard.Snapshot?
 }
 
-class ChainRepository(private val rpc: Rpc = Rpc(Deployment.rpcUrl), private val programId: SolanaPublicKey = Deployment.programId) : ChainReads {
+class ChainRepository(private val rpc: Rpc = Deployment.rpc(), private val programId: SolanaPublicKey = Deployment.programId) : ChainReads {
     override suspend fun load(wallet: SolanaPublicKey?): ChainView? {
         val config =
             when (val read = rpc.account(Pdas.config(programId))) {
                 // No account at all: Holdout is not live here. An account that
                 // does not decode is a failed read, not an absent one — the last
                 // snapshot stays rather than an empty view saying "not live".
-                is Rpc.Answer.Ok -> (read.value ?: return ChainView(null, emptyList(), null, 0uL, 0L)).let { runCatching { ConfigSnapshot.decode(it) }.getOrNull() ?: return null }
-                else -> return null
+                is Rpc.Answer.Ok -> (read.value ?: return ChainView(null, emptyList(), null, 0uL, 0L)).let { runCatching { ConfigSnapshot.decode(it) }.getOrNull() ?: return failed("config does not decode") }
+                else -> return failed("config: $read")
             }
-        val leagues = rpc.leagues(programId) ?: return null
-        val cohorts = rpc.cohorts(programId) ?: return null
-        val mine = wallet?.let { rpc.walletMemberships(programId, it) ?: return null }.orEmpty().associateBy({ it.cohort }, { it.member })
+        val leagues = rpc.leagues(programId) ?: return failed("leagues")
+        val cohorts = rpc.cohorts(programId) ?: return failed("cohorts")
+        val mine = wallet?.let { rpc.walletMemberships(programId, it) ?: return failed("the wallet's memberships") }.orEmpty().associateBy({ it.cohort }, { it.member })
         // A read that failed is unknown, not absent: no profile or a zero balance would
         // be shown as real (faucet offered to a funded wallet, a join without its
         // running cohort), so the whole view waits for the next refresh instead.
-        val profile = wallet?.let { w -> (rpc.profile(programId, w) as? Rpc.Answer.Ok ?: return null).value }
-        val skr = wallet?.let { rpc.tokenAmount(Pdas.associatedToken(it, config.skrMint)) ?: return null } ?: 0uL
-        val lamports = wallet?.let { rpc.balance(it) ?: return null } ?: 0L
+        val profile =
+            wallet?.let { w ->
+                when (val read = rpc.profile(programId, w)) {
+                    is Rpc.Answer.Ok -> read.value
+                    else -> return failed("the wallet's profile: $read")
+                }
+            }
+        val skr = wallet?.let { rpc.tokenAmount(Pdas.associatedToken(it, config.skrMint)) ?: return failed("the wallet's SKR") } ?: 0uL
+        val lamports = wallet?.let { rpc.balance(it) ?: return failed("the wallet's SOL") } ?: 0L
         val holdouts =
             cohorts
                 .map { (address, c) -> Holdout(address, c, leagues.firstOrNull { it.params.leagueId == c.leagueId }, mine[address]) }
                 .sortedWith(compareBy({ it.cohort.leagueId }, { it.cohort.index }))
         return ChainView(config, holdouts, profile, skr, lamports)
+    }
+
+    /** Logs which read left the view unknown: the member is told only that the chain can't be reached. */
+    private fun failed(read: String): ChainView? {
+        Log.w(LOG_TAG, "chain view not loaded: $read failed")
+        return null
     }
 
     /** The roster of one cohort (FR-062), for the roster screen. */

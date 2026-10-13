@@ -14,7 +14,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 class MainViewModel : ViewModel() {
     // Devnet only, everywhere (README: no value touches mainnet; the only mainnet reads are Seeker ID names and the Seeker Genesis Token check, in SeekerNameReader and SeekerGenesisReader, neither able to send). The app
     // reads chain state through the same client the crank uses (R8, R12).
-    private val rpcClient = Rpc(Deployment.rpcUrl)
+    private val rpcClient = Deployment.rpc()
 
     /**
      * Reads the cluster's clock into [clock]; true when it answered. Failure

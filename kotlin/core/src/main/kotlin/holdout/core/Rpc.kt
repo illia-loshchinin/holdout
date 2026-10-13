@@ -47,6 +47,12 @@ import java.util.Base64
 class Rpc(
     private val endpoint: String = DEVNET,
     driver: Rpc20Driver = Rpc20Driver(endpoint, KtorNetworkDriver()),
+    /**
+     * Told each call the cluster refused or did not answer, with its reason —
+     * a rate limit, a timeout, a node error. A read still returns only null;
+     * this is how the app's log says why (the app passes it, the crank not).
+     */
+    private val onFailure: (method: String, reason: String) -> Unit = { _, _ -> },
 ) {
     private val rpc = driver
 
@@ -397,11 +403,13 @@ class Rpc(
     )
 
     private suspend fun call(method: String, params: JsonArray): JsonElement? = attempt {
-        rpc.makeRequest(
-            JsonRpc20Request(method, params, method),
-            JsonElement.serializer(),
-        ).takeIf { it.error == null }?.result
-    }.getOrNull()
+        val response = rpc.makeRequest(JsonRpc20Request(method, params, method), JsonElement.serializer())
+        response.error?.let { onFailure(method, it.message) }
+        response.takeIf { it.error == null }?.result
+    }.getOrElse {
+        onFailure(method, "no answer from $endpoint: ${it.message ?: it.javaClass.simpleName}")
+        null
+    }
 
     /**
      * Like [call], but keeps the node's reason when it refuses, and tells a
@@ -413,13 +421,22 @@ class Rpc(
             ?: response.result?.let { Answer.Ok(it) }
             ?: Answer.Unanswered("$method returned neither a result nor an error")
     }.getOrElse { Answer.Unanswered("$method got no answer from $endpoint: ${it.message}") }
+        .also {
+            when (it) {
+                is Answer.Refused -> onFailure(method, it.message)
+                is Answer.Unanswered -> onFailure(method, it.message)
+                is Answer.Ok -> Unit
+            }
+        }
 
     private suspend fun request(method: String, params: JsonArray? = null): Long? = attempt {
-        rpc.makeRequest(
-            JsonRpc20Request(method, params ?: JsonArray(emptyList()), method),
-            Long.serializer(),
-        ).takeIf { it.error == null }?.result
-    }.getOrNull()
+        val response = rpc.makeRequest(JsonRpc20Request(method, params ?: JsonArray(emptyList()), method), Long.serializer())
+        response.error?.let { onFailure(method, it.message) }
+        response.takeIf { it.error == null }?.result
+    }.getOrElse {
+        onFailure(method, "no answer from $endpoint: ${it.message ?: it.javaClass.simpleName}")
+        null
+    }
 }
 
 /**
