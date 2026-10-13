@@ -37,6 +37,8 @@ data class Reminder(
     val tick: Int = 0,
     /** Only for [Kind.Finished]: this finish should earn a comeback refund (FR-037e), so the notice says so. */
     val comeback: Boolean = false,
+    /** The cohort's form ([LeagueParams.FORM_TOES], [LeagueParams.FORM_KNEES_ALLOWED]), so a notice can name a Hackathon round by it; [Reminders.FORM_UNKNOWN] when it is not said. */
+    val form: Int = Reminders.FORM_UNKNOWN,
 ) {
     enum class Kind {
         Start,
@@ -78,6 +80,9 @@ data class Reminder(
 }
 
 object Reminders {
+    /** A [Reminder.form] that is not known (an alarm scheduled by an earlier build): notices fall back to the cohort's length. */
+    const val FORM_UNKNOWN = -1
+
     /**
      * How long before a deadline (FR-068): a quarter of the day, at most 3 hours
      * — 3 hours before a 24-hour day's deadline, 15 minutes before a one-hour
@@ -188,7 +193,7 @@ object Reminders {
         val window = windowSeconds(c.dayLength)
         val longDay = hasMidday(c.dayLength)
         val lead = leadSeconds(c.dayLength)
-        fun reminder(kind: Reminder.Kind, day: Int, at: Long, tick: Int = 0) = Reminder(kind, address, c.leagueId, day, at, Derive.deadlineOf(c, day), c.repsPerDay, c.durationDays, c.dayLength, m.daysCompleted, tick)
+        fun reminder(kind: Reminder.Kind, day: Int, at: Long, tick: Int = 0) = Reminder(kind, address, c.leagueId, day, at, Derive.deadlineOf(c, day), c.repsPerDay, c.durationDays, c.dayLength, m.daysCompleted, tick, form = c.form)
         fun deliverable(at: Long, deadline: Long, within: Long = window) = minOf(at + within, deadline) > now
         buildList {
             // Not once the first day is on chain: an alarm still waiting in its
@@ -233,7 +238,7 @@ object Reminders {
         if (!counting || c.settled || now >= at) return null
         return Reminder(
             Reminder.Kind.Finished, cohortAddress(c), c.leagueId, c.durationDays, at, at + FINISHED_HORIZON_SECONDS,
-            c.repsPerDay, c.durationDays, c.dayLength, m.daysCompleted, comeback = comebackFor(c, m),
+            c.repsPerDay, c.durationDays, c.dayLength, m.daysCompleted, comeback = comebackFor(c, m), form = c.form,
         )
     }
 

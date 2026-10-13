@@ -129,7 +129,7 @@ Five to seven real people, recruited by 21 September. They are the point: real m
 1. Install the APK and the wallet.
 2. Open Holdout, connect the wallet, tap **Get test tokens**.
 3. Do today's Daily 25 to see how counting feels, with the phone propped at about 45° to one side of you; the camera check says when it is right.
-4. For a whole cycle in under an hour, join the test lobby: three 10-minute days at 5 reps, a new Holdout every 30 minutes. The 7-day and 21-day Holdouts start every Monday at 05:00 UTC, and joining closes an hour before.
+4. For a whole cycle in under an hour, join the test lobby: three 10-minute days at 5 reps, a new Holdout every 10 minutes. The 7-day and 21-day Holdouts start every Monday at 05:00 UTC, and joining closes an hour before.
 5. In a 7-day or 21-day Holdout, 25 push-ups a day before 05:00 UTC. Miss one and the stake is gone. Reps bank in blocks of 10, so several sittings a day are fine.
 6. Everything is a test network and a test token: nothing has value.
 7. The camera never leaves the phone — no video or landmark is uploaded.

@@ -2,12 +2,17 @@
 # machine running scripts/crank-loop.sh, which passes every 10 minutes.
 #
 # Fly's scheduled machines run at most hourly, so the 10-minute cadence is a
-# loop in an always-on machine instead (the smallest size is enough).
+# loop in an always-on machine instead (the smallest size is enough). Between
+# passes `scripted run` wakes only when it asked to (`nextScriptedAt`): once a
+# minute while a Hackathon lobby is open, reading only the cohort list unless
+# someone is in it and it has room, and at the start of each day of a round. The loop stops at
+# once if HOLDOUT_RPC_URL (a secret) or HOLDOUT_PROGRAM_ID is missing.
 #
 # First time:
 #   fly apps create holdout-crank
 #   fly secrets set HOLDOUT_PAYER_KEY_JSON="$(cat ~/.config/solana/holdout/operator.json)" \
-#     HOLDOUT_SCRIPTED_KEYS_TGZ_B64="$(tar -czf - -C ~/.config/solana/holdout/scripted . | base64 -w0)"
+#     HOLDOUT_SCRIPTED_KEYS_TGZ_B64="$(tar -czf - -C ~/.config/solana/holdout/scripted . | base64 -w0)" \
+#     HOLDOUT_RPC_URL="<the owner's Helius devnet URL; its key never goes in this file>"
 # Every deploy:
 #   (cd kotlin && ./gradlew :crank:jar) && fly deploy
 #
@@ -20,7 +25,6 @@ primary_region = "ams"
   dockerfile = "crank.Dockerfile"
 
 [env]
-  HOLDOUT_RPC_URL = "https://api.devnet.solana.com"
   HOLDOUT_PROGRAM_ID = "Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4"
   CRANK_INTERVAL_SECONDS = "600"
 

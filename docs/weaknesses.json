@@ -23,7 +23,7 @@
     },
     {
       "what": "Non-default `day_seconds` for test cohorts — a **short test lobby kept running on devnet**, labelled and open to every Seeker owner, from which the demo video is recorded",
-      "why": "Lets a single person run a whole cycle alone: three 10-minute days, a new cohort every 30 minutes (FR-044a, H36). Only one test league runs at a time, since streaks are written when a cohort is counted and two test leagues of different lengths could count a member's outcomes out of order on the combined test board",
+      "why": "Lets a single person run a whole cycle alone: three 10-minute days, a new round every 10 minutes, in two lobbies side by side — Hackathon · Spark and Hackathon · Habit (FR-044a, owner 2026-10-13). Both have the same length and cadence, and only the newest test league of each level opens rounds, since streaks are written when a cohort is counted and test leagues of different lengths could count a member's outcomes out of order on the combined test board",
       "fix": "Admin-guarded; real cohorts always use 24 hours"
     },
     {
@@ -67,7 +67,7 @@
       "fix": "On-chain chip governance before real value is at stake"
     },
     {
-      "what": "Cohorts are filled by real members first; scripted members — real wallets under the same contract rules, whose forfeits fund real prizes and whose completed days are **not camera-verified** — top a cohort up only to a minimum (20 members in a 7-day cohort; 4 in a short test round, and only once a real member has joined it; none in a 21-day one)",
+      "what": "Cohorts are filled by real members first; scripted members — real wallets under the same contract rules, whose forfeits fund real prizes and whose completed days are **not camera-verified** — top a cohort up only to a minimum (10 in a short test round, within a minute of a real member joining it; none in a 7-day or 21-day one)",
       "why": "A cohort must never be empty when someone installs the app during judging, and a judge who joins a short test round should not run it alone",
       "fix": "Disclosed here, in the app, in the demo video and in the pitch deck; their addresses are published in the build and every scripted member is labelled wherever it appears"
     },
@@ -108,7 +108,7 @@
     },
     {
       "what": "One key, `operator.json`, is both the crank's fee payer and the only key that can publish the chip set, and it sits as a hot secret on the Fly machine that runs the crank (and in the GitHub Actions fallback)",
-      "why": "Opening a cohort every 30 minutes needs a funded payer. A separate payer key was considered and the product owner decided against it (2026-10-11, L14), so this is an accepted risk of the devnet build, not an oversight. Whoever takes the key can re-price the stakes of every Holdout not yet open and spend its float. Worse, it can publish one chip set with an enormous top tier: the program keeps the highest top tier ever published (`max_top_tier` only rises) and the faucet mints exactly that much per claim, and `Config.operator` has no rotation instruction. The faucet then mints absurd amounts or fails, new wallets lose their way to SKR, and only a program upgrade undoes it. The same machine and the GitHub Actions fallback also hold the keypairs of the 56 scripted members (`HOLDOUT_SCRIPTED_KEYS_TGZ_B64`), so a compromise can stop their submissions (forfeits that move real pools), join or leave, and claim their payouts. What it cannot do is touch a real member's stake or a settled payout, which only the program moves",
+      "why": "Opening a round every 10 minutes in two test lobbies needs a funded payer. A separate payer key was considered and the product owner decided against it (2026-10-11, L14), so this is an accepted risk of the devnet build, not an oversight. Whoever takes the key can re-price the stakes of every Holdout not yet open and spend its float. Worse, it can publish one chip set with an enormous top tier: the program keeps the highest top tier ever published (`max_top_tier` only rises) and the faucet mints exactly that much per claim, and `Config.operator` has no rotation instruction. The faucet then mints absurd amounts or fails, new wallets lose their way to SKR, and only a program upgrade undoes it. The same machine and the GitHub Actions fallback also hold the keypairs of the 56 scripted members (`HOLDOUT_SCRIPTED_KEYS_TGZ_B64`), so a compromise can stop their submissions (forfeits that move real pools), join or leave, and claim their payouts. What it cannot do is touch a real member's stake or a settled payout, which only the program moves",
       "fix": "A payer key of its own holding only the float, an operator key kept off the machine (or a multisig), an operator rotation instruction and a cap on the top tier, and the scripted keys held apart, for the mainnet build"
     }
   ]

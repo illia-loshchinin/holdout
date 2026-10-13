@@ -97,13 +97,13 @@ class TestLeagueTest {
     }
 
     @Test
-    fun `by default the test league is the test lobby - three 10-minute days at 5 reps, a new cohort every 30 minutes, back to back and joinable up to each start, as league 100`() {
+    fun `by default the test league is the test lobby - three 10-minute days at 5 reps, a new cohort every 10 minutes, overlapping and joinable up to each start, as league 102`() {
         val p = Init.testLeagueParams(parseArgs(listOf("init", "--test-league") + quickstart))
-        assertEquals(LeagueParams(100, 3, 5, 0, LeagueParams.FORM_KNEES_ALLOWED, Instant.parse(start).epochSecond, 600, 1_800, 0), p, "three 10-minute days, a cohort every 30 minutes, joinable until it starts, Easy by default (FR-044a, H35, H36)")
+        assertEquals(LeagueParams(100, 3, 5, 0, LeagueParams.FORM_KNEES_ALLOWED, Instant.parse(start).epochSecond, 600, 600, 0), p, "three 10-minute days, a cohort every 10 minutes, joinable until it starts, Easy by default (FR-044a, H35, H36; owner 13 October)")
         val quick = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--day-seconds", "3600", "--reps", "10", "--days", "3") + quickstart))
-        assertEquals(listOf(3_600L, 10L, 3L, 10_800L), listOf(quick.dayLength, quick.repsPerDay.toLong(), quick.durationDays.toLong(), quick.cadence), "every default can be overridden")
-        val custom = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--league-id", "101", "--cadence", "600", "--join-lock", "60") + quickstart))
-        assertEquals(listOf(101L, 600L, 60L), listOf(custom.leagueId.toLong(), custom.cadence, custom.joinLock), "a cohort every 10 minutes, overlapping")
+        assertEquals(listOf(3_600L, 10L, 3L, 3_600L), listOf(quick.dayLength, quick.repsPerDay.toLong(), quick.durationDays.toLong(), quick.cadence), "every default can be overridden")
+        val custom = Init.testLeagueParams(parseArgs(listOf("init", "--test-league", "--league-id", "101", "--cadence", "1800", "--join-lock", "60") + quickstart))
+        assertEquals(listOf(101L, 1_800L, 60L), listOf(custom.leagueId.toLong(), custom.cadence, custom.joinLock), "back to back, every 30 minutes, as leagues 100 and 101 were")
     }
 
     @Test
@@ -154,7 +154,7 @@ class TestLeagueTest {
     @Test
     fun `a league that exists with the same shape is left alone`() {
         val chain = Chain()
-        chain.league = existingLeague(days = 3, cadence = 1_800)
+        chain.league = existingLeague(days = 3, cadence = 600)
         val json = testLeague(chain, *quickstart)
         assertEquals("skipped", json.getValue("status").jsonPrimitive.content)
         assertEquals(1, json.getValue("nextIndex").jsonPrimitive.long)
@@ -170,7 +170,7 @@ class TestLeagueTest {
         assertTrue(e.message!!.contains("--league-id"), e.message)
         assertTrue(chain.sent.isEmpty())
         // Today's shape but the 5-minute lock it had until 2026-10-07: refused too.
-        chain.league = existingLeague(days = 3, cadence = 1_800, joinLock = 300)
+        chain.league = existingLeague(days = 3, cadence = 600, joinLock = 300)
         assertEquals(EXIT_CONFIG, assertFailsWith<CrankException> { testLeague(chain, *quickstart) }.exitCode)
     }
 

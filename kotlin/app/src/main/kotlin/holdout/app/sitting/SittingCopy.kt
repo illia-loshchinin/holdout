@@ -43,8 +43,8 @@ object SittingCopy {
         Stakes.DAILY -> DAILY
     }
 
-    /** The same label for a Holdout day, read from its cohort: a test Holdout of 3 days says `habit · 3-day`, not 21. */
-    fun levelLabel(cohort: CohortSnapshot): String = Format.level(cohort).lowercase()
+    /** The same label for a Holdout day, read from its cohort: a Hackathon round says `hackathon · habit` (FR-044a), not `habit · 21-day`. */
+    fun levelLabel(cohort: CohortSnapshot): String = Format.holdoutName(cohort).lowercase()
 
     /**
      * The sentence under a sitting's pre-flight page: the Holdout's

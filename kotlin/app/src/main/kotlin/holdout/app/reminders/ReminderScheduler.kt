@@ -69,7 +69,7 @@ class ReminderScheduler(context: Context) {
         standing.forEach { r ->
             val id = Reminders.notificationId(r.cohort.base58(), r.kind, r.dayIndex)
             if (!ReminderNotices.isShown(context, id)) {
-                ReminderNotices.postNotSent(context, r.id, id, r.dayIndex, r.durationDays, r.dayLength, Deployment.isTestLeague(r.leagueId), r.deadline - chainNow)
+                ReminderNotices.postNotSent(context, r.id, id, r.dayIndex, r.durationDays, r.dayLength, Deployment.isTestLeague(r.leagueId), r.deadline - chainNow, form = r.form)
             }
         }
         wanted.filterNot { it.standing }.forEach { r ->
@@ -137,6 +137,7 @@ class ReminderScheduler(context: Context) {
         putExtra(ReminderReceiver.EXTRA_DAY_LENGTH, r.dayLength)
         putExtra(ReminderReceiver.EXTRA_DAYS_ON_CHAIN, r.daysOnChain)
         putExtra(ReminderReceiver.EXTRA_TEST, Deployment.isTestLeague(r.leagueId))
+        putExtra(ReminderReceiver.EXTRA_FORM, r.form)
         putExtra(ReminderReceiver.EXTRA_DEADLINE_ELAPSED, deadlineElapsed)
         putExtra(ReminderReceiver.EXTRA_COMEBACK, r.comeback)
     }

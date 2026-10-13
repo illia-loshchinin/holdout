@@ -218,10 +218,10 @@ class HomeScreenTest {
 
     @Test
     fun `a Hackathon Holdout keeps its badge and its own name`() {
-        val test = spark.copy(cohort = "t", title = "Hackathon · 3-day", tagline = "A quick taste · knees allowed", atStake = "250 SKR", joined = "at stake · 3 joined", timing = "Starts in 12m 30s", boost = null, test = true, testDayLength = 600)
+        val test = spark.copy(cohort = "t", title = "Hackathon · Spark", tagline = "A quick taste · knees allowed", atStake = "250 SKR", joined = "at stake · 3 joined", timing = "Starts in 12m 30s", boost = null, test = true, testDayLength = 600)
         show(fresh.copy(holdouts = HoldoutsBlock.Open(listOf(test, spark))))
         text("DEVNET COHORT · 10-MINUTE DAYS").assertIsDisplayed()
-        text("Hackathon · 3-day").assertIsDisplayed()
+        text("Hackathon · Spark").assertIsDisplayed()
         text("A quick taste · knees allowed").assertIsDisplayed()
         text("Starts in 12m 30s").assertIsDisplayed()
     }

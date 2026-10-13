@@ -83,11 +83,34 @@ class FormatCopyTest {
     }
 
     @Test
+    fun `a Hackathon round is named by its form, Spark for knees and Habit for toes, and by its length when the form is unknown`() {
+        val easy = spark.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, durationDays = 3, dayLength = 600)
+        val hard = easy.copy(form = LeagueParams.FORM_TOES)
+        assertEquals("Hackathon · Spark", Format.testName(easy))
+        assertEquals("Hackathon · Habit", Format.testName(hard))
+        assertEquals("Hackathon · Spark", Format.boostName(easy, test = true))
+        assertEquals("Hackathon · Habit", Format.boostName(hard, test = true))
+        assertEquals("Spark · 3-day", Format.boostName(easy, test = false))
+        assertEquals("Hackathon · Spark", Format.testName(LeagueParams.FORM_KNEES_ALLOWED, 3))
+        assertEquals("Hackathon · Habit", Format.testName(LeagueParams.FORM_TOES, 3))
+        assertEquals("Hackathon · 3-day", Format.testName(-1, 3))
+        assertEquals("Hackathon · 5-day", Format.testName(7, 5))
+    }
+
+    @Test
+    fun `a comeback sentence names a Hackathon round by its name, not as a 3-day Spark`() {
+        val round = spark.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, durationDays = 3, dayLength = 600)
+        assertTrue(Format.comebackToday(61uL, round, 600).contains("finish the Hackathon · Spark "), Format.comebackToday(61uL, round, 600))
+        assertTrue(Format.comebackForfeit(61uL, round).startsWith("Finish the next Hackathon · Spark and "))
+        assertTrue(Format.comebackForfeit(61uL, spark).startsWith("Finish the next Spark · 7-day and "))
+    }
+
+    @Test
     fun `the fee sentence takes the noun it names the boosts after`() {
         assertEquals(
             "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
-                "20 % to the project. If nobody finishes, the pool boosts later Hackathon · 3-day prizes.",
-            Format.lostStakeSplit(spark, name = "Hackathon · 3-day"),
+                "20 % to the project. If nobody finishes, the pool boosts later Hackathon · Spark prizes.",
+            Format.lostStakeSplit(spark, name = "Hackathon · Spark"),
         )
     }
 
