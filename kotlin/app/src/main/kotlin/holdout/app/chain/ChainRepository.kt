@@ -18,6 +18,7 @@ import holdout.core.ProfileSnapshot
 import holdout.core.Rpc
 import holdout.core.Stage
 import kotlinx.coroutines.delay
+import java.util.concurrent.atomic.AtomicLong
 
 private const val LOG_TAG = "Chain"
 
@@ -191,10 +192,26 @@ class ChainRepository(
 
     @Volatile private var keptCohorts: KeptCohorts? = null
 
-    /** The wallet's memberships as last read, when, and the counters of the cohorts they are in then (see [load]). */
-    private class KeptMemberships(val wallet: SolanaPublicKey, val readAt: Long, val memberships: List<MembershipAccount>, val counters: Map<SolanaPublicKey, List<Any>>)
+    /**
+     * The wallet's memberships as last read, when, and the counters of the cohorts they are in then (see [load]);
+     * [started] orders the reads that kept them (see [keepMemberships]).
+     */
+    private class KeptMemberships(val wallet: SolanaPublicKey, val readAt: Long, val memberships: List<MembershipAccount>, val counters: Map<SolanaPublicKey, List<Any>>, val started: Long)
 
     @Volatile private var keptMemberships: KeptMemberships? = null
+
+    /** Membership reads started, in order. */
+    private val membershipReads = AtomicLong()
+
+    /**
+     * Keeps [k] unless a membership read started after its own already answered: reads overlap (a pulse, the
+     * read closing an action), and an older answer put back over a newer one would be kept for minutes —
+     * a day or a claim moves no counter that re-reads it — so a landed action would look undone (PR #72 review).
+     */
+    @Synchronized
+    private fun keepMemberships(k: KeptMemberships) {
+        if ((keptMemberships?.started ?: 0L) < k.started) keptMemberships = k
+    }
 
     /** The last cohorts read that answered, and when: the leaderboard's first read reuses it while it is fresh. */
     @Volatile private var lastCohorts: Pair<Long, List<Pair<SolanaPublicKey, CohortSnapshot>>>? = null
@@ -238,7 +255,8 @@ class ChainRepository(
                 if (keep) {
                     kept.memberships
                 } else {
-                    (twice { rpc.walletMemberships(programId, w) } ?: return failed("the wallet's memberships")).also { keptMemberships = KeptMemberships(w, now, it, countersOf(it, byAddress)) }
+                    val started = membershipReads.incrementAndGet()
+                    (twice { rpc.walletMemberships(programId, w) } ?: return failed("the wallet's memberships")).also { keepMemberships(KeptMemberships(w, now, it, countersOf(it, byAddress), started)) }
                 }
             }.orEmpty()
         val mine = memberships.associateBy({ it.cohort }, { it.member })

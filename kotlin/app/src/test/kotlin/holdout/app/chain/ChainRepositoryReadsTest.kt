@@ -9,7 +9,10 @@ import holdout.core.CohortSnapshot
 import holdout.core.LeagueSnapshot
 import holdout.core.Pdas
 import holdout.core.Rpc
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import java.io.File
 import java.util.Base64
 import kotlin.test.Test
@@ -70,6 +73,9 @@ class ChainRepositoryReadsTest {
         failing[kind] = n
     }
 
+    /** When set, the next memberships call answers what the chain held when it was made, but only once this completes. */
+    private var holdNextMemberships: CompletableDeferred<Unit>? = null
+
     private val http =
         object : HttpNetworkDriver {
             override suspend fun makeHttpRequest(request: HttpRequest): String {
@@ -81,7 +87,9 @@ class ChainRepositoryReadsTest {
                     failing[kind] = left - 1
                     return """{"jsonrpc":"2.0","error":{"code":429,"message":"Too many requests"},"id":"x"}"""
                 }
-                return """{"jsonrpc":"2.0","result":${answer(kind, body)},"id":"x"}"""
+                val result = answer(kind, body)
+                if (kind == "memberships") holdNextMemberships?.also { holdNextMemberships = null }?.await()
+                return """{"jsonrpc":"2.0","result":$result,"id":"x"}"""
             }
         }
 
@@ -357,6 +365,30 @@ class ChainRepositoryReadsTest {
 
         assertEquals(2, calls["memberships"])
         assertEquals(1, calls["fetch"])
+    }
+
+    @Test
+    fun `an older memberships read that answers after a newer one does not put its answer back over it`() {
+        load(wallet)
+        now = 30_000
+        val held = CompletableDeferred<Unit>()
+        holdNextMemberships = held
+        runBlocking {
+            // A fresh read goes out while the join has not landed, and is slow to answer.
+            val older = async { repo.loadFresh(wallet) }
+            yield()
+            // The join lands; the read closing it starts later and answers first.
+            memberships = accounts(membershipBytes)
+            assertNotNull(assertNotNull(repo.loadFresh(wallet)).holdouts.single().membership)
+            held.complete(Unit)
+            assertNull(assertNotNull(older.await()).holdouts.single().membership, "the older read answers what it read")
+        }
+        now = 60_000
+
+        val view = assertNotNull(load(wallet))
+
+        assertEquals(3, calls["memberships"], "the pulse reuses what is kept")
+        assertNotNull(view.holdouts.single().membership, "and what is kept is the newer answer")
     }
 
     @Test
