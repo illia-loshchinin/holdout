@@ -25,7 +25,7 @@ video ever leaves it. Each finished Holdout day is one signed transaction. Your 
 program-owned vault, only the contract's rules can move it, and every payout is settled on chain.
 
 Finish 7 or 21 days of 25 push-ups and your stake comes back, plus a share of what others lost.
-Miss a day and you lose it: 70 % to the prize pool, 10 % held for your comeback, 20 % to run the
+Miss a day and you lose it, but 80 % of every lost stake stays with members and only 20 % runs the
 project. If everyone finishes, nobody pays.
 
 Devnet with test SKR for now. Staking needs a Seeker. No Seeker? The free **Daily 25** needs only
