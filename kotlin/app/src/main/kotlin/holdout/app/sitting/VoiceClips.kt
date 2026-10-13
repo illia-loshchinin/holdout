@@ -55,7 +55,10 @@ class VoiceClips(context: Context) {
                 mp.setDataSource(fd.fileDescriptor, fd.startOffset, fd.length)
             }
             mp.setOnCompletionListener { done(it) }
-            mp.setOnErrorListener { failed, _, _ -> done(failed); true }
+            mp.setOnErrorListener { failed, _, _ ->
+                done(failed)
+                true
+            }
             mp.prepare()
             mp.start()
         }.isSuccess
@@ -92,7 +95,6 @@ class VoiceClips(context: Context) {
         const val DIR = "voice"
 
         /** The clip's name for [words]; the same rule as `slug` in the recording script. */
-        fun slug(words: String): String =
-            words.lowercase().replace("°", "deg").replace(Regex("[^a-z0-9]+"), "-").trim('-')
+        fun slug(words: String): String = words.lowercase().replace("°", "deg").replace(Regex("[^a-z0-9]+"), "-").trim('-')
     }
 }
