@@ -43,8 +43,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.security.MessageDigest
 
 /**
- * The staked side of the app: one chain snapshot, refreshed every 30 seconds
- * while the app is in front (research R8), and every action a member takes on
+ * The staked side of the app: one chain snapshot, refreshed by a 30-second pulse
+ * while a screen showing live chain data is in front, backing off after failed
+ * reads, and read by change (FR-071, research R8), and every action a member takes on
  * it — faucet, join, leave, submit a completed day, claim (US1, US2, US3, US6,
  * US8). Screens only read [state] and call these; what screen a member sees is
  * decided by `Journey.stage`, from the snapshot and chain time.

@@ -494,8 +494,9 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     // Holdout runs its days, 10 minutes otherwise (FR-071).
     val standingAbout = shared.standingHoldout()
     val standingEvery = if (standingAbout != null && chainNow != null) TabRoots.rosterEveryMillis(standingAbout, chainNow) else ROSTER_REFRESH_MILLIS
-    InFrontLoop(standingAbout?.address to standingEvery) {
-        if (standingAbout == null) kotlinx.coroutines.awaitCancellation()
+    // Like the pulse, it reads only while a screen showing live chain data is in front (FR-071).
+    InFrontLoop(Triple(standingAbout?.address, standingEvery, liveChain)) {
+        if (standingAbout == null || !liveChain) kotlinx.coroutines.awaitCancellation()
         holdouts.loadRoster(standingAbout.address, maxAgeMillis = standingEvery)
         delay(ROSTER_REFRESH_MILLIS)
     }
