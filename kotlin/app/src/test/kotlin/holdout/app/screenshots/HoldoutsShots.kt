@@ -18,7 +18,6 @@ import holdout.app.nav.Screen
 import holdout.app.nav.Tab
 import holdout.app.nav.TabBadges
 import holdout.app.roster.RosterScreen
-import holdout.app.standing.StandingEmptyScreen
 import holdout.app.testing.Fx
 import holdout.app.testutil.AnimationsOff
 import holdout.app.ui.ChipTone
@@ -37,7 +36,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** The Holdouts and Standing tabs and what hangs off them: H0, Standing's empty state, H4, H5, L1, H6 and H7. */
+/** The Holdouts tab and what hangs off it: H0 with Running now, H4 (a Holdout's screen, pushed), H5, L1, H6 and H7. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = PHONE_QUALIFIERS)
@@ -84,16 +83,16 @@ class HoldoutsShots {
     @Test
     fun h0Empty() = h0("h0-empty", MyHoldoutsState(open = listOf(free)))
 
-    // ---- Standing ---------------------------------------------------------------------------------------
+    // ---- Running now ------------------------------------------------------------------------------------
 
     @Test
-    fun standingEmpty() = compose.shoot("standing", "standing-empty", heightDp = 1000) {
-        Tabbed(Tab.Standing) { StandingEmptyScreen(watch, null, onEvent = {}) }
+    fun h0RunningNow() = compose.shoot("holdouts", "h0-running-now", heightDp = 1500) {
+        Tabbed(Tab.Holdouts) { MyHoldoutsScreen(MyHoldoutsState(open = listOf(free)), onEvent = {}, onJoin = {}, running = watch) }
     }
 
     @Test
-    fun standingEmptyLobby() = compose.shoot("standing", "standing-empty-lobby", heightDp = 1000) {
-        Tabbed(Tab.Standing) { StandingEmptyScreen(watch, "Yours starts in 2d 4h" to "lobby-1", onEvent = {}) }
+    fun h0RunningNowWithOwn() = compose.shoot("holdouts", "h0-running-now-own", heightDp = 1700) {
+        Tabbed(Tab.Holdouts) { MyHoldoutsScreen(MyHoldoutsState(yours = listOf(running, lobby), open = listOf(free)), onEvent = {}, onJoin = {}, running = watch) }
     }
 
     // ---- H4 detail -------------------------------------------------------------------------------------
@@ -102,11 +101,6 @@ class HoldoutsShots {
     private val cohort = Fx.cohort(joined = 10, pool = 3_000_000_000uL, held = 12_500_000_000uL)
     private val mine = Fx.holdout(cohort, Fx.member(days = 4), boostReserve = 480_000_000uL)
     private val roster = Fx.roster(standing = 7, out = 3)
-
-    @Test
-    fun detailRunning() = compose.shoot("standing", "detail-running", heightDp = 1500) {
-        Tabbed(Tab.Standing) { CohortDetailScreen(mine, roster, mine.stage(now), now, null, {}, null, onLeaderboards = {}) }
-    }
 
     @Test
     fun detailRunningPushed() = compose.shoot("standing", "detail-running-pushed", heightDp = 1500) {

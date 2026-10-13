@@ -5,7 +5,6 @@ import holdout.app.testutil.ChainFixtures.START
 import holdout.app.testutil.ChainFixtures.holdout
 import holdout.app.testutil.ChainFixtures.member
 import holdout.app.testutil.ChainFixtures.view
-import holdout.core.LeagueParams
 import holdout.core.MembershipSnapshot
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -13,10 +12,11 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 /**
- * Which Holdout the Today and Standing roots are about (FR-069a, FR-069b,
- * rulings G1, D-D9): Today is the Holdout's day (T2) only while the member is
- * standing in a running one; Standing is that one, else the last they ran,
- * else its empty state. Pure, so no screen is needed.
+ * Which Holdout Today is about (FR-069a, rulings G1, D-D9): the Holdout's day
+ * (T2) only while the member is standing in a running one; and when the last
+ * day is on chain (FR-069a). Standing, a fourth tab until 13 October, is gone
+ * (FR-069b): a Holdout's screen is pushed over whatever opened it. Pure, so no
+ * screen is needed.
  */
 class TabRootsTest {
     private val running = holdout(1, START - 2 * DAY, member(2))
@@ -27,8 +27,8 @@ class TabRootsTest {
     fun `nothing is chosen before the chain has answered`() {
         assertNull(TabRoots.active(null, START))
         assertNull(TabRoots.active(view(running), null))
-        assertNull(TabRoots.standing(null, START))
-        assertNull(TabRoots.standing(view(running), null))
+        assertEquals(emptyList(), TabRoots.lastDayOnChain(null, START))
+        assertEquals(emptyList(), TabRoots.lastDayOnChain(view(running), null))
     }
 
     @Test
@@ -47,35 +47,18 @@ class TabRootsTest {
     }
 
     @Test
-    fun `Standing is the running Holdout's detail`() {
-        assertEquals(running.address, TabRoots.standing(view(running, lobby, notMine), START)?.address)
-    }
-
-    @Test
-    fun `Standing is the last one the member ran when none is running`() {
-        val older = holdout(5, START - 20 * DAY, member(7, MembershipSnapshot.State.Finished))
-        val newer = holdout(4, START - 12 * DAY, member(1), days = 21, form = LeagueParams.FORM_TOES, leagueId = LeagueParams.LEAGUE_21D)
-        assertEquals(newer.address, TabRoots.standing(view(older, newer, lobby, notMine), START)?.address)
-    }
-
-    @Test
-    fun `Standing lets the last one go once it is over for the member - claimed, or settled after falling out`() {
-        val claimed = holdout(5, START - 20 * DAY, member(7, MembershipSnapshot.State.Claimed))
-        assertNull(TabRoots.standing(view(claimed, lobby, notMine), START), "claimed: the empty state, the Holdout is on Past")
-        val out = holdout(4, START - 12 * DAY, member(1, MembershipSnapshot.State.Forfeited))
-        assertEquals(out.address, TabRoots.standing(view(out), START)?.address, "fell out, not settled yet: the crowd is still worth watching")
-        val settledOut = out.copy(cohort = out.cohort.copy(settled = true))
-        assertNull(TabRoots.standing(view(settledOut), START), "fell out and settled: nothing left to see")
-        val toClaim = holdout(6, START - 20 * DAY, member(7, MembershipSnapshot.State.Finished))
-        assertEquals(toClaim.address, TabRoots.standing(view(toClaim.copy(cohort = toClaim.cohort.copy(settled = true))), START)?.address, "a claim waiting keeps it")
-    }
-
-    @Test
-    fun `a running Holdout's roster is read every 30 seconds, a finished one's only slowly`() {
-        assertEquals(ROSTER_REFRESH_MILLIS, TabRoots.rosterEveryMillis(running, START))
-        // The 7-day Holdout started two days before START: it has ended five days later.
-        val ended = START + 6 * DAY
-        assertEquals(CHAIN_REFRESH_MILLIS, TabRoots.rosterEveryMillis(running, ended))
+    fun `the last day is on chain when the member's final day is sent - and not before`() {
+        // The 7-day Holdout started two days before START, so its last day (index 6) is open from START + 4 days.
+        val lastDay = START + 4 * DAY
+        assertEquals(emptyList(), TabRoots.lastDayOnChain(view(running, lobby, notMine), START), "day 3 of 7 is open, not done")
+        val sent = holdout(1, START - 2 * DAY, member(7))
+        assertEquals(listOf(sent.address.base58()), TabRoots.lastDayOnChain(view(sent, lobby, notMine), lastDay), "7 of 7 on chain: the last one is sent")
+        val toSend = holdout(2, START - 2 * DAY, member(6))
+        assertEquals(emptyList(), TabRoots.lastDayOnChain(view(toSend), lastDay), "6 of 7 on chain: the last day is still to send")
+        val dayBefore = holdout(3, START - 2 * DAY, member(6))
+        assertEquals(emptyList(), TabRoots.lastDayOnChain(view(dayBefore), START + 3 * DAY), "day 6 of 7 sent: not the last")
+        val notIn = holdout(4, START - 2 * DAY, null)
+        assertEquals(emptyList(), TabRoots.lastDayOnChain(view(notIn), lastDay), "watching is not being in it")
     }
 
     @Test
@@ -89,7 +72,8 @@ class TabRootsTest {
 
     @Test
     fun `a lobby place alone is not a Holdout to stand in, and watching is not a place`() {
-        assertNull(TabRoots.standing(view(lobby, notMine), START))
-        assertNull(TabRoots.standing(view(), START))
+        assertEquals(emptyList(), TabRoots.lastDayOnChain(view(lobby, notMine), START))
+        assertNull(TabRoots.active(view(lobby, notMine), START))
+        assertNull(TabRoots.active(view(), START))
     }
 }

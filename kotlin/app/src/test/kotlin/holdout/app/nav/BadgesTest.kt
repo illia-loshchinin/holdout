@@ -23,24 +23,6 @@ class BadgesTest {
     }
 
     @Test
-    fun `Standing - dropped since the member last looked`() {
-        assertEquals(3, Badges.droppedSinceLooked(standingNow = 186, lastLooked = 189, startedWith = 312))
-        assertEquals(0, Badges.droppedSinceLooked(standingNow = 189, lastLooked = 189, startedWith = 312))
-    }
-
-    @Test
-    fun `Standing - never looked, compared with how many started`() {
-        assertEquals(2, Badges.droppedSinceLooked(standingNow = 12, lastLooked = null, startedWith = 14))
-        assertEquals(0, Badges.droppedSinceLooked(standingNow = 14, lastLooked = null, startedWith = 14))
-    }
-
-    @Test
-    fun `Standing - no dot before the roster is read, nor for a count that went up`() {
-        assertEquals(0, Badges.droppedSinceLooked(standingNow = null, lastLooked = 10, startedWith = 14))
-        assertEquals(0, Badges.droppedSinceLooked(standingNow = 12, lastLooked = 10, startedWith = 14))
-    }
-
-    @Test
     fun `Holdouts - a dot when a claim is waiting`() {
         assertTrue(Badges.holdouts(listOf(Stage.Lobby, Stage.ReadyToClaim(5uL, 4uL, 1uL))))
         assertFalse(Badges.holdouts(listOf(Stage.Lobby, Stage.Settling, Stage.Claimed(5uL))))
@@ -59,16 +41,28 @@ class BadgesTest {
 
     @Test
     fun `each dot's meaning is in the tab's accessible name, and a tab with no dot is just its name`() {
-        val all = TabBadges(today = true, standingDropped = 3, holdouts = true, me = true)
-        assertEquals("Today, today's reps aren't done", all.accessibleName(Tab.Today))
-        assertEquals("Standing, 3 dropped since you last looked", all.accessibleName(Tab.Standing))
+        val all = TabBadges(today = true, holdouts = true, me = true)
+        assertEquals("Today, today's reps are not done", all.accessibleName(Tab.Today))
         assertEquals("Holdouts, a claim is waiting", all.accessibleName(Tab.Holdouts))
-        assertEquals("Me, low on SKR or SOL", all.accessibleName(Tab.Me))
-        assertEquals("Standing, 1 dropped since you last looked", all.copy(standingDropped = 1).accessibleName(Tab.Standing))
+        assertEquals("Me, SKR or SOL is too low", all.accessibleName(Tab.Me))
         val none = TabBadges()
         for (tab in Tab.entries) {
             assertFalse(none.dot(tab))
             assertEquals(tab.label, none.accessibleName(tab))
+        }
+    }
+
+    @Test
+    fun `three dots only - each tab's own, and nothing about people who dropped`() {
+        assertEquals(3, Tab.entries.size)
+        assertTrue(TabBadges(today = true).dot(Tab.Today))
+        assertFalse(TabBadges(today = true).dot(Tab.Holdouts))
+        assertFalse(TabBadges(today = true).dot(Tab.Me))
+        assertTrue(TabBadges(holdouts = true).dot(Tab.Holdouts))
+        assertTrue(TabBadges(me = true).dot(Tab.Me))
+        val all = TabBadges(today = true, holdouts = true, me = true)
+        for (tab in Tab.entries) {
+            assertFalse(all.accessibleName(tab).contains("dropped", ignoreCase = true), tab.label)
         }
     }
 }

@@ -57,7 +57,6 @@ import holdout.app.shell.SendWaitingDay
 import holdout.app.shell.Shared
 import holdout.app.shell.SittingHost
 import holdout.app.shell.StakeSheetHost
-import holdout.app.shell.StandingRoot
 import holdout.app.shell.TabRoots
 import holdout.app.shell.TodayRoot
 import holdout.app.shell.TxFlowHost
@@ -65,8 +64,6 @@ import holdout.app.shell.cohortScope
 import holdout.app.shell.lowOnFunds
 import holdout.app.shell.pendingTodayOf
 import holdout.app.shell.resend
-import holdout.app.shell.standingDropped
-import holdout.app.shell.standingHoldout
 import holdout.app.stake.SeekerGate
 import holdout.app.stake.SeekerStatus
 import holdout.app.storage.MmkvStore
@@ -98,9 +95,9 @@ import kotlinx.coroutines.launch
  * The app: shared state, the loops that keep it fresh, and the router.
  *
  * ```
- * connect wallet → (tour, first run) → the 4-tab shell (rulings G1, FR-069)
- *   Today · Standing · Holdouts · Me      roots with the bottom bar   shell/TodayHost, StandingHost, HoldoutsHost, MeHost
- *   pushed screens                         back arrow, no bar          the same hosts
+ * connect wallet → (tour, first run) → the 3-tab shell (rulings G1, FR-069)
+ *   Today · Holdouts · Me                  roots with the bottom bar   shell/TodayHost, HoldoutsHost, MeHost
+ *   pushed screens (a Holdout's H4 too)    back arrow, no bar          the same hosts, shell/DetailHost
  *   stake confirm · faucet                 sheets over their opener    HoldoutsHost, MeHost
  *   sitting · signing flow · tour          full screen                 shell/SittingHost, TxFlowHost
  * ```
@@ -485,29 +482,35 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
         if (signing.phase != TxPhase.WaitingForWallet) dispatch(NavEvent.TxProgress(signing.phase))
     }
 
-    // The Standing dot needs the roster of the Holdout Standing is about, wherever the member is.
-    // The only loop on that roster while the Holdout runs (Today's and the detail screens leave it to this one);
-    // a finished Holdout is looked at slowly.
-    val standingAbout = shared.standingHoldout()
-    val standingEvery = if (standingAbout != null && chainNow != null) TabRoots.rosterEveryMillis(standingAbout, chainNow) else ROSTER_REFRESH_MILLIS
-    InFrontLoop(standingAbout?.address to standingEvery) {
-        if (standingAbout == null) kotlinx.coroutines.awaitCancellation()
-        holdouts.loadRoster(standingAbout.address)
-        delay(standingEvery)
+    // Today's crowd strip needs the roster of the Holdout Today is about, wherever the member is.
+    // The only loop on that roster while the Holdout runs (the Holdout's own screen leaves it to this one).
+    val running = shared.active()
+    val runningAbout = running?.first
+    InFrontLoop(runningAbout?.address) {
+        if (runningAbout == null) kotlinx.coroutines.awaitCancellation()
+        holdouts.loadRoster(runningAbout.address)
+        delay(ROSTER_REFRESH_MILLIS)
+    }
+
+    // The member's last day is on chain while the app is open — its submit just landed, or the first read found
+    // it so: that Holdout's screen opens over Today, once per process (FR-069a). Only on Today's root, with
+    // nothing else on the screen; the navigation model ignores a repeat.
+    val lastDays = remember(view, chainNow) { TabRoots.lastDayOnChain(view, chainNow) }
+    val onTodayRoot = !nav.fullScreen && nav.sheet == null && nav.tab == Tab.Today && nav.onRoot
+    LaunchedEffect(lastDays, onTodayRoot) {
+        if (onTodayRoot) lastDays.forEach { dispatch(NavEvent.LastDayOnChain(it)) }
     }
 
     // A day waiting for the network sends itself once the chain answers again, on
     // whichever screen the member is (T098) — the sitting composes its own.
     if (nav.sitting == null) shared.SendWaitingDay()
 
-    val running = shared.active()
     val badges = TabBadges(
         today = Badges.today(
             running = running?.second,
             holdoutDayDoneOnPhone = running?.let { (h, stage) -> shared.pendingTodayOf(h, stage) != null } == true,
             daily25Done = remember(wallet, shared.dayIndex, refreshToken) { store.isDayComplete(wallet, Store.CHALLENGE, shared.dayIndex) },
         ),
-        standingDropped = shared.standingDropped(),
         holdouts = Badges.holdouts(nav.stages.values),
         me = shared.lowOnFunds(),
     )
@@ -523,7 +526,6 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
         root = { tab ->
             when (tab) {
                 Tab.Today -> shared.TodayRoot()
-                Tab.Standing -> shared.StandingRoot()
                 Tab.Holdouts -> shared.HoldoutsRoot()
                 Tab.Me -> shared.MeRoot()
             }

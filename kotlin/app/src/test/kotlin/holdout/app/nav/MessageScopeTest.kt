@@ -21,23 +21,23 @@ class MessageScopeTest {
 
     @Test
     fun `a message said on Today is over when the member goes to another tab`() {
-        assertTrue(left(running(), NavEvent.SelectTab(Tab.Standing)))
+        assertTrue(left(running(), NavEvent.SelectTab(Tab.Me)))
         assertTrue(left(running(), NavEvent.SelectTab(Tab.Holdouts)))
     }
 
     @Test
-    fun `the day that landed on Today does not outlive the walk to the claim - Standing, then the claim screen`() {
+    fun `the day that landed on Today does not outlive the walk to the claim - the Holdout's screen, then the claim screen`() {
         val today = running()
-        val standing = today.then(NavEvent.ChainMoved(mapOf(A to Stage.Settling)))
-        assertTrue(MessageScope.left(today, standing))
-        val claim = standing.then(NavEvent.ChainMoved(mapOf(A to Stage.ReadyToClaim(1_412_000_000uL, 1_250_000_000uL, 162_000_000uL))))
-        assertTrue(MessageScope.left(standing, claim))
+        val detail = today.then(NavEvent.ChainMoved(mapOf(A to Stage.Settling)))
+        assertTrue(MessageScope.left(today, detail))
+        val claim = detail.then(NavEvent.ChainMoved(mapOf(A to Stage.ReadyToClaim(1_412_000_000uL, 1_250_000_000uL, 162_000_000uL))))
+        assertTrue(MessageScope.left(detail, claim))
     }
 
     @Test
     fun `a pushed screen and its back are other screens`() {
-        val roster = running().then(NavEvent.SelectTab(Tab.Standing), NavEvent.Open(Screen.Roster(A)))
-        assertTrue(MessageScope.left(running().then(NavEvent.SelectTab(Tab.Standing)), roster))
+        val roster = running().then(NavEvent.SelectTab(Tab.Holdouts), NavEvent.Open(Screen.Roster(A)))
+        assertTrue(MessageScope.left(running().then(NavEvent.SelectTab(Tab.Holdouts)), roster))
         assertTrue(left(roster, NavEvent.Back))
     }
 

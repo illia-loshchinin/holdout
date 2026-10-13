@@ -60,42 +60,48 @@ class NavJourneyTest {
     }
 
     @Test
-    fun `J3 UC-6 a day inside a Holdout - reminder, T2, sitting, submit, on chain, optionally Standing and the roster`() {
+    fun `J3 UC-6 a day inside a Holdout - reminder, T2, sitting, submit, on chain, optionally its screen and the members`() {
         var s = running().then(NavEvent.SelectTab(Tab.Me), NavEvent.AppOpened)
         assertEquals(Tab.Today, s.tab)
         s = s.then(NavEvent.StartSitting(Sitting.HoldoutDay(A, 5)), NavEvent.SittingEnded, NavEvent.TxStarted(TxKind.Submit(A, 5)))
         s = s.then(NavEvent.TxProgress(TxPhase.Confirming), NavEvent.TxProgress(TxPhase.Done(TxOutcome.Landed("sig"))))
         assertNull(s.tx)
         assertEquals(Tab.Today, s.tab)
-        s = s.then(NavEvent.SelectTab(Tab.Standing), NavEvent.Open(Screen.Roster(A)))
-        assertEquals(Screen.Roster(A), s.top)
+        s = s.then(NavEvent.Open(Screen.Detail(A)), NavEvent.Open(Screen.Roster(A)))
+        assertEquals(listOf(Screen.Detail(A), Screen.Roster(A)), s.stack)
+        assertEquals(Tab.Today, s.tab)
     }
 
     @Test
-    fun `J3a a day started from Standing's strip is the same sitting as from Today, and ends on Today`() {
+    fun `J3a a day started from a Holdout's screen is the same sitting as from Today, and ends on Today's root`() {
         val fromToday = running().then(NavEvent.StartSitting(Sitting.HoldoutDay(A, 5)))
-        val standing = running().then(NavEvent.SelectTab(Tab.Standing))
-        assertEquals(Tab.Standing, standing.tab)
-        assertTrue(standing.showsBar)
-        val fromStanding = standing.then(NavEvent.StartSitting(Sitting.HoldoutDay(A, 5)))
-        assertEquals(fromToday.sitting, fromStanding.sitting)
-        assertFalse(fromStanding.showsBar)
-        val back = fromStanding.then(NavEvent.SittingEnded)
-        assertNull(back.sitting)
-        assertEquals(Tab.Today, back.tab)
-        assertTrue(back.onRoot)
+        // The screen pushed on Holdouts (a card) and the one pushed on Today (the crowd strip).
+        val onHoldouts = running().then(NavEvent.SelectTab(Tab.Holdouts), NavEvent.Open(Screen.Detail(A)))
+        val onToday = running().then(NavEvent.Open(Screen.Detail(A)))
+        for (detail in listOf(onHoldouts, onToday)) {
+            assertFalse(detail.showsBar)
+            val started = detail.then(NavEvent.StartSitting(Sitting.HoldoutDay(A, 5)))
+            assertEquals(fromToday.sitting, started.sitting)
+            assertFalse(started.showsBar)
+            val back = started.then(NavEvent.SittingEnded)
+            assertNull(back.sitting)
+            assertEquals(Tab.Today, back.tab)
+            assertTrue(back.onRoot)
+        }
     }
 
     @Test
-    fun `J3b Today's crowd strip opens the Standing root, and the Today tab brings Today back`() {
+    fun `J3b Today's crowd strip opens the Holdout's screen over Today, and Back brings Today back`() {
         var s = running()
         assertEquals(Tab.Today, s.tab)
-        s = s.then(NavEvent.SelectTab(Tab.Standing))
-        assertEquals(Tab.Standing, s.tab)
+        s = s.then(NavEvent.Open(Screen.Detail(A)))
+        assertEquals(Tab.Today, s.tab)
+        assertEquals(Screen.Detail(A), s.top)
+        assertFalse(s.showsBar)
+        s = s.then(NavEvent.Back)
+        assertEquals(Tab.Today, s.tab)
         assertTrue(s.onRoot)
         assertTrue(s.showsBar)
-        s = s.then(NavEvent.SelectTab(Tab.Today))
-        assertEquals(Tab.Today, s.tab)
     }
 
     @Test
@@ -123,9 +129,10 @@ class NavJourneyTest {
     }
 
     @Test
-    fun `J6 UC-11 finish and get paid - settling on Standing, settled opens claim, claimed, H0 finished`() {
+    fun `J6 UC-11 finish and get paid - settling over Today, settled opens claim, claimed, H0 finished`() {
         var s = running().then(NavEvent.ChainMoved(mapOf(A to Stage.Settling)))
-        assertEquals(Tab.Standing, s.tab)
+        assertEquals(Tab.Today, s.tab)
+        assertEquals(Screen.Detail(A), s.top)
         s = s.then(NavEvent.ChainMoved(mapOf(A to claimable())))
         assertEquals(Screen.Claim(A), s.top)
         s = s.then(NavEvent.TxStarted(TxKind.Claim(A)), NavEvent.TxProgress(TxPhase.Done(TxOutcome.Landed("sig"))), NavEvent.TxDone)
@@ -159,7 +166,8 @@ class NavJourneyTest {
             assertEquals(Tab.Today, s.tab)
         }
         s = s.then(NavEvent.ChainMoved(mapOf(T to Stage.Settling)))
-        assertEquals(Tab.Standing, s.tab)
+        assertEquals(Tab.Today, s.tab)
+        assertEquals(Screen.Detail(T), s.top)
         s = s.then(NavEvent.ChainMoved(mapOf(T to claimable())))
         assertEquals(Screen.Claim(T), s.top)
     }
@@ -176,11 +184,11 @@ class NavJourneyTest {
     }
 
     @Test
-    fun `J9 UC-13 where do I stand - Standing, Leaderboards, back`() {
-        val standing = home().then(NavEvent.SelectTab(Tab.Standing))
-        val s = standing.then(NavEvent.Open(Screen.Leaderboards(Leaderboard.Board.EASY_7D)))
+    fun `J9 UC-13 where do I stand - Me, Leaderboards, back to Me`() {
+        val me = home().then(NavEvent.SelectTab(Tab.Me))
+        val s = me.then(NavEvent.Open(Screen.Leaderboards(Leaderboard.Board.EASY_7D)))
         assertFalse(s.showsBar)
-        assertEquals(standing, s.then(NavEvent.Back))
+        assertEquals(me, s.then(NavEvent.Back))
     }
 
     @Test
@@ -204,9 +212,25 @@ class NavJourneyTest {
     }
 
     @Test
-    fun `UC-8 see who dropped - T2, Standing, roster, back to Standing`() {
-        val standing = running().then(NavEvent.SelectTab(Tab.Standing))
-        assertEquals(standing, standing.then(NavEvent.Open(Screen.Roster(A)), NavEvent.Back))
+    fun `UC-8 see who dropped - T2, the crowd strip, members, back to the Holdout's screen, back to Today`() {
+        val detail = running().then(NavEvent.Open(Screen.Detail(A)))
+        assertEquals(detail, detail.then(NavEvent.Open(Screen.Roster(A)), NavEvent.Back))
+        assertEquals(running(), detail.then(NavEvent.Back))
+    }
+
+    @Test
+    fun `J10 FR-069a the last day - submit lands on Today, its Holdout's screen opens over Today once, Back returns`() {
+        var s = running().then(NavEvent.TxStarted(TxKind.Submit(A, 6)), NavEvent.TxProgress(TxPhase.Done(TxOutcome.Landed("last"))))
+        assertEquals(Tab.Today, s.tab)
+        assertTrue(s.onRoot)
+        s = s.then(NavEvent.LastDayOnChain(A))
+        assertEquals(Screen.Detail(A), s.top)
+        s = s.then(NavEvent.Back)
+        assertTrue(s.onRoot)
+        // The same moment seen again (the next read): nothing.
+        assertEquals(s, s.then(NavEvent.LastDayOnChain(A)))
+        // Settling then finds Today at its root and the Holdout's screen already shown once.
+        assertEquals(s.copy(stages = mapOf(A to Stage.Settling)), s.then(NavEvent.ChainMoved(mapOf(A to Stage.Settling))))
     }
 
     @Test

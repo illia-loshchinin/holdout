@@ -108,7 +108,7 @@ class HoldoutViewModel(
      * Reads [cohort]'s roster (one `getProgramAccounts`, sliced — R8); a failed read keeps the last one.
      * It runs in [scope]: a check's roster read is a child of the check, so leaving the front cancels it.
      * A cohort's read still out answers for any asked meanwhile — the 30-second pass, a screen opened
-     * twice, the Standing dot's own loop — so the same `getProgramAccounts` is never in flight twice.
+     * twice, the app's own loop for the Holdout Today is about — so the same `getProgramAccounts` is never in flight twice.
      * A [force]d read ("Check again") starts its own anyway: one already out may be hanging, and the
      * check promises a fresh roster; the newer answer wins either way.
      */

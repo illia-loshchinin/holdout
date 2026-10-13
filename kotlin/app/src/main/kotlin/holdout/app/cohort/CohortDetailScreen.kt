@@ -45,15 +45,14 @@ import holdout.core.MembershipSnapshot
 import holdout.core.Stage
 
 /**
- * The Holdout detail (H4, board 13; US-7, FR-038, FR-062a): the Standing tab's
- * root when the member has a Holdout, and the page a watcher reaches from
- * "Running now". Days to go, the member's own record, the share they would get
+ * The Holdout detail (H4, board 13; US-7, FR-038, FR-062a): a Holdout's screen, pushed over what opened it (FR-069b),
+ * also the page a watcher reaches from "Running now". Days to go, the member's own record, the share they would get
  * if the crowd held here, and how the crowd thinned day by day. It also carries
  * the quiet end states: **You finished · settling** until finalisation, with
  * how long that usually takes counted from the end (FR-035a), and **claimed**.
  *
  * ```
- *  ‹  HABIT · 21-DAY · DAY 12 OF 21           ScreenHeader (no ‹ on the Standing root)
+ *  ‹  HABIT · 21-DAY · DAY 12 OF 21           ScreenHeader
  *  [You're watching this one]                  a watcher's note
  *  DAY 12 · 25 push-ups · 4h 06m left  [Start]  the member's day while it is open (YourDayStrip, FR-069b)
  *  ┌ You finished · settling … ┐               settling card, success border
@@ -74,7 +73,7 @@ fun CohortDetailScreen(
     now: Long,
     lastClaimSignature: String?,
     onRoster: () -> Unit,
-    /** Null on the Standing tab, where this is the root: no back arrow, the bar instead. */
+    /** Back to the screen that opened this one (FR-069b); null draws no back arrow. */
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
     /** The last chain read failed (spec 005): the line, Check again and the pull. */
@@ -82,11 +81,11 @@ fun CohortDetailScreen(
     checking: Boolean = false,
     stillUnreachable: Boolean = false,
     onCheck: () -> Unit = {},
-    /** L1, the leaderboards of this Holdout's level (Standing holds them); null shows no button. */
+    /** L1, the leaderboards of this Holdout's level (Me holds them since 13 October; FR-069d); null shows no button. */
     onLeaderboards: (() -> Unit)? = null,
     /** A member who is out reaches their forfeit screen from here; null shows no card. */
     onForfeit: (() -> Unit)? = null,
-    /** The member's day, for the strip at the top (FR-069b): null on a Holdout they only watch, past the last day, or off the Standing root. */
+    /** The member's day, for the strip at the top (FR-069b): null on a Holdout they only watch, or past the last day. */
     day: DayState? = null,
     onStartDay: () -> Unit = {},
     onSubmitDay: (dayIndex: Int) -> Unit = {},

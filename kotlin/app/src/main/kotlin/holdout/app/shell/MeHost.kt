@@ -15,6 +15,7 @@ import holdout.app.nav.Screen
 import holdout.app.nav.Sheet
 import holdout.app.storage.Store
 import holdout.app.ui.StreakState
+import holdout.core.Leaderboard
 
 /** The Me dot: SKR or SOL too low to stake or submit (DS BottomNav); false before the chain is read. */
 internal fun Shared.lowOnFunds(): Boolean {
@@ -49,6 +50,7 @@ internal fun Shared.MeRoot(modifier: Modifier = Modifier) {
             network = Deployment.networkName.lowercase(),
         ),
         onGetTokens = { dispatch(NavEvent.OpenFaucet) },
+        onLeaderboards = { dispatch(NavEvent.Open(Screen.Leaderboards(Leaderboard.Board.EASY_7D))) },
         onAbout = { dispatch(NavEvent.Open(Screen.About)) },
         onTour = { dispatch(NavEvent.OpenTour) },
         onDisconnect = disconnect,

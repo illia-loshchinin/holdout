@@ -107,6 +107,8 @@ fun MeScreen(
     onTour: () -> Unit,
     onDisconnect: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The only way to the leaderboards (FR-060, FR-069d). */
+    onLeaderboards: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -124,6 +126,7 @@ fun MeScreen(
             Holdings(state)
             if (state.lowOnFunds) Notice("Too little SKR or SOL to stake or submit. Get test tokens first.", warning = true)
             PrimaryButton("Get test tokens", onGetTokens)
+            MenuRow("Leaderboards", onClick = onLeaderboards)
             MenuRow("About Holdout", "devnet · test token", onClick = onAbout)
             MenuRow("How Holdout works", "5 cards", onClick = onTour)
         }

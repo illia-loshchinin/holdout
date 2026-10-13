@@ -169,14 +169,6 @@ interface Store {
     fun seekerConfirmation(wallet: String): SeekerConfirmation?
     fun setSeekerConfirmation(wallet: String, confirmation: SeekerConfirmation)
 
-    /**
-     * How many were still standing in [cohort] when [wallet] last looked at its
-     * Standing (`looked:{wallet}:{cohort}`), or null: the Standing tab's dot is
-     * for people who dropped since (DS BottomNav).
-     */
-    fun standingLooked(wallet: String, cohort: String): Int?
-    fun setStandingLooked(wallet: String, cohort: String, standing: Int)
-
     companion object {
         /** Kept Seeker ID entries at most (research R7): every member a judge could meet, under 0.5 MB. */
         const val SEEKER_NAMES_MAX = 5_000
@@ -464,12 +456,6 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
         kv.encode("$SEEKER_CONFIRMED$wallet", confirmation.encode())
     }
 
-    override fun standingLooked(wallet: String, cohort: String): Int? = kv.decodeInt("looked:$wallet:$cohort", -1).takeIf { it >= 0 }
-
-    override fun setStandingLooked(wallet: String, cohort: String, standing: Int) {
-        kv.encode("looked:$wallet:$cohort", standing)
-    }
-
     override fun recordsVideo(): Boolean = kv.decodeBool("records_video", false)
 
     override fun setRecordsVideo(on: Boolean) {
@@ -643,12 +629,6 @@ class InMemoryStore : Store {
 
     override fun setSeekerConfirmation(wallet: String, confirmation: SeekerConfirmation) {
         values["$SEEKER_CONFIRMED$wallet"] = confirmation
-    }
-
-    override fun standingLooked(wallet: String, cohort: String): Int? = values["looked:$wallet:$cohort"] as? Int
-
-    override fun setStandingLooked(wallet: String, cohort: String, standing: Int) {
-        values["looked:$wallet:$cohort"] = standing
     }
 
     override fun setSeekerName(wallet: String, kept: KeptName) {

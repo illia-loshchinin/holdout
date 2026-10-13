@@ -154,7 +154,8 @@ class MemberJourneyEndToEndTest {
         now = start + 7 * day + 60
         s = runningOnDayOne.read(now)
         assertEquals(Stage.Settling, s.stages[id])
-        assertEquals(Tab.Standing, s.tab)
+        assertEquals(Tab.Today, s.tab)
+        assertEquals(Screen.Detail(id), s.top)
         assertFalse(Badges.holdouts(s.stages.values))
 
         chain.settled = true

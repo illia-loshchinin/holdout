@@ -28,8 +28,8 @@ import holdout.app.ui.theme.HoldoutColors
  * bottom bar on tab roots only, a sheet over the screen that opened it, and the
  * system Back. Stateless — plain state in, [NavEvent]s out — so its tests need
  * no chain, wallet, storage or camera; each area's content comes from its host
- * (`TodayHost`, `StandingHost`, `HoldoutsHost`, `MeHost`, `SittingHost`,
- * `TxFlowHost`) through the slots.
+ * (`TodayHost`, `HoldoutsHost`, `MeHost`, `DetailHost`, `SittingHost`,
+ * `TxFlowHost`) through the slots. Three tabs, Today · Holdouts · Me (FR-069).
  *
  * ```
  *  no wallet      → connect                         full screen
@@ -87,7 +87,6 @@ fun AppShell(
 
 private fun Tab.icon() = when (this) {
     Tab.Today -> NavIcons.Today
-    Tab.Standing -> NavIcons.Pulse
     Tab.Holdouts -> NavIcons.Holdouts
     Tab.Me -> NavIcons.Me
 }

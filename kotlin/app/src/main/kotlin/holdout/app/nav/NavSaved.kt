@@ -20,6 +20,11 @@ import holdout.core.Leaderboard
  * after a restart is not mistaken for a change that moves the member.
  *
  * Anything unreadable is dropped, never guessed: the member lands on Today.
+ * That includes the Standing tab, retired on 13 October (FR-069b, R25): a `v1`
+ * state saved on it restores on Today, its `stack|Standing|…` lines dropped,
+ * the other tabs' stacks kept — the format stays `v1`, so nothing else is lost.
+ * The Holdouts whose screen the last day on chain opened ([NavState.lastDayOpened])
+ * are not kept: that is once per process.
  */
 object NavSaved {
     private const val VERSION = "v1"

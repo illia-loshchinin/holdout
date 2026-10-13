@@ -39,6 +39,7 @@ import holdout.app.ui.ChipTone
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.wallet.TxOutcome
 import holdout.app.wallet.TxPhase
+import holdout.core.Leaderboard
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -115,8 +116,8 @@ class AppShellTest {
         show(HOME)
         compose.onNodeWithText("Today root").assertExists()
         compose.onNodeWithContentDescription("Today").assertIsSelected()
-        compose.onNodeWithContentDescription("Standing").performClick()
-        compose.onNodeWithText("Standing root").assertExists()
+        compose.onNodeWithContentDescription("Holdouts").performClick()
+        compose.onNodeWithText("Lobby card").assertExists()
         compose.onNodeWithContentDescription("Me").performClick()
         compose.onNodeWithText("Me root").assertExists()
         assertEquals(Tab.Me, nav.tab)
@@ -144,11 +145,44 @@ class AppShellTest {
 
     @Test
     fun eachBadgeSaysItsMeaningInTheTabsAccessibleName() {
-        show(HOME, TabBadges(today = true, standingDropped = 3, holdouts = true, me = true))
-        compose.onNodeWithContentDescription("Today, today's reps aren't done").assertExists()
-        compose.onNodeWithContentDescription("Standing, 3 dropped since you last looked").assertExists()
+        show(HOME, TabBadges(today = true, holdouts = true, me = true))
+        compose.onNodeWithContentDescription("Today, today's reps are not done").assertExists()
         compose.onNodeWithContentDescription("Holdouts, a claim is waiting").assertExists()
-        compose.onNodeWithContentDescription("Me, low on SKR or SOL").assertExists()
+        compose.onNodeWithContentDescription("Me, SKR or SOL is too low").assertExists()
+    }
+
+    @Test
+    fun theBarHasThreeTabsAndNoStanding() {
+        show(HOME)
+        for (name in listOf("Today", "Holdouts", "Me")) compose.onNodeWithContentDescription(name).assertExists()
+        compose.onNodeWithContentDescription("Standing").assertDoesNotExist()
+        assertEquals(listOf(Tab.Today, Tab.Holdouts, Tab.Me), Tab.entries.toList())
+    }
+
+    @Test
+    fun theBarIsGoneOnAHoldoutsScreenMembersAndLeaderboards() {
+        show(HOME.then(NavEvent.Open(Screen.Detail("A"))))
+        compose.onNodeWithText("Pushed: Detail(cohort=A)").assertExists()
+        compose.onNodeWithContentDescription("Today").assertDoesNotExist()
+        event(NavEvent.Open(Screen.Roster("A")))
+        compose.onNodeWithContentDescription("Today").assertDoesNotExist()
+        event(NavEvent.Back)
+        event(NavEvent.Back)
+        compose.onNodeWithContentDescription("Today").assertExists()
+        event(NavEvent.SelectTab(Tab.Me))
+        event(NavEvent.Open(Screen.Leaderboards(Leaderboard.Board.EASY_7D)))
+        compose.onNodeWithContentDescription("Me").assertDoesNotExist()
+    }
+
+    @Test
+    fun aHoldoutsScreenOpenedFromAHoldoutsCardIsPushedOnHoldoutsAndBackReturnsThere() {
+        show(HOME.then(NavEvent.SelectTab(Tab.Holdouts)))
+        compose.onNodeWithText("Running card").performClick()
+        compose.onNodeWithText("Pushed: Detail(cohort=r)").assertExists()
+        assertEquals(Tab.Holdouts, nav.tab)
+        event(NavEvent.Back)
+        assertEquals(Tab.Holdouts, nav.tab)
+        compose.onNodeWithText("Running card").assertExists()
     }
 
     @Test

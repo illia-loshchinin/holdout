@@ -86,6 +86,8 @@ fun MyHoldoutsScreen(
     header: @Composable ColumnScope.() -> Unit = {},
     /** False once this session's Seeker check found no Genesis Token: the offers show without a Join, and one line says why (G12). */
     canJoin: Boolean = true,
+    /** The running Holdouts the member is not in, to watch (FR-062a): they end Now, for every wallet, and open H4 on this tab. */
+    running: List<RunningHoldout> = emptyList(),
 ) {
     // The choice survives rotation and a process death; it is Now until the member picks Past.
     var tab by rememberSaveable { mutableIntStateOf(NOW) }
@@ -126,6 +128,11 @@ fun MyHoldoutsScreen(
             if (state.open.isEmpty()) Body("The next Holdout opens soon.")
             if (!canJoin && state.open.isNotEmpty()) Body(MyHoldoutsModel.SEEKER_ONLY)
             state.open.forEach { OfferCard(it, onJoin = if (canJoin) ({ onJoin(it.cohort) }) else null) }
+        }
+
+        if (running.isNotEmpty()) {
+            SectionLabel("Running now")
+            running.forEach { r -> RunningNowCard(r, onOpen = { onEvent(r.go) }) }
         }
     }
 }
