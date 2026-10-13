@@ -43,7 +43,7 @@ It changes no rule of spec 001. A check is the same read the app already makes o
 
 ### User Story 1 - Check again from the waiting day (Priority: P1)
 
-A member finished today's reps while Devnet could not be reached. The home reads *"Done — waiting for network"*. They think the connection is back and want to know now, not in up to 30 seconds. They ask the app to check, see that it is checking, and either the day moves on to being sent (the chain answered) or the screen says Devnet still can't be reached.
+A member finished today's reps while Devnet could not be reached. The home reads *"Done — waiting for network"*. They think the connection is back and want to know now, not after the app's own pulse, which can wait up to 5 minutes while the chain stays silent (001 FR-071). They ask the app to check, see that it is checking, and either the day moves on to being sent (the chain answered) or the screen says Devnet still can't be reached.
 
 **Why this priority**: it is the moment the owner hit: a finished day with a deadline running, and nothing to tap.
 
