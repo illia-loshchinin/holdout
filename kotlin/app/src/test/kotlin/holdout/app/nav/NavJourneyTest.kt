@@ -21,7 +21,7 @@ class NavJourneyTest {
     @Test
     fun `J1 UC-1 first reps - connect, tour, Today, Daily 25, back on Today`() {
         var s = NavState().then(NavEvent.Connected(tourSeen = false))
-        assertEquals(Tour(firstRun = true), s.tour)
+        assertEquals(Tour(firstRun = true, welcome = true), s.tour)
         s = s.then(NavEvent.TourDone)
         assertTrue(s.showsBar)
         s = s.then(NavEvent.StartSitting(Sitting.Daily25(DAY)))
@@ -235,7 +235,7 @@ class NavJourneyTest {
 
     @Test
     fun `UC-15 UC-16 know what it runs on and switch wallets - Me, About, tour again, disconnect`() {
-        var s = home().then(NavEvent.SelectTab(Tab.Me), NavEvent.Open(Screen.About), NavEvent.OpenTour)
+        var s = home().then(NavEvent.SelectTab(Tab.Me), NavEvent.Open(Screen.About), NavEvent.OpenTour())
         assertEquals(Tour(firstRun = false), s.tour)
         s = s.then(NavEvent.TourDone)
         assertEquals(Screen.About, s.top)

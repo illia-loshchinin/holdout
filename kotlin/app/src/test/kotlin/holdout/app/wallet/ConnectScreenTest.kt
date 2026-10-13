@@ -1,7 +1,13 @@
 package holdout.app.wallet
 
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -13,7 +19,10 @@ import com.solana.publickey.SolanaPublicKey
 import holdout.app.chain.Holdout
 import holdout.app.testutil.AnimationsOff
 import holdout.app.testutil.TALL_PHONE
+import holdout.app.testutil.textColors
+import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
+import holdout.app.ui.theme.Spacing
 import holdout.core.CohortSnapshot
 import holdout.core.LeagueParams
 import holdout.core.LeagueSnapshot
@@ -24,6 +33,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * A1 First open, A3 No wallet and the wait for the wallet (boards Connect,
@@ -140,41 +151,92 @@ class ConnectScreenTest {
     }
 
     @Test
-    fun `the wrong network notice says nothing was signed and what to do`() {
+    fun `the wrong network notice is a calm status card, not a warning`() {
         show(message = WalletRepository.WRONG_NETWORK)
 
-        compose.onNodeWithText("Your wallet isn't on devnet, so nothing was signed. Switch it to devnet, then connect again.").assertIsDisplayed()
+        val notice = compose.onNodeWithText("Your wallet isn't on devnet, so nothing was signed. Switch it to devnet, then connect again.")
+        notice.assertIsDisplayed()
+        notice.assertCalmStatus()
         compose.onNodeWithText("Connect wallet").assertIsDisplayed()
     }
 
     @Test
-    fun `any other connect failure gets one plain line`() {
+    fun `any other connect failure gets one plain line, calm too`() {
         show(message = "java.net.SocketTimeoutException: connect timed out")
 
-        compose.onNodeWithText("We couldn't connect to your wallet. Try again.").assertIsDisplayed()
+        val notice = compose.onNodeWithText("We couldn't connect to your wallet. Try again.")
+        notice.assertIsDisplayed()
+        notice.assertCalmStatus()
         compose.onAllNodesWithText("SocketTimeoutException", substring = true).assertCountEquals(0)
     }
 
+    /** A polite live region, and no text in `Warning`: the notice informs, it does not alarm (FR-053, 2026-10-14). */
+    private fun SemanticsNodeInteraction.assertCalmStatus() {
+        assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        assertFalse(HoldoutColors.Warning in textColors(), "no Warning-coloured text in the notice")
+        assertTrue(HoldoutColors.TextPrimary in textColors(), "the notice reads in the primary text colour")
+    }
+
     @Test
-    fun `the live list is one card with a row per level, what is running and what is open`() {
+    fun `the live list is one card with a row per running Holdout, its count, its pool and its next round`() {
         show(live = listOf(runningSpark, openSpark, runningHabit))
 
         compose.onNodeWithText("Live right now", ignoreCase = true).assertIsDisplayed()
         compose.onNodeWithText("Test network, test token.").assertIsDisplayed()
-        // Running Spark: the label with the day, the status word, who started, the pool.
+        // Running Spark: the label with the day, who started, the pool in the money colour.
         compose.onNodeWithText("SPARK · 7-DAY · DAY 3 OF 7").assertIsDisplayed()
         compose.onNodeWithText("20 started").assertIsDisplayed()
-        compose.onNodeWithText("6,125 SKR").assertIsDisplayed()
-        // The open one of the same level hangs under it: at stake, joined, how long joining stays open, the boost (FR-053).
-        compose.onNodeWithText("Next: 12,500 SKR at stake · 14 joined").assertIsDisplayed()
-        compose.onNodeWithText("Joining closes in 4d 23h").assertIsDisplayed()
-        compose.onNodeWithText("Prize boost: up to 480 SKR").assertIsDisplayed()
-        // Running Habit with nothing open at its level.
+        assertTrue(HoldoutColors.Success in compose.onNodeWithText("6,125 SKR").textColors(), "the pool is in Success")
+        // The next round of the same level hangs under it, on its own block (FR-053): what is at stake, who joined, how long joining stays open, the boost.
+        compose.onNodeWithText("NEXT ROUND").assertIsDisplayed()
+        compose.onNodeWithText("closes in 4d 23h").assertIsDisplayed()
+        compose.onNodeWithText("12,500 SKR at stake · 14 joined").assertIsDisplayed()
+        compose.onNodeWithText("up to 480 boost").assertIsDisplayed()
+        // Running Habit with nothing open at its level: no block under it.
         compose.onNodeWithText("HABIT · 21-DAY · DAY 12 OF 21").assertIsDisplayed()
         compose.onNodeWithText("312 started").assertIsDisplayed()
-        compose.onNodeWithText("48,200 SKR").assertIsDisplayed()
-        compose.onAllNodesWithContentDescription("Status: running").assertCountEquals(2)
+        assertTrue(HoldoutColors.Success in compose.onNodeWithText("48,200 SKR").textColors(), "the pool is in Success")
+        compose.onAllNodesWithText("NEXT ROUND").assertCountEquals(1)
         compose.onAllNodesWithText("prize pool", ignoreCase = true).assertCountEquals(2)
+    }
+
+    @Test
+    fun `each running Holdout says running in a word beside a green dot, not as a chip`() {
+        show(live = listOf(runningSpark, openSpark, runningHabit))
+
+        compose.onAllNodesWithText("running").assertCountEquals(2)
+        compose.onAllNodesWithText("RUNNING").assertCountEquals(0)
+        compose.onAllNodesWithContentDescription("Status: running").assertCountEquals(0)
+    }
+
+    @Test
+    fun `the next round's countdown is Accent, the boost has no plus, and an empty reserve omits it`() {
+        show(live = listOf(runningSpark, openSpark))
+
+        assertTrue(HoldoutColors.Accent in compose.onNodeWithText("closes in 4d 23h").textColors(), "the countdown is in Accent")
+        compose.onAllNodes(hasText("+", substring = true)).assertCountEquals(0)
+        compose.onAllNodes(hasText("Joining closes in", substring = true)).assertCountEquals(0)
+        compose.onAllNodes(hasText("Prize boost", substring = true)).assertCountEquals(0)
+        compose.onAllNodes(hasText("Next:", substring = true)).assertCountEquals(0)
+    }
+
+    @Test
+    fun `a next round with an empty boost reserve has no boost text`() {
+        val noBoost = holdout(cohort(2, now + 5 * day, LeagueParams.FORM_KNEES_ALLOWED, 7, joined = 14, held = 12_500_000_000uL), boost = 0uL)
+        show(live = listOf(runningSpark, noBoost))
+
+        compose.onNodeWithText("NEXT ROUND").assertIsDisplayed()
+        compose.onAllNodes(hasText("boost", substring = true, ignoreCase = true)).assertCountEquals(0)
+        compose.onAllNodes(hasText("up to", substring = true)).assertCountEquals(0)
+    }
+
+    @Test
+    fun `the count has room above it, a full gap under the running row's label`() {
+        show(live = listOf(runningSpark))
+
+        val label = compose.onNodeWithText("SPARK · 7-DAY · DAY 3 OF 7").getBoundsInRoot()
+        val count = compose.onNodeWithText("20 started").getBoundsInRoot()
+        assertTrue(count.top - label.bottom >= Spacing.betweenItems, "count ${count.top} under label ${label.bottom}")
     }
 
     @Test
@@ -195,9 +257,11 @@ class ConnectScreenTest {
         show(live = listOf(openSpark))
 
         compose.onNodeWithText("SPARK · 7-DAY").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Status: open").assertIsDisplayed()
+        compose.onNodeWithText("open").assertIsDisplayed()
+        compose.onNodeWithText("NEXT ROUND").assertIsDisplayed()
         compose.onNodeWithText("12,500 SKR at stake · 14 joined").assertIsDisplayed()
-        compose.onNodeWithText("Joining closes in 4d 23h").assertIsDisplayed()
+        compose.onNodeWithText("closes in 4d 23h").assertIsDisplayed()
+        compose.onNodeWithText("up to 480 boost").assertIsDisplayed()
     }
 
     @Test

@@ -80,6 +80,7 @@ import holdout.app.wallet.ConnectScreen
 import holdout.app.wallet.SignAction
 import holdout.app.wallet.TxPhase
 import holdout.app.wallet.WalletRepository
+import holdout.app.welcome.WelcomeScreen
 import holdout.core.ChainClock
 import holdout.core.CohortSnapshot
 import holdout.core.Derive
@@ -520,7 +521,21 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
         badges = badges,
         onEvent = ::dispatch,
         connect = {},
-        tour = { TourScreen(onDone = { dispatch(NavEvent.TourDone) }) },
+        tour = {
+            nav.tour?.let { t ->
+                // A first run opens on the welcome (FR-067a); the tour starts where the member chose, or where the stake sheet sent them.
+                if (t.welcome) {
+                    WelcomeScreen(
+                        wallet = wallet,
+                        seekerId = LocalSeekerNames.current[wallet],
+                        onStart = { dispatch(NavEvent.StartBrief) },
+                        onSkip = { dispatch(NavEvent.SkipBrief) },
+                    )
+                } else {
+                    TourScreen(onDone = { dispatch(NavEvent.TourDone) }, startCard = t.startCard)
+                }
+            }
+        },
         sitting = { shared.SittingHost(it) },
         signing = { shared.TxFlowHost(it) },
         root = { tab ->

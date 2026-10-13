@@ -56,13 +56,13 @@ class AboutScreenTest {
     }
 
     @Test
-    fun `the tour is four cards and opens from a row`() {
+    fun `the tour is six cards and opens from a row`() {
         show()
 
         compose.onNodeWithText("How Holdout works").performClick()
         assertEquals(1, tours)
-        compose.onNodeWithText("5 cards").assertIsDisplayed()
-        compose.onNodeWithText("The three-card tour again").assertDoesNotExist()
+        compose.onNodeWithText("6 cards").assertIsDisplayed()
+        compose.onNodeWithText("5 cards").assertDoesNotExist()
     }
 
     @Test

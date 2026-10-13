@@ -84,7 +84,7 @@ internal fun Shared.MeRoot(leaderboardRead: Leaderboard.Snapshot?, modifier: Mod
 /** X1 About Holdout, pushed from Me. */
 @Composable
 internal fun Shared.AboutHost(modifier: Modifier = Modifier) {
-    AboutScreen(onTour = { dispatch(NavEvent.OpenTour) }, onBack = { dispatch(NavEvent.Back) }, modifier = modifier, onDisconnect = disconnect)
+    AboutScreen(onTour = { dispatch(NavEvent.OpenTour()) }, onBack = { dispatch(NavEvent.Back) }, modifier = modifier, onDisconnect = disconnect)
 }
 
 /** The faucet in its sheet (G8): from Me, or from any short-of-funds moment, back where it was opened (ES-0a). */

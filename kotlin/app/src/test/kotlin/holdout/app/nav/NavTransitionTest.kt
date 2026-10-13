@@ -29,7 +29,7 @@ class NavTransitionTest {
     @Test
     fun `N-03 A1 connect, first time - B1 tour, full screen`() {
         val s = NavState().then(NavEvent.Connected(tourSeen = false))
-        assertEquals(Tour(firstRun = true), s.tour)
+        assertEquals(Tour(firstRun = true, welcome = true), s.tour)
         assertFalse(s.showsBar)
     }
 
@@ -60,7 +60,7 @@ class NavTransitionTest {
     @Test
     fun `N-10 T1 How Holdout works - B1, finishing returns to Today`() {
         val today = home()
-        val s = today.then(NavEvent.OpenTour)
+        val s = today.then(NavEvent.OpenTour())
         assertEquals(Tour(firstRun = false), s.tour)
         assertFalse(s.showsBar)
         assertEquals(today, s.then(NavEvent.TourDone))
@@ -69,7 +69,7 @@ class NavTransitionTest {
     @Test
     fun `N-11 X1 Tour again - B1, finishing or Back returns to About on the Me tab`() {
         val about = home().then(NavEvent.SelectTab(Tab.Me), NavEvent.Open(Screen.About))
-        val s = about.then(NavEvent.OpenTour)
+        val s = about.then(NavEvent.OpenTour())
         assertEquals(about, s.then(NavEvent.TourDone))
         assertEquals(about, s.then(NavEvent.Back))
     }
@@ -121,7 +121,7 @@ class NavTransitionTest {
         assertFalse(home().then(NavEvent.Open(Screen.Detail(A))).showsBar)
         assertFalse(home().then(NavEvent.StartSitting(Sitting.Daily25(DAY))).showsBar)
         assertFalse(home().then(NavEvent.TxStarted(TxKind.Claim(A))).showsBar)
-        assertFalse(home().then(NavEvent.OpenTour).showsBar)
+        assertFalse(home().then(NavEvent.OpenTour()).showsBar)
     }
 
     @Test
@@ -773,6 +773,90 @@ class NavTransitionTest {
         val linked = roster.then(NavEvent.GoToRoot(Tab.Holdouts))
         assertEquals(Tab.Holdouts, linked.tab)
         assertNull(linked.top, "a link to Holdouts promises its root")
+    }
+
+    // ---- the welcome, the six cards and the stake sheet's How it works (FR-067, FR-067a, FR-041, R25) ----
+
+    @Test
+    fun `a first connect opens the welcome, full screen with no bar, and Back does not leave it`() {
+        val s = NavState().then(NavEvent.Connected(tourSeen = false))
+        assertEquals(Tour(firstRun = true, welcome = true), s.tour)
+        assertTrue(s.tour!!.welcome)
+        assertFalse(s.showsBar)
+        assertFalse(s.canGoBack)
+    }
+
+    @Test
+    fun `Start the brief leaves the welcome for card 1 of the first-run tour`() {
+        val s = NavState().then(NavEvent.Connected(tourSeen = false), NavEvent.StartBrief)
+        assertEquals(Tour(firstRun = true, welcome = false, startCard = 1), s.tour)
+        assertFalse(s.showsBar)
+    }
+
+    @Test
+    fun `Skip on the welcome opens the disclosure card, the sixth`() {
+        val s = NavState().then(NavEvent.Connected(tourSeen = false), NavEvent.SkipBrief)
+        assertEquals(Tour(firstRun = true, welcome = false, startCard = 6), s.tour)
+        assertEquals(Tour.CARDS, s.tour!!.startCard)
+    }
+
+    @Test
+    fun `finishing the tour after the welcome lands on Today with the bar`() {
+        for (leave in listOf(NavEvent.StartBrief, NavEvent.SkipBrief)) {
+            val s = NavState().then(NavEvent.Connected(tourSeen = false), leave, NavEvent.TourDone)
+            assertNull(s.tour)
+            assertEquals(Tab.Today, s.tab)
+            assertTrue(s.showsBar)
+        }
+    }
+
+    @Test
+    fun `a wallet whose tour is seen goes straight to Today, with no welcome and no version raise (R25)`() {
+        val s = NavState().then(NavEvent.Connected(tourSeen = true))
+        assertNull(s.tour)
+        assertTrue(s.showsBar)
+        // The welcome's events change nothing when there is no welcome.
+        assertEquals(s, s.then(NavEvent.StartBrief))
+        assertEquals(s, s.then(NavEvent.SkipBrief))
+    }
+
+    @Test
+    fun `the welcome belongs to first run - opening the tour from About or Me never shows it`() {
+        val s = home().then(NavEvent.OpenTour())
+        assertEquals(Tour(firstRun = false), s.tour)
+        assertFalse(s.tour!!.welcome)
+        assertEquals(s, s.then(NavEvent.StartBrief))
+    }
+
+    @Test
+    fun `How it works on the stake sheet opens the tour at card 2 and finishing it reopens the sheet on the same tier`() {
+        val stake = home().then(NavEvent.OpenStake(A, seekerKnown = true), NavEvent.StakeTier(2))
+        val sheet = stake.sheet as Sheet.Stake
+        val tour = stake.then(NavEvent.OpenTour(startCard = 2, returnTo = sheet))
+        assertEquals(Tour(firstRun = false, startCard = 2, returnTo = sheet), tour.tour)
+        assertNull(tour.sheet)
+        assertFalse(tour.showsBar)
+        val back = tour.then(NavEvent.TourDone)
+        assertNull(back.tour)
+        assertEquals(Sheet.Stake(A, 2, SeekerStatus.Confirmed), back.sheet)
+        assertEquals(stake, back)
+    }
+
+    @Test
+    fun `Back out of the tour opened from the stake sheet reopens the sheet on the same tier`() {
+        val stake = home().then(NavEvent.OpenStake(A, seekerKnown = true), NavEvent.StakeTier(3))
+        val tour = stake.then(NavEvent.OpenTour(startCard = 2, returnTo = stake.sheet as Sheet.Stake))
+        assertTrue(tour.canGoBack)
+        assertEquals(stake, tour.then(NavEvent.Back))
+    }
+
+    @Test
+    fun `the tour opened from the stake sheet is not a first run, and a tab or the screen below stay as they were`() {
+        val stake = home().then(NavEvent.SelectTab(Tab.Holdouts), NavEvent.Open(Screen.Detail(A)), NavEvent.OpenStake(B, seekerKnown = true))
+        val tour = stake.then(NavEvent.OpenTour(startCard = 2, returnTo = stake.sheet as Sheet.Stake))
+        assertFalse(tour.tour!!.firstRun)
+        assertEquals(stake, tour.then(NavEvent.TourDone))
+        assertEquals(Screen.Detail(A), tour.top)
     }
 
     private companion object {

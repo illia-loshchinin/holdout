@@ -70,7 +70,7 @@ class NavSavedTest {
         val sitting = connected().then(NavEvent.StartSitting(Sitting.Daily25(5)))
         assertEquals(null, roundTrip(sitting).sitting)
         assertEquals(Tab.Today, roundTrip(sitting).tab)
-        val tour = connected().then(NavEvent.OpenTour)
+        val tour = connected().then(NavEvent.OpenTour())
         assertEquals(null, roundTrip(tour).tour)
     }
 

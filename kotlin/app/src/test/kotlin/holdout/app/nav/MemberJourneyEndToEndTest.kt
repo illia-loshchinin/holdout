@@ -85,7 +85,7 @@ class MemberJourneyEndToEndTest {
         // Connect, first time: the tour, full screen, then Today.
         var now = start - 2 * day
         var s = NavState().then(NavEvent.Connected(tourSeen = false)).read(now)
-        assertEquals(Tour(firstRun = true), s.tour)
+        assertEquals(Tour(firstRun = true, welcome = true), s.tour)
         assertFalse(s.showsBar)
         s = s.then(NavEvent.TourDone)
         assertEquals(Tab.Today, s.tab)

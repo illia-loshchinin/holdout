@@ -88,8 +88,22 @@ sealed interface TxKind {
 /** The signing flow: waiting for your wallet → confirming → a result; a landed join then shows You're in. */
 data class TxFlow(val kind: TxKind, val phase: TxPhase = TxPhase.WaitingForWallet, val youreIn: Boolean = false)
 
-/** The tour: on first run it cannot be left but by finishing it (004 FR-013). */
-data class Tour(val firstRun: Boolean)
+/**
+ * The tour: on first run it cannot be left but by finishing it (004 FR-013). A first run opens on the welcome
+ * (FR-067a, [welcome]) until [NavEvent.StartBrief] or [NavEvent.SkipBrief]; the stake sheet's *How it works* opens
+ * it at [startCard] (1-based) and finishing or Back reopens [returnTo] (FR-041).
+ */
+data class Tour(
+    val firstRun: Boolean,
+    val welcome: Boolean = false,
+    val startCard: Int = 1,
+    val returnTo: Sheet.Stake? = null,
+) {
+    companion object {
+        /** The tour has six cards (FR-067); the last is the disclosure, which Skip leads to. */
+        const val CARDS = 6
+    }
+}
 
 data class NavState(
     /** A wallet is connected; before one, only the connect screen (FR-001a). */
@@ -136,8 +150,14 @@ sealed interface NavEvent {
     /** The app came to the front from the launcher or a reminder (N2): Today. */
     data object AppOpened : NavEvent
 
-    /** "How Holdout works" / "Tour again". */
-    data object OpenTour : NavEvent
+    /** "How Holdout works" / "Tour again" (card 1), or the stake sheet's *How it works* ([startCard] 2, [returnTo] the sheet). */
+    data class OpenTour(val startCard: Int = 1, val returnTo: Sheet.Stake? = null) : NavEvent
+
+    /** The welcome's *Start the brief*: card 1. */
+    data object StartBrief : NavEvent
+
+    /** The welcome's *Skip*: the disclosure card, the last. */
+    data object SkipBrief : NavEvent
 
     data object TourDone : NavEvent
 
@@ -224,14 +244,17 @@ object Nav {
         // Before a wallet there is only the connect screen.
         if (!s.connected && e !is NavEvent.Connected) return s
         return when (e) {
-            is NavEvent.Connected -> NavState(connected = true, tour = if (e.tourSeen) null else Tour(firstRun = true), stages = s.stages)
+            is NavEvent.Connected -> NavState(connected = true, tour = if (e.tourSeen) null else Tour(firstRun = true, welcome = true), stages = s.stages)
             NavEvent.Disconnected -> NavState()
             NavEvent.AppOpened -> s.copy(tab = Tab.Today, stacks = s.stacks - Tab.Today, sheet = null)
-            NavEvent.OpenTour -> if (s.sitting != null || s.tx != null) s else s.copy(tour = Tour(firstRun = false), sheet = null)
+            // The stake sheet's How it works returns to the sheet it left (FR-041); a first-run tour cannot be replaced by another.
+            is NavEvent.OpenTour -> if (s.sitting != null || s.tx != null || s.tour?.firstRun == true) s else s.copy(tour = Tour(firstRun = false, startCard = e.startCard.coerceIn(1, Tour.CARDS), returnTo = e.returnTo), sheet = null)
+            NavEvent.StartBrief -> s.tour?.takeIf { it.welcome }?.let { s.copy(tour = it.copy(welcome = false, startCard = 1)) } ?: s
+            NavEvent.SkipBrief -> s.tour?.takeIf { it.welcome }?.let { s.copy(tour = it.copy(welcome = false, startCard = Tour.CARDS)) } ?: s
             NavEvent.TourDone -> when {
                 s.tour == null -> s
                 s.tour.firstRun -> s.copy(tour = null, tab = Tab.Today, stacks = emptyMap())
-                else -> s.copy(tour = null)
+                else -> s.copy(tour = null, sheet = s.tour.returnTo)
             }
             is NavEvent.SelectTab -> when {
                 s.fullScreen || s.sheet != null -> s
@@ -286,7 +309,7 @@ object Nav {
         s.tx != null -> txBack(s)
         // The sitting has its own way out (✕, then the stopped summary).
         s.sitting != null -> null
-        s.tour != null -> if (s.tour.firstRun) null else s.copy(tour = null)
+        s.tour != null -> if (s.tour.firstRun) null else s.copy(tour = null, sheet = s.tour.returnTo)
         s.sheet != null -> s.copy(sheet = (s.sheet as? Sheet.Faucet)?.returnTo)
         // "You left" on the lobby: Back to Holdouts is H0, wherever the lobby was opened from.
         (s.top as? Screen.Lobby)?.let { s.stages[it.cohort] == Stage.NotJoined } == true ->
