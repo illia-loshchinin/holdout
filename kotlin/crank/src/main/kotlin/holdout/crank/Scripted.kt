@@ -205,14 +205,15 @@ object Scripted {
 
     /**
      * When [c]'s lobby should be looked at again after [now], or null: a
-     * Hackathon round with room, every [check] seconds until
-     * [TEST_LAST_CHECK_LEAD] before its cutoff (a real member may join at any
-     * moment); another lobby, when its full floor falls due 24 hours before
-     * its cutoff.
+     * Hackathon round, full or not, every [check] seconds until
+     * [TEST_LAST_CHECK_LEAD] before its cutoff (a real member may join, or
+     * leave a full round to be emptied, at any moment; the check reads only
+     * the cohort list unless its member count says there is room); another
+     * lobby, when its full floor falls due 24 hours before its cutoff.
      */
     fun nextFillAt(c: CohortSnapshot, floor: Int, now: Long, check: Long = TEST_CHECK_SECONDS): Long? {
         if (floor <= 0 || now >= c.joinCutoff) return null
-        if (needsRealMember(c.leagueId)) return if (c.memberCount >= floor) null else minOf(now + check, c.joinCutoff - TEST_LAST_CHECK_LEAD).takeIf { it > now }
+        if (needsRealMember(c.leagueId)) return minOf(now + check, c.joinCutoff - TEST_LAST_CHECK_LEAD).takeIf { it > now }
         return (c.joinCutoff - FULL_FLOOR_BEFORE_CUTOFF).takeIf { it > now }
     }
 
@@ -496,8 +497,9 @@ object Scripted {
 
             // ---- fill an open lobby to its target -----------------------------
             if (status == CohortStatus.Open && c.start <= lastStart && pool.isNotEmpty()) {
-                // A Hackathon lobby is checked again a minute on only while it still has room;
-                // another lobby wakes when its full floor falls due.
+                // A Hackathon lobby is checked again a minute on, full or not: a real member who
+                // leaves a full round drops its count, and the next check empties it (FR-043a).
+                // Another lobby wakes when its full floor falls due.
                 val wake = nextFillAt(c, floor, now, check)
                 val test = needsRealMember(c.leagueId)
                 if (!test) wake?.let(wakes::add)
@@ -510,7 +512,10 @@ object Scripted {
                     checkAgain()
                     continue
                 }
-                if (c.memberCount >= floor) continue
+                if (c.memberCount >= floor) {
+                    checkAgain()
+                    continue
+                }
                 // The cohort and its roster read again, together: a member who joined or
                 // left since the cohort list was read moves the deficit either way.
                 val fresh = rpc.cohortRead(programId, address)
@@ -539,7 +544,10 @@ object Scripted {
                     continue
                 }
                 var needed = deficit(fresh.cohort, floor, now, fresh.members.size)
-                if (needed == 0) continue
+                if (needed == 0) {
+                    checkAgain()
+                    continue
+                }
                 val cfg = onChain()
                 val inCohort = fresh.members.map { it.wallet }.toSet()
                 // A join or a read that failed: the pass is retried soon, so the fill does not back off.
@@ -603,9 +611,7 @@ object Scripted {
                 }
                 // Places left after a failed join or read are tried at the next check; places no
                 // wallet could take (none free, the payer at its reserve) a few checks later.
-                if (needed > 0) {
-                    if (faltered || !test) checkAgain() else nextFillAt(c, floor, now, check * SHORT_FILL_BACKOFF)?.let(wakes::add)
-                }
+                if (needed > 0 && !faltered && test) nextFillAt(c, floor, now, check * SHORT_FILL_BACKOFF)?.let(wakes::add) else checkAgain()
             }
 
             // ---- submit today's day for every scripted member due to -----------

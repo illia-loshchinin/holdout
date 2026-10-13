@@ -140,7 +140,7 @@ class ScriptedTest {
         assertEquals(round.joinCutoff - 600 + Scripted.TEST_CHECK_SECONDS, Scripted.nextFillAt(round, 10, round.joinCutoff - 600))
         assertEquals(round.joinCutoff - Scripted.TEST_LAST_CHECK_LEAD, Scripted.nextFillAt(round, 10, round.joinCutoff - 80), "the last check leaves its joins time to land before the cutoff")
         assertNull(Scripted.nextFillAt(round, 10, round.joinCutoff - 30), "too late for another check")
-        assertNull(Scripted.nextFillAt(round.copy(memberCount = 10), 10, round.joinCutoff - 600), "a full round needs no check")
+        assertEquals(round.joinCutoff - 600 + Scripted.TEST_CHECK_SECONDS, Scripted.nextFillAt(round.copy(memberCount = 10), 10, round.joinCutoff - 600), "a full round is still checked: a real member may leave it")
         assertEquals(round.joinCutoff - 480, Scripted.nextFillAt(round, 10, round.joinCutoff - 600, check = 120), "--test-check sets the interval")
     }
 
@@ -455,18 +455,21 @@ class ScriptedTest {
         val joins = chain.sent.filter { "join_cohort" in chain.names(it) }
         assertEquals(9, joins.size, "1 real member, floor 10")
         val round = cohort(leagueId = 100, index = 0, duration = 3)
-        assertEquals(round.start, json.getValue("nextScriptedAt").jsonPrimitive.content.toLong(), "full: no more checks, only its first day")
+        assertEquals(round.joinCutoff - 600 + Scripted.TEST_CHECK_SECONDS, json.getValue("nextScriptedAt").jsonPrimitive.content.toLong(), "full, and still checked each minute in case its real member leaves")
         val idle = Scripted.poolFor(syntheticRoster(), 100, 0).map { it.pubkey }.toSet()
         joins.forEach { assertTrue(it.message.accounts[0] in idle) }
     }
 
     @Test
-    fun `a full Hackathon lobby costs no roster read and asks for its start, at every pass`() {
+    fun `a full Hackathon lobby costs no roster read and is still checked a minute later, until the last check`() {
         val members = List(10) { i -> SolanaPublicKey(ByteArray(32) { (i + 100).toByte() }) }
+        val round = cohort(leagueId = 100, index = 0, duration = 3)
         val (chain, json) = hackathonPass(members)
         assertEquals(0, chain.rosterReads)
         assertEquals(0, chain.sent.size)
-        assertEquals(cohort(leagueId = 100, index = 0, duration = 3).start, json.getValue("nextScriptedAt").jsonPrimitive.content.toLong(), "its first day, though another pass filled it")
+        assertEquals(round.joinCutoff - 600 + Scripted.TEST_CHECK_SECONDS, json.getValue("nextScriptedAt").jsonPrimitive.content.toLong(), "a real member may leave it: the next check would empty it")
+        val (_, late) = hackathonPass(members, before = 30)
+        assertEquals(round.start, late.getValue("nextScriptedAt").jsonPrimitive.content.toLong(), "past the last check: only its first day, though another pass filled it")
     }
 
     @Test
