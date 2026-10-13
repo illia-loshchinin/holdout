@@ -6,6 +6,7 @@ import holdout.app.chain.ChainReads
 import holdout.app.chain.ChainView
 import holdout.app.chain.Holdout
 import holdout.app.holdout.HoldoutViewModel
+import holdout.app.shell.CHAIN_REFRESH_MILLIS
 import holdout.app.storage.InMemoryStore
 import holdout.core.CohortSnapshot
 import holdout.core.Leaderboard
@@ -230,18 +231,18 @@ class HoldoutViewModelReadsTest {
     @Test
     fun `given a roster read and its cohort unmoved, when it is asked for within its age, then it is not read`() = runTest(dispatcher) {
         watching(viewWith())
-        vm.loadRoster(cohortA, maxAgeMillis = HoldoutViewModel.ROSTER_SLOW_MAX_AGE_MILLIS)
+        vm.loadRoster(cohortA, maxAgeMillis = CHAIN_REFRESH_MILLIS)
         runCurrent()
         chain.rosters.single().complete(emptyList())
         runCurrent()
 
-        clock = HoldoutViewModel.ROSTER_SLOW_MAX_AGE_MILLIS - 1
-        vm.loadRoster(cohortA, maxAgeMillis = HoldoutViewModel.ROSTER_SLOW_MAX_AGE_MILLIS)
+        clock = CHAIN_REFRESH_MILLIS - 1
+        vm.loadRoster(cohortA, maxAgeMillis = CHAIN_REFRESH_MILLIS)
         runCurrent()
         assertEquals(1, chain.rosters.size)
 
-        clock = HoldoutViewModel.ROSTER_SLOW_MAX_AGE_MILLIS
-        vm.loadRoster(cohortA, maxAgeMillis = HoldoutViewModel.ROSTER_SLOW_MAX_AGE_MILLIS)
+        clock = CHAIN_REFRESH_MILLIS
+        vm.loadRoster(cohortA, maxAgeMillis = CHAIN_REFRESH_MILLIS)
         runCurrent()
         assertEquals(2, chain.rosters.size)
     }
@@ -249,14 +250,14 @@ class HoldoutViewModelReadsTest {
     @Test
     fun `given a roster read, when the pulse sees its cohort's counters move, then it is read again at once`() = runTest(dispatcher) {
         watching(viewWith())
-        vm.loadRoster(cohortA, maxAgeMillis = HoldoutViewModel.ROSTER_SLOW_MAX_AGE_MILLIS)
+        vm.loadRoster(cohortA, maxAgeMillis = CHAIN_REFRESH_MILLIS)
         runCurrent()
         chain.rosters.single().complete(emptyList())
         runCurrent()
 
         nextPass(viewWith(members = 2))
         clock = HoldoutViewModel.MIN_READ_AGE_MILLIS
-        vm.loadRoster(cohortA, maxAgeMillis = HoldoutViewModel.ROSTER_SLOW_MAX_AGE_MILLIS)
+        vm.loadRoster(cohortA, maxAgeMillis = CHAIN_REFRESH_MILLIS)
         runCurrent()
 
         assertEquals(2, chain.rosters.size)

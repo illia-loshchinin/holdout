@@ -689,9 +689,6 @@ class HoldoutViewModel(
         /** A roster's age at which it is read again with nothing moved: a Holdout running its day, whose submits show in no counter (FR-071). */
         const val ROSTER_MAX_AGE_MILLIS = 30_000L
 
-        /** A roster's age at which it is read again with nothing moved, for any other Holdout (FR-071). */
-        const val ROSTER_SLOW_MAX_AGE_MILLIS = 600_000L
-
         /** The leaderboards' age at which they are read again with nothing moved (FR-071). */
         const val BOARD_MAX_AGE_MILLIS = 600_000L
 

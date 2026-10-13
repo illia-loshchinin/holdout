@@ -121,7 +121,8 @@ data class NavState(
      * Whether what is in front shows live chain data, so the app's 30-second pulse reads (FR-071): the
      * connect screen's live list, the signing flow, Today, Standing, Holdouts and the screens pushed on
      * them, the leaderboards (read again when the pulse sees a settlement move). Not Me, About, the tour
-     * or a sitting, which show nothing the chain moves while they are open.
+     * or a sitting: Me's balances and badge are as of the last read, which the wallet's own actions and a
+     * live screen refresh; the others show no chain data.
      */
     val showsLiveChain: Boolean get() = when {
         !connected || tx != null -> true
