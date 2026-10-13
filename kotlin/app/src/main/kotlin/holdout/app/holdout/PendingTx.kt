@@ -100,6 +100,9 @@ data class UnseenTx(val action: SignAction, val cohort: SolanaPublicKey, val day
     /** The same action as [p]. */
     fun isFor(p: PendingTx): Boolean = p.isFor(action, cohort, day)
 
+    /** Whether it is the outcome of [action] on [cohort] — for a submit, of the same [day]. */
+    fun isFor(action: SignAction, cohort: SolanaPublicKey, day: Int): Boolean = this.action == action && this.cohort == cohort && (action != SignAction.Submit || this.day == day)
+
     companion object {
         /** Cards kept at once; an older one goes to make room (design book, Notice card: never more than three). */
         const val MAX_CARDS = 3

@@ -400,4 +400,53 @@ class HoldoutViewModelPendingTest {
         vm.dismissUnseen(state.unseen.first())
         assertEquals(listOf(second.address), state.unseen.map { it.cohort })
     }
+
+    @Test
+    fun `a send is kept on the phone from the moment it confirms, so a process killed while confirming keeps its action shut`() = runTest(dispatcher) {
+        watching()
+        vm.claim(sender, finished)
+        runCurrent()
+        // Confirming: the wallet sent it; the confirmation polling has not ended.
+        assertNotNull(store.unconfirmedSends(me.base58()))
+        val again = HoldoutViewModel(store, rpc = Rpc("http://127.0.0.1:1"), chain = chain, wallet = wallet, elapsed = { clock })
+        try {
+            again.watch(me)
+            runCurrent()
+            assertNotNull(again.state.value.pendingFor(SignAction.Claim, finished.address))
+        } finally {
+            again.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `a send that ends any other way than may-still-land is no longer kept`() = runTest(dispatcher) {
+        watching()
+        vm.claim(sender, finished)
+        runCurrent()
+        wallet.sends.last().complete(SendResult.Failed("no", declined = true))
+        runCurrent()
+
+        assertNull(state.pendingFor(SignAction.Claim, finished.address))
+        assertNull(store.unconfirmedSends(me.base58()))
+    }
+
+    @Test
+    fun `a card for one day's send stays when another day of the same Holdout is sent`() = runTest(dispatcher) {
+        val running = ChainFixtures.holdout(4, ChainFixtures.START, member = ChainFixtures.member(2))
+        vm.watch(me)
+        runCurrent()
+        answer(ChainFixtures.view(running))
+        vm.submitDay(sender, running, 2, 25)
+        runCurrent()
+        vm.clearSigning()
+        wallet.sends.last().complete(SendResult.Failed("refused", programError = 6031))
+        runCurrent()
+        answer(ChainFixtures.view(running))
+        assertEquals(listOf(2), state.unseen.map { it.day })
+
+        vm.submitDay(sender, running, 3, 25)
+        runCurrent()
+
+        assertEquals(listOf(2), state.unseen.map { it.day }, "day 3's send leaves day 2's card")
+    }
 }

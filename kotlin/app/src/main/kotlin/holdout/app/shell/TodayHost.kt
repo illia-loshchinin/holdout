@@ -7,7 +7,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import holdout.app.holdout.waitLine
 import holdout.app.home.CohortHome
 import holdout.app.home.HomeScreen
 import holdout.app.home.HomeState
@@ -23,7 +22,6 @@ import holdout.app.storage.Store
 import holdout.app.streak.StreakMilestones
 import holdout.app.streak.ToesMeter
 import holdout.app.ui.ChainCheckBox
-import holdout.app.wallet.SignAction
 import holdout.core.HoldoutDay
 
 /**
@@ -58,8 +56,6 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
         val day = dayInputs(h, stage)
         val banked = day.banked
         val newPhone = remember(wallet, dayIndex, view, banked) { NewPhoneWiring.shows(store, wallet, dayIndex, view, banked) }
-        // A send of today's day that may still land keeps Submit shut, and says so, until a chain read settles it.
-        val pending = chain.pendingFor(SignAction.Submit, h.address, stage.dayIndex)
         CohortHome(
             h = h,
             members = rosters[h.address],
@@ -69,9 +65,10 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
             pendingDay = day.pendingDay,
             autoSendTried = day.autoSendTried,
             offline = chain.offline,
-            busy = chain.busy || pending != null,
-            message = pending?.waitLine() ?: chain.message,
-            messageIsWarning = chain.messageIsWarning && pending == null,
+            busy = chain.busy,
+            message = chain.message,
+            messageIsWarning = chain.messageIsWarning,
+            mayStillLand = day.mayStillLand,
             onStart = { startDay(h, stage.dayIndex) },
             onSubmit = { submitDayOf(h, it) },
             // Its standing is the Standing tab's root.

@@ -325,12 +325,19 @@ class HoldoutViewModel(
         val owner = address
         val started = Signing(id, action, cohort, TxPhase.WaitingForWallet, tier, day)
         // A card about the same action's last outcome is old news once it is tried again.
-        _state.update { s -> s.copy(signing = started, unseen = s.unseen.filterNot { it.action == action && it.cohort == cohort }) }
+        _state.update { s -> s.copy(signing = started, unseen = s.unseen.filterNot { it.isFor(action, cohort, day) }) }
         // When it went to the network: its window to land starts there, not when the confirmation polling gives up.
+        // It is kept on the phone from that moment, so a process killed while confirming still keeps the action shut.
         var sentAt: Long? = null
         val result = send { phase ->
-            if (phase == SendPhase.Confirming && sentAt == null) sentAt = elapsed()
-            if (owner == address) _state.update { s -> s.copy(signing = s.signing?.takeIf { it.id == id }?.copy(phase = TxPhase.of(phase)) ?: s.signing) }
+            if (owner != address) return@send
+            if (phase == SendPhase.Confirming && sentAt == null) {
+                val sent = PendingTx(action, cohort, day, elapsed())
+                sentAt = sent.sentAt
+                _state.update { s -> s.copy(pending = s.pending.filterNot { it.isFor(action, cohort, day) } + sent) }
+                keepPending()
+            }
+            _state.update { s -> s.copy(signing = s.signing?.takeIf { it.id == id }?.copy(phase = TxPhase.of(phase)) ?: s.signing) }
         }
         if (owner != address) return result
         val lowOnSol = (_state.value.view?.lamports ?: Long.MAX_VALUE) < holdout.app.faucet.FaucetClient.MEMBER_CAN_PAY_LAMPORTS
@@ -345,11 +352,12 @@ class HoldoutViewModel(
                 // for the screen they went to instead, not put back where nothing shows it (PR #62 review).
                 signing = shown?.copy(phase = TxPhase.Done(outcome)) ?: s.signing,
                 unseen = if (shown == null && outcome !is TxOutcome.Landed) (s.unseen + UnseenTx(action, cohort, day, outcome)).takeLast(UnseenTx.MAX_CARDS) else s.unseen,
-                pending = if (pending == null) s.pending else s.pending.filterNot { it.isFor(action, cohort, day) } + pending,
+                // Only one that may still land stays: any other outcome settles the record kept while it confirmed.
+                pending = s.pending.filterNot { it.isFor(action, cohort, day) } + listOfNotNull(pending),
                 busy = s.busy && !outcome.canRetry,
             )
         }
-        if (pending != null) keepPending()
+        if (pending != null || sentAt != null) keepPending()
         return result
     }
 

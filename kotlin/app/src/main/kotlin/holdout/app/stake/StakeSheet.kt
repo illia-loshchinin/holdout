@@ -97,6 +97,8 @@ fun StakeSheet(
     comeback: Comeback.Offer? = null,
     /** Where "See your lobby" goes, when the blocker is a place already held in a lobby. */
     onSeeLobby: (() -> Unit)? = null,
+    /** False while a join of this Holdout may still land: Stake stays shut, [message] says why (FR-070a). */
+    canStake: Boolean = true,
     /** The notification reason (FR-068a) shows only while notifications are off (ruling G9). */
     showNotificationReason: Boolean = true,
 ) {
@@ -179,6 +181,7 @@ fun StakeSheet(
             onStake = { onStake(tier) },
             onGetTokens = onGetTokens,
             onSeeLobby = onSeeLobby,
+            canStake = canStake,
         )
 
         Text(StakeText.FOOTER, style = LabelStyle, color = HoldoutColors.TextTertiary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -200,6 +203,7 @@ private fun StakeBottom(
     onStake: () -> Unit,
     onGetTokens: () -> Unit,
     onSeeLobby: (() -> Unit)?,
+    canStake: Boolean,
 ) {
     closingWarning?.let { Notice(it, warning = true) }
     // A join that can't go ahead says why, and its one way on takes the stake button's place.
@@ -225,6 +229,7 @@ private fun StakeBottom(
             PrimaryButton(
                 text = if (busy) Format.WAITING_FOR_WALLET else "Stake ${Format.skr(chip)}",
                 onClick = onStake,
+                enabled = canStake,
                 busy = busy,
             )
         }

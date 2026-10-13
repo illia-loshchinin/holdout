@@ -157,13 +157,14 @@ internal fun Shared.ClaimHost(id: String, modifier: Modifier = Modifier) {
     // A claim that may still land keeps Claim shut, and says so, until a chain read settles it.
     val pending = chain.pendingFor(SignAction.Claim, h.address)
     ClaimScreen(
-        h, h.stage(n), chain.busy || pending != null, pending?.waitLine() ?: chain.message, chain.messageIsWarning && pending == null, claimSignature,
+        h, h.stage(n), chain.busy, pending?.waitLine() ?: chain.message, chain.messageIsWarning && pending == null, claimSignature,
         onClaim = { holdouts.claim(sender, h) },
         onBack = { dispatch(NavEvent.Back) },
         modifier = modifier,
         // Too little SOL for the fee: the faucet sheet first, then back here (ES-0a).
         shortOfSol = !canPayFees(view),
         onGetTokens = { dispatch(NavEvent.OpenFaucet) },
+        canClaim = pending == null,
     )
 }
 
@@ -203,7 +204,8 @@ internal fun Shared.StakeSheetHost(sheet: Sheet.Stake, seekerGate: SeekerGate) {
         // A running Holdout the member has missed a deadline in does not block: the join sends its record too (ES-17).
         joinBlocker = v.joinBlocker(h, n),
         // A join of this Holdout that may still land keeps Stake shut, and says so, until a chain read settles it.
-        busy = chain.busy || pending != null,
+        busy = chain.busy,
+        canStake = pending == null,
         message = pending?.waitLine() ?: chain.message,
         messageIsWarning = chain.messageIsWarning && pending == null,
         onStake = { tier -> joinAsking(h, tier, n) },
