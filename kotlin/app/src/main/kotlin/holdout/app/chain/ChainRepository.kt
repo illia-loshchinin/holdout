@@ -226,19 +226,45 @@ class ChainRepository(
         if ((keptMemberships?.started ?: 0L) < k.started) keptMemberships = k
     }
 
-    /** The last cohorts read that answered, and when: the leaderboard's first read reuses it while it is fresh. */
-    @Volatile private var lastCohorts: Pair<Long, List<Pair<SolanaPublicKey, CohortSnapshot>>>? = null
+    /** The last cohorts read that answered, when, and the order it started in: the leaderboard's first read reuses it while it is fresh. */
+    private class LastCohorts(val readAt: Long, val cohorts: List<Pair<SolanaPublicKey, CohortSnapshot>>, val started: Long)
+
+    @Volatile private var lastCohorts: LastCohorts? = null
+
+    /** Keeps [k] unless a cohort read started after its own already answered, as [keepCohorts] (PR #72 review). */
+    @Synchronized
+    private fun keepLastCohorts(k: LastCohorts) {
+        if ((lastCohorts?.started ?: 0L) < k.started) lastCohorts = k
+    }
+
+    /** Fresh reads asked for, and the latest of them a fresh read has answered for. */
+    private val freshAsked = AtomicLong()
+    private val freshAnswered = AtomicLong()
 
     override suspend fun load(wallet: SolanaPublicKey?): ChainView? = read(wallet, fresh = false)
 
-    override suspend fun loadFresh(wallet: SolanaPublicKey?): ChainView? = read(wallet, fresh = true)
+    override suspend fun loadFresh(wallet: SolanaPublicKey?): ChainView? {
+        freshAsked.incrementAndGet()
+        return read(wallet, fresh = true)
+    }
+
+    /**
+     * A fresh read asked for — after an action, a Check again — stays owed until one answers: until then every
+     * read is fresh, so one that failed cannot leave the next pulses on memberships kept from before the
+     * action, where a join's new cohort is not even among those whose counters re-read them (PR #72 review).
+     */
+    private suspend fun read(wallet: SolanaPublicKey?, fresh: Boolean): ChainView? {
+        val asked = freshAsked.get()
+        val owed = fresh || freshAnswered.get() < asked
+        return snapshot(wallet, owed)?.also { if (owed) freshAnswered.accumulateAndGet(asked, ::maxOf) }
+    }
 
     /**
      * One snapshot (FR-071): on a pulse with nothing changed, the cohorts not settled yet and one
      * `getMultipleAccounts` for the wallet — everything else is kept until the counters that move it do,
      * or until it is old. [fresh] reads the wallet's memberships and its own settled cohorts as well.
      */
-    private suspend fun read(wallet: SolanaPublicKey?, fresh: Boolean): ChainView? {
+    private suspend fun snapshot(wallet: SolanaPublicKey?, fresh: Boolean): ChainView? {
         val now = clock()
         val config =
             keptConfig?.takeIf { now - it.first < CONFIG_MAX_AGE_MILLIS }?.second ?: when (val read = twice({ it is Rpc.Answer.Ok }) { rpc.account(Pdas.config(programId)) }) {
@@ -249,8 +275,9 @@ class ChainRepository(
                 else -> return failed("config: $read")
             }.also { keptConfig = now to it }
         val ownBefore = keptMemberships?.takeIf { it.wallet == wallet }?.memberships.orEmpty().map { it.cohort }.toSet()
-        val cohorts = cohorts(now, refetch = if (fresh) ownBefore else emptySet()) ?: return failed("cohorts")
-        lastCohorts = clock() to cohorts
+        val started = cohortReads.incrementAndGet()
+        val cohorts = cohorts(now, refetch = if (fresh) ownBefore else emptySet(), started) ?: return failed("cohorts")
+        keepLastCohorts(LastCohorts(clock(), cohorts, started))
         // The leagues are read again once they are old, when a cohort names one not read yet, or when any
         // cohort's settlement has moved since — a page counted, the cohort finalized, a boost or a comeback
         // refund drawn or paid: settlement is what moves a league's boost and comeback reserves, page by page.
@@ -298,8 +325,7 @@ class ChainRepository(
      * when none are kept or the kept ones are [FULL_READ_MILLIS] old. A cohort that has left the
      * not-settled list since the last pulse, and each of [refetch] that is settled, is fetched once.
      */
-    private suspend fun cohorts(now: Long, refetch: Set<SolanaPublicKey>): List<Pair<SolanaPublicKey, CohortSnapshot>>? {
-        val started = cohortReads.incrementAndGet()
+    private suspend fun cohorts(now: Long, refetch: Set<SolanaPublicKey>, started: Long): List<Pair<SolanaPublicKey, CohortSnapshot>>? {
         val kept = keptCohorts?.takeIf { now - it.readAt < FULL_READ_MILLIS }
         if (kept == null) {
             val all = twice { rpc.cohorts(programId) } ?: return null
@@ -352,7 +378,7 @@ class ChainRepository(
      */
     override suspend fun leaderboard(): Leaderboard.Snapshot? {
         // The snapshot's own cohorts read, when it is recent, is as good a "before" as a new one: it was read before the profiles.
-        val before = lastCohorts?.takeIf { clock() - it.first <= COHORTS_REUSE_MILLIS }?.second ?: rpc.cohorts(programId) ?: return null
+        val before = lastCohorts?.takeIf { clock() - it.readAt <= COHORTS_REUSE_MILLIS }?.cohorts ?: rpc.cohorts(programId) ?: return null
         val profiles = rpc.profiles(programId) ?: return null
         val forfeits = rpc.uncountedForfeits(programId) ?: return null
         val after = rpc.cohorts(programId)?.map { it.second } ?: return null

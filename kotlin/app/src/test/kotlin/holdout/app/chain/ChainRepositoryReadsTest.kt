@@ -415,6 +415,45 @@ class ChainRepositoryReadsTest {
     }
 
     @Test
+    fun `a fresh read that fails stays owed, so the next pulse reads the memberships, and once one answers the pulse reuses them`() {
+        load(wallet)
+        now = 30_000
+        // The join lands; the read closing it fails.
+        memberships = accounts(membershipBytes)
+        failNext("unsettled", 2)
+        assertNull(loadFresh(wallet))
+        now = 60_000
+
+        assertNotNull(assertNotNull(load(wallet)).holdouts.single().membership, "the next pulse reads fresh")
+        assertEquals(2, calls["memberships"])
+
+        now = 90_000
+        load(wallet)
+        assertEquals(2, calls["memberships"], "answered: the pulse reuses what is kept again")
+    }
+
+    @Test
+    fun `an older pulse that resumes after a fresh read does not give the leaderboard its older cohorts`() {
+        cohorts = cohort(counted = 1)
+        load(wallet)
+        now = 30_000
+        val held = CompletableDeferred<Unit>()
+        holdNext["unsettled"] = held
+        runBlocking {
+            val older = async { repo.load(wallet) }
+            yield()
+            cohorts = cohort(counted = 2)
+            assertNotNull(repo.loadFresh(wallet))
+            held.complete(Unit)
+            assertNotNull(older.await())
+        }
+
+        val board = assertNotNull(runBlocking { repo.leaderboard() })
+
+        assertEquals(listOf(2L), board.cohortsBefore.map { it.counted }, "the leaderboard's first read is the newer one")
+    }
+
+    @Test
     fun `another wallet's memberships are read at once`() {
         load(wallet)
         now = 30_000
