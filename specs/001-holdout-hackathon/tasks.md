@@ -845,4 +845,6 @@
 
 - [X] T375 [US9] **speckit-analyze of #70 fixes.** `kotlin/crank/src/main/kotlin/holdout/crank/Main.kt`: the `scripted run` usage lists `--since <chain time>`. `kotlin/crank/src/main/kotlin/holdout/crank/Run.kt`: `lobbyHeldBy`'s doc says a new lobby waits only for older test leagues of its own form. Spec FR-043a's one exception, a Hackathon round whose real members all left is emptied again (`5190edc`). R12's wallet-pool figure at 10-minute rounds, `contracts/crank-cli.md` "of the same form" and the leave's timing (`f045e68`). `docs/holdout_decisions.md`: the 13 October evening log row (`373c8cb`, `d962b76`).
 
-**Dependencies:** T354–T375 are done; T361–T363, T369 and T374 ran on the owner's word on 13 October.
+- [X] T376 [US9] **speckit-analyze re-check of #70 fixes.** `kotlin/crank/src/main/kotlin/holdout/crank/Scripted.kt`: `nextFillAt` checks an open Hackathon lobby every minute until 45 s before its cutoff, full or not, and `run` keeps that wake on every exit of a full or just-filled lobby (a full one costs only the cohort-list read), so a round whose real members all left is emptied within a minute (`5f666a3`; `ScriptedTest` "a full Hackathon lobby costs no roster read and is still checked a minute later, until the last check"). Spec FR-043a's timing (`5eadf3b`); R12, `contracts/crank-cli.md`, R12's dated testers' budget figure and `plan.md`'s timeline row (`4e02364`).
+
+**Dependencies:** T354–T376 are done; T361–T363, T369 and T374 ran on the owner's word on 13 October.
