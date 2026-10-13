@@ -155,6 +155,20 @@ class RpcTest {
     }
 
     @Test
+    fun `a failure names the node's host, never its API key`() {
+        val keyed = "https://devnet.example-rpc.com/?api-key=SECRET"
+        val heard = mutableListOf<String>()
+        val timeout = FakeHttp { throw java.io.IOException("Request timeout has expired [url=$keyed, request_timeout=10000 ms]") }
+        val rpc = Rpc(keyed, Rpc20Driver(keyed, timeout), onFailure = { _, reason -> heard += reason })
+
+        assertNull(runBlocking { rpc.balance(programId) })
+        val unanswered = runBlocking { rpc.account(programId) } as Rpc.Answer.Unanswered
+
+        assertEquals("no answer from devnet.example-rpc.com: Request timeout has expired [url=https://devnet.example-rpc.com/, request_timeout=10000 ms]", heard.first())
+        assertTrue("SECRET" !in unanswered.message && heard.none { "SECRET" in it })
+    }
+
+    @Test
     fun `a read that fails still returns null, and the failure hook hears the method and why`() {
         val heard = mutableListOf<Pair<String, String>>()
         fun rpc(http: FakeHttp) = Rpc("http://rpc.test", Rpc20Driver("http://rpc.test", http), onFailure = { method, reason -> heard += method to reason })
@@ -167,7 +181,7 @@ class RpcTest {
         assertEquals(
             listOf(
                 "getProgramAccounts" to "Too many requests for a specific RPC call",
-                "getBalance" to "no answer from http://rpc.test: offline",
+                "getBalance" to "no answer from rpc.test: offline",
                 "getAccountInfo" to "Too many requests for a specific RPC call",
             ),
             heard,

@@ -164,7 +164,7 @@ open class WalletRepository(private val store: Store, private val rpc: Rpc) {
      * sends to its own cluster — devnet — so here it only signs, and the app
      * sends to the validator it reads from. Never in a release build.
      */
-    private val signOnly: Boolean = BuildConfig.DEBUG && Deployment.rpcUrl != Rpc.DEVNET
+    private val signOnly: Boolean = BuildConfig.DEBUG && !Deployment.isDevnet
 
     private suspend fun signThenSend(sender: ActivityResultSender, transaction: com.solana.transaction.Transaction, onPhase: (SendPhase) -> Unit): SendResult {
         val result = adapter.transact(sender) { auth -> if (Network.of(auth) == Network.Other) null else signTransactions(arrayOf(transaction.serialize())) }

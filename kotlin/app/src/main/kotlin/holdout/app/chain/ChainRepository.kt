@@ -24,8 +24,14 @@ object Deployment {
     val programId: SolanaPublicKey = SolanaPublicKey.from(BuildConfig.PROGRAM_ID)
     val rpcUrl: String = BuildConfig.RPC_URL
 
+    /**
+     * Devnet through any node — the public one or a hosted one with its own key
+     * (`holdout.rpcUrl`), whose host names the cluster — rather than a local validator.
+     */
+    val isDevnet: Boolean = rpcUrl == holdout.core.Rpc.DEVNET || runCatching { java.net.URI(rpcUrl).host }.getOrNull().orEmpty().contains("devnet")
+
     /** What the member is told failed to answer: devnet, or in a local test build the local validator. */
-    val networkName: String = if (rpcUrl == holdout.core.Rpc.DEVNET) "Devnet" else "The local validator"
+    val networkName: String = if (isDevnet) "Devnet" else "The local validator"
 
     /** The app's client for [rpcUrl]: every call the cluster refuses or does not answer is logged with its reason. */
     fun rpc(): Rpc = Rpc(rpcUrl, onFailure = { method, reason -> Log.w(LOG_TAG, "$method failed: $reason") })

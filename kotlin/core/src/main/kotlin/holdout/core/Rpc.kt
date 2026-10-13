@@ -56,6 +56,12 @@ class Rpc(
 ) {
     private val rpc = driver
 
+    /** The endpoint's host alone, for messages: a hosted node's URL can carry its API key. */
+    private val host: String = runCatching { java.net.URI(endpoint).host }.getOrNull() ?: "the RPC node"
+
+    /** Why a call got no answer, naming the host — and with every URL's query cut, since the HTTP client's own messages quote the full URL. */
+    private fun noAnswer(failure: Throwable): String = "no answer from $host: ${(failure.message ?: failure.javaClass.simpleName).replace(URL_QUERY, "")}"
+
     companion object {
         /**
          * Devnet, everywhere. Nothing in this build touches mainnet or real
@@ -407,7 +413,7 @@ class Rpc(
         response.error?.let { onFailure(method, it.message) }
         response.takeIf { it.error == null }?.result
     }.getOrElse {
-        onFailure(method, "no answer from $endpoint: ${it.message ?: it.javaClass.simpleName}")
+        onFailure(method, noAnswer(it))
         null
     }
 
@@ -420,7 +426,7 @@ class Rpc(
         response.error?.let { Answer.Refused(it.message) }
             ?: response.result?.let { Answer.Ok(it) }
             ?: Answer.Unanswered("$method returned neither a result nor an error")
-    }.getOrElse { Answer.Unanswered("$method got no answer from $endpoint: ${it.message}") }
+    }.getOrElse { Answer.Unanswered("$method got ${noAnswer(it)}") }
         .also {
             when (it) {
                 is Answer.Refused -> onFailure(method, it.message)
@@ -434,7 +440,7 @@ class Rpc(
         response.error?.let { onFailure(method, it.message) }
         response.takeIf { it.error == null }?.result
     }.getOrElse {
-        onFailure(method, "no answer from $endpoint: ${it.message ?: it.javaClass.simpleName}")
+        onFailure(method, noAnswer(it))
         null
     }
 }
@@ -451,6 +457,9 @@ private inline fun <T> attempt(block: () -> T): Result<T> = try {
 } catch (e: Exception) {
     Result.failure(e)
 }
+
+/** A URL's query string — where a hosted RPC node's API key travels. */
+private val URL_QUERY = Regex("""(?<=https?://[^\s?\]]{1,512})\?[^\s\],]*""")
 
 /** Every 30 seconds while a cohort screen is visible (research R8). */
 const val COHORT_REFRESH_MILLIS = 30_000L
