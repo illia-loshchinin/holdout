@@ -287,6 +287,27 @@ class HoldoutViewModelCheckTest {
     }
 
     @Test
+    fun `given the scheduled read out, when the member checks, then the check reads at once rather than joining it`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        advanceTimeBy(30_001)
+        runCurrent()
+        val scheduled = chain.reads.last()
+        val reads = chain.reads.size
+
+        vm.checkNow()
+        runCurrent()
+        assertEquals(reads + 1, chain.reads.size)
+
+        // The older read, started while the chain was down, fails late; the check's own answer stands.
+        chain.reads.last().complete(answered)
+        runCurrent()
+        scheduled.complete(null)
+        runCurrent()
+        assertFalse(state.offline)
+        assertEquals(ChainCheck(), state.check)
+    }
+
+    @Test
     fun `given a check's read that never answers, when the pass that joined it has waited a minute, then the pass reads on its own`() = runTest(dispatcher) {
         unreachableFor(walletA)
         vm.checkNow()

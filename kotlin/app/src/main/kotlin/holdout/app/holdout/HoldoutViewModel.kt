@@ -231,10 +231,10 @@ class HoldoutViewModel(
 
     /**
      * Reads the snapshot and applies its answer. With [join], a read already out for the same wallet
-     * answers instead (the 30-second pass, a "Check again"): one snapshot read at a time (R8). One out
-     * for longer than [JOIN_READ_MILLIS] is not waited for any more, so a read that hangs cannot hold
-     * the passes off for good. Without [join] — the read closing an action, the network's return —
-     * the read starts now, because only a read started after the transaction or the return can show it.
+     * answers instead (the 30-second pass): one snapshot read at a time (R8). One out for longer than
+     * [JOIN_READ_MILLIS] is not waited for any more, so a read that hangs cannot hold the passes off for
+     * good. Without [join] — a "Check again", the read closing an action, the network's return — the
+     * read starts now: one started earlier, maybe while the chain was down, cannot answer for them.
      */
     private suspend fun refreshNow(join: Boolean = false) {
         val wallet = address
@@ -312,7 +312,7 @@ class HoldoutViewModel(
                     }
                 }
             try {
-                refreshNow(join = true)
+                refreshNow()
                 also.join()
             } catch (e: CancellationException) {
                 // This check's own cancellation ([pause], another wallet) ends it here, its state already
