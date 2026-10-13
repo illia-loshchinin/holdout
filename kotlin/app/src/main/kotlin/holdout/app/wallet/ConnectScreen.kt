@@ -275,7 +275,8 @@ internal data class LiveRowData(val running: Holdout?, val open: Holdout?)
  * Groups the live Holdouts into the card's rows, one per level: a running one,
  * with the next open one of its level hanging under it; an open one with no
  * running Holdout at its level gets its own row. Short test Holdouts are their
- * own level and sort last. A level with several running Holdouts (the 21-day
+ * own level and sort last; the two Hackathon lobbies (one per form, open at once) each get
+ * their own row, Spark first. A level with several running Holdouts (the 21-day
  * one overlaps) gets a row for each, the open one under the first.
  */
 internal fun liveRows(live: List<Holdout>, now: Long): List<LiveRowData> {
@@ -291,7 +292,7 @@ internal fun liveRows(live: List<Holdout>, now: Long): List<LiveRowData> {
         rows += LiveRowData(r, next)
     }
     open.filter { it !in attached }.forEach { rows += LiveRowData(null, it) }
-    return rows.sortedWith(compareBy({ (it.running ?: it.open)!!.isTest }, { (it.running ?: it.open)!!.cohort.durationDays }, { it.running == null }))
+    return rows.sortedWith(compareBy({ (it.running ?: it.open)!!.isTest }, { (it.running ?: it.open)!!.cohort.durationDays }, { -(it.running ?: it.open)!!.cohort.form }, { it.running == null }))
 }
 
 /** "Live right now" (FR-001a, FR-062a): read from devnet with no wallet; the figures derive from the rosters as every screen's do. */
@@ -323,7 +324,7 @@ private fun LiveRow(row: LiveRowData, now: Long, roster: List<MembershipSnapshot
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
             val day = (Derive.dayIndex(c, now) + 1).coerceIn(1, c.durationDays)
             Text(
-                text = if (running != null) Format.headerLabel(c, day) else Format.level(c).uppercase(),
+                text = if (running != null) Format.headerLabel(c, day) else Format.holdoutName(c).uppercase(),
                 style = LabelStyle,
                 color = HoldoutColors.TextTertiary,
                 modifier = Modifier.weight(1f),

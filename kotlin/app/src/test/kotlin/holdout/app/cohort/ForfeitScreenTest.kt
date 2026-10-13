@@ -431,15 +431,17 @@ class ForfeitScreenTest {
         show(stage = Stage.Forfeited(daysLasted = 1, recorded = true), h = testHoldout)
 
         val forfeit = "It goes 70 % to this Holdout's prize pool, 10 % set aside for your comeback, " +
-            "20 % to the project. If nobody finishes, the pool boosts later Hackathon · 3-day prizes."
+            "20 % to the project. If nobody finishes, the pool boosts later Hackathon · Spark prizes."
         compose.onNodeWithText(forfeit).assertExists()
         // The stake sheet's sentence names the same noun.
-        assertTrue("the pool boosts later Hackathon · 3-day prizes." in StakeText.fee(test, test = true))
+        assertTrue("the pool boosts later Hackathon · Spark prizes." in StakeText.fee(test, test = true))
     }
 
     @Test
     fun `a Hackathon round names the next one by its own name`() {
-        assertEquals("The next Hackathon · 21-day", ForfeitText.nextHoldout(c, test = true))
+        // The name follows the round's form: c is a Habit (toes), so its Hackathon is "Hackathon · Habit", never the length.
+        assertEquals("The next Hackathon · Habit", ForfeitText.nextHoldout(c, test = true))
+        assertEquals("The next Hackathon · Spark", ForfeitText.nextHoldout(c.copy(form = holdout.core.LeagueParams.FORM_KNEES_ALLOWED), test = true))
         assertEquals("The next Habit · 21-day", ForfeitText.nextHoldout(c, test = false))
         assertNull(ForfeitText.offer(offer(), c, now, Journey.JoinBlocker.LobbyPlaceTaken)!!.headline)
         assertEquals("Win back 125 SKR", ForfeitText.offer(offer(), c, now, null)!!.headline)

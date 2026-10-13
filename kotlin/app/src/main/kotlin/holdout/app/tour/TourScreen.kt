@@ -380,18 +380,17 @@ private val STEPS = listOf(
 
 // ---- card 5: scripted members -----------------------------------------------------------------------
 
-/** Spark's minimum before scripted members stop joining (spec 001 FR-043), and a Hackathon round's once someone real joins. */
-private const val SPARK_MINIMUM = 20
-private const val HACKATHON_MINIMUM = 4
+/** What scripted members top a Hackathon round up to, within a minute of someone real joining (spec 001 FR-043, FR-044a). */
+private const val HACKATHON_MINIMUM = 10
 
 @Composable
 private fun ScriptedCard() {
-    // On devnet scripted members play Spark and the Hackathon rounds, not Habit (owner, 13 Oct).
-    Title("Scripted members\nin Spark and Hackathon")
-    ScriptedRow(real = SPARK_MINIMUM - SCRIPTED_SHOWN, scripted = SCRIPTED_SHOWN)
+    // On devnet scripted members play the Hackathon rounds only, not Spark or Habit (owner, 13 Oct).
+    Title("Scripted members\nin Hackathon only")
+    ScriptedRow(real = HACKATHON_MINIMUM - SCRIPTED_SHOWN, scripted = SCRIPTED_SHOWN)
     Body("Some members in these Holdouts are scripted.\nReal wallets, same rules, labelled SCRIPTED.")
     Text(
-        "They only top a Holdout up: a Spark to $SPARK_MINIMUM,\na Hackathon to $HACKATHON_MINIMUM once someone real joins.\nTheir days aren't camera-checked.",
+        "They only top a Hackathon round up\nto $HACKATHON_MINIMUM, once someone real joins.\nTheir days aren't camera-checked.",
         style = MaterialTheme.typography.bodyLarge,
         color = HoldoutColors.TextTertiary,
     )
@@ -399,11 +398,11 @@ private fun ScriptedCard() {
 
 private const val SCRIPTED_SHOWN = 5
 
-/** A Spark at its minimum: solid dots for real members, dashed rings for the scripted ones that top it up. */
+/** A Hackathon round topped up to its minimum: solid dots for real members, dashed rings for the scripted ones that top it up. */
 @Composable
 private fun ScriptedRow(real: Int, scripted: Int) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
-        Text("A Spark · 7-day Holdout · ${real + scripted} members".uppercase(), style = LabelStyle, color = HoldoutColors.TextTertiary)
+        Text("A Hackathon · Spark · ${real + scripted} members".uppercase(), style = LabelStyle, color = HoldoutColors.TextTertiary)
         Canvas(Modifier.fillMaxWidth().height(24.dp)) {
             val pitch = size.width / (real + scripted)
             val r = pitch * 0.34f

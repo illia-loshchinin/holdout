@@ -100,6 +100,17 @@ class TodayModelTest {
     }
 
     @Test
+    fun `both Hackathon lobbies are offered at once, each under its form's name, Spark first`() {
+        val testStart = start + 750
+        val habit = holdout(1, testStart, form = LeagueParams.FORM_TOES, leagueId = LeagueParams.TEST_LEAGUE_MIN + 1, days = 3, reps = 5, dayLength = 600, cutoff = testStart)
+        val spark = holdout(2, testStart, form = LeagueParams.FORM_KNEES_ALLOWED, leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, reps = 5, dayLength = 600, cutoff = testStart)
+        val block = assertIs<HoldoutsBlock.Open>(TodayModel.holdouts(view(habit, spark), start, offline = false))
+        assertEquals(listOf("Hackathon · Spark", "Hackathon · Habit"), block.cards.map { it.title })
+        assertEquals(listOf("A quick taste · knees allowed", "A quick taste · toes only"), block.cards.map { it.tagline })
+        assertTrue(block.cards.all { it.test && it.testDayLength == 600L })
+    }
+
+    @Test
     fun `no Holdout open to join is an empty block - the next one opens soon (ES-15)`() {
         val block = assertIs<HoldoutsBlock.Open>(TodayModel.holdouts(view(holdout(1, start - 3 * day)), start, offline = false))
         assertTrue(block.cards.isEmpty())
@@ -148,10 +159,16 @@ class TodayModelTest {
         val test = holdout(1, start + 750, leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, reps = 5, dayLength = 600, joined = 3, held = 250uL * skr, cutoff = start + 750)
         val card = OfferCardState.of(test, start)
         assertTrue(card.test)
-        assertEquals("Hackathon · 3-day", card.title)
+        assertEquals("Hackathon · Spark", card.title)
         assertEquals("A quick taste · knees allowed", card.tagline)
         assertEquals("Starts in 12m 30s", card.timing)
         assertEquals(600, card.testDayLength)
+    }
+
+    @Test
+    fun `a Hackathon Holdout of the toes form is named Habit, never by its length`() {
+        val test = holdout(1, start + 750, form = LeagueParams.FORM_TOES, leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, reps = 5, dayLength = 600, joined = 3, held = 250uL * skr, cutoff = start + 750)
+        assertEquals("Hackathon · Habit", OfferCardState.of(test, start).title)
     }
 
     @Test

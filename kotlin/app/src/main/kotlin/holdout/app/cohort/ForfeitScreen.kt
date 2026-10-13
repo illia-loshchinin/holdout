@@ -233,9 +233,9 @@ private fun ColumnScope.Buttons(
         // The round that has started or is locked is not "the next": the member joins it late — today's once it runs.
         offer.held == null && nextCohort != null && joinBlocker == null -> PrimaryButton(
             when {
-                !next.lateJoin -> "Join the next ${Format.level(nextCohort)}"
-                next.status == CohortStatus.Running -> "Join today's ${Format.level(nextCohort)}"
-                else -> "Join the ${Format.level(nextCohort)}"
+                !next.lateJoin -> "Join the next ${Format.holdoutName(nextCohort)}"
+                next.status == CohortStatus.Running -> "Join today's ${Format.holdoutName(nextCohort)}"
+                else -> "Join the ${Format.holdoutName(nextCohort)}"
             },
             onJoin,
         )
@@ -258,13 +258,13 @@ internal object ForfeitText {
 
     fun streakTitle(streak: Int): String = if (streak > 0) "Your $streak-day streak is still alive." else "Your streak is untouched."
 
-    fun nextHoldout(c: CohortSnapshot, test: Boolean): String = if (test) "The next ${Format.testName(c)}" else "The next ${Format.level(c)}"
+    fun nextHoldout(c: CohortSnapshot, test: Boolean): String = if (test) "The next ${Format.testName(c)}" else "The next ${Format.holdoutName(c)}"
 
     /** No comeback offer: two ways back. */
     fun noOffer(c: CohortSnapshot, nextOpen: Boolean, dailyOpen: Boolean = true): String? = when {
-        dailyOpen && nextOpen -> "Today's Daily 25 keeps your streak going. The next ${Format.level(c)} starts a new run."
+        dailyOpen && nextOpen -> "Today's Daily 25 keeps your streak going. The next ${Format.holdoutName(c)} starts a new run."
         dailyOpen -> "Today's Daily 25 keeps your streak going."
-        nextOpen -> "The next ${Format.level(c)} starts a new run."
+        nextOpen -> "The next ${Format.holdoutName(c)} starts a new run."
         else -> null
     }
 
@@ -296,13 +296,13 @@ internal object ForfeitText {
         val place = held?.entry
         val next = offer.next
         val nextCohort = next?.entry?.cohort
-        val level = Format.level(forfeited)
+        val level = Format.holdoutName(forfeited)
         return when {
             place != null -> {
                 val back = Format.skr(offer.amount(place.member?.stake))
                 val timing = if (Derive.status(place.cohort, now) == CohortStatus.Running) "running now" else "starting in ${Format.countdown(place.cohort.start - now)}"
                 val sep = if (timing == "running now") ", " else " "
-                OfferCopy(COMEBACK, Format.winBack(offer.amount(place.member?.stake)), "You're in the ${Format.level(place.cohort)}$sep$timing. Finish it and $back of the stake you lost comes back.")
+                OfferCopy(COMEBACK, Format.winBack(offer.amount(place.member?.stake)), "You're in the ${Format.holdoutName(place.cohort)}$sep$timing. Finish it and $back of the stake you lost comes back.")
             }
             next == null && offer.upcoming != null -> {
                 // The round before it is locked or running and the next is not opened yet: nothing to join, not closed (FR-037g).
@@ -323,7 +323,7 @@ internal object ForfeitText {
                         if (next.lateJoin) {
                             val closesIn = Format.countdown((next.closesAt - now).coerceAtLeast(0))
                             // The round the miss lands on has started (or is locked): joinable until the end of its first day, with the one after it as the other way.
-                            val name = Format.level(nextCohort)
+                            val name = Format.holdoutName(nextCohort)
                             val lead = if (Derive.status(nextCohort, now) == CohortStatus.Running) "Join the $name that started today." else "Join the $name starting in ${Format.countdown(next.start - now)}."
                             val tail = offer.after(next)?.let { "Finish it \u2014 or the one after it, starting in ${Format.countdown(it.start - now)} \u2014 and $back comes back." } ?: "Finish it and $back comes back."
                             OfferCopy(COMEBACK, Format.winBack(offer.amount()), "$lead $tail", timing = "Joining closes in $closesIn", countdowns = listOf(closesIn), notice = notice)

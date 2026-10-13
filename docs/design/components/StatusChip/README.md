@@ -1,6 +1,6 @@
 # Status chip
 
-A small uppercase word that names a state beside a number or a title: `devnet`, `free`, `open`, `running`, `settled`, `TEST COHORT · 10-MIN DAYS`, `◇ SCRIPTED`, `LAB`.
+A small uppercase word that names a state beside a number or a title: `devnet`, `free`, `open`, `running`, `settled`, `TEST COHORT · 5-MIN DAYS`, `◇ SCRIPTED`, `LAB`.
 
 **Use for:** the state of a Holdout on a card or header, the network, the free tier, the disclosed labels on scripted members and short test Holdouts, and the `LAB` marker on Holdout Lab's first screen.
 

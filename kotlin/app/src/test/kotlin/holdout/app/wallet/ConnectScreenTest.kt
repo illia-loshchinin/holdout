@@ -209,6 +209,17 @@ class ConnectScreenTest {
     }
 
     @Test
+    fun `both Hackathon lobbies get their own row, Spark first, after the real levels`() {
+        val testStart = now + 2 * 3_600
+        val habitTest = holdout(cohort(8, testStart, LeagueParams.FORM_TOES, 3, joined = 1, leagueId = LeagueParams.TEST_LEAGUE_MIN + 1))
+        val sparkTest = holdout(cohort(9, testStart, LeagueParams.FORM_KNEES_ALLOWED, 3, joined = 1, leagueId = LeagueParams.TEST_LEAGUE_MIN))
+        val spark = holdout(cohort(1, now + 2 * day, LeagueParams.FORM_KNEES_ALLOWED, 7, joined = 5))
+        val rows = liveRows(listOf(habitTest, spark, sparkTest), now)
+
+        assertEquals(listOf(spark, sparkTest, habitTest).map { it.address }, rows.map { (it.running ?: it.open)!!.address })
+    }
+
+    @Test
     fun `no dollar figures, banned words or judges anywhere`() {
         show(live = listOf(runningSpark, openSpark, runningHabit))
 
