@@ -113,7 +113,7 @@ Pass these with `-P` or set them in `~/.gradle/gradle.properties`:
 
 | Property | Default | Use |
 |---|---|---|
-| `holdout.rpcUrl` | `https://api.devnet.solana.com` | Your own RPC, or `http://127.0.0.1:8899` for a local validator (debug only; run `adb reverse tcp:8899 tcp:8899`) |
+| `holdout.rpcUrl` | `https://api.devnet.solana.com` | Your own devnet RPC, or `http://127.0.0.1:8899` for a local validator (debug only; run `adb reverse tcp:8899 tcp:8899`). A hosted devnet node needs `devnet` in its host name (e.g. `devnet.helius-rpc.com`); any other host is taken for a local validator. Its key is built into the APK, so use a free, devnet-only key, and keep it in `~/.gradle/gradle.properties`, never in the repo |
 | `holdout.programId` | `Ho1d924DTXrCgVfbW1U2NkAc3rGk1F723weN8rduyoy4` | A program you deployed yourself |
 | `holdout.namesRpcUrl` | Solana mainnet-beta | The read-only RPC for Seeker ID names and the Seeker Genesis Token check |
 | `holdout.sponsorKeypair` | none | Path to a Solana CLI keypair JSON bundled as the faucet's fee sponsor. Without it the app builds and runs, but a wallet with zero SOL can't use the faucet. |
