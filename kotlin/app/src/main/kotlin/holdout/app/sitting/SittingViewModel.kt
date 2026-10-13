@@ -282,6 +282,7 @@ class SittingViewModel(
             return
         }
         if (banking.rollOverTo(today)) {
+            marker?.moveTo(banking.dayIndex)
             _uiState.update { it.copy(banked = banking.banked, looseReps = banking.loose) }
         }
     }
@@ -483,7 +484,7 @@ class SittingViewModel(
             }
             _uiState.update { it.copy(step = Step.COUNTING, hint = null, looseReps = 0) }
             // From here a crash loses the loose reps, and the next open says what was kept.
-            marker?.start()
+            marker?.start(banking.dayIndex)
         }
         _cues.tryEmit(Cue.Counting)
     }

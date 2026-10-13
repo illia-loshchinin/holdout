@@ -84,6 +84,8 @@ data class DayState(
             offline: Boolean,
             busy: Boolean,
             canPayFees: Boolean,
+            /** A send of this day went out and was not confirmed: it may land yet, so Submit stays shut until a chain read settles it (FR-070a). */
+            mayStillLand: Boolean = false,
         ): DayState {
             val reps = c.repsPerDay
             val day = stage.dayIndex + 1
@@ -113,6 +115,13 @@ data class DayState(
                     // The red countdown goes with the deadline; the next day's opening replaces it, and the last day has none.
                     text = if (lastDay) LAST_DAY else timeLeft?.let { "Day ${day + 1} opens in ${Format.countdown(it)}." },
                     timeLeft = null,
+                )
+                waiting && mayStillLand -> base.copy(
+                    phase = DayPhase.Unsent,
+                    title = "Done — sent, not confirmed yet",
+                    tone = DayTone.Accent,
+                    text = "Day $day may still land. Sending opens again once devnet answers.",
+                    button = DayButton("Submit day $day", DayAction.Submit, enabled = false),
                 )
                 waiting && !offline && !canPayFees -> base.copy(
                     phase = DayPhase.ShortOfSol,

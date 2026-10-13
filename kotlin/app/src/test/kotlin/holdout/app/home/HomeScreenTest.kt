@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import holdout.app.chain.Deployment
+import holdout.app.holdouts.MyHoldoutsModel
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Screen
 import holdout.app.nav.Tab
@@ -113,6 +114,15 @@ class HomeScreenTest {
         text("No banked reps on this device today. 25 to go.").assertIsDisplayed()
     }
 
+    // ---- the streak chip with no streak running ------------------------------------------------------
+
+    @Test
+    fun `a member who never trained has a plain 0 streak, not a broken one`() {
+        show(fresh.copy(streak = 0, longestStreak = 0))
+        compose.onNodeWithContentDescription("0-day streak").assertExists()
+        compose.onNodeWithContentDescription("Streak broken").assertDoesNotExist()
+    }
+
     // ---- a streak milestone (Gap 2, T1) -------------------------------------------------------------
 
     private val milestoneDone = fresh.copy(remainingToday = 0, bankedToday = 25, completedToday = true, streak = 7, milestoneToday = true)
@@ -149,8 +159,8 @@ class HomeScreenTest {
     }
 
     @Test
-    fun `no streak shows a broken flame at zero, and a held freeze is said`() {
-        show(fresh.copy(streak = 0))
+    fun `a streak that ran and lapsed shows a broken flame at zero`() {
+        show(fresh.copy(streak = 0, longestStreak = 9))
         compose.onNodeWithContentDescription("Streak broken").assertExists()
     }
 
@@ -194,6 +204,16 @@ class HomeScreenTest {
         show(fresh)
         text("Spark · 7-day").performClick()
         assertEquals(listOf("spark"), joined)
+    }
+
+    @Test
+    fun `a wallet this session found holds no Seeker - the offers show without a Join, and one line says why`() {
+        show(fresh.copy(canJoin = false))
+        text("Spark · 7-day").assertIsDisplayed()
+        text(MyHoldoutsModel.SEEKER_ONLY).assertIsDisplayed()
+        compose.onNodeWithContentDescription("Join Spark · 7-day").assertDoesNotExist()
+        text("Spark · 7-day").performClick()
+        assertEquals(emptyList(), joined)
     }
 
     @Test

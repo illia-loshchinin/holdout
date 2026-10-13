@@ -83,7 +83,7 @@ internal fun Shared.signingState(tx: TxFlow, h: Holdout, n: Long): SigningState 
  * the Habit, a test Holdout of the toes form the next one. The length in the
  * words is the open Habit's own, never typed here.
  */
-private fun Shared.upsell(h: Holdout, n: Long): Pair<String, NavEvent>? = view?.let { claimUpsell(h, it, n, seekerKnown) }
+private fun Shared.upsell(h: Holdout, n: Long): Pair<String, NavEvent>? = view?.takeUnless { knownNotSeeker }?.let { claimUpsell(h, it, n, seekerKnown) }
 
 internal fun claimUpsell(h: Holdout, v: ChainView, n: Long, seekerKnown: Boolean): Pair<String, NavEvent>? {
     val habit = v.joinable(n)

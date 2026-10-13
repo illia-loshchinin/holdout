@@ -111,6 +111,8 @@ fun CohortHome(
     streak: Int = 0,
     /** The wallet holds enough SOL for the submit's fee (ES-0a). */
     canPayFees: Boolean = true,
+    /** A send of today's day may still land: Submit stays shut, and the day says so (FR-070a). */
+    mayStillLand: Boolean = false,
     /** A member's "Check again" is out (spec 005). */
     checking: Boolean = false,
     /** The last "Check again" found the chain still silent. */
@@ -123,7 +125,7 @@ fun CohortHome(
     val c = h.cohort
     val figures = members?.let { Derive.figures(c, it, now, boostReserve = h.league?.boostReserve) }
     val since = if (figures != null && members != null) Derive.sinceYesterday(figures, members) else null
-    val d = DayState.of(c, stage, now, banked, pendingDay, autoSendTried, offline, busy, canPayFees)
+    val d = DayState.of(c, stage, now, banked, pendingDay, autoSendTried, offline, busy, canPayFees, mayStillLand)
     val me = h.membership
     val crowd = CrowdStrip(
         standing = figures?.survivors?.standing ?: c.memberCount.toInt(),

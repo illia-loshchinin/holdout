@@ -38,8 +38,8 @@ class MyHoldoutsScreenTest {
     private val events = mutableListOf<NavEvent>()
     private val joins = mutableListOf<String>()
 
-    private fun show(state: MyHoldoutsState?) {
-        compose.setContent { HoldoutTheme { MyHoldoutsScreen(state, onEvent = { events += it }, onJoin = { joins += it }) } }
+    private fun show(state: MyHoldoutsState?, canJoin: Boolean = true) {
+        compose.setContent { HoldoutTheme { MyHoldoutsScreen(state, onEvent = { events += it }, onJoin = { joins += it }, canJoin = canJoin) } }
     }
 
     private val running = YourHoldout("r", "Habit · 21-day", YourKind.Running, ChipTone.Success, "Day 12 of 21 · 189 still standing", "15 push-ups to go today", false, NavEvent.Open(Screen.Detail("r")))
@@ -138,6 +138,17 @@ class MyHoldoutsScreenTest {
         compose.onNodeWithText("Join").performClick()
 
         assertEquals(listOf("f", "f"), joins)
+    }
+
+    @Test
+    fun `a wallet this session found holds no Seeker - the offers show without a Join, and one line says why`() {
+        show(MyHoldoutsState(open = listOf(free, habitOffer)), canJoin = false)
+
+        compose.onNodeWithText("12,500 SKR").assertIsDisplayed()
+        compose.onNodeWithText(MyHoldoutsModel.SEEKER_ONLY).assertIsDisplayed()
+        compose.onNodeWithText("Join").assertDoesNotExist()
+        compose.onNodeWithText("Spark · 7-day").performClick()
+        assertTrue(joins.isEmpty())
     }
 
     private val won = PastHoldout("w", "Spark · 7-day", "Held out 7 of 7 · 12 of 14 finished", "1,180 SKR", NavEvent.Open(Screen.Detail("w")))

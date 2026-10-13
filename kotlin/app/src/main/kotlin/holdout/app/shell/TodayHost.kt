@@ -41,8 +41,10 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
     val chainNow = now
     // A sitting that did not end cleanly (the app killed mid-set) says what was kept, once, on the next open (ES-1, ES-2).
     var interrupted by remember { mutableStateOf<List<StoppedUi>>(emptyList()) }
-    LaunchedEffect(wallet, dayIndex, running?.first?.address, running?.second?.dayIndex) {
-        interrupted = interrupted + interruptedSittings(store, wallet, dayIndex, chainNow, running)
+    // The member's other Holdouts too: a sitting killed in one that has since been forfeited or ended still says what it kept.
+    val others = chainNow?.let { n -> view?.mine(n) }.orEmpty()
+    LaunchedEffect(wallet, dayIndex, running?.first?.address, running?.second?.dayIndex, others.map { it.address }) {
+        interrupted = interrupted + interruptedSittings(store, wallet, dayIndex, chainNow, running, others)
     }
     interrupted.firstOrNull()?.let { page ->
         StoppedScreen(page, onBack = { interrupted = interrupted.drop(1) }, modifier = modifier)
@@ -66,6 +68,7 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
             busy = chain.busy,
             message = chain.message,
             messageIsWarning = chain.messageIsWarning,
+            mayStillLand = day.mayStillLand,
             onStart = { startDay(h, stage.dayIndex) },
             onSubmit = { submitDayOf(h, it) },
             // Its standing is the Standing tab's root.
@@ -108,7 +111,8 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
     val holdoutsBlock = TodayModel.holdouts(view, chainNow, offline)
     // The nudges and the comeback card come from the chain read; with none they are empty.
     val nudges = remember(view, chainNow, rosters) { TodayModel.nudges(view, chainNow) }
-    val comeback = remember(view, chainNow, seekerKnown) { TodayModel.comeback(view, chainNow, seekerKnown) }
+    // A wallet this session found holds no Seeker gets no card whose tap is a stake it cannot make (G12).
+    val comeback = remember(view, chainNow, seekerKnown, knownNotSeeker) { TodayModel.comeback(view, chainNow, seekerKnown).takeUnless { knownNotSeeker } }
 
     ChainCheckBox(offline, chain.check.checking, { checkChain(null) }, modifier) {
         HomeScreen(
@@ -120,6 +124,7 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
                 newPhone = newPhone,
                 milestoneToday = StreakMilestones.reachedToday(streak),
                 streak = streak.current,
+                longestStreak = streak.longest,
                 freezes = streak.freezes,
                 toes = ToesMeter(store, DAILY_25).read(wallet, dayIndex),
                 yesterdayNote = yesterday,
@@ -129,6 +134,7 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
                 holdouts = holdoutsBlock,
                 checking = chain.check.checking,
                 stillUnreachable = chain.check.stillUnreachable,
+                canJoin = !knownNotSeeker,
             ),
             onStart = {
                 if (dayIndex == Store.UNKNOWN_DAY) offlineDays.sittingStarted(wallet, boot, android.os.SystemClock.elapsedRealtime())

@@ -32,7 +32,8 @@ class DayModelTest {
         at: Long = now,
         index: Int = 11,
         cohort: holdout.core.CohortSnapshot = habit,
-    ) = DayState.of(cohort, Stage.Active(index, done), at, banked, pending, tried, offline, busy, fees)
+        mayStillLand: Boolean = false,
+    ) = DayState.of(cohort, Stage.Active(index, done), at, banked, pending, tried, offline, busy, fees, mayStillLand)
 
     @Test
     fun `nothing banked - the target, how to do it, and Start today's 25 with the deadline`() {
@@ -87,6 +88,15 @@ class DayModelTest {
         val d = day(pending = 11, tried = true)
         assertEquals("Done — tap to submit", d.title)
         assertEquals(DayButton("Submit day 12", DayAction.Submit), d.button)
+    }
+
+    @Test
+    fun `done and a send that may still land - Submit is off and the day says why, on Today and Standing alike`() {
+        val d = day(pending = 11, tried = true, mayStillLand = true)
+        assertEquals(DayPhase.Unsent, d.phase)
+        assertEquals("Done — sent, not confirmed yet", d.title)
+        assertEquals("Day 12 may still land. Sending opens again once devnet answers.", d.text)
+        assertEquals(DayButton("Submit day 12", DayAction.Submit, enabled = false), d.button)
     }
 
     @Test
