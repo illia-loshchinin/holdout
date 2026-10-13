@@ -126,7 +126,7 @@ internal fun Shared.RosterHost(id: String, modifier: Modifier = Modifier) {
 internal fun Shared.LeaderboardsHost(board: Leaderboard.Board, read: Leaderboard.Snapshot?, modifier: Modifier = Modifier) {
     InFrontLoop(Unit) {
         holdouts.loadLeaderboard()
-        delay(ROSTER_REFRESH_MILLIS)
+        delay(LEADERBOARD_REFRESH_MILLIS)
     }
     val boards = Leaderboard.Board.entries.filter { it != Leaderboard.Board.TEST || read?.cohortsAfter.orEmpty().any { c -> Leaderboard.Board.TEST.covers(c.leagueId) } }
     val n = now

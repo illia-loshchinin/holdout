@@ -89,6 +89,9 @@ internal const val CHAIN_RETRY_MILLIS = 30_000L
 internal const val CHAIN_REFRESH_MILLIS = 600_000L
 internal const val ROSTER_REFRESH_MILLIS = 30_000L
 
+/** The leaderboards while they are open (R8): every profile in one read, so slower than a roster. */
+internal const val LEADERBOARD_REFRESH_MILLIS = 90_000L
+
 /** Repeats [pass] for as long as the app is in front; stops when it is not, and starts again on return. */
 @Composable
 internal fun InFrontLoop(key: Any?, pass: suspend () -> Unit) {
