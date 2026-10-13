@@ -36,7 +36,7 @@ import holdout.app.ui.theme.HoldoutColors
  *  a sitting      → sitting(…)                      full screen, no bar
  *  the tour       → tour                            full screen, no bar
  *  signing        → signing(…)                      full screen, no bar
- *  else           → screen(top) or root(tab)        + BottomNav on a root
+ *  else           → notice, then screen(top) or root(tab)   + BottomNav on a root
  *                   + sheet(…) over both, with a scrim
  * ```
  */
@@ -53,6 +53,8 @@ fun AppShell(
     screen: @Composable (Screen) -> Unit,
     sheet: @Composable ColumnScope.(Sheet) -> Unit,
     modifier: Modifier = Modifier,
+    /** Above whatever tab or screen shows: the outcome of a signature the member left before it came back (G7). */
+    notice: @Composable () -> Unit = {},
 ) {
     BackHandler(enabled = nav.canGoBack) { onEvent(NavEvent.Back) }
     Box(modifier.fillMaxSize().background(HoldoutColors.Canvas)) {
@@ -65,6 +67,7 @@ fun AppShell(
             tx != null -> signing(tx)
             else -> {
                 Column(Modifier.fillMaxSize()) {
+                    notice()
                     Box(Modifier.weight(1f).fillMaxWidth()) {
                         nav.top?.let { screen(it) } ?: root(nav.tab)
                     }

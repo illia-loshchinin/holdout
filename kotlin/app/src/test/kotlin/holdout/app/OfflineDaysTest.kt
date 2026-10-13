@@ -218,4 +218,19 @@ class OfflineDaysTest {
         assertEquals(0 to 0, store.toesDay(wallet, Store.UNKNOWN_DAY))
         assertEquals(20, store.bestToes(wallet))
     }
+
+    @Test
+    fun `a Daily 25 killed before the day was known moves its crash marker to the day its reps went to`() {
+        days.sittingStarted(wallet, boot = 7, elapsedMillis = 1_000_000)
+        store.setSittingDay(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY)
+        store.setSittingStartedAt(wallet, Store.CHALLENGE, 1L)
+        store.setBankedReps(wallet, Store.CHALLENGE, Store.UNKNOWN_DAY, 10)
+
+        days.settle(wallet, boot = 7, elapsedMillis = 1_000_000 + 7_200_000, chainNow = chainAt(day, 10_000))
+
+        assertEquals(day, store.sittingDay(wallet, Store.CHALLENGE))
+        // Read the next day, the crash page still finds the reps where they went.
+        val ui = holdout.app.sitting.InterruptedSitting.consume(store, wallet, Store.CHALLENGE, day + 1, 25, { "" }, { null })
+        assertEquals(10, ui?.banked)
+    }
 }

@@ -20,8 +20,8 @@ class InterruptedSittingTest {
         scope,
         dayIndex = day,
         target = target,
-        header = SittingCopy.countingLabel(12, target),
-        secondsLeft = secondsLeft,
+        header = { SittingCopy.countingLabel(it.toInt() + 1, target) },
+        secondsLeft = { secondsLeft },
     )
 
     @Test
@@ -97,5 +97,52 @@ class InterruptedSittingTest {
 
         assertNull(consume(store))
         assertEquals(1L, store.sittingStartedAt(wallet, Store.CHALLENGE))
+    }
+
+    @Test
+    fun `a sitting from an earlier day still says what that day banked`() {
+        val store = InMemoryStore()
+        store.setBankedReps(wallet, scope, day, 10)
+        store.setSittingStartedAt(wallet, scope, 1L)
+        store.setSittingDay(wallet, scope, day)
+
+        val stopped = assertNotNull(InterruptedSitting.consume(store, wallet, scope, dayIndex = day + 1, target = 25, header = { "day ${it + 1}" }, secondsLeft = { null }))
+
+        assertEquals(10, stopped.banked)
+        assertEquals("day 12", stopped.header)
+        assertNull(store.sittingStartedAt(wallet, scope))
+        assertNull(store.sittingDay(wallet, scope), "the day goes with the marker")
+    }
+
+    @Test
+    fun `a marker without a day, from an older build, reads today's`() {
+        val store = InMemoryStore()
+        store.setBankedReps(wallet, scope, day + 1, 7)
+        store.setSittingStartedAt(wallet, scope, 1L)
+
+        val stopped = assertNotNull(InterruptedSitting.consume(store, wallet, scope, dayIndex = day + 1, target = 25, header = { "day ${it + 1}" }, secondsLeft = { null }))
+
+        assertEquals(7, stopped.banked)
+        assertEquals("day 13", stopped.header)
+    }
+
+    @Test
+    fun `an unknown stored day falls back to today's too`() {
+        val store = InMemoryStore()
+        store.setBankedReps(wallet, scope, day, 7)
+        store.setSittingStartedAt(wallet, scope, 1L)
+        store.setSittingDay(wallet, scope, Store.UNKNOWN_DAY)
+
+        assertEquals(7, assertNotNull(consume(store)).banked)
+    }
+
+    @Test
+    fun `a sitting started before the day was known, read before its reps were moved, reads them where they are`() {
+        val store = InMemoryStore()
+        store.setSittingDay(wallet, scope, Store.UNKNOWN_DAY)
+        store.setSittingStartedAt(wallet, scope, 1L)
+        store.setBankedReps(wallet, scope, Store.UNKNOWN_DAY, 10)
+
+        assertEquals(10, consume(store)?.banked)
     }
 }

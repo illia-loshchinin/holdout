@@ -12,7 +12,8 @@ import holdout.app.streak.StreakStore
  * going away. If it is found set at the next open, the app crashed or was
  * killed mid-sitting ([InterruptedSitting]). It is written to storage and read
  * back, nothing else: the counter never reads it and it changes no banked
- * figure.
+ * figure. It keeps the day the sitting banks into, so the crash page reads that
+ * day's reps even when the app is reopened after the day has moved on.
  */
 class SittingMarker(
     private val store: Store,
@@ -20,8 +21,20 @@ class SittingMarker(
     private val scope: String,
     private val nowMillis: () -> Long = System::currentTimeMillis,
 ) {
-    /** Counting has started. */
-    fun start() = store.setSittingStartedAt(wallet, scope, nowMillis())
+    /**
+     * Counting has started, banking into [dayIndex]. The day goes first: the two are separate
+     * writes, and a process killed between them must leave no marker without its day (a day
+     * with no marker is never read, and the next start overwrites it).
+     */
+    fun start(dayIndex: Long) {
+        store.setSittingDay(wallet, scope, dayIndex)
+        store.setSittingStartedAt(wallet, scope, nowMillis())
+    }
+
+    /** A sitting running across the day boundary banks into [dayIndex] from here on. */
+    fun moveTo(dayIndex: Long) {
+        store.setSittingDay(wallet, scope, dayIndex)
+    }
 
     /** The sitting ended cleanly. */
     fun clear() = store.setSittingStartedAt(wallet, scope, null)
@@ -58,8 +71,17 @@ object InterruptedSitting {
      * The marker is cleared in every case. Reads [Store.bankedReps] and never
      * writes one.
      *
-     * @param header the top label (`SittingCopy.countingLabel`)
-     * @param secondsLeft the day's deadline (a Holdout) or the end of today (the Daily 25); null while unknown
+     * The reps are read from the day the marker was written for
+     * ([Store.sittingDay]), so a member who comes back after the day moved on
+     * still hears what was kept. A marker with no day (written by an older
+     * build) falls back to [dayIndex], today's. One whose day was not known
+     * when it started reads the reps banked under the unknown day while they
+     * are still there; once the chain's answer has moved them to their day,
+     * that day is the marker's too (`OfflineDays`).
+     *
+     * @param dayIndex the day it is now in this scope
+     * @param header the top label (`SittingCopy.countingLabel`) for the sitting's day, given that day
+     * @param secondsLeft the day's deadline (a Holdout) or the end of today (the Daily 25), given the sitting's day; null while unknown, and for a day that has gone
      */
     fun consume(
         store: Store,
@@ -67,13 +89,18 @@ object InterruptedSitting {
         scope: String,
         dayIndex: Long,
         target: Int,
-        header: String,
-        secondsLeft: Long?,
+        header: (sittingDay: Long) -> String,
+        secondsLeft: (sittingDay: Long) -> Long?,
     ): StoppedUi? {
         if (store.sittingStartedAt(wallet, scope) == null) return null
+        val sittingDay = when (val kept = store.sittingDay(wallet, scope)) {
+            null -> dayIndex
+            Store.UNKNOWN_DAY -> if (store.bankedReps(wallet, scope, Store.UNKNOWN_DAY) > 0) Store.UNKNOWN_DAY else dayIndex
+            else -> kept
+        }
         store.setSittingStartedAt(wallet, scope, null)
-        val banked = store.bankedReps(wallet, scope, dayIndex)
-        if (banked <= 0 || banked >= target || store.isDayComplete(wallet, scope, dayIndex)) return null
-        return StoppedUi(header = header, reps = target, banked = banked, notKept = 0, secondsLeft = secondsLeft, crash = true)
+        val banked = store.bankedReps(wallet, scope, sittingDay)
+        if (banked <= 0 || banked >= target || store.isDayComplete(wallet, scope, sittingDay)) return null
+        return StoppedUi(header = header(sittingDay), reps = target, banked = banked, notKept = 0, secondsLeft = secondsLeft(sittingDay), crash = true)
     }
 }

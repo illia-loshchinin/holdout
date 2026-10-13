@@ -81,6 +81,8 @@ fun ClaimScreen(
     /** The wallet has too little SOL to pay the claim's fee: the faucet comes first (ES-0a). */
     shortOfSol: Boolean = false,
     onGetTokens: () -> Unit = {},
+    /** False while a claim of this Holdout may still land: Claim stays shut, [message] says why (FR-070a). */
+    canClaim: Boolean = true,
 ) {
     val c = h.cohort
     val claimed = stage as? Stage.Claimed
@@ -150,7 +152,7 @@ fun ClaimScreen(
                 }
                 PrimaryButton(ClaimText.button(ready.amount), onClaim, enabled = false)
             } else {
-                PrimaryButton(if (busy) Format.WAITING_FOR_WALLET else ClaimText.button(ready.amount), onClaim, busy = busy)
+                PrimaryButton(if (busy) Format.WAITING_FOR_WALLET else ClaimText.button(ready.amount), onClaim, enabled = canClaim, busy = busy)
             }
             Text(ClaimText.FOOTER, style = LabelStyle, color = HoldoutColors.TextTertiary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }

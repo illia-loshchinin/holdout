@@ -145,4 +145,69 @@ class SittingWiringTest {
         assertTrue(interruptedSittings(marked, wallet, Store.UNKNOWN_DAY, chainNow, null).isEmpty(), "the day is not known yet, so the marker waits")
         assertEquals(1L, marked.sittingStartedAt(wallet, Store.CHALLENGE))
     }
+
+    @Test
+    fun `a Daily 25 killed on one day and reopened on the next still says what it banked, with no time left`() {
+        val store = InMemoryStore()
+        store.setSittingStartedAt(wallet, Store.CHALLENGE, 1L)
+        store.setSittingDay(wallet, Store.CHALLENGE, 500L)
+        store.setBankedReps(wallet, Store.CHALLENGE, 500L, 20)
+        val ui = interruptedSittings(store, wallet, 501L, chainNow, null).single()
+        assertEquals(20, ui.banked)
+        assertEquals("the daily 25", ui.header)
+        assertNull(ui.secondsLeft)
+        assertNull(store.sittingStartedAt(wallet, Store.CHALLENGE))
+    }
+
+    @Test
+    fun `a Daily 25 marker from an older build, with no day, reads today's`() {
+        val store = InMemoryStore()
+        store.setSittingStartedAt(wallet, Store.CHALLENGE, 1L)
+        store.setBankedReps(wallet, Store.CHALLENGE, 501L, 20)
+        assertEquals(20, interruptedSittings(store, wallet, 501L, chainNow, null).single().banked)
+    }
+
+    @Test
+    fun `a Holdout sitting from a day that has since moved on says that day, with no time left`() {
+        val store = InMemoryStore()
+        store.setSittingStartedAt(wallet, cohortScope(h), 1L)
+        store.setSittingDay(wallet, cohortScope(h), 1L)
+        store.setBankedReps(wallet, cohortScope(h), 1, 10)
+        val ui = interruptedSittings(store, wallet, Store.UNKNOWN_DAY, chainNow, running).single()
+        assertEquals(10, ui.banked)
+        assertEquals("day 2 · 25 reps", ui.header)
+        assertNull(ui.secondsLeft)
+    }
+
+    @Test
+    fun `a Holdout marker from an older build, with no day, reads the running day`() {
+        val store = InMemoryStore()
+        store.setSittingStartedAt(wallet, cohortScope(h), 1L)
+        store.setBankedReps(wallet, cohortScope(h), 2, 10)
+        val ui = interruptedSittings(store, wallet, Store.UNKNOWN_DAY, chainNow, running).single()
+        assertEquals("day 3 · 25 reps", ui.header)
+        assertEquals(Derive.timeLeftToday(h.cohort, chainNow), ui.secondsLeft)
+    }
+
+    @Test
+    fun `a Holdout sitting killed before it was forfeited still says what it kept, with no time left`() {
+        val store = InMemoryStore()
+        store.setSittingStartedAt(wallet, cohortScope(h), 1L)
+        store.setSittingDay(wallet, cohortScope(h), 2L)
+        store.setBankedReps(wallet, cohortScope(h), 2, 10)
+        // Nothing runs for the member now: the Holdout is among their others.
+        val ui = interruptedSittings(store, wallet, 500L, chainNow, null, others = listOf(h)).single()
+        assertEquals(10, ui.banked)
+        assertEquals("day 3 · 25 reps", ui.header)
+        assertNull(ui.secondsLeft)
+        assertTrue(interruptedSittings(store, wallet, 500L, chainNow, null, others = listOf(h)).isEmpty(), "said once")
+    }
+
+    @Test
+    fun `the running Holdout listed among the others too is said once`() {
+        val store = InMemoryStore()
+        store.setSittingStartedAt(wallet, cohortScope(h), 1L)
+        store.setBankedReps(wallet, cohortScope(h), 2, 10)
+        assertEquals(1, interruptedSittings(store, wallet, Store.UNKNOWN_DAY, chainNow, running, others = listOf(h)).size)
+    }
 }

@@ -32,10 +32,21 @@ internal fun holdoutDayEndEvents(cohort: String, completed: Boolean, tooLate: Bo
 /**
  * The crash variant of the Stopped page (ES-1, ES-2) for every sitting that
  * did not end cleanly: the running Holdout's today, then the Daily 25's.
- * Reading a marker clears it, so each is said once. The Daily 25's waits while
- * the day is not known ([Store.UNKNOWN_DAY]).
+ * Reading a marker clears it, so each is said once. Each reads the reps from the
+ * day its marker was written for, not today's, so a sitting killed before a day
+ * boundary still says what was kept. The Daily 25's waits while the day is not
+ * known ([Store.UNKNOWN_DAY]). A sitting of one of [others] — the member's
+ * Holdouts not running for them now, one forfeited since included — says what
+ * it kept too, with no time left: its day has gone.
  */
-internal fun interruptedSittings(store: Store, wallet: String, dayIndex: Long, chainNow: Long?, running: Pair<Holdout, Stage.Active>?): List<StoppedUi> = buildList {
+internal fun interruptedSittings(
+    store: Store,
+    wallet: String,
+    dayIndex: Long,
+    chainNow: Long?,
+    running: Pair<Holdout, Stage.Active>?,
+    others: List<Holdout> = emptyList(),
+): List<StoppedUi> = buildList {
     running?.let { (h, stage) ->
         val target = h.cohort.repsPerDay
         InterruptedSitting.consume(
@@ -44,8 +55,22 @@ internal fun interruptedSittings(store: Store, wallet: String, dayIndex: Long, c
             cohortScope(h),
             stage.dayIndex.toLong(),
             target,
-            header = SittingCopy.countingLabel(stage.dayIndex + 1, target),
-            secondsLeft = chainNow?.let { Derive.timeLeftToday(h.cohort, it) },
+            header = { SittingCopy.countingLabel(it.toInt() + 1, target) },
+            // A day that has gone has no time left.
+            secondsLeft = { if (it == stage.dayIndex.toLong()) chainNow?.let { now -> Derive.timeLeftToday(h.cohort, now) } else null },
+        )?.let(::add)
+    }
+    others.filter { it.address != running?.first?.address }.forEach { h ->
+        val target = h.cohort.repsPerDay
+        InterruptedSitting.consume(
+            store,
+            wallet,
+            cohortScope(h),
+            // A marker from before the day was kept with it: the day after those on chain, the one it was for.
+            (h.membership?.daysCompleted ?: 0).toLong(),
+            target,
+            header = { SittingCopy.countingLabel(it.toInt() + 1, target) },
+            secondsLeft = { null },
         )?.let(::add)
     }
     if (dayIndex != Store.UNKNOWN_DAY) {
@@ -55,8 +80,8 @@ internal fun interruptedSittings(store: Store, wallet: String, dayIndex: Long, c
             Store.CHALLENGE,
             dayIndex,
             DAILY_25,
-            header = SittingCopy.countingLabel(null, DAILY_25),
-            secondsLeft = chainNow?.let { HoldoutDay.secondsLeftIn(it) },
+            header = { SittingCopy.countingLabel(null, DAILY_25) },
+            secondsLeft = { if (it == dayIndex) chainNow?.let(HoldoutDay::secondsLeftIn) else null },
         )?.let(::add)
     }
 }

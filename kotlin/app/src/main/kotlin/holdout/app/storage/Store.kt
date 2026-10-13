@@ -62,7 +62,8 @@ interface Store {
 
     /**
      * `seen:{wallet}` (Gap 3, ES-3a): the global day index on which this phone first saw [wallet],
-     * [SEEN_EARLIER] for a wallet it already knew before this key existed, or null while unset.
+     * [SEEN_EARLIER] for a wallet it already knew before this key existed, [SEEN_PENDING] for one first met
+     * while the day was unknown, or null while unset.
      * Set once, when the wallet first connects here; it only feeds the new-phone banner.
      */
     fun firstSeenDay(wallet: String): Long?
@@ -84,6 +85,16 @@ interface Store {
      */
     fun sittingStartedAt(wallet: String, scope: String): Long?
     fun setSittingStartedAt(wallet: String, scope: String, startedAtMillis: Long?)
+
+    /**
+     * `sittingday:{wallet}:{scope}`: the day the marked sitting banks into (the
+     * global day for the Daily 25, the cohort day for a Holdout), or null: no
+     * marker, or one an older build wrote without it. The crash page reads the
+     * reps from this day, not from whatever day it is when the app reopens.
+     * Removed with the marker ([setSittingStartedAt] with null).
+     */
+    fun sittingDay(wallet: String, scope: String): Long?
+    fun setSittingDay(wallet: String, scope: String, dayIndex: Long)
 
     /**
      * When the last Daily 25 sitting started while chain time was unknown, on
@@ -122,6 +133,15 @@ interface Store {
      */
     fun autoSubmitMark(wallet: String): AutoSubmitMark?
     fun setAutoSubmitMark(wallet: String, mark: AutoSubmitMark?)
+
+    /**
+     * The joins, days and claims sent and not confirmed that may still land
+     * (`holdout.PendingTx`), encoded by `PendingTx.encode`, so a process killed
+     * and recreated inside their window still keeps their actions shut. Null
+     * when there are none.
+     */
+    fun unconfirmedSends(wallet: String): String?
+    fun setUnconfirmedSends(wallet: String, encoded: String?)
 
     /** Debug builds: whether sittings record the camera as video (constitution X, v1.5.0). Off until switched on. */
     fun recordsVideo(): Boolean
@@ -175,6 +195,9 @@ interface Store {
 
         /** The first-seen day of a wallet this phone knew before the key existed: seen before any day, so never "today". */
         const val SEEN_EARLIER = Long.MIN_VALUE + 2
+
+        /** The first-seen day of a wallet this phone met while the day was unknown (an offline first run): not a day, it becomes the first known one. */
+        const val SEEN_PENDING = Long.MIN_VALUE + 3
     }
 }
 
@@ -352,7 +375,18 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
     override fun sittingStartedAt(wallet: String, scope: String): Long? = kv.decodeLong("sitting:$wallet:$scope", NO_MARKER).takeIf { it != NO_MARKER }
 
     override fun setSittingStartedAt(wallet: String, scope: String, startedAtMillis: Long?) {
-        if (startedAtMillis == null) kv.removeValueForKey("sitting:$wallet:$scope") else kv.encode("sitting:$wallet:$scope", startedAtMillis)
+        if (startedAtMillis == null) {
+            kv.removeValueForKey("sitting:$wallet:$scope")
+            kv.removeValueForKey("sittingday:$wallet:$scope")
+        } else {
+            kv.encode("sitting:$wallet:$scope", startedAtMillis)
+        }
+    }
+
+    override fun sittingDay(wallet: String, scope: String): Long? = kv.decodeLong("sittingday:$wallet:$scope", NO_MARKER).takeIf { it != NO_MARKER }
+
+    override fun setSittingDay(wallet: String, scope: String, dayIndex: Long) {
+        kv.encode("sittingday:$wallet:$scope", dayIndex)
     }
 
     override fun setSeenTour(wallet: String) {
@@ -457,6 +491,12 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
     override fun setAutoSubmitMark(wallet: String, mark: AutoSubmitMark?) {
         if (mark == null) kv.removeValueForKey("auto_sent:$wallet") else kv.encode("auto_sent:$wallet", "${mark.cohort},${mark.day},${mark.lost}")
     }
+
+    override fun unconfirmedSends(wallet: String): String? = kv.decodeString("unconfirmed:$wallet")
+
+    override fun setUnconfirmedSends(wallet: String, encoded: String?) {
+        if (encoded == null) kv.removeValueForKey("unconfirmed:$wallet") else kv.encode("unconfirmed:$wallet", encoded)
+    }
 }
 
 /** In-memory, for unit tests and Compose previews. */
@@ -531,7 +571,18 @@ class InMemoryStore : Store {
     override fun sittingStartedAt(wallet: String, scope: String): Long? = values["sitting:$wallet:$scope"] as? Long
 
     override fun setSittingStartedAt(wallet: String, scope: String, startedAtMillis: Long?) {
-        if (startedAtMillis == null) values.remove("sitting:$wallet:$scope") else values["sitting:$wallet:$scope"] = startedAtMillis
+        if (startedAtMillis == null) {
+            values.remove("sitting:$wallet:$scope")
+            values.remove("sittingday:$wallet:$scope")
+        } else {
+            values["sitting:$wallet:$scope"] = startedAtMillis
+        }
+    }
+
+    override fun sittingDay(wallet: String, scope: String): Long? = values["sittingday:$wallet:$scope"] as? Long
+
+    override fun setSittingDay(wallet: String, scope: String, dayIndex: Long) {
+        values["sittingday:$wallet:$scope"] = dayIndex
     }
 
     override fun setSeenTour(wallet: String) {
@@ -578,6 +629,12 @@ class InMemoryStore : Store {
 
     override fun setAutoSubmitMark(wallet: String, mark: AutoSubmitMark?) {
         if (mark == null) values.remove("auto_sent:$wallet") else values["auto_sent:$wallet"] = mark
+    }
+
+    override fun unconfirmedSends(wallet: String): String? = values["unconfirmed:$wallet"] as? String
+
+    override fun setUnconfirmedSends(wallet: String, encoded: String?) {
+        if (encoded == null) values.remove("unconfirmed:$wallet") else values["unconfirmed:$wallet"] = encoded
     }
 
     override fun seekerName(wallet: String): KeptName? = values["$SEEKER_NAME$wallet"] as? KeptName

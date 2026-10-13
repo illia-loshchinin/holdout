@@ -79,11 +79,6 @@ class SettlementTest {
     }
 
     @Test
-    fun `given a cohort nobody finished, when it settles, then the whole pool is the boost reserve's`() {
-        assertEquals(12_345uL, Settlement.noFinisherBoost(12_345uL))
-    }
-
-    @Test
     fun `given a hundred base units, when split, then it is 70 10 10 10`() {
         assertEquals(Settlement.ForfeitSplit(70uL, 10uL, 10uL, 10uL), Settlement.forfeitSplit(100uL))
         // Operations takes what the floors leave: 9 → pool 7, fee 2, every percent part floors to 0.

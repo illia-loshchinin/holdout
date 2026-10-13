@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.text.TextLayoutResult
 import holdout.app.chain.Holdout
+import holdout.app.holdouts.MyHoldoutsModel
 import holdout.app.stake.StakeText
 import holdout.app.testing.Fx
 import holdout.app.testutil.AnimationsOff
@@ -78,6 +79,7 @@ class ForfeitScreenTest {
         h: Holdout = this.h,
         doneOnPhone: Boolean = true,
         daily25Done: Boolean = false,
+        canJoin: Boolean = true,
     ) {
         compose.setContent {
             HoldoutTheme {
@@ -96,6 +98,7 @@ class ForfeitScreenTest {
                     onSeePlace = if (place) ({ taps.place++ }) else null,
                     doneOnPhone = doneOnPhone,
                     daily25Done = daily25Done,
+                    canJoin = canJoin,
                 )
             }
         }
@@ -255,6 +258,26 @@ class ForfeitScreenTest {
 
         assertEquals(1, taps.join)
         assertEquals(1, taps.daily)
+    }
+
+    @Test
+    fun `a wallet this session found holds no Seeker - no Join, one line says why, and the Daily 25 stays`() {
+        val taps = Taps()
+        show(taps, offer = offer(), canJoin = false)
+
+        compose.onNodeWithText("Join the next Habit · 21-day").assertDoesNotExist()
+        compose.onNodeWithText(MyHoldoutsModel.SEEKER_ONLY).assertIsDisplayed()
+        compose.onNodeWithText("Do today's Daily 25").performClick()
+        assertEquals(0, taps.join)
+        assertEquals(1, taps.daily)
+    }
+
+    @Test
+    fun `no offer and a wallet with no Seeker - no next Holdout button`() {
+        show(canJoin = false)
+
+        compose.onNodeWithText("The next Habit · 21-day").assertDoesNotExist()
+        compose.onNodeWithText(MyHoldoutsModel.SEEKER_ONLY).assertIsDisplayed()
     }
 
     /** A last-day miss: the round that just started (joinable late) and the one after it. */

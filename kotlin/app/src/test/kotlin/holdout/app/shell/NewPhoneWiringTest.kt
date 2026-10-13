@@ -62,4 +62,17 @@ class NewPhoneWiringTest {
         assertFalse(NewPhoneWiring.shows(store, wallet, today, null, banked = 0))
         assertFalse(NewPhoneWiring.shows(store, wallet, Store.UNKNOWN_DAY, inStarted, banked = 0))
     }
+
+    @Test
+    fun `connecting offline keeps the wallet pending, and the first known day arms the banner`() {
+        NewPhoneWiring.onConnect(store, address, Store.UNKNOWN_DAY)
+        assertEquals(Store.SEEN_PENDING, store.firstSeenDay(wallet))
+        assertFalse(NewPhoneWiring.shows(store, wallet, Store.UNKNOWN_DAY, inStarted, banked = 0))
+
+        store.setSeenTour(wallet)
+        NewPhoneWiring.onConnect(store, address, today)
+
+        assertEquals(today, store.firstSeenDay(wallet))
+        assertTrue(NewPhoneWiring.shows(store, wallet, today, inStarted, banked = 0))
+    }
 }
