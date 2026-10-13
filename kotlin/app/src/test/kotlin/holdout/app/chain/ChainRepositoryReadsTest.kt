@@ -66,6 +66,9 @@ class ChainRepositoryReadsTest {
     private var live = true
     private var memberships = "[]"
 
+    /** What the wallet's SKR associated token account answers: none by default. */
+    private var skrAccount = "null"
+
     /** The not-settled read answers from a slot where the cohort is not there, while a fetch still finds it unsettled. */
     private var unsettledLags = false
 
@@ -123,8 +126,8 @@ class ChainRepositoryReadsTest {
         "leagues" -> accounts(leagueBytes)
         "memberships" -> memberships
         "profiles", "forfeits" -> "[]"
-        // No profile, no SKR account, and the wallet itself with 5 lamports.
-        "wallet" -> """{"context":{"slot":1},"value":[null,null,{"data":["","base64"],"lamports":5,"owner":"11111111111111111111111111111111"}]}"""
+        // No profile, the SKR account as [skrAccount] has it, and the wallet itself with 5 lamports.
+        "wallet" -> """{"context":{"slot":1},"value":[null,$skrAccount,{"data":["","base64"],"lamports":5,"owner":"11111111111111111111111111111111"}]}"""
         "fetch" -> """{"context":{"slot":1},"value":[${if (cohortKey.base58() in body) info(cohorts) else "null"}]}"""
         else -> account(null)
     }
@@ -165,6 +168,24 @@ class ChainRepositoryReadsTest {
         assertEquals(0uL, view.skr)
         assertEquals(5L, view.lamports)
         assertNull(calls["account"])
+    }
+
+    @Test
+    fun `the wallet's SKR is the amount its token account holds`() {
+        skrAccount = """{"data":["${b64(ByteArray(165).also { u32(it, 64, 2_500) })}","base64"],"lamports":2039280,"owner":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"}"""
+
+        assertEquals(2_500uL, assertNotNull(load(wallet)).skr)
+    }
+
+    @Test
+    fun `an account at the SKR address that is not a token account is no SKR, not a view that fails`() {
+        // Lamports sent to the associated token address before it was created: a system account with no data.
+        skrAccount = """{"data":["","base64"],"lamports":1000,"owner":"11111111111111111111111111111111"}"""
+
+        val view = assertNotNull(load(wallet))
+
+        assertEquals(0uL, view.skr)
+        assertEquals(5L, view.lamports)
     }
 
     // ---- failures ---------------------------------------------------------------
