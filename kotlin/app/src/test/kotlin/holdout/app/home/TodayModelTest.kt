@@ -169,10 +169,16 @@ class TodayModelTest {
 
         assertEquals(2, nudges.size)
         val claimRow = nudges.single { it.tone == NudgeTone.Success }
-        assertTrue(claimRow.text.startsWith("You finished · claim "), claimRow.text)
+        // FR-069a: "Claim {amount} SKR ›", the amount in mono, the level · length as quiet meta.
+        assertTrue(claimRow.text.startsWith("Claim ") && claimRow.text.endsWith(" SKR"), claimRow.text)
+        assertEquals(claimRow.text.removePrefix("Claim "), claimRow.mono)
+        assertEquals("Spark · 7-day", claimRow.meta)
         assertEquals(NavEvent.Open(Screen.Claim(claim.address.base58())), claimRow.go)
+        // "{level · length} starts in {t} ›", the countdown in mono.
         val lobbyRow = nudges.single { it.tone == NudgeTone.Neutral }
-        assertEquals("Spark · 7-day lobby · starts in 2d 0h", lobbyRow.text)
+        assertEquals("Spark · 7-day starts in 2d 0h", lobbyRow.text)
+        assertEquals("2d 0h", lobbyRow.mono)
+        assertNull(lobbyRow.meta)
         assertEquals(NavEvent.Open(Screen.Lobby(lobby.address.base58())), lobbyRow.go)
     }
 

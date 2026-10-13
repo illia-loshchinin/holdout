@@ -58,8 +58,18 @@ data class OfferCardState(
     }
 }
 
-/** A nudge row on Today: one line, one tap, to the screen that needs the member (screen map §3 rule 4). */
-data class NudgeRowState(val text: String, val go: NavEvent, val tone: NudgeTone = NudgeTone.Neutral)
+/**
+ * A nudge row on Today: one line, one tap, to the screen that needs the member (screen map §3 rule 4).
+ * [mono] is the part of [text] set in the mono face (an amount, a countdown); [meta] is a quiet second
+ * piece before the chevron (FR-069a: the level · length beside a claim).
+ */
+data class NudgeRowState(
+    val text: String,
+    val go: NavEvent,
+    val tone: NudgeTone = NudgeTone.Neutral,
+    val mono: String? = null,
+    val meta: String? = null,
+)
 
 enum class NudgeTone { Neutral, Success, Warning }
 
@@ -162,8 +172,9 @@ object TodayModel {
             it.cohort != exceptCohort && it.kind != YourKind.Running && !(it.kind == YourKind.Out && comebackHeld(view, now, it.cohort))
         }.map { y ->
             when (y.kind) {
-                YourKind.Claim -> NudgeRowState("You finished · claim ${claimAmount(view, now, y.cohort)}", y.go, NudgeTone.Success)
-                YourKind.Lobby -> NudgeRowState("${y.name} lobby · ${y.detail}", y.go)
+                YourKind.Claim -> claimAmount(view, now, y.cohort).let { amount -> NudgeRowState("Claim $amount", y.go, NudgeTone.Success, mono = amount, meta = y.name) }
+                // y.detail is "starts in 2d 4h": the countdown after "starts in" is the mono part.
+                YourKind.Lobby -> NudgeRowState("${y.name} ${y.detail}", y.go, mono = y.detail?.removePrefix("starts in "))
                 YourKind.Out -> NudgeRowState("${y.name}: ${y.line}${y.detail?.let { " · $it" }.orEmpty()}", y.go, NudgeTone.Warning)
                 YourKind.Running, YourKind.Locked, YourKind.Settling -> NudgeRowState("${y.name}: ${y.line}", y.go)
             }

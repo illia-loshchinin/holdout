@@ -49,7 +49,7 @@ class TodayShots {
         streak = 12,
         secondsLeftToday = 14_760,
         holdouts = HoldoutsBlock.Open(listOf(spark, habit)),
-        nudges = listOf(NudgeRowState("You finished · claim 1,412 SKR", NavEvent.TourDone, NudgeTone.Success)),
+        nudges = listOf(NudgeRowState("Claim 1,412 SKR", NavEvent.TourDone, NudgeTone.Success)),
     )
 
     private fun t1(name: String, state: HomeState, badge: Boolean = true) = compose.shoot("today", name) {
@@ -81,7 +81,7 @@ class TodayShots {
     fun t1Unreachable() = t1("t1-devnet-bar", fresh.copy(secondsLeftToday = null, holdouts = HoldoutsBlock.Unreachable, nudges = emptyList()))
 
     @Test
-    fun t1LobbyHeld() = t1("t1-lobby-held", fresh.copy(holdouts = HoldoutsBlock.Hidden, nudges = listOf(NudgeRowState("Spark · 7-day lobby · starts in 2d 0h", NavEvent.TourDone))))
+    fun t1LobbyHeld() = t1("t1-lobby-held", fresh.copy(holdouts = HoldoutsBlock.Hidden, nudges = listOf(NudgeRowState("Spark · 7-day starts in 2d 0h", NavEvent.TourDone))))
 
     @Test
     fun t1PhoneView() = compose.shoot("today", "t1-fresh-phone") {
@@ -144,7 +144,7 @@ class TodayShots {
                 streak = 12,
                 canPayFees = canPayFees,
                 mayStillLand = mayStillLand,
-                nudges = listOf(NudgeRowState("You finished · claim 1,412 SKR", NavEvent.TourDone, NudgeTone.Success)),
+                nudges = listOf(NudgeRowState("Claim 1,412 SKR", NavEvent.TourDone, NudgeTone.Success)),
                 offers = OffersRow(2, "9,000 SKR"),
             )
         }

@@ -61,7 +61,7 @@ import holdout.core.Stage
  *  │ 189 of 312 still standing · your share 255 SKR   ›  │   the crowd strip → the Holdout's screen
  *  │ ▲ 3 dropped since yesterday                         │
  *  └────────────────────────────────────────────────────┘
- *  ( You finished · claim 1,412 SKR  › )                            the rows group, a little apart
+ *  ( Claim 1,412 SKR      Spark · 7-day  › )                            the rows group, a little apart
  *    2 open to join · from 9,000 SKR ›                              one quiet offers row → Holdouts
  * ```
  *

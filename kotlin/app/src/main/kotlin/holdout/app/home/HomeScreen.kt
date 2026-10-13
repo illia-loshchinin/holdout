@@ -4,14 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -23,7 +21,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -32,7 +29,6 @@ import holdout.app.holdouts.MyHoldoutsModel
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Tab
 import holdout.app.streak.StreakMilestones
-import holdout.app.streak.ToesMeter
 import holdout.app.ui.DevnetBar
 import holdout.app.ui.Format
 import holdout.app.ui.PrimaryButton
@@ -40,7 +36,6 @@ import holdout.app.ui.Reading
 import holdout.app.ui.SectionLabel
 import holdout.app.ui.StreakFlame
 import holdout.app.ui.StreakState
-import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutFonts
 import holdout.app.ui.theme.HoldoutTheme
@@ -100,7 +95,7 @@ data class HomeState(
  *  ├─────────────────────────────────────────────────┤
  *  │ 2 more days to a streak freeze                ›  │   the foot, a link to Me
  *  └─────────────────────────────────────────────────┘
- *  ( You finished · claim 1,412 SKR  › )                          the rows group, a little apart
+ *  ( Claim 1,412 SKR      Spark · 7-day  › )                          the rows group, a little apart
  *  ( Get back 125 SKR of your lost stake: …  › )
  *  OPEN TO JOIN
  *  ┌ Spark · 7-day                          ( Join ) ┐   one compact OfferCard, no boost line
@@ -268,9 +263,17 @@ fun NudgeRow(nudge: NudgeRowState, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
     ) {
-        Text(nudge.text, style = MaterialTheme.typography.bodyLarge, color = color, modifier = Modifier.weight(1f))
+        Text(nudgeText(nudge), style = MaterialTheme.typography.bodyLarge, color = color, modifier = Modifier.weight(1f))
+        nudge.meta?.let { Text(it, style = LabelStyle, color = HoldoutColors.TextTertiary, maxLines = 1) }
         Text("›", style = MaterialTheme.typography.titleMedium, color = color)
     }
+}
+
+/** The row's sentence, its [NudgeRowState.mono] part in the mono face (an amount, a countdown). */
+private fun nudgeText(nudge: NudgeRowState) = buildAnnotatedString {
+    append(nudge.text)
+    val at = nudge.mono?.let { nudge.text.lastIndexOf(it) } ?: -1
+    if (at >= 0) addStyle(SpanStyle(fontFamily = HoldoutFonts.Mono), at, at + nudge.mono!!.length)
 }
 
 /** The way back after a lost stake (FR-037g): green, the whole card one tap. */
@@ -293,55 +296,8 @@ internal fun ComebackCard(card: ComebackCardState, onClick: () -> Unit) {
     }
 }
 
-/**
- * "18 of 25 from your toes", seven bars for the last week and the best day
- * (H35): how far from a Habit today's Daily 25 was. Measured at 45° only;
- * head-on it says how to see it instead of guessing. Not on Today any more
- * (FR-052a, 2026-10-13): Me draws it.
- */
-@Composable
-internal fun ToesMeterCard(meter: ToesMeter.Meter, target: Int) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
-        if (meter.measured == 0) {
-            Text(
-                "Do it with the phone at 45° to see how many come from your toes",
-                style = LabelStyle,
-                color = HoldoutColors.TextSecondary,
-                textAlign = TextAlign.Center,
-            )
-            return@Column
-        }
-        Text(
-            if (meter.measured < target) "${meter.toes} of ${meter.measured} seen at 45° from your toes" else "${meter.toes} of ${meter.measured} from your toes",
-            style = AmountStyle,
-            color = if (meter.hardDay(target)) HoldoutColors.Success else HoldoutColors.TextPrimary,
-        )
-        if (meter.hardDay(target)) {
-            Text("That's a Habit day.", style = LabelStyle, color = HoldoutColors.Success)
-        }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(Spacing.base),
-            verticalAlignment = Alignment.Bottom,
-            modifier = Modifier.height(METER_HEIGHT).padding(top = Spacing.base),
-        ) {
-            meter.week.forEach { toes ->
-                Box(
-                    modifier = Modifier
-                        .width(METER_BAR)
-                        .height(METER_FLOOR + (METER_HEIGHT - METER_FLOOR) * toes.coerceAtMost(target) / target.coerceAtLeast(1))
-                        .background(if (toes >= target) HoldoutColors.Success else HoldoutColors.Accent),
-                )
-            }
-        }
-        Text("Best: ${meter.best} from your toes", style = LabelStyle, color = HoldoutColors.TextTertiary)
-    }
-}
-
 private const val BANNER_TINT = 0.10f
 private const val BORDER_TINT = 0.32f
-private val METER_HEIGHT = 32.dp
-private val METER_FLOOR = 4.dp
-private val METER_BAR = 10.dp
 
 private val OFFER = OfferCardState(
     cohort = "o1",

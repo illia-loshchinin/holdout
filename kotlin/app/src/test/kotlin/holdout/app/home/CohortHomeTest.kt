@@ -381,9 +381,9 @@ class CohortHomeTest {
 
     @Test
     fun `the rows group sits after the hero with the section gap above it`() {
-        show(rows = listOf("You finished · claim 1,412 SKR"))
+        show(rows = listOf("Claim 1,412 SKR"))
         val hero = compose.onNodeWithTag("day-hero").getUnclippedBoundsInRoot()
-        val row = text("You finished · claim 1,412 SKR").getUnclippedBoundsInRoot()
+        val row = text("Claim 1,412 SKR").getUnclippedBoundsInRoot()
         assertEquals(Spacing.betweenSections.value, (row.top - hero.bottom).value, 0.5f)
     }
 

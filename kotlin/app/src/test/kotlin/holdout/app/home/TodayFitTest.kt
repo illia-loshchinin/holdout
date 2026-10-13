@@ -60,7 +60,7 @@ class TodayFitTest {
 
     private val spark = OfferCardState("spark", "Spark · 7-day", "Light it up · knees allowed", "12,500 SKR", "at stake · 14 joined", "Joining closes in 2d 3h", "Prize boost: up to 480 SKR", false, 0)
     private val habit = OfferCardState("habit", "Habit · 21-day", "Make it stick · toes only", "9,000 SKR", "at stake · 9 joined", "Joining closes in 2d 3h", null, false, 0)
-    private val claim = NudgeRowState("You finished · claim 1,412 SKR", NavEvent.Open(Screen.Claim("c1")), NudgeTone.Success)
+    private val claim = NudgeRowState("Claim 1,412 SKR", NavEvent.Open(Screen.Claim("c1")), NudgeTone.Success)
 
     private val fresh = HomeState(
         remainingToday = 25,

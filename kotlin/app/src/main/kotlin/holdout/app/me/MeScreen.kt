@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,9 +37,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import holdout.app.streak.StreakStore
+import holdout.app.streak.ToesMeter
 import holdout.app.ui.Body
 import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
@@ -77,24 +83,42 @@ data class MeState(
     val lowOnFunds: Boolean = false,
     /** Devnet, or the local validator in a local test build. */
     val network: String = "devnet",
-)
+    /** The longest streak this wallet has had on this phone (never below [streak]). */
+    val longest: Int = 0,
+    /** Today's toes reading and the last seven days (FR-052a); null until the phone has read it. */
+    val toes: ToesMeter.Meter? = null,
+    /** The Daily 25's target, for the toes meter's "of 25". */
+    val toesTarget: Int = 25,
+    /** The Leaderboards row's meta, "#4 in Spark · 7-day": the member's best rank; null when they hold none (FR-069d). */
+    val leaderboardMeta: String? = null,
+) {
+    /**
+     * Days of streak still to go before the next freeze is earned (one for every seventh day, FR-049), or null
+     * while the most are held ([StreakStore.MAX_FREEZES]) and there is none to wait for.
+     */
+    val nextFreezeInDays: Int? get() = StreakStore.daysToNextFreeze(streak, freezes)
+}
 
 /**
- * W1 Me, the Me tab root (screen map W1, board Me; FR-069d; ruling "Onboarding / Me").
+ * W1 Me, the Me tab root (screen map W1, board Me; FR-069d, FR-052a, FR-049, FR-060).
  *
  * ```
  *  Me                       ( 7xQp…3fA9 ⧉ ) [DEVNET]      headlineMedium · copy pill · StatusChip
  *  nova.skr                                               Seeker ID, accent (none: nothing)
- *  ┌ (flame) 12  day streak                           ┐   StreakFlame in a card
- *  └ The Daily 25 · a forfeit never breaks it · 1 freeze held ┘
- *  YOU HOLD                                               SectionLabel
+ *  ┌ THE DAILY 25 ─────────────────────────────────────┐
+ *  │ (flame) 12  day streak                            │   StreakFlame
+ *  │ Longest 21 days · Freezes 1 of 2                  │   Freezes {n} of 2
+ *  │ Next freeze in 2 days                             │   only while fewer than 2 are held
+ *  │ 18 of 25 from your toes   ▂▃▅▅▁▇▇  Best: 25       │   the toes meter, moved from Today
+ *  └───────────────────────────────────────────────────┘
+ *  ( Leaderboards                  #4 in Spark · 7-day › )  MenuRow, the only way to the boards
+ *  WALLET                                                 SectionLabel
  *  ┌ Test SKR              4,750 SKR ┐                    KeyValueRow
  *  │ Devnet SOL for fees   0.012 SOL │
  *  └ One tap: … ┘
  *  Too little SKR or SOL …                                the Me dot's meaning (only when low)
- *  [ Get test tokens ]                                    PrimaryButton → the faucet sheet
- *  ( About Holdout            devnet · test token › )     MenuRow
- *  ( How Holdout works                  5 cards  › )
+ *  ( Get test tokens           5,000 SKR + SOL › )        MenuRow; the PrimaryButton only while low
+ *  ( About Holdout                   how it works › )     MenuRow
  *                  Disconnect wallet                      QuietAction, warning
  *       Switched networks? Disconnect and connect again.
  * ```
@@ -104,7 +128,6 @@ fun MeScreen(
     state: MeState,
     onGetTokens: () -> Unit,
     onAbout: () -> Unit,
-    onTour: () -> Unit,
     onDisconnect: () -> Unit,
     modifier: Modifier = Modifier,
     /** The only way to the leaderboards (FR-060, FR-069d). */
@@ -122,13 +145,17 @@ fun MeScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
         ) {
             Identity(state)
-            Streak(state)
+            DailyCard(state)
+            MenuRow("Leaderboards", state.leaderboardMeta, onClick = onLeaderboards)
             Holdings(state)
-            if (state.lowOnFunds) Notice("Too little SKR or SOL to stake or submit. Get test tokens first.", warning = true)
-            PrimaryButton("Get test tokens", onGetTokens)
-            MenuRow("Leaderboards", onClick = onLeaderboards)
-            MenuRow("About Holdout", "devnet · test token", onClick = onAbout)
-            MenuRow("How Holdout works", "5 cards", onClick = onTour)
+            if (state.lowOnFunds) {
+                Notice("Too little SKR or SOL to stake or submit. Get test tokens first.", warning = true)
+                // The one white button on the screen, only while funds are low (FR-069d, 2026-10-13).
+                PrimaryButton("Get test tokens", onGetTokens)
+            } else {
+                MenuRow("Get test tokens", state.faucetSkr?.let { "${Format.skr(it)} + SOL" }, onClick = onGetTokens)
+            }
+            MenuRow("About Holdout", "how it works", onClick = onAbout)
         }
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             QuietAction("Disconnect wallet", onDisconnect, warning = true)
@@ -199,23 +226,43 @@ private fun CopyAddress(wallet: String) {
     }
 }
 
-/** The daily streak: its flame, the words, what keeps it, and the freezes held (FR-049, FR-050). */
+/** The Daily 25's card: the streak, the longest, the freezes and the next one, and the toes meter (FR-049, FR-052a). */
 @Composable
-private fun Streak(state: MeState) {
+private fun DailyCard(state: MeState) {
     HoldoutCard {
+        SectionLabel("The Daily 25")
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
             StreakFlame(state.streak, state.streakState)
             Body("day streak")
         }
-        Text("The Daily 25 · a forfeit never breaks it", style = LabelStyle, color = HoldoutColors.TextTertiary)
-        if (state.freezes > 0) Body(if (state.freezes == 1) "1 freeze held" else "${state.freezes} freezes held")
+        Stat("Longest ", state.longest.toString(), " ${if (state.longest == 1) "day" else "days"}")
+        Stat("Freezes ", state.freezes.toString(), " of ${StreakStore.MAX_FREEZES}")
+        state.nextFreezeInDays?.let { Stat("Next freeze in ", it.toString(), " ${if (it == 1) "day" else "days"}") }
+        state.toes?.let {
+            HorizontalDivider(color = HoldoutColors.Hairline, thickness = Spacing.border)
+            ToesMeterCard(it, state.toesTarget)
+        }
     }
+}
+
+/** One quiet line of the Daily 25's figures, the figure itself in the mono face: one text node for the screen reader. */
+@Composable
+private fun Stat(before: String, figure: String, after: String) {
+    Text(
+        buildAnnotatedString {
+            append(before)
+            withStyle(SpanStyle(fontFamily = HoldoutFonts.Mono, color = HoldoutColors.TextPrimary)) { append(figure) }
+            append(after)
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        color = HoldoutColors.TextSecondary,
+    )
 }
 
 /** What the wallet holds on devnet and what one faucet tap gives. */
 @Composable
 private fun Holdings(state: MeState) {
-    SectionLabel("You hold")
+    SectionLabel("Wallet")
     HoldoutCard {
         if (state.skr == null || state.lamports == null) {
             Reading { Body("Reading devnet…") }
@@ -240,10 +287,12 @@ private const val COPY_UNITS = 12f
 private fun MePreview() {
     HoldoutTheme {
         MeScreen(
-            MeState("7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU", 4_750_000_000uL, 12_000_000L, 5_000_000_000uL, streak = 12, freezes = 1),
+            MeState(
+                "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU", 4_750_000_000uL, 12_000_000L, 5_000_000_000uL, streak = 12, freezes = 1, longest = 21,
+                toes = ToesMeter.Meter(toes = 18, measured = 25, week = listOf(0, 10, 25, 25, 0, 18, 18), best = 25), leaderboardMeta = "#4 in Spark · 7-day",
+            ),
             onGetTokens = {},
             onAbout = {},
-            onTour = {},
             onDisconnect = {},
         )
     }
@@ -257,7 +306,6 @@ private fun MeLowPreview() {
             MeState("7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU", 0uL, 1_000L, 5_000_000_000uL, streak = 0, streakState = StreakState.Broken, lowOnFunds = true),
             onGetTokens = {},
             onAbout = {},
-            onTour = {},
             onDisconnect = {},
         )
     }

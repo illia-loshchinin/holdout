@@ -12,6 +12,7 @@ import holdout.app.me.MeScreen
 import holdout.app.me.MeState
 import holdout.app.nav.Tab
 import holdout.app.nav.TabBadges
+import holdout.app.streak.ToesMeter
 import holdout.app.testutil.AnimationsOff
 import holdout.app.tour.TourScreen
 import holdout.app.ui.StreakState
@@ -126,10 +127,13 @@ class OnboardingShots {
         faucetSkr = 5_000_000_000uL,
         streak = 12,
         freezes = 1,
+        longest = 21,
+        toes = ToesMeter.Meter(toes = 18, measured = 25, week = listOf(0, 10, 25, 25, 0, 18, 18), best = 25),
+        leaderboardMeta = "#4 in Spark · 7-day",
     )
 
     private fun me(name: String, state: MeState, badges: TabBadges = TabBadges()) = compose.shoot("onboarding", name, heightDp = 1000) {
-        Tabbed(Tab.Me, badges) { MeScreen(state, onGetTokens = {}, onAbout = {}, onTour = {}, onDisconnect = {}) }
+        Tabbed(Tab.Me, badges) { MeScreen(state, onGetTokens = {}, onAbout = {}, onDisconnect = {}) }
     }
 
     @Test
@@ -141,7 +145,7 @@ class OnboardingShots {
     // ---- Faucet sheet, About ------------------------------------------------------------------------------
 
     private fun faucet(name: String, outcome: FaucetOutcome? = null, back: String? = null, busy: Boolean = false) = compose.shoot("onboarding", name) {
-        Sheeted(behind = { Tabbed(Tab.Me) { MeScreen(meState, {}, {}, {}, {}) } }) {
+        Sheeted(behind = { Tabbed(Tab.Me) { MeScreen(meState, {}, {}, {}) } }) {
             FaucetSheet(
                 skr = 400_000_000uL,
                 lamports = 1_000L,

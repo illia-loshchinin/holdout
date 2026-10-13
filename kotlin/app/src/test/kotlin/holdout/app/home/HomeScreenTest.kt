@@ -24,6 +24,7 @@ import holdout.app.nav.Tab
 import holdout.app.testutil.AnimationsOff
 import holdout.app.testutil.TALL_PHONE
 import holdout.app.ui.theme.HoldoutColors
+import holdout.app.ui.theme.HoldoutFonts
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.Spacing
 import org.junit.Rule
@@ -333,8 +334,8 @@ class HomeScreenTest {
 
     @Test
     fun `while a lobby place is held there are no offers at all, only the lobby row`() {
-        show(fresh.copy(holdouts = HoldoutsBlock.Hidden, nudges = listOf(NudgeRowState("Spark · 7-day lobby · starts in 2d 0h", NavEvent.Open(Screen.Lobby("l"))))))
-        text("Spark · 7-day lobby · starts in 2d 0h").assertIsDisplayed()
+        show(fresh.copy(holdouts = HoldoutsBlock.Hidden, nudges = listOf(NudgeRowState("Spark · 7-day starts in 2d 0h", NavEvent.Open(Screen.Lobby("l"))))))
+        text("Spark · 7-day starts in 2d 0h").assertIsDisplayed()
         text("THE DAILY 25").assertIsDisplayed()
         text("OPEN TO JOIN").assertDoesNotExist()
         text("The next Holdout opens soon.").assertDoesNotExist()
@@ -359,9 +360,38 @@ class HomeScreenTest {
     @Test
     fun `a nudge row opens the screen that needs the member`() {
         val go = NavEvent.Open(Screen.Claim("c1"))
-        show(fresh.copy(nudges = listOf(NudgeRowState("You finished · claim 1,412 SKR", go, NudgeTone.Success))))
-        text("You finished · claim 1,412 SKR").performClick()
+        show(fresh.copy(nudges = listOf(NudgeRowState("Claim 1,412 SKR", go, NudgeTone.Success))))
+        text("Claim 1,412 SKR").performClick()
         assertEquals(listOf<NavEvent>(go), events)
+    }
+
+    @Test
+    fun `a claim row reads Claim and the amount in mono, with the level and length as quiet meta`() {
+        show(fresh.copy(nudges = listOf(NudgeRowState("Claim 1,412 SKR", NavEvent.Open(Screen.Claim("c1")), NudgeTone.Success, mono = "1,412 SKR", meta = "Hackathon · 3-day"))))
+
+        text("Claim 1,412 SKR").assertIsDisplayed()
+        text("Hackathon · 3-day").assertIsDisplayed()
+        val meta = mutableListOf<TextLayoutResult>()
+        compose.onNode(hasText("Hackathon · 3-day"), useUnmergedTree = true).fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(meta)
+        assertEquals(HoldoutColors.TextTertiary, meta.first().layoutInput.style.color)
+        val layout = mutableListOf<TextLayoutResult>()
+        compose.onNode(hasText("Claim 1,412 SKR"), useUnmergedTree = true).fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layout)
+        val spans = layout.first().layoutInput.text.spanStyles
+        assertEquals(1, spans.size, "one mono span")
+        assertEquals("1,412 SKR", layout.first().layoutInput.text.text.substring(spans.single().start, spans.single().end))
+        assertEquals(HoldoutFonts.Mono, spans.single().item.fontFamily)
+    }
+
+    @Test
+    fun `a lobby row reads the level and length, starts in, and the countdown in mono`() {
+        show(fresh.copy(holdouts = HoldoutsBlock.Hidden, nudges = listOf(NudgeRowState("Spark · 7-day starts in 2d 4h", NavEvent.Open(Screen.Lobby("l")), mono = "2d 4h"))))
+
+        text("Spark · 7-day starts in 2d 4h").assertIsDisplayed()
+        val layout = mutableListOf<TextLayoutResult>()
+        compose.onNode(hasText("Spark · 7-day starts in 2d 4h"), useUnmergedTree = true).fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layout)
+        val span = layout.first().layoutInput.text.spanStyles.single()
+        assertEquals("2d 4h", layout.first().layoutInput.text.text.substring(span.start, span.end))
+        assertEquals(HoldoutFonts.Mono, span.item.fontFamily)
     }
 
     @Test
@@ -375,15 +405,15 @@ class HomeScreenTest {
 
     @Test
     fun `the rows group sits after the hero with the section gap above it`() {
-        show(fresh.copy(nudges = listOf(NudgeRowState("You finished · claim 1,412 SKR", NavEvent.Open(Screen.Claim("c1")), NudgeTone.Success))))
-        val rowTop = compose.onNode(hasText("You finished · claim 1,412 SKR")).getUnclippedBoundsInRoot().top
+        show(fresh.copy(nudges = listOf(NudgeRowState("Claim 1,412 SKR", NavEvent.Open(Screen.Claim("c1")), NudgeTone.Success))))
+        val rowTop = compose.onNode(hasText("Claim 1,412 SKR")).getUnclippedBoundsInRoot().top
         assertEquals(Spacing.betweenSections.value, (rowTop - bottom("day-hero")).value, 0.5f)
     }
 
     @Test
     fun `the offers come after the rows`() {
-        show(fresh.copy(nudges = listOf(NudgeRowState("You finished · claim 1,412 SKR", NavEvent.Open(Screen.Claim("c1")), NudgeTone.Success))))
-        val rowBottom = compose.onNode(hasText("You finished · claim 1,412 SKR")).getUnclippedBoundsInRoot().bottom
+        show(fresh.copy(nudges = listOf(NudgeRowState("Claim 1,412 SKR", NavEvent.Open(Screen.Claim("c1")), NudgeTone.Success))))
+        val rowBottom = compose.onNode(hasText("Claim 1,412 SKR")).getUnclippedBoundsInRoot().bottom
         val offersTop = compose.onNode(hasText("OPEN TO JOIN")).getUnclippedBoundsInRoot().top
         assertTrue(offersTop > rowBottom, "offers at $offersTop, rows end at $rowBottom")
     }
@@ -455,7 +485,7 @@ class HomeScreenTest {
 
     @Test
     fun `no word on the screen is banned in member copy, and no date or clock time shows`() {
-        show(fresh.copy(freezes = 1, nudges = listOf(NudgeRowState("You finished · claim 1,412 SKR", NavEvent.SelectTab(Tab.Holdouts), NudgeTone.Success))))
+        show(fresh.copy(freezes = 1, nudges = listOf(NudgeRowState("Claim 1,412 SKR", NavEvent.SelectTab(Tab.Holdouts), NudgeTone.Success))))
         compose.onNodeWithText("TODAY'S CHALLENGE").assertDoesNotExist()
         text("earn", substring = true).assertDoesNotExist()
         text("cohort", substring = true).assertDoesNotExist()

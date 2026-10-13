@@ -49,7 +49,7 @@ import holdout.core.Leaderboard.View
  * Names never reorder the board (FR-008).
  *
  * ```
- *  ‹            STANDING                        ScreenHeader · Back goes to where it was opened
+ *  ‹            ME                              ScreenHeader · Back goes to where it was opened
  *  Leaderboards                                 headline
  *  ( Spark · 7-day ) ( Habit · 21-day ) ( Hackathon )    ChoiceChips
  *  [DEVNET COHORT · 10-MINUTE DAYS]             the test board only
@@ -82,7 +82,7 @@ fun LeaderboardScreen(
             .padding(horizontal = Spacing.screenGutter),
         verticalArrangement = Arrangement.spacedBy(Spacing.tight),
     ) {
-        item { ScreenHeader("standing", onBack = onBack, modifier = Modifier.padding(top = Spacing.screenGutter)) }
+        item { ScreenHeader("me", onBack = onBack, modifier = Modifier.padding(top = Spacing.screenGutter)) }
         item { Text("Leaderboards", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary) }
         item {
             ChoiceChips(

@@ -527,7 +527,7 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             when (tab) {
                 Tab.Today -> shared.TodayRoot()
                 Tab.Holdouts -> shared.HoldoutsRoot()
-                Tab.Me -> shared.MeRoot()
+                Tab.Me -> shared.MeRoot(leaderboardRead)
             }
         },
         screen = { screen ->
