@@ -75,8 +75,11 @@ bash scripts/ci-local.sh --only kotlin
 bash scripts/ci-local.sh --report   # also sets the "CI (local)" commit status and a PR comment
 ```
 
-`scripts/needs-ci.sh` decides whether a change is documentation alone. Then the jobs are skipped
-and `CI` still reports. The README counts as code, because a job checks its weaknesses table.
+`scripts/needs-ci.sh --sides` decides which side a change reaches: the Solana jobs (program,
+anchor, contract tests), the Kotlin job, both, or neither for documentation alone. Skipped jobs
+still let `CI` report. The README counts as code (Kotlin side), because a job checks its
+weaknesses table; fixtures, `.github/` and any script the list does not name reach both sides.
+A merge into `001-holdout-hackathon` is not run again: the pull request's run already tested it.
 
 ## Guards worth knowing
 

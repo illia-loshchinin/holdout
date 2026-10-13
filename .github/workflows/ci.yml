@@ -17,19 +17,24 @@
 #
 # The same four jobs run on a developer's machine with `bash scripts/ci-local.sh`
 # (Solana side in WSL, Kotlin on Windows), which is the gate when this workflow's
-# minutes run out. A change that touches only documentation — docs, specs, the
-# agent and Spec Kit folders, Markdown — skips the four jobs: the `changes` job
-# asks `scripts/needs-ci.sh`, which also lists the few such files a job does
-# read (the README's weaknesses table and its source, and the program
-# instructions contract the no-oracle suite checks). The `ci` gate reports
-# either way, so a required check never waits on a run that did not start —
-# which a workflow-level `paths` filter would leave pending.
+# minutes run out. To save minutes (the repository is private, so they are
+# counted), the `changes` job asks `scripts/needs-ci.sh --sides` which side a
+# change reaches: the Solana side (program, anchor, contract-tests) and the
+# Kotlin side (kotlin) each run only when it does, and documentation alone —
+# docs, specs, the agent and Spec Kit folders, Markdown, except the few such
+# files a job reads — runs neither. A path the script does not place reaches
+# both. The `ci` gate reports either way, so a required check never waits on a
+# run that did not start — which a workflow-level `paths` filter would leave
+# pending.
 
 name: CI
 
+# A pull request's run already tests its merge with the base, and the base is
+# merged into a branch before it lands (CLAUDE.md), so a merge into
+# 001-holdout-hackathon is not run again; main, which only takes releases, is.
 on:
   push:
-    branches: [main, '001-holdout-hackathon']
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -63,6 +68,8 @@ jobs:
     timeout-minutes: 5
     outputs:
       code: ${{ steps.diff.outputs.code }}
+      solana: ${{ steps.diff.outputs.solana }}
+      kotlin: ${{ steps.diff.outputs.kotlin }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -81,17 +88,19 @@ jobs:
             *) from="" ;;
           esac
           if [ -n "$from" ] && git rev-parse -q --verify "$from^{commit}" >/dev/null; then
-            code="$(git diff --name-only "$range" | bash scripts/needs-ci.sh)"
+            sides="$(git diff --name-only "$range" | bash scripts/needs-ci.sh --sides)"
           else
-            code=true
+            sides="$(printf '%s\n' solana=true kotlin=true)"
           fi
+          echo "$sides" | tee -a "$GITHUB_OUTPUT"
+          case "$sides" in *=true*) code=true ;; *) code=false ;; esac
           echo "code=$code" | tee -a "$GITHUB_OUTPUT"
 
   # ---------------------------------------------------------------- program
   program:
     name: Program — fmt, clippy, unit tests
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.solana == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -131,7 +140,7 @@ jobs:
   anchor:
     name: Anchor build
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.solana == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -233,7 +242,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [changes, anchor]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.solana == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -286,7 +295,7 @@ jobs:
   kotlin:
     name: Kotlin — ktlint, JVM tests, debug APK
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.kotlin == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -355,7 +364,7 @@ jobs:
     steps:
       - name: Check the results
         run: |
-          echo "changes:        ${{ needs.changes.result }} (code: ${{ needs.changes.outputs.code }})"
+          echo "changes:        ${{ needs.changes.result }} (solana: ${{ needs.changes.outputs.solana }}, kotlin: ${{ needs.changes.outputs.kotlin }})"
           echo "program:        ${{ needs.program.result }}"
           echo "anchor:         ${{ needs.anchor.result }}"
           echo "contract-tests: ${{ needs.contract-tests.result }}"

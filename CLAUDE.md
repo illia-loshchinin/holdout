@@ -12,9 +12,11 @@
   ready or merge.
 - **The GitHub Actions check `CI` must be green on the PR's head commit before a pull request is
   marked ready for review, and again before it is merged** — on the branch as it will land: the
-  latest base merged in, committed and pushed. Actions is on again since 2026-10-12 (the repository
-  is public); it runs the four jobs on every push and pull request, and `scripts/needs-ci.sh`
-  skips them for documentation alone, where the few docs files a job reads (the README's
+  latest base merged in, committed and pushed. Actions runs on every pull request (and on pushes to
+  `main`, not to `001-holdout-hackathon`: a PR's run already tests its merge). The repository is
+  private again since 2026-10-13, so its minutes are counted: `scripts/needs-ci.sh --sides` runs
+  only the side a change reaches — the Solana jobs (program, anchor, contract tests) or the Kotlin
+  job — and neither for documentation alone, where the few docs files a job reads (the README's
   weaknesses table and its source, the program-instructions contract) count as code.
   `bash scripts/ci-local.sh` runs the same four jobs on this machine (the Solana side in WSL,
   Kotlin on Windows) — use it to check before pushing, or with `--report` (commit status
