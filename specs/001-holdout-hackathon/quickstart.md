@@ -176,7 +176,7 @@ bash scripts/localnet-crank.sh scripted fund
 bash scripts/localnet-crank.sh --loop      # leave running: opens, fills, forfeits, settles
 ```
 
-The loop runs `scripted run --floor-7d 0 --floor-21d 0 --floor-test 10 --fill-empty`: locally every test round is filled in its last minute, so a whole cycle can be watched with nobody on a phone. Devnet passes no flags and tops a Hackathon round up to 10 in its last minute only once a real member has joined it (FR-043, 2026-10-13).
+The loop runs `scripted run --floor-7d 0 --floor-21d 0 --floor-test 10 --fill-empty`: locally every test round is filled 3 minutes before it closes, so a whole cycle can be watched with nobody on a phone. Devnet passes no flags and tops a Hackathon round up to 10, 3 minutes before it closes, only once a real member has joined it (FR-043, 2026-10-13).
 
 ```bash
 # The app on a phone over USB, reading and sending to the local validator.
@@ -188,7 +188,7 @@ A member debug build (`memberDebug`) pointed away from devnet asks the wallet to
 
 Staking needs a wallet holding a Seeker Genesis Token on mainnet (FR-003b). On the emulator or a phone without one, build the member app with the debug-only bypass, `./gradlew :app:installMemberDebug -Pholdout.seekerGate=off` (research R17); a release build always checks.
 
-**Expected:** connect → faucet → Home (no ladder screen since 2026-10-09) → the short test cohort, labelled → stake → lobby; from the start, 5 push-ups at 45° in each 10-minute day, submitted; scripted members, added in the round's last minute, forfeit on their seeded days; after the third day (30 minutes in) the cohort settles and the claim pays stake plus share. `bash scripts/localnet-crank.sh status` shows it all.
+**Expected:** connect → faucet → Home (no ladder screen since 2026-10-09) → the short test cohort, labelled → stake → lobby; from the start, 5 push-ups at 45° in each 10-minute day, submitted; scripted members, added 3 minutes before the round closes, forfeit on their seeded days; after the third day (30 minutes in) the cohort settles and the claim pays stake plus share. `bash scripts/localnet-crank.sh status` shows it all.
 
 ## 6. Devnet deployment
 
