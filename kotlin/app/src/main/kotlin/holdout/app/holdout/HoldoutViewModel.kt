@@ -27,6 +27,7 @@ import holdout.core.Leaderboard
 import holdout.core.MembershipSnapshot
 import holdout.core.Rpc
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -59,7 +60,7 @@ class HoldoutViewModel(
     data class UiState(
         /** Null until the first read answers; the screens say "reading devnet" rather than showing nothing. */
         val view: ChainView? = null,
-        /** The last read failed; [view] is the previous one, if any. */
+        /** The chain can't be reached: two snapshot reads in a row failed, or the first with no view yet (001 FR-071); [view] is the previous one, if any. */
         val offline: Boolean = false,
         /** An action is waiting on the wallet or on devnet. */
         val busy: Boolean = false,
@@ -109,11 +110,14 @@ class HoldoutViewModel(
      * It runs in [scope]: a check's roster read is a child of the check, so leaving the front cancels it.
      * A cohort's read still out answers for any asked meanwhile — the 30-second pass, a screen opened
      * twice, the Standing dot's own loop — so the same `getProgramAccounts` is never in flight twice.
-     * A [force]d read ("Check again") starts its own anyway: one already out may be hanging, and the
-     * check promises a fresh roster; the newer answer wins either way.
+     * A roster answered less than [MIN_READ_AGE_MILLIS] ago is fresh enough for any of them, so a
+     * screen opened again does not read it again. A [force]d read ("Check again") starts its own
+     * anyway: one already out may be hanging, and the check promises a fresh roster; the newer
+     * answer wins either way.
      */
     fun loadRoster(cohort: SolanaPublicKey, scope: CoroutineScope = viewModelScope, force: Boolean = false) {
         if (!force && rosterReads[cohort]?.isActive == true) return
+        if (!force && rosterAnsweredAt[cohort]?.let { elapsed() - it < MIN_READ_AGE_MILLIS } == true) return
         // A read given up (see [ROSTER_READ_MILLIS]) can still be answered late; a slow
         // early one must not put an older roster back over a newer one.
         val started = ++rosterLoadsStarted
@@ -130,6 +134,7 @@ class HoldoutViewModel(
                     } ?: return@launch
                 if (started < (newestRoster[cohort] ?: 0)) return@launch
                 newestRoster[cohort] = started
+                rosterAnsweredAt[cohort] = elapsed()
                 _rosters.update { it + (cohort to roster) }
             }
         rosterReads[cohort] = read
@@ -139,24 +144,38 @@ class HoldoutViewModel(
     /** The roster read now out, by cohort — on the main thread. */
     private val rosterReads = mutableMapOf<SolanaPublicKey, Job>()
 
+    /** When each cohort's roster last answered, on [elapsed]'s clock — on the main thread. */
+    private val rosterAnsweredAt = mutableMapOf<SolanaPublicKey, Long>()
+
     private val _leaderboard = MutableStateFlow<Leaderboard.Snapshot?>(null)
 
     /** The leaderboards' last read — cohorts, every profile, cohorts again (FR-060); null until the first read lands. */
     val leaderboard: StateFlow<Leaderboard.Snapshot?> = _leaderboard.asStateFlow()
 
-    /** Reads a leaderboard snapshot (R8); a failed read keeps the last one, and an older answer never replaces a newer. */
+    /**
+     * Reads a leaderboard snapshot (R8); a failed read keeps the last one, and an older answer never replaces a newer.
+     * One read at a time, and none while the last answer is less than [MIN_READ_AGE_MILLIS] old: the boards
+     * opened again show what was just read.
+     */
     fun loadLeaderboard() {
+        if (leaderboardRead?.isActive == true) return
+        if (leaderboardAnsweredAt?.let { elapsed() - it < MIN_READ_AGE_MILLIS } == true) return
         val started = ++profileLoadsStarted
-        viewModelScope.launch {
+        leaderboardRead = viewModelScope.launch {
             val read = chain.leaderboard() ?: return@launch
             if (started < newestProfiles) return@launch
             newestProfiles = started
+            leaderboardAnsweredAt = elapsed()
             _leaderboard.value = read
         }
     }
 
     private var profileLoadsStarted = 0
     private var newestProfiles = 0
+
+    /** The leaderboard read now out, and when the last one answered — on the main thread. */
+    private var leaderboardRead: Job? = null
+    private var leaderboardAnsweredAt: Long? = null
 
     /** Roster loads started, and per cohort the latest one whose answer was taken — both on the main thread. */
     private var rosterLoadsStarted = 0
@@ -178,12 +197,13 @@ class HoldoutViewModel(
                 autoSubmit = wallet?.let { AutoSubmit.restore(store, it.base58()) } ?: AutoSubmit(),
                 pending = wallet?.let { w -> store.unconfirmedSends(w.base58())?.let { PendingTx.restore(it, elapsed()) } }.orEmpty(),
             )
+            failedReads = 0
         }
         address = wallet
         refresher?.cancel()
         refresher = viewModelScope.launch {
             while (true) {
-                refreshNow()
+                refreshNow(join = true)
                 delay(REFRESH_MILLIS)
             }
         }
@@ -203,8 +223,36 @@ class HoldoutViewModel(
     private var refreshesStarted = 0
     private var newestApplied = 0
 
-    private suspend fun refreshNow() {
+    /** Snapshot reads in a row whose answer was taken and that did not answer — on the main thread. */
+    private var failedReads = 0
+
+    /** The snapshot read now out, the wallet it reads for, and the signal its end completes — on the main thread. */
+    private var readOut: Pair<SolanaPublicKey?, CompletableDeferred<Unit>>? = null
+
+    /**
+     * Reads the snapshot and applies its answer. With [join], a read already out for the same wallet
+     * answers instead (the 30-second pass): one snapshot read at a time (R8). One out for longer than
+     * [JOIN_READ_MILLIS] is not waited for any more, so a read that hangs cannot hold the passes off for
+     * good. Without [join] — a "Check again", the read closing an action, the network's return — the
+     * read starts now: one started earlier, maybe while the chain was down, cannot answer for them.
+     */
+    private suspend fun refreshNow(join: Boolean = false) {
         val wallet = address
+        if (join) {
+            val out = readOut?.takeIf { it.first == wallet }
+            if (out != null && withTimeoutOrNull(JOIN_READ_MILLIS) { out.second.await() } != null) return
+        }
+        val done = CompletableDeferred<Unit>()
+        readOut = wallet to done
+        try {
+            read(wallet)
+        } finally {
+            done.complete(Unit)
+            if (readOut?.second === done) readOut = null
+        }
+    }
+
+    private suspend fun read(wallet: SolanaPublicKey?) {
         val started = ++refreshesStarted
         // Only a transaction that may still land needs the read's start time; one sent while it is out is not settled by its age.
         val readAt = if (_state.value.pending.isEmpty()) null else elapsed()
@@ -219,9 +267,12 @@ class HoldoutViewModel(
         // An answer to a read started after the loss is the network back: the send
         // re-arms now (T098). One already out when it went proves nothing.
         val back = started > readsBeforeLoss
+        failedReads = if (view == null) failedReads + 1 else 0
         _state.update {
             if (view == null) {
-                it.copy(offline = true)
+                // One read that did not answer is not yet "can't be reached": the last view stays until
+                // the next read fails too (R8). With no view yet there is nothing to keep showing.
+                it.copy(offline = it.offline || it.view == null || failedReads >= OFFLINE_AFTER_FAILED_READS)
             } else {
                 it.copy(view = view, offline = false, autoSubmit = if (back) it.autoSubmit.answered() else it.autoSubmit, check = it.check.answered()).settle(view, readAt)
             }
@@ -232,7 +283,7 @@ class HoldoutViewModel(
 
     /**
      * The member's "Check again", by the button or the pull (spec 005): while
-     * the last read failed, reads the chain now — the snapshot here and, at
+     * the chain can't be reached ([UiState.offline]), reads the chain now — the snapshot here and, at
      * the same time, [alsoRead] (chain time, the roster on screen). A second
      * ask while one is out joins it. Only while in front, as every read
      * (FR-008). It sends nothing: a waiting day goes on as 001 FR-024b says
@@ -573,6 +624,15 @@ class HoldoutViewModel(
 
     companion object {
         private const val REFRESH_MILLIS = 30_000L
+
+        /** Snapshot reads in a row that must fail before the app says the chain can't be reached (R8). */
+        const val OFFLINE_AFTER_FAILED_READS = 2
+
+        /** How long a pass waits on a snapshot read already out before it starts its own. */
+        private const val JOIN_READ_MILLIS = 60_000L
+
+        /** A roster or the leaderboards that answered less than this long ago are not read again (R8). */
+        const val MIN_READ_AGE_MILLIS = 20_000L
 
         /** A roster read that has not answered by now is given up, so one that hangs cannot hold its cohort's reads off for good. */
         private const val ROSTER_READ_MILLIS = 60_000L
