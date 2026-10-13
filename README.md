@@ -4,7 +4,7 @@
 
 <p align="center">
   <b>Be the holdout. Stake on yourself.</b><br>
-  25 push-ups a day, counted by your phone. Stake SKR with everyone who starts on Monday.<br>
+ Holdout is a push-up and dicipline commitment Solana Mobile app where you stake on yourself. 25 push-ups a day, counted by your phone. Choose you Holdout to became a new peson from Monday.<br>
   Finish, and take your stake back plus a share of what the others lost.
 </p>
 
@@ -18,10 +18,9 @@
   <img alt="License: proprietary" src="https://img.shields.io/badge/license-proprietary-lightgrey">
 </p>
 
-Holdout is a Solana Mobile app where you stake on yourself. Anyone can do the free **Daily 25**:
-25 push-ups, counted on the phone, that build a streak. On top of it sit **Holdouts**, 7-day and
-21-day runs with a stake in SKR. Miss a day and your stake goes to the people still standing.
-Finish, and you get your stake back plus a share of the pool.
+Anyone can do the free **Daily 25**:25 push-ups, counted on the phone, that build a streak.
+On top of it sit **Holdouts**, 7-day and 21-day runs with a stake in SKR. Miss a day and your stake goes to the people still standing.
+Finish, and you get your stake back plus a share of the pool with split 80/20.
 
 Built for the Solana Mobile **CLOCK IN** hackathon.
 
