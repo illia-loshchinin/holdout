@@ -36,6 +36,18 @@ data class PendingTx(val action: SignAction, val cohort: SolanaPublicKey, val da
          * blockhash (150 slots, about a minute) has expired, with room to spare.
          */
         const val LANDS_WITHIN_MILLIS = 120_000L
+
+        /** [pending] as one string for the phone (`Store.unconfirmedSends`), or null when there are none: `action,cohort,day,sentAt` each, `;` between. */
+        fun encode(pending: List<PendingTx>): String? = pending.takeIf { it.isNotEmpty() }?.joinToString(";") { "${it.action.name},${it.cohort.base58()},${it.day},${it.sentAt}" }
+
+        /**
+         * What [encode] kept that may still land at [now]: one sent no longer ago than its window.
+         * One "sent" after [now] was sent before the phone restarted, which restarts the clock: gone.
+         */
+        fun restore(encoded: String, now: Long): List<PendingTx> = encoded.split(';').mapNotNull { record ->
+            val f = record.split(',').takeIf { it.size == 4 } ?: return@mapNotNull null
+            runCatching { PendingTx(SignAction.valueOf(f[0]), SolanaPublicKey.from(f[1]), f[2].toInt(), f[3].toLong()) }.getOrNull()
+        }.filter { now - it.sentAt in 0 until LANDS_WITHIN_MILLIS }
     }
 }
 
@@ -87,6 +99,11 @@ data class UnseenTx(val action: SignAction, val cohort: SolanaPublicKey, val day
 
     /** The same action as [p]. */
     fun isFor(p: PendingTx): Boolean = p.isFor(action, cohort, day)
+
+    companion object {
+        /** Cards kept at once; an older one goes to make room (design book, Notice card: never more than three). */
+        const val MAX_CARDS = 3
+    }
 }
 
 /** What an action shut by a [PendingTx] says beside its button. */

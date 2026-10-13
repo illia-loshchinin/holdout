@@ -22,7 +22,17 @@ object Deployment {
     val rpcUrl: String = BuildConfig.RPC_URL
 
     /** What the member is told failed to answer: devnet, or in a local test build the local validator. */
-    val networkName: String = if (rpcUrl == holdout.core.Rpc.DEVNET) "Devnet" else "The local validator"
+    val networkName: String = networkNameOf(rpcUrl)
+
+    /**
+     * Devnet for any endpoint reached by name — the public one or a provider's (`holdout.rpcUrl`) —
+     * and the local validator only for one on this machine or the local network, by address.
+     */
+    fun networkNameOf(url: String): String {
+        val host = url.substringAfter("://").substringBefore('/').substringBefore('?').substringBeforeLast(':').removeSurrounding("[", "]")
+        val local = host == "localhost" || host.all { it.isDigit() || it == '.' } || ':' in host
+        return if (local) "The local validator" else "Devnet"
+    }
 
     /** A test league (FR-044a): the short test cohort, labelled wherever it appears. */
     fun isTestLeague(leagueId: Int): Boolean = leagueId >= holdout.core.LeagueParams.TEST_LEAGUE_MIN

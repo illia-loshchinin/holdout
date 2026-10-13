@@ -180,13 +180,13 @@ class HoldoutViewModelPendingTest {
         runCurrent()
 
         assertNull(state.signing, "nothing shows the signing screens any more")
-        val unseen = assertNotNull(state.unseen)
+        val unseen = state.unseen.single()
         assertEquals(SignAction.Claim, unseen.action)
         assertEquals("Not confirmed yet", unseen.title)
         assertFalse(unseen.warning)
 
-        vm.dismissUnseen()
-        assertNull(state.unseen)
+        vm.dismissUnseen(unseen)
+        assertTrue(state.unseen.isEmpty())
     }
 
     @Test
@@ -203,7 +203,7 @@ class HoldoutViewModelPendingTest {
         runCurrent()
         answer(view)
 
-        val unseen = assertNotNull(state.unseen)
+        val unseen = state.unseen.single()
         assertEquals("It didn't land", unseen.title)
         assertTrue(unseen.warning)
         assertEquals("Your claim didn't land. Your claim waits here.", unseen.text)
@@ -219,7 +219,7 @@ class HoldoutViewModelPendingTest {
         runCurrent()
         answer(ChainFixtures.view(claimed))
 
-        assertNull(state.unseen)
+        assertTrue(state.unseen.isEmpty())
     }
 
     @Test
@@ -231,7 +231,7 @@ class HoldoutViewModelPendingTest {
         wallet.sends.last().complete(SendResult.Landed("sig"))
         runCurrent()
 
-        assertNull(state.unseen)
+        assertTrue(state.unseen.isEmpty())
         assertNull(state.signing)
     }
 
@@ -244,7 +244,7 @@ class HoldoutViewModelPendingTest {
         runCurrent()
 
         assertEquals(TxPhase.Done(TxOutcome.Failed(mayStillLand = true, message = "timed out")), state.signing?.phase)
-        assertNull(state.unseen)
+        assertTrue(state.unseen.isEmpty())
     }
 
     @Test
@@ -303,5 +303,101 @@ class HoldoutViewModelPendingTest {
         val refused = UnseenTx(SignAction.Join, finished.address, 0, TxOutcome.Refused("This Holdout would start before your current one ends."))
         assertEquals("This Holdout would start before your current one ends.", refused.text)
         assertTrue(refused.warning)
+    }
+    // ---- PR #67 review ---------------------------------------------------------------------------
+
+    @Test
+    fun `the window to land starts when the send reached the network, not when confirming gave up`() = runTest(dispatcher) {
+        watching()
+        vm.claim(sender, finished)
+        runCurrent()
+        val sent = clock
+        // The confirmation polling takes its time before it gives up.
+        clock += 30_000
+        wallet.sends.last().complete(SendResult.Failed("timed out", mayStillLand = true))
+        runCurrent()
+
+        assertEquals(sent, state.pendingFor(SignAction.Claim, finished.address)?.sentAt)
+    }
+
+    @Test
+    fun `a send that may still land is kept on the phone, so a new process keeps its action shut`() = runTest(dispatcher) {
+        watching()
+        claimNotConfirmed()
+        val again = HoldoutViewModel(store, rpc = Rpc("http://127.0.0.1:1"), chain = chain, wallet = wallet, elapsed = { clock })
+        try {
+            again.watch(me)
+            runCurrent()
+            assertNotNull(again.state.value.pendingFor(SignAction.Claim, finished.address))
+            again.claim(sender, finished)
+            runCurrent()
+            assertEquals(1, wallet.sends.size)
+        } finally {
+            again.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `a kept send past its window, or from before the phone restarted, is not restored`() {
+        val p = PendingTx(SignAction.Claim, finished.address, 0, sentAt = 10_000)
+        val kept = assertNotNull(PendingTx.encode(listOf(p)))
+        assertEquals(listOf(p), PendingTx.restore(kept, now = 10_000 + PendingTx.LANDS_WITHIN_MILLIS - 1))
+        assertTrue(PendingTx.restore(kept, now = 10_000 + PendingTx.LANDS_WITHIN_MILLIS).isEmpty())
+        assertTrue(PendingTx.restore(kept, now = 5_000).isEmpty(), "the clock restarted with the phone")
+        assertNull(PendingTx.encode(emptyList()))
+    }
+
+    @Test
+    fun `a settled send is no longer kept on the phone`() = runTest(dispatcher) {
+        watching()
+        claimNotConfirmed()
+        assertNotNull(store.unconfirmedSends(me.base58()))
+        clock += PendingTx.LANDS_WITHIN_MILLIS
+        dispatcher.scheduler.advanceTimeBy(30_001)
+        runCurrent()
+        answer(view)
+
+        assertNull(store.unconfirmedSends(me.base58()))
+    }
+
+    @Test
+    fun `a result for a wallet since disconnected is neither shown nor kept for the new one`() = runTest(dispatcher) {
+        watching()
+        vm.claim(sender, finished)
+        runCurrent()
+        vm.clearSigning()
+        val other = SolanaPublicKey(ByteArray(32) { 0x22 })
+        vm.watch(other)
+        runCurrent()
+
+        wallet.sends.last().complete(SendResult.Failed("timed out", mayStillLand = true))
+        runCurrent()
+
+        assertTrue(state.unseen.isEmpty())
+        assertTrue(state.pending.isEmpty())
+        assertNull(store.unconfirmedSends(other.base58()))
+    }
+
+    @Test
+    fun `two results left one after the other each keep their card until dismissed`() = runTest(dispatcher) {
+        val second = ChainFixtures.holdout(5, ChainFixtures.START, member = ChainFixtures.member(7, MembershipSnapshot.State.Finished))
+        vm.watch(me)
+        runCurrent()
+        answer(ChainFixtures.view(finished, second))
+        vm.claim(sender, finished)
+        runCurrent()
+        vm.clearSigning()
+        wallet.sends.last().complete(SendResult.Failed("refused", programError = 6044))
+        runCurrent()
+        answer(ChainFixtures.view(finished, second))
+        vm.claim(sender, second)
+        runCurrent()
+        vm.clearSigning()
+        wallet.sends.last().complete(SendResult.Failed("refused", programError = 6044))
+        runCurrent()
+
+        assertEquals(listOf(finished.address, second.address), state.unseen.map { it.cohort })
+        vm.dismissUnseen(state.unseen.first())
+        assertEquals(listOf(second.address), state.unseen.map { it.cohort })
     }
 }

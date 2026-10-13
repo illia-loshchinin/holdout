@@ -32,6 +32,21 @@ class SittingMarkerWiringTest {
         assertNull(store.sittingDay(wallet, Store.CHALLENGE))
     }
 
+    /** A store whose process dies at the first marker write after the day: nothing after it is written. */
+    private class DiesAtMarker(private val inner: Store) : Store by inner {
+        override fun setSittingStartedAt(wallet: String, scope: String, startedAtMillis: Long?): Unit = throw IllegalStateException("killed")
+    }
+
+    @Test
+    fun `the day is written before the marker, so a marker is never found without its day`() {
+        val store = InMemoryStore()
+        runCatching { SittingMarker(DiesAtMarker(store), wallet, Store.CHALLENGE) { 1234L }.start(21_000L) }
+
+        // Killed between the two writes: a day with no marker, which nothing reads.
+        assertNull(store.sittingStartedAt(wallet, Store.CHALLENGE))
+        assertEquals(21_000L, store.sittingDay(wallet, Store.CHALLENGE))
+    }
+
     @Test
     fun `a sitting that ends, however it is left, clears the marker`() {
         val store = InMemoryStore()

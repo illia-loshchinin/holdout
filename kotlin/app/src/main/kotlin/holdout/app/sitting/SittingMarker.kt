@@ -21,10 +21,14 @@ class SittingMarker(
     private val scope: String,
     private val nowMillis: () -> Long = System::currentTimeMillis,
 ) {
-    /** Counting has started, banking into [dayIndex]. */
+    /**
+     * Counting has started, banking into [dayIndex]. The day goes first: the two are separate
+     * writes, and a process killed between them must leave no marker without its day (a day
+     * with no marker is never read, and the next start overwrites it).
+     */
     fun start(dayIndex: Long) {
-        store.setSittingStartedAt(wallet, scope, nowMillis())
         store.setSittingDay(wallet, scope, dayIndex)
+        store.setSittingStartedAt(wallet, scope, nowMillis())
     }
 
     /** A sitting running across the day boundary banks into [dayIndex] from here on. */

@@ -191,7 +191,8 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     // A reminder's tap (or the launcher) reaching the running activity: Today (FR-069).
     LaunchedEffect(clockViewModel) { clockViewModel.opens.flow.collect { nav = Nav.reduce(nav, NavEvent.AppOpened) } }
     // This session's Seeker check found no token: no screen offers this wallet a stake it cannot make (G12).
-    var knownNotSeeker by remember { mutableStateOf(false) }
+    // Saved, so an activity recreated mid-session (a rotation) does not offer Join again (PR #67 review).
+    var knownNotSeeker by rememberSaveable { mutableStateOf(false) }
 
     // Chain time, never the wall clock (research R7). The last answer is saved,
     // so a restart offline still knows the day — on the same boot only, since
@@ -547,14 +548,14 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
         modifier = modifier,
         // A join, a day or a claim the member left while it confirmed says how it ended, where they went (PR #62 review).
         notice = {
-            chain.unseen?.let { u ->
+            chain.unseen.forEach { u ->
                 NoticeCard(
                     u.title,
                     u.text,
                     Modifier.padding(start = Spacing.screenGutter, end = Spacing.screenGutter, top = Spacing.screenGutter),
                     warning = u.warning,
                     actionText = "OK",
-                    onAction = holdouts::dismissUnseen,
+                    onAction = { holdouts.dismissUnseen(u) },
                 )
             }
         },

@@ -77,8 +77,8 @@ class HoldoutViewModel(
         val signing: Signing? = null,
         /** Sent, not confirmed, and may land yet: the same action on the same Holdout stays shut until a read settles each (PR #62 review). */
         val pending: List<PendingTx> = emptyList(),
-        /** The outcome of a signature the member left before it came back, for a Notice card on the screen they went to; null when none. */
-        val unseen: UnseenTx? = null,
+        /** The outcomes of signatures the member left before they came back, oldest first, a Notice card each on the screen they went to (at most [UnseenTx.MAX_CARDS]). */
+        val unseen: List<UnseenTx> = emptyList(),
     ) {
         /** The transaction that keeps [action] on [cohort] shut, if one may still land. */
         fun pendingFor(action: SignAction, cohort: SolanaPublicKey, day: Int = 0): PendingTx? = pending.firstOrNull { it.isFor(action, cohort, day) }
@@ -173,7 +173,11 @@ class HoldoutViewModel(
             // The previous wallet's check goes with its state: it must not finish into this one's.
             checking?.cancel()
             checking = null
-            _state.value = UiState(autoSubmit = wallet?.let { AutoSubmit.restore(store, it.base58()) } ?: AutoSubmit())
+            // And its sends that may still land, kept on the phone, so a process killed inside their window keeps them shut.
+            _state.value = UiState(
+                autoSubmit = wallet?.let { AutoSubmit.restore(store, it.base58()) } ?: AutoSubmit(),
+                pending = wallet?.let { w -> store.unconfirmedSends(w.base58())?.let { PendingTx.restore(it, elapsed()) } }.orEmpty(),
+            )
         }
         address = wallet
         refresher?.cancel()
@@ -223,6 +227,7 @@ class HoldoutViewModel(
             }
         }
         if (view != null && back) keepAutoSubmit()
+        if (readAt != null) keepPending()
     }
 
     /**
@@ -280,8 +285,13 @@ class HoldoutViewModel(
     /** The signing screens closed: the last signature's progress is no longer shown. */
     fun clearSigning() = _state.update { it.copy(signing = null) }
 
-    /** The member dismissed the card of an outcome they had left ("OK"). */
-    fun dismissUnseen() = _state.update { it.copy(unseen = null) }
+    /** The member dismissed [card], the card of an outcome they had left ("OK"). */
+    fun dismissUnseen(card: UnseenTx) = _state.update { it.copy(unseen = it.unseen - card) }
+
+    /** Keeps the connected wallet's sends that may still land on the phone (see [UiState.pending]). */
+    private fun keepPending() {
+        address?.let { store.setUnconfirmedSends(it.base58(), PendingTx.encode(_state.value.pending)) }
+    }
 
     /**
      * What a read started at [readAt] that answered with [view] settles: each
@@ -292,11 +302,12 @@ class HoldoutViewModel(
     private fun UiState.settle(view: ChainView, readAt: Long?): UiState {
         val (settled, still) = pending.partition { it.settledBy(view, readAt) }
         if (settled.isEmpty()) return this
-        val left = unseen?.takeIf { u -> settled.any { u.isFor(it) } }
-        val after = when {
-            left == null -> unseen
-            settled.first { left.isFor(it) }.landedIn(view) -> null
-            else -> left.copy(outcome = TxOutcome.Failed(mayStillLand = false, message = ""))
+        val after = unseen.mapNotNull { card ->
+            when (settled.firstOrNull { card.isFor(it) }?.landedIn(view)) {
+                null -> card
+                true -> null
+                false -> card.copy(outcome = TxOutcome.Failed(mayStillLand = false, message = ""))
+            }
         }
         return copy(pending = still, unseen = after)
     }
@@ -310,13 +321,21 @@ class HoldoutViewModel(
      */
     private suspend fun signing(action: SignAction, cohort: SolanaPublicKey, tier: Int = 0, day: Int = 0, send: suspend (onPhase: (SendPhase) -> Unit) -> SendResult): SendResult {
         val id = ++signings
+        // The wallet it is signed for: once another is connected, nothing of this one is shown or kept (PR #67 review).
+        val owner = address
         val started = Signing(id, action, cohort, TxPhase.WaitingForWallet, tier, day)
         // A card about the same action's last outcome is old news once it is tried again.
-        _state.update { s -> s.copy(signing = started, unseen = s.unseen?.takeUnless { it.action == action && it.cohort == cohort }) }
-        val result = send { phase -> _state.update { s -> s.copy(signing = s.signing?.takeIf { it.id == id }?.copy(phase = TxPhase.of(phase)) ?: s.signing) } }
+        _state.update { s -> s.copy(signing = started, unseen = s.unseen.filterNot { it.action == action && it.cohort == cohort }) }
+        // When it went to the network: its window to land starts there, not when the confirmation polling gives up.
+        var sentAt: Long? = null
+        val result = send { phase ->
+            if (phase == SendPhase.Confirming && sentAt == null) sentAt = elapsed()
+            if (owner == address) _state.update { s -> s.copy(signing = s.signing?.takeIf { it.id == id }?.copy(phase = TxPhase.of(phase)) ?: s.signing) }
+        }
+        if (owner != address) return result
         val lowOnSol = (_state.value.view?.lamports ?: Long.MAX_VALUE) < holdout.app.faucet.FaucetClient.MEMBER_CAN_PAY_LAMPORTS
         val outcome = TxOutcome.of(action, result, lowOnSol)
-        val pending = (outcome as? TxOutcome.Failed)?.takeIf { it.mayStillLand }?.let { PendingTx(action, cohort, day, elapsed()) }
+        val pending = (outcome as? TxOutcome.Failed)?.takeIf { it.mayStillLand }?.let { PendingTx(action, cohort, day, sentAt ?: elapsed()) }
         // A result that offers "Try again" frees the action with it: the closing read in [act] would
         // otherwise drop that tap, and the screen would wait for a wallet nobody asked.
         _state.update { s ->
@@ -325,11 +344,12 @@ class HoldoutViewModel(
                 // Its screen closed meanwhile (the member left it while confirming): the outcome is kept
                 // for the screen they went to instead, not put back where nothing shows it (PR #62 review).
                 signing = shown?.copy(phase = TxPhase.Done(outcome)) ?: s.signing,
-                unseen = if (shown == null && outcome !is TxOutcome.Landed) UnseenTx(action, cohort, day, outcome) else s.unseen,
+                unseen = if (shown == null && outcome !is TxOutcome.Landed) (s.unseen + UnseenTx(action, cohort, day, outcome)).takeLast(UnseenTx.MAX_CARDS) else s.unseen,
                 pending = if (pending == null) s.pending else s.pending.filterNot { it.isFor(action, cohort, day) } + pending,
                 busy = s.busy && !outcome.canRetry,
             )
         }
+        if (pending != null) keepPending()
         return result
     }
 

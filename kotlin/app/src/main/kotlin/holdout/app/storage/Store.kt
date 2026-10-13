@@ -134,6 +134,15 @@ interface Store {
     fun autoSubmitMark(wallet: String): AutoSubmitMark?
     fun setAutoSubmitMark(wallet: String, mark: AutoSubmitMark?)
 
+    /**
+     * The joins, days and claims sent and not confirmed that may still land
+     * (`holdout.PendingTx`), encoded by `PendingTx.encode`, so a process killed
+     * and recreated inside their window still keeps their actions shut. Null
+     * when there are none.
+     */
+    fun unconfirmedSends(wallet: String): String?
+    fun setUnconfirmedSends(wallet: String, encoded: String?)
+
     /** Debug builds: whether sittings record the camera as video (constitution X, v1.5.0). Off until switched on. */
     fun recordsVideo(): Boolean
     fun setRecordsVideo(on: Boolean)
@@ -482,6 +491,12 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
     override fun setAutoSubmitMark(wallet: String, mark: AutoSubmitMark?) {
         if (mark == null) kv.removeValueForKey("auto_sent:$wallet") else kv.encode("auto_sent:$wallet", "${mark.cohort},${mark.day},${mark.lost}")
     }
+
+    override fun unconfirmedSends(wallet: String): String? = kv.decodeString("unconfirmed:$wallet")
+
+    override fun setUnconfirmedSends(wallet: String, encoded: String?) {
+        if (encoded == null) kv.removeValueForKey("unconfirmed:$wallet") else kv.encode("unconfirmed:$wallet", encoded)
+    }
 }
 
 /** In-memory, for unit tests and Compose previews. */
@@ -614,6 +629,12 @@ class InMemoryStore : Store {
 
     override fun setAutoSubmitMark(wallet: String, mark: AutoSubmitMark?) {
         if (mark == null) values.remove("auto_sent:$wallet") else values["auto_sent:$wallet"] = mark
+    }
+
+    override fun unconfirmedSends(wallet: String): String? = values["unconfirmed:$wallet"] as? String
+
+    override fun setUnconfirmedSends(wallet: String, encoded: String?) {
+        if (encoded == null) values.remove("unconfirmed:$wallet") else values["unconfirmed:$wallet"] = encoded
     }
 
     override fun seekerName(wallet: String): KeptName? = values["$SEEKER_NAME$wallet"] as? KeptName
