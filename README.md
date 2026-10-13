@@ -4,10 +4,6 @@
 
 <p align="center">
   <b>Be the holdout. Stake on yourself.</b><br>
-
- Holdout is a push-up commitment Solana dApp where you stake on a better version of yourself.<br>
- Only 25 push-ups a day, counted by your phone. Staked Holdouts runs every Monday.<br>
- Finish, and take your stake back plus a share of what the others lost.
 </p>
 
 <p align="center">
@@ -20,7 +16,11 @@
   <img alt="License: proprietary" src="https://img.shields.io/badge/license-proprietary-lightgrey">
 </p>
 
-Anyone can do the free **Daily 25**: 25 push-ups, counted on the phone, that build a streak.
+Holdout is a push-up commitment Solana dApp where you stake on a better version of yourself.<br>
+   Only 25 push-ups a day, counted by your phone. Staked Holdouts runs every Monday.<br>
+   Finish, and take your stake back plus a share of what the others lost.
+
+Anyone can do the free **Daily 25**: 25 push-ups, counted on the phone, that build a streak.<br>
 On top of it sit **Holdouts** (Seeker exclusive), 7-day and 21-day runs with a stake in SKR. Miss a day and your stake goes to the people still standing.
 Finish, and you get your stake back plus a share of the pool with split 80/20.
 
