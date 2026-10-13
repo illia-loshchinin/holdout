@@ -4,8 +4,10 @@
 
 <p align="center">
   <b>Be the holdout. Stake on yourself.</b><br>
- Holdout is a push-up and dicipline commitment Solana Mobile app where you stake on yourself. 25 push-ups a day, counted by your phone. Choose you Holdout to became a new peson from Monday.<br>
-  Finish, and take your stake back plus a share of what the others lost.
+
+ Holdout is a push-up commitment Solana dApp where you stake on a better version of yourself.<br>
+ Only 25 push-ups a day, counted by your phone. Staked Holdouts runs every Monday.<br>
+ Finish, and take your stake back plus a share of what the others lost.
 </p>
 
 <p align="center">
@@ -14,12 +16,12 @@
   <img alt="Kotlin and Jetpack Compose" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Built for Solana Seeker" src="https://img.shields.io/badge/built%20for-Solana%20Seeker-80ECFF">
-  <a href="https://github.com/illia-loshchinin/holdout/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/illia-loshchinin/holdout/actions/workflows/ci.yml/badge.svg"></a>
+  holdout/actions/workflows/ci.yml">holdout/actions/workflows/ci.yml/badge.svg">
   <img alt="License: proprietary" src="https://img.shields.io/badge/license-proprietary-lightgrey">
 </p>
 
-Anyone can do the free **Daily 25**:25 push-ups, counted on the phone, that build a streak.
-On top of it sit **Holdouts**, 7-day and 21-day runs with a stake in SKR. Miss a day and your stake goes to the people still standing.
+Anyone can do the free **Daily 25**: 25 push-ups, counted on the phone, that build a streak.
+On top of it sit **Holdouts** (Seeker exclusive), 7-day and 21-day runs with a stake in SKR. Miss a day and your stake goes to the people still standing.
 Finish, and you get your stake back plus a share of the pool with split 80/20.
 
 Built for the Solana Mobile **CLOCK IN** hackathon.
@@ -118,7 +120,8 @@ Seeker gating, the four tabs and the faucet.
 
 ```mermaid
 flowchart LR
-    L["A lost stake"] -->|"70 %"| P["This Holdout's prize pool<br/>split by everyone who finishes"]
+    L["A lost stake"] -->|"70 %"| P["This Holdout's prize pool
+split by everyone who finishes"]
     L -->|"10 %"| C["Your comeback<br/>set aside for you"]
     L -->|"20 %"| X["The project<br/>10 % developer · 10 % operations"]
     C -->|"you finish the next one"| B1["Back to you<br/>with your payout"]
