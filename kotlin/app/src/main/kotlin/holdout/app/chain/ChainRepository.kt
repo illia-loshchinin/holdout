@@ -16,6 +16,7 @@ import holdout.core.Pdas
 import holdout.core.ProfileSnapshot
 import holdout.core.Rpc
 import holdout.core.Stage
+import kotlinx.coroutines.delay
 
 private const val LOG_TAG = "Chain"
 
@@ -149,31 +150,57 @@ interface ChainReads {
     suspend fun leaderboard(): Leaderboard.Snapshot?
 }
 
-class ChainRepository(private val rpc: Rpc = Deployment.rpc(), private val programId: SolanaPublicKey = Deployment.programId) : ChainReads {
+class ChainRepository(
+    private val rpc: Rpc = Deployment.rpc(),
+    private val programId: SolanaPublicKey = Deployment.programId,
+    /** A monotonic clock in milliseconds: how old the settings read and the last cohorts read are. */
+    private val clock: () -> Long = { System.nanoTime() / 1_000_000 },
+    /** The wait before a failed call is asked once more: `delay` except under test. */
+    private val pause: suspend (Long) -> Unit = { delay(it) },
+    private val log: (String) -> Unit = { Log.w(LOG_TAG, it) },
+) : ChainReads {
+    /** `Config` as last read, and when (R8): it changes rarely, so it is read on the first pass and then every [SETTINGS_MAX_AGE_MILLIS]. */
+    @Volatile private var keptConfig: Pair<Long, ConfigSnapshot>? = null
+
+    /** The leagues as last read, when, and which cohorts had settled then (see [load]). */
+    private class KeptLeagues(val readAt: Long, val leagues: List<LeagueSnapshot>, val settled: Set<SolanaPublicKey>)
+
+    @Volatile private var keptLeagues: KeptLeagues? = null
+
+    /** The last cohorts read that answered, and when: the leaderboard's first read reuses it while it is fresh. */
+    @Volatile private var lastCohorts: Pair<Long, List<Pair<SolanaPublicKey, CohortSnapshot>>>? = null
+
     override suspend fun load(wallet: SolanaPublicKey?): ChainView? {
+        val now = clock()
         val config =
-            when (val read = rpc.account(Pdas.config(programId))) {
+            keptConfig?.takeIf { now - it.first < SETTINGS_MAX_AGE_MILLIS }?.second ?: when (val read = twice({ it is Rpc.Answer.Ok }) { rpc.account(Pdas.config(programId)) }) {
                 // No account at all: Holdout is not live here. An account that
                 // does not decode is a failed read, not an absent one — the last
                 // snapshot stays rather than an empty view saying "not live".
                 is Rpc.Answer.Ok -> (read.value ?: return ChainView(null, emptyList(), null, 0uL, 0L)).let { runCatching { ConfigSnapshot.decode(it) }.getOrNull() ?: return failed("config does not decode") }
                 else -> return failed("config: $read")
-            }
-        val leagues = rpc.leagues(programId) ?: return failed("leagues")
-        val cohorts = rpc.cohorts(programId) ?: return failed("cohorts")
-        val mine = wallet?.let { rpc.walletMemberships(programId, it) ?: return failed("the wallet's memberships") }.orEmpty().associateBy({ it.cohort }, { it.member })
+            }.also { keptConfig = now to it }
+        val cohorts = twice { rpc.cohorts(programId) } ?: return failed("cohorts")
+        lastCohorts = clock() to cohorts
+        // The leagues are read again once they are old, when a cohort names one not read yet, or when a
+        // cohort has settled since: a settlement is what moves a league's boost and comeback reserves.
+        val settled = cohorts.filter { it.second.settled }.map { it.first }.toSet()
+        val leagues =
+            keptLeagues?.takeIf { k -> now - k.readAt < SETTINGS_MAX_AGE_MILLIS && k.settled == settled && cohorts.all { (_, c) -> k.leagues.any { it.params.leagueId == c.leagueId } } }?.leagues
+                ?: (twice { rpc.leagues(programId) } ?: return failed("leagues")).also { keptLeagues = KeptLeagues(now, it, settled) }
+        val mine = wallet?.let { twice { rpc.walletMemberships(programId, it) } ?: return failed("the wallet's memberships") }.orEmpty().associateBy({ it.cohort }, { it.member })
         // A read that failed is unknown, not absent: no profile or a zero balance would
         // be shown as real (faucet offered to a funded wallet, a join without its
         // running cohort), so the whole view waits for the next refresh instead.
         val profile =
             wallet?.let { w ->
-                when (val read = rpc.profile(programId, w)) {
+                when (val read = twice({ it is Rpc.Answer.Ok }) { rpc.profile(programId, w) }) {
                     is Rpc.Answer.Ok -> read.value
                     else -> return failed("the wallet's profile: $read")
                 }
             }
-        val skr = wallet?.let { rpc.tokenAmount(Pdas.associatedToken(it, config.skrMint)) ?: return failed("the wallet's SKR") } ?: 0uL
-        val lamports = wallet?.let { rpc.balance(it) ?: return failed("the wallet's SOL") } ?: 0L
+        val skr = wallet?.let { twice { rpc.tokenAmount(Pdas.associatedToken(it, config.skrMint)) } ?: return failed("the wallet's SKR") } ?: 0uL
+        val lamports = wallet?.let { twice { rpc.balance(it) } ?: return failed("the wallet's SOL") } ?: 0L
         val holdouts =
             cohorts
                 .map { (address, c) -> Holdout(address, c, leagues.firstOrNull { it.params.leagueId == c.leagueId }, mine[address]) }
@@ -181,9 +208,17 @@ class ChainRepository(private val rpc: Rpc = Deployment.rpc(), private val progr
         return ChainView(config, holdouts, profile, skr, lamports)
     }
 
+    /** [read], asked once more after [RETRY_MILLIS] when it did not answer: one dropped call does not cost the whole pass. */
+    private suspend fun <T> twice(answered: (T) -> Boolean = { it != null }, read: suspend () -> T): T {
+        val first = read()
+        if (answered(first)) return first
+        pause(RETRY_MILLIS)
+        return read()
+    }
+
     /** Logs which read left the view unknown: the member is told only that the chain can't be reached. */
     private fun failed(read: String): ChainView? {
-        Log.w(LOG_TAG, "chain view not loaded: $read failed")
+        log("chain view not loaded: $read failed")
         return null
     }
 
@@ -197,7 +232,8 @@ class ChainRepository(private val rpc: Rpc = Deployment.rpc(), private val progr
      * into the board. Null when any read failed.
      */
     override suspend fun leaderboard(): Leaderboard.Snapshot? {
-        val before = rpc.cohorts(programId) ?: return null
+        // The snapshot's own cohorts read, when it is recent, is as good a "before" as a new one: it was read before the profiles.
+        val before = lastCohorts?.takeIf { clock() - it.first <= COHORTS_REUSE_MILLIS }?.second ?: rpc.cohorts(programId) ?: return null
         val profiles = rpc.profiles(programId) ?: return null
         val forfeits = rpc.uncountedForfeits(programId) ?: return null
         val after = rpc.cohorts(programId)?.map { it.second } ?: return null
@@ -211,4 +247,15 @@ class ChainRepository(private val rpc: Rpc = Deployment.rpc(), private val progr
     }
 
     suspend fun chainTime(): Rpc.ChainTime? = rpc.chainTime()
+
+    companion object {
+        /** How long `Config` and the leagues are kept before they are read again (R8). */
+        const val SETTINGS_MAX_AGE_MILLIS = 600_000L
+
+        /** The wait before a failed call of the snapshot is asked once more. */
+        const val RETRY_MILLIS = 1_500L
+
+        /** How old a cohorts read the leaderboard takes as its first read instead of making its own. */
+        const val COHORTS_REUSE_MILLIS = 30_000L
+    }
 }

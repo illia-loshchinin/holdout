@@ -67,7 +67,7 @@ class HoldoutViewModelCheckTest {
         Dispatchers.setMain(dispatcher)
         // Every chain read goes to the fake. The Rpc (and the faucet built on it) is never
         // called by a check; it points at a closed local port so a stray call fails, not hangs.
-        vm = HoldoutViewModel(store, rpc = Rpc("http://127.0.0.1:1"), chain = chain)
+        vm = HoldoutViewModel(store, rpc = Rpc("http://127.0.0.1:1"), chain = chain, elapsed = { 0L })
     }
 
     @AfterTest
@@ -269,39 +269,42 @@ class HoldoutViewModelCheckTest {
     }
 
     @Test
-    fun `given a check under way, when the scheduled read answers first, then the check is cleared at once`() = runTest(dispatcher) {
+    fun `given a check under way, when the 30-second pass comes, then it joins the check's read rather than starting another`() = runTest(dispatcher) {
         unreachableFor(walletA)
         vm.checkNow()
         runCurrent()
         assertTrue(state.check.checking)
+        val reads = chain.reads.size
 
-        // The 30-second pass starts a newer read while the check's is still out.
         advanceTimeBy(30_001)
         runCurrent()
+        assertEquals(reads, chain.reads.size)
+
         chain.reads.last().complete(answered)
         runCurrent()
-
         assertFalse(state.offline)
         assertEquals(ChainCheck(), state.check)
     }
 
     @Test
-    fun `given a newer read answered, when the check's own read fails late, then it is set aside`() = runTest(dispatcher) {
+    fun `given a check's read that never answers, when the pass that joined it has waited a minute, then the pass reads on its own`() = runTest(dispatcher) {
         unreachableFor(walletA)
         vm.checkNow()
         runCurrent()
-        val checkRead = chain.reads.last()
+        val reads = chain.reads.size
+
+        // The 30-second pass joins the check's read...
         advanceTimeBy(30_001)
         runCurrent()
+        assertEquals(reads, chain.reads.size)
+
+        // ...and a minute later stops waiting on it.
+        advanceTimeBy(60_001)
+        runCurrent()
+        assertEquals(reads + 1, chain.reads.size)
         chain.reads.last().complete(answered)
         runCurrent()
-
-        checkRead.complete(null)
-        runCurrent()
-
-        // Not "can't be reached" again, and not "still can't be reached": the newer answer stands.
         assertFalse(state.offline)
-        assertEquals(ChainCheck(), state.check)
     }
 
     @Test

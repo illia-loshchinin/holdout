@@ -39,6 +39,9 @@ class HoldoutViewModelRosterTest {
     private val cohortB = SolanaPublicKey(ByteArray(32) { 2 })
     private lateinit var vm: HoldoutViewModel
 
+    /** The view model's monotonic clock: how old a roster's last answer is. */
+    private var clock = 0L
+
     private class FakeChain : ChainReads {
         val rosterReads = mutableListOf<CompletableDeferred<List<MembershipSnapshot>?>>()
 
@@ -52,7 +55,7 @@ class HoldoutViewModelRosterTest {
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        vm = HoldoutViewModel(InMemoryStore(), rpc = Rpc("http://127.0.0.1:1"), chain = chain)
+        vm = HoldoutViewModel(InMemoryStore(), rpc = Rpc("http://127.0.0.1:1"), chain = chain, elapsed = { clock })
     }
 
     @AfterTest
@@ -77,13 +80,54 @@ class HoldoutViewModelRosterTest {
     }
 
     @Test
-    fun `given a cohort's read has answered, when it is asked for again, then it reads again`() = runTest(dispatcher) {
+    fun `given a cohort's read has answered, when it is asked for again 20 seconds later, then it reads again`() = runTest(dispatcher) {
         vm.loadRoster(cohortA)
         runCurrent()
         chain.rosterReads.single().complete(emptyList())
         runCurrent()
 
+        clock += HoldoutViewModel.MIN_READ_AGE_MILLIS
         vm.loadRoster(cohortA)
+        runCurrent()
+
+        assertEquals(2, chain.rosterReads.size)
+    }
+
+    @Test
+    fun `given a roster that answered less than 20 seconds ago, when a screen asks for it, then it is not read again`() = runTest(dispatcher) {
+        vm.loadRoster(cohortA)
+        runCurrent()
+        chain.rosterReads.single().complete(emptyList())
+        runCurrent()
+
+        clock += HoldoutViewModel.MIN_READ_AGE_MILLIS - 1
+        vm.loadRoster(cohortA)
+        runCurrent()
+
+        assertEquals(1, chain.rosterReads.size)
+    }
+
+    @Test
+    fun `given a roster that just answered, when Check again asks for it, then it is read anyway`() = runTest(dispatcher) {
+        vm.loadRoster(cohortA)
+        runCurrent()
+        chain.rosterReads.single().complete(emptyList())
+        runCurrent()
+
+        vm.loadRoster(cohortA, force = true)
+        runCurrent()
+
+        assertEquals(2, chain.rosterReads.size)
+    }
+
+    @Test
+    fun `given one cohort's roster just answered, when another is asked for, then it is read`() = runTest(dispatcher) {
+        vm.loadRoster(cohortA)
+        runCurrent()
+        chain.rosterReads.single().complete(emptyList())
+        runCurrent()
+
+        vm.loadRoster(cohortB)
         runCurrent()
 
         assertEquals(2, chain.rosterReads.size)
