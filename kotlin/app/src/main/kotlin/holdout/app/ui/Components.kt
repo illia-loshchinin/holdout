@@ -92,13 +92,21 @@ object Format {
     fun levelTagline(c: holdout.core.CohortSnapshot): String? = levelTagline(c.form)
 
     /**
-     * "Hackathon · 3-day": the short test Holdout's name, built like a level's ("Spark · 7-day"), from the
-     * cohort's own length (FR-044a; the badge keeps DEVNET COHORT).
+     * "Hackathon · Spark" / "Hackathon · Habit": a short test Holdout is named by its form, the way a
+     * level is, because two Hackathon lobbies are open at once, one per form (FR-044a; the badge keeps
+     * DEVNET COHORT and the stake sheet keeps the length).
      */
-    fun testName(c: holdout.core.CohortSnapshot): String = testName(c.durationDays)
+    fun testName(c: holdout.core.CohortSnapshot): String = testName(c.form, c.durationDays)
 
-    /** [testName] for a place that knows only the length in days (a reminder). */
-    fun testName(days: Int): String = "Hackathon · $days-day"
+    /**
+     * [testName] for a place that knows only the form and the length (a reminder). A form this build
+     * does not know (or a reminder that does not say) falls back to the length: "Hackathon · 3-day".
+     */
+    fun testName(form: Int, days: Int): String = when (form) {
+        holdout.core.LeagueParams.FORM_KNEES_ALLOWED -> "Hackathon · Spark"
+        holdout.core.LeagueParams.FORM_TOES -> "Hackathon · Habit"
+        else -> "Hackathon · $days-day"
+    }
 
     /** "A quick taste · knees allowed" / "A quick taste · toes only": the test Holdout's tagline, the way a level's is picked by its form. */
     fun testTagline(c: holdout.core.CohortSnapshot): String = when (c.form) {
@@ -124,19 +132,22 @@ object Format {
 
     fun levelRule(c: holdout.core.CohortSnapshot): String? = levelRule(c.form)
 
+    /** What the app calls [c]: its level ("Spark · 7-day"), or for a Hackathon round [testName] ("Hackathon · Spark", FR-044a). */
+    fun holdoutName(c: holdout.core.CohortSnapshot): String = if (holdout.app.chain.Deployment.isTestLeague(c.leagueId)) testName(c) else level(c)
+
     /**
-     * `SPARK · 7-DAY · DAY 3 OF 7`: a running Holdout's header label (no calendar dates, constitution VI; ruling G3);
-     * a [test] Holdout keeps its own name, `HACKATHON · 3-DAY · DAY 2 OF 3`.
+     * `SPARK · 7-DAY · DAY 3 OF 7` (`HACKATHON · SPARK · DAY 1 OF 3`): a running Holdout's header label (no calendar
+     * dates, constitution VI; ruling G3). [test] defaults to whether [c]'s league is a test league.
      */
-    fun headerLabel(c: holdout.core.CohortSnapshot, day: Int, test: Boolean = false): String = "${if (test) testName(c) else level(c)} · day $day of ${c.durationDays}".uppercase()
+    fun headerLabel(c: holdout.core.CohortSnapshot, day: Int, test: Boolean = holdout.app.chain.Deployment.isTestLeague(c.leagueId)): String = "${if (test) testName(c) else level(c)} · day $day of ${c.durationDays}".uppercase()
 
     /** `SPARK · 7-DAY · STARTS IN 2D 4H`: a Holdout in its lobby. */
-    fun lobbyHeaderLabel(c: holdout.core.CohortSnapshot, secondsToStart: Long): String = "${level(c)} · starts in ${countdown(secondsToStart)}".uppercase()
+    fun lobbyHeaderLabel(c: holdout.core.CohortSnapshot, secondsToStart: Long): String = "${holdoutName(c)} · starts in ${countdown(secondsToStart)}".uppercase()
 
     /** `SPARK · 7-DAY · FINISHED`: a Holdout that has run its length. */
-    fun finishedHeaderLabel(c: holdout.core.CohortSnapshot): String = "${level(c)} · finished".uppercase()
+    fun finishedHeaderLabel(c: holdout.core.CohortSnapshot): String = "${holdoutName(c)} · finished".uppercase()
 
-    /** What the boosts in the forfeit screen's stake-lost sentence are named after: the level, or [testName] ("Hackathon · 3-day") for a test Holdout (FR-044a); the forfeit screen uses it. */
+    /** What the boosts in the forfeit screen's stake-lost sentence are named after: the level, or [testName] ("Hackathon · Spark") for a test Holdout (FR-044a). */
     fun boostName(c: holdout.core.CohortSnapshot, test: Boolean): String = if (test) testName(c) else level(c)
 
     /**
@@ -162,11 +173,11 @@ object Format {
      * your lost stake: finish the Spark · 7-day starting in 2d 4h." A round already running, joined late, is
      * "finish the Spark · 7-day that started today" ([startsInSeconds] null).
      */
-    fun comebackToday(amount: ULong, c: holdout.core.CohortSnapshot, startsInSeconds: Long?): String = "Get back ${skr(amount)} of your lost stake: finish the ${level(c)} " +
+    fun comebackToday(amount: ULong, c: holdout.core.CohortSnapshot, startsInSeconds: Long?): String = "Get back ${skr(amount)} of your lost stake: finish the ${holdoutName(c)} " +
         (if (startsInSeconds == null) "that started today." else "starting in ${countdown(startsInSeconds)}.")
 
     /** On the forfeit screen after a mid-round miss: "Finish the next Habit · 21-day and 250 SKR comes back." */
-    fun comebackForfeit(amount: ULong, c: holdout.core.CohortSnapshot): String = "Finish the next ${level(c)} and ${skr(amount)} comes back."
+    fun comebackForfeit(amount: ULong, c: holdout.core.CohortSnapshot): String = "Finish the next ${holdoutName(c)} and ${skr(amount)} comes back."
 
     /** The words that name a held place's amount, on every screen: "Win back 250 SKR" (exact, no "up to"). */
     fun winBack(amount: ULong): String = "Win back ${skr(amount)}"

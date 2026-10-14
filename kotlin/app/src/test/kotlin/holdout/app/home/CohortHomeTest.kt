@@ -492,7 +492,7 @@ class CohortHomeTest {
         val test = h.copy(cohort = cohort.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, dayLength = 600, durationDays = 3, repsPerDay = 5))
         show(holdout = test, at = start + 1 * 600 + 100, members = null, index = 1)
         text("DEVNET COHORT · 10-MINUTE DAYS").assertIsDisplayed()
-        text("HACKATHON · 3-DAY · DAY 2 OF 3").assertIsDisplayed()
+        text("HACKATHON · HABIT · DAY 2 OF 3").assertIsDisplayed()
         compose.onNodeWithContentDescription("0 of 1 blocks banked").assertExists()
         assertEquals(312f, compose.onNodeWithTag("day-hero").getUnclippedBoundsInRoot().height.value)
     }

@@ -92,6 +92,9 @@ internal const val CHAIN_RETRY_MILLIS = 30_000L
 internal const val CHAIN_REFRESH_MILLIS = 600_000L
 internal const val ROSTER_REFRESH_MILLIS = 30_000L
 
+/** How often the open leaderboards look for a change; they read only when a cohort's settlement or forfeits moved, or every 10 minutes (FR-071). */
+internal const val LEADERBOARD_REFRESH_MILLIS = 30_000L
+
 /** Repeats [pass] for as long as the app is in front; stops when it is not, and starts again on return. */
 @Composable
 internal fun InFrontLoop(key: Any?, pass: suspend () -> Unit) {

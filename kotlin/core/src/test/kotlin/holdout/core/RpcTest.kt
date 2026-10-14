@@ -226,6 +226,60 @@ class RpcTest {
         assertNull(runBlocking { rpcWith(http).accountData(cohortKey) })
     }
 
+    @Test
+    fun `several accounts come in one call, in order, with a missing one as null and a wallet's lamports`() {
+        val http =
+            FakeHttp {
+                ok(
+                    """{"context":{"slot":9},"value":[{"data":["AQID","base64"],"lamports":7,"owner":"${programId.base58()}"},null,""" +
+                        """{"data":["","base64"],"lamports":5,"owner":"11111111111111111111111111111111"}]}""",
+                )
+            }
+        val read = runBlocking { rpcWith(http).multipleAccounts(listOf(cohortKey, programId, cohortKey)) }
+
+        val accounts = read!!
+        assertEquals(3, accounts.size)
+        assertContentEquals(byteArrayOf(1, 2, 3), accounts[0]!!.data)
+        assertEquals(7L, accounts[0]!!.lamports)
+        assertNull(accounts[1])
+        assertEquals(0, accounts[2]!!.data.size)
+        assertEquals(5L, accounts[2]!!.lamports)
+        assertEquals(programId, accounts[0]!!.owner)
+        assertEquals(SolanaPublicKey.from("11111111111111111111111111111111"), accounts[2]!!.owner)
+        val sent = Json.parseToJsonElement(http.sent.single()).jsonObject
+        assertEquals("getMultipleAccounts", sent.getValue("method").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `an account at a token address holds its amount when the token program owns it, and 0 when another program does`() {
+        val token = Instructions.TOKEN_PROGRAM
+        val amount = ULong.MAX_VALUE - 1uL
+        val full = ByteArray(72).also { java.nio.ByteBuffer.wrap(it, 64, 8).order(java.nio.ByteOrder.LITTLE_ENDIAN).putLong(amount.toLong()) }
+
+        assertEquals(amount, Rpc.tokenAmountIn(Rpc.AccountInfo(full, 1, token)))
+        assertNull(Rpc.tokenAmountIn(Rpc.AccountInfo(ByteArray(71), 1, token)), "a token account too short to be one is a failed read")
+        assertEquals(0uL, Rpc.tokenAmountIn(Rpc.AccountInfo(ByteArray(0), 1000, SolanaPublicKey.from("11111111111111111111111111111111"))))
+        assertEquals(0uL, Rpc.tokenAmountIn(Rpc.AccountInfo(full, 1, programId)), "another program's account holds no tokens, whatever its data")
+    }
+
+    @Test
+    fun `several accounts that fail to answer, or answer short, are unknown`() {
+        val refused = FakeHttp { """{"jsonrpc":"2.0","error":{"code":429,"message":"Too many requests"},"id":"x"}""" }
+        assertNull(runBlocking { rpcWith(refused).multipleAccounts(listOf(cohortKey)) })
+        val short = FakeHttp { ok("""{"context":{"slot":9},"value":[]}""") }
+        assertNull(runBlocking { rpcWith(short).multipleAccounts(listOf(cohortKey)) })
+    }
+
+    @Test
+    fun `more than a hundred accounts are asked for a hundred at a time`() {
+        val http = FakeHttp { body -> ok("""{"context":{"slot":9},"value":[${List(Json.parseToJsonElement(body).jsonObject.getValue("params").jsonArray[0].jsonArray.size) { "null" }.joinToString(",")}]}""") }
+
+        val read = runBlocking { rpcWith(http).multipleAccounts(List(Rpc.MULTIPLE_ACCOUNTS_MAX + 1) { cohortKey }) }
+
+        assertEquals(Rpc.MULTIPLE_ACCOUNTS_MAX + 1, read!!.size)
+        assertEquals(2, http.sent.size)
+    }
+
     // ---- the 30-second refresh -------------------------------------------------
 
     @Test

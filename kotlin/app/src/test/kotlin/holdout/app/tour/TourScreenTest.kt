@@ -205,9 +205,9 @@ class TourScreenTest {
 
         assertLabel(6)
         compose.onNodeWithContentDescription("Card 6 of 6").assertIsDisplayed()
-        compose.onNodeWithText("Scripted members\nin Spark and Hackathon").assertIsDisplayed()
+        compose.onNodeWithText("Scripted members\nin Hackathon only").assertIsDisplayed()
         compose.onNodeWithText("Some members in these Holdouts are scripted.\nReal wallets, same rules, labelled SCRIPTED.").assertExists()
-        compose.onNodeWithText("They only top a Holdout up: a Spark to 20,\na Hackathon to 4 once someone real joins.\nTheir days aren't camera-checked.").assertExists()
+        compose.onNodeWithText("They only top a Hackathon round up\nto 10, once someone real joins.\nTheir days aren't camera-checked.").assertExists()
         compose.onNodeWithText("Start").assertIsDisplayed()
         compose.onNodeWithText("Next").assertDoesNotExist()
         compose.onNodeWithText("Skip").assertDoesNotExist()
@@ -232,7 +232,7 @@ class TourScreenTest {
 
         assertLabel(6)
         assertEquals(0, done)
-        compose.onNodeWithText("Scripted members\nin Spark and Hackathon").assertIsDisplayed()
+        compose.onNodeWithText("Scripted members\nin Hackathon only").assertIsDisplayed()
     }
 
     @Test

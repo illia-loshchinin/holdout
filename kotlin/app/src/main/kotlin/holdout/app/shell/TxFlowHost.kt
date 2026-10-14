@@ -55,7 +55,7 @@ internal fun Shared.resend(kind: TxKind) {
 
 internal fun Shared.signingState(tx: TxFlow, h: Holdout, n: Long): SigningState {
     val c = h.cohort
-    val level = Format.level(c)
+    val level = Format.holdoutName(c)
     return when (val k = tx.kind) {
         is TxKind.Join -> SigningState(k, tx.phase, "$level · joining", amount = c.chips.getOrNull(k.tier)?.let(Format::skr))
         is TxKind.Submit -> SigningState(k, tx.phase, "$level · day ${k.day + 1}", timeLeft = Derive.timeLeftToday(c, n)?.let(Format::countdown))
@@ -89,14 +89,14 @@ internal fun claimUpsell(h: Holdout, v: ChainView, n: Long, seekerKnown: Boolean
     val habit = v.joinable(n)
         .filter { !it.isTest && it.cohort.form == LeagueParams.FORM_TOES }
         .minByOrNull { it.cohort.start } ?: return null
-    val text = if (h.cohort.form == LeagueParams.FORM_TOES) "Join the next ${Format.level(habit.cohort)}" else "Make it a ${Format.level(habit.cohort)}"
+    val text = if (h.cohort.form == LeagueParams.FORM_TOES) "Join the next ${Format.holdoutName(habit.cohort)}" else "Make it a ${Format.holdoutName(habit.cohort)}"
     return text to NavEvent.OpenStake(habit.address.base58(), seekerKnown = seekerKnown)
 }
 
 private fun Shared.youreIn(h: Holdout, n: Long, tier: Int): YoureInState {
     val c = h.cohort
     return YoureInState(
-        name = Format.level(c),
+        name = Format.holdoutName(c),
         startsIn = Format.countdown(c.start - n),
         members = c.memberCount,
         atStake = Format.skr(Derive.atStake(c)),

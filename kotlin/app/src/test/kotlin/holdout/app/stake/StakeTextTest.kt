@@ -22,7 +22,8 @@ class StakeTextTest {
     fun `the title joins the level by name`() {
         assertEquals("Join the Spark · 7-day Holdout", StakeText.title(spark, test = false))
         assertEquals("Join the Habit · 21-day Holdout", StakeText.title(habit, test = false))
-        assertEquals("Join the Hackathon · 7-day Holdout", StakeText.title(spark, test = true))
+        assertEquals("Join the Hackathon · Spark Holdout", StakeText.title(spark, test = true))
+        assertEquals("Join the Hackathon · Habit Holdout", StakeText.title(habit, test = true))
     }
 
     @Test

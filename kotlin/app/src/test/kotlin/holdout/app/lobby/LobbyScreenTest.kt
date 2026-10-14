@@ -187,7 +187,7 @@ class LobbyScreenTest {
     fun `a Hackathon Holdout wears its badge and its own name`() {
         show(holdout(leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, dayLength = 600, reps = 5, cutoff = start), now = start - 750)
         text("DEVNET COHORT · 10-MINUTE DAYS").assertIsDisplayed()
-        text("HACKATHON · 3-DAY · STARTS IN 12M 30S").assertIsDisplayed()
+        text("HACKATHON · SPARK · STARTS IN 12M 30S").assertIsDisplayed()
         compose.onAllNodes(hasText("12m 30s")).assertCountEquals(2)
     }
 

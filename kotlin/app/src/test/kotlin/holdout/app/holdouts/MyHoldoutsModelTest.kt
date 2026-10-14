@@ -143,7 +143,7 @@ class MyHoldoutsModelTest {
 
         assertEquals(listOf(newer.id, older.id), s.won.map { it.cohort })
         assertEquals(listOf(waiting.id), s.yours.map { it.cohort })
-        assertEquals(listOf("Hackathon · 7-day"), s.lost.map { it.name })
+        assertEquals(listOf("Hackathon · Spark"), s.lost.map { it.name })
     }
 
     @Test

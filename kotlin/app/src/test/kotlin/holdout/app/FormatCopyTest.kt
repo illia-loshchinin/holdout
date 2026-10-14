@@ -72,9 +72,40 @@ class FormatCopyTest {
     fun `the forfeit screen's stake-lost sentence takes the noun it names the boosts after`() {
         assertEquals(
             "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% set aside for your comeback, " +
-                "20\u00a0% to the project. If nobody finishes, the pool boosts later Hackathon · 3-day prizes.",
-            Format.lostStakeSplitForfeit(spark, name = "Hackathon · 3-day"),
+                "20\u00a0% to the project. If nobody finishes, the pool boosts later Hackathon · Spark prizes.",
+            Format.lostStakeSplitForfeit(spark, name = "Hackathon · Spark"),
         )
+    }
+
+    @Test
+    fun `a Hackathon round is named by its form, Spark for knees and Habit for toes, and by its length when the form is unknown`() {
+        val easy = spark.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, durationDays = 3, dayLength = 600)
+        val hard = easy.copy(form = LeagueParams.FORM_TOES)
+        assertEquals("Hackathon · Spark", Format.testName(easy))
+        assertEquals("Hackathon · Habit", Format.testName(hard))
+        assertEquals("Hackathon · Spark", Format.boostName(easy, test = true))
+        assertEquals("Hackathon · Habit", Format.boostName(hard, test = true))
+        assertEquals("Spark · 3-day", Format.boostName(easy, test = false))
+        assertEquals("Hackathon · Spark", Format.testName(LeagueParams.FORM_KNEES_ALLOWED, 3))
+        assertEquals("Hackathon · Habit", Format.testName(LeagueParams.FORM_TOES, 3))
+        assertEquals("Hackathon · 3-day", Format.testName(-1, 3))
+        assertEquals("Hackathon · 5-day", Format.testName(7, 5))
+    }
+
+    @Test
+    fun `a comeback sentence names a Hackathon round by its name, not as a 3-day Spark`() {
+        val round = spark.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, durationDays = 3, dayLength = 600)
+        assertTrue(Format.comebackToday(61uL, round, 600).contains("finish the Hackathon · Spark "), Format.comebackToday(61uL, round, 600))
+        assertTrue(Format.comebackForfeit(61uL, round).startsWith("Finish the next Hackathon · Spark and "))
+        assertTrue(Format.comebackForfeit(61uL, spark).startsWith("Finish the next Spark · 7-day and "))
+    }
+
+    @Test
+    fun `a running Hackathon round's header names it by its form`() {
+        val round = spark.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, durationDays = 3, dayLength = 600)
+        assertEquals("HACKATHON · SPARK · DAY 1 OF 3", Format.headerLabel(round, 1))
+        assertEquals("SPARK · 7-DAY · DAY 1 OF 7", Format.headerLabel(spark, 1))
+        assertEquals("HACKATHON · SPARK · DAY 1 OF 7", Format.headerLabel(spark, 1, test = true))
     }
 
     @Test

@@ -153,9 +153,9 @@ internal object RosterText {
 
     /** `Habit · 21-day · day 12 of 21` while it runs; the bare level in the lobby; `… · finished` after. */
     fun title(c: CohortSnapshot, now: Long): String = when (Derive.status(c, now)) {
-        CohortStatus.Open, CohortStatus.Locked -> Format.level(c)
-        CohortStatus.Running -> "${Format.level(c)} · day ${(Derive.dayIndex(c, now) + 1).coerceIn(1, c.durationDays)} of ${c.durationDays}"
-        CohortStatus.Settling, CohortStatus.Settled -> "${Format.level(c)} · finished"
+        CohortStatus.Open, CohortStatus.Locked -> Format.holdoutName(c)
+        CohortStatus.Running -> "${Format.holdoutName(c)} · day ${(Derive.dayIndex(c, now) + 1).coerceIn(1, c.durationDays)} of ${c.durationDays}"
+        CohortStatus.Settling, CohortStatus.Settled -> "${Format.holdoutName(c)} · finished"
     }
 
     fun standingHeader(n: Int): String = "Still standing · $n"

@@ -148,8 +148,8 @@ object MyHoldoutsModel {
             val m = h.membership ?: continue
             val c = h.cohort
             val id = h.address.base58()
-            // A Hackathon Holdout keeps its own name, "Hackathon · 3-day" (G2); the badge on its card says why.
-            val name = if (h.isTest) Format.testName(c) else Format.level(c)
+            // A Hackathon Holdout keeps its own name, by its form: "Hackathon · Spark" (G2); the badge on its card says why.
+            val name = Format.holdoutName(c)
             fun card(kind: YourKind, tone: ChipTone, line: String, detail: String?, go: NavEvent) = YourHoldout(id, name, kind, tone, line, detail, h.isTest, go, c.dayLength)
             when (val stage = h.stage(now)) {
                 Stage.NotJoined -> Unit
@@ -210,11 +210,11 @@ object MyHoldoutsModel {
     }
 
     /** Only what the program would take (FR-006a, FR-006b): a Join shown always goes through. */
-    private fun open(view: ChainView, now: Long): List<OpenHoldout> = view.joinable(now).map { h ->
+    private fun open(view: ChainView, now: Long): List<OpenHoldout> = view.joinable(now).sortedWith(compareBy({ it.cohort.start }, { -it.cohort.form })).map { h ->
         val c = h.cohort
         OpenHoldout(
             cohort = h.address.base58(),
-            name = if (h.isTest) Format.testName(c) else Format.level(c),
+            name = Format.holdoutName(c),
             amount = Format.skr(Derive.atStake(c)),
             note = "at stake · ${c.memberCount} joined",
             boost = h.league?.boostReserve?.takeIf { it > 0uL }?.let(Format::boostLine),
@@ -235,7 +235,7 @@ object MyHoldoutsModel {
         val figures = roster?.let { Derive.figures(c, it, now) }
         val line = figures?.let { "${it.survivors.standing} still standing of ${it.survivors.starters} · prize pool ${Format.skr(it.projectedPool)}" }
             ?: "${c.memberCount} started · prize pool ${Format.skr(c.pool)}"
-        return RunningHoldout(h.address.base58(), "${if (h.isTest) Format.testName(c) else Format.level(c)} · day $day of ${c.durationDays}", line, h.isTest, c.dayLength)
+        return RunningHoldout(h.address.base58(), "${Format.holdoutName(c)} · day $day of ${c.durationDays}", line, h.isTest, c.dayLength)
     }
 
     /** The Now tab's order, by what needs the member: a claim, a running day, a settling, the lobbies, then a way back. */

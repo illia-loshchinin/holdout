@@ -34,6 +34,8 @@ class ReminderReceiver : BroadcastReceiver() {
         val days = intent.getIntExtra(EXTRA_DAYS, 7)
         val dayLength = intent.getLongExtra(EXTRA_DAY_LENGTH, 86_400)
         val test = intent.getBooleanExtra(EXTRA_TEST, false)
+        // An alarm an earlier build set has no form: its notice names the round by length.
+        val form = intent.getIntExtra(EXTRA_FORM, Reminders.FORM_UNKNOWN)
         val deadline = intent.getLongExtra(EXTRA_DEADLINE_ELAPSED, 0)
 
         // The same scope the sitting banks under (HoldoutApp.cohortScope).
@@ -55,7 +57,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 context,
                 intent.hashCode(),
                 Reminders.notificationId(cohort, kind, day),
-                ReminderNotices.finishedTitle(days, test, dayLength),
+                ReminderNotices.finishedTitle(days, test, dayLength, form),
                 text,
                 silent = Reminders.isSilent(kind, dayLength),
                 ongoing = false,
@@ -82,11 +84,11 @@ class ReminderReceiver : BroadcastReceiver() {
         val id = Reminders.notificationId(cohort, kind, day)
         if (doneHere && kind != Reminder.Kind.Start) {
             // Whichever reminder of the day arrives, a day done here and not on chain keeps the standing notice.
-            ReminderNotices.postNotSent(context, requestId, id, day, days, dayLength, test, left, silent = Reminders.isSilent(kind, dayLength))
+            ReminderNotices.postNotSent(context, requestId, id, day, days, dayLength, test, left, silent = Reminders.isSilent(kind, dayLength), form = form)
             return
         }
         val owed = (reps - store.bankedReps(wallet, scope, day.toLong())).coerceAtLeast(0)
-        val holdout = ReminderNotices.holdoutLabel(days, test, dayLength)
+        val holdout = ReminderNotices.holdoutLabel(days, test, dayLength, form)
         val (title, text) = when (kind) {
             Reminder.Kind.Start -> "Your $holdout has started" to "Day 1 is open: $reps push-ups before the deadline, ${Format.countdown(left)} from now."
             else -> "Day ${day + 1}: $owed push-ups still to do" to "About ${Format.countdown(left)} left in your $holdout. The deadline is the chain's, not this reminder's."
@@ -107,6 +109,7 @@ class ReminderReceiver : BroadcastReceiver() {
         const val EXTRA_DAY_LENGTH = "day_length"
         const val EXTRA_DAYS_ON_CHAIN = "days_on_chain"
         const val EXTRA_TEST = "test"
+        const val EXTRA_FORM = "form"
         const val EXTRA_DEADLINE_ELAPSED = "deadline_elapsed"
         const val EXTRA_COMEBACK = "comeback"
     }

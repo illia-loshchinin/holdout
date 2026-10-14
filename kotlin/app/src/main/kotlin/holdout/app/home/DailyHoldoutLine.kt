@@ -43,11 +43,11 @@ object DailyHoldoutLine {
         if (toJoin == null) {
             held?.let { offer ->
                 val place = offer.held?.entry ?: return null
-                return Nudge("You're in the ${Format.level(place.cohort)}. Finish it and ${Format.skr(offer.amount(place.member?.stake))} of your lost stake comes back.", held = true)
+                return Nudge("You're in the ${Format.holdoutName(place.cohort)}. Finish it and ${Format.skr(offer.amount(place.member?.stake))} of your lost stake comes back.", held = true)
             }
             val offer = waiting ?: return null
             val up = offer.upcoming ?: return null
-            return Nudge("The next ${Format.level(offer.forfeited.cohort)} ${Format.opensForJoining(up.opensAt, now)} and starts in ${Format.countdown(up.start - now)}. Finish it and ${Format.skr(offer.amount())} of your lost stake comes back.")
+            return Nudge("The next ${Format.holdoutName(offer.forfeited.cohort)} ${Format.opensForJoining(up.opensAt, now)} and starts in ${Format.countdown(up.start - now)}. Finish it and ${Format.skr(offer.amount())} of your lost stake comes back.")
         }
         val round = toJoin.next ?: return null
         val entry = round.entry ?: return null

@@ -3,6 +3,7 @@ package holdout.app.shell
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.chain.ChainView
 import holdout.app.chain.Holdout
+import holdout.core.CohortStatus
 import holdout.core.Stage
 
 /**
@@ -27,6 +28,18 @@ internal object TabRoots {
         return view.mine(now)
             .filter { h -> (h.stage(now) as? Stage.Active)?.let { it.todayDone && it.dayIndex + 1 >= h.cohort.durationDays } == true }
             .map { it.address.base58() }
+    }
+
+    /**
+     * How old a Holdout's roster may grow before it is read again with none of
+     * its cohort's counters moved (FR-071): 30 s while it runs, because a
+     * member's submit shows in no counter; otherwise 10 minutes — a lobby's
+     * joins and leaves, and a finished one's records and settlement, move the
+     * counters, which the app's pulse sees and which read the roster at once.
+     */
+    fun rosterEveryMillis(h: Holdout, now: Long): Long = when (h.status(now)) {
+        CohortStatus.Running -> ROSTER_REFRESH_MILLIS
+        else -> CHAIN_REFRESH_MILLIS
     }
 
     /**

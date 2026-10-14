@@ -241,6 +241,9 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
             clockViewModel.retry.networkBack()
         }
     }
+    // The pulse reads only while a screen showing live chain data is in front (FR-071).
+    val liveChain = nav.showsLiveChain
+    LaunchedEffect(liveChain) { holdouts.setLive(liveChain) }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     LaunchedEffect(address, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
@@ -484,12 +487,15 @@ private fun HoldoutScreens(sender: ActivityResultSender, store: Store, seekerNam
     }
 
     // Today's crowd strip needs the roster of the Holdout Today is about, wherever the member is.
-    // The only loop on that roster while the Holdout runs (the Holdout's own screen leaves it to this one).
+    // The only loop on that roster while the Holdout runs (the Holdout's own screen leaves it to this one): it
+    // looks every 30 s and reads when the cohort's counters moved or the roster has grown old (FR-071).
     val running = shared.active()
     val runningAbout = running?.first
-    InFrontLoop(runningAbout?.address) {
-        if (runningAbout == null) kotlinx.coroutines.awaitCancellation()
-        holdouts.loadRoster(runningAbout.address)
+    val runningEvery = if (runningAbout != null && chainNow != null) TabRoots.rosterEveryMillis(runningAbout, chainNow) else ROSTER_REFRESH_MILLIS
+    // Like the pulse, it reads only while a screen showing live chain data is in front (FR-071).
+    InFrontLoop(Triple(runningAbout?.address, runningEvery, liveChain)) {
+        if (runningAbout == null || !liveChain) kotlinx.coroutines.awaitCancellation()
+        holdouts.loadRoster(runningAbout.address, maxAgeMillis = runningEvery)
         delay(ROSTER_REFRESH_MILLIS)
     }
 

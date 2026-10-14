@@ -3,7 +3,7 @@ package holdout.app.holdout
 /**
  * A member's "Check again" while the chain can't be reached (spec 005): the
  * read the app makes every 30 seconds, asked for now. Offered only while the
- * last read failed; a second ask while one is out joins it. Any read that
+ * chain can't be reached (two snapshot reads in a row failed, 001 FR-071); a second ask while one is out joins it. Any read that
  * answers — this one or the schedule's — leaves nothing to show. It is never
  * kept on the phone, and it never sends anything (FR-004): what a waiting day
  * does once the chain answers is 001 FR-024b's, unchanged.

@@ -2,7 +2,7 @@
 
 Network name `N` = `Deployment.networkName` ("Devnet" on the devnet build).
 
-## Where it shows (only while the last chain read failed)
+## Where it shows (only while the chain can't be reached: two snapshot reads in a row failed — 001 FR-071)
 
 | Screen | Line already there / added | Check again button | Pull |
 |---|---|---|---|
@@ -18,7 +18,7 @@ Network name `N` = `Deployment.networkName` ("Devnet" on the devnet build).
 
 The home rows above are Today (`shell/TodayHost.kt`). The empty state of Standing has no chain figure of its own to refresh, so it carries neither the line nor the button.
 
-What a check reads on the screens that have a roster (the home of a running Holdout, a Holdout's details, the forfeit screen): the snapshot, chain time and that Holdout's roster at once — unless a read of that roster is already out, whose answer then serves the check (one roster read per Holdout at a time, given up after 60 s). A read started elsewhere is not cancelled by leaving the front; it is bounded by the 60 s.
+What a check reads on the screens that have a roster (the home of a running Holdout, a Holdout's details, the forfeit screen): the snapshot, chain time and that Holdout's roster at once, each read the check's own: a snapshot read already out is not joined, and the roster read is forced even when one of that roster is already out, since that one may be hanging (spec Session 2026-10-13). The check's snapshot read is fresh (`loadFresh`: it also reads the wallet's memberships and its own settled cohorts, FR-003), and the pulse joins it rather than starting another (001 FR-071). A roster read started elsewhere is not cancelled by leaving the front; it is bounded by 60 s.
 
 While the chain can't be reached, the pull is also a *Check again* accessibility action on the screen, so TalkBack and switch users can run the check without the gesture (on the screens that have the pull).
 

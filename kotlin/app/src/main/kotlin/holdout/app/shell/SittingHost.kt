@@ -20,7 +20,7 @@ import holdout.core.HoldoutDay
 import holdout.repcounter.Stakes
 import kotlinx.coroutines.flow.first
 
-/** The finished page of a Holdout day reads the chain again when the last read failed (see [SittingHost]). */
+/** The finished page of a Holdout day reads the chain again while it can't be reached (see [SittingHost]). */
 internal fun rechecksAtFinish(step: SittingViewModel.Step, offline: Boolean): Boolean = step == SittingViewModel.Step.COMPLETE && offline
 
 /**
@@ -109,8 +109,8 @@ internal fun Shared.SittingHost(s: Sitting, modifier: Modifier = Modifier) {
             // (FR-024b, 2026-10-10; too late online or off, 2026-10-11). One value per
             // composition, so label and tap agree.
             val note = sittingNote(h, s.day, now, chain.offline)
-            // "Offline" is the last read's verdict, and a read can fail in the middle of a sitting (the
-            // camera and the pose model hold the CPU) and stand until the next 30-second pass. The
+            // "Offline" is the last read's verdict, and a read can fail just before or in a sitting (the
+            // camera and the pose model hold the CPU), and no pulse runs during one (FR-071) to clear it. The
             // finished page must not say "can't be reached" on that: it asks the chain once now, and only
             // a read that fails again keeps the note. The same read is the member's "Check again".
             val finished by vm.uiState.collectAsState()

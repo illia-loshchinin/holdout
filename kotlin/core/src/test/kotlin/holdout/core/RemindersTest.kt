@@ -53,6 +53,19 @@ class RemindersTest {
     }
 
     @Test
+    fun `every reminder carries its cohort's form, so a Hackathon round can be named by it`() {
+        for (form in listOf(LeagueParams.FORM_KNEES_ALLOWED, LeagueParams.FORM_TOES)) {
+            val c = cohort(dayLength = 600, days = 3, reps = 5).copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, form = form)
+            val running = schedule(c, member(), now = start - 60)
+            assertTrue(running.isNotEmpty() && running.all { it.form == form }, "form $form")
+            val done = finished(c, member(days = 3, state = MembershipSnapshot.State.Finished), start)
+            assertTrue(done.isNotEmpty() && done.all { it.form == form }, "finished notice, form $form")
+        }
+        // A reminder that does not say has no form.
+        assertEquals(Reminders.FORM_UNKNOWN, Reminder(Reminder.Kind.Start, address, 100, 0, start, start + 600, 5, 3, 600).form)
+    }
+
+    @Test
     fun `in the lobby - a start reminder, then one before every day's deadline`() {
         val c = cohort()
         val r = schedule(c, member(), now = start - 86_400)

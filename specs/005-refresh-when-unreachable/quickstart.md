@@ -24,7 +24,7 @@ cd kotlin && ./gradlew :app:installMemberDebug -Pholdout.rpcUrl=http://127.0.0.1
 
 Then use `adb reverse --remove tcp:8898` to cut the link and `adb reverse tcp:8898 tcp:8899` to restore it. Reinstall the 8899 build afterwards. A refused local port answers at once, so *"Checking…"* only flashes. The network is named *"The local validator"* on such a build.
 
-1. Finish today's reps. Remove the reverse: `adb reverse --remove tcp:8899`. Within 30 s the home reads *"Done — waiting for network"* with **Check again**.
+1. Finish today's reps. Remove the reverse: `adb reverse --remove tcp:8899`. Within about a minute — two missed 30-second reads (001 FR-071) — the home reads *"Done — waiting for network"* with **Check again**.
 2. Tap **Check again**: *"Checking Devnet…"*, then *"Devnet still can't be reached."* Pull down: the indicator shows, same result.
 3. Restore the reverse. Tap **Check again**: within 5 s the waiting line goes and the wallet's approval for the day opens by itself (001 FR-024b's automatic send), once. Decline it: the home reads *"Done — tap to submit"*. Nothing is submitted without the member's approval.
 4. With the chain answering, pull down on the home: no indicator.

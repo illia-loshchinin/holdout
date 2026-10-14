@@ -62,6 +62,16 @@ class TabRootsTest {
     }
 
     @Test
+    fun `a running Holdout's roster is read every 30 seconds, a lobby's or a finished one's only slowly`() {
+        assertEquals(ROSTER_REFRESH_MILLIS, TabRoots.rosterEveryMillis(running, START))
+        // The 7-day Holdout started two days before START: it has ended five days later.
+        val ended = START + 6 * DAY
+        assertEquals(CHAIN_REFRESH_MILLIS, TabRoots.rosterEveryMillis(running, ended))
+        // A lobby's joins and leaves move its member count, which reads its roster at once (FR-071).
+        assertEquals(CHAIN_REFRESH_MILLIS, TabRoots.rosterEveryMillis(holdout(9, START + DAY), START))
+    }
+
+    @Test
     fun `Holdouts reads the rosters of the Holdouts the member claimed, for the Past tab`() {
         val claimed = holdout(5, START - 20 * DAY, member(7, MembershipSnapshot.State.Claimed))
         // Running, lobby and watched Holdouts have no row on the Past tab: nothing to read for them.

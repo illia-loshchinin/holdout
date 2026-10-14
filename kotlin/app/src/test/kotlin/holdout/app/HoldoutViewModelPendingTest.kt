@@ -68,7 +68,17 @@ class HoldoutViewModelPendingTest {
     private class FakeChain : ChainReads {
         val reads = mutableListOf<CompletableDeferred<ChainView?>>()
 
-        override suspend fun load(wallet: SolanaPublicKey?): ChainView? = CompletableDeferred<ChainView?>().also { reads += it }.await()
+        /** Whether each read was a fresh one ([ChainReads.loadFresh]), in the order they started. */
+        val fresh = mutableListOf<Boolean>()
+
+        override suspend fun load(wallet: SolanaPublicKey?): ChainView? = read(false)
+
+        override suspend fun loadFresh(wallet: SolanaPublicKey?): ChainView? = read(true)
+
+        private suspend fun read(isFresh: Boolean): ChainView? {
+            fresh += isFresh
+            return CompletableDeferred<ChainView?>().also { reads += it }.await()
+        }
 
         override suspend fun roster(cohort: SolanaPublicKey): List<MembershipSnapshot>? = null
 
@@ -474,5 +484,23 @@ class HoldoutViewModelPendingTest {
         answer(ChainFixtures.view(claimed))
 
         assertEquals(TxPhase.Done(TxOutcome.Landed(null)), state.signing?.phase)
+    }
+
+    // ---- PR #72 review ---------------------------------------------------------------------------
+
+    @Test
+    fun `while a send may still land, every pulse re-reads the memberships, and once it is settled the pulse reuses them again`() = runTest(dispatcher) {
+        watching()
+        assertEquals(listOf(false), chain.fresh, "the first pulse may reuse what is kept")
+        claimNotConfirmed()
+        dispatcher.scheduler.advanceTimeBy(30_001)
+        runCurrent()
+        assertTrue(chain.fresh.last(), "a pulse while the claim may still land reads the memberships")
+        answer(ChainFixtures.view(claimed))
+        assertNull(state.pendingFor(SignAction.Claim, finished.address))
+
+        dispatcher.scheduler.advanceTimeBy(30_001)
+        runCurrent()
+        assertFalse(chain.fresh.last(), "settled: the pulse reuses kept memberships again")
     }
 }

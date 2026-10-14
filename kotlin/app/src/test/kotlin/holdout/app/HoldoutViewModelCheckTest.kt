@@ -111,7 +111,12 @@ class HoldoutViewModelCheckTest {
         runCurrent()
         assertEquals(5_000L, state.viewReadAt)
 
-        // The next scheduled read finds the chain silent, 4 minutes later: the old answer is still what is shown, and it is that old.
+        // The next two scheduled reads find the chain silent (one dropped call is not "unreachable", FR-071), the
+        // second 4 minutes after the answer: the old answer is still what is shown, and it is that old.
+        advanceTimeBy(30_001)
+        runCurrent()
+        chain.reads.last().complete(null)
+        runCurrent()
         elapsedMillis = 245_000
         advanceTimeBy(30_001)
         runCurrent()
@@ -341,39 +346,63 @@ class HoldoutViewModelCheckTest {
     }
 
     @Test
-    fun `given a check under way, when the scheduled read answers first, then the check is cleared at once`() = runTest(dispatcher) {
+    fun `given a check under way, when the 30-second pass comes, then it joins the check's read rather than starting another`() = runTest(dispatcher) {
         unreachableFor(walletA)
         vm.checkNow()
         runCurrent()
         assertTrue(state.check.checking)
+        val reads = chain.reads.size
 
-        // The 30-second pass starts a newer read while the check's is still out.
         advanceTimeBy(30_001)
         runCurrent()
+        assertEquals(reads, chain.reads.size)
+
         chain.reads.last().complete(answered)
         runCurrent()
-
         assertFalse(state.offline)
         assertEquals(ChainCheck(), state.check)
     }
 
     @Test
-    fun `given a newer read answered, when the check's own read fails late, then it is set aside`() = runTest(dispatcher) {
+    fun `given the scheduled read out, when the member checks, then the check reads at once rather than joining it`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        advanceTimeBy(30_001)
+        runCurrent()
+        val scheduled = chain.reads.last()
+        val reads = chain.reads.size
+
+        vm.checkNow()
+        runCurrent()
+        assertEquals(reads + 1, chain.reads.size)
+
+        // The older read, started while the chain was down, fails late; the check's own answer stands.
+        chain.reads.last().complete(answered)
+        runCurrent()
+        scheduled.complete(null)
+        runCurrent()
+        assertFalse(state.offline)
+        assertEquals(ChainCheck(), state.check)
+    }
+
+    @Test
+    fun `given a check's read that never answers, when the pass that joined it has waited a minute, then the pass reads on its own`() = runTest(dispatcher) {
         unreachableFor(walletA)
         vm.checkNow()
         runCurrent()
-        val checkRead = chain.reads.last()
+        val reads = chain.reads.size
+
+        // The 30-second pass joins the check's read...
         advanceTimeBy(30_001)
         runCurrent()
+        assertEquals(reads, chain.reads.size)
+
+        // ...and a minute later stops waiting on it.
+        advanceTimeBy(60_001)
+        runCurrent()
+        assertEquals(reads + 1, chain.reads.size)
         chain.reads.last().complete(answered)
         runCurrent()
-
-        checkRead.complete(null)
-        runCurrent()
-
-        // Not "can't be reached" again, and not "still can't be reached": the newer answer stands.
         assertFalse(state.offline)
-        assertEquals(ChainCheck(), state.check)
     }
 
     @Test

@@ -34,7 +34,7 @@ object StakeText {
     /** The last minutes before the cutoff (ES-12): a transaction signed now may land too late. */
     const val CLOSING_WINDOW_SECONDS = 600L
 
-    /** `Join the Spark · 7-day Holdout`; `Join the Hackathon · 3-day Holdout`. */
+    /** `Join the Spark · 7-day Holdout`; `Join the Hackathon · Spark Holdout`. */
     fun title(c: CohortSnapshot, test: Boolean): String = if (test) "Join the ${Format.testName(c)} Holdout" else "Join the ${Format.holdoutTitle(c)}"
 
     /** `Light it up: 25 push-ups a day for 7 days.` / `Make it stick: …`; a test Holdout says what it is: `A quick taste: 5 push-ups a day for 3 days.` */

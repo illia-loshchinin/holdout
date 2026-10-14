@@ -137,6 +137,23 @@ data class NavState(
     /** The bar shows on tab roots only, never under a full-screen step (G1). A sheet covers it with its scrim. */
     val showsBar: Boolean get() = !fullScreen && onRoot
 
+    /**
+     * Whether what is in front shows live chain data, so the app's 30-second pulse reads (FR-071): the
+     * connect screen's live list, the signing flow, Today, Standing, Holdouts and the screens pushed on
+     * them, the leaderboards (read again when the pulse sees a settlement move). Not Me, About, the tour
+     * or a sitting: Me's balances and badge are as of the last read, which the wallet's own actions and a
+     * live screen refresh; the others show no chain data.
+     */
+    val showsLiveChain: Boolean get() = when {
+        !connected || tx != null -> true
+        tour != null || sitting != null -> false
+        else -> when (top) {
+            null -> tab != Tab.Me
+            Screen.About -> false
+            else -> true
+        }
+    }
+
     /** Whether a system Back does anything here; when not, it leaves the app (or the screen shown handles it itself). */
     val canGoBack: Boolean get() = Nav.back(this) != null
 }

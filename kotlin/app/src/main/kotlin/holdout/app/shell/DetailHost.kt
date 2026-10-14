@@ -71,7 +71,7 @@ internal fun Shared.RosterHost(id: String, modifier: Modifier = Modifier) {
 internal fun Shared.LeaderboardsHost(board: Leaderboard.Board, read: Leaderboard.Snapshot?, modifier: Modifier = Modifier) {
     InFrontLoop(Unit) {
         holdouts.loadLeaderboard()
-        delay(ROSTER_REFRESH_MILLIS)
+        delay(LEADERBOARD_REFRESH_MILLIS)
     }
     val boards = Leaderboard.Board.entries.filter { it != Leaderboard.Board.TEST || read?.cohortsAfter.orEmpty().any { c -> Leaderboard.Board.TEST.covers(c.leagueId) } }
     val n = now
@@ -88,16 +88,21 @@ internal fun Shared.LeaderboardsHost(board: Leaderboard.Board, read: Leaderboard
     )
 }
 
-/** Whether the app's own loop (Today's crowd strip's) already reads [h]'s roster every 30 s, wherever the member is. */
+/** Whether the app's own loop (Today's crowd strip's) already looks after [h]'s roster, wherever the member is. */
 internal fun Shared.rosterReadByApp(h: Holdout): Boolean = active()?.first?.address == h.address
 
-/** A Holdout's roster, read now and every 30 s while it is on screen — unless the app's loop for the Holdout Today is about is reading it already. */
+/**
+ * A Holdout's roster while it is on screen — unless the app's loop for the Holdout Today is about looks after it
+ * already: read now, then whenever its cohort's counters move or it grows old (FR-071, [TabRoots.rosterEveryMillis]).
+ */
 @Composable
 internal fun Shared.RosterLoop(h: Holdout) {
     val covered = rosterReadByApp(h)
-    InFrontLoop(h.address to covered) {
+    val n = now
+    val every = if (n != null) TabRoots.rosterEveryMillis(h, n) else ROSTER_REFRESH_MILLIS
+    InFrontLoop(Triple(h.address, covered, every)) {
         if (covered) kotlinx.coroutines.awaitCancellation()
-        holdouts.loadRoster(h.address)
+        holdouts.loadRoster(h.address, maxAgeMillis = every)
         delay(ROSTER_REFRESH_MILLIS)
     }
 }
