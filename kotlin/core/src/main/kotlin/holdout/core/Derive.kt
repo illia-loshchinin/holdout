@@ -276,6 +276,20 @@ object Derive {
         else -> CohortStatus.Settling
     }
 
+    /**
+     * Whether a late comeback join can still land in [c]: `¬settled ∧ now ≤ deadline_of(0)`, the
+     * program's `guards::require_joinable` past the cutoff (FR-037e) — a round whose first day is
+     * over can take nobody, even late.
+     */
+    fun lateJoinOpen(c: CohortSnapshot, now: Long): Boolean = !c.settled && now <= deadlineOf(c, 0)
+
+    /**
+     * A running cohort nobody is in and nobody can join any more, even late: `member_count = 0`,
+     * `Running`, and past [lateJoinOpen]. The app lists it nowhere; it waits only for the crank to
+     * settle it at its end (FR-062a).
+     */
+    fun emptyForGood(c: CohortSnapshot, now: Long): Boolean = c.memberCount == 0L && status(c, now) == CohortStatus.Running && !lateJoinOpen(c, now)
+
     /** `state == Joined ∧ now ≥ start ∧ days_completed < duration ∧ now > deadline_of(days_completed)` (data-model §1.4). */
     fun inBreach(m: MembershipSnapshot, c: CohortSnapshot, now: Long): Boolean = m.state == MembershipSnapshot.State.Joined &&
         now >= c.start &&
