@@ -122,7 +122,7 @@ flowchart LR
 ```
 
 More in [How it works](docs/how-it-works.md): the calendar, the Hackathon rounds, scripted members,
-Seeker gating, the four tabs and the faucet.
+Seeker gating, the three tabs and the faucet.
 
 ## Where a lost stake goes
 

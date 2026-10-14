@@ -99,17 +99,18 @@ everyone.
 
 ## The app
 
-Four tabs:
+Three tabs, icon-only:
 
 | Tab | What it is for |
 |---|---|
 | **Today** | The one thing to do today: the Daily 25, or your Holdout day, and what is left |
-| **Standing** | Your Holdout's crowd: who is still standing, how the group thinned, the roster, and the leaderboards |
-| **Holdouts** | Yours: open to join, running, finished, and claims waiting |
-| **Me** | Wallet, balances, the faucet, your streak, About |
+| **Holdouts** | Yours: open to join, running, finished, and claims waiting; and the Holdouts running now that you can watch |
+| **Me** | Your Daily 25 statistics (streak, longest, freezes, the toes meter), the leaderboards, wallet, balances, the faucet, About |
 
-A five-card tour runs after the first wallet connection: the Daily 25 · a Holdout · where a lost
-stake goes · how reps are counted · scripted members. About re-opens it.
+A Holdout's own screen (who is still standing, how the group thinned, the members) opens over
+whichever tab you came from. A welcome and a six-card tour run after the first wallet connection:
+the Daily 25 · two kinds of Holdout · how a Holdout plays out · where a lost stake goes · how reps
+are counted · scripted members. About re-opens it.
 
 **Leaderboards** rank members by discipline: the share of their Holdouts they finished, after 3
 played. Money never ranks anyone. There is one board for Spark, one for Habit and one combined
