@@ -69,25 +69,11 @@ class FormatCopyTest {
     }
 
     @Test
-    fun `the fee sentence is the one the stake sheet shows, with the Holdout's own level`() {
+    fun `the forfeit screen's stake-lost sentence takes the noun it names the boosts after`() {
         assertEquals(
-            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
-                "20 % to the project. If nobody finishes, the pool boosts later Spark · 7-day prizes.",
-            Format.lostStakeSplit(spark),
-        )
-        assertEquals(
-            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
-                "20 % to the project. If nobody finishes, the pool boosts later Habit · 21-day prizes.",
-            Format.lostStakeSplit(habit),
-        )
-    }
-
-    @Test
-    fun `the fee sentence takes the noun it names the boosts after`() {
-        assertEquals(
-            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
-                "20 % to the project. If nobody finishes, the pool boosts later Hackathon · 3-day prizes.",
-            Format.lostStakeSplit(spark, name = "Hackathon · 3-day"),
+            "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% set aside for your comeback, " +
+                "20\u00a0% to the project. If nobody finishes, the pool boosts later Hackathon · 3-day prizes.",
+            Format.lostStakeSplitForfeit(spark, name = "Hackathon · 3-day"),
         )
     }
 
@@ -110,7 +96,7 @@ class FormatCopyTest {
 
     @Test
     fun `a percent sign never starts a line on its own`() {
-        listOf(Format.lostStakeSplit(spark), Format.lostStakeSplitForfeit(habit)).forEach { sentence ->
+        listOf(Format.lostStakeSplitForfeit(spark), Format.lostStakeSplitForfeit(habit)).forEach { sentence ->
             assertFalse(" %" in sentence, "a breakable space before %")
             assertEquals(3, sentence.split(" %").size - 1)
         }
@@ -165,7 +151,7 @@ class FormatCopyTest {
         val lines = listOf(
             Format.level(spark),
             Format.holdoutTitle(habit),
-            Format.lostStakeSplit(spark),
+            Format.lostStakeSplitForfeit(spark),
             Format.lostStakeSplitForfeit(habit),
             Format.boostLine(1uL),
             Format.runningBoostLine(1uL),

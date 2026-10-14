@@ -33,18 +33,17 @@ class HoldoutPiecesTest {
     }
 
     @Test
-    fun `the lost-stake sentence names the level and length, says where the pool goes when nobody finishes, and never says league`() {
+    fun `the forfeit screen's lost-stake sentence names the level and length, says where the pool goes when nobody finishes, and never says league`() {
         val easy = CohortSnapshot(0, 0, 0, 0, 7, 25, 86_400, 0, listOf(1uL, 2uL, 3uL, 4uL), form = holdout.core.LeagueParams.FORM_KNEES_ALLOWED)
         val hard = easy.copy(durationDays = 21, form = holdout.core.LeagueParams.FORM_TOES)
         assertEquals(
-            "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% set aside for your comeback, " +
+            "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% set aside for your comeback, " +
                 "20\u00a0% to the project. If nobody finishes, the pool boosts later Spark \u00b7 7-day prizes.",
-            Format.lostStakeSplit(easy),
+            Format.lostStakeSplitForfeit(easy),
         )
-        assertTrue("boosts later Habit \u00b7 21-day prizes." in Format.lostStakeSplit(hard))
         assertTrue("boosts later Habit \u00b7 21-day prizes." in Format.lostStakeSplitForfeit(hard))
-        assertTrue("league" !in Format.lostStakeSplit(hard).lowercase())
-        assertTrue(" %" !in Format.lostStakeSplit(easy), "a % never starts a line on its own")
+        assertTrue("league" !in Format.lostStakeSplitForfeit(hard).lowercase())
+        assertTrue(" %" !in Format.lostStakeSplitForfeit(easy), "a % never starts a line on its own")
     }
 
     @Test

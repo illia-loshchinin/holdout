@@ -124,8 +124,7 @@ private fun NavTab(item: BottomNavItem, active: Boolean, onClick: () -> Unit) {
 /**
  * The bar's icons, drawn in code (24×24; research R25): [Today] a calendar with today's square filled,
  * [Holdouts] a 3 × 3 dot grid forming an H with the top and bottom middle dots at 35 %, [Me] a person.
- * The colour here is a placeholder; the bar tints each one. [Pulse] is the retired Standing tab's, kept
- * until the shell drops that tab.
+ * The colour here is a placeholder; the bar tints each one.
  */
 object NavIcons {
     val Today: ImageVector = ImageVector.Builder("today", 24.dp, 24.dp, 24f, 24f)
@@ -141,10 +140,6 @@ object NavIcons {
     // A circle (cx 12, cy 8, r 4) as two arcs, then the shoulders.
     val Me: ImageVector = ImageVector.Builder("me", 24.dp, 24.dp, 24f, 24f)
         .stroked("M16 8a4 4 0 1 1-8 0a4 4 0 1 1 8 0z M4.5 20a7.5 7.5 0 0 1 15 0")
-        .build()
-
-    val Pulse: ImageVector = ImageVector.Builder("pulse", 24.dp, 24.dp, 24f, 24f)
-        .stroked("M3 12h4l2.5-6 5 12 2.5-6h4")
         .build()
 
     /** One path of circles (two arcs each) of radius [DOT_RADIUS] around the given centres. */

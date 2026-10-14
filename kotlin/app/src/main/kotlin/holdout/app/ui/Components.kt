@@ -134,22 +134,15 @@ object Format {
     /** `SPARK · 7-DAY · FINISHED`: a Holdout that has run its length. */
     fun finishedHeaderLabel(c: holdout.core.CohortSnapshot): String = "${level(c)} · finished".uppercase()
 
-    /**
-     * Where a lost stake goes, in the sentence the stake sheet shows (FR-027,
-     * FR-037, FR-041; decided 2026-10-10, shortened 2026-10-11, re-split
-     * 2026-10-12: the 10 % is the member's own comeback, and a pool nobody wins
-     * boosts later prizes; ruling G5). The level and length are the Holdout's
-     * own, and a no-break space keeps every "%" on its number's line. [name] is
-     * what the boosts are named after: the level by default, "Hackathon ·
-     * 3-day" (see [testName]) for a test Holdout.
-     */
-    fun lostStakeSplit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% set aside for your comeback, " +
-        "20\u00a0% to the project. If nobody finishes, the pool boosts later $name prizes."
-
-    /** What the boosts in the fee sentence are named after: the level, or [testName] ("Hackathon · 3-day") for a test Holdout (FR-044a); the stake sheet and the forfeit screen both use it. */
+    /** What the boosts in the forfeit screen's stake-lost sentence are named after: the level, or [testName] ("Hackathon · 3-day") for a test Holdout (FR-044a); the forfeit screen uses it. */
     fun boostName(c: holdout.core.CohortSnapshot, test: Boolean): String = if (test) testName(c) else level(c)
 
-    /** The same split on the forfeit screen, under its **Stake lost** row (ruling G5); [name] as in [lostStakeSplit]. */
+    /**
+     * Where a lost stake goes, on the forfeit screen under its **Stake lost** row (FR-027, FR-037, FR-041; ruling
+     * G5: the 10 % is the member's own comeback, and a pool nobody wins boosts later prizes). The stake sheet no
+     * longer says it (2026-10-14: one line and *How it works*). [name] is what the boosts are named after, the
+     * level by default; a no-break space keeps every "%" on its number's line.
+     */
     fun lostStakeSplitForfeit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% set aside for your comeback, " +
         "20\u00a0% to the project. If nobody finishes, the pool boosts later $name prizes."
 

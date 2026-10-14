@@ -36,7 +36,7 @@ data class DayButton(val label: String, val action: DayAction, val enabled: Bool
 
 /**
  * A running Holdout's day for the member standing in it — one model for Today
- * (T2) and Standing's day strip, so the two never disagree about the button,
+ * (T2) and a Holdout's screen day strip, so the two never disagree about the button,
  * the deadline or whether the day is done (FR-024b, FR-038, FR-047, FR-069a/b).
  * Pure: the screens only draw it.
  */
@@ -224,7 +224,7 @@ data class DayState(
         }
 
         /**
-         * The sitting a Start tap opens, from Today or Standing alike: this Holdout's day. An exercise or a form this
+         * The sitting a Start tap opens, from Today or a Holdout's screen alike: this Holdout's day. An exercise or a form this
          * build does not know is refused, never guessed (FR-014, H30, H35).
          */
         fun start(h: Holdout, dayIndex: Int): NavEvent.StartSitting? = if (h.cohort.exercise == LeagueParams.EXERCISE_PUSHUP && Stakes.ofForm(h.cohort.form) != null) {
