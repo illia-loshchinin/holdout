@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The v2 tab screens' words, held to the member-facing source (T365, FR-067, FR-069, FR-069h): the
+ * The v2 tab screens' words, held to the member-facing source (T390, FR-067, FR-069, FR-069h): the
  * strings of `src/main` and `src/member` are read as text and must not say what the redesign retired,
  * and must say what it specified. The same patterns, in shell form, are in `scripts/check-wording.sh`.
  *

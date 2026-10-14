@@ -8,7 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** The pre-flight draws the floor line and a faint body outline, and no frame around the place to lie (FR-019, 2026-10-13; T363, T382). */
+/** The pre-flight draws the floor line and a faint body outline, and no frame around the place to lie (FR-019, 2026-10-13; T388, T407). */
 class PositionOverlayTest {
     private val target = GuideBox(centreX = 0.5f, centreY = 0.6f, halfWidth = 0.3f, halfHeight = 0.1f)
 

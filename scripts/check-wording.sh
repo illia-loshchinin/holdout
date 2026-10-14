@@ -5,7 +5,7 @@
 #   3. the test-network notice is present,
 #   4. nothing the v2 tab screens retired is back, and the member-facing words the copy rules
 #      ban (cohort but for DEVNET COHORT, league, challenge, earn, survivors, Easy, Hard) stay
-#      out of every sentence (T365, FR-067, FR-069; the same patterns as CopyRulesTest).
+#      out of every sentence (T390, FR-067, FR-069; the same patterns as CopyRulesTest).
 # Reads string literals only — in the member app's Kotlin and string resources
 # (src/main, src/member; spec 004), and the README's weaknesses source
 # (docs/weaknesses.json) — so Kotlin's `return` keyword is not a finding.

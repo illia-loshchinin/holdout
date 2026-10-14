@@ -15,7 +15,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * T390 — a stuck network client recovers without a restart (FR-069i). On the Seeker every read failed with
+ * T415 — a stuck network client recovers without a restart (FR-069i). On the Seeker every read failed with
  * "Connect timeout has expired" while the node answered everything else, until the app was restarted. The
  * driver throws its client away and builds a new one when the member presses Retry ([RecoveringDriver.reset])
  * and after 3 connect timeouts in a row; the next read goes through the new client. No network: each client

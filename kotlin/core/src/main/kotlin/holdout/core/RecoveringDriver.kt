@@ -9,7 +9,7 @@ import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.client.plugins.HttpTimeout
 
 /**
- * The HTTP client under every chain read, and how it recovers when it gets stuck (spec FR-069i, T390).
+ * The HTTP client under every chain read, and how it recovers when it gets stuck (spec FR-069i, T415).
  *
  * On a Seeker, after a network change or a stretch in the background, every call through the app's client
  * failed with "Connect timeout has expired" while the node answered everything else, and only a restart of
