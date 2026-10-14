@@ -247,6 +247,8 @@ class HoldoutViewModel(
         if (refresher == null) return
         val step = _state.value.check.request(_state.value.offline)
         if (!step.read) return
+        // The chain may be fine and the app's own client stuck (FR-069i): the retry reads through a new one.
+        rpc.reset()
         _state.update { it.copy(check = step.next) }
         val wallet = address
         // Any earlier check has finished (a request while one is out joins it); what it left running goes too.

@@ -1,6 +1,5 @@
 package holdout.core
 
-import com.solana.networking.KtorNetworkDriver
 import com.solana.networking.Rpc20Driver
 import com.solana.publickey.SolanaPublicKey
 import com.solana.rpccore.JsonRpc20Request
@@ -60,7 +59,7 @@ sealed interface GenesisCheck {
  */
 class SeekerGenesisReader(
     endpoint: String,
-    driver: Rpc20Driver = Rpc20Driver(endpoint, KtorNetworkDriver()),
+    driver: Rpc20Driver = Rpc20Driver(endpoint, RecoveringDriver.shared),
     timeoutMillis: Long = GENESIS_TIMEOUT_MILLIS,
 ) {
     private val rpc = driver
