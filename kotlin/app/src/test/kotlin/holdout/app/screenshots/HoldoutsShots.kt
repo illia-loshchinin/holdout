@@ -110,12 +110,12 @@ class HoldoutsShots {
     private val roster = Fx.roster(standing = 7, out = 3)
 
     @Test
-    fun detailRunningPushed() = compose.shoot("standing", "detail-running-pushed", heightDp = 1500) {
+    fun detailRunningPushed() = compose.shoot("holdout", "detail-running-pushed", heightDp = 1500) {
         CohortDetailScreen(mine, roster, mine.stage(now), now, null, {}, {})
     }
 
     @Test
-    fun detailDevnetBar() = compose.shoot("standing", "detail-devnet-bar", heightDp = 1500) {
+    fun detailDevnetBar() = compose.shoot("holdout", "detail-devnet-bar", heightDp = 1500) {
         CohortDetailScreen(mine, roster, mine.stage(now), now, null, {}, {}, offline = true, readAgoSeconds = 240)
     }
 
@@ -123,13 +123,13 @@ class HoldoutsShots {
     private val finishedH = Fx.holdout(finishedCohort, Fx.member(days = 7, state = MembershipSnapshot.State.Finished))
 
     @Test
-    fun detailSettling() = compose.shoot("standing", "detail-settling", heightDp = 1300) {
+    fun detailSettling() = compose.shoot("holdout", "detail-settling", heightDp = 1300) {
         val at = finishedCohort.start + 7 * Fx.DAY + 240
         CohortDetailScreen(finishedH, Fx.roster(3, 0, finished = true), finishedH.stage(at), at, null, {}, {})
     }
 
     @Test
-    fun detailClaimed() = compose.shoot("standing", "detail-claimed", heightDp = 1300) {
+    fun detailClaimed() = compose.shoot("holdout", "detail-claimed", heightDp = 1300) {
         val done = Fx.cohort(joined = 20, start = Fx.START - 9 * Fx.DAY, settled = true, finishers = 11, share = 162_000_000uL)
         val stage = Stage.Claimed(amount = 1_662_000_000uL, stake = 1_250_000_000uL, share = 162_000_000uL, comeback = 250_000_000uL)
         val h = Fx.holdout(done, Fx.member(days = 7, state = MembershipSnapshot.State.Claimed))
@@ -144,7 +144,7 @@ class HoldoutsShots {
     private val scripted = ScriptedWallets.keys.firstOrNull()
 
     @Test
-    fun roster() = compose.shoot("standing", "roster", heightDp = 1100) {
+    fun roster() = compose.shoot("holdout", "roster", heightDp = 1100) {
         val members = listOf(
             Fx.member(Fx.me, days = 11),
             Fx.member(Fx.key(1), days = 11),
@@ -161,12 +161,12 @@ class HoldoutsShots {
     private val ranked = Leaderboard.rank(listOf(row(1, 5, 0), row(2, 4, 1), row(3, 3, 1, scripted = true), row(4, 1, 0)))
 
     @Test
-    fun leaderboards() = compose.shoot("standing", "leaderboards", heightDp = 1100) {
+    fun leaderboards() = compose.shoot("holdout", "leaderboards", heightDp = 1100) {
         LeaderboardScreen(Board.EASY_7D, listOf(Board.EASY_7D, Board.HARD_21D, Board.TEST), ranked, Fx.key(2), {}, {}, testDayLengthSeconds = 600)
     }
 
     @Test
-    fun leaderboardsEmpty() = compose.shoot("standing", "leaderboards-empty", heightDp = 844) {
+    fun leaderboardsEmpty() = compose.shoot("holdout", "leaderboards-empty", heightDp = 844) {
         LeaderboardScreen(Board.HARD_21D, listOf(Board.EASY_7D, Board.HARD_21D), Leaderboard.rank(emptyList()), Fx.key(2), {}, {})
     }
 

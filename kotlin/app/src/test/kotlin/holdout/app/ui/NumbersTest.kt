@@ -12,7 +12,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import kotlin.test.assertEquals
 
-/** CountdownText, StreakFlame, BankRing and BlockBars: the numbers the app comes back for. */
+/** CountdownText, StreakFlame and the bank blocks: the numbers the app comes back for. */
 @RunWith(RobolectricTestRunner::class)
 class NumbersTest {
     @get:Rule
@@ -82,37 +82,6 @@ class NumbersTest {
         compose.onNodeWithText("31").assertIsDisplayed()
         compose.onNodeWithText("PB").assertIsDisplayed()
         compose.onNodeWithContentDescription("31-day streak, personal best").assertExists()
-    }
-
-    @Test
-    fun `a bank ring shows the count with its caption and what is banked`() {
-        compose.setContent { HoldoutTheme { BankRing(reps = 25, bankedBlocks = 1, count = 10, caption = "banked") } }
-
-        compose.onNodeWithText("10").assertIsDisplayed()
-        compose.onNodeWithText("BANKED").assertIsDisplayed()
-        compose.onNodeWithContentDescription("10 banked, 1 of 3 blocks banked").assertExists()
-    }
-
-    @Test
-    fun `a finished day reads day complete with every block banked`() {
-        compose.setContent { HoldoutTheme { BankRing(reps = 25, bankedBlocks = 3, count = 25, caption = "day complete") } }
-
-        compose.onNodeWithText("DAY COMPLETE").assertIsDisplayed()
-        compose.onNodeWithContentDescription("25 day complete, 3 of 3 blocks banked").assertExists()
-    }
-
-    @Test
-    fun `banked blocks never exceed the blocks of the day`() {
-        compose.setContent { HoldoutTheme { BankRing(reps = 25, bankedBlocks = 9, count = 25, caption = "banked") } }
-
-        compose.onNodeWithContentDescription("25 banked, 3 of 3 blocks banked").assertExists()
-    }
-
-    @Test
-    fun `the counting bars say how many blocks are banked`() {
-        compose.setContent { HoldoutTheme { BlockBars(reps = 25, bankedBlocks = 2) } }
-
-        compose.onNodeWithContentDescription("2 of 3 blocks banked").assertExists()
     }
 
     @Test
