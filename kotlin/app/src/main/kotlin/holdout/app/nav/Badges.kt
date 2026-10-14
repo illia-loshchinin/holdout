@@ -16,17 +16,6 @@ object Badges {
      */
     fun today(running: Stage.Active?, holdoutDayDoneOnPhone: Boolean, daily25Done: Boolean): Boolean = if (running != null) !(running.todayDone || holdoutDayDoneOnPhone) else !daily25Done
 
-    /**
-     * Standing: how many dropped since the member last looked at this Holdout's
-     * standing ([lastLooked], kept per Holdout on the phone) — or, never having
-     * looked, since it started with [startedWith]. 0 is no dot; so is a roster
-     * not read yet.
-     */
-    fun droppedSinceLooked(standingNow: Int?, lastLooked: Int?, startedWith: Int): Int {
-        val now = standingNow ?: return 0
-        return ((lastLooked ?: startedWith) - now).coerceAtLeast(0)
-    }
-
     /** Holdouts: a dot when a claim is waiting. */
     fun holdouts(stages: Collection<Stage>): Boolean = stages.any { it is Stage.ReadyToClaim }
 
@@ -38,29 +27,25 @@ object Badges {
     fun me(skr: ULong, lamports: Long, cheapestOpenChip: ULong?): Boolean = !FaucetClient.canPayFees(lamports) || (cheapestOpenChip != null && skr < cheapestOpenChip)
 }
 
-/** The four dots at once, and each tab's accessible name. */
+/** The three dots at once, and each tab's accessible name. Drop-outs light no dot (FR-069). */
 data class TabBadges(
     val today: Boolean = false,
-    /** People dropped since the member last looked; 0 shows no dot. */
-    val standingDropped: Int = 0,
     val holdouts: Boolean = false,
     val me: Boolean = false,
 ) {
     fun dot(tab: Tab): Boolean = when (tab) {
         Tab.Today -> today
-        Tab.Standing -> standingDropped > 0
         Tab.Holdouts -> holdouts
         Tab.Me -> me
     }
 
-    /** "Standing, 3 dropped since you last looked": the dot's meaning, said (DS BottomNav). */
+    /** "Holdouts, a claim is waiting": the dot's meaning, said (DS BottomNav). */
     fun accessibleName(tab: Tab): String {
         if (!dot(tab)) return tab.label
         val meaning = when (tab) {
-            Tab.Today -> "today's reps aren't done"
-            Tab.Standing -> "$standingDropped dropped since you last looked"
+            Tab.Today -> "today's reps are not done"
             Tab.Holdouts -> "a claim is waiting"
-            Tab.Me -> "low on SKR or SOL"
+            Tab.Me -> "SKR or SOL is too low"
         }
         return "${tab.label}, $meaning"
     }

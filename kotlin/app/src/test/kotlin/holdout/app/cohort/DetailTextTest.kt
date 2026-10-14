@@ -24,16 +24,10 @@ class DetailTextTest {
     }
 
     @Test
-    fun `days to go leaves today out - day 12 of 21 has 9 to go (ruling D-D5)`() {
-        assertEquals(9, DetailText.daysToGo(habit, habit.start + 11 * Fx.DAY + 60))
-        assertEquals(0, DetailText.daysToGo(spark, spark.start + 6 * Fx.DAY + 60))
-        assertEquals(0, DetailText.daysToGo(spark, spark.start + 9 * Fx.DAY))
-    }
-
-    @Test
-    fun `days done reads x of y days`() {
-        assertEquals("11 of 21 days", DetailText.daysDone(11, habit))
-        assertEquals("7 of 7 days", DetailText.daysDone(9, spark))
+    fun `the button to the members says Members and nothing member-facing says roster`() {
+        assertEquals("Members", DetailText.MEMBERS)
+        val words = listOf(DetailText.MEMBERS, DetailText.WATCHING, DetailText.WATCHER_NOTE, DetailText.SHARE_NOTE, DetailText.outTitle(2))
+        words.forEach { assertTrue(!it.contains("roster", ignoreCase = true), it) }
     }
 
     @Test

@@ -19,7 +19,7 @@ import holdout.app.ui.theme.HoldoutTheme
 import org.robolectric.RuntimeEnvironment
 
 /** A phone's width and height in dp (xxhdpi), for `@Config(qualifiers = …)`. */
-const val PHONE_QUALIFIERS = "w390dp-h844dp-xxhdpi"
+const val PHONE_QUALIFIERS = "w400dp-h829dp-xxhdpi"
 
 /** The height of a phone-wide screen tall enough to show the whole of a scrolling one. */
 const val TALL = 2200

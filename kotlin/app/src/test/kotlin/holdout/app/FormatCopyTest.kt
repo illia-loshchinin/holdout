@@ -69,16 +69,11 @@ class FormatCopyTest {
     }
 
     @Test
-    fun `the fee sentence is the one the stake sheet shows, with the Holdout's own level`() {
+    fun `the forfeit screen's stake-lost sentence takes the noun it names the boosts after`() {
         assertEquals(
-            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
-                "20 % to the project. If nobody finishes, the pool boosts later Spark · 7-day prizes.",
-            Format.lostStakeSplit(spark),
-        )
-        assertEquals(
-            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
-                "20 % to the project. If nobody finishes, the pool boosts later Habit · 21-day prizes.",
-            Format.lostStakeSplit(habit),
+            "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% set aside for your comeback, " +
+                "20\u00a0% to the project. If nobody finishes, the pool boosts later Hackathon · Spark prizes.",
+            Format.lostStakeSplitForfeit(spark, name = "Hackathon · Spark"),
         )
     }
 
@@ -106,12 +101,11 @@ class FormatCopyTest {
     }
 
     @Test
-    fun `the fee sentence takes the noun it names the boosts after`() {
-        assertEquals(
-            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
-                "20 % to the project. If nobody finishes, the pool boosts later Hackathon · Spark prizes.",
-            Format.lostStakeSplit(spark, name = "Hackathon · Spark"),
-        )
+    fun `a running Hackathon round's header names it by its form`() {
+        val round = spark.copy(leagueId = LeagueParams.TEST_LEAGUE_MIN, durationDays = 3, dayLength = 600)
+        assertEquals("HACKATHON · SPARK · DAY 1 OF 3", Format.headerLabel(round, 1))
+        assertEquals("SPARK · 7-DAY · DAY 1 OF 7", Format.headerLabel(spark, 1))
+        assertEquals("HACKATHON · SPARK · DAY 1 OF 7", Format.headerLabel(spark, 1, test = true))
     }
 
     @Test
@@ -133,7 +127,7 @@ class FormatCopyTest {
 
     @Test
     fun `a percent sign never starts a line on its own`() {
-        listOf(Format.lostStakeSplit(spark), Format.lostStakeSplitForfeit(habit)).forEach { sentence ->
+        listOf(Format.lostStakeSplitForfeit(spark), Format.lostStakeSplitForfeit(habit)).forEach { sentence ->
             assertFalse(" %" in sentence, "a breakable space before %")
             assertEquals(3, sentence.split(" %").size - 1)
         }
@@ -188,7 +182,7 @@ class FormatCopyTest {
         val lines = listOf(
             Format.level(spark),
             Format.holdoutTitle(habit),
-            Format.lostStakeSplit(spark),
+            Format.lostStakeSplitForfeit(spark),
             Format.lostStakeSplitForfeit(habit),
             Format.boostLine(1uL),
             Format.runningBoostLine(1uL),

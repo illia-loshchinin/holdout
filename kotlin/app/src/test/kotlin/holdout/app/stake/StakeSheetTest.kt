@@ -6,11 +6,17 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -36,6 +42,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * The stake confirm (board 4 · 4c; ruling G8; US-6, FR-041, FR-059, ES-12): the
@@ -58,10 +65,10 @@ class StakeSheetTest {
     /** Two days, three hours before joining closes. */
     private val now = start - 3_600 - 2 * day - 3 * 3_600 - 1_200
 
-    private fun holdout(form: Int = LeagueParams.FORM_KNEES_ALLOWED, days: Int = 7, leagueId: Int = LeagueParams.LEAGUE_7D, joined: Long = 14, held: ULong = 12_500uL * skr, dayLength: Long = day, cutoff: Long = start - 3_600, reps: Int = 25) = Holdout(
+    private fun holdout(form: Int = LeagueParams.FORM_KNEES_ALLOWED, days: Int = 7, leagueId: Int = LeagueParams.LEAGUE_7D, joined: Long = 14, held: ULong = 12_500uL * skr, dayLength: Long = day, cutoff: Long = start - 3_600, reps: Int = 25, boost: ULong = 0uL) = Holdout(
         address = SolanaPublicKey(ByteArray(32) { 3 }),
         cohort = CohortSnapshot(leagueId, 1, start, cutoff, days, reps, dayLength, 0, listOf(500uL * skr, 1_250uL * skr, 2_500uL * skr, 5_000uL * skr), memberCount = joined, heldStake = held, form = form),
-        league = if (leagueId < LeagueParams.TEST_LEAGUE_MIN) LeagueSnapshot(LeagueParams.judged(leagueId, start), nextIndex = 3) else null,
+        league = if (leagueId < LeagueParams.TEST_LEAGUE_MIN) LeagueSnapshot(LeagueParams.judged(leagueId, start), nextIndex = 3, boostReserve = boost) else null,
         membership = null,
     )
 
@@ -69,6 +76,7 @@ class StakeSheetTest {
     private val tiersPicked = mutableListOf<Int>()
     private var tokens = 0
     private var lobbies = 0
+    private var tours = 0
 
     private fun show(
         h: Holdout = holdout(),
@@ -83,6 +91,7 @@ class StakeSheetTest {
         seeLobby: Boolean = false,
         comeback: Comeback.Offer? = null,
     ) {
+        tours = 0
         compose.setContent {
             HoldoutTheme {
                 StakeSheet(
@@ -101,6 +110,7 @@ class StakeSheetTest {
                     onSeeLobby = if (seeLobby) ({ lobbies++ }) else null,
                     showNotificationReason = notificationReason,
                     comeback = comeback,
+                    onHowItWorks = { tours++ },
                 )
             }
         }
@@ -163,12 +173,64 @@ class StakeSheetTest {
     }
 
     @Test
-    fun `every join carries the refund line word for word, the fee sentence, the full refund and the footer`() {
+    fun `every join carries the refund line word for word, the one line on losing, the full refund and the footer`() {
         show()
         text("If nobody drops out, you get exactly your stake back.").assertExists()
-        text("Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, 20 % to the project. If nobody finishes, the pool boosts later Spark · 7-day prizes.").assertExists()
+        text("Miss a day and you lose your stake.").assertExists()
         text("Full refund until joining closes.").assertExists()
         text("Test network, test token. Dollar values are approximate.").assertExists()
+    }
+
+    @Test
+    fun `the sheet says nothing of where a lost stake goes - no split, no what-if-nobody-finishes`() {
+        show()
+        text("70 %", substring = true).assertDoesNotExist()
+        text("%", substring = true).assertDoesNotExist()
+        text("If nobody finishes", substring = true).assertDoesNotExist()
+        text("prize pool", substring = true).assertDoesNotExist()
+        text("comeback", substring = true).assertDoesNotExist()
+        text("to the project", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `How it works sits beside the one line, the full refund under it`() {
+        show()
+        val line = text("Miss a day and you lose your stake.").getBoundsInRoot()
+        val refund = text("Full refund until joining closes.").getBoundsInRoot()
+        val action = text("How it works").getBoundsInRoot()
+        // The full refund is under the line; the action is beside it, on its row, and a full touch target.
+        assertTrue(refund.top >= line.bottom - 1.dp, "refund $refund under line $line")
+        assertTrue(action.left >= line.right - 1.dp || action.left > line.left, "action $action beside line $line")
+        assertTrue(action.top < refund.top, "action $action on the line's row, above the refund $refund")
+    }
+
+    @Test
+    fun `How it works is a button that opens the tour`() {
+        show()
+        text("How it works").assertHasClickAction().assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)).performClick()
+        assertEquals(1, tours)
+        assertEquals(emptyList(), staked, "nothing was staked")
+    }
+
+    @Test
+    fun `the prize boost is its own line when the reserve holds more than nothing`() {
+        show(holdout(boost = 480uL * skr))
+        text("Prize boost: up to 480 SKR").assertExists()
+        val boost = text("Prize boost: up to 480 SKR").getBoundsInRoot()
+        val line = text("Miss a day and you lose your stake.").getBoundsInRoot()
+        assertTrue(boost.top >= line.bottom || boost.bottom <= line.top, "its own line, not inside another: $boost vs $line")
+    }
+
+    @Test
+    fun `an empty reserve shows no boost line`() {
+        show(holdout(boost = 0uL))
+        text("Prize boost", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `a Hackathon round has no judged league, so no boost line`() {
+        show(holdout(leagueId = LeagueParams.TEST_LEAGUE_MIN, days = 3, dayLength = 600, cutoff = start, reps = 5), at = start - 750)
+        text("Prize boost", substring = true).assertDoesNotExist()
     }
 
     @Test
@@ -417,7 +479,8 @@ class StakeSheetTest {
         text("Join the Hackathon · Spark Holdout").assertExists()
         text("A quick taste: 5 push-ups a day for 3 days. Joinable right up to its start.").assertExists()
         text("Starts in 12m 30s").assertExists()
-        text("Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, 20 % to the project. If nobody finishes, the pool boosts later Hackathon · Spark prizes.").assertExists()
+        text("Miss a day and you lose your stake.").assertExists()
+        text("If nobody finishes", substring = true).assertDoesNotExist()
     }
 
     @Test

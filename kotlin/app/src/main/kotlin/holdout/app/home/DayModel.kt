@@ -36,7 +36,7 @@ data class DayButton(val label: String, val action: DayAction, val enabled: Bool
 
 /**
  * A running Holdout's day for the member standing in it — one model for Today
- * (T2) and Standing's day strip, so the two never disagree about the button,
+ * (T2) and a Holdout's screen day strip, so the two never disagree about the button,
  * the deadline or whether the day is done (FR-024b, FR-038, FR-047, FR-069a/b).
  * Pure: the screens only draw it.
  */
@@ -62,6 +62,16 @@ data class DayState(
     val offline: Boolean,
     /** The Holdout's final day. */
     val lastDay: Boolean,
+    /** The hero's big number (FR-069a): what the day asks, what is left of it, or the target once it is done. */
+    val number: String,
+    /** The word under [number]: "push-ups", "to go", "still needed", "done", "on chain". */
+    val unit: String,
+    val numberTone: DayTone,
+    /** The hero's one sub line, in two lines at most; its words carry the state, so the colour is never alone. */
+    val sub: String,
+    val subTone: DayTone = DayTone.Plain,
+    /** Once the day is on chain, the tonal pill that stands where the button was: when the next day opens, or that the end settles. */
+    val pill: String? = null,
 ) {
     /** Reps still owed today. */
     val owed: Int get() = (target - banked).coerceAtLeast(0)
@@ -71,6 +81,9 @@ data class DayState(
 
         /** After the last day is on the chain: the next day never opens, the end settles (FR-035a). */
         const val LAST_DAY = "That was the last day. It settles soon after the end, then your claim is ready."
+
+        /** The sub line before the first rep: a Holdout day is also today's Daily 25 (FR-050). */
+        const val COUNTS_AS_DAILY = "Counts as your Daily 25 too."
 
         const val NO_FEE = "Not enough devnet SOL for the fee. Test tokens include some."
 
@@ -106,6 +119,10 @@ data class DayState(
                 button = null,
                 offline = offline,
                 lastDay = lastDay,
+                number = reps.toString(),
+                unit = "push-ups",
+                numberTone = DayTone.Plain,
+                sub = COUNTS_AS_DAILY,
             )
             return when {
                 stage.todayDone -> base.copy(
@@ -115,6 +132,10 @@ data class DayState(
                     // The red countdown goes with the deadline; the next day's opening replaces it, and the last day has none.
                     text = if (lastDay) LAST_DAY else timeLeft?.let { "Day ${day + 1} opens in ${Format.countdown(it)}." },
                     timeLeft = null,
+                    unit = "on chain",
+                    numberTone = DayTone.Success,
+                    sub = if (lastDay) LAST_DAY else "Streak +1. It counted as your Daily 25.",
+                    pill = if (lastDay) "Settling after the end" else timeLeft?.let { "Day ${day + 1} opens in ${Format.countdown(it)}." },
                 )
                 waiting && mayStillLand -> base.copy(
                     phase = DayPhase.Unsent,
@@ -122,6 +143,9 @@ data class DayState(
                     tone = DayTone.Accent,
                     text = "Day $day may still land. Sending opens again once devnet answers.",
                     button = DayButton("Submit day $day", DayAction.Submit, enabled = false),
+                    unit = "done",
+                    numberTone = DayTone.Success,
+                    sub = "Day $day may still land. Sending opens again once devnet answers.",
                 )
                 waiting && !offline && !canPayFees -> base.copy(
                     phase = DayPhase.ShortOfSol,
@@ -129,6 +153,10 @@ data class DayState(
                     tone = DayTone.Accent,
                     text = "Not on chain yet.",
                     button = DayButton("Submit day $day", DayAction.Submit, enabled = false),
+                    unit = "done",
+                    numberTone = DayTone.Success,
+                    sub = "Not enough devnet SOL to put day $day on chain.",
+                    subTone = DayTone.Warning,
                 )
                 waiting -> {
                     val tap = !offline && !busy && autoSendTried
@@ -151,6 +179,13 @@ data class DayState(
                             !offline -> DayButton(Format.WAITING_FOR_WALLET, DayAction.None, busy = true)
                             else -> null
                         },
+                        unit = "done",
+                        numberTone = DayTone.Success,
+                        sub = when {
+                            offline -> "Saved on this phone. It sends when devnet answers."
+                            tap -> "Counted on this phone. It counts once it is on chain."
+                            else -> "Approve it in your wallet to put day $day on chain."
+                        },
                     )
                 }
                 else -> {
@@ -169,14 +204,27 @@ data class DayState(
                             else -> "all at once or $BLOCK at a time"
                         },
                         warning = warning,
-                        button = DayButton(if (banked > 0) "Keep going" else "Start today's $reps", DayAction.Start),
+                        button = DayButton(if (banked > 0) "Keep going" else "Start", DayAction.Start),
+                        number = (if (banked > 0 || warning) owed else reps).toString(),
+                        unit = when {
+                            warning -> "still needed"
+                            banked > 0 -> "to go"
+                            else -> "push-ups"
+                        },
+                        numberTone = if (warning) DayTone.Warning else DayTone.Plain,
+                        sub = when {
+                            warning -> "Under 10 minutes left. Unfinished reps won't count."
+                            banked > 0 -> "$banked banked for good"
+                            else -> COUNTS_AS_DAILY
+                        },
+                        subTone = if (warning) DayTone.Warning else DayTone.Plain,
                     )
                 }
             }
         }
 
         /**
-         * The sitting a Start tap opens, from Today or Standing alike: this Holdout's day. An exercise or a form this
+         * The sitting a Start tap opens, from Today or a Holdout's screen alike: this Holdout's day. An exercise or a form this
          * build does not know is refused, never guessed (FR-014, H30, H35).
          */
         fun start(h: Holdout, dayIndex: Int): NavEvent.StartSitting? = if (h.cohort.exercise == LeagueParams.EXERCISE_PUSHUP && Stakes.ofForm(h.cohort.form) != null) {

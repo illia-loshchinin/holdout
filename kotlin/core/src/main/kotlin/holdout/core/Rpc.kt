@@ -1,7 +1,6 @@
 package holdout.core
 
 import com.funkatronics.encoders.Base58
-import com.solana.networking.KtorNetworkDriver
 import com.solana.networking.Rpc20Driver
 import com.solana.publickey.SolanaPublicKey
 import com.solana.rpccore.JsonRpc20Request
@@ -46,15 +45,26 @@ import java.util.Base64
  */
 class Rpc(
     private val endpoint: String = DEVNET,
-    driver: Rpc20Driver = Rpc20Driver(endpoint, KtorNetworkDriver()),
+    driver: Rpc20Driver = Rpc20Driver(endpoint, RecoveringDriver.shared),
     /**
      * Told each call the cluster refused or did not answer, with its reason —
      * a rate limit, a timeout, a node error. A read still returns only null;
      * this is how the app's log says why (the app passes it, the crank not).
      */
     private val onFailure: (method: String, reason: String) -> Unit = { _, _ -> },
+    /**
+     * Throws the network client away so the next call builds a new one (FR-069i): by default the process's
+     * shared [RecoveringDriver], which every reader made without a driver of its own goes through.
+     */
+    private val reconnect: () -> Unit = { RecoveringDriver.shared.reset() },
 ) {
     private val rpc = driver
+
+    /**
+     * The member pressed *Retry*: drop the network client before the retry's read, so a client stuck after
+     * a network change cannot keep failing until the app is restarted (FR-069i). Sends nothing.
+     */
+    fun reset() = reconnect()
 
     /** The endpoint's host alone, for messages: a hosted node's URL can carry its API key. */
     private val host: String = runCatching { java.net.URI(endpoint).host }.getOrNull() ?: "the RPC node"

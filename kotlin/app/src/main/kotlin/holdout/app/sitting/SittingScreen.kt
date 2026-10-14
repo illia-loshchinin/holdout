@@ -34,10 +34,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
@@ -56,7 +55,6 @@ import holdout.repcounter.Angles
 import holdout.repcounter.ImagePose
 import holdout.repcounter.Lens
 import holdout.repcounter.PoseIndex
-import holdout.repcounter.PositionHint
 import holdout.repcounter.Side
 import java.util.concurrent.Executors
 import kotlin.math.atan
@@ -241,7 +239,7 @@ fun SittingScreen(
         if (state.step != SittingViewModel.Step.COMPLETE) {
             CameraFeed(viewModel, recordVideo = tools?.recordVideo == true, onVideoLost = tools?.onSetProblem ?: {})
             if (!cleanScreen) {
-                PositionOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
+                PositionOverlayLayer(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
                 SkeletonOverlay(viewModel, mirrored = CAMERA_IS_FRONT_FACING)
             }
         }
@@ -390,7 +388,7 @@ private fun KeepScreenOn() {
 }
 
 /**
- * The floor line and the outline to lie into.
+ * The floor line and the faint body outline to lie into ([PositionOverlay.parts]); no frame around them.
  *
  * Drawn under the skeleton, in the same letterboxed, mirrored frame the
  * skeleton uses, so the outline and the body sit in one coordinate system.
@@ -401,65 +399,84 @@ private fun KeepScreenOn() {
  * filming the demo.
  */
 @Composable
-private fun PositionOverlay(viewModel: SittingViewModel, mirrored: Boolean) {
+private fun PositionOverlayLayer(viewModel: SittingViewModel, mirrored: Boolean) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val guidance = state.guidance ?: return
     if (state.frameWidth <= 0 || state.frameHeight <= 0) return
-    // While the phone is not standing on the floor the outline has no floor to sit on: it only covers the
-    // "Stand phone up" words (owner, 12 Oct walk).
-    if (guidance.hint == PositionHint.AIM_AT_THE_FLOOR) return
+    val parts = PositionOverlay.parts(guidance)
+    // The parts are empty once aligned; the last ones stay drawn while they fade.
+    val lastParts = remember { LastParts(parts) }
+    if (parts.isNotEmpty()) lastParts.value = parts
 
     val alpha by animateFloatAsState(
-        targetValue = if (guidance.aligned) 0f else 1f,
+        targetValue = if (parts.isEmpty()) 0f else 1f,
         animationSpec = tween(durationMillis = 300),
         label = "overlay",
     )
     if (alpha <= 0.01f) return
 
+    PositionOverlayDrawing(lastParts.value, state.frameWidth, state.frameHeight, mirrored, alpha)
+}
+
+/** [parts] drawn over a [frameWidth] x [frameHeight] camera frame at [alpha], letterboxed and mirrored as the skeleton is. */
+@Composable
+internal fun PositionOverlayDrawing(parts: List<PositionOverlay.Part>, frameWidth: Int, frameHeight: Int, mirrored: Boolean, alpha: Float = 1f) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .alpha(alpha)
             .drawBehind {
-                val fit = letterbox(size.width, size.height, state.frameWidth, state.frameHeight)
+                val fit = letterbox(size.width, size.height, frameWidth, frameHeight)
+                parts.forEach { part ->
+                    when (part) {
+                        // Where the floor starts. Everything below it is somewhere the member could lie.
+                        is PositionOverlay.Part.Horizon -> {
+                            val y = fit.offsetY + part.y * fit.height
+                            drawLine(
+                                color = HoldoutColors.Accent.copy(alpha = 0.35f),
+                                start = Offset(fit.offsetX, y),
+                                end = Offset(fit.offsetX + fit.width, y),
+                                strokeWidth = 2f,
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(18f, 14f)),
+                            )
+                        }
 
-                // Where the floor starts. Everything below it is somewhere the
-                // member could lie.
-                guidance.horizonY?.let { horizon ->
-                    val y = fit.offsetY + horizon * fit.height
-                    drawLine(
-                        color = HoldoutColors.Accent.copy(alpha = 0.35f),
-                        start = Offset(fit.offsetX, y),
-                        end = Offset(fit.offsetX + fit.width, y),
-                        strokeWidth = 2f,
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(18f, 14f)),
-                    )
+                        // The outline of a body, faint; the box alone is not drawn.
+                        is PositionOverlay.Part.BodyOutline -> {
+                            val box = part.box
+                            val left = if (mirrored) 1f - box.right else box.left
+                            val originX = fit.offsetX + left * fit.width
+                            val originY = fit.offsetY + box.top * fit.height
+                            val width = 2f * box.halfWidth * fit.width
+                            val height = 2f * box.halfHeight * fit.height
+
+                            fun x(unit: Float) = originX + (if (mirrored) 1f - unit else unit) * width
+
+                            fun y(unit: Float) = originY + unit * height
+                            val path = Path().apply {
+                                PositionOverlay.OUTLINE_UNITS.forEach { segment ->
+                                    when (segment) {
+                                        is PositionOverlay.Segment.Move -> moveTo(x(segment.x), y(segment.y))
+                                        is PositionOverlay.Segment.Line -> lineTo(x(segment.x), y(segment.y))
+                                        is PositionOverlay.Segment.Curve -> cubicTo(x(segment.x1), y(segment.y1), x(segment.x2), y(segment.y2), x(segment.x), y(segment.y))
+                                    }
+                                }
+                                close()
+                            }
+                            drawPath(
+                                path,
+                                color = HoldoutColors.Accent.copy(alpha = 0.35f),
+                                style = Stroke(width = 3f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f))),
+                            )
+                        }
+                    }
                 }
-
-                val target = guidance.target
-                val left = if (mirrored) 1f - target.right else target.left
-                drawRoundRect(
-                    color = HoldoutColors.Accent,
-                    topLeft = Offset(
-                        fit.offsetX + left * fit.width,
-                        fit.offsetY + target.top * fit.height,
-                    ),
-                    size = Size(
-                        2f * target.halfWidth * fit.width,
-                        2f * target.halfHeight * fit.height,
-                    ),
-                    cornerRadius = CornerRadius(80f, 80f),
-                    style = Stroke(
-                        width = 6f,
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(28f, 20f)),
-                    ),
-                )
-
-                // The box alone: a figure inside it sat under the coach's words and said nothing they
-                // don't (owner, 12 Oct walk).
             },
     )
 }
+
+/** The overlay's last non-empty parts, kept so they can fade out after the member is in position. */
+private class LastParts(var value: List<PositionOverlay.Part>)
 
 /**
  * The lens's vertical field of view, which is what turns the phone's tilt into

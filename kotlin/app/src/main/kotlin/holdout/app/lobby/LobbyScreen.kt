@@ -48,7 +48,7 @@ object LobbyText {
     const val NO_POOL = "No prize pool until someone misses a day."
     const val APPROVE = "Approve in your wallet."
     const val UNTIL_CLOSES = "Until joining closes."
-    const val LOCKED_NOTE = "Joining closed. This is the final roster."
+    const val LOCKED_NOTE = "Joining closed. This is the final list of members."
 
     fun name(c: CohortSnapshot, test: Boolean): String = if (test) Format.testName(c) else Format.level(c)
 

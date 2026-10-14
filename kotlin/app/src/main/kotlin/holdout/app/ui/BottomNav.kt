@@ -10,16 +10,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -34,30 +35,35 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
-import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 
-/** One tab of the [BottomNav]: its label, icon, and the accessible name that says what its dot means. */
+/**
+ * One tab of the [BottomNav]. The bar draws no words (001 FR-069, 2026-10-13): [accessibleName] is what a
+ * screen reader hears — "Today, today's reps are not done" when the dot is on — so the dot's meaning is
+ * said, not coloured. [label] is the tab's plain name, kept for previews and tests; it is never drawn.
+ */
 data class BottomNavItem(
     val label: String,
     val icon: ImageVector,
     /** A dot on the pill's corner — never a count. */
     val dot: Boolean = false,
-    /** "Standing, 3 dropped since you last looked"; the label alone when there is no dot. */
+    /** "Holdouts, a claim is waiting"; the label alone when there is no dot. */
     val accessibleName: String = label,
 )
 
 /**
- * The bottom bar (DS BottomNav): four labelled tabs on `surface-2` with a
- * hairline top edge, `size-nav` tall. Each tab is a 56×32 pill holding a 24 dp
- * icon with a 12 sp/500 label under it; the active pill is white with a black
- * icon. A badge is an 8 dp accent dot on the pill's corner, its meaning in the
- * tab's accessible name. Shown on tab roots only — the shell decides.
+ * The bottom bar (DS BottomNav, v2): icon-only tabs on `surface-2` with a hairline top edge, `size-nav`
+ * tall. Each tab is a 64×40 pill holding a 24 dp icon, in a target at least 48 dp tall; the active pill is
+ * white with the icon in `on-light`, the others have no fill and a `text-secondary` icon. A badge is an
+ * 8 dp accent dot on the pill's corner, its meaning in the tab's accessible name. Shown on tab roots only
+ * — the shell decides.
  *
  * ```
  *  ─────────────────────────────────────────── hairline
- *   (⌂)        ∿•         ☰          ◯         56×32 pill, 24 dp icon, dot
- *  Today    Standing   Holdouts      Me        12 sp / 500
+ *    ┌────────┐
+ *    │   ▣ •  │       ⠿ •            ◯         64×40 pills, 24 dp icons, dot
+ *    └────────┘
+ *               (no text: the accessible name says it)
  * ```
  */
 @Composable
@@ -65,7 +71,7 @@ fun BottomNav(items: List<BottomNavItem>, selected: Int, onSelect: (Int) -> Unit
     Column(modifier.fillMaxWidth().background(HoldoutColors.Surface2)) {
         HorizontalDivider(thickness = Spacing.border, color = HoldoutColors.Hairline)
         Row(
-            modifier = Modifier.fillMaxWidth().height(Spacing.navHeight - Spacing.border).padding(horizontal = Spacing.tight),
+            modifier = Modifier.fillMaxWidth().height(Spacing.navHeight - Spacing.border).padding(horizontal = NAV_SIDE),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -76,28 +82,31 @@ fun BottomNav(items: List<BottomNavItem>, selected: Int, onSelect: (Int) -> Unit
 
 @Composable
 private fun NavTab(item: BottomNavItem, active: Boolean, onClick: () -> Unit) {
-    Column(
+    Box(
         modifier = Modifier
-            .widthIn(min = NAV_ITEM_MIN_WIDTH)
-            .clip(androidx.compose.material3.MaterialTheme.shapes.small)
+            .sizeIn(minWidth = TAB_WIDTH, minHeight = Spacing.touchTarget)
+            .clip(MaterialTheme.shapes.extraLarge)
             .selectable(selected = active, onClick = onClick, role = Role.Tab)
             .clearAndSetSemantics {
                 contentDescription = item.accessibleName
                 role = Role.Tab
                 selected = active
-            }
-            .padding(vertical = Spacing.base),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.base),
+            },
+        contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
                 .size(width = PILL_WIDTH, height = PILL_HEIGHT)
-                .clip(androidx.compose.material3.MaterialTheme.shapes.extraLarge)
-                .background(if (active) HoldoutColors.TextPrimary else HoldoutColors.Surface2),
+                .clip(MaterialTheme.shapes.extraLarge)
+                .background(if (active) HoldoutColors.TextPrimary else Color.Transparent),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(item.icon, contentDescription = null, tint = if (active) HoldoutColors.OnLight else HoldoutColors.TextTertiary, modifier = Modifier.size(ICON_SIZE))
+            Icon(
+                item.icon,
+                contentDescription = null,
+                tint = if (active) HoldoutColors.OnLight else HoldoutColors.TextSecondary,
+                modifier = Modifier.size(ICON_SIZE),
+            )
             if (item.dot) {
                 Box(
                     Modifier
@@ -109,37 +118,63 @@ private fun NavTab(item: BottomNavItem, active: Boolean, onClick: () -> Unit) {
                 )
             }
         }
-        Text(item.label, style = LabelStyle, color = if (active) HoldoutColors.TextPrimary else HoldoutColors.TextTertiary)
     }
 }
 
-/** The bar's four icons — house · pulse · list · person — drawn from the design book's BottomNav preview (24×24, 2 px round strokes). */
+/**
+ * The bar's icons, drawn in code (24×24; research R25): [Today] a calendar with today's square filled,
+ * [Holdouts] a 3 × 3 dot grid forming an H with the top and bottom middle dots at 35 %, [Me] a person.
+ * The colour here is a placeholder; the bar tints each one.
+ */
 object NavIcons {
-    val House: ImageVector = stroked("house", "M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z")
-    val Pulse: ImageVector = stroked("pulse", "M3 12h4l2.5-6 5 12 2.5-6h4")
-    val List: ImageVector = stroked("list", "M5 6h14M5 12h14M5 18h14")
-
-    // The preview's circle (cx 12, cy 8, r 4) as two arcs, then the shoulders.
-    val Person: ImageVector = stroked("person", "M16 8a4 4 0 1 1-8 0a4 4 0 1 1 8 0z M4.5 20a7.5 7.5 0 0 1 15 0")
-
-    private fun stroked(name: String, path: String): ImageVector = ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f)
-        .addPath(
-            pathData = addPathNodes(path),
-            stroke = SolidColor(HoldoutColors.TextPrimary),
-            strokeLineWidth = 2f,
-            strokeLineCap = StrokeCap.Round,
-            strokeLineJoin = StrokeJoin.Round,
-        )
+    val Today: ImageVector = ImageVector.Builder("today", 24.dp, 24.dp, 24f, 24f)
+        .stroked("M6.5 5h11a3 3 0 0 1 3 3v9.5a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3z M3.5 10h17 M8 2.8v4 M16 2.8v4")
+        .filled("M8.5 13h2.5a1 1 0 0 1 1 1v2.5a1 1 0 0 1-1 1H8.5a1 1 0 0 1-1-1V14a1 1 0 0 1 1-1z")
         .build()
+
+    val Holdouts: ImageVector = ImageVector.Builder("holdouts", 24.dp, 24.dp, 24f, 24f)
+        .filled(dots(5f to 5f, 5f to 12f, 5f to 19f, 19f to 5f, 19f to 12f, 19f to 19f, 12f to 12f))
+        .filled(dots(12f to 5f, 12f to 19f), alpha = QUIET_DOT_ALPHA)
+        .build()
+
+    // A circle (cx 12, cy 8, r 4) as two arcs, then the shoulders.
+    val Me: ImageVector = ImageVector.Builder("me", 24.dp, 24.dp, 24f, 24f)
+        .stroked("M16 8a4 4 0 1 1-8 0a4 4 0 1 1 8 0z M4.5 20a7.5 7.5 0 0 1 15 0")
+        .build()
+
+    /** One path of circles (two arcs each) of radius [DOT_RADIUS] around the given centres. */
+    private fun dots(vararg centres: Pair<Float, Float>): String = centres.joinToString(" ") { (x, y) ->
+        "M${x - DOT_RADIUS} ${y}a$DOT_RADIUS $DOT_RADIUS 0 1 1 ${2 * DOT_RADIUS} 0a$DOT_RADIUS $DOT_RADIUS 0 1 1 -${2 * DOT_RADIUS} 0z"
+    }
+
+    private fun ImageVector.Builder.stroked(path: String): ImageVector.Builder = addPath(
+        pathData = addPathNodes(path),
+        stroke = SolidColor(HoldoutColors.TextPrimary),
+        strokeLineWidth = 2f,
+        strokeLineCap = StrokeCap.Round,
+        strokeLineJoin = StrokeJoin.Round,
+    )
+
+    private fun ImageVector.Builder.filled(path: String, alpha: Float = 1f): ImageVector.Builder = addPath(
+        pathData = addPathNodes(path),
+        fill = SolidColor(HoldoutColors.TextPrimary),
+        fillAlpha = alpha,
+    )
+
+    private const val DOT_RADIUS = 2.6f
+    private const val QUIET_DOT_ALPHA = 0.35f
 }
 
-private val PILL_WIDTH = 56.dp
-private val PILL_HEIGHT = 32.dp
+private val PILL_WIDTH = 64.dp
+
+/** The tab target is 72 dp wide, in a bar padded 40 dp each side and spaced around, as on the boards. */
+private val TAB_WIDTH = 72.dp
+private val NAV_SIDE = 40.dp
+private val PILL_HEIGHT = 40.dp
 private val ICON_SIZE = 24.dp
 private val DOT_SIZE = 8.dp
-private val DOT_INSET_TOP = 3.dp
-private val DOT_INSET_END = 13.dp
-private val NAV_ITEM_MIN_WIDTH = 64.dp
+private val DOT_INSET_TOP = 6.dp
+private val DOT_INSET_END = 14.dp
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
@@ -147,10 +182,9 @@ private fun BottomNavPreview() {
     HoldoutTheme {
         BottomNav(
             items = listOf(
-                BottomNavItem("Today", NavIcons.House),
-                BottomNavItem("Standing", NavIcons.Pulse, dot = true, accessibleName = "Standing, 3 dropped since you last looked"),
-                BottomNavItem("Holdouts", NavIcons.List),
-                BottomNavItem("Me", NavIcons.Person),
+                BottomNavItem("Today", NavIcons.Today, dot = true, accessibleName = "Today, today's reps are not done"),
+                BottomNavItem("Holdouts", NavIcons.Holdouts),
+                BottomNavItem("Me", NavIcons.Me),
             ),
             selected = 0,
             onSelect = {},

@@ -30,6 +30,24 @@ class StakeTierTest {
     }
 
     @Test
+    fun `the pick survives How it works, by finishing the tour and by Back`() {
+        val picked = open().then(NavEvent.StakeTier(3))
+        val tour = picked.then(NavEvent.OpenTour(startCard = 2, returnTo = picked.sheet as Sheet.Stake))
+        assertNull(tour.sheet)
+        assertEquals(Sheet.Stake(cohort, 3, SeekerStatus.Confirmed), tour.then(NavEvent.TourDone).sheet)
+        assertEquals(Sheet.Stake(cohort, 3, SeekerStatus.Confirmed), tour.then(NavEvent.Back).sheet)
+        assertNull(tour.then(NavEvent.TourDone).tour)
+    }
+
+    @Test
+    fun `a chip pick while the tour is open does not open the sheet nor change the tier it returns to`() {
+        val picked = open().then(NavEvent.StakeTier(1))
+        val tour = picked.then(NavEvent.OpenTour(startCard = 2, returnTo = picked.sheet as Sheet.Stake))
+        assertNull(tour.then(NavEvent.StakeTier(3)).sheet)
+        assertEquals(Sheet.Stake(cohort, 1, SeekerStatus.Confirmed), tour.then(NavEvent.StakeTier(3), NavEvent.TourDone).sheet)
+    }
+
+    @Test
     fun `a pick with no stake sheet open changes nothing`() {
         val home = NavState().then(NavEvent.Connected(tourSeen = true))
         assertEquals(home, home.then(NavEvent.StakeTier(1)))

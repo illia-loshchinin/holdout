@@ -66,6 +66,8 @@ class HoldoutViewModel(
         val view: ChainView? = null,
         /** The chain can't be reached: two snapshot reads in a row failed, or the first with no view yet (001 FR-071); [view] is the previous one, if any. */
         val offline: Boolean = false,
+        /** When [view] was read: the monotonic clock in milliseconds at the last answer, for "Showing what it said 4m ago." (FR-069h); null before the first. */
+        val viewReadAt: Long? = null,
         /** An action is waiting on the wallet or on devnet. */
         val busy: Boolean = false,
         /** What the last action said, for the screen it was taken on. */
@@ -85,6 +87,9 @@ class HoldoutViewModel(
         /** The outcomes of signatures the member left before they came back, oldest first, a Notice card each on the screen they went to (at most [UnseenTx.MAX_CARDS]). */
         val unseen: List<UnseenTx> = emptyList(),
     ) {
+        /** Whole seconds since [view] was read, at monotonic time [nowMillis]; null before any read answered. */
+        fun readAgoSeconds(nowMillis: Long): Long? = viewReadAt?.let { ((nowMillis - it) / 1_000).coerceAtLeast(0) }
+
         /** The transaction that keeps [action] on [cohort] shut, if one may still land. */
         fun pendingFor(action: SignAction, cohort: SolanaPublicKey, day: Int = 0): PendingTx? = pending.firstOrNull { it.isFor(action, cohort, day) }
     }
@@ -113,7 +118,7 @@ class HoldoutViewModel(
      * Reads [cohort]'s roster (one `getProgramAccounts`, sliced — R8); a failed read keeps the last one.
      * It runs in [scope]: a check's roster read is a child of the check, so leaving the front cancels it.
      * A cohort's read still out answers for any asked meanwhile — the 30-second pass, a screen opened
-     * twice, the Standing dot's own loop — so the same `getProgramAccounts` is never in flight twice.
+     * twice, the app's own loop for the Holdout Today is about — so the same `getProgramAccounts` is never in flight twice.
      * A roster is read again only when its cohort's counters have moved since its last answer (a member
      * joined or left, a forfeit recorded, a member counted, the cohort settled) or once that answer is
      * [maxAgeMillis] old — 30 seconds for a Holdout running its day, whose submits show in no counter,
@@ -367,7 +372,7 @@ class HoldoutViewModel(
                 // the next read fails too (R8). With no view yet there is nothing to keep showing.
                 it.copy(offline = it.offline || it.view == null || failedReads >= OFFLINE_AFTER_FAILED_READS)
             } else {
-                it.copy(view = view, offline = false, autoSubmit = if (back) it.autoSubmit.answered() else it.autoSubmit, check = it.check.answered()).settle(view, readAt)
+                it.copy(view = view, offline = false, viewReadAt = elapsed(), autoSubmit = if (back) it.autoSubmit.answered() else it.autoSubmit, check = it.check.answered()).settle(view, readAt)
             }
         }
         if (view != null && back) keepAutoSubmit()
@@ -386,6 +391,8 @@ class HoldoutViewModel(
         if (refresher == null) return
         val step = _state.value.check.request(_state.value.offline)
         if (!step.read) return
+        // The chain may be fine and the app's own client stuck (FR-069i): the retry reads through a new one.
+        rpc.reset()
         _state.update { it.copy(check = step.next) }
         val wallet = address
         // Any earlier check has finished (a request while one is out joins it); what it left running goes too.

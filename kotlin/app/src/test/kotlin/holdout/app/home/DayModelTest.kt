@@ -36,15 +36,91 @@ class DayModelTest {
     ) = DayState.of(cohort, Stage.Active(index, done), at, banked, pending, tried, offline, busy, fees, mayStillLand)
 
     @Test
-    fun `nothing banked - the target, how to do it, and Start today's 25 with the deadline`() {
+    fun `nothing banked - the target, how to do it, and Start with the deadline`() {
         val d = day()
         assertEquals(DayPhase.ToDo, d.phase)
         assertEquals("25 push-ups", d.title)
         assertEquals("all at once or 10 at a time", d.text)
-        assertEquals(DayButton("Start today's 25", DayAction.Start), d.button)
+        assertEquals(DayButton("Start", DayAction.Start), d.button)
         assertEquals(14_760L, d.timeLeft)
         assertEquals(12, d.day)
         assertEquals(11, d.dayIndex)
+    }
+
+    @Test
+    fun `nothing banked - the hero reads 25 push-ups, and that it counts as the Daily 25 too`() {
+        val d = day()
+        assertEquals("25", d.number)
+        assertEquals("push-ups", d.unit)
+        assertEquals(DayTone.Plain, d.numberTone)
+        assertEquals("Counts as your Daily 25 too.", d.sub)
+        assertEquals(DayTone.Plain, d.subTone)
+        assertNull(d.pill)
+    }
+
+    @Test
+    fun `part-way - the hero counts down what is left and says what is banked for good`() {
+        val d = day(banked = 10)
+        assertEquals("15", d.number)
+        assertEquals("to go", d.unit)
+        assertEquals("10 banked for good", d.sub)
+    }
+
+    @Test
+    fun `the last 10 minutes - still needed, in warning, with the words`() {
+        val d = day(banked = 10, at = START + 12 * DAY - 1 - 510)
+        assertEquals("15", d.number)
+        assertEquals("still needed", d.unit)
+        assertEquals(DayTone.Warning, d.numberTone)
+        assertEquals("Under 10 minutes left. Unfinished reps won't count.", d.sub)
+        assertEquals(DayTone.Warning, d.subTone)
+    }
+
+    @Test
+    fun `done and offline - the hero is 25 done, saved on this phone, sent when devnet answers`() {
+        val d = day(pending = 11, offline = true)
+        assertEquals("25", d.number)
+        assertEquals("done", d.unit)
+        assertEquals(DayTone.Success, d.numberTone)
+        assertEquals("Saved on this phone. It sends when devnet answers.", d.sub)
+    }
+
+    @Test
+    fun `done online - the sub line says what the wallet does or what a tap does`() {
+        assertEquals("Approve it in your wallet to put day 12 on chain.", day(pending = 11, busy = true).sub)
+        assertEquals("Counted on this phone. It counts once it is on chain.", day(pending = 11, tried = true).sub)
+        assertEquals("Day 12 may still land. Sending opens again once devnet answers.", day(pending = 11, tried = true, mayStillLand = true).sub)
+    }
+
+    @Test
+    fun `done but short of SOL - the sub line says so in warning`() {
+        val d = day(pending = 11, fees = false)
+        assertEquals("Not enough devnet SOL to put day 12 on chain.", d.sub)
+        assertEquals(DayTone.Warning, d.subTone)
+        assertEquals("done", d.unit)
+    }
+
+    @Test
+    fun `on chain - the hero reads on chain with the streak, and the pill counts to the next day`() {
+        val d = day(done = true)
+        assertEquals("25", d.number)
+        assertEquals("on chain", d.unit)
+        assertEquals(DayTone.Success, d.numberTone)
+        assertEquals("Streak +1. It counted as your Daily 25.", d.sub)
+        assertEquals("Day 13 opens in 4h 06m.", d.pill)
+    }
+
+    @Test
+    fun `the last day on chain - the sub line says it was the last and the pill says it settles`() {
+        val d = day(done = true, index = 20, at = START + 21 * DAY - 14_760 - 1)
+        assertEquals(DayState.LAST_DAY, d.sub)
+        assertEquals("Settling after the end", d.pill)
+    }
+
+    @Test
+    fun `the hero's number is the Holdout's own target`() {
+        assertEquals("5", day(cohort = habit.copy(repsPerDay = 5)).number)
+        assertEquals("2", day(cohort = habit.copy(repsPerDay = 5), banked = 3).number)
     }
 
     @Test
@@ -146,14 +222,14 @@ class DayModelTest {
         val d = day(index = 20, at = START + 21 * DAY - 14_760 - 1)
         assertTrue(d.lastDay)
         assertEquals(DayPhase.ToDo, d.phase)
-        assertEquals("Start today's 25", d.button?.label)
+        assertEquals("Start", d.button?.label)
     }
 
     @Test
     fun `the Holdout's own target names the day`() {
         val d = day(cohort = habit.copy(repsPerDay = 5))
         assertEquals("5 push-ups", d.title)
-        assertEquals("Start today's 5", d.button?.label)
+        assertEquals("Start", d.button?.label)
         assertEquals(5, d.target)
     }
 

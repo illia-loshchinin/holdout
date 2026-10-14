@@ -86,6 +86,13 @@ class LeaderboardScreenTest {
     }
 
     @Test
+    fun `the header says Me - the board is reached from Me, and there is no Standing tab to name`() {
+        show()
+        compose.onNodeWithText("ME").assertIsDisplayed()
+        compose.onNodeWithText("STANDING").assertDoesNotExist()
+    }
+
+    @Test
     fun `ranked - the member is told their place and the sections are counted`() {
         show()
 

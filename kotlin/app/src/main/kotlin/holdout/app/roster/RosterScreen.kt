@@ -40,7 +40,7 @@ import holdout.core.MembershipSnapshot
 import holdout.core.ScriptedWallets
 
 /**
- * The roster (H5, board 14; FR-062, FR-064): still standing first, then the
+ * Members (H5, board 14; FR-062, FR-064): still standing first, then the
  * fallen by days lasted, each under its own header. **No amounts anywhere** — a
  * roster ranks nobody by money (FR-063, constitution XIII). Every scripted
  * member carries `◇ SCRIPTED`, from the bundled list, with no server
@@ -48,7 +48,7 @@ import holdout.core.ScriptedWallets
  * camera-verified.
  *
  * ```
- *  ‹            ROSTER                          ScreenHeader · Back goes to where it was opened
+ *  ‹            MEMBERS                         ScreenHeader · Back goes to where it was opened
  *  Habit · 21-day · day 12 of 21                title
  *  No amounts here … not camera-verified …      note
  *  STILL STANDING · 189                         SectionLabel
@@ -86,12 +86,12 @@ fun RosterScreen(
             .background(HoldoutColors.Canvas)
             .padding(horizontal = Spacing.screenGutter),
     ) {
-        item { ScreenHeader("roster", onBack = onBack, modifier = Modifier.padding(top = Spacing.screenGutter)) }
+        item { ScreenHeader("members", onBack = onBack, modifier = Modifier.padding(top = Spacing.screenGutter)) }
         if (h.isTest) item { TestCohortBadge(c.dayLength, Modifier.padding(top = Spacing.tight)) }
         item { Text(RosterText.title(c, now), style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextPrimary, modifier = Modifier.padding(top = Spacing.betweenItems)) }
         item { Text(RosterText.NOTE, style = LabelStyle, color = HoldoutColors.TextTertiary, modifier = Modifier.padding(top = Spacing.tight, bottom = Spacing.betweenItems)) }
         if (roster == null) {
-            item { Reading { SectionLabel("Reading the roster…") } }
+            item { Reading { SectionLabel("Reading the members…") } }
             items(PLACEHOLDER_ROWS) { PlaceholderRow() }
             return@LazyColumn
         }

@@ -104,5 +104,11 @@ class StreakStore(private val store: Store) {
 
         /** The most freezes held at once (H35). */
         const val MAX_FREEZES = 2
+
+        /**
+         * Days of streak still to go before the next freeze is earned (a freeze for every seventh day, FR-049),
+         * or null when [freezes] are already the most that are held. A broken streak starts again from 0.
+         */
+        fun daysToNextFreeze(streak: Int, freezes: Int): Int? = if (freezes >= MAX_FREEZES) null else FREEZE_EVERY_DAYS - streak.coerceAtLeast(0) % FREEZE_EVERY_DAYS
     }
 }

@@ -2,45 +2,42 @@ package holdout.app.home
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import holdout.app.chain.Deployment
 import holdout.app.chain.Holdout
-import holdout.app.holdout.CheckAgainCopy
-import holdout.app.ui.BankRing
-import holdout.app.ui.Body
+import holdout.app.nav.NavEvent
+import holdout.app.nav.Screen
+import holdout.app.nav.Tab
 import holdout.app.ui.ChainCheckBox
-import holdout.app.ui.ChainUnreachable
-import holdout.app.ui.CheckAgain
-import holdout.app.ui.CountdownText
+import holdout.app.ui.DevnetBar
 import holdout.app.ui.Format
-import holdout.app.ui.HoldoutCard
 import holdout.app.ui.Notice
-import holdout.app.ui.ProgressRing
 import holdout.app.ui.StreakFlame
 import holdout.app.ui.StreakState
 import holdout.app.ui.TestCohortBadge
-import holdout.app.ui.bankBlocks
 import holdout.app.ui.theme.HoldoutColors
+import holdout.app.ui.theme.HoldoutFonts
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 import holdout.core.Derive
@@ -48,38 +45,39 @@ import holdout.core.MembershipSnapshot
 import holdout.core.Stage
 
 /**
- * Today, with a Holdout running (screen map T2, board 5 · 5b; FR-038, FR-046,
- * FR-047, FR-069a, T073, T067): **the day is the screen** — what to do now and
- * how long there is to do it. The crowd shrinks to one strip under it that opens
- * the Standing tab, where the counter, the thinning, the prize pool, the share
- * and the boost live (FR-069b). The strip's figures come from `Derive` over chain
- * accounts and chain time, so they move at the deadline itself, not when a crank
- * gets round to recording it (FR-038a).
+ * Today, with a Holdout running (screen map T2, FR-038, FR-046, FR-047, FR-069a, FR-069h, T073, T067):
+ * **the day is the screen** — what to do now and how long there is to do it, in the same 312 dp
+ * [DayHero] as the Daily 25 (a Holdout's day also counts as the Daily 25, FR-050). The crowd shrinks to
+ * the hero's footer strip, which opens the Holdout's screen above Today, where the counter, the thinning,
+ * the prize pool, the share and the boost live (FR-069b). The strip's figures come from `Derive` over
+ * chain accounts and chain time, so they move at the deadline itself, not when a crank gets round to
+ * recording it (FR-038a).
  *
  * ```
- *  [DEVNET COHORT badge]
- *  HABIT · 21-DAY · DAY 12 OF 21                          🔥 12      header label, no dates · streak chip
- *  (ring)  25 push-ups                                              BankRing · the day's title
- *          all at once or 10 at a time
- *          4h 06m left                                              CountdownText
- *  [ Start today's 25 ]                                             the day button
- *  ┌ 189 of 312 still standing · your share 255 SKR   › ┐          the crowd strip → Standing
+ *  TODAY  [DEVNET COHORT badge]                           🔥 12     header · the streak chip, a button to Me
+ *  ( ● Devnet isn't answering              Retry )                  DevnetBar, only while devnet is silent
+ *  ┌ HABIT · 21-DAY · DAY 12 OF 21          4h 06m left ┐   DayHero, 312 dp in every state
+ *  │                    25                              │
+ *  │                  PUSH-UPS                          │
+ *  │ ▬▬▬▬▬▬▬▬ ▬▬▬▬▬▬▬▬ ▬▬▬▬▬                            │   BankBars 10 / 10 / 5
+ *  │ Counts as your Daily 25 too.                       │
+ *  │ ( Start )                                          │
+ *  ├────────────────────────────────────────────────────┤
+ *  │ 189 of 312 still standing · your share 255 SKR   ›  │   the crowd strip → the Holdout's screen
  *  │ ▲ 3 dropped since yesterday                         │
- *  └─────────────────────────────────────────────────────┘
+ *  └────────────────────────────────────────────────────┘
+ *  ( Claim 1,412 SKR      Spark · 7-day  › )                            the rows group, a little apart
+ *    2 open to join · from 9,000 SKR ›                              one quiet offers row → Holdouts
  * ```
  *
- * The day itself — its title, words, button and deadline — is [DayState], the
- * same model Standing's day strip draws. One Holdout day only: no Daily 25 link
- * and no offers here, since a Holdout day counts for the streak (B-D1, FR-050).
- * The day button is "Start today's 25", "Keep going" or "Submit day N"; a
- * completed day waiting to reach the chain reads "Done — waiting for network"
- * while it cannot, is sent by itself once it can, and shows "Done — tap to
- * submit" only if that send did not land (FR-024b, T098). Once the day is on
- * the chain the deadline countdown goes: the next day's opening (or, on the
- * last day, that the end settles) takes its place. Inside the last 10 minutes
- * the ring and the line turn warning and say unfinished reps won't count —
- * never a refusal to start (FR-047). While the chain can't be reached, "Check
- * again" sits under what says so, and a pull down checks too (spec 005).
+ * The day itself — its number, words, button and deadline — is [DayState], the same model the Holdout's
+ * "your day" strip draws. The day button is *Start*, *Keep going* or *Submit day N*; a completed day
+ * waiting to reach the chain reads *Done — waiting for network* (not pressable) while it cannot, is sent
+ * by itself once it can, and shows *Submit day N* only if that send did not land (FR-024b, T098). Once
+ * the day is on the chain the deadline countdown goes: the next day's opening (or, on the last day, that
+ * the end settles) takes its place. Inside the last 10 minutes the number, the bars and the line turn
+ * warning and say unfinished reps won't count — never a refusal to start (FR-047). While devnet can't be
+ * reached the devnet bar sits under the header and a pull down checks too (spec 005, FR-069h).
  */
 @Composable
 fun CohortHome(
@@ -100,27 +98,31 @@ fun CohortHome(
     messageIsWarning: Boolean,
     onStart: () -> Unit,
     onSubmit: (day: Int) -> Unit,
-    /** The counter is a link to who is still standing (the Standing tab). */
-    onDetail: () -> Unit,
+    /** The crowd strip opens the Holdout's screen (`Open(Screen.Detail)`), the streak chip and the offers row switch tabs. */
+    onEvent: (NavEvent) -> Unit,
     /** The faucet: a member whose SOL has run out cannot pay to submit a day. */
     onGetTokens: () -> Unit,
     modifier: Modifier = Modifier,
     /** The new-phone signal (`NewPhone.shows`): this phone first saw the wallet today and has nothing banked, so say so before the day starts (ES-3a). */
     newPhone: Boolean = false,
-    /** The daily streak, for the footer. */
+    /** The daily streak, for the chip. */
     streak: Int = 0,
     /** The wallet holds enough SOL for the submit's fee (ES-0a). */
     canPayFees: Boolean = true,
     /** A send of today's day may still land: Submit stays shut, and the day says so (FR-070a). */
     mayStillLand: Boolean = false,
-    /** A member's "Check again" is out (spec 005). */
+    /** A member's "Retry" is out (spec 005). */
     checking: Boolean = false,
-    /** The last "Check again" found the chain still silent. */
+    /** The last "Retry" found the chain still silent. */
     stillUnreachable: Boolean = false,
     /** Reads the chain now; offered only while [offline]. */
     onCheck: () -> Unit = {},
-    /** The member's other Holdouts — a lobby joined for later, a claim waiting — one line each. */
-    otherHoldouts: @Composable () -> Unit = {},
+    /** The member's other Holdouts — a lobby joined for later, a claim waiting — one row each. */
+    nudges: List<NudgeRowState> = emptyList(),
+    /** The way back after a lost stake, one tap (FR-037g). */
+    comeback: ComebackCardState? = null,
+    /** The offers the running Holdout allows, as one quiet row; null when there are none or a lobby place is held. */
+    offers: OffersRow? = null,
 ) {
     val c = h.cohort
     val figures = members?.let { Derive.figures(c, it, now, boostReserve = h.league?.boostReserve) }
@@ -133,6 +135,7 @@ fun CohortHome(
         share = if (figures != null && me != null) figures.projectedShare(me) else null,
         dropped = since?.dropped ?: 0,
     )
+    val apart = Modifier.padding(top = TODAY_APART)
 
     ChainCheckBox(offline, checking, onCheck, modifier) {
         Column(
@@ -141,53 +144,92 @@ fun CohortHome(
                 .background(HoldoutColors.Canvas)
                 .verticalScroll(rememberScrollState())
                 .padding(Spacing.screenGutter),
-            verticalArrangement = Arrangement.spacedBy(Spacing.betweenSections),
+            verticalArrangement = Arrangement.spacedBy(TODAY_GAP),
         ) {
-            if (h.isTest) TestCohortBadge(c.dayLength, Modifier.align(Alignment.CenterHorizontally))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
-                Text(Format.headerLabel(c, d.day), style = LabelStyle, color = HoldoutColors.TextTertiary, modifier = Modifier.weight(1f))
-                StreakFlame(streak, if (d.phase == DayPhase.OnChain) StreakState.ExtendedToday else StreakState.Active, chip = true)
-            }
-
-            // Offline, a sitting can still be done, but not submitted: said before it starts, not after the set.
-            // A waiting day has its own notice, under its line.
-            if (offline && d.phase != DayPhase.OnChain && d.phase != DayPhase.Unsent) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
-                    Notice(
-                        if (stillUnreachable) CheckAgainCopy.stillUnreachable(Deployment.networkName) else CheckAgainCopy.unreachable(Deployment.networkName),
-                        warning = true,
-                    )
-                    Body("You can still do today's reps. The day only counts once it reaches the chain before the deadline.")
-                    CheckAgain(checking, stillUnreachable = false, onCheck = onCheck)
+            Row(Modifier.fillMaxWidth().height(HEADER_HEIGHT), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+                    Text("TODAY", style = LabelStyle, color = HoldoutColors.TextTertiary)
+                    if (h.isTest) TestCohortBadge(c.dayLength)
                 }
+                StreakFlame(streak, if (d.phase == DayPhase.OnChain) StreakState.ExtendedToday else StreakState.Active, chip = true, onClick = { onEvent(NavEvent.SelectTab(Tab.Me)) })
             }
-            // Nothing else here says so: the crowd strip is an earlier read (spec 005 US2).
-            if (offline && d.phase == DayPhase.OnChain) ChainUnreachable(checking, stillUnreachable, onCheck)
-            if (newPhone && d.phase == DayPhase.ToDo) Banner(NewPhone.line(d.target), warning = false)
+            // Said once, under the header, whatever the day is doing: a sitting can still be done, and the button over the line says what happens to a finished day.
+            if (offline) DevnetBar(Deployment.networkName, stillUnreachable, checking, DEVNET_SUB, onCheck)
 
-            DayRow(
-                ring = {
-                    when (d.phase) {
-                        DayPhase.OnChain -> ProgressRing("Today is on chain", done = true, size = RING)
-                        DayPhase.ToDo -> BankRing(d.target, d.banked / DayState.BLOCK, d.banked, "banked", size = RING, bankedColor = if (d.warning) HoldoutColors.Warning else HoldoutColors.Accent)
-                        else -> BankRing(d.target, bankBlocks(d.target).size, d.target, "done", size = RING)
-                    }
+            DayHero(
+                label = Format.headerLabel(c, d.day, h.isTest),
+                countdown = d.timeLeft?.let { seconds -> { HeroCountdown(seconds) } },
+                number = d.number,
+                unit = d.unit,
+                numberColor = d.numberTone.color(),
+                bars = {
+                    BankBars(
+                        target = d.target,
+                        banked = if (d.phase == DayPhase.ToDo) d.banked else d.target,
+                        fill = when {
+                            d.warning -> HoldoutColors.Warning
+                            d.phase == DayPhase.ToDo -> HoldoutColors.Accent
+                            else -> HoldoutColors.Success
+                        },
+                    )
                 },
-                title = d.title,
-                titleColor = d.tone.color(),
-                text = d.text,
-                timeLeft = d.timeLeft,
+                // The new-phone line takes the sub line before the first rep (FR-069f).
+                sub = { HeroSub(if (newPhone && d.phase == DayPhase.ToDo && d.banked == 0) NewPhone.line(d.target) else d.sub, d.subTone) },
+                button = { DayButtonSlot(d, offline, onStart, onSubmit, onGetTokens) },
+                footerHeight = HERO_FOOTER_TALL,
+                footer = {
+                    HeroFooter(
+                        onClick = { onEvent(NavEvent.Open(Screen.Detail(h.address.base58()))) },
+                        onClickLabel = "Who is still standing",
+                        description = crowd.spoken,
+                    ) { Crowd(crowd) }
+                },
             )
-            if (offline && d.phase == DayPhase.Unsent) {
-                ChainUnreachable(checking, stillUnreachable, onCheck)
-            }
-            DayActions(d, onStart, onSubmit, onGetTokens)
             // "Day N is on chain." repeats the done card's title: only a warning gets a line of its own.
             Notice(message.takeIf { messageIsWarning }, messageIsWarning)
 
-            Crowd(crowd, onDetail)
-            otherHoldouts()
+            // The member's other Holdouts that need a tap: their own group, a little apart from the hero.
+            if (nudges.isNotEmpty() || comeback != null) {
+                Column(apart, verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+                    nudges.forEach { NudgeRow(it) { onEvent(it.go) } }
+                    comeback?.let { ComebackCard(it) { onEvent(it.go) } }
+                }
+            }
+            // The offers a running Holdout allows are one quiet row; the cards are on Holdouts.
+            offers?.let { QuietRow(it.line, Modifier, mono = it.from) { onEvent(NavEvent.SelectTab(Tab.Holdouts)) } }
         }
+    }
+}
+
+/** The devnet bar's line for Today in a Holdout: the reps are counted on the phone whatever devnet does. */
+private const val DEVNET_SUB = "Your reps still count on this phone."
+
+private val HEADER_HEIGHT = 32.dp
+
+/**
+ * The hero's one button, whatever the day is doing: the day's own button ([DayState.button]); *Get test
+ * tokens* when a finished day cannot pay its fee; the disabled *Done — waiting for network* while it
+ * cannot be sent; and, once the day is on chain, the tonal pill with when the next day opens.
+ */
+@Composable
+private fun DayButtonSlot(d: DayState, offline: Boolean, onStart: () -> Unit, onSubmit: (dayIndex: Int) -> Unit, onGetTokens: () -> Unit) {
+    val button = d.button
+    when {
+        d.phase == DayPhase.OnChain -> d.pill?.let { HeroPill(it) }
+        d.phase == DayPhase.ShortOfSol -> HeroButton("Get test tokens", onGetTokens)
+        d.phase == DayPhase.Unsent && offline && button == null -> HeroButton(d.title, onClick = {}, enabled = false)
+        button != null -> HeroButton(
+            button.label,
+            {
+                when (button.action) {
+                    DayAction.Start -> onStart()
+                    DayAction.Submit -> onSubmit(d.dayIndex)
+                    DayAction.None -> Unit
+                }
+            },
+            enabled = button.enabled,
+            busy = button.busy,
+        )
     }
 }
 
@@ -197,50 +239,38 @@ fun CohortHome(
  */
 private data class CrowdStrip(val standing: Int, val total: Long, val share: ULong?, val dropped: Int) {
     val line: String get() = "$standing of $total still standing" + (share?.takeIf { it > 0uL }?.let { " · your share ${Format.skr(it)}" } ?: "")
+
+    /** [line] as the boards set it: the counts and the share in white, the share in the mono face, the words between in the secondary colour. */
+    val styled: AnnotatedString get() = buildAnnotatedString {
+        withStyle(SpanStyle(color = HoldoutColors.TextPrimary)) { append("$standing of $total") }
+        append(" still standing")
+        share?.takeIf { it > 0uL }?.let {
+            append(" · your share ")
+            withStyle(SpanStyle(fontFamily = HoldoutFonts.Mono, color = HoldoutColors.TextPrimary)) { append(Format.skr(it)) }
+        }
+    }
+
+    /** The strip's accessible name: the line, who dropped, and where it goes. */
+    val spoken: String get() = line + (if (dropped > 0) ", $dropped dropped since yesterday" else "") + ". Opens the Holdout."
 }
 
 /**
- * The crowd, shrunk to one tappable strip under the day (Decision 1): the line, a chevron,
- * and `▲ n dropped since yesterday` under it when anyone did. It opens the Standing tab,
- * where the counter, the thinning, the pool and the roster live.
+ * The crowd, shrunk to the hero's footer (Decision 1): the line and, under it, `▲ n dropped since yesterday`
+ * when anyone did. The strip opens the Holdout's screen, where the counter, the thinning, the pool and the
+ * members live.
  */
 @Composable
-private fun Crowd(crowd: CrowdStrip, onDetail: () -> Unit) {
-    HoldoutCard(Modifier.clickable(onClickLabel = "Who is still standing", role = Role.Button, onClick = onDetail)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
-            Text(crowd.line, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.TextPrimary, modifier = Modifier.weight(1f))
-            Text("›", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.TextTertiary)
-        }
+private fun Crowd(crowd: CrowdStrip) {
+    Column(verticalArrangement = Arrangement.spacedBy(CROWD_GAP)) {
+        Text(crowd.styled, style = HeroSmall, color = HoldoutColors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (crowd.dropped > 0) Dropped(crowd.dropped)
     }
 }
 
-/** The ring and its lines: what today is, what to do about it, and how long is left to do it. */
-@Composable
-private fun DayRow(ring: @Composable () -> Unit, title: String, titleColor: Color, text: String?, timeLeft: Long?) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenSections)) {
-        ring()
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, color = titleColor)
-            text?.let { Body(it) }
-            timeLeft?.let {
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.base), verticalAlignment = Alignment.Bottom) {
-                    CountdownText(it)
-                    Text("left", style = LabelStyle, color = HoldoutColors.TextSecondary)
-                }
-            }
-        }
-    }
-}
-
-/** `▲ 3 dropped since yesterday`: the day's loss to the crowd, in the colour of a good thing for the share. */
+/** `▲ 3 dropped since yesterday`: 12 sp in the tertiary colour, the triangle with it (the boards draw it as a glyph in the same grey). */
 @Composable
 private fun Dropped(count: Int) {
-    val words = "$count dropped since yesterday"
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.tight),
-    ) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.base)) {
         Canvas(Modifier.size(TRIANGLE)) {
             val path = Path().apply {
                 moveTo(size.width / 2, 0f)
@@ -248,12 +278,13 @@ private fun Dropped(count: Int) {
                 lineTo(0f, size.height * TRIANGLE_DROP)
                 close()
             }
-            drawPath(path, HoldoutColors.Success)
+            drawPath(path, HoldoutColors.TextTertiary)
         }
-        Text(words, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Success)
+        Text("$count dropped since yesterday", style = HeroSmall.copy(fontSize = 12.sp, lineHeight = 14.sp), color = HoldoutColors.TextTertiary)
     }
 }
 
+private val CROWD_GAP = 6.dp
+
 private const val TRIANGLE_DROP = 0.8f
-private val RING: Dp = 96.dp
-private val TRIANGLE = 10.dp
+private val TRIANGLE = 8.dp

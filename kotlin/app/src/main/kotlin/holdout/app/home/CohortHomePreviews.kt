@@ -72,7 +72,7 @@ private fun Today(
             messageIsWarning = false,
             onStart = {},
             onSubmit = {},
-            onDetail = {},
+            onEvent = {},
             onGetTokens = {},
             streak = 12,
             canPayFees = canPayFees,

@@ -27,14 +27,18 @@ data class ChainCheck(
     fun answered(): ChainCheck = ChainCheck()
 }
 
-/** The words of "Check again" (spec 005, contracts/check-again-ui.md): they name the network, never "offline". */
+/**
+ * The words of the devnet bar's *Retry* (spec 005, contracts/check-again-ui.md; reworded by 001 FR-069h,
+ * 2026-10-14): they name the network, never "offline". A line starts with the network, so a local build's
+ * "The local validator" keeps its capital.
+ */
 object CheckAgainCopy {
-    const val BUTTON = "Check again"
+    const val BUTTON = "Retry"
 
-    // Mid-sentence, a local build's "The local validator" drops its capital; "Devnet" keeps its own.
-    fun checking(network: String) = "Checking ${network.replaceFirst(Regex("^The "), "the ")}…"
+    /** The button while a check's read is out. */
+    const val CHECKING = "Checking…"
 
-    fun stillUnreachable(network: String) = "$network still can't be reached."
+    fun stillUnreachable(network: String) = "$network still isn't answering"
 
-    fun unreachable(network: String) = "$network can't be reached right now."
+    fun unreachable(network: String) = "$network isn't answering"
 }

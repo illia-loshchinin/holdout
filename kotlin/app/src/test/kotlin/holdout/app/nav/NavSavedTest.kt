@@ -29,26 +29,26 @@ class NavSavedTest {
             NavEvent.SelectTab(Tab.Holdouts),
             NavEvent.Open(Screen.Lobby(a)),
             NavEvent.Open(Screen.Roster(a)),
-            NavEvent.SelectTab(Tab.Standing),
             NavEvent.Open(Screen.Detail(b)),
-            NavEvent.Open(Screen.Leaderboards(Leaderboard.Board.HARD_21D)),
             NavEvent.SelectTab(Tab.Me),
+            NavEvent.Open(Screen.Leaderboards(Leaderboard.Board.HARD_21D)),
             NavEvent.Open(Screen.About),
             NavEvent.SelectTab(Tab.Today),
+            NavEvent.Open(Screen.Detail(a)),
             NavEvent.Open(Screen.Forfeit(a)),
             NavEvent.Open(Screen.Claim(b)),
-            NavEvent.SelectTab(Tab.Standing),
+            NavEvent.SelectTab(Tab.Holdouts),
         )
         val back = roundTrip(s)
         assertTrue(back.connected)
-        assertEquals(Tab.Standing, back.tab)
+        assertEquals(Tab.Holdouts, back.tab)
         assertEquals(s.stacks, back.stacks)
     }
 
     @Test
     fun `every leaderboard comes back as itself`() {
         for (board in Leaderboard.Board.entries) {
-            val s = connected().then(NavEvent.SelectTab(Tab.Standing), NavEvent.Open(Screen.Leaderboards(board)))
+            val s = connected().then(NavEvent.SelectTab(Tab.Me), NavEvent.Open(Screen.Leaderboards(board)))
             assertEquals(Screen.Leaderboards(board), roundTrip(s).top)
         }
     }
@@ -70,7 +70,7 @@ class NavSavedTest {
         val sitting = connected().then(NavEvent.StartSitting(Sitting.Daily25(5)))
         assertEquals(null, roundTrip(sitting).sitting)
         assertEquals(Tab.Today, roundTrip(sitting).tab)
-        val tour = connected().then(NavEvent.OpenTour)
+        val tour = connected().then(NavEvent.OpenTour())
         assertEquals(null, roundTrip(tour).tour)
     }
 
@@ -97,6 +97,31 @@ class NavSavedTest {
         assertTrue(back.stacks.isEmpty())
         assertFalse(NavSaved.decode(listOf("v9", "tab|Me")).connected, "an unknown version is not guessed at")
         assertFalse(NavSaved.decode(null).connected)
+    }
+
+    @Test
+    fun `a v1 state saved on the retired Standing tab restores on Today, its stack dropped, the others kept`() {
+        val saved = listOf(
+            "v1",
+            "tab|Standing",
+            "stack|Holdouts|Lobby|$a",
+            "stack|Standing|Detail|$b",
+            "stack|Standing|Roster|$b",
+            "stack|Me|About",
+            "stack|Today|Forfeit|$a",
+        )
+        val back = NavSaved.decode(saved)
+        assertTrue(back.connected)
+        assertEquals(Tab.Today, back.tab)
+        assertEquals(mapOf(Tab.Holdouts to listOf<Screen>(Screen.Lobby(a)), Tab.Me to listOf<Screen>(Screen.About), Tab.Today to listOf<Screen>(Screen.Forfeit(a))), back.stacks)
+        assertEquals(Screen.Forfeit(a), back.top, "Today's own pushed screen is shown")
+        // Standing at its root, no stack: Today's root.
+        val root = NavSaved.decode(listOf("v1", "tab|Standing"))
+        assertEquals(Tab.Today, root.tab)
+        assertTrue(root.onRoot)
+        // And re-saved, the state is a plain three-tab one in the same format.
+        assertEquals("v1", NavSaved.encode(back).first())
+        assertEquals(back.stacks, roundTrip(back).stacks)
     }
 
     @Test

@@ -81,7 +81,7 @@ private fun MenuRowPreview() {
     HoldoutTheme {
         Column(Modifier.padding(Spacing.screenGutter), verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
             MenuRow("About Holdout", "devnet · test token", onClick = {})
-            MenuRow("How Holdout works", "5 cards", onClick = {})
+            MenuRow("How Holdout works", "6 cards", onClick = {})
         }
     }
 }

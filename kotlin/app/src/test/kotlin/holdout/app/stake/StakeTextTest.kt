@@ -7,7 +7,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 /** The stake confirm's sentences (FR-041, ES-12, rulings G2, G5): worded once, for each level. */
 class StakeTextTest {
@@ -40,30 +39,19 @@ class StakeTextTest {
     }
 
     @Test
-    fun `the fee sentence names the Holdout's own level and length, a no-break space before every percent`() {
-        val fee = StakeText.fee(habit, false)
-        assertEquals(
-            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, 20 % to the project. If nobody finishes, the pool boosts later Habit · 21-day prizes.",
-            fee,
-        )
-        assertTrue(Regex("\\d %").findAll(fee).none())
+    fun `the sheet's one line on losing is pinned word for word, with no split in it`() {
+        assertEquals("Miss a day and you lose your stake.", StakeText.MISS_A_DAY)
+        assertEquals("How it works", StakeText.HOW_IT_WORKS)
+        assertFalse("%" in StakeText.MISS_A_DAY)
+        assertFalse("nobody" in StakeText.MISS_A_DAY)
     }
 
     @Test
-    fun `a test Holdout's fee sentence names the Hackathon by its form, not its length`() {
-        val fee = StakeText.fee(spark, true)
-        assertTrue("boosts later Hackathon · Spark prizes." in fee, fee)
-        assertFalse("7-day" in fee)
-        assertTrue("boosts later Hackathon · Habit prizes." in StakeText.fee(habit, true))
-    }
-
-    @Test
-    fun `a test Holdout's fee sentence is pinned word for word`() {
-        assertEquals(
-            "Miss a day and you lose your stake: 70 % to the prize pool, 10 % set aside for your comeback, " +
-                "20 % to the project. If nobody finishes, the pool boosts later Hackathon · Habit prizes.",
-            StakeText.fee(habit, true),
-        )
+    fun `the prize boost line shows only when the reserve holds more than nothing`() {
+        assertEquals("Prize boost: up to 480 SKR", StakeText.boost(480uL * skr))
+        assertEquals("Prize boost: up to 1,200 SKR", StakeText.boost(1_200uL * skr))
+        assertNull(StakeText.boost(0uL))
+        assertNull(StakeText.boost(null))
     }
 
     @Test
@@ -96,7 +84,7 @@ class StakeTextTest {
 
     @Test
     fun `none of the stake sheet's words is banned in member copy`() {
-        val words = listOf(StakeText.NO_DROPOUT, StakeText.FULL_REFUND, StakeText.NOTIFICATION_REASON, StakeText.FOOTER, StakeText.fee(spark, false), StakeText.fee(habit, false), StakeText.SHORT_OF_SOL)
+        val words = listOf(StakeText.NO_DROPOUT, StakeText.FULL_REFUND, StakeText.NOTIFICATION_REASON, StakeText.FOOTER, StakeText.MISS_A_DAY, StakeText.HOW_IT_WORKS, StakeText.boost(480uL * skr).orEmpty(), StakeText.SHORT_OF_SOL)
         words.forEach { w -> listOf("earn", "challenge", "cohort", "league", "Easy", "Hard").forEach { assertFalse(it in w, "$it in $w") } }
     }
 }

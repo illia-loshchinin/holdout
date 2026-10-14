@@ -21,11 +21,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
+import holdout.app.chain.Deployment
 import holdout.app.chain.Holdout
 import holdout.app.holdouts.MyHoldoutsModel
 import holdout.app.ui.Body
 import holdout.app.ui.ChainCheckBox
-import holdout.app.ui.ChainUnreachable
+import holdout.app.ui.DevnetBar
+import holdout.app.ui.DevnetBarCopy
 import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
 import holdout.app.ui.KeyValueRow
@@ -93,11 +95,13 @@ fun ForfeitScreen(
     joinBlocker: Journey.JoinBlocker? = null,
     /** Opens the stake sheet on the lost stake's tier, for the offer's next open round. */
     onJoin: () -> Unit = {},
-    /** The last chain read failed (spec 005): the line, Check again and the pull. */
+    /** The last chain read failed (spec 005, FR-069h): the devnet bar under the header, and the pull. */
     offline: Boolean = false,
     checking: Boolean = false,
     stillUnreachable: Boolean = false,
     onCheck: () -> Unit = {},
+    /** How old the read the screen shows is, in seconds, for the bar's "Showing what it said 4m ago."; null when unknown. */
+    readAgoSeconds: Long? = null,
     /** The Holdout's roster, once read: the summary card's counts. Null shows the strip alone. */
     members: List<MembershipSnapshot>? = null,
     /** Opens the place the member holds in a round of the offer; null shows no such button. */
@@ -122,7 +126,7 @@ fun ForfeitScreen(
         ) {
             ScreenHeader(DetailText.label(c, now), onBack = onBack, backDescription = "Back to Holdouts")
             if (h.isTest) TestCohortBadge(c.dayLength, Modifier.align(Alignment.CenterHorizontally))
-            if (offline) ChainUnreachable(checking, stillUnreachable, onCheck)
+            if (offline) DevnetBar(Deployment.networkName, stillUnreachable, checking, DevnetBarCopy.showing(readAgoSeconds), onCheck)
 
             Summary(c, stage.daysLasted, figures)
 

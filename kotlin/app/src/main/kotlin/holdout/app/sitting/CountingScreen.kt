@@ -12,11 +12,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,7 +31,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -43,6 +49,7 @@ import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
+import holdout.repcounter.RepHint
 import kotlinx.coroutines.launch
 
 /** What the counting page shows (board 6). [done] is banked plus this set; [loose] is this set only, and goes if the sitting stops. */
@@ -86,16 +93,20 @@ internal fun CountingContent(ui: CountingUi, onStop: () -> Unit, modifier: Modif
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             SittingTopBar(ui.header.label, onStop)
+            // Hints and statuses sit at the top, directly under the header, soft and announced politely (FR-021, 2026-10-13).
             Column(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = Spacing.betweenItems)
+                    .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(Spacing.tight, Alignment.CenterVertically),
             ) {
                 ui.hint?.let { Hint(it) }
                 if (ui.justBanked && ui.hint == null) BankedPill()
-                // No "unfinished reps" sentence during the sitting (owner, 12 Oct): the member is already doing the
-                // day; Today and the day strip say it. The time line alone turns to a warning.
             }
+            // No "unfinished reps" sentence during the sitting (owner, 12 Oct): the member is already doing the
+            // day; Today and the day strip say it. The time line alone turns the soft warm tone.
+            Spacer(Modifier.weight(1f))
             Column(
                 modifier = Modifier.padding(bottom = Spacing.betweenSections),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -107,7 +118,7 @@ internal fun CountingContent(ui: CountingUi, onStop: () -> Unit, modifier: Modif
                     Text("${ui.banked} banked · ${ui.loose} this set", style = LabelStyle, color = HoldoutColors.TextSecondary)
                     ui.header.timeLeft?.let { left ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.base)) {
-                            CountdownText(left, style = SmallAmount)
+                            CountdownText(left, style = SmallAmount, lateColor = HoldoutColors.SoftWarm)
                             Text("left", style = SmallAmount, color = HoldoutColors.TextSecondary)
                         }
                     }
@@ -175,58 +186,100 @@ private fun Count(done: Int, target: Int) {
     }
 }
 
-/** A refused rep's reason, in a pill on the camera: twice the title size — read from the floor, at arm's length (002 FR-019). */
+/**
+ * A refused rep's reason (002 FR-019), soft: a calm dark pill with a thin accent ring and a small round icon
+ * — an arrow down for "Go lower", a line for "Keep your body straight" — the words at 26 sp, readable from
+ * the floor. Never the warning red: coaching guides, it does not scold (FR-021, 2026-10-13).
+ */
 @Composable
 private fun Hint(text: String) {
+    val glyph = hintGlyphFor(text)
     val title = MaterialTheme.typography.titleMedium
     Row(
         modifier = Modifier
-            .background(HoldoutColors.Surface2.copy(alpha = PILL_FILL), RoundedCornerShape(percent = 50))
-            .border(Spacing.border, HoldoutColors.Warning.copy(alpha = HINT_BORDER), RoundedCornerShape(percent = 50))
-            .padding(horizontal = Spacing.betweenSections, vertical = Spacing.betweenItems),
+            .background(HoldoutColors.Surface1.copy(alpha = PILL_FILL), CircleShape)
+            .border(Spacing.border, HoldoutColors.Accent.copy(alpha = HINT_RING), CircleShape)
+            .padding(start = Spacing.betweenItems + Spacing.base, end = HintEndPadding, top = Spacing.tight + Spacing.base / 2, bottom = Spacing.tight + Spacing.base / 2),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
     ) {
-        Canvas(Modifier.size(HintIcon)) {
-            val x = size.width / 2
-            drawLine(HoldoutColors.Warning, Offset(x, size.height * 0.2f), Offset(x, size.height * 0.62f), HINT_STROKE.dp.toPx(), StrokeCap.Round)
-            drawLine(HoldoutColors.Warning, Offset(x, size.height * 0.84f), Offset(x, size.height * 0.86f), HINT_STROKE.dp.toPx(), StrokeCap.Round)
-        }
+        Canvas(
+            Modifier
+                .size(HintBadge)
+                .background(HoldoutColors.Accent.copy(alpha = HINT_BADGE_FILL), CircleShape)
+                .testTag("hint-icon-${glyph.name.lowercase()}"),
+        ) { drawGlyph(glyph) }
         Text(
             text = text,
-            style = title.copy(fontSize = title.fontSize * 2, lineHeight = title.lineHeight * 2),
+            style = title.copy(fontSize = HINT_TEXT_SP.sp, lineHeight = HINT_LINE_SP.sp),
             color = HoldoutColors.TextPrimary,
             textAlign = TextAlign.Center,
         )
     }
 }
 
-/** The moment a block of 10 is banked: it cannot be lost now (also chimed and spoken). */
+/** The moment a block of 10 is banked: it cannot be lost now (also chimed and spoken). A softer green than a loss is red. */
 @Composable
 private fun BankedPill() {
     Row(
         modifier = Modifier
-            .background(HoldoutColors.Surface2.copy(alpha = PILL_FILL), RoundedCornerShape(percent = 50))
-            .border(Spacing.border, HoldoutColors.Success.copy(alpha = BANKED_BORDER), RoundedCornerShape(percent = 50))
-            .padding(horizontal = Spacing.betweenItems, vertical = Spacing.tight),
+            .background(HoldoutColors.Surface1.copy(alpha = PILL_FILL), CircleShape)
+            .border(Spacing.border, HoldoutColors.Success.copy(alpha = BANKED_BORDER), CircleShape)
+            .padding(horizontal = Spacing.betweenItems + Spacing.base, vertical = Spacing.tight + Spacing.base / 2),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.tight),
     ) {
-        Canvas(Modifier.size(HintIcon)) {
-            val stroke = HINT_STROKE.dp.toPx()
+        Canvas(Modifier.size(BankedIcon)) {
+            val stroke = BANKED_STROKE.dp.toPx()
             drawLine(HoldoutColors.Success, Offset(size.width * 0.2f, size.height * 0.55f), Offset(size.width * 0.42f, size.height * 0.77f), stroke, StrokeCap.Round)
             drawLine(HoldoutColors.Success, Offset(size.width * 0.42f, size.height * 0.77f), Offset(size.width * 0.8f, size.height * 0.27f), stroke, StrokeCap.Round)
         }
-        Text("Block of 10 banked", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Success)
+        Text("Block of 10 banked", style = MaterialTheme.typography.bodyMedium, color = HoldoutColors.Success)
+    }
+}
+
+/** The small round icon in a hint's pill. */
+internal enum class HintGlyph { ARROW_DOWN, LINE, DOT }
+
+/** Which icon a refused rep's [message] gets: an arrow down for "Go lower", a line for "Keep your body straight", a dot for the rest. */
+internal fun hintGlyphFor(message: String): HintGlyph = when (message) {
+    RepHint.GO_LOWER.message -> HintGlyph.ARROW_DOWN
+    RepHint.KEEP_BODY_STRAIGHT.message -> HintGlyph.LINE
+    else -> HintGlyph.DOT
+}
+
+private fun DrawScope.drawGlyph(glyph: HintGlyph) {
+    // The board draws them on an 18-unit square inside the 32 dp badge.
+    val unit = HintGlyphSize.toPx() / GLYPH_UNITS
+    val origin = (size.width - HintGlyphSize.toPx()) / 2
+    fun at(x: Float, y: Float) = Offset(origin + x * unit, origin + y * unit)
+    val stroke = GLYPH_STROKE * unit
+    when (glyph) {
+        HintGlyph.ARROW_DOWN -> {
+            drawLine(HoldoutColors.Accent, at(9f, 3f), at(9f, 14f), stroke, StrokeCap.Round)
+            drawLine(HoldoutColors.Accent, at(4.5f, 9.5f), at(9f, 14f), stroke, StrokeCap.Round)
+            drawLine(HoldoutColors.Accent, at(13.5f, 9.5f), at(9f, 14f), stroke, StrokeCap.Round)
+        }
+        HintGlyph.LINE -> drawLine(HoldoutColors.Accent, at(3f, 9f), at(15f, 9f), stroke, StrokeCap.Round)
+        HintGlyph.DOT -> drawCircle(HoldoutColors.Accent, stroke * DOT_RADIUS_FACTOR, at(9f, 9f))
     }
 }
 
 private val SmallAmount = AmountStyle.copy(fontSize = 14.sp, lineHeight = 18.sp)
-private val HintIcon = 20.dp
-private const val HINT_STROKE = 2.4f
+private val HintBadge = 32.dp
+private val HintGlyphSize = 18.dp
+private val HintEndPadding = 22.dp
+private val BankedIcon = 16.dp
+private const val HINT_TEXT_SP = 26
+private const val HINT_LINE_SP = 34
+private const val GLYPH_UNITS = 18f
+private const val GLYPH_STROKE = 2f
+private const val DOT_RADIUS_FACTOR = 1.5f
+private const val BANKED_STROKE = 1.8f
 private const val PILL_FILL = 0.9f
-private const val HINT_BORDER = 0.4f
-private const val BANKED_BORDER = 0.32f
+private const val HINT_RING = 0.28f
+private const val HINT_BADGE_FILL = 0.14f
+private const val BANKED_BORDER = 0.28f
 private const val PULSE_FROM = 1.35f
 private const val RISE_MILLIS = 750
 private const val RISE_DP = 90
@@ -248,6 +301,18 @@ private fun previewUi(done: Int, banked: Int, loose: Int, hint: String? = null, 
 @Composable
 private fun CountingPreview() {
     HoldoutTheme { CountingContent(previewUi(17, 10, 7, hint = "Go lower"), {}) }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000, widthDp = 390, heightDp = 844)
+@Composable
+private fun CountingBodyStraightPreview() {
+    HoldoutTheme { CountingContent(previewUi(17, 10, 7, hint = "Keep your body straight"), {}) }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF000000, widthDp = 390, heightDp = 844)
+@Composable
+private fun CountingBankedPreview() {
+    HoldoutTheme { CountingContent(previewUi(20, 20, 0).copy(justBanked = true), {}) }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000, widthDp = 390, heightDp = 844)

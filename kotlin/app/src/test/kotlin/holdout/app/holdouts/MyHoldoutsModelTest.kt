@@ -147,7 +147,7 @@ class MyHoldoutsModelTest {
     }
 
     @Test
-    fun `the state has no running list - other people's pools are Standing's`() {
+    fun `the state carries no running list - Running now rows are built apart, for any wallet`() {
         val watched = holdout(1, start - 2 * day, null)
         val s = MyHoldoutsModel.build(view(watched), start)
         assertTrue(s.empty)
@@ -200,12 +200,20 @@ class MyHoldoutsModelTest {
     }
 
     @Test
-    fun `running row - a running Holdout watched from outside, read-only, opening H4 (Standing's empty state)`() {
+    fun `running row - a running Holdout watched from outside, read-only, opening H4 on Holdouts`() {
         val watched = holdout(1, start - 2 * day, null)
         val row = MyHoldoutsModel.runningRow(watched, start, null)
         assertEquals(watched.id, row.cohort)
         assertEquals("Spark · 7-day · day 3 of 7", row.name)
         assertEquals("12 started · prize pool 0 SKR", row.line)
+        assertEquals(NavEvent.Open(Screen.Detail(watched.id)), row.go)
+    }
+
+    @Test
+    fun `running row - once the roster is read it says how many still stand of how many started`() {
+        val watched = holdout(1, start - 2 * day, null)
+        val row = MyHoldoutsModel.runningRow(watched, start, holdout.app.testing.Fx.roster(standing = 7, out = 3))
+        assertEquals("7 still standing of 12 · prize pool 0 SKR", row.line)
         assertEquals(NavEvent.Open(Screen.Detail(watched.id)), row.go)
     }
 

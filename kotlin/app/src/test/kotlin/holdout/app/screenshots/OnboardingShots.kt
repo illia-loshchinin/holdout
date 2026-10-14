@@ -12,11 +12,13 @@ import holdout.app.me.MeScreen
 import holdout.app.me.MeState
 import holdout.app.nav.Tab
 import holdout.app.nav.TabBadges
+import holdout.app.streak.ToesMeter
 import holdout.app.testutil.AnimationsOff
 import holdout.app.tour.TourScreen
 import holdout.app.ui.StreakState
 import holdout.app.wallet.ConnectScreen
 import holdout.app.wallet.WalletRepository
+import holdout.app.welcome.WelcomeScreen
 import holdout.core.CohortSnapshot
 import holdout.core.LeagueParams
 import holdout.core.LeagueSnapshot
@@ -27,7 +29,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** First open and the connect screen's states, the four tour cards, Me, the faucet sheet and About. */
+/** The welcome, First open and the connect screen's states, the six tour cards, Me, the faucet sheet and About. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = PHONE_QUALIFIERS)
@@ -60,6 +62,7 @@ class OnboardingShots {
         holdout(cohort(1, now - 2 * day, LeagueParams.FORM_KNEES_ALLOWED, 7, joined = 20, held = 12_500_000_000uL, pool = 6_125_000_000uL)),
         holdout(cohort(2, now + 5 * day, LeagueParams.FORM_KNEES_ALLOWED, 7, joined = 14, held = 12_500_000_000uL), boost = 480_000_000uL),
         holdout(cohort(3, now - 11 * day, LeagueParams.FORM_TOES, 21, joined = 312, pool = 48_200_000_000uL)),
+        holdout(cohort(4, now + 5 * day, LeagueParams.FORM_TOES, 21, joined = 9, held = 9_000_000_000uL), boost = 1_200_000_000uL),
     )
 
     private fun connect(name: String, busy: Boolean = false, message: String? = null, noWallet: Boolean = false, live: List<Holdout> = emptyList()) = compose.shoot("onboarding", name, heightDp = 1100) {
@@ -81,18 +84,32 @@ class OnboardingShots {
     @Test
     fun connectWrongNetwork() = connect("connect-wrong-network", message = WalletRepository.WRONG_NETWORK)
 
+    /** The board's frame: two running Holdouts and the wrong-network notice on one Seeker screen (400 x 829 dp). */
+    @Test
+    fun connectLiveWrongNetwork() = compose.shoot("onboarding", "connect-live-wrong-network", heightDp = 829) {
+        ConnectScreen(busy = false, message = WalletRepository.WRONG_NETWORK, noWallet = false, live = live, now = now, onConnect = {})
+    }
+
     @Test
     fun connectFailed() = connect("connect-failed", message = "java.net.SocketTimeoutException: connect timed out")
 
+    // ---- Welcome ----------------------------------------------------------------------------------------
+
+    @Test
+    fun welcome() = compose.shoot("onboarding", "welcome") { WelcomeScreen(wallet = WALLET, seekerId = "nova.skr", onStart = {}, onSkip = {}) }
+
+    @Test
+    fun welcomeNoName() = compose.shoot("onboarding", "welcome-no-name") { WelcomeScreen(wallet = WALLET, seekerId = null, onStart = {}, onSkip = {}) }
+
     // ---- Tour -------------------------------------------------------------------------------------------
 
-    // Card 4's figure is read from the assets on a background dispatcher, which Compose's idling does not wait for.
+    // Card 5's figure is read from the assets on a background dispatcher, which Compose's idling does not wait for.
     private fun tour(card: Int) = compose.shoot(
         "onboarding",
         "tour-$card",
         after = {
             repeat(card - 1) { onNodeWithText("Next").performClick() }
-            if (card == 4) {
+            if (card == 5) {
                 repeat(10) {
                     Thread.sleep(200)
                     mainClock.advanceTimeBy(100)
@@ -117,19 +134,29 @@ class OnboardingShots {
     @Test
     fun tour5() = tour(5)
 
+    @Test
+    fun tour6() = tour(6)
+
+    private companion object {
+        const val WALLET = "7xQpAbCdEfGhJkLmNpQrStUvWxYz123456783fA9"
+    }
+
     // ---- Me ---------------------------------------------------------------------------------------------
 
     private val meState = MeState(
-        wallet = "7xQpAbCdEfGhJkLmNpQrStUvWxYz123456783fA9",
+        wallet = WALLET,
         skr = 4_750_000_000uL,
         lamports = 12_000_000L,
         faucetSkr = 5_000_000_000uL,
         streak = 12,
         freezes = 1,
+        longest = 21,
+        toes = ToesMeter.Meter(toes = 18, measured = 25, week = listOf(0, 10, 25, 25, 0, 18, 18), best = 25),
+        leaderboardMeta = "#4 in Spark · 7-day",
     )
 
     private fun me(name: String, state: MeState, badges: TabBadges = TabBadges()) = compose.shoot("onboarding", name, heightDp = 1000) {
-        Tabbed(Tab.Me, badges) { MeScreen(state, onGetTokens = {}, onAbout = {}, onTour = {}, onDisconnect = {}) }
+        Tabbed(Tab.Me, badges) { MeScreen(state, onGetTokens = {}, onAbout = {}, onDisconnect = {}) }
     }
 
     @Test
@@ -141,7 +168,7 @@ class OnboardingShots {
     // ---- Faucet sheet, About ------------------------------------------------------------------------------
 
     private fun faucet(name: String, outcome: FaucetOutcome? = null, back: String? = null, busy: Boolean = false) = compose.shoot("onboarding", name) {
-        Sheeted(behind = { Tabbed(Tab.Me) { MeScreen(meState, {}, {}, {}, {}) } }) {
+        Sheeted(behind = { Tabbed(Tab.Me) { MeScreen(meState, {}, {}, {}) } }) {
             FaucetSheet(
                 skr = 400_000_000uL,
                 lamports = 1_000L,

@@ -12,6 +12,8 @@ import holdout.core.MembershipSnapshot
  * ruling G3), no amount that is not a figure of the chain (FR-038a).
  */
 internal object DetailText {
+    /** The button to the page of everyone in the Holdout (FR-062, 2026-10-13: not the old word for it). */
+    const val MEMBERS = "Members"
     const val WATCHING = "You're watching this one"
     const val WATCHER_NOTE = "You can watch it thin. Joining is for Seeker owners."
     const val SHARE_NOTE = "on top of your stake, if today's standing holds"
@@ -22,15 +24,6 @@ internal object DetailText {
         CohortStatus.Running -> Format.headerLabel(c, (Derive.dayIndex(c, now) + 1).coerceIn(1, c.durationDays))
         CohortStatus.Settling, CohortStatus.Settled -> Format.finishedHeaderLabel(c)
     }
-
-    /** Days still to come after today (ruling D-D5: today is not one of them). */
-    fun daysToGo(c: CohortSnapshot, now: Long): Int = (c.durationDays - (Derive.dayIndex(c, now) + 1)).coerceIn(0, c.durationDays)
-
-    /** `11 of 21 days`. */
-    fun daysDone(done: Int, c: CohortSnapshot): String = "${done.coerceIn(0, c.durationDays)} of ${c.durationDays} days"
-
-    /** Full days that have passed, for a watcher who has none of their own. */
-    fun daysPassed(c: CohortSnapshot, now: Long): Int = Derive.dayIndex(c, now).coerceIn(0, c.durationDays)
 
     /** Members standing at the start, then after each deadline that has passed. */
     fun thinning(c: CohortSnapshot, members: List<MembershipSnapshot>, now: Long): List<Int> = listOf(c.memberCount.toInt()) + survivorHistory(c, members, now).map { it.second }

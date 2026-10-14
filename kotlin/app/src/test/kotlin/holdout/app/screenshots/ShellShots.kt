@@ -38,11 +38,8 @@ class ShellShots {
     fun today() = bar(Tab.Today, TabBadges(today = true))
 
     @Test
-    fun standing() = bar(Tab.Standing, TabBadges(standingDropped = 3))
-
-    @Test
     fun holdouts() = bar(Tab.Holdouts, TabBadges(holdouts = true))
 
     @Test
-    fun me() = bar(Tab.Me, TabBadges(today = true, standingDropped = 3, holdouts = true, me = true))
+    fun me() = bar(Tab.Me, TabBadges(today = true, holdouts = true, me = true))
 }

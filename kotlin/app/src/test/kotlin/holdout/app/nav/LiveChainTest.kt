@@ -10,11 +10,16 @@ class LiveChainTest {
     private val home = NavState(connected = true)
 
     @Test
-    fun `the connect screen, Today, Standing and Holdouts read`() {
+    fun `the connect screen, Today and Holdouts read`() {
         assertTrue(NavState(connected = false).showsLiveChain)
         assertTrue(home.showsLiveChain)
-        assertTrue(home.copy(tab = Tab.Standing).showsLiveChain)
         assertTrue(home.copy(tab = Tab.Holdouts).showsLiveChain)
+    }
+
+    @Test
+    fun `a Holdout's screen pushed over Today, and the leaderboards pushed over Me, read`() {
+        assertTrue(home.copy(tab = Tab.Today, stacks = mapOf(Tab.Today to listOf(Screen.Detail("c")))).showsLiveChain)
+        assertTrue(home.copy(tab = Tab.Me, stacks = mapOf(Tab.Me to listOf(Screen.Leaderboards(Leaderboard.Board.entries.first())))).showsLiveChain)
     }
 
     @Test

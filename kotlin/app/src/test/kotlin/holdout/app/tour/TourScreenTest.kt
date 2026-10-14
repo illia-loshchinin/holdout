@@ -1,10 +1,15 @@
 package holdout.app.tour
 
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -19,11 +24,12 @@ import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
 
 /**
- * B1/B2 the first-run tour (boards TourDaily, Tour, TourMoney, TourCounting,
- * Disclosure; FR-067, spec 004 FR-012/FR-013): five cards, "how it works · N of
- * 5", Skip on the first four goes to the fifth (the scripted-member note is
- * required on first run), Back steps back a card, Start on the last one
- * finishes. Nothing for judges, no Holdout Lab, no dates.
+ * B1/B2 the first-run tour (boards TourDaily, Tour, TourPlay, TourMoney,
+ * TourCounting, Disclosure; FR-067, spec 004 FR-012/FR-013): six cards, "how it
+ * works · N of 6", Skip on the first five goes to the sixth (the scripted-member
+ * note is required on first run), Back steps back a card, Start on the last one
+ * finishes, and the stake sheet's *How it works* opens it at card 2. Nothing
+ * for judges, no Holdout Lab, no dates.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = PHONE)
@@ -35,17 +41,27 @@ class TourScreenTest {
     val animations = AnimationsOff()
 
     private var done = 0
+    private var startAt by mutableIntStateOf(1)
+    private var shown = false
 
-    private fun show() {
+    /** Shows the tour opened on [startCard]; again in the same test, it opens a new one. */
+    private fun show(startCard: Int = 1) {
         done = 0
-        compose.setContent { HoldoutTheme { TourScreen(onDone = { done++ }) } }
+        if (shown) {
+            compose.runOnUiThread { startAt = startCard }
+        } else {
+            shown = true
+            startAt = startCard
+            compose.setContent { HoldoutTheme { key(startAt) { TourScreen(onDone = { done++ }, startCard = startAt) } } }
+        }
+        compose.waitForIdle()
     }
 
     private fun next() = compose.onNodeWithText("Next").performClick()
 
     private fun back() = compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
 
-    private fun assertLabel(n: Int) = compose.onNodeWithText("How it works · $n of 5", ignoreCase = true).assertIsDisplayed()
+    private fun assertLabel(n: Int) = compose.onNodeWithText("How it works · $n of 6", ignoreCase = true).assertIsDisplayed()
 
     @Test
     fun `card 1 is the Daily 25, free, banked in tens, with a streak, and no rep rules`() {
@@ -65,21 +81,56 @@ class TourScreenTest {
         compose.onNodeWithText("Each day done grows your streak.").assertExists()
         compose.onNodeWithText("How reps are counted").assertDoesNotExist()
         compose.onNodeWithText("Habit: full push-ups from your toes.", substring = true).assertDoesNotExist()
-        compose.onNodeWithContentDescription("Card 1 of 5").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Card 1 of 6").assertIsDisplayed()
         compose.onNodeWithText("Skip").assertIsDisplayed()
         compose.onNodeWithText("Next").assertIsDisplayed()
         compose.onNodeWithText("Test network · test token", ignoreCase = true).assertIsDisplayed()
     }
 
     @Test
-    fun `card 2 is a Holdout with a worked example and says a Seeker is needed`() {
+    fun `card 2 is two kinds of Holdout, each with its tag, facts and rule, then the four lines`() {
         show()
         next()
 
         assertLabel(2)
-        compose.onNodeWithContentDescription("Card 2 of 5").assertIsDisplayed()
-        compose.onNodeWithText("A Holdout").assertIsDisplayed()
-        compose.onNodeWithText("Stake SKR with everyone who starts on Monday. Finish, and split what the others lost.").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Card 2 of 6").assertIsDisplayed()
+        compose.onNodeWithText("Two kinds of Holdout").assertIsDisplayed()
+        compose.onNodeWithText("Stake SKR on yourself, then do the day's push-ups every day until the end.").assertIsDisplayed()
+        // One card each, titled by level and length, tagged with who it suits.
+        compose.onNodeWithText("Spark · 7-day").assertIsDisplayed()
+        compose.onNodeWithText("Habit · 21-day").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Status: new to sport").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Status: already active").assertIsDisplayed()
+        compose.onAllNodesWithText("Length").assertCountEquals(2)
+        compose.onAllNodesWithText("Form").assertCountEquals(2)
+        compose.onAllNodesWithText("Counting").assertCountEquals(2)
+        compose.onNodeWithText("7 days").assertExists()
+        compose.onNodeWithText("21 days").assertExists()
+        compose.onNodeWithText("knees allowed").assertExists()
+        compose.onNodeWithText("toes only").assertExists()
+        compose.onNodeWithText("as the Daily 25").assertExists()
+        compose.onNodeWithText("stricter").assertExists()
+        compose.onNodeWithText("Spark · 7-day lights it up — knees allowed.").assertExists()
+        compose.onNodeWithText("Habit · 21-day makes it stick — toes only.").assertExists()
+        compose.onNodeWithText("A new one of each starts every Monday.").assertExists()
+        compose.onNodeWithText("Both ask for 25 push-ups a day.").assertExists()
+        compose.onNodeWithText("Full refund until joining closes.").assertExists()
+        compose.onNodeWithText("Holdouts need a Seeker.").assertExists()
+        // The worked example moved to card 3, and the old card-2 sentences went with it.
+        compose.onNodeWithText("Example · Habit · 21-day", ignoreCase = true).assertDoesNotExist()
+        compose.onNodeWithText("Changed your mind?", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Stake SKR with everyone who starts on Monday.", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `card 3 plays a Holdout out - the worked example and the Finish and Miss a day tiles`() {
+        show()
+        repeat(2) { next() }
+
+        assertLabel(3)
+        compose.onNodeWithContentDescription("Card 3 of 6").assertIsDisplayed()
+        compose.onNodeWithText("How a Holdout plays out").assertIsDisplayed()
+        compose.onNodeWithText("Everyone who starts on Monday stakes together. Do every day to stay in; miss one and you're out.").assertIsDisplayed()
         compose.onNodeWithText("Example · Habit · 21-day", ignoreCase = true).assertExists()
         compose.onNodeWithText("25 × 1,250 SKR").assertExists()
         compose.onNodeWithText("18 stakes lost").assertExists()
@@ -91,20 +142,19 @@ class TourScreenTest {
         compose.onNodeWithText("Each finisher takes").assertExists()
         compose.onNodeWithText("3,500 SKR").assertExists()
         compose.onNodeWithText("1,250 stake back + 2,250 share. If nobody drops out, you get exactly your stake back.").assertExists()
-        compose.onNodeWithText("Spark · 7-day lights it up — knees allowed.\nHabit · 21-day makes it stick — toes only.").assertExists()
-        compose.onNodeWithText("Changed your mind? Full refund until joining closes.", substring = true).assertExists()
-        compose.onNodeWithText("Holdouts need a Seeker.", substring = true).assertExists()
-        compose.onNodeWithText("The Daily 25 is free for everyone.", substring = true).assertExists()
+        compose.onNodeWithText("Finish").assertExists()
+        compose.onNodeWithText("Your stake back, plus a share of the pool.").assertExists()
+        compose.onNodeWithText("Miss a day").assertExists()
+        compose.onNodeWithText("You're out. Your stake feeds the prize pool.").assertExists()
     }
 
     @Test
-    fun `card 3 shows where a lost stake goes, with the comeback set aside for its member`() {
+    fun `card 4 shows where a lost stake goes, with the comeback finishing the next Holdout of the same kind`() {
         show()
-        next()
-        next()
+        repeat(3) { next() }
 
-        assertLabel(3)
-        compose.onNodeWithContentDescription("Card 3 of 5").assertIsDisplayed()
+        assertLabel(4)
+        compose.onNodeWithContentDescription("Card 4 of 6").assertIsDisplayed()
         compose.onNodeWithText("Where a lost stake goes").assertIsDisplayed()
         compose.onNodeWithText("80 % comes back to members. The rest runs Holdout.").assertExists()
         compose.onNodeWithContentDescription(
@@ -115,8 +165,9 @@ class TourScreenTest {
         compose.onNodeWithText("Split by everyone who finishes.").assertExists()
         compose.onNodeWithText("10 %").assertExists()
         compose.onNodeWithText("Your comeback").assertExists()
-        compose.onNodeWithText("Set aside for you. Finish the next Holdout of the same kind and it comes back with your payout.").assertExists()
-        compose.onNodeWithText("Don't, and it joins the boost: up to 10 % more on later prize pools, with every pool nobody won.").assertExists()
+        compose.onNodeWithText("Finish your next Holdout of the same kind and it comes back. If not, it joins the boost pool.").assertExists()
+        compose.onNodeWithText("Set aside for you.", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Don't, and it joins the boost", substring = true).assertDoesNotExist()
         compose.onNodeWithText("20 %").assertExists()
         compose.onNodeWithText("The project").assertExists()
         compose.onNodeWithText("Keeps Holdout running.").assertExists()
@@ -126,12 +177,12 @@ class TourScreenTest {
     }
 
     @Test
-    fun `card 4 shows how a rep is counted, with the figure, and promises privacy`() {
+    fun `card 5 shows how a rep is counted, with the figure, and promises privacy in three lines`() {
         show()
-        repeat(3) { next() }
+        repeat(4) { next() }
 
-        assertLabel(4)
-        compose.onNodeWithContentDescription("Card 4 of 5").assertIsDisplayed()
+        assertLabel(5)
+        compose.onNodeWithContentDescription("Card 5 of 6").assertIsDisplayed()
         compose.onNodeWithContentDescription("Animation, side view", substring = true).assertExists()
         compose.onNodeWithText("Phone on the floor, at 45°, ahead of your shoulder.", substring = true).assertExists()
         compose.onNodeWithText("Get into a push-up: head to feet, knees included, inside the outline.", substring = true).assertExists()
@@ -139,20 +190,21 @@ class TourScreenTest {
         compose.onNodeWithText("How reps are counted").assertDoesNotExist()
         compose.onNodeWithText("Habit: full push-ups from your toes.", substring = true).assertDoesNotExist()
         compose.onNodeWithText("Private and fair by design").assertExists()
-        compose.onNodeWithText(
-            "An AI model on your phone tracks your body, and Holdout counts your push-ups right there. No microphone, and no video or body data ever leaves your phone. Completed days are submitted to Solana, where a smart contract " +
-                "secures the stakes and determines payouts through transparent, verifiable rules.",
-        ).assertExists()
+        // The note is three lines, one node each, and the long paragraph it replaced is gone.
+        compose.onNodeWithText("On-device AI counts your push-ups.").assertExists()
+        compose.onNodeWithText("No mic, no video, no body data leaves your phone.").assertExists()
+        compose.onNodeWithText("A Solana smart contract holds the stakes and pays out by open, verifiable rules.").assertExists()
+        compose.onNodeWithText("An AI model on your phone", substring = true).assertDoesNotExist()
         compose.onAllNodes(hasText("Lab", substring = true)).assertCountEquals(0)
     }
 
     @Test
-    fun `card 5 names scripted members, their minimum, and that their days are not camera-checked`() {
+    fun `card 6 names scripted members, their minimum, and that their days are not camera-checked`() {
         show()
-        repeat(4) { next() }
+        repeat(5) { next() }
 
-        assertLabel(5)
-        compose.onNodeWithContentDescription("Card 5 of 5").assertIsDisplayed()
+        assertLabel(6)
+        compose.onNodeWithContentDescription("Card 6 of 6").assertIsDisplayed()
         compose.onNodeWithText("Scripted members\nin Hackathon only").assertIsDisplayed()
         compose.onNodeWithText("Some members in these Holdouts are scripted.\nReal wallets, same rules, labelled SCRIPTED.").assertExists()
         compose.onNodeWithText("They only top a Hackathon round up\nto 10, once someone real joins.\nTheir days aren't camera-checked.").assertExists()
@@ -164,12 +216,12 @@ class TourScreenTest {
     @Test
     fun `nothing is meant for judges, names Holdout Lab or carries a date`() {
         show()
-        repeat(5) {
-            // "Hackathon" is a round's name now (card 5 names it), so it is not on this list.
+        repeat(6) {
+            // "Hackathon" is a round's name now (card 6 names it beside Spark), so it is not on this list.
             listOf("judge", "Holdout Lab", "Easy", "Hard", "cohort", "league", "earn", "≈").forEach {
                 compose.onAllNodes(hasText(it, substring = true, ignoreCase = true)).assertCountEquals(0)
             }
-            if (it < 4) next()
+            if (it < 5) next()
         }
     }
 
@@ -178,19 +230,20 @@ class TourScreenTest {
         show()
         compose.onNodeWithText("Skip").performClick()
 
-        assertLabel(5)
+        assertLabel(6)
         assertEquals(0, done)
         compose.onNodeWithText("Scripted members\nin Hackathon only").assertIsDisplayed()
     }
 
     @Test
-    fun `skip on the fourth card also goes to the fifth`() {
-        show()
-        repeat(3) { next() }
-        compose.onNodeWithText("Skip").performClick()
-
-        assertLabel(5)
-        assertEquals(0, done)
+    fun `skip on cards 1 to 5 all lead to card 6`() {
+        for (card in 1..5) {
+            show(startCard = card)
+            assertLabel(card)
+            compose.onNodeWithText("Skip").performClick()
+            assertLabel(6)
+            assertEquals(0, done)
+        }
     }
 
     @Test
@@ -230,5 +283,28 @@ class TourScreenTest {
         assertLabel(1)
         compose.onNodeWithText("Back").assertDoesNotExist()
         assertEquals(0, done)
+    }
+
+    @Test
+    fun `the stake sheet opens the tour at card 2, which can still go back to card 1 and on to card 6`() {
+        show(startCard = 2)
+
+        assertLabel(2)
+        compose.onNodeWithText("Two kinds of Holdout").assertIsDisplayed()
+        compose.onNodeWithText("Back").performClick()
+        assertLabel(1)
+        next()
+        repeat(4) { next() }
+        assertLabel(6)
+        compose.onNodeWithText("Start").performClick()
+        assertEquals(1, done)
+    }
+
+    @Test
+    fun `a start card out of range is kept to the first or last card`() {
+        show(startCard = 0)
+        assertLabel(1)
+        show(startCard = 9)
+        assertLabel(6)
     }
 }

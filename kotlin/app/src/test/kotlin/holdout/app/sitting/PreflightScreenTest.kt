@@ -5,6 +5,8 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import holdout.app.testutil.textColors
+import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.repcounter.Coach
 import holdout.repcounter.Guidance
@@ -119,6 +121,27 @@ class PreflightScreenTest {
         show(holdout(timeLeft = 9 * 60L + 30))
         compose.onNodeWithText("9m 30s to today's deadline").assertIsDisplayed()
         compose.onNodeWithText(SittingCopy.LAST_MINUTES).assertDoesNotExist()
+    }
+
+    @Test
+    fun `in the last ten minutes the time line turns the soft warm tone - never the warning red`() {
+        show(holdout(timeLeft = 9 * 60L + 30))
+
+        assertEquals(setOf(HoldoutColors.SoftWarm), compose.onNodeWithText("9m 30s to today's deadline").textColors())
+    }
+
+    @Test
+    fun `earlier in the day the time line is secondary text`() {
+        show(holdout())
+
+        assertEquals(setOf(HoldoutColors.TextSecondary), compose.onNodeWithText("4h 06m to today's deadline").textColors())
+    }
+
+    @Test
+    fun `the Daily 25's time line turns the soft warm tone in its last ten minutes too`() {
+        show(holdout(dayNumber = null, stakes = Stakes.DAILY, timeLeft = 9 * 60L + 30))
+
+        assertEquals(setOf(HoldoutColors.SoftWarm), compose.onNodeWithText("9m 30s left today").textColors())
     }
 
     @Test

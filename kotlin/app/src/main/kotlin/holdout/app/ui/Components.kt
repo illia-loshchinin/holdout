@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -43,7 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import holdout.app.chain.Deployment
+import androidx.compose.ui.unit.sp
 import holdout.app.holdout.CheckAgainCopy
 import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.HoldoutColors
@@ -134,8 +135,11 @@ object Format {
     /** What the app calls [c]: its level ("Spark · 7-day"), or for a Hackathon round [testName] ("Hackathon · Spark", FR-044a). */
     fun holdoutName(c: holdout.core.CohortSnapshot): String = if (holdout.app.chain.Deployment.isTestLeague(c.leagueId)) testName(c) else level(c)
 
-    /** `SPARK · 7-DAY · DAY 3 OF 7` (`HACKATHON · SPARK · DAY 1 OF 3`): a running Holdout's header label (no calendar dates, constitution VI; ruling G3). */
-    fun headerLabel(c: holdout.core.CohortSnapshot, day: Int): String = "${holdoutName(c)} · day $day of ${c.durationDays}".uppercase()
+    /**
+     * `SPARK · 7-DAY · DAY 3 OF 7` (`HACKATHON · SPARK · DAY 1 OF 3`): a running Holdout's header label (no calendar
+     * dates, constitution VI; ruling G3). [test] defaults to whether [c]'s league is a test league.
+     */
+    fun headerLabel(c: holdout.core.CohortSnapshot, day: Int, test: Boolean = holdout.app.chain.Deployment.isTestLeague(c.leagueId)): String = "${if (test) testName(c) else level(c)} · day $day of ${c.durationDays}".uppercase()
 
     /** `SPARK · 7-DAY · STARTS IN 2D 4H`: a Holdout in its lobby. */
     fun lobbyHeaderLabel(c: holdout.core.CohortSnapshot, secondsToStart: Long): String = "${holdoutName(c)} · starts in ${countdown(secondsToStart)}".uppercase()
@@ -143,22 +147,15 @@ object Format {
     /** `SPARK · 7-DAY · FINISHED`: a Holdout that has run its length. */
     fun finishedHeaderLabel(c: holdout.core.CohortSnapshot): String = "${holdoutName(c)} · finished".uppercase()
 
-    /**
-     * Where a lost stake goes, in the sentence the stake sheet shows (FR-027,
-     * FR-037, FR-041; decided 2026-10-10, shortened 2026-10-11, re-split
-     * 2026-10-12: the 10 % is the member's own comeback, and a pool nobody wins
-     * boosts later prizes; ruling G5). The level and length are the Holdout's
-     * own, and a no-break space keeps every "%" on its number's line. [name] is
-     * what the boosts are named after: the level by default, "Hackathon ·
-     * Spark" (see [testName]) for a test Holdout.
-     */
-    fun lostStakeSplit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "Miss a day and you lose your stake: 70\u00a0% to the prize pool, 10\u00a0% set aside for your comeback, " +
-        "20\u00a0% to the project. If nobody finishes, the pool boosts later $name prizes."
-
-    /** What the boosts in the fee sentence are named after: the level, or [testName] ("Hackathon · Spark") for a test Holdout (FR-044a); the stake sheet and the forfeit screen both use it. */
+    /** What the boosts in the forfeit screen's stake-lost sentence are named after: the level, or [testName] ("Hackathon · Spark") for a test Holdout (FR-044a). */
     fun boostName(c: holdout.core.CohortSnapshot, test: Boolean): String = if (test) testName(c) else level(c)
 
-    /** The same split on the forfeit screen, under its **Stake lost** row (ruling G5); [name] as in [lostStakeSplit]. */
+    /**
+     * Where a lost stake goes, on the forfeit screen under its **Stake lost** row (FR-027, FR-037, FR-041; ruling
+     * G5: the 10 % is the member's own comeback, and a pool nobody wins boosts later prizes). The stake sheet no
+     * longer says it (2026-10-14: one line and *How it works*). [name] is what the boosts are named after, the
+     * level by default; a no-break space keeps every "%" on its number's line.
+     */
     fun lostStakeSplitForfeit(c: holdout.core.CohortSnapshot, name: String = level(c)): String = "It goes 70\u00a0% to this Holdout's prize pool, 10\u00a0% set aside for your comeback, " +
         "20\u00a0% to the project. If nobody finishes, the pool boosts later $name prizes."
 
@@ -236,7 +233,16 @@ object Format {
         }
     }
 
-    /** `ABcd…wxYZ`: a wallet as the roster shows it (FR-062). */
+    /**
+     * How long ago something was read, as the devnet bar says it (FR-069h): `58s`, `4m`, `1h 05m`, `2d 3h` — the
+     * largest two units of [countdown], and past a minute no seconds, since the figure is only to be felt.
+     */
+    fun ago(seconds: Long): String {
+        val s = seconds.coerceAtLeast(0)
+        return if (s in 60 until 3_600) "${s / 60}m" else countdown(s)
+    }
+
+    /** `ABcd…wxYZ`: a wallet as the members page shows it (FR-062). */
     fun short(address: String): String = if (address.length <= 10) address else address.take(4) + "…" + address.takeLast(4)
 
     /**
@@ -264,11 +270,10 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
 
 /**
  * A hairline card — the only separation on black; there are no shadows (design book, Depth).
- * [padding] is the card's inset: [Spacing.cardPadding], or less for a card kept compact (Today's Daily 25).
+ * [padding] is the card's inset: [Spacing.cardPadding], or less for a card kept compact (Today's Daily 25); [shape] the 24 dp corners, or less (Today's compact offer, 20 dp).
  */
 @Composable
-fun HoldoutCard(modifier: Modifier = Modifier, padding: PaddingValues = PaddingValues(Spacing.cardPadding), content: @Composable ColumnScope.() -> Unit) {
-    val shape = MaterialTheme.shapes.medium
+fun HoldoutCard(modifier: Modifier = Modifier, padding: PaddingValues = PaddingValues(Spacing.cardPadding), shape: Shape = MaterialTheme.shapes.medium, content: @Composable ColumnScope.() -> Unit) {
     Column(
         // Clipped outside the caller's modifier, so a card made clickable ripples inside its corners.
         modifier = Modifier
@@ -283,20 +288,42 @@ fun HoldoutCard(modifier: Modifier = Modifier, padding: PaddingValues = PaddingV
     )
 }
 
-/** [busy]: the action is waiting on the wallet or devnet. The button is disabled and leads with the [HoldoutLoader]. */
+/**
+ * [busy]: the action is waiting on the wallet or devnet. The button is disabled and leads with the [HoldoutLoader].
+ * [compact]: the 52 dp pill with an 18 sp label that sits in Today's hero frame (the v2 boards).
+ */
 @Composable
-fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, busy: Boolean = false) {
+fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, busy: Boolean = false, compact: Boolean = false) {
     Button(
         onClick = onClick,
         enabled = enabled && !busy,
-        modifier = modifier.fillMaxWidth().height(Spacing.primaryButtonHeight),
+        modifier = modifier.fillMaxWidth().height(if (compact) HERO_BUTTON_HEIGHT else Spacing.primaryButtonHeight),
         shape = MaterialTheme.shapes.extraLarge,
-        colors = ButtonDefaults.buttonColors(containerColor = HoldoutColors.TextPrimary, contentColor = HoldoutColors.OnLight),
+        colors = if (compact) {
+            // Inside Today's hero a pill that cannot be pressed (a finished day waiting on the network, a wallet send) is the board's tonal one.
+            ButtonDefaults.buttonColors(
+                containerColor = HoldoutColors.TextPrimary,
+                contentColor = HoldoutColors.OnLight,
+                disabledContainerColor = HoldoutColors.Surface3,
+                disabledContentColor = HoldoutColors.TextSecondary,
+            )
+        } else {
+            ButtonDefaults.buttonColors(containerColor = HoldoutColors.TextPrimary, contentColor = HoldoutColors.OnLight)
+        },
     ) {
         if (busy) BusyMark()
-        Text(text, style = MaterialTheme.typography.titleMedium)
+        val style = MaterialTheme.typography.titleMedium
+        val shown = when {
+            !compact -> style
+            enabled && !busy -> style.copy(fontSize = 18.sp, lineHeight = 24.sp)
+            else -> style.copy(fontSize = 16.sp, lineHeight = 24.sp)
+        }
+        Text(text, style = shown)
     }
 }
+
+/** The primary button inside Today's hero frame (v2 boards: 52 dp, not 56). */
+private val HERO_BUTTON_HEIGHT = 52.dp
 
 @Composable
 fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, busy: Boolean = false) {
@@ -325,33 +352,6 @@ fun Reading(content: @Composable () -> Unit) {
         BusyMark()
         content()
     }
-}
-
-/**
- * "Check again" while the chain can't be reached (spec 005,
- * contracts/check-again-ui.md): a secondary button, busy while the check is
- * out, and "Devnet still can't be reached." under it, in the warning colour of
- * the line it answers, once a check found it so. Shown only while the last
- * chain read failed; the caller decides that.
- */
-@Composable
-fun CheckAgain(checking: Boolean, stillUnreachable: Boolean, onCheck: () -> Unit, modifier: Modifier = Modifier, network: String = Deployment.networkName) {
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.tight), horizontalAlignment = Alignment.CenterHorizontally) {
-        SecondaryButton(if (checking) CheckAgainCopy.checking(network) else CheckAgainCopy.BUTTON, onCheck, busy = checking)
-        if (stillUnreachable && !checking) Notice(CheckAgainCopy.stillUnreachable(network), warning = true)
-    }
-}
-
-/**
- * A screen that says nothing else about the chain — the home showing an
- * earlier read, a Holdout's details, the forfeit — says it can't be reached in
- * one line above [CheckAgain] (spec 005 FR-002). The line itself answers a
- * failed check ("…still can't be reached."), so nothing moves on the screen.
- */
-@Composable
-fun ChainUnreachable(checking: Boolean, stillUnreachable: Boolean, onCheck: () -> Unit, network: String = Deployment.networkName) {
-    Notice(if (stillUnreachable) CheckAgainCopy.stillUnreachable(network) else CheckAgainCopy.unreachable(network), warning = true)
-    CheckAgain(checking, stillUnreachable = false, onCheck = onCheck, network = network)
 }
 
 /**

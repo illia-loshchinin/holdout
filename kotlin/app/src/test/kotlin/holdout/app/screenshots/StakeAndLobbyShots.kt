@@ -99,6 +99,10 @@ class StakeAndLobbyShots {
     @Test
     fun spark() = stake("spark")
 
+    /** An empty boost reserve: the sheet has no "Prize boost" line. */
+    @Test
+    fun sparkNoBoost() = stake("spark-no-boost", holdout().let { it.copy(league = it.league?.copy(boostReserve = 0uL)) })
+
     @Test
     fun habit() = stake("habit", holdout(LeagueParams.FORM_TOES, 21, LeagueParams.LEAGUE_21D, joined = 9, held = 9_000uL * skr))
 

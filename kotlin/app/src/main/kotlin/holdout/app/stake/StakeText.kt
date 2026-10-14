@@ -8,7 +8,7 @@ import holdout.core.Journey
 /**
  * The words of the stake confirm (board 4 · 4c; FR-041, FR-059, FR-068a,
  * ES-12), in one place so they are tested without a screen. The sentences that
- * several screens share — the level, its rule, the fee split — come from
+ * several screens share — the level and its rule — come from
  * [Format], never typed again.
  */
 object StakeText {
@@ -16,6 +16,15 @@ object StakeText {
     const val NO_DROPOUT = "If nobody drops out, you get exactly your stake back."
 
     const val FULL_REFUND = "Full refund until joining closes."
+
+    /** The one line on losing; where the money goes is the tour's card 4, one tap away (FR-041, 2026-10-13). */
+    const val MISS_A_DAY = "Miss a day and you lose your stake."
+
+    /** The action beside it: opens the tour at card 2 and comes back to the sheet. */
+    const val HOW_IT_WORKS = "How it works"
+
+    /** `Prize boost: up to 480 SKR` on its own line, only while the level's reserve holds more than 0 (FR-053); null for a Hackathon round (no judged league). */
+    fun boost(reserve: ULong?): String? = reserve?.takeIf { it > 0uL }?.let { Format.boostLine(it) }
 
     /** The reason beside the stake button for the notification ask (FR-068a); shown only while notifications are off (ruling G9). */
     const val NOTIFICATION_REASON = "Allow notifications and this phone reminds you before each deadline. Reminders never leave the phone."
@@ -35,9 +44,6 @@ object StakeText {
         val lead = Format.levelTagline(c)?.substringBefore(" · ")
         return if (lead == null) plain else "$lead: $plain"
     }
-
-    /** The fee sentence with the Holdout's own name (ruling G5); a test Holdout names itself, not a level. */
-    fun fee(c: CohortSnapshot, test: Boolean): String = Format.lostStakeSplit(c, name = Format.boostName(c, test))
 
     /** `A transaction signed now may land too late.` in the last minutes before the cutoff, or null before them (ES-12); the countdown above it turns to the warning colour. */
     fun closingWarning(secondsToClose: Long): String? = if (secondsToClose in 1..CLOSING_WINDOW_SECONDS) {

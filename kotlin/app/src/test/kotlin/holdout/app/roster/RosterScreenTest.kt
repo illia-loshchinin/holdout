@@ -21,7 +21,7 @@ import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** H5, the roster (board 14): running, reading, in a lobby, and the scripted disclosure. */
+/** H5, Members (board 14): running, reading, in a lobby, and the scripted disclosure. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TALL_PHONE)
 class RosterScreenTest {
@@ -95,8 +95,19 @@ class RosterScreenTest {
     fun `reading - says so and has no sections yet`() {
         show(members = null)
 
-        compose.onNodeWithText("READING THE ROSTER…").assertIsDisplayed()
+        compose.onNodeWithText("READING THE MEMBERS…").assertIsDisplayed()
         compose.onNodeWithText("OUT · 0").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the page is called Members - its header says so and no word of it says roster`() {
+        show(members = running)
+
+        compose.onNodeWithText("MEMBERS").assertIsDisplayed()
+        compose.onNodeWithText("ROSTER", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("roster", substring = true, ignoreCase = true).assertDoesNotExist()
+        val words = listOf(RosterText.NOTE, RosterText.LOBBY_NOTE, RosterText.title(c, now), RosterText.standingHeader(3), RosterText.outHeader(3), RosterText.lobbyHeader(3))
+        words.forEach { assertTrue(!it.contains("roster", ignoreCase = true), it) }
     }
 
     @Test

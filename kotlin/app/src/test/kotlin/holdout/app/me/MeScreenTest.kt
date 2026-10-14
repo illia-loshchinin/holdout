@@ -3,6 +3,8 @@ package holdout.app.me
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
@@ -11,10 +13,13 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.text.TextLayoutResult
 import holdout.app.sitting.PHONE
+import holdout.app.streak.ToesMeter
 import holdout.app.testutil.AnimationsOff
 import holdout.app.ui.LocalSeekerNames
 import holdout.app.ui.StreakState
+import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
 import org.junit.Rule
 import org.junit.Test
@@ -25,9 +30,9 @@ import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
 
 /**
- * W1 Me (board Me; FR-069d, rulings "Onboarding / Me"): who you are with the
- * address to copy, what you hold and the faucet, the daily streak with its
- * freezes, About, the tour again, Disconnect, and the meaning of the tab's dot.
+ * W1 Me (board Me; FR-069d, FR-052a, FR-049, rulings "Onboarding / Me"): who you are with the
+ * address to copy, the Daily 25's statistics (streak, longest, freezes, toes meter), Leaderboards with the
+ * best rank, what you hold and the faucet, About, Disconnect, and the meaning of the tab's dot.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = PHONE)
@@ -44,21 +49,27 @@ class MeScreenTest {
 
     private var tokens = 0
     private var abouts = 0
-    private var tours = 0
+    private var boards = 0
     private var disconnects = 0
 
     private fun show(state: MeState = funded, names: Map<String, String> = emptyMap()) {
         tokens = 0
         abouts = 0
-        tours = 0
+        boards = 0
         disconnects = 0
         compose.setContent {
             HoldoutTheme {
                 CompositionLocalProvider(LocalSeekerNames provides names) {
-                    MeScreen(state, onGetTokens = { tokens++ }, onAbout = { abouts++ }, onTour = { tours++ }, onDisconnect = { disconnects++ })
+                    MeScreen(state, onGetTokens = { tokens++ }, onAbout = { abouts++ }, onDisconnect = { disconnects++ }, onLeaderboards = { boards++ })
                 }
             }
         }
+    }
+
+    private fun colourOf(text: String): Color {
+        val result = mutableListOf<TextLayoutResult>()
+        compose.onNode(hasText(text), useUnmergedTree = true).fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(result)
+        return result.first().layoutInput.style.color
     }
 
     @Test
@@ -98,25 +109,82 @@ class MeScreenTest {
     }
 
     @Test
-    fun `the daily streak carries its flame, its words and the freezes held`() {
-        show(funded.copy(freezes = 2))
+    fun `the Daily 25 card carries the streak, the longest, the freezes and when the next comes`() {
+        show(funded.copy(streak = 12, longest = 21, freezes = 1))
 
+        compose.onNodeWithText("THE DAILY 25").assertIsDisplayed()
         compose.onNodeWithContentDescription("12-day streak").assertIsDisplayed()
         compose.onNodeWithText("day streak").assertIsDisplayed()
-        compose.onNodeWithText("The Daily 25 · a forfeit never breaks it").assertIsDisplayed()
-        compose.onNodeWithText("2 freezes held").assertIsDisplayed()
+        compose.onNodeWithText("Longest 21 days").assertIsDisplayed()
+        compose.onNodeWithText("Freezes 1 of 2").assertIsDisplayed()
+        // 12 days in: the streak reaches 14 in 2 more days, which earns the next freeze.
+        compose.onNodeWithText("Next freeze in 2 days").assertIsDisplayed()
     }
 
     @Test
-    fun `one freeze reads in the singular and none says nothing`() {
-        show(funded.copy(freezes = 1))
-        compose.onNodeWithText("1 freeze held").assertIsDisplayed()
+    fun `with both freezes held there is no next freeze to wait for`() {
+        show(funded.copy(streak = 14, longest = 14, freezes = 2))
+
+        compose.onNodeWithText("Freezes 2 of 2").assertIsDisplayed()
+        compose.onAllNodes(hasText("Next freeze", substring = true)).assertCountEquals(0)
     }
 
     @Test
-    fun `no freezes held says nothing about freezes`() {
+    fun `no freezes held yet counts the whole way to the first`() {
+        show(funded.copy(streak = 0, longest = 0, freezes = 0))
+
+        compose.onNodeWithText("Freezes 0 of 2").assertIsDisplayed()
+        compose.onNodeWithText("Next freeze in 7 days").assertIsDisplayed()
+        compose.onNodeWithText("Longest 0 days").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a single day reads in the singular`() {
+        show(funded.copy(streak = 6, longest = 1, freezes = 0))
+
+        compose.onNodeWithText("Longest 1 day").assertIsDisplayed()
+        compose.onNodeWithText("Next freeze in 1 day").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the next freeze is worked out from the streak and the freezes held`() {
+        assertEquals(2, MeState(wallet, null, null, null, streak = 12, freezes = 1).nextFreezeInDays)
+        assertEquals(7, MeState(wallet, null, null, null, streak = 14, freezes = 0).nextFreezeInDays)
+        assertEquals(7, MeState(wallet, null, null, null, streak = 0, freezes = 0).nextFreezeInDays)
+        assertEquals(1, MeState(wallet, null, null, null, streak = 13, freezes = 0).nextFreezeInDays)
+        assertEquals(null, MeState(wallet, null, null, null, streak = 3, freezes = 2).nextFreezeInDays)
+    }
+
+    @Test
+    fun `the toes meter moved here from Today - today's toes, seven bars and the best day`() {
+        val week = listOf(0, 10, 25, 25, 0, 18, 18)
+        show(funded.copy(toes = ToesMeter.Meter(toes = 18, measured = 25, week = week, best = 25)))
+
+        compose.onNodeWithText("18 of 25 from your toes").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Best: 25 from your toes").assertIsDisplayed()
+    }
+
+    @Test
+    fun `no toes reading yet tells how to see one`() {
+        show(funded.copy(toes = ToesMeter.Meter(toes = 0, measured = 0, week = List(7) { 0 }, best = 0)))
+        compose.onNodeWithText("Do it with the phone at 45° to see how many come from your toes").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `Leaderboards is a row that shows the member's best rank and opens the boards`() {
+        show(funded.copy(leaderboardMeta = "#4 in Spark · 7-day"))
+
+        compose.onNodeWithText("#4 in Spark · 7-day").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Leaderboards").performScrollTo().performClick()
+        assertEquals(1, boards)
+    }
+
+    @Test
+    fun `no rank, no meta - the row is just Leaderboards`() {
         show()
-        compose.onAllNodes(hasText("freeze", substring = true, ignoreCase = true)).assertCountEquals(0)
+
+        compose.onNodeWithText("Leaderboards").performScrollTo().assertIsDisplayed()
+        compose.onAllNodes(hasText("#", substring = true)).assertCountEquals(0)
     }
 
     @Test
@@ -129,14 +197,34 @@ class MeScreenTest {
     fun `what you hold is test SKR and devnet SOL with the faucet one tap away`() {
         show()
 
-        compose.onNodeWithText("You hold", ignoreCase = true).assertIsDisplayed()
+        compose.onNodeWithText("Wallet", ignoreCase = true).assertIsDisplayed()
         compose.onNodeWithText("Test SKR").assertIsDisplayed()
         compose.onNodeWithText("4,750 SKR").assertIsDisplayed()
         compose.onNodeWithText("Devnet SOL for fees").assertIsDisplayed()
         compose.onNodeWithText("0.012 SOL").assertIsDisplayed()
         compose.onNodeWithText("One tap: 5,000 test SKR, plus SOL for fees. Test network, test token.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `with enough funds Get test tokens is a quiet row with what a tap gives, not the white button`() {
+        show()
+
+        compose.onNodeWithText("5,000 SKR + SOL").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Get test tokens").performScrollTo().performClick()
         assertEquals(1, tokens)
+        // The white pill sets its label in OnLight; a row sets it in the primary text colour.
+        assertEquals(HoldoutColors.TextPrimary, colourOf("Get test tokens"))
+    }
+
+    @Test
+    fun `short of SKR or SOL, Get test tokens becomes the one white button`() {
+        show(funded.copy(lowOnFunds = true))
+
+        compose.onNodeWithText("Get test tokens").performScrollTo().assertIsDisplayed().performClick()
+        assertEquals(1, tokens)
+        assertEquals(HoldoutColors.OnLight, colourOf("Get test tokens"))
+        compose.onNodeWithText("5,000 SKR + SOL").assertDoesNotExist()
+        compose.onAllNodes(hasText("Get test tokens")).assertCountEquals(1)
     }
 
     @Test
@@ -160,16 +248,17 @@ class MeScreenTest {
     }
 
     @Test
-    fun `about, the tour and disconnect each go where they say`() {
+    fun `one About Holdout row says how it works, there is no tour row, and Disconnect stays`() {
         show()
 
-        compose.onNodeWithText("devnet · test token").assertIsDisplayed()
+        compose.onNodeWithText("how it works").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("About Holdout").performScrollTo().performClick()
-        compose.onNodeWithText("5 cards").assertIsDisplayed()
-        compose.onNodeWithText("How Holdout works").performScrollTo().performClick()
+        compose.onNodeWithText("How Holdout works", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("5 cards", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("6 cards", substring = true).assertDoesNotExist()
         compose.onNodeWithText("Disconnect wallet").performClick()
         compose.onNodeWithText("Switched networks? Disconnect and connect again.").assertIsDisplayed()
 
-        assertEquals(listOf(1, 1, 1), listOf(abouts, tours, disconnects))
+        assertEquals(listOf(1, 1), listOf(abouts, disconnects))
     }
 }

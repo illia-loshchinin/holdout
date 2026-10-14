@@ -1,10 +1,20 @@
 package holdout.app.sitting
 
+import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertWidthIsEqualTo
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.width
+import holdout.app.testutil.AnimationsOff
+import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
 import org.junit.Rule
 import org.junit.Test
@@ -12,6 +22,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /** Board 19, day complete: the Holdout card and "Submit day 12", the Daily 25's streak and upsell, the offline variants (FR-024b). */
 @RunWith(RobolectricTestRunner::class)
@@ -59,11 +70,127 @@ class DayCompleteScreenTest {
     // ---- a Holdout day ------------------------------------------------------------------------------
 
     @Test
-    fun `a Holdout day shows the header, the count in green and done`() {
+    fun `a Holdout day shows the header and the celebration's headline`() {
         show(holdoutUi())
         compose.onNodeWithText(header).assertIsDisplayed()
-        compose.onNodeWithText("25").assertIsDisplayed()
-        compose.onNodeWithText("DONE").assertIsDisplayed()
+        compose.onNodeWithText("Nailed it.").assertIsDisplayed()
+        compose.onNodeWithText("25 push-ups done").assertIsDisplayed()
+    }
+
+    // ---- the celebration (FR-069g) ------------------------------------------------------------------
+
+    @Test
+    fun `a Holdout day's page holds the celebration in a 168 dp square`() {
+        show(holdoutUi())
+        compose.onNodeWithTag("celebration").assertWidthIsEqualTo(168.dp).assertHeightIsEqualTo(168.dp)
+    }
+
+    @Test
+    fun `the Daily 25's page holds the same celebration`() {
+        show(dailyUi())
+        compose.onNodeWithTag("celebration").assertWidthIsEqualTo(168.dp).assertHeightIsEqualTo(168.dp)
+        compose.onNodeWithText("Nailed it.").assertIsDisplayed()
+        compose.onNodeWithText("25 push-ups done").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the headline says the day's own reps`() {
+        show(dailyUi().copy(reps = 5))
+        compose.onNodeWithText("5 push-ups done").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the count is no longer a big number with DONE under it`() {
+        show(holdoutUi())
+        compose.onNodeWithText("25").assertDoesNotExist()
+        compose.onNodeWithText("DONE").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the buttons are enabled from the first frame, before the ring has drawn`() {
+        compose.mainClock.autoAdvance = false
+        show(holdoutUi())
+
+        compose.onNodeWithText("Submit day 12").assertIsEnabled()
+        compose.onNodeWithText("Submit day 12").performClick()
+        assertEquals(1, finished)
+    }
+
+    @Test
+    fun `the offer is tappable from the first frame too`() {
+        compose.mainClock.autoAdvance = false
+        show(dailyUi())
+
+        compose.onNodeWithText("Stake on yourself next").performClick()
+        assertEquals(1, offers)
+    }
+
+    @Test
+    fun `with animations on the ring starts empty and draws itself, then the tick`() {
+        lateinit var progress: CelebrationProgress
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            HoldoutTheme {
+                progress = rememberCelebrationProgress()
+                DayCompleteContent(holdoutUi(), {}, {}, celebration = progress)
+            }
+        }
+        compose.mainClock.advanceTimeByFrame()
+        assertEquals(0f, progress.ring.value, "nothing is drawn at the first frame")
+        assertEquals(0f, progress.tick.value)
+
+        compose.mainClock.advanceTimeBy(300)
+        assertTrue(progress.ring.value in 0.05f..0.95f, "the ring is part-way at 300 ms: ${progress.ring.value}")
+        assertEquals(0f, progress.tick.value, "the tick has not started")
+
+        compose.mainClock.advanceTimeBy(2_500)
+        assertEquals(1f, progress.ring.value)
+        assertEquals(1f, progress.tick.value)
+        assertEquals(1f, progress.rise.value)
+        assertEquals(1f, progress.burst.value)
+    }
+
+    @Test
+    fun `with animations off the ring and the tick are drawn complete at the first frame`() {
+        val off = AnimationsOff()
+        off.setScale(0f)
+        try {
+            lateinit var progress: CelebrationProgress
+            compose.mainClock.autoAdvance = false
+            compose.setContent {
+                HoldoutTheme {
+                    progress = rememberCelebrationProgress()
+                    DayCompleteContent(holdoutUi(), {}, {}, celebration = progress)
+                }
+            }
+            compose.mainClock.advanceTimeByFrame()
+
+            assertEquals(1f, progress.ring.value, "the ring is complete")
+            assertEquals(1f, progress.tick.value, "the tick is complete")
+            assertEquals(1f, progress.rise.value, "the headline is in place")
+            assertEquals(1f, progress.burst.value, "the burst is over")
+            compose.onNodeWithText("Nailed it.").assertIsDisplayed()
+        } finally {
+            off.setScale(1f)
+        }
+    }
+
+    @Test
+    fun `the burst is ten dots in the two accent colours, none visible before or after it`() {
+        assertEquals(10, celebrationDots(0.4f).size)
+        assertEquals(setOf(HoldoutColors.Success, HoldoutColors.Accent), celebrationDots(0.4f).map { it.color }.toSet())
+        assertTrue(celebrationDots(0f).all { it.alpha == 0f }, "invisible before the burst")
+        assertTrue(celebrationDots(1f).all { it.alpha == 0f }, "gone when it is over")
+    }
+
+    @Test
+    fun `the dots leave one after another and fly out from the ring's centre`() {
+        val early = celebrationDots(0.25f)
+        assertTrue(early.any { it.alpha > 0f }, "some are in flight")
+
+        fun distance(dot: CelebrationDot) = kotlin.math.hypot(dot.dx, dot.dy)
+        assertTrue(distance(early.first()) > distance(early.last()), "the first dot is ahead of the last: ${early.map { distance(it) }}")
+        assertTrue(celebrationDots(0.99f).isNotEmpty() && celebrationDots(0.99f).all { distance(it) < 130f }, "they stay near the ring")
     }
 
     @Test
@@ -212,6 +339,33 @@ class DayCompleteScreenTest {
     }
 
     @Test
+    fun `the milestone is one row - a small flame beside the headline - with the line under it`() {
+        show(dailyUi(streak = StreakAfter(days = 7, grew = true)))
+
+        val flame = compose.onNodeWithTag("milestone-flame", useUnmergedTree = true).getBoundsInRoot()
+        val headline = compose.onNodeWithText("7-day streak", useUnmergedTree = true).getBoundsInRoot()
+        val line = compose.onNodeWithText("A week, every day. That's how habits start.").getBoundsInRoot()
+
+        assertTrue(flame.right <= headline.left, "the flame is beside the headline, on its left: $flame $headline")
+        assertTrue(flame.top < headline.bottom && flame.bottom > headline.top, "on the same row: $flame $headline")
+        assertTrue(line.top >= headline.bottom, "the line is under the headline: $line $headline")
+    }
+
+    @Test
+    fun `the milestone's flame is small - the old 72 dp accent ring is not drawn`() {
+        show(dailyUi(streak = StreakAfter(days = 7, grew = true)))
+
+        val flame = compose.onNodeWithTag("milestone-flame", useUnmergedTree = true).getBoundsInRoot()
+        assertTrue(flame.width <= 28.dp && flame.height <= 28.dp, "a small flame, not a ring: $flame")
+    }
+
+    @Test
+    fun `a Holdout day has no milestone flame`() {
+        show(holdoutUi())
+        compose.onNodeWithTag("milestone-flame", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
     fun `a hundredth multiple shows the still-here line`() {
         show(dailyUi(streak = StreakAfter(days = 300, grew = true)))
 
@@ -247,11 +401,11 @@ class DayCompleteScreenTest {
     }
 
     @Test
-    fun `the plain finished screen of Holdout Lab is just the count, done and its button`() {
+    fun `the finished screen of Holdout Lab is the celebration and its button`() {
         show(DayCompleteUi(header = null, reps = 25, holdout = null, streak = null, offer = null, button = "Back to Lab"))
 
-        compose.onNodeWithText("25").assertIsDisplayed()
-        compose.onNodeWithText("DONE").assertIsDisplayed()
+        compose.onNodeWithTag("celebration").assertExists()
+        compose.onNodeWithText("25 push-ups done").assertIsDisplayed()
         compose.onNodeWithText("Back to Lab").performClick()
         assertEquals(1, finished)
     }

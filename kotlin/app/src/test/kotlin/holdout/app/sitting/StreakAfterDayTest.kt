@@ -54,4 +54,41 @@ class StreakAfterDayTest {
 
         assertEquals(1, after.days)
     }
+
+    @Test
+    fun `a day that takes the streak to seven is a milestone day - the celebration's one-row milestone`() {
+        val store = InMemoryStore()
+        val streaks = StreakStore(store)
+        (100L..105L).forEach { streaks.recordCompletedDay(wallet, it) }
+
+        val after = StreakAfter.record(streaks, wallet, 106L)
+
+        assertEquals(7, after.days)
+        assertTrue(after.milestone)
+    }
+
+    @Test
+    fun `a streak already at seven that did not grow today is no milestone day`() {
+        val store = InMemoryStore()
+        val streaks = StreakStore(store)
+        (100L..106L).forEach { streaks.recordCompletedDay(wallet, it) }
+
+        val after = StreakAfter.record(streaks, wallet, 106L)
+
+        assertEquals(7, after.days)
+        assertFalse(after.grew)
+        assertFalse(after.milestone)
+    }
+
+    @Test
+    fun `the day after a milestone is a plain day`() {
+        val store = InMemoryStore()
+        val streaks = StreakStore(store)
+        (100L..106L).forEach { streaks.recordCompletedDay(wallet, it) }
+
+        val after = StreakAfter.record(streaks, wallet, 107L)
+
+        assertEquals(8, after.days)
+        assertFalse(after.milestone)
+    }
 }

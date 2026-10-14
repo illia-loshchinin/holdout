@@ -8,7 +8,7 @@ import holdout.core.Leaderboard
 import holdout.core.Stage
 
 /**
- * Where the member is in the app, as plain data: the four tabs with a back
+ * Where the member is in the app, as plain data: the three tabs with a back
  * stack each, and what can cover them — a bottom sheet, the wallet-signing
  * flow, a sitting, the tour. No Compose and no Android: every transition of
  * the screen map (§3, §4; rulings G1, G7, G8) is [Nav.reduce] on a
@@ -19,14 +19,15 @@ import holdout.core.Stage
  *  sitting (the Daily 25, a Holdout day)               full screen, no bar
  *  signing flow (join · submit · claim, You're in)     full screen, no bar
  *  sheet (stake confirm with its Seeker gate · faucet) over the screen that opened it
- *  tab: Today · Standing · Holdouts · Me               root (bar) + pushed screens (back arrow)
+ *  tab: Today · Holdouts · Me                          root (bar) + pushed screens (back arrow)
  * ```
  *
+ * Standing, a fourth tab until 13 October, is gone (FR-069b): a Holdout's
+ * screen (H4) is [Screen.Detail], pushed on the tab that opened it.
  * Holdouts are named by their cohort address in base58.
  */
 enum class Tab(val label: String) {
     Today("Today"),
-    Standing("Standing"),
     Holdouts("Holdouts"),
     Me("Me"),
 }
@@ -36,7 +37,7 @@ sealed interface Screen {
     /** H3. */
     data class Lobby(val cohort: String) : Screen
 
-    /** H4, opened from a list rather than as the Standing root. */
+    /** H4, a Holdout's screen: pushed over whatever opened it — a Holdouts card, a Running now row, Today's strip and rows, the last day on chain. */
     data class Detail(val cohort: String) : Screen
 
     /** H5. */
@@ -87,8 +88,22 @@ sealed interface TxKind {
 /** The signing flow: waiting for your wallet → confirming → a result; a landed join then shows You're in. */
 data class TxFlow(val kind: TxKind, val phase: TxPhase = TxPhase.WaitingForWallet, val youreIn: Boolean = false)
 
-/** The tour: on first run it cannot be left but by finishing it (004 FR-013). */
-data class Tour(val firstRun: Boolean)
+/**
+ * The tour: on first run it cannot be left but by finishing it (004 FR-013). A first run opens on the welcome
+ * (FR-067a, [welcome]) until [NavEvent.StartBrief] or [NavEvent.SkipBrief]; the stake sheet's *How it works* opens
+ * it at [startCard] (1-based) and finishing or Back reopens [returnTo] (FR-041).
+ */
+data class Tour(
+    val firstRun: Boolean,
+    val welcome: Boolean = false,
+    val startCard: Int = 1,
+    val returnTo: Sheet.Stake? = null,
+) {
+    companion object {
+        /** The tour has six cards (FR-067); the last is the disclosure, which Skip leads to. */
+        const val CARDS = 6
+    }
+}
 
 data class NavState(
     /** A wallet is connected; before one, only the connect screen (FR-001a). */
@@ -102,6 +117,11 @@ data class NavState(
     val sitting: Sitting? = null,
     /** Each Holdout's stage as last read, so a change seen while the app is open can move the member (§4 dotted arrows). */
     val stages: Map<String, Stage> = emptyMap(),
+    /**
+     * The Holdouts whose screen the last day on chain opened over Today already (FR-069a): once per process, so
+     * Back out of it is not undone by the next read. In memory only — [NavSaved] keeps no trace of it.
+     */
+    val lastDayOpened: Set<String> = emptySet(),
 ) {
     /** The shown tab's pushed screens. */
     val stack: List<Screen> get() = stacks[tab].orEmpty()
@@ -147,18 +167,24 @@ sealed interface NavEvent {
     /** The app came to the front from the launcher or a reminder (N2): Today. */
     data object AppOpened : NavEvent
 
-    /** "How Holdout works" / "Tour again". */
-    data object OpenTour : NavEvent
+    /** "How Holdout works" / "Tour again" (card 1), or the stake sheet's *How it works* ([startCard] 2, [returnTo] the sheet). */
+    data class OpenTour(val startCard: Int = 1, val returnTo: Sheet.Stake? = null) : NavEvent
+
+    /** The welcome's *Start the brief*: card 1. */
+    data object StartBrief : NavEvent
+
+    /** The welcome's *Skip*: the disclosure card, the last. */
+    data object SkipBrief : NavEvent
 
     data object TourDone : NavEvent
 
     /** A tap on the bar: the tab as it was left, or its root when it is the tab shown. */
     data class SelectTab(val tab: Tab) : NavEvent
 
-    /** A link that names a tab root ("Join one to have a crowd", H0's running card, Today's crowd strip): that root, whatever the tab kept. */
+    /** A link that names a tab root (a comeback line, Today's "Back to Holdouts"): that root, whatever the tab kept. */
     data class GoToRoot(val tab: Tab) : NavEvent
 
-    /** Pushes [screen] on the shown tab. */
+    /** Pushes [screen] on the shown tab: a Holdout's screen opens over the tab that opened it, and Back returns there. */
     data class Open(val screen: Screen) : NavEvent
 
     /** Replaces the screen on top in place: another board on L1. */
@@ -213,6 +239,13 @@ sealed interface NavEvent {
     /** Deadline passed → "What happens now": the forfeit. */
     data object WhatHappensNow : NavEvent
 
+    /**
+     * The member's last day in [cohort] is on chain while the app is open — its submit just landed, or the first
+     * read found it so (FR-069a): that Holdout's screen opens over Today, once per process. The event changes
+     * nothing when Today's root is not what the member is looking at; it is raised again once it is.
+     */
+    data class LastDayOnChain(val cohort: String) : NavEvent
+
     /** The chain was read: every Holdout's stage now. */
     data class ChainMoved(val stages: Map<String, Stage>) : NavEvent
 }
@@ -228,14 +261,17 @@ object Nav {
         // Before a wallet there is only the connect screen.
         if (!s.connected && e !is NavEvent.Connected) return s
         return when (e) {
-            is NavEvent.Connected -> NavState(connected = true, tour = if (e.tourSeen) null else Tour(firstRun = true), stages = s.stages)
+            is NavEvent.Connected -> NavState(connected = true, tour = if (e.tourSeen) null else Tour(firstRun = true, welcome = true), stages = s.stages)
             NavEvent.Disconnected -> NavState()
             NavEvent.AppOpened -> s.copy(tab = Tab.Today, stacks = s.stacks - Tab.Today, sheet = null)
-            NavEvent.OpenTour -> if (s.sitting != null || s.tx != null) s else s.copy(tour = Tour(firstRun = false), sheet = null)
+            // The stake sheet's How it works returns to the sheet it left (FR-041); a first-run tour cannot be replaced by another.
+            is NavEvent.OpenTour -> if (s.sitting != null || s.tx != null || s.tour?.firstRun == true) s else s.copy(tour = Tour(firstRun = false, startCard = e.startCard.coerceIn(1, Tour.CARDS), returnTo = e.returnTo), sheet = null)
+            NavEvent.StartBrief -> s.tour?.takeIf { it.welcome }?.let { s.copy(tour = it.copy(welcome = false, startCard = 1)) } ?: s
+            NavEvent.SkipBrief -> s.tour?.takeIf { it.welcome }?.let { s.copy(tour = it.copy(welcome = false, startCard = Tour.CARDS)) } ?: s
             NavEvent.TourDone -> when {
                 s.tour == null -> s
                 s.tour.firstRun -> s.copy(tour = null, tab = Tab.Today, stacks = emptyMap())
-                else -> s.copy(tour = null)
+                else -> s.copy(tour = null, sheet = s.tour.returnTo)
             }
             is NavEvent.SelectTab -> when {
                 s.fullScreen || s.sheet != null -> s
@@ -270,7 +306,8 @@ object Nav {
             NavEvent.TxRetry -> s.tx?.let { s.copy(tx = it.copy(phase = TxPhase.WaitingForWallet, youreIn = false)) } ?: s
             NavEvent.TxBack -> txBack(s) ?: s
             NavEvent.TxDone -> s.tx?.let { tx ->
-                s.copy(tx = null, sheet = null, tab = Tab.Holdouts, stacks = s.without { it == Screen.Claim(tx.kind.cohort) } - Tab.Holdouts)
+                // The claim, and the Holdout's screen it was reached from, are done with: nothing stale is left on Today.
+                s.copy(tx = null, sheet = null, tab = Tab.Holdouts, stacks = s.without { it == Screen.Claim(tx.kind.cohort) || it == Screen.Detail(tx.kind.cohort) } - Tab.Holdouts)
             } ?: s
             NavEvent.JoinedUnderWay -> if (s.tx?.youreIn == true) s.copy(tx = null, sheet = null, tab = Tab.Today, stacks = s.stacks - Tab.Today) else s
             NavEvent.SeeLobby -> s.tx?.let { tx -> s.copy(tx = null, sheet = null).push(Screen.Lobby(tx.kind.cohort)) } ?: s
@@ -279,6 +316,7 @@ object Nav {
                 s.copy(tx = null, sheet = null, tab = Tab.Today, stacks = s.stacks + (Tab.Today to listOf(Screen.Forfeit(tx.kind.cohort))))
             } ?: s
             is NavEvent.ChainMoved -> chainMoved(s, e.stages)
+            is NavEvent.LastDayOnChain -> s.openLastDay(e.cohort)
         }
     }
 
@@ -288,7 +326,7 @@ object Nav {
         s.tx != null -> txBack(s)
         // The sitting has its own way out (✕, then the stopped summary).
         s.sitting != null -> null
-        s.tour != null -> if (s.tour.firstRun) null else s.copy(tour = null)
+        s.tour != null -> if (s.tour.firstRun) null else s.copy(tour = null, sheet = s.tour.returnTo)
         s.sheet != null -> s.copy(sheet = (s.sheet as? Sheet.Faucet)?.returnTo)
         // "You left" on the lobby: Back to Holdouts is H0, wherever the lobby was opened from.
         (s.top as? Screen.Lobby)?.let { s.stages[it.cohort] == Stage.NotJoined } == true ->
@@ -359,16 +397,31 @@ object Nav {
                 n.sheet != null -> Unit
                 // T2 -. missed a deadline .-> H6
                 before is Stage.Active && now is Stage.Forfeited && n.tab == Tab.Today && n.onRoot -> n = n.push(Screen.Forfeit(cohort))
-                // T2 -. last day passed .-> H4, the Standing root.
-                before is Stage.Active && now == Stage.Settling && n.tab == Tab.Today && n.onRoot -> n = n.copy(tab = Tab.Standing, stacks = n.stacks - Tab.Standing)
+                // T2 -. last day passed .-> H4 over Today, unless the last day on chain opened it already.
+                before is Stage.Active && now == Stage.Settling && n.tab == Tab.Today && n.onRoot -> n = n.openLastDay(cohort)
                 // T2 -. ended and settled between two reads .-> H4 then H7: as if it had passed through settling.
-                before is Stage.Active && now is Stage.ReadyToClaim && n.tab == Tab.Today && n.onRoot ->
-                    n = n.copy(tab = Tab.Standing, stacks = n.stacks - Tab.Standing).push(Screen.Claim(cohort))
+                before is Stage.Active && now is Stage.ReadyToClaim && n.tab == Tab.Today && n.onRoot -> n = n.openLastDay(cohort).push(Screen.Claim(cohort))
                 // H4 -. settled .-> H7 (from settling, or straight from the last day when the reads skipped it)
-                (before == Stage.Settling || before is Stage.Active) && now is Stage.ReadyToClaim && (n.top == Screen.Detail(cohort) || (n.tab == Tab.Standing && n.onRoot)) -> n = n.push(Screen.Claim(cohort))
+                (before == Stage.Settling || before is Stage.Active) && now is Stage.ReadyToClaim && n.top == Screen.Detail(cohort) -> n = n.push(Screen.Claim(cohort))
             }
         }
         return n
+    }
+
+    /**
+     * [cohort]'s screen over Today's root, once per process (FR-069a, R25): not while a sheet, the signing flow, a
+     * sitting or the tour holds the screen, nor while the member is on another tab or screen — then nothing is
+     * used up, and the same event opens it when they are back on Today's root.
+     */
+    private fun NavState.openLastDay(cohort: String): NavState {
+        val detail = Screen.Detail(cohort)
+        return when {
+            cohort in lastDayOpened -> this
+            // Already open on Today (restored, or the member opened it): nothing to push, nothing to open again.
+            detail in stacks[Tab.Today].orEmpty() -> copy(lastDayOpened = lastDayOpened + cohort)
+            fullScreen || sheet != null || tab != Tab.Today || !onRoot -> this
+            else -> push(detail).copy(lastDayOpened = lastDayOpened + cohort)
+        }
     }
 
     private fun NavState.visible(screen: Screen): Boolean = !fullScreen && sheet == null && top == screen

@@ -15,6 +15,9 @@ dependencies {
     api(libs.rpc.core)
     api(libs.rpc.solana)
     api(libs.rpc.ktordriver)
+    // The client under rpc-ktordriver, built here with timeouts and rebuilt when it gets stuck (FR-069i).
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
     implementation(libs.multimult)
     // The RPC libraries speak kotlinx-serialization; building a raw JSON-RPC
     // request needs it on the compile classpath, not only at runtime.

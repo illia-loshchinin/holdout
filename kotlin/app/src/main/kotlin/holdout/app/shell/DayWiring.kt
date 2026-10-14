@@ -13,7 +13,7 @@ import holdout.core.Stage
 internal class DayInputs(val banked: Int, val pendingDay: Int?, val autoSendTried: Boolean, val mayStillLand: Boolean = false)
 
 /**
- * Reads today's day of [h] from the phone for Today (T2) and Standing's day strip alike, so both
+ * Reads today's day of [h] from the phone for Today (T2) and a Holdout's screen day strip alike, so both
  * draw the same day (FR-069a, FR-069b). A process killed between banking the last block and
  * marking the day done leaves the target banked and no marker: it is finished here, as for
  * the Daily 25, or the day could be neither trained again nor submitted.
@@ -31,10 +31,10 @@ internal fun Shared.dayInputs(h: Holdout, stage: Stage.Active): DayInputs {
     return DayInputs(banked, pendingToday, pendingToday != null && chain.autoSubmit.tried(h.address.base58(), pendingToday), mayStillLand)
 }
 
-/** The day [h] is on, drawn by Standing's strip (Today's [holdout.app.home.CohortHome] builds the same from the same inputs). */
+/** The day [h] is on, drawn by a Holdout's screen strip (Today's [holdout.app.home.CohortHome] builds the same from the same inputs). */
 internal fun Shared.dayState(h: Holdout, stage: Stage.Active, now: Long, inputs: DayInputs): DayState = DayState.of(h.cohort, stage, now, inputs.banked, inputs.pendingDay, inputs.autoSendTried, chain.offline, chain.busy, canPayFees(view), inputs.mayStillLand)
 
-/** Start (or Keep going) on today's day of [h]: the same sitting from Today and from Standing. */
+/** Start (or Keep going) on today's day of [h]: the same sitting from Today and from a Holdout's screen. */
 internal fun Shared.startDay(h: Holdout, dayIndex: Int) {
     DayState.start(h, dayIndex)?.let(dispatch)
 }

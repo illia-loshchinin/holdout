@@ -34,11 +34,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import holdout.app.chain.Deployment
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Screen
 import holdout.app.ui.Body
 import holdout.app.ui.Chevron
 import holdout.app.ui.ChipTone
+import holdout.app.ui.DevnetBar
+import holdout.app.ui.DevnetBarCopy
 import holdout.app.ui.HoldoutCard
 import holdout.app.ui.NoticeCard
 import holdout.app.ui.Reading
@@ -75,7 +78,8 @@ import holdout.app.ui.theme.Spacing
  *
  * Stateless: [state] is null while nothing has been read; every tap is a
  * [NavEvent] the shell reduces, or [onJoin] for an offer (the shell knows the
- * Seeker gate). [header] holds the shell's chain notices (offline, not live).
+ * Seeker gate). While devnet cannot be reached the one devnet bar sits under the title (FR-069h);
+ * [header] holds the "not live" line.
  */
 @Composable
 fun MyHoldoutsScreen(
@@ -86,6 +90,15 @@ fun MyHoldoutsScreen(
     header: @Composable ColumnScope.() -> Unit = {},
     /** False once this session's Seeker check found no Genesis Token: the offers show without a Join, and one line says why (G12). */
     canJoin: Boolean = true,
+    /** The running Holdouts the member is not in, to watch (FR-062a): they end Now, for every wallet, and open H4 on this tab. */
+    running: List<RunningHoldout> = emptyList(),
+    /** The last chain read failed (FR-069h): the devnet bar directly under the title; the figures stay. */
+    offline: Boolean = false,
+    stillUnreachable: Boolean = false,
+    checking: Boolean = false,
+    onCheck: () -> Unit = {},
+    /** How old the read the screen shows is, in seconds; null when no read time is on record. */
+    readAgoSeconds: Long? = null,
 ) {
     // The choice survives rotation and a process death; it is Now until the member picks Past.
     var tab by rememberSaveable { mutableIntStateOf(NOW) }
@@ -98,6 +111,7 @@ fun MyHoldoutsScreen(
         verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
     ) {
         Text("Holdouts", style = MaterialTheme.typography.headlineMedium, color = HoldoutColors.TextPrimary)
+        if (offline) DevnetBar(Deployment.networkName, stillUnreachable, checking, DevnetBarCopy.showing(readAgoSeconds), onCheck)
         header()
         if (state == null) {
             Reading { SectionLabel("Reading the chain…") }
@@ -126,6 +140,11 @@ fun MyHoldoutsScreen(
             if (state.open.isEmpty()) Body("The next Holdout opens soon.")
             if (!canJoin && state.open.isNotEmpty()) Body(MyHoldoutsModel.SEEKER_ONLY)
             state.open.forEach { OfferCard(it, onJoin = if (canJoin) ({ onJoin(it.cohort) }) else null) }
+        }
+
+        if (running.isNotEmpty()) {
+            SectionLabel("Running now")
+            running.forEach { r -> RunningNowCard(r, onOpen = { onEvent(r.go) }) }
         }
     }
 }

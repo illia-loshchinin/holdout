@@ -32,6 +32,13 @@ data class OfferCardState(
     val test: Boolean,
     val testDayLength: Long,
 ) {
+    /**
+     * The compact card's meta line (FR-053, 2026-10-13): "14 joined · closes in 2d 3h", or for a Hackathon
+     * Holdout "3 joined · starts in 12m 30s". Built from [joined] and [timing], which already say it.
+     */
+    val compactMeta: String
+        get() = "${joined.removePrefix("at stake · ")} · ${timing.removePrefix("Joining ").replaceFirstChar { it.lowercase() }}"
+
     companion object {
         fun of(h: Holdout, now: Long): OfferCardState {
             val c = h.cohort
@@ -51,13 +58,32 @@ data class OfferCardState(
     }
 }
 
-/** A nudge row on Today: one line, one tap, to the screen that needs the member (screen map §3 rule 4). */
-data class NudgeRowState(val text: String, val go: NavEvent, val tone: NudgeTone = NudgeTone.Neutral)
+/**
+ * A nudge row on Today: one line, one tap, to the screen that needs the member (screen map §3 rule 4).
+ * [mono] is the part of [text] set in the mono face (an amount, a countdown); [meta] is a quiet second
+ * piece before the chevron (FR-069a: the level · length beside a claim).
+ */
+data class NudgeRowState(
+    val text: String,
+    val go: NavEvent,
+    val tone: NudgeTone = NudgeTone.Neutral,
+    val mono: String? = null,
+    val meta: String? = null,
+)
 
 enum class NudgeTone { Neutral, Success, Warning }
 
 /** The comeback card on Today (FR-037g): green, the way back in one tap. */
 data class ComebackCardState(val text: String, val go: NavEvent)
+
+/**
+ * While a Holdout runs, the offers it allows are one quiet row (FR-053, FR-069a): how many are open and the
+ * smallest at-stake figure among them, in the secondary text colour, opening Holdouts.
+ */
+data class OffersRow(val open: Int, val from: String) {
+    /** "2 open to join · from 9,000 SKR ›": [from] already carries its unit. */
+    val line: String get() = "$open open to join · from $from ›"
+}
 
 /** What Today's "Holdouts open to join" block shows, in the order the chain gets read. */
 sealed interface HoldoutsBlock {
@@ -82,12 +108,31 @@ sealed interface HoldoutsBlock {
 
 /** Today's chain-derived content, worked out from the chain view (pure; JVM-tested). */
 object TodayModel {
-    /** Staking is Seeker-exclusive, said up front beside the offers (ruling G12). */
-    const val SEEKER_LINE = MyHoldoutsModel.SEEKER_LINE
-
     /** ES-15: no Holdout is open to join. */
     const val OPENS_SOON = "The next Holdout opens soon."
-    const val OPENS_SOON_DETAIL = "The Daily 25 is open now."
+
+    /**
+     * T2's offers: one quiet row for what the running Holdout still allows the wallet to join (the program's
+     * own refusals left out, FR-006a, FR-006b), or null — nothing to join, no program, no chain read yet,
+     * or a lobby place held, which leaves no offers at all.
+     */
+    fun offersRow(view: ChainView?, now: Long?): OffersRow? {
+        if (view == null || now == null || view.config == null || view.holdsLobbyPlace(now)) return null
+        val open = view.joinable(now)
+        if (open.isEmpty()) return null
+        return OffersRow(open.size, Format.skr(open.minOf { Derive.atStake(it.cohort) }))
+    }
+
+    /**
+     * The Daily 25 hero's foot, one quiet link to Me: the freezes held, or how far the next one is
+     * (every seven days in a row earn one), or what earns the first.
+     */
+    fun streakFoot(streak: Int, freezes: Int): String = when {
+        freezes >= 2 -> "2 freezes held · cover two missed days"
+        freezes == 1 -> "1 freeze held · covers one missed day"
+        streak <= 0 -> "7 days in a row earn a streak freeze"
+        else -> (7 - streak % 7).let { "$it more ${if (it == 1) "day" else "days"} to a streak freeze" }
+    }
 
     fun holdouts(view: ChainView?, now: Long?, offline: Boolean): HoldoutsBlock = when {
         view == null || now == null -> if (offline) HoldoutsBlock.Unreachable else HoldoutsBlock.Reading
@@ -127,8 +172,9 @@ object TodayModel {
             it.cohort != exceptCohort && it.kind != YourKind.Running && !(it.kind == YourKind.Out && comebackHeld(view, now, it.cohort))
         }.map { y ->
             when (y.kind) {
-                YourKind.Claim -> NudgeRowState("You finished · claim ${claimAmount(view, now, y.cohort)}", y.go, NudgeTone.Success)
-                YourKind.Lobby -> NudgeRowState("${y.name} lobby · ${y.detail}", y.go)
+                YourKind.Claim -> claimAmount(view, now, y.cohort).let { amount -> NudgeRowState("Claim $amount", y.go, NudgeTone.Success, mono = amount, meta = y.name) }
+                // y.detail is "starts in 2d 4h": the countdown after "starts in" is the mono part.
+                YourKind.Lobby -> NudgeRowState("${y.name} ${y.detail}", y.go, mono = y.detail?.removePrefix("starts in "))
                 YourKind.Out -> NudgeRowState("${y.name}: ${y.line}${y.detail?.let { " · $it" }.orEmpty()}", y.go, NudgeTone.Warning)
                 YourKind.Running, YourKind.Locked, YourKind.Settling -> NudgeRowState("${y.name}: ${y.line}", y.go)
             }

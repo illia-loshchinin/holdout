@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,20 +33,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.chain.Deployment
 import holdout.app.chain.Holdout
-import holdout.app.home.boostLine
 import holdout.app.ui.Body
-import holdout.app.ui.ChipTone
 import holdout.app.ui.Format
 import holdout.app.ui.HoldoutCard
 import holdout.app.ui.PrimaryButton
@@ -58,6 +64,7 @@ import holdout.app.ui.Wordmark
 import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.DisplayStyle
 import holdout.app.ui.theme.HoldoutColors
+import holdout.app.ui.theme.HoldoutFonts
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
@@ -72,17 +79,18 @@ import holdout.core.MembershipSnapshot
  *
  * ```
  *  Holdout                               [DEVNET]        Wordmark · StatusChip
- *  Stake on yourself.                                    DisplayStyle, second line tertiary
+ *  Stake on yourself.                                    34 sp display, second line tertiary
  *  Prove it every day.
- *  • The Daily 25 — free, every day: …                   two product lines, a dot each
+ *  • The Daily 25 — free, every day: …                   two product lines, an Accent dot each
  *  • A Holdout — stake SKR on a 7-day Spark or a 21-day Habit. …
  *  LIVE RIGHT NOW               Test network, test token.
- *  ┌ SPARK · 7-DAY · DAY 7 OF 7            [RUNNING] ┐   one card, a row per level
- *  │ 13 / 20 still standing            6,125 SKR       │   (live from devnet with no wallet)
- *  │ Next: 12,500 SKR at stake · 14 joined             │   FR-053: at stake, joined,
- *  │ Joining closes in 2d 3h · Prize boost: up to …    │   how long joining stays open, boost
+ *  ┌ SPARK · 7-DAY · DAY 7 OF 7           ● running ┐   one card, a row per running Holdout (live, no wallet)
+ *  │ 13 / 20 still standing            6,125 SKR     │   the count with room above it, the pool in Success
+ *  │ ┌ NEXT ROUND               closes in 2d 3h ┐   │   surface-2 block, FR-053: the countdown in Accent
+ *  │ │ 12,500 SKR at stake · 14 joined   up to 480 boost │   no "+", no boost text while the reserve is 0
+ *  │ └────────────────────────────────────────┘   │
  *  └──────────────────────────────────────────────────┘
- *  [ notice: wrong network / could not connect ]
+ *  [ status card: wrong network / could not connect ]    a polite live region, soft-warm ring, no Warning text
  *  [ Connect wallet ]                                    PrimaryButton
  *  No wallet yet?                                        QuietAction → the A3 help
  * ```
@@ -92,7 +100,8 @@ import holdout.core.MembershipSnapshot
  * one. While the wallet is asked ([busy]) the screen is Holdout's own "Waiting
  * for your wallet…" — with no Cancel: the wallet app cannot be told to stop
  * (rulings G7). A [message] is the connect's failure: the wrong network
- * (FR-001b: nothing was signed) or anything else, in one plain line.
+ * (FR-001b: nothing was signed) or anything else, in one plain line. The first open fits one Seeker
+ * screen (400 × 829 dp) with two running Holdouts and the wrong-network notice showing (`ConnectFitTest`).
  */
 @Composable
 fun ConnectScreen(
@@ -118,12 +127,13 @@ fun ConnectScreen(
         modifier = modifier
             .fillMaxSize()
             .background(HoldoutColors.Canvas)
-            .padding(Spacing.screenGutter),
-        verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
+            .padding(horizontal = Spacing.screenGutter)
+            .padding(top = Spacing.betweenItems, bottom = Spacing.tight),
+        verticalArrangement = Arrangement.spacedBy(Spacing.tight),
     ) {
         Column(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(Spacing.betweenSections),
+            verticalArrangement = Arrangement.spacedBy(Spacing.tight),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Wordmark()
@@ -155,18 +165,18 @@ private fun Headline() {
             append("Stake on yourself.\n")
             withStyle(SpanStyle(color = HoldoutColors.TextTertiary)) { append("Prove it every day.") }
         },
-        style = DisplayStyle.copy(textAlign = TextAlign.Start),
+        style = HeadlineStyle,
         color = HoldoutColors.TextPrimary,
     )
 }
 
-/** What each product is, in a few short lines: the Daily 25 in the accent dot, a Holdout in the Solana one. */
+/** What each product is, in a few short lines; one accent dot for both (board Connect, FR-053). */
 @Composable
 private fun Products() {
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
         Product(HoldoutColors.Accent, "The Daily 25", " — free, every day: get stronger at your own pace. 25 push-ups, counted by the camera.\nYour streak grows.")
         Product(
-            HoldoutColors.Success,
+            HoldoutColors.Accent,
             "A Holdout",
             " — stake SKR on a 7-day Spark or a 21-day Habit.\nMiss a day: your stake joins the prize pool.\nFinish: take it back plus a share of the pool.",
         )
@@ -176,13 +186,13 @@ private fun Products() {
 @Composable
 private fun Product(dot: Color, lead: String, rest: String) {
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
-        Box(Modifier.padding(top = DOT_TOP).size(DOT).background(dot, CircleShape))
+        Box(Modifier.padding(top = DOT_TOP).size(DOT).background(dot, CircleShape).testTag(PRODUCT_DOT_TAG))
         Text(
             text = buildAnnotatedString {
                 withStyle(SpanStyle(color = HoldoutColors.TextPrimary, fontWeight = FontWeight.Medium)) { append(lead) }
                 append(rest)
             },
-            style = MaterialTheme.typography.bodyLarge,
+            style = ProductStyle,
             color = HoldoutColors.TextSecondary,
         )
     }
@@ -219,7 +229,11 @@ private fun WalletMark() {
     }
 }
 
-/** A connect that did not work, in one plain line: the wrong network says nothing was signed (FR-001b). */
+/**
+ * A connect that did not work, in one plain line: the wrong network says nothing was signed (FR-001b). A calm status
+ * card, not an alarm (board Connect, 2026-10-14): `surface-1` with a thin soft-warm ring, the sentence in the primary
+ * colour, a polite live region — nothing in `warning`.
+ */
 @Composable
 private fun ConnectNotice(message: String?) {
     if (message == null) return
@@ -227,13 +241,14 @@ private fun ConnectNotice(message: String?) {
     val shape = MaterialTheme.shapes.small
     Text(
         text = text,
-        style = MaterialTheme.typography.bodyLarge,
-        color = HoldoutColors.Warning,
+        style = NoticeStyle,
+        color = HoldoutColors.TextPrimary,
         modifier = Modifier
             .fillMaxWidth()
-            .background(HoldoutColors.Warning.copy(alpha = NOTICE_FILL), shape)
-            .border(Spacing.border, HoldoutColors.Warning.copy(alpha = NOTICE_BORDER), shape)
-            .padding(horizontal = Spacing.cardPadding, vertical = Spacing.betweenItems),
+            .background(HoldoutColors.Surface1, shape)
+            .border(Spacing.border, HoldoutColors.SoftWarm.copy(alpha = NOTICE_BORDER), shape)
+            .padding(horizontal = Spacing.betweenItems + Spacing.base, vertical = Spacing.tight + Spacing.base / 2)
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
     )
 }
 
@@ -300,12 +315,13 @@ internal fun liveRows(live: List<Holdout>, now: Long): List<LiveRowData> {
 private fun LiveRightNow(live: List<Holdout>, now: Long, rosters: Map<SolanaPublicKey, List<MembershipSnapshot>>) {
     val rows = liveRows(live, now)
     if (rows.isEmpty()) return
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             SectionLabel("Live right now", Modifier.weight(1f))
             Text("Test network, test token.", style = LabelStyle, color = HoldoutColors.TextTertiary)
         }
-        HoldoutCard {
+        // A slim card, as the board draws it: the rows' own padding sets the rhythm.
+        HoldoutCard(padding = PaddingValues(horizontal = Spacing.cardPadding, vertical = Spacing.base / 2)) {
             rows.forEachIndexed { i, row ->
                 if (i > 0) Box(Modifier.fillMaxWidth().height(Spacing.border).background(HoldoutColors.Hairline))
                 LiveRow(row, now, row.running?.let { rosters[it.address] })
@@ -314,12 +330,16 @@ private fun LiveRightNow(live: List<Holdout>, now: Long, rosters: Map<SolanaPubl
     }
 }
 
+/**
+ * One Holdout of the card (board Connect, FR-053): its label with "● running", the count with room above it and the
+ * pool in the money colour, and — for the next round of the level — the tonal "NEXT ROUND" block.
+ */
 @Composable
 private fun LiveRow(row: LiveRowData, now: Long, roster: List<MembershipSnapshot>?) {
     val running = row.running
     val shown = running ?: row.open!!
     val c = shown.cohort
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.tight), modifier = Modifier.padding(vertical = Spacing.tight)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.tight), modifier = Modifier.padding(vertical = Spacing.tight + Spacing.base)) {
         if (shown.isTest) TestCohortBadge(c.dayLength)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
             val day = (Derive.dayIndex(c, now) + 1).coerceIn(1, c.durationDays)
@@ -329,14 +349,15 @@ private fun LiveRow(row: LiveRowData, now: Long, roster: List<MembershipSnapshot
                 color = HoldoutColors.TextTertiary,
                 modifier = Modifier.weight(1f),
             )
-            if (running != null) StatusChip("running", tone = ChipTone.Success) else StatusChip("open", tone = ChipTone.Accent)
+            if (running != null) StateWord("running", HoldoutColors.Success, RUNNING_DOT_TAG) else StateWord("open", HoldoutColors.Accent)
         }
         if (running != null) {
             val figures = roster?.let { Derive.figures(c, it, now) }
             val standing = figures?.survivors?.standing
             val starters = figures?.survivors?.starters ?: c.memberCount
             val pool = figures?.projectedPool ?: c.pool
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
+            // The count has room above it: a full item gap under the label (board Connect, 2026-10-14).
+            Row(Modifier.padding(top = Spacing.base), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
                 Text(
                     text = if (standing != null) figureText("$standing", " / $starters still standing") else figureText("$starters", " started"),
                     style = MaterialTheme.typography.bodyLarge,
@@ -344,12 +365,21 @@ private fun LiveRow(row: LiveRowData, now: Long, roster: List<MembershipSnapshot
                     modifier = Modifier.weight(1f),
                 )
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(Format.skr(pool), style = AmountStyle, color = HoldoutColors.TextPrimary)
-                    Text("prize pool", style = LabelStyle, color = HoldoutColors.TextTertiary)
+                    Text(Format.skr(pool), style = PoolStyle, color = HoldoutColors.Success)
+                    Text("prize pool", style = LabelStyle.copy(fontFamily = HoldoutFonts.Mono, fontWeight = FontWeight.Normal), color = HoldoutColors.TextTertiary)
                 }
             }
         }
-        row.open?.let { OpenLines(it, now, lead = if (running != null) "Next: " else "") }
+        row.open?.let { NextRound(it, now) }
+    }
+}
+
+/** A state in a word beside a small dot of its colour: the word is the meaning, the dot only the cue (never a chip). */
+@Composable
+private fun StateWord(word: String, dot: Color, dotTag: String? = null) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+        Box(Modifier.size(STATE_DOT).background(dot, CircleShape).then(if (dotTag != null) Modifier.testTag(dotTag) else Modifier))
+        Text(word, style = LabelStyle.copy(fontWeight = FontWeight.Normal), color = HoldoutColors.TextSecondary)
     }
 }
 
@@ -360,21 +390,74 @@ private fun figureText(number: String, words: String): AnnotatedString = buildAn
     append(words)
 }
 
-/** An open Holdout's offer (FR-053): at stake, joined, how long joining stays open, and the boost. */
+/**
+ * The next round of a level (FR-053), on a `surface-2` block: "NEXT ROUND" and how long joining stays open
+ * (the countdown in the accent), what is at stake and who joined, and — only while the level's reserve holds
+ * more than 0 — "up to {boost} boost", never a "+" and never a promise.
+ */
 @Composable
-private fun OpenLines(h: Holdout, now: Long, lead: String) {
+private fun NextRound(h: Holdout, now: Long) {
     val c = h.cohort
-    Column {
-        Text("$lead${Format.skr(Derive.atStake(c))} at stake · ${c.memberCount} joined", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Accent)
-        Text("Joining closes in ${Format.countdown(Derive.timeUntilJoiningCloses(c, now))}", style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Accent)
-        boostLine(h.league?.boostReserve)?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = HoldoutColors.Success) }
+    val boost = h.league?.boostReserve?.takeIf { it > 0uL }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(HoldoutColors.Surface2, MaterialTheme.shapes.small)
+            .padding(horizontal = Spacing.betweenItems, vertical = Spacing.tight),
+        verticalArrangement = Arrangement.spacedBy(Spacing.tight),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("next round".uppercase(), style = LabelStyle, color = HoldoutColors.TextTertiary)
+            Text(
+                buildAnnotatedString {
+                    append("closes in ")
+                    withStyle(SpanStyle(fontFamily = HoldoutFonts.Mono, color = HoldoutColors.Accent)) { append(Format.countdown(Derive.timeUntilJoiningCloses(c, now))) }
+                },
+                style = BlockStyle,
+                color = HoldoutColors.TextTertiary,
+            )
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems)) {
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(fontFamily = HoldoutFonts.Mono, color = HoldoutColors.TextPrimary)) { append(Format.skr(Derive.atStake(c))) }
+                    append(" at stake · ${c.memberCount} joined")
+                },
+                style = BlockStyle,
+                color = HoldoutColors.TextSecondary,
+                modifier = Modifier.weight(1f),
+            )
+            if (boost != null) {
+                Text(
+                    buildAnnotatedString {
+                        append("up to ")
+                        withStyle(SpanStyle(fontFamily = HoldoutFonts.Mono, color = HoldoutColors.TextSecondary)) { append(Format.skr(boost).removeSuffix(" SKR")) }
+                        append(" boost")
+                    },
+                    style = BlockStyle,
+                    color = HoldoutColors.TextTertiary,
+                    softWrap = false,
+                )
+            }
+        }
     }
 }
 
 private const val WRONG_NETWORK_NOTICE = "Your wallet isn't on devnet, so nothing was signed. Switch it to devnet, then connect again."
 private const val COULD_NOT_CONNECT = "We couldn't connect to your wallet. Try again."
-private const val NOTICE_FILL = 0.10f
-private const val NOTICE_BORDER = 0.32f
+private const val NOTICE_BORDER = 0.28f
+
+/** The board's smaller type, so the first-open card holds two live rows and a notice on a Seeker (layout only; the words are the book's). */
+private val HeadlineStyle = DisplayStyle.copy(fontSize = 34.sp, lineHeight = 37.sp, textAlign = TextAlign.Start)
+private val ProductStyle = TextStyle(fontFamily = FontFamily.Default, fontSize = 14.sp, lineHeight = 21.sp)
+private val NoticeStyle = TextStyle(fontFamily = FontFamily.Default, fontSize = 13.sp, lineHeight = 19.sp)
+private val BlockStyle = LabelStyle.copy(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Normal, letterSpacing = 0.sp)
+private val PoolStyle = AmountStyle.copy(fontSize = 15.sp, lineHeight = 20.sp)
+private val STATE_DOT = 6.dp
+
+/** Test tags on the dots whose colour is the point: the product bullets and a running Holdout's dot. */
+const val PRODUCT_DOT_TAG = "product-dot"
+const val RUNNING_DOT_TAG = "running-dot"
 private val DOT = 6.dp
 private val DOT_TOP = 9.dp
 private val WALLET_MARK = 20.dp

@@ -36,7 +36,11 @@ object Deployment {
     /** What the member is told failed to answer: devnet, or in a local test build the local validator. */
     val networkName: String = if (isDevnet) "Devnet" else "The local validator"
 
-    /** The app's client for [rpcUrl]: every call the cluster refuses or does not answer is logged with its reason. */
+    /**
+     * The app's client for [rpcUrl]: every call the cluster refuses or does not answer is logged with its reason. Every one
+     * made here goes through the process's one network client ([holdout.core.RecoveringDriver.shared]), so *Retry*'s rebuild
+     * serves them all (FR-069i).
+     */
     fun rpc(): Rpc = Rpc(rpcUrl, onFailure = { method, reason -> Log.w(LOG_TAG, "$method failed: $reason") })
 
     /** A test league (FR-044a): the short test cohort, labelled wherever it appears. */

@@ -1,7 +1,9 @@
 package holdout.app.holdouts
 
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
@@ -38,9 +40,29 @@ class MyHoldoutsScreenTest {
     private val events = mutableListOf<NavEvent>()
     private val joins = mutableListOf<String>()
 
-    private fun show(state: MyHoldoutsState?, canJoin: Boolean = true) {
-        compose.setContent { HoldoutTheme { MyHoldoutsScreen(state, onEvent = { events += it }, onJoin = { joins += it }, canJoin = canJoin) } }
+    private var checks = 0
+
+    private fun show(
+        state: MyHoldoutsState?,
+        canJoin: Boolean = true,
+        running: List<RunningHoldout> = emptyList(),
+        offline: Boolean = false,
+        still: Boolean = false,
+        checking: Boolean = false,
+        readAgo: Long? = 240,
+    ) {
+        compose.setContent {
+            HoldoutTheme {
+                MyHoldoutsScreen(
+                    state, onEvent = { events += it }, onJoin = { joins += it }, canJoin = canJoin, running = running,
+                    offline = offline, stillUnreachable = still, checking = checking, onCheck = { checks++ }, readAgoSeconds = readAgo,
+                )
+            }
+        }
     }
+
+    private val watched = RunningHoldout("w1", "Habit · 21-day · day 12 of 21", "189 still standing of 312 · prize pool 48,200 SKR", false)
+    private val watched2 = RunningHoldout("w2", "Spark · 7-day · day 3 of 7", "9 still standing of 12 · prize pool 2,400 SKR", false)
 
     private val running = YourHoldout("r", "Habit · 21-day", YourKind.Running, ChipTone.Success, "Day 12 of 21 · 189 still standing", "15 push-ups to go today", false, NavEvent.Open(Screen.Detail("r")))
     private val lobby = YourHoldout("l", "Spark · 7-day", YourKind.Lobby, ChipTone.Accent, "Joined · 1,250 SKR staked", "starts in 2d 4h", false, NavEvent.Open(Screen.Lobby("l")))
@@ -155,8 +177,8 @@ class MyHoldoutsScreenTest {
     private val wonTest = PastHoldout("t", "Hackathon · Spark", "Held out 3 of 3", "605.42 SKR", NavEvent.Open(Screen.Detail("t")))
     private val lost = PastHoldout("x", "Habit · 21-day", "Out on day 5 of 21", "2,500 SKR", NavEvent.Open(Screen.Forfeit("x")))
 
-    private fun past(state: MyHoldoutsState) {
-        show(state)
+    private fun past(state: MyHoldoutsState, running: List<RunningHoldout> = emptyList()) {
+        show(state, running = running)
         compose.onNodeWithText("Past · ", substring = true).performClick()
     }
 
@@ -226,13 +248,127 @@ class MyHoldoutsScreenTest {
         compose.onNodeWithText("OPEN TO JOIN").assertIsDisplayed()
     }
 
+    // ---- Running now ends Now, for every wallet (FR-062a, 2026-10-13) ------------------------------------
+
+    private fun top(text: String) = compose.onNodeWithText(text).fetchSemanticsNode().positionInRoot.y
+
     @Test
-    fun `there is no Running now - other people's pools are Standing's`() {
+    fun `Running now is the last section of Now - after the member's own cards and Open to join`() {
+        show(MyHoldoutsState(yours = listOf(running), open = listOf(free)), running = listOf(watched, watched2))
+
+        compose.onNodeWithText("RUNNING NOW").assertIsDisplayed()
+        compose.onNodeWithText("Habit · 21-day · day 12 of 21").assertIsDisplayed()
+        compose.onNodeWithText("189 still standing of 312 · prize pool 48,200 SKR").assertIsDisplayed()
+        val own = top("Day 12 of 21 · 189 still standing")
+        val offers = top("OPEN TO JOIN")
+        val section = top("RUNNING NOW")
+        assertTrue(own < offers && offers < section, "own $own, offers $offers, running now $section")
+        assertTrue(section < top("Habit · 21-day · day 12 of 21") && top("Habit · 21-day · day 12 of 21") < top("Spark · 7-day · day 3 of 7"))
+    }
+
+    @Test
+    fun `a row of Running now opens that Holdout's screen on Holdouts and offers no Join`() {
+        show(MyHoldoutsState(yours = listOf(running)), running = listOf(watched))
+
+        compose.onNodeWithText("Join").assertDoesNotExist()
+        compose.onNodeWithText("Habit · 21-day · day 12 of 21").performClick()
+        assertEquals(listOf<NavEvent>(NavEvent.Open(Screen.Detail("w1"))), events)
+        assertTrue(joins.isEmpty())
+    }
+
+    @Test
+    fun `with no Holdout of the member's own, Running now comes straight under the offers`() {
+        show(MyHoldoutsState(open = listOf(free)), running = listOf(watched))
+
+        compose.onNodeWithText("No Holdouts yet.").assertIsDisplayed()
+        compose.onNodeWithText("RUNNING NOW").assertIsDisplayed()
+        assertTrue(top("OPEN TO JOIN") < top("RUNNING NOW"))
+    }
+
+    @Test
+    fun `on the empty state with nothing to join, Running now still shows`() {
+        show(MyHoldoutsState(), running = listOf(watched))
+
+        compose.onNodeWithText("No Holdouts yet.").assertIsDisplayed()
+        compose.onNodeWithText("The next Holdout opens soon.").assertIsDisplayed()
+        compose.onNodeWithText("RUNNING NOW").assertIsDisplayed()
+        compose.onNodeWithText("Habit · 21-day · day 12 of 21").assertIsDisplayed()
+    }
+
+    @Test
+    fun `without a Seeker Running now is there, and opens, while the offers lose their Join`() {
+        show(MyHoldoutsState(open = listOf(free)), canJoin = false, running = listOf(watched))
+
+        compose.onNodeWithText("RUNNING NOW").assertIsDisplayed()
+        compose.onNodeWithText("Join").assertDoesNotExist()
+        compose.onNodeWithText("Habit · 21-day · day 12 of 21").performClick()
+        assertEquals(listOf<NavEvent>(NavEvent.Open(Screen.Detail("w1"))), events)
+    }
+
+    @Test
+    fun `while a lobby place is held there are no offers but Running now remains`() {
+        show(MyHoldoutsState(yours = listOf(lobby), holdsLobbyPlace = true), running = listOf(watched))
+
+        compose.onNodeWithText("OPEN TO JOIN").assertDoesNotExist()
+        compose.onNodeWithText("RUNNING NOW").assertIsDisplayed()
+    }
+
+    @Test
+    fun `Past has no Running now`() {
+        past(MyHoldoutsState(yours = listOf(running), won = listOf(won)), running = listOf(watched))
+        compose.onNodeWithText("RUNNING NOW").assertDoesNotExist()
+        compose.onNodeWithText("Habit · 21-day · day 12 of 21").assertDoesNotExist()
+    }
+
+    @Test
+    fun `without any running Holdout there is no Running now section`() {
         show(MyHoldoutsState(yours = listOf(running), open = listOf(free)))
 
         compose.onNodeWithText("RUNNING NOW").assertDoesNotExist()
-        compose.onNodeWithText("FINISHED").assertDoesNotExist()
         assertEquals(0, compose.onAllNodes(hasText("prize pool", substring = true)).fetchSemanticsNodes().size)
+    }
+
+    // ---- the devnet bar (FR-069h) ---------------------------------------------------------------------
+
+    @Test
+    fun `devnet not answering - the bar sits directly under the title with the age of what is shown`() {
+        show(MyHoldoutsState(yours = listOf(running)), offline = true)
+
+        compose.onNodeWithText("Devnet isn't answering").assertIsDisplayed()
+        compose.onNodeWithText("Showing what it said 4m ago.").assertIsDisplayed()
+        val title = top("Holdouts")
+        val bar = top("Devnet isn't answering")
+        val firstCard = top("Day 12 of 21 · 189 still standing")
+        assertTrue(title < bar && bar < firstCard, "title $title, bar $bar, card $firstCard")
+        compose.onNodeWithText("Retry").performClick()
+        assertEquals(1, checks)
+    }
+
+    @Test
+    fun `after a failed retry it says still`() {
+        show(MyHoldoutsState(yours = listOf(running)), offline = true, still = true)
+        compose.onNodeWithText("Devnet still isn't answering").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a check in flight - Retry reads Checking and cannot be pressed`() {
+        show(MyHoldoutsState(yours = listOf(running)), offline = true, checking = true)
+        compose.onNodeWithText("Checking…").assertIsDisplayed().assertIsNotEnabled()
+    }
+
+    @Test
+    fun `no old notice - nothing says it cannot be reached and there is no Check again button`() {
+        show(MyHoldoutsState(yours = listOf(running)), offline = true)
+
+        compose.onNodeWithText("can't be reached", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Check again").assertDoesNotExist()
+    }
+
+    @Test
+    fun `devnet answering - no bar`() {
+        show(MyHoldoutsState(yours = listOf(running)))
+        compose.onNodeWithText("Devnet isn't answering").assertDoesNotExist()
+        compose.onNodeWithText("Retry").assertDoesNotExist()
     }
 
     @Test

@@ -10,17 +10,14 @@ import androidx.compose.ui.Modifier
 import holdout.app.home.CohortHome
 import holdout.app.home.HomeScreen
 import holdout.app.home.HomeState
-import holdout.app.home.NudgeRow
 import holdout.app.home.TodayModel
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Sitting
-import holdout.app.nav.Tab
 import holdout.app.sitting.BankingController
 import holdout.app.sitting.StoppedScreen
 import holdout.app.sitting.StoppedUi
 import holdout.app.storage.Store
 import holdout.app.streak.StreakMilestones
-import holdout.app.streak.ToesMeter
 import holdout.app.ui.ChainCheckBox
 import holdout.core.HoldoutDay
 
@@ -29,7 +26,7 @@ import holdout.core.HoldoutDay
  * with the member standing in it — its day only, with one nudge line per other
  * Holdout needing a tap (B-D1) — else T1, the Daily 25 with the nudges, the
  * comeback card and the Holdouts open to join. Running now is not here: it
- * lives on Holdouts and Standing's empty state (ruling G14).
+ * lives on Holdouts, ending Now (ruling G14).
  */
 @Composable
 internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
@@ -52,7 +49,7 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
     }
     if (running != null && chainNow != null) {
         val (h, stage) = running
-        // Its roster is read every 30 s by the app's Standing loop: the running Holdout is the one Standing is about.
+        // Its roster is read every 30 s by the app's own loop: the running Holdout is the one Today is about.
         val day = dayInputs(h, stage)
         val banked = day.banked
         val newPhone = remember(wallet, dayIndex, view, banked) { NewPhoneWiring.shows(store, wallet, dayIndex, view, banked) }
@@ -71,8 +68,8 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
             mayStillLand = day.mayStillLand,
             onStart = { startDay(h, stage.dayIndex) },
             onSubmit = { submitDayOf(h, it) },
-            // Its standing is the Standing tab's root.
-            onDetail = { dispatch(NavEvent.GoToRoot(Tab.Standing)) },
+            // The crowd strip opens its screen over Today (FR-069b), the chip and the offers row switch tabs; Back returns here.
+            onEvent = dispatch,
             onGetTokens = { dispatch(NavEvent.OpenFaucet) },
             modifier = modifier,
             newPhone = newPhone,
@@ -81,7 +78,10 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
             checking = chain.check.checking,
             stillUnreachable = chain.check.stillUnreachable,
             onCheck = { checkChain(h.address) },
-            otherHoldouts = { TodayModel.nudges(view, chainNow, exceptCohort = h.address.base58()).forEach { NudgeRow(it) { dispatch(it.go) } } },
+            nudges = TodayModel.nudges(view, chainNow, exceptCohort = h.address.base58()),
+            // A wallet this session found holds no Seeker gets no card whose tap is a stake it cannot make (G12).
+            comeback = TodayModel.comeback(view, chainNow, seekerKnown).takeUnless { knownNotSeeker },
+            offers = TodayModel.offersRow(view, chainNow),
         )
         return
     }
@@ -126,12 +126,12 @@ internal fun Shared.TodayRoot(modifier: Modifier = Modifier) {
                 streak = streak.current,
                 longestStreak = streak.longest,
                 freezes = streak.freezes,
-                toes = ToesMeter(store, DAILY_25).read(wallet, dayIndex),
                 yesterdayNote = yesterday,
                 secondsLeftToday = if (offline) null else chainNow?.let { HoldoutDay.secondsLeftIn(it) },
                 nudges = nudges,
                 comeback = comeback,
                 holdouts = holdoutsBlock,
+                offline = offline,
                 checking = chain.check.checking,
                 stillUnreachable = chain.check.stillUnreachable,
                 canJoin = !knownNotSeeker,

@@ -98,7 +98,7 @@ data class PastHoldout(
     val go: NavEvent,
 )
 
-/** A running Holdout to watch, read-only: its day and how many still stand; it opens H4 (then H5). Standing's empty state lists them. */
+/** A running Holdout to watch, read-only: its day and how many still stand; it opens H4 (then H5). Holdouts lists them, last on Now. */
 data class RunningHoldout(val cohort: String, val name: String, val line: String, val test: Boolean, val testDayLength: Long = 0) {
     val go: NavEvent get() = NavEvent.Open(Screen.Detail(cohort))
 }

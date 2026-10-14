@@ -85,7 +85,7 @@ class MemberJourneyEndToEndTest {
         // Connect, first time: the tour, full screen, then Today.
         var now = start - 2 * day
         var s = NavState().then(NavEvent.Connected(tourSeen = false)).read(now)
-        assertEquals(Tour(firstRun = true), s.tour)
+        assertEquals(Tour(firstRun = true, welcome = true), s.tour)
         assertFalse(s.showsBar)
         s = s.then(NavEvent.TourDone)
         assertEquals(Tab.Today, s.tab)
@@ -154,7 +154,8 @@ class MemberJourneyEndToEndTest {
         now = start + 7 * day + 60
         s = runningOnDayOne.read(now)
         assertEquals(Stage.Settling, s.stages[id])
-        assertEquals(Tab.Standing, s.tab)
+        assertEquals(Tab.Today, s.tab)
+        assertEquals(Screen.Detail(id), s.top)
         assertFalse(Badges.holdouts(s.stages.values))
 
         chain.settled = true

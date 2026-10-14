@@ -50,6 +50,15 @@ class HoldoutViewModelCheckTest {
 
     private lateinit var vm: HoldoutViewModel
 
+    /** How many times the view model threw its network client away (FR-069i). */
+    private var reconnects = 0
+
+    /** What the chain reads had seen when the client was thrown away, each time. */
+    private val readsAtReconnect = mutableListOf<Int>()
+
+    /** The monotonic clock the view model reads, in milliseconds: the test moves it. */
+    private var elapsedMillis = 0L
+
     private class FakeChain : ChainReads {
         val reads = mutableListOf<CompletableDeferred<ChainView?>>()
 
@@ -67,7 +76,11 @@ class HoldoutViewModelCheckTest {
         Dispatchers.setMain(dispatcher)
         // Every chain read goes to the fake. The Rpc (and the faucet built on it) is never
         // called by a check; it points at a closed local port so a stray call fails, not hangs.
-        vm = HoldoutViewModel(store, rpc = Rpc("http://127.0.0.1:1"), chain = chain, elapsed = { 0L })
+        val rpc = Rpc("http://127.0.0.1:1", reconnect = {
+            reconnects++
+            readsAtReconnect += chain.reads.size
+        })
+        vm = HoldoutViewModel(store, rpc = rpc, chain = chain, elapsed = { elapsedMillis })
     }
 
     @AfterTest
@@ -89,6 +102,32 @@ class HoldoutViewModelCheckTest {
     }
 
     @Test
+    fun `given a read that answered, when later reads fail, then the time of that answer stays for the devnet bar's age`() = runTest(dispatcher) {
+        assertEquals(null, state.viewReadAt)
+        vm.watch(walletA)
+        runCurrent()
+        elapsedMillis = 5_000
+        chain.reads.last().complete(answered)
+        runCurrent()
+        assertEquals(5_000L, state.viewReadAt)
+
+        // The next two scheduled reads find the chain silent (one dropped call is not "unreachable", FR-071), the
+        // second 4 minutes after the answer: the old answer is still what is shown, and it is that old.
+        advanceTimeBy(30_001)
+        runCurrent()
+        chain.reads.last().complete(null)
+        runCurrent()
+        elapsedMillis = 245_000
+        advanceTimeBy(30_001)
+        runCurrent()
+        chain.reads.last().complete(null)
+        runCurrent()
+        assertTrue(state.offline)
+        assertEquals(5_000L, state.viewReadAt)
+        assertEquals(240L, state.readAgoSeconds(elapsedMillis))
+    }
+
+    @Test
     fun `given the app is not in front, when the member asks, then nothing is read`() = runTest(dispatcher) {
         unreachableFor(walletA)
         vm.pause()
@@ -99,6 +138,44 @@ class HoldoutViewModelCheckTest {
 
         assertEquals(before, chain.reads.size)
         assertEquals(ChainCheck(), state.check)
+    }
+
+    @Test
+    fun `given devnet unreachable, when the member presses Retry, then the network client is rebuilt before the retry's read`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        val before = chain.reads.size
+        assertEquals(0, reconnects)
+
+        vm.checkNow()
+        runCurrent()
+
+        assertEquals(1, reconnects)
+        assertEquals(listOf(before), readsAtReconnect)
+        assertEquals(before + 1, chain.reads.size)
+    }
+
+    @Test
+    fun `given a Retry under way, when the member presses it again, then the client is not rebuilt twice`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        vm.checkNow()
+        runCurrent()
+        vm.checkNow()
+        runCurrent()
+
+        assertEquals(1, reconnects)
+    }
+
+    @Test
+    fun `given the chain answering, when Retry is asked, then nothing is rebuilt`() = runTest(dispatcher) {
+        vm.watch(walletA)
+        runCurrent()
+        chain.reads.last().complete(answered)
+        runCurrent()
+
+        vm.checkNow()
+        runCurrent()
+
+        assertEquals(0, reconnects)
     }
 
     @Test
