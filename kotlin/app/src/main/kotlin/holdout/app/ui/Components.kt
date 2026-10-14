@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import holdout.app.holdout.CheckAgainCopy
 import holdout.app.ui.theme.AmountStyle
 import holdout.app.ui.theme.HoldoutColors
@@ -257,11 +259,10 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
 
 /**
  * A hairline card — the only separation on black; there are no shadows (design book, Depth).
- * [padding] is the card's inset: [Spacing.cardPadding], or less for a card kept compact (Today's Daily 25).
+ * [padding] is the card's inset: [Spacing.cardPadding], or less for a card kept compact (Today's Daily 25); [shape] the 24 dp corners, or less (Today's compact offer, 20 dp).
  */
 @Composable
-fun HoldoutCard(modifier: Modifier = Modifier, padding: PaddingValues = PaddingValues(Spacing.cardPadding), content: @Composable ColumnScope.() -> Unit) {
-    val shape = MaterialTheme.shapes.medium
+fun HoldoutCard(modifier: Modifier = Modifier, padding: PaddingValues = PaddingValues(Spacing.cardPadding), shape: Shape = MaterialTheme.shapes.medium, content: @Composable ColumnScope.() -> Unit) {
     Column(
         // Clipped outside the caller's modifier, so a card made clickable ripples inside its corners.
         modifier = Modifier
@@ -276,20 +277,42 @@ fun HoldoutCard(modifier: Modifier = Modifier, padding: PaddingValues = PaddingV
     )
 }
 
-/** [busy]: the action is waiting on the wallet or devnet. The button is disabled and leads with the [HoldoutLoader]. */
+/**
+ * [busy]: the action is waiting on the wallet or devnet. The button is disabled and leads with the [HoldoutLoader].
+ * [compact]: the 52 dp pill with an 18 sp label that sits in Today's hero frame (the v2 boards).
+ */
 @Composable
-fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, busy: Boolean = false) {
+fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, busy: Boolean = false, compact: Boolean = false) {
     Button(
         onClick = onClick,
         enabled = enabled && !busy,
-        modifier = modifier.fillMaxWidth().height(Spacing.primaryButtonHeight),
+        modifier = modifier.fillMaxWidth().height(if (compact) HERO_BUTTON_HEIGHT else Spacing.primaryButtonHeight),
         shape = MaterialTheme.shapes.extraLarge,
-        colors = ButtonDefaults.buttonColors(containerColor = HoldoutColors.TextPrimary, contentColor = HoldoutColors.OnLight),
+        colors = if (compact) {
+            // Inside Today's hero a pill that cannot be pressed (a finished day waiting on the network, a wallet send) is the board's tonal one.
+            ButtonDefaults.buttonColors(
+                containerColor = HoldoutColors.TextPrimary,
+                contentColor = HoldoutColors.OnLight,
+                disabledContainerColor = HoldoutColors.Surface3,
+                disabledContentColor = HoldoutColors.TextSecondary,
+            )
+        } else {
+            ButtonDefaults.buttonColors(containerColor = HoldoutColors.TextPrimary, contentColor = HoldoutColors.OnLight)
+        },
     ) {
         if (busy) BusyMark()
-        Text(text, style = MaterialTheme.typography.titleMedium)
+        val style = MaterialTheme.typography.titleMedium
+        val shown = when {
+            !compact -> style
+            enabled && !busy -> style.copy(fontSize = 18.sp, lineHeight = 24.sp)
+            else -> style.copy(fontSize = 16.sp, lineHeight = 24.sp)
+        }
+        Text(text, style = shown)
     }
 }
+
+/** The primary button inside Today's hero frame (v2 boards: 52 dp, not 56). */
+private val HERO_BUTTON_HEIGHT = 52.dp
 
 @Composable
 fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, busy: Boolean = false) {

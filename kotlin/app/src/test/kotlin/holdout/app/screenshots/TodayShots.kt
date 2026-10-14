@@ -49,11 +49,13 @@ class TodayShots {
         streak = 12,
         secondsLeftToday = 14_760,
         holdouts = HoldoutsBlock.Open(listOf(spark, habit)),
-        nudges = listOf(NudgeRowState("Claim 1,412 SKR", NavEvent.TourDone, NudgeTone.Success)),
     )
 
+    /** A claim waiting: the row the boards show on Holdouts' tab dot too. */
+    private val claim = NudgeRowState("Claim 1,412 SKR", NavEvent.TourDone, NudgeTone.Success, mono = "1,412 SKR", meta = "Spark · 7-day")
+
     private fun t1(name: String, state: HomeState, badge: Boolean = true) = compose.shoot("today", name) {
-        Tabbed(Tab.Today, TabBadges(today = badge)) {
+        Tabbed(Tab.Today, TabBadges(today = badge, holdouts = state.nudges.isNotEmpty() && !state.chainDown)) {
             HomeScreen(state, onStart = {}, onEvent = {}, onJoin = {}, onCheck = {})
         }
     }
@@ -62,15 +64,15 @@ class TodayShots {
     fun t1Fresh() = t1("t1-fresh", fresh)
 
     @Test
-    fun t1PartWay() = t1("t1-part-way", fresh.copy(remainingToday = 15, bankedToday = 10, freezes = 1))
+    fun t1PartWay() = t1("t1-part-way", fresh.copy(remainingToday = 15, bankedToday = 10, nudges = listOf(claim)))
 
     @Test
-    fun t1Done() = t1("t1-done", fresh.copy(remainingToday = 0, bankedToday = 25, completedToday = true, streak = 13), badge = false)
+    fun t1Done() = t1("t1-done", fresh.copy(remainingToday = 0, bankedToday = 25, completedToday = true, streak = 13, nudges = listOf(claim)), badge = false)
 
     @Test
     fun t1Milestone() = t1(
         "t1-milestone",
-        fresh.copy(remainingToday = 0, bankedToday = 25, completedToday = true, streak = 7, milestoneToday = true),
+        fresh.copy(remainingToday = 0, bankedToday = 25, completedToday = true, streak = 21, milestoneToday = true, nudges = listOf(claim)),
         badge = false,
     )
 
@@ -78,7 +80,7 @@ class TodayShots {
     fun t1NewPhone() = t1("t1-new-phone", fresh.copy(newPhone = true))
 
     @Test
-    fun t1Unreachable() = t1("t1-devnet-bar", fresh.copy(secondsLeftToday = null, holdouts = HoldoutsBlock.Unreachable, nudges = emptyList()))
+    fun t1Unreachable() = t1("t1-devnet-bar", fresh.copy(secondsLeftToday = null, holdouts = HoldoutsBlock.Unreachable))
 
     @Test
     fun t1LobbyHeld() = t1("t1-lobby-held", fresh.copy(holdouts = HoldoutsBlock.Hidden, nudges = listOf(NudgeRowState("Spark · 7-day starts in 2d 0h", NavEvent.TourDone))))
@@ -144,8 +146,8 @@ class TodayShots {
                 streak = 12,
                 canPayFees = canPayFees,
                 mayStillLand = mayStillLand,
-                nudges = listOf(NudgeRowState("Claim 1,412 SKR", NavEvent.TourDone, NudgeTone.Success)),
-                offers = OffersRow(2, "9,000 SKR"),
+                nudges = listOf(claim),
+                offers = if (offline) null else OffersRow(2, "9,000 SKR"),
             )
         }
     }

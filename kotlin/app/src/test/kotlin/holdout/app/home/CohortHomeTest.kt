@@ -1,5 +1,6 @@
 package holdout.app.home
 
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -245,7 +246,7 @@ class CohortHomeTest {
     fun `to do - 25 push-ups, the bars empty, it counts as the Daily 25 too, and Start`() {
         show()
         text("25").assertIsDisplayed()
-        text("PUSH-UPS").assertIsDisplayed()
+        text("push-ups").assertIsDisplayed()
         compose.onNodeWithContentDescription("0 of 3 blocks banked").assertExists()
         text("Counts as your Daily 25 too.").assertIsDisplayed()
         text("Start").performClick()
@@ -257,7 +258,7 @@ class CohortHomeTest {
     fun `part-way - what is left, the first bar, what is banked for good and Keep going`() {
         show(banked = 10)
         text("15").assertIsDisplayed()
-        text("TO GO").assertIsDisplayed()
+        text("to go").assertIsDisplayed()
         compose.onNodeWithContentDescription("1 of 3 blocks banked").assertExists()
         text("10 banked for good").assertIsDisplayed()
         text("Keep going").performClick()
@@ -268,7 +269,7 @@ class CohortHomeTest {
     fun `the last 10 minutes warn in words, that unfinished reps won't count, and never refuse to start`() {
         show(banked = 10, at = start + 12 * day - 1 - 510)
         text("15").assertIsDisplayed()
-        text("STILL NEEDED").assertIsDisplayed()
+        text("still needed").assertIsDisplayed()
         text("Under 10 minutes left. Unfinished reps won't count.").assertIsDisplayed()
         compose.onNodeWithContentDescription("Under 10 minutes left, 8m 30s").assertExists()
         text("Keep going").assertIsEnabled()
@@ -286,7 +287,7 @@ class CohortHomeTest {
     @Test
     fun `done and online, the send under way - the wallet is out and the button says so`() {
         show(pendingDay = 11, busy = true)
-        text("DONE").assertIsDisplayed()
+        text("done").assertIsDisplayed()
         text("Waiting for your wallet…").assertIsNotEnabled()
         text("Approve it in your wallet to put day 12 on chain.").assertIsDisplayed()
     }
@@ -309,7 +310,7 @@ class CohortHomeTest {
     @Test
     fun `done but short of SOL - Get test tokens is the button and the sub line says why`() {
         show(pendingDay = 11, canPayFees = false)
-        text("DONE").assertIsDisplayed()
+        text("done").assertIsDisplayed()
         text("Not enough devnet SOL to put day 12 on chain.").assertIsDisplayed()
         text("Submit day 12").assertDoesNotExist()
         text("Get test tokens").performClick()
@@ -320,7 +321,7 @@ class CohortHomeTest {
     @Test
     fun `submitted - on chain, the bars full, and day 13 opens in a countdown instead of a deadline`() {
         show(todayDone = true)
-        text("ON CHAIN").assertIsDisplayed()
+        text("on chain").assertIsDisplayed()
         compose.onNodeWithContentDescription("3 of 3 blocks banked").assertExists()
         text("Streak +1. It counted as your Daily 25.").assertIsDisplayed()
         text("Day 13 opens in 4h 06m.").assertIsDisplayed()
@@ -340,7 +341,7 @@ class CohortHomeTest {
     @Test
     fun `the landed day's message is not repeated under the done card`() {
         show(todayDone = true, message = "Day 12 is on chain.", messageIsWarning = false)
-        text("ON CHAIN").assertIsDisplayed()
+        text("on chain").assertIsDisplayed()
         text("Day 12 is on chain.").assertDoesNotExist()
     }
 
@@ -390,12 +391,12 @@ class CohortHomeTest {
     @Test
     fun `while a Holdout runs the offers are one quiet row in the secondary colour, and it opens Holdouts`() {
         show(offers = OffersRow(open = 2, from = "9,000 SKR"))
-        val line = "2 open to join · from 9,000 SKR ›"
+        val line = "2 open to join · from 9,000 SKR"
         text(line).assertIsDisplayed()
         assertEquals(HoldoutColors.TextSecondary, colourOf(line))
         val layout = mutableListOf<TextLayoutResult>()
         compose.onNode(hasText(line)).fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layout)
-        assertEquals(emptyList(), layout.first().layoutInput.text.spanStyles, "no accent or money-colour span")
+        assertEquals(emptyList(), layout.first().layoutInput.text.spanStyles.filter { it.item.color != Color.Unspecified }, "no accent or money-colour span: the amount is in the mono face only")
         text(line).performClick()
         assertEquals(listOf<NavEvent>(NavEvent.SelectTab(Tab.Holdouts)), events)
     }

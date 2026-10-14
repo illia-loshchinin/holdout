@@ -97,7 +97,7 @@ class HomeScreenTest {
         text("4h 06m").assertIsDisplayed()
         text("left").assertIsDisplayed()
         text("25").assertIsDisplayed()
-        text("PUSH-UPS").assertIsDisplayed()
+        text("push-ups").assertIsDisplayed()
         compose.onNodeWithContentDescription("0 of 3 blocks banked").assertExists()
         text("Free · knees allowed · in blocks of 10").assertIsDisplayed()
         text("Start").performClick()
@@ -114,7 +114,7 @@ class HomeScreenTest {
     fun `part-way - what is left, the first bar filled, what is banked for good and Keep going`() {
         show(fresh.copy(remainingToday = 15, bankedToday = 10))
         text("15").assertIsDisplayed()
-        text("TO GO").assertIsDisplayed()
+        text("to go").assertIsDisplayed()
         compose.onNodeWithContentDescription("1 of 3 blocks banked").assertExists()
         text("10 banked for good").assertIsDisplayed()
         text("Keep going").performClick()
@@ -126,7 +126,7 @@ class HomeScreenTest {
     fun `done - 25 done in green, all three bars, the streak line, no countdown and the tonal next-Daily pill`() {
         show(fresh.copy(remainingToday = 0, bankedToday = 25, completedToday = true, streak = 13))
         text("25").assertIsDisplayed()
-        text("DONE").assertIsDisplayed()
+        text("done").assertIsDisplayed()
         assertEquals(HoldoutColors.Success, colourOf("25"))
         compose.onNodeWithContentDescription("3 of 3 blocks banked").assertExists()
         text("All 25 counted. Streak +1.").assertIsDisplayed()
@@ -273,16 +273,16 @@ class HomeScreenTest {
     @Test
     fun `when more can be joined a quiet row says how many and opens Holdouts`() {
         show(fresh)
-        text("1 more open ›").assertIsDisplayed()
-        assertEquals(HoldoutColors.TextSecondary, colourOf("1 more open ›"))
-        text("1 more open ›").performClick()
+        text("1 more open").assertIsDisplayed()
+        assertEquals(HoldoutColors.TextSecondary, colourOf("1 more open"))
+        text("1 more open").performClick()
         assertEquals(listOf<NavEvent>(NavEvent.SelectTab(Tab.Holdouts)), events)
     }
 
     @Test
     fun `with three open the quiet row counts the two others`() {
         show(fresh.copy(holdouts = HoldoutsBlock.Open(listOf(spark, habit, habit.copy(cohort = "h2")))))
-        text("2 more open ›").assertIsDisplayed()
+        text("2 more open").assertIsDisplayed()
     }
 
     @Test

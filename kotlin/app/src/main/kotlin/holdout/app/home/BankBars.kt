@@ -53,7 +53,7 @@ fun BankBars(target: Int, banked: Int, modifier: Modifier = Modifier, fill: Colo
         modifier = modifier
             .fillMaxWidth()
             .semantics(mergeDescendants = true) { contentDescription = "${filled.count { it }} of ${blocks.size} blocks banked" },
-        horizontalArrangement = Arrangement.spacedBy(Spacing.tight),
+        horizontalArrangement = Arrangement.spacedBy(BAR_GAP),
     ) {
         blocks.forEachIndexed { i, share ->
             Box(
@@ -67,6 +67,9 @@ fun BankBars(target: Int, banked: Int, modifier: Modifier = Modifier, fill: Colo
 }
 
 private val BAR_HEIGHT = 6.dp
+
+/** Between the blocks: 6 dp on the boards. */
+private val BAR_GAP = 6.dp
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable

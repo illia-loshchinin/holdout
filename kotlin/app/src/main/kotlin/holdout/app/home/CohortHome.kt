@@ -17,8 +17,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import holdout.app.chain.Deployment
 import holdout.app.chain.Holdout
 import holdout.app.nav.NavEvent
@@ -28,11 +33,11 @@ import holdout.app.ui.ChainCheckBox
 import holdout.app.ui.DevnetBar
 import holdout.app.ui.Format
 import holdout.app.ui.Notice
-import holdout.app.ui.PrimaryButton
 import holdout.app.ui.StreakFlame
 import holdout.app.ui.StreakState
 import holdout.app.ui.TestCohortBadge
 import holdout.app.ui.theme.HoldoutColors
+import holdout.app.ui.theme.HoldoutFonts
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
 import holdout.core.Derive
@@ -130,7 +135,7 @@ fun CohortHome(
         share = if (figures != null && me != null) figures.projectedShare(me) else null,
         dropped = since?.dropped ?: 0,
     )
-    val apart = Modifier.padding(top = Spacing.betweenSections - Spacing.betweenItems)
+    val apart = Modifier.padding(top = TODAY_APART)
 
     ChainCheckBox(offline, checking, onCheck, modifier) {
         Column(
@@ -139,7 +144,7 @@ fun CohortHome(
                 .background(HoldoutColors.Canvas)
                 .verticalScroll(rememberScrollState())
                 .padding(Spacing.screenGutter),
-            verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
+            verticalArrangement = Arrangement.spacedBy(TODAY_GAP),
         ) {
             Row(Modifier.fillMaxWidth().height(HEADER_HEIGHT), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
@@ -171,6 +176,7 @@ fun CohortHome(
                 // The new-phone line takes the sub line before the first rep (FR-069f).
                 sub = { HeroSub(if (newPhone && d.phase == DayPhase.ToDo && d.banked == 0) NewPhone.line(d.target) else d.sub, d.subTone) },
                 button = { DayButtonSlot(d, offline, onStart, onSubmit, onGetTokens) },
+                footerHeight = HERO_FOOTER_TALL,
                 footer = {
                     HeroFooter(
                         onClick = { onEvent(NavEvent.Open(Screen.Detail(h.address.base58()))) },
@@ -190,7 +196,7 @@ fun CohortHome(
                 }
             }
             // The offers a running Holdout allows are one quiet row; the cards are on Holdouts.
-            offers?.let { QuietRow(it.line, apart) { onEvent(NavEvent.SelectTab(Tab.Holdouts)) } }
+            offers?.let { QuietRow(it.line, Modifier, mono = it.from) { onEvent(NavEvent.SelectTab(Tab.Holdouts)) } }
         }
     }
 }
@@ -210,9 +216,9 @@ private fun DayButtonSlot(d: DayState, offline: Boolean, onStart: () -> Unit, on
     val button = d.button
     when {
         d.phase == DayPhase.OnChain -> d.pill?.let { HeroPill(it) }
-        d.phase == DayPhase.ShortOfSol -> PrimaryButton("Get test tokens", onGetTokens)
-        d.phase == DayPhase.Unsent && offline && button == null -> PrimaryButton(d.title, onClick = {}, enabled = false)
-        button != null -> PrimaryButton(
+        d.phase == DayPhase.ShortOfSol -> HeroButton("Get test tokens", onGetTokens)
+        d.phase == DayPhase.Unsent && offline && button == null -> HeroButton(d.title, onClick = {}, enabled = false)
+        button != null -> HeroButton(
             button.label,
             {
                 when (button.action) {
@@ -234,6 +240,16 @@ private fun DayButtonSlot(d: DayState, offline: Boolean, onStart: () -> Unit, on
 private data class CrowdStrip(val standing: Int, val total: Long, val share: ULong?, val dropped: Int) {
     val line: String get() = "$standing of $total still standing" + (share?.takeIf { it > 0uL }?.let { " · your share ${Format.skr(it)}" } ?: "")
 
+    /** [line] as the boards set it: the counts and the share in white, the share in the mono face, the words between in the secondary colour. */
+    val styled: AnnotatedString get() = buildAnnotatedString {
+        withStyle(SpanStyle(color = HoldoutColors.TextPrimary)) { append("$standing of $total") }
+        append(" still standing")
+        share?.takeIf { it > 0uL }?.let {
+            append(" · your share ")
+            withStyle(SpanStyle(fontFamily = HoldoutFonts.Mono, color = HoldoutColors.TextPrimary)) { append(Format.skr(it)) }
+        }
+    }
+
     /** The strip's accessible name: the line, who dropped, and where it goes. */
     val spoken: String get() = line + (if (dropped > 0) ", $dropped dropped since yesterday" else "") + ". Opens the Holdout."
 }
@@ -245,16 +261,16 @@ private data class CrowdStrip(val standing: Int, val total: Long, val share: ULo
  */
 @Composable
 private fun Crowd(crowd: CrowdStrip) {
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.base)) {
-        Text(crowd.line, style = LabelStyle, color = HoldoutColors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Column(verticalArrangement = Arrangement.spacedBy(CROWD_GAP)) {
+        Text(crowd.styled, style = HeroSmall, color = HoldoutColors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (crowd.dropped > 0) Dropped(crowd.dropped)
     }
 }
 
-/** `▲ 3 dropped since yesterday`: the day's loss to the crowd, with the triangle in the colour of a good thing for the share. */
+/** `▲ 3 dropped since yesterday`: 12 sp in the tertiary colour, the triangle with it (the boards draw it as a glyph in the same grey). */
 @Composable
 private fun Dropped(count: Int) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.base)) {
         Canvas(Modifier.size(TRIANGLE)) {
             val path = Path().apply {
                 moveTo(size.width / 2, 0f)
@@ -262,11 +278,13 @@ private fun Dropped(count: Int) {
                 lineTo(0f, size.height * TRIANGLE_DROP)
                 close()
             }
-            drawPath(path, HoldoutColors.Success)
+            drawPath(path, HoldoutColors.TextTertiary)
         }
-        Text("$count dropped since yesterday", style = LabelStyle, color = HoldoutColors.TextTertiary)
+        Text("$count dropped since yesterday", style = HeroSmall.copy(fontSize = 12.sp, lineHeight = 14.sp), color = HoldoutColors.TextTertiary)
     }
 }
+
+private val CROWD_GAP = 6.dp
 
 private const val TRIANGLE_DROP = 0.8f
 private val TRIANGLE = 8.dp

@@ -71,7 +71,7 @@ fun BottomNav(items: List<BottomNavItem>, selected: Int, onSelect: (Int) -> Unit
     Column(modifier.fillMaxWidth().background(HoldoutColors.Surface2)) {
         HorizontalDivider(thickness = Spacing.border, color = HoldoutColors.Hairline)
         Row(
-            modifier = Modifier.fillMaxWidth().height(Spacing.navHeight - Spacing.border).padding(horizontal = Spacing.tight),
+            modifier = Modifier.fillMaxWidth().height(Spacing.navHeight - Spacing.border).padding(horizontal = NAV_SIDE),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -84,7 +84,7 @@ fun BottomNav(items: List<BottomNavItem>, selected: Int, onSelect: (Int) -> Unit
 private fun NavTab(item: BottomNavItem, active: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .sizeIn(minWidth = PILL_WIDTH, minHeight = Spacing.touchTarget)
+            .sizeIn(minWidth = TAB_WIDTH, minHeight = Spacing.touchTarget)
             .clip(MaterialTheme.shapes.extraLarge)
             .selectable(selected = active, onClick = onClick, role = Role.Tab)
             .clearAndSetSemantics {
@@ -128,13 +128,13 @@ private fun NavTab(item: BottomNavItem, active: Boolean, onClick: () -> Unit) {
  */
 object NavIcons {
     val Today: ImageVector = ImageVector.Builder("today", 24.dp, 24.dp, 24f, 24f)
-        .stroked("M5 6h14a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z M4 10.5h16 M8 3.5v3 M16 3.5v3")
-        .filled("M13 13.5h4v4h-4z")
+        .stroked("M6.5 5h11a3 3 0 0 1 3 3v9.5a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3z M3.5 10h17 M8 2.8v4 M16 2.8v4")
+        .filled("M8.5 13h2.5a1 1 0 0 1 1 1v2.5a1 1 0 0 1-1 1H8.5a1 1 0 0 1-1-1V14a1 1 0 0 1 1-1z")
         .build()
 
     val Holdouts: ImageVector = ImageVector.Builder("holdouts", 24.dp, 24.dp, 24f, 24f)
-        .filled(dots(6f to 6f, 6f to 12f, 6f to 18f, 18f to 6f, 18f to 12f, 18f to 18f, 12f to 12f))
-        .filled(dots(12f to 6f, 12f to 18f), alpha = QUIET_DOT_ALPHA)
+        .filled(dots(5f to 5f, 5f to 12f, 5f to 19f, 19f to 5f, 19f to 12f, 19f to 19f, 12f to 12f))
+        .filled(dots(12f to 5f, 12f to 19f), alpha = QUIET_DOT_ALPHA)
         .build()
 
     // A circle (cx 12, cy 8, r 4) as two arcs, then the shoulders.
@@ -161,15 +161,19 @@ object NavIcons {
         fillAlpha = alpha,
     )
 
-    private const val DOT_RADIUS = 2f
+    private const val DOT_RADIUS = 2.6f
     private const val QUIET_DOT_ALPHA = 0.35f
 }
 
 private val PILL_WIDTH = 64.dp
+
+/** The tab target is 72 dp wide, in a bar padded 40 dp each side and spaced around, as on the boards. */
+private val TAB_WIDTH = 72.dp
+private val NAV_SIDE = 40.dp
 private val PILL_HEIGHT = 40.dp
 private val ICON_SIZE = 24.dp
 private val DOT_SIZE = 8.dp
-private val DOT_INSET_TOP = 5.dp
+private val DOT_INSET_TOP = 6.dp
 private val DOT_INSET_END = 14.dp
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)

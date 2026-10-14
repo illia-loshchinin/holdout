@@ -3,11 +3,15 @@ package holdout.app.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -18,10 +22,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import holdout.app.holdout.CheckAgainCopy
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutTheme
@@ -52,43 +61,53 @@ fun DevnetBar(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = MaterialTheme.shapes.medium
+    val shape = MaterialTheme.shapes.small
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .heightIn(min = BAR_MIN_HEIGHT)
             .clip(shape)
             .background(HoldoutColors.Surface1, shape)
             .border(BorderStroke(Spacing.border, HoldoutColors.SoftWarm.copy(alpha = RING_ALPHA)), shape)
-            .padding(start = Spacing.betweenItems + Spacing.base, end = Spacing.tight, top = Spacing.tight, bottom = Spacing.tight),
+            .padding(start = Spacing.cardPadding - Spacing.base, end = Spacing.tight, top = Spacing.tight, bottom = Spacing.tight),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
     ) {
+        Dot()
         Column(
             modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
             verticalArrangement = Arrangement.spacedBy(Spacing.base),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.tight)) {
-                Dot()
-                Text(
-                    text = if (still) CheckAgainCopy.stillUnreachable(network) else CheckAgainCopy.unreachable(network),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = HoldoutColors.TextPrimary,
-                )
-            }
             Text(
-                text = sub,
-                style = MaterialTheme.typography.bodyMedium,
-                color = HoldoutColors.TextTertiary,
-                modifier = Modifier.padding(start = DOT_SIZE + Spacing.tight),
+                text = if (still) CheckAgainCopy.stillUnreachable(network) else CheckAgainCopy.unreachable(network),
+                style = BAR_TITLE,
+                color = HoldoutColors.TextPrimary,
+            )
+            Text(text = sub, style = BAR_SUB, color = HoldoutColors.TextTertiary)
+        }
+        Box(
+            modifier = Modifier
+                .defaultMinSize(minWidth = Spacing.touchTarget)
+                .height(Spacing.touchTarget)
+                .clip(MaterialTheme.shapes.extraLarge)
+                .clickable(enabled = !checking, role = Role.Button, onClick = onRetry)
+                .padding(horizontal = BAR_ACTION_PADDING),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = if (checking) CheckAgainCopy.CHECKING else CheckAgainCopy.BUTTON,
+                style = BAR_TITLE.copy(fontWeight = FontWeight.Medium),
+                color = HoldoutColors.Accent,
             )
         }
-        QuietAction(
-            text = if (checking) CheckAgainCopy.CHECKING else CheckAgainCopy.BUTTON,
-            onClick = onRetry,
-            enabled = !checking,
-        )
     }
 }
+
+/** The bar's sizes on the boards: 56 dp high, the title 14 sp on an 18 sp line, the sub 12 sp, the action a transparent pill (48 dp to touch, the board draws 40). */
+private val BAR_MIN_HEIGHT = 56.dp
+private val BAR_ACTION_PADDING = 14.dp
+private val BAR_TITLE = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 18.sp)
+private val BAR_SUB = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 16.sp)
 
 /** The sub line of the bar on a screen that shows what devnet last said (Holdouts, a Holdout's screen, the forfeit). */
 object DevnetBarCopy {

@@ -49,6 +49,9 @@ object HoldoutFonts {
 
     /** Claim amount, streak, the lobby's countdown (40 sp). */
     val FlexDisplay: FontFamily = flex(40f)
+
+    /** Today's hero number (48 sp, light): the boards set it in plain Roboto, whose widths Roboto Flex has at its text optical size (14). */
+    val FlexHero: FontFamily = flex(14f)
 }
 
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")

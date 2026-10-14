@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -20,24 +21,30 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import holdout.app.chain.Deployment
 import holdout.app.holdouts.MyHoldoutsModel
 import holdout.app.nav.NavEvent
 import holdout.app.nav.Tab
 import holdout.app.streak.StreakMilestones
+import holdout.app.ui.Chevron
 import holdout.app.ui.DevnetBar
 import holdout.app.ui.Format
-import holdout.app.ui.PrimaryButton
 import holdout.app.ui.Reading
 import holdout.app.ui.SectionLabel
 import holdout.app.ui.StreakFlame
 import holdout.app.ui.StreakState
 import holdout.app.ui.theme.HoldoutColors
 import holdout.app.ui.theme.HoldoutFonts
+import holdout.app.ui.theme.HoldoutShapes
 import holdout.app.ui.theme.HoldoutTheme
 import holdout.app.ui.theme.LabelStyle
 import holdout.app.ui.theme.Spacing
@@ -95,12 +102,12 @@ data class HomeState(
  *  ├─────────────────────────────────────────────────┤
  *  │ 2 more days to a streak freeze                ›  │   the foot, a link to Me
  *  └─────────────────────────────────────────────────┘
- *  ( Claim 1,412 SKR      Spark · 7-day  › )                          the rows group, a little apart
- *  ( Get back 125 SKR of your lost stake: …  › )
+ *  ┌ Claim 1,412 SKR            Spark · 7-day      ›  ┐   plain tonal rows (surface 1, hairline), a little apart
+ *  └ Get back 125 SKR of your lost stake: …       ›  ┘
  *  OPEN TO JOIN
  *  ┌ Spark · 7-day                          ( Join ) ┐   one compact OfferCard, no boost line
  *  └ 14 joined · closes in 2d 3h ─────────────────────┘
- *    1 more open ›                                          the quiet row to Holdouts
+ *    1 more open                                         ›     the quiet row to Holdouts
  * ```
  * Never empty and never "come back later": when today is already done the hero says so and the
  * streak carries it. Running Holdouts to watch live on the Holdouts tab (ruling G14), not here.
@@ -120,7 +127,7 @@ fun HomeScreen(
             .background(HoldoutColors.Canvas)
             .verticalScroll(rememberScrollState())
             .padding(Spacing.screenGutter),
-        verticalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
+        verticalArrangement = Arrangement.spacedBy(TODAY_GAP),
     ) {
         Row(Modifier.fillMaxWidth().height(HEADER_HEIGHT), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Text("TODAY", style = LabelStyle, color = HoldoutColors.TextTertiary)
@@ -144,7 +151,7 @@ fun HomeScreen(
 
         // What else needs a tap: its own group, a little apart from the hero.
         if (state.nudges.isNotEmpty() || state.comeback != null) {
-            Column(Modifier.padding(top = Spacing.betweenSections - Spacing.betweenItems), verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
+            Column(Modifier.padding(top = TODAY_APART), verticalArrangement = Arrangement.spacedBy(Spacing.tight)) {
                 state.nudges.forEach { NudgeRow(it) { onEvent(it.go) } }
                 state.comeback?.let { ComebackCard(it) { onEvent(it.go) } }
             }
@@ -188,13 +195,13 @@ private fun DailyHero(state: HomeState, onStart: () -> Unit, onOpenMe: () -> Uni
         button = {
             when {
                 done -> HeroPill(nextDaily(state.secondsLeftToday))
-                state.bankedToday > 0 -> PrimaryButton("Keep going", onStart)
-                else -> PrimaryButton("Start", onStart)
+                state.bankedToday > 0 -> HeroButton("Keep going", onStart)
+                else -> HeroButton("Start", onStart)
             }
         },
         footer = {
             HeroFooter(onClick = onOpenMe, onClickLabel = "Opens Me", description = "$foot. Opens Me.") {
-                Text(foot, style = LabelStyle, color = HoldoutColors.TextSecondary, maxLines = 1)
+                Text(foot, style = HeroSmall, color = HoldoutColors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         },
     )
@@ -216,7 +223,7 @@ private fun nextDaily(secondsLeft: Long?) = buildAnnotatedString {
 /** The offers, last: one compact card and a quiet row, "The next Holdout opens soon.", or nothing (FR-053). */
 @Composable
 private fun Offers(state: HomeState, onEvent: (NavEvent) -> Unit, onJoin: (cohort: String) -> Unit) {
-    val apart = Modifier.padding(top = Spacing.betweenSections - Spacing.betweenItems)
+    val apart = Modifier.padding(top = TODAY_APART)
     when (val block = state.holdouts) {
         HoldoutsBlock.Reading -> Reading { SectionLabel("Reading the chain…") }
         // The devnet bar says so; there is nothing read to offer.
@@ -241,63 +248,62 @@ private fun Offers(state: HomeState, onEvent: (NavEvent) -> Unit, onJoin: (cohor
 }
 
 /**
- * One of the member's Holdouts that needs a tap: a pill row with a chevron, tinted by what it asks. The
- * sentence is the model's ([TodayModel.nudges]).
+ * One of the member's Holdouts that needs a tap, as the boards draw it: a plain tonal row (surface 1, a hairline,
+ * 16 dp corners, 52 dp high), its sentence in white, the amount in the mono face (and in the money colour when the
+ * row is a claim), the Holdout's name in the tertiary colour, a drawn chevron. The sentence is the model's
+ * ([TodayModel.nudges]). Only an `Out` row (a loss) keeps its warning colour, beside its words.
  */
 @Composable
 fun NudgeRow(nudge: NudgeRowState, onClick: () -> Unit) {
-    val color = when (nudge.tone) {
-        NudgeTone.Success -> HoldoutColors.Success
-        NudgeTone.Warning -> HoldoutColors.Warning
-        NudgeTone.Neutral -> HoldoutColors.TextPrimary
-    }
+    val color = if (nudge.tone == NudgeTone.Warning) HoldoutColors.Warning else HoldoutColors.TextPrimary
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(Spacing.touchTarget)
-            .clip(MaterialTheme.shapes.extraLarge)
-            .background(if (nudge.tone == NudgeTone.Neutral) HoldoutColors.Surface1 else color.copy(alpha = BANNER_TINT))
-            .border(Spacing.border, if (nudge.tone == NudgeTone.Neutral) HoldoutColors.Hairline else color.copy(alpha = BORDER_TINT), MaterialTheme.shapes.extraLarge)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = Spacing.cardPadding),
+        modifier = plainRow(onClick).heightIn(min = ROW_HEIGHT).padding(start = Spacing.cardPadding, end = ROW_END),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
     ) {
-        Text(nudgeText(nudge), style = MaterialTheme.typography.bodyLarge, color = color, modifier = Modifier.weight(1f))
-        nudge.meta?.let { Text(it, style = LabelStyle, color = HoldoutColors.TextTertiary, maxLines = 1) }
-        Text("›", style = MaterialTheme.typography.titleMedium, color = color)
+        Text(nudgeText(nudge), style = ROW_TEXT, color = color, modifier = Modifier.weight(1f))
+        nudge.meta?.let { Text(it, style = LabelStyle.copy(fontWeight = FontWeight.Normal, letterSpacing = 0.sp), color = HoldoutColors.TextTertiary, maxLines = 1) }
+        Chevron()
     }
 }
 
-/** The row's sentence, its [NudgeRowState.mono] part in the mono face (an amount, a countdown). */
+/** The tonal row both of Today's row kinds share: surface 1, a hairline, 16 dp corners, the whole row one tap. */
+private fun plainRow(onClick: () -> Unit): Modifier = Modifier
+    .fillMaxWidth()
+    .clip(HoldoutShapes.small)
+    .background(HoldoutColors.Surface1, HoldoutShapes.small)
+    .border(Spacing.border, HoldoutColors.Hairline, HoldoutShapes.small)
+    .clickable(role = Role.Button, onClick = onClick)
+
+/** 15 sp on a 20 sp line: the rows' sentence on the boards. */
+private val ROW_TEXT = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Normal, fontSize = 15.sp, lineHeight = 20.sp)
+private val ROW_HEIGHT = 52.dp
+private val ROW_END = 16.dp
+
+/** The row's sentence, its [NudgeRowState.mono] part in the mono face (an amount, a countdown) — and in the money colour on a claim. */
 private fun nudgeText(nudge: NudgeRowState) = buildAnnotatedString {
     append(nudge.text)
     val at = nudge.mono?.let { nudge.text.lastIndexOf(it) } ?: -1
-    if (at >= 0) addStyle(SpanStyle(fontFamily = HoldoutFonts.Mono), at, at + nudge.mono!!.length)
-}
-
-/** The way back after a lost stake (FR-037g): green, the whole card one tap. */
-@Composable
-internal fun ComebackCard(card: ComebackCardState, onClick: () -> Unit) {
-    val shape = MaterialTheme.shapes.medium
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(HoldoutColors.Success.copy(alpha = BANNER_TINT), shape)
-            .border(Spacing.border, HoldoutColors.Success.copy(alpha = BORDER_TINT), shape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = Spacing.cardPadding, vertical = Spacing.betweenItems),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
-    ) {
-        Text(card.text, style = LabelStyle, color = HoldoutColors.Success, modifier = Modifier.weight(1f))
-        Text("›", style = MaterialTheme.typography.titleMedium, color = HoldoutColors.Success)
+    if (at >= 0) {
+        val style = if (nudge.tone == NudgeTone.Success) SpanStyle(fontFamily = HoldoutFonts.Mono, color = HoldoutColors.Success) else SpanStyle(fontFamily = HoldoutFonts.Mono)
+        addStyle(style, at, at + nudge.mono!!.length)
     }
 }
 
-private const val BANNER_TINT = 0.10f
-private const val BORDER_TINT = 0.32f
+/** The way back after a lost stake (FR-037g): a plain tonal row like the others, the whole card one tap. */
+@Composable
+internal fun ComebackCard(card: ComebackCardState, onClick: () -> Unit) {
+    Row(
+        modifier = plainRow(onClick).heightIn(min = COMEBACK_HEIGHT).padding(start = Spacing.cardPadding, end = ROW_END, top = Spacing.tight + 2.dp, bottom = Spacing.tight + 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
+    ) {
+        Text(card.text, style = LabelStyle.copy(fontWeight = FontWeight.Normal, letterSpacing = 0.sp), color = HoldoutColors.TextPrimary, modifier = Modifier.weight(1f))
+        Chevron()
+    }
+}
+
+private val COMEBACK_HEIGHT = 60.dp
 
 private val OFFER = OfferCardState(
     cohort = "o1",
