@@ -86,6 +86,13 @@ class Rpc(
         /** An SPL token account's amount in base units, or null for data too short to be one. */
         fun tokenAmountOf(data: ByteArray): ULong? = if (data.size < 72) null else java.nio.ByteBuffer.wrap(data, 64, 8).order(java.nio.ByteOrder.LITTLE_ENDIAN).long.toULong()
 
+        /**
+         * What an account at an associated token address holds: its amount when the token program owns it, `0`
+         * when another program does — lamports sent to the address before the token account was created hold no
+         * tokens — and null, a failed read rather than a zero, for a token-program account too short to be one.
+         */
+        fun tokenAmountIn(account: AccountInfo): ULong? = if (account.owner != Instructions.TOKEN_PROGRAM) 0uL else tokenAmountOf(account.data)
+
         /** The `getProgramAccounts` params for [query] — split out so the exact request is testable. */
         fun programAccountsParams(programId: SolanaPublicKey, query: ProgramAccountsQuery): JsonArray = buildJsonArray {
             add(JsonPrimitive(programId.base58()))
@@ -278,8 +285,8 @@ class Rpc(
         }
     }
 
-    /** One account as [multipleAccounts] reads it: its data and its lamports. */
-    class AccountInfo(val data: ByteArray, val lamports: Long)
+    /** One account as [multipleAccounts] reads it: its data, its lamports and the program that owns it. */
+    class AccountInfo(val data: ByteArray, val lamports: Long, val owner: SolanaPublicKey)
 
     /**
      * Several accounts in one `getMultipleAccounts` per [MULTIPLE_ACCOUNTS_MAX]
@@ -308,7 +315,10 @@ class Rpc(
                     if (value is JsonNull) {
                         null
                     } else {
-                        runCatching { AccountInfo(base64Data(value), value.jsonObject.getValue("lamports").jsonPrimitive.long) }.getOrNull() ?: return null
+                        runCatching {
+                            val o = value.jsonObject
+                            AccountInfo(base64Data(value), o.getValue("lamports").jsonPrimitive.long, SolanaPublicKey.from(o.getValue("owner").jsonPrimitive.content))
+                        }.getOrNull() ?: return null
                     }
             }
         }
