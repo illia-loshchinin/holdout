@@ -154,9 +154,10 @@ data class ChainView(
     /**
      * Running Holdouts the wallet is not in — Home's read-only "Running now"
      * list, so any connected wallet, with or without a Seeker, can watch a
-     * Holdout thin (FR-062a, FR-003c, constitution XII).
+     * Holdout thin (FR-062a, FR-003c, constitution XII). A round nobody is in
+     * and nobody can still join late has no crowd to watch, so it is left out.
      */
-    fun runningNotMine(now: Long): List<Holdout> = holdouts.filter { it.status(now) == CohortStatus.Running && it.membership == null }
+    fun runningNotMine(now: Long): List<Holdout> = holdouts.filter { it.status(now) == CohortStatus.Running && it.membership == null && !Derive.emptyForGood(it.cohort, now) }
 
     /** Cohorts the wallet is in and has not claimed out of — what home leads with. */
     fun mine(now: Long): List<Holdout> = holdouts.filter { h -> h.membership != null && h.stage(now) !is Stage.Claimed }
@@ -164,8 +165,13 @@ data class ChainView(
     /** Holdouts the wallet finished and claimed out of — kept reachable, for their detail and history. */
     fun claimed(now: Long): List<Holdout> = holdouts.filter { h -> h.membership != null && h.stage(now) is Stage.Claimed }
 
-    /** Cohorts running or open, with or without the wallet — the connect screen's live list (FR-001a). */
-    fun live(now: Long): List<Holdout> = holdouts.filter { it.status(now) == CohortStatus.Open || it.status(now) == CohortStatus.Running }
+    /**
+     * Cohorts running or open, with or without the wallet — the connect screen's live list (FR-001a).
+     * A running one nobody is in and nobody can still join late is left out, so are its roster reads (FR-062a).
+     */
+    fun live(now: Long): List<Holdout> = holdouts.filter {
+        it.status(now) == CohortStatus.Open || (it.status(now) == CohortStatus.Running && !Derive.emptyForGood(it.cohort, now))
+    }
 
     /** The end of the cohort in the profile's running slot, for the overlap check (FR-006b). */
     fun runningEnd(now: Long): Long? = Journey.runningCohortFor(profile, now)?.let { r -> holdouts.firstOrNull { it.address == r }?.cohort?.let(Derive::end) }

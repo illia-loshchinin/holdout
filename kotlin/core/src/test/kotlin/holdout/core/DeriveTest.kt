@@ -123,6 +123,27 @@ class DeriveTest {
         assertEquals(CohortStatus.Settled, Derive.status(c, Derive.end(c) + 99))
     }
 
+    @Test
+    fun `a late join lands through the first day's deadline, as guards require_joinable has it`() {
+        val c = cohort()
+        assertTrue(Derive.lateJoinOpen(c, c.start))
+        assertTrue(Derive.lateJoinOpen(c, Derive.deadlineOf(c, 0)), "the deadline's own second still takes it")
+        assertFalse(Derive.lateJoinOpen(c, Derive.deadlineOf(c, 0) + 1))
+        assertFalse(Derive.lateJoinOpen(c.copy(settled = true), c.start), "a settled cohort takes nobody")
+    }
+
+    @Test
+    fun `an empty running cohort is empty for good once its first day is over`() {
+        val c = cohort()
+        val dayOneOver = Derive.deadlineOf(c, 0) + 1
+        assertFalse(Derive.emptyForGood(c, Derive.deadlineOf(c, 0)), "still joinable late through day one")
+        assertTrue(Derive.emptyForGood(c, dayOneOver))
+        assertTrue(Derive.emptyForGood(c, Derive.end(c) - 1))
+        assertFalse(Derive.emptyForGood(c, Derive.end(c)), "settling, not running")
+        assertFalse(Derive.emptyForGood(c, c.joinCutoff - 1), "open")
+        assertFalse(Derive.emptyForGood(c.copy(memberCount = 1), dayOneOver), "someone is in it")
+    }
+
     // ---- breach and standing, as `membership.rs` has them -----------------
 
     @Test
