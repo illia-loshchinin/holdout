@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import holdout.app.sitting.CameraPermissionScreen
+import holdout.app.sitting.CelebrationProgress
 import holdout.app.sitting.CountdownContent
 import holdout.app.sitting.CountdownUi
 import holdout.app.sitting.CountingContent
@@ -18,6 +19,8 @@ import holdout.app.sitting.DayCompleteContent
 import holdout.app.sitting.DayCompleteOffer
 import holdout.app.sitting.DayCompleteUi
 import holdout.app.sitting.HoldoutDayCard
+import holdout.app.sitting.PositionOverlay
+import holdout.app.sitting.PositionOverlayDrawing
 import holdout.app.sitting.PreflightContent
 import holdout.app.sitting.PreflightPill
 import holdout.app.sitting.PreflightTip
@@ -31,6 +34,9 @@ import holdout.app.sitting.StoppedUi
 import holdout.app.sitting.StreakAfter
 import holdout.app.testutil.AnimationsOff
 import holdout.repcounter.CameraView
+import holdout.repcounter.Guidance
+import holdout.repcounter.GuideBox
+import holdout.repcounter.PositionHint
 import holdout.repcounter.PreflightCheck
 import holdout.repcounter.Stakes
 import org.junit.Rule
@@ -113,6 +119,29 @@ class SittingShots {
         }
     }
 
+    /** The floor line and the faint body outline over the camera, and no frame around the place to lie (FR-019). */
+    @Test
+    fun preflightOutline() = compose.shoot("sitting", "preflight-outline") {
+        val guidance = Guidance(horizonY = 0.5f, target = GuideBox(0.5f, 0.64f, 0.4f, 0.1f), bodyBox = null, fit = 0f, hint = PositionHint.MOVE_BACK, aligned = false)
+        Room {
+            PositionOverlayDrawing(PositionOverlay.parts(guidance), frameWidth = 720, frameHeight = 960, mirrored = false)
+            PreflightContent(
+                PreflightUi(
+                    header = SittingHeader(SittingCopy.positionLabel(12), left, holdoutDay = true),
+                    pills = pills(setOf("Whole body in frame")),
+                    coach = "Move back",
+                    coachIsHold = false,
+                    sub = "Step back so the phone sees all of you",
+                    holdProgress = null,
+                    rule = SittingCopy.ruleCaption(Stakes.STAKED),
+                    tipsOffered = false,
+                ),
+                onStop = {},
+                onSetup = {},
+            )
+        }
+    }
+
     @Test
     fun preflightLooking() = preflight("preflight-looking", pills = null, coach = null, sub = null)
 
@@ -146,6 +175,9 @@ class SittingShots {
     fun countingHint() = counting("counting-hint", hint = "Go lower")
 
     @Test
+    fun countingHintBodyStraight() = counting("counting-hint-body-straight", hint = "Keep your body straight")
+
+    @Test
     fun countingJustBanked() = counting("counting-just-banked", done = 10, banked = 10, loose = 0, justBanked = true)
 
     @Test
@@ -174,6 +206,14 @@ class SittingShots {
 
     @Test
     fun dayCompleteHoldout() = compose.shoot("sitting", "day-complete-holdout") { DayCompleteContent(holdoutComplete, {}, {}) }
+
+    /** The burst part-way: the ring and tick drawn, the dots in flight, the headline in place (the board at about 1.1 s). */
+    @Test
+    fun dayCompleteBurst() = compose.shoot("sitting", "day-complete-burst") {
+        val progress = CelebrationProgress(animate = false)
+        androidx.compose.runtime.LaunchedEffect(Unit) { progress.burst.snapTo(0.3f) }
+        DayCompleteContent(dailyComplete, {}, {}, celebration = progress)
+    }
 
     @Test
     fun dayCompleteHoldoutOffline() = compose.shoot("sitting", "day-complete-holdout-offline") {

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +27,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -59,8 +59,8 @@ enum class StreakState {
     PersonalBest,
 
     /**
-     * A milestone day (7, 14, 21 … `StreakMilestones`): a larger white flame in an
-     * `accent` ring that pulses once; no pulse when the phone's animations are off.
+     * A milestone day (7, 14, 21 … `StreakMilestones`): the flame in `accent` that pulses once;
+     * no pulse when the phone's animations are off.
      */
     Milestone,
 }
@@ -79,7 +79,8 @@ enum class StreakState {
  *
  * [chip] draws it small, in a pill on `surface-3` (the Today header, board 5):
  * a 16 dp flame and the number at label size. As a milestone the flame is
- * larger and the pill has an `accent` border.
+ * larger and the pill has an `accent` border. The day-complete page's milestone is
+ * not this composable: it is one row of a [MilestoneFlame] and the headline.
  */
 @Composable
 fun StreakFlame(days: Int, state: StreakState, modifier: Modifier = Modifier, chip: Boolean = false, onClick: (() -> Unit)? = null) {
@@ -136,9 +137,11 @@ fun StreakFlame(days: Int, state: StreakState, modifier: Modifier = Modifier, ch
 }
 
 /**
- * The milestone flame: larger, in an `accent` ring (the chip has its ring on the
- * pill instead), and one pulse when it first shows — none when the phone's
+ * The milestone flame, with one pulse when it first shows — none when the phone's
  * animations are off, as for the loaders (`ValueAnimator.areAnimatorsEnabled`).
+ * On the Today [chip] it is white and 24 dp (the ring is on the pill); on the
+ * day-complete page it is the small accent flame beside "{N}-day streak" (FR-049a,
+ * 2026-10-13) — no ring of its own, so the celebration's is the page's one big shape.
  */
 @Composable
 internal fun MilestoneFlame(chip: Boolean, pulse: Animatable<Float, AnimationVector1D> = remember { Animatable(1f) }) {
@@ -149,30 +152,23 @@ internal fun MilestoneFlame(chip: Boolean, pulse: Animatable<Float, AnimationVec
             pulse.animateTo(1f, tween(PULSE_MILLIS))
         }
     }
-    val pulsing = Modifier.graphicsLayer {
+    val pulsing = Modifier.testTag("milestone-flame").graphicsLayer {
         scaleX = pulse.value
         scaleY = pulse.value
     }
     if (chip) {
         Box(pulsing) { Flame(StreakState.Milestone, MILESTONE_CHIP_FLAME_SIZE) }
     } else {
-        Box(
-            modifier = pulsing
-                .size(MILESTONE_RING_SIZE)
-                .border(Spacing.ringStroke, HoldoutColors.Accent, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Flame(StreakState.Milestone, MILESTONE_FLAME_SIZE)
-        }
+        Box(pulsing) { Flame(StreakState.Milestone, MILESTONE_ROW_FLAME_SIZE, tint = HoldoutColors.Accent) }
     }
 }
 
 @Composable
-private fun Flame(state: StreakState, flameSize: Dp) {
+private fun Flame(state: StreakState, flameSize: Dp, tint: Color? = null) {
     val outline = remember { PathParser().parsePathString(FLAME).toPath() }
     val crack = remember { PathParser().parsePathString(CRACK).toPath() }
     val fill: Color? = when (state) {
-        StreakState.Active, StreakState.Milestone -> HoldoutColors.TextPrimary
+        StreakState.Active, StreakState.Milestone -> tint ?: HoldoutColors.TextPrimary
         StreakState.ExtendedToday -> HoldoutColors.Success
         StreakState.PersonalBest -> HoldoutColors.Celebration
         StreakState.Broken -> null
@@ -192,8 +188,7 @@ private fun Flame(state: StreakState, flameSize: Dp) {
 
 private val FLAME_SIZE = 36.dp
 private val CHIP_FLAME_SIZE = 16.dp
-private val MILESTONE_FLAME_SIZE = 44.dp
-private val MILESTONE_RING_SIZE = 72.dp
+private val MILESTONE_ROW_FLAME_SIZE = 20.dp
 private val MILESTONE_CHIP_FLAME_SIZE = 24.dp
 private const val PULSE_SCALE = 1.15f
 private const val PULSE_MILLIS = 300

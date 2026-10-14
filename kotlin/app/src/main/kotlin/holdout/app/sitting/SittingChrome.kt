@@ -53,7 +53,7 @@ internal data class SittingHeader(
     val timeLeft: Long? = null,
     val holdoutDay: Boolean = true,
 ) {
-    /** A Holdout day's last ten minutes: its time turns to a warning and unfinished reps are said not to count (FR-047). */
+    /** A Holdout day's last ten minutes: its time turns the soft warm tone (FR-047, 2026-10-13); the sentence is Today's, not the sitting's. */
     val inLastMinutes: Boolean get() = holdoutDay && Derive.inWarningWindow(timeLeft)
 }
 
@@ -123,7 +123,7 @@ internal fun TimeLine(header: SittingHeader, modifier: Modifier = Modifier) {
         Text(
             text = SittingCopy.timeLine(left, header.holdoutDay),
             style = TimeLineStyle,
-            color = if (late || Derive.inWarningWindow(left)) HoldoutColors.Warning else HoldoutColors.TextSecondary,
+            color = if (late || Derive.inWarningWindow(left)) HoldoutColors.SoftWarm else HoldoutColors.TextSecondary,
         )
         // The warning sentence lives on Today and the day strip, not in the sitting (owner, 12 Oct).
     }
