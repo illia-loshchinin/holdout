@@ -66,7 +66,8 @@ class ChainRepositoryReadsTest {
     private var live = true
     private var memberships = "[]"
 
-    /** What the wallet's SKR associated token account answers: none by default. */
+    /** What the wallet's profile and SKR associated token account answer: none by default. */
+    private var profileAccount = "null"
     private var skrAccount = "null"
 
     /** The not-settled read answers from a slot where the cohort is not there, while a fetch still finds it unsettled. */
@@ -126,8 +127,8 @@ class ChainRepositoryReadsTest {
         "leagues" -> accounts(leagueBytes)
         "memberships" -> memberships
         "profiles", "forfeits" -> "[]"
-        // No profile, the SKR account as [skrAccount] has it, and the wallet itself with 5 lamports.
-        "wallet" -> """{"context":{"slot":1},"value":[null,$skrAccount,{"data":["","base64"],"lamports":5,"owner":"11111111111111111111111111111111"}]}"""
+        // The profile and the SKR account as [profileAccount] and [skrAccount] have them, and the wallet itself with 5 lamports.
+        "wallet" -> """{"context":{"slot":1},"value":[$profileAccount,$skrAccount,{"data":["","base64"],"lamports":5,"owner":"11111111111111111111111111111111"}]}"""
         "fetch" -> """{"context":{"slot":1},"value":[${if (cohortKey.base58() in body) info(cohorts) else "null"}]}"""
         else -> account(null)
     }
@@ -171,22 +172,53 @@ class ChainRepositoryReadsTest {
     }
 
     @Test
-    fun `the wallet's SKR is the amount its token account holds`() {
-        skrAccount = """{"data":["${b64(ByteArray(165).also { u32(it, 64, 2_500) })}","base64"],"lamports":2039280,"owner":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"}"""
+    fun `the wallet's SKR is the whole u64 amount its token account holds`() {
+        // 5,000,000 SKR at 6 decimals: past 2^32 base units, so all eight bytes count.
+        val amount = 5_000_000_000_000uL
+        skrAccount = tokenAccount(ByteArray(165).also { java.nio.ByteBuffer.wrap(it, 64, 8).order(java.nio.ByteOrder.LITTLE_ENDIAN).putLong(amount.toLong()) })
 
-        assertEquals(2_500uL, assertNotNull(load(wallet)).skr)
+        assertEquals(amount, assertNotNull(load(wallet)).skr)
     }
 
     @Test
     fun `an account at the SKR address that is not a token account is no SKR, not a view that fails`() {
         // Lamports sent to the associated token address before it was created: a system account with no data.
-        skrAccount = """{"data":["","base64"],"lamports":1000,"owner":"11111111111111111111111111111111"}"""
+        skrAccount = systemAccount
 
         val view = assertNotNull(load(wallet))
 
         assertEquals(0uL, view.skr)
         assertEquals(5L, view.lamports)
     }
+
+    @Test
+    fun `a token account at the SKR address too short to be one is a failed read, not a zero`() {
+        skrAccount = tokenAccount(ByteArray(71))
+
+        assertNull(load(wallet))
+    }
+
+    @Test
+    fun `an account at the profile address the program does not own is no profile, not a view that fails`() {
+        // Lamports sent to the profile address before the wallet's first join: a join or the faucet creates it over them.
+        profileAccount = systemAccount
+
+        val view = assertNotNull(load(wallet))
+
+        assertNull(view.profile)
+        assertEquals(5L, view.lamports)
+    }
+
+    @Test
+    fun `a profile the program owns that does not decode is a failed read`() {
+        profileAccount = info(ByteArray(3))
+
+        assertNull(load(wallet))
+    }
+
+    private val systemAccount = """{"data":["","base64"],"lamports":1000,"owner":"11111111111111111111111111111111"}"""
+
+    private fun tokenAccount(data: ByteArray) = """{"data":["${b64(data)}","base64"],"lamports":2039280,"owner":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"}"""
 
     // ---- failures ---------------------------------------------------------------
 

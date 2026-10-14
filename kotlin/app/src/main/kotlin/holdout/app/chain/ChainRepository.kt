@@ -334,10 +334,12 @@ class ChainRepository(
         if (wallet != null) {
             val accounts = twice { rpc.multipleAccounts(listOf(Pdas.profile(programId, wallet), Pdas.associatedToken(wallet, config.skrMint), wallet)) } ?: return failed("the wallet's accounts")
             val (profileAccount, tokenAccount, walletAccount) = accounts
-            profile = profileAccount?.let { runCatching { ProfileSnapshot.decode(it.data) }.getOrNull() ?: return failed("the wallet's profile does not decode") }
-            // An account at the SKR address that is not a token account (lamports sent to it, no data) holds
-            // no SKR: 0, as the single-account read had it, rather than a view that never loads.
-            skr = tokenAccount?.let { Rpc.tokenAmountOf(it.data) } ?: 0uL
+            // An account at either address that its program does not own — lamports sent there before the
+            // profile or the token account was created — is no profile and no SKR, not a view that never loads:
+            // a join or the faucet creates the profile over it (`init_if_needed`). One the program owns that
+            // does not decode is still a failed read.
+            profile = profileAccount?.takeIf { it.owner == programId }?.let { runCatching { ProfileSnapshot.decode(it.data) }.getOrNull() ?: return failed("the wallet's profile does not decode") }
+            skr = tokenAccount?.let { Rpc.tokenAmountIn(it) ?: return failed("the wallet's SKR does not decode") } ?: 0uL
             lamports = walletAccount?.lamports ?: 0L
         }
         val holdouts =

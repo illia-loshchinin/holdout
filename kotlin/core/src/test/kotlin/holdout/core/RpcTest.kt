@@ -244,8 +244,22 @@ class RpcTest {
         assertNull(accounts[1])
         assertEquals(0, accounts[2]!!.data.size)
         assertEquals(5L, accounts[2]!!.lamports)
+        assertEquals(programId, accounts[0]!!.owner)
+        assertEquals(SolanaPublicKey.from("11111111111111111111111111111111"), accounts[2]!!.owner)
         val sent = Json.parseToJsonElement(http.sent.single()).jsonObject
         assertEquals("getMultipleAccounts", sent.getValue("method").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `an account at a token address holds its amount when the token program owns it, and 0 when another program does`() {
+        val token = Instructions.TOKEN_PROGRAM
+        val amount = ULong.MAX_VALUE - 1uL
+        val full = ByteArray(72).also { java.nio.ByteBuffer.wrap(it, 64, 8).order(java.nio.ByteOrder.LITTLE_ENDIAN).putLong(amount.toLong()) }
+
+        assertEquals(amount, Rpc.tokenAmountIn(Rpc.AccountInfo(full, 1, token)))
+        assertNull(Rpc.tokenAmountIn(Rpc.AccountInfo(ByteArray(71), 1, token)), "a token account too short to be one is a failed read")
+        assertEquals(0uL, Rpc.tokenAmountIn(Rpc.AccountInfo(ByteArray(0), 1000, SolanaPublicKey.from("11111111111111111111111111111111"))))
+        assertEquals(0uL, Rpc.tokenAmountIn(Rpc.AccountInfo(full, 1, programId)), "another program's account holds no tokens, whatever its data")
     }
 
     @Test
