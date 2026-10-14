@@ -50,6 +50,12 @@ class HoldoutViewModelCheckTest {
 
     private lateinit var vm: HoldoutViewModel
 
+    /** How many times the view model threw its network client away (FR-069i). */
+    private var reconnects = 0
+
+    /** What the chain reads had seen when the client was thrown away, each time. */
+    private val readsAtReconnect = mutableListOf<Int>()
+
     /** The monotonic clock the view model reads, in milliseconds: the test moves it. */
     private var elapsedMillis = 0L
 
@@ -70,7 +76,11 @@ class HoldoutViewModelCheckTest {
         Dispatchers.setMain(dispatcher)
         // Every chain read goes to the fake. The Rpc (and the faucet built on it) is never
         // called by a check; it points at a closed local port so a stray call fails, not hangs.
-        vm = HoldoutViewModel(store, rpc = Rpc("http://127.0.0.1:1"), chain = chain, elapsed = { elapsedMillis })
+        val rpc = Rpc("http://127.0.0.1:1", reconnect = {
+            reconnects++
+            readsAtReconnect += chain.reads.size
+        })
+        vm = HoldoutViewModel(store, rpc = rpc, chain = chain, elapsed = { elapsedMillis })
     }
 
     @AfterTest
@@ -123,6 +133,44 @@ class HoldoutViewModelCheckTest {
 
         assertEquals(before, chain.reads.size)
         assertEquals(ChainCheck(), state.check)
+    }
+
+    @Test
+    fun `given devnet unreachable, when the member presses Retry, then the network client is rebuilt before the retry's read`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        val before = chain.reads.size
+        assertEquals(0, reconnects)
+
+        vm.checkNow()
+        runCurrent()
+
+        assertEquals(1, reconnects)
+        assertEquals(listOf(before), readsAtReconnect)
+        assertEquals(before + 1, chain.reads.size)
+    }
+
+    @Test
+    fun `given a Retry under way, when the member presses it again, then the client is not rebuilt twice`() = runTest(dispatcher) {
+        unreachableFor(walletA)
+        vm.checkNow()
+        runCurrent()
+        vm.checkNow()
+        runCurrent()
+
+        assertEquals(1, reconnects)
+    }
+
+    @Test
+    fun `given the chain answering, when Retry is asked, then nothing is rebuilt`() = runTest(dispatcher) {
+        vm.watch(walletA)
+        runCurrent()
+        chain.reads.last().complete(answered)
+        runCurrent()
+
+        vm.checkNow()
+        runCurrent()
+
+        assertEquals(0, reconnects)
     }
 
     @Test

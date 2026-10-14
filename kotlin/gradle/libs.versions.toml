@@ -19,6 +19,8 @@ multimult = "0.2.6"
 robolectric = "4.17"
 roborazzi = "1.76.0"
 rpcCore = "0.2.8"
+# The version rpc-ktordriver 0.2.8 is built on; named here only so core can set timeouts (FR-069i).
+ktor = "2.3.11"
 web3Solana = "0.3.1"
 bouncycastle = "1.79"
 
@@ -55,6 +57,8 @@ roborazzi = { group = "io.github.takahirom.roborazzi", name = "roborazzi", versi
 roborazzi-compose = { group = "io.github.takahirom.roborazzi", name = "roborazzi-compose", version.ref = "roborazzi" }
 rpc-core = { group = "com.solanamobile", name = "rpc-core", version.ref = "rpcCore" }
 rpc-ktordriver = { group = "com.solanamobile", name = "rpc-ktordriver", version.ref = "rpcCore" }
+ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
+ktor-client-cio = { group = "io.ktor", name = "ktor-client-cio", version.ref = "ktor" }
 rpc-solana = { group = "com.solanamobile", name = "rpc-solana", version.ref = "rpcCore" }
 web3-solana = { group = "com.solanamobile", name = "web3-solana", version.ref = "web3Solana" }
 bouncycastle-prov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
