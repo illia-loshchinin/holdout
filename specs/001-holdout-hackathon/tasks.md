@@ -877,4 +877,4 @@
 
 ## Phase 38: Convergence
 
-- [ ] T393 [US9] **The closing witness in the contracts.** `contracts/program-instructions.md` (`close_membership`, `close_cohort`) and `contracts/crank-cli.md`: the witness is any later settled cohort of the league, not only `index + 1` per FR-035c (partial)
+- [X] T393 [US9] **The closing witness in the contracts.** `contracts/program-instructions.md` (`close_membership`, `close_cohort`) and `contracts/crank-cli.md`: the witness is any later settled cohort of the league, not only `index + 1` per FR-035c (partial)
