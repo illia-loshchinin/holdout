@@ -381,14 +381,15 @@ class HoldoutViewModel(
     }
 
     /** The one rebuild of a wallet's history from its transactions this process runs at a time (FR-035d). */
-    private var rebuilding: Pair<SolanaPublicKey, Job>? = null
+    private val rebuildTried = mutableSetOf<SolanaPublicKey>()
 
     /**
      * Keeps every finished round [view] shows of [wallet]'s — a claim paid, a forfeit settled — in the
      * store's `history:` record, so it still shows once `close_membership` and `close_cohort` have closed
      * its accounts (FR-035d). With no record on this phone (a new phone, a reinstall) the closed rounds
-     * are first rebuilt from the `MembershipClosed` events in the wallet's transaction history; a rebuild
-     * that fails writes nothing and is tried again on the next read.
+     * are first rebuilt from the `MembershipClosed` events in the wallet's transaction history — one try
+     * per wallet per app session, since a rebuild is many reads (FR-071); one that fails writes nothing,
+     * and the next session tries again. The member is told nothing either way (owner, 3 Nov).
      */
     private fun keepHistory(wallet: SolanaPublicKey, view: ChainView) {
         val key = wallet.base58()
@@ -400,8 +401,8 @@ class HoldoutViewModel(
         val kept = store.roundHistory(key)
         if (kept == null) {
             _state.update { it.copy(history = History.merge(emptyList(), seen)) }
-            if (rebuilding?.first == wallet && rebuilding?.second?.isActive == true) return
-            rebuilding = wallet to viewModelScope.launch {
+            if (!rebuildTried.add(wallet)) return
+            viewModelScope.launch {
                 val closed = History.rebuild(rpc, Deployment.programId, wallet) ?: return@launch
                 if (address != wallet) return@launch
                 val merged = History.merge(History.merge(closed, seen), _state.value.history)
