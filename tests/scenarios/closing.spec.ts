@@ -266,6 +266,63 @@ describe('close_membership and close_cohort (FR-035b, FR-035c)', () => {
     expect(h.balance(await membershipPda(cohort, finisher))).toBeGreaterThan(0n);
   });
 
+  it('waits out the comeback window: end + 2 × cadence + day_length, to the second (FR-035c)', async () => {
+    // A cadence of two days puts the window past the 1-day test grace, so the window alone decides.
+    const cadence = 2 * DAY;
+    await h.injectLeague(league, {
+      durationDays: DURATION,
+      dayLength: BigInt(DAY_LENGTH),
+      firstStart: BigInt(START),
+      cadence: BigInt(cadence),
+      joinLock: 0n,
+      nextIndex: 2,
+    });
+    await settledCohort(0);
+    await h.injectCohort(league, 1, { start: BigInt(START + cadence), durationDays: DURATION, dayLength: BigInt(DAY_LENGTH), settled: true });
+    const window = endOf(0) + 2 * cadence + DAY_LENGTH;
+
+    h.setTime(window);
+    expectProgramError(await closeRound(), 'RoundNotClosable');
+    h.setTime(window + 1);
+    const result = await closeRound();
+    expect(result.ok, result.logs.join('\n')).toBe(true);
+  });
+
+  it('refuses a membership not counted, or neither claimed nor forfeited', async () => {
+    const cohort = await settledCohort(0, { memberCount: 2, counted: 2 });
+    await settledCohort(1);
+    const uncounted = (await generateKeyPairSigner()).address;
+    const joined = (await generateKeyPairSigner()).address;
+    await h.injectMembership(cohort, uncounted, { state: 'Forfeited', counted: false });
+    await h.injectMembership(cohort, joined, { state: 'Joined', counted: true });
+    h.setTime(CLOSABLE);
+    expectProgramError(await closeMember(uncounted), 'RoundNotClosable');
+    expectProgramError(await closeMember(joined), 'RoundNotClosable');
+    expectProgramError(await closeRound(), 'RoundNotClosable');
+  });
+
+  it('reports a comeback refund inside what the claim paid', async () => {
+    const refund = 5n * SKR;
+    const cohort = await settledCohort(0, {
+      memberCount: 1,
+      counted: 1,
+      finisherCount: 1,
+      sharePerTier: [0n, 0n, SHARE, 0n],
+      comebackOwed: refund,
+      comebackFunded: refund,
+      comebackClaimed: refund,
+    });
+    await settledCohort(1);
+    const finisher = (await generateKeyPairSigner()).address;
+    await h.injectMembership(cohort, finisher, { tier: 2, stake: STAKE, daysCompleted: DURATION, state: 'Claimed', counted: true, comebackEntitled: refund });
+    h.setTime(CLOSABLE);
+    const result = await closeMember(finisher);
+    expect(result.ok, result.logs.join('\n')).toBe(true);
+    const summary = decodeMembershipClosed(oneEvent(result, 'MembershipClosed'));
+    expect(summary.comeback).toBe(refund);
+    expect(summary.paid).toBe(STAKE + SHARE + refund);
+  });
+
   it('refuses while the round is unsettled or the next cohort is not settled', async () => {
     await settledCohort(0, { settled: false });
     await settledCohort(1);
