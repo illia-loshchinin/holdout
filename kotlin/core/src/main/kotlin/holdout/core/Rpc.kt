@@ -137,14 +137,18 @@ class Rpc(
         return ChainTime(seconds, slot)
     }
 
+    /** One entry of a `getSignaturesForAddress` page: the signature, and whether its transaction failed. */
+    data class SignatureInfo(val signature: String, val failed: Boolean)
+
     /**
      * Up to [limit] signatures of transactions that touched [address], newest
      * first, starting before [before] when given — one page of
-     * `getSignaturesForAddress`. Failed transactions are left out. Null when the
-     * node does not answer. A closed account's transactions stay listed, which
-     * is what rebuilds a closed round's history (FR-035d).
+     * `getSignaturesForAddress`, failed transactions included and marked, so a
+     * page of only failed ones still moves the cursor on (Codex on #77). Null
+     * when the node does not answer. A closed account's transactions stay
+     * listed, which is what rebuilds a closed round's history (FR-035d).
      */
-    suspend fun signaturesFor(address: SolanaPublicKey, before: String? = null, limit: Int = 1_000): List<String>? {
+    suspend fun signaturesFor(address: SolanaPublicKey, before: String? = null, limit: Int = 1_000): List<SignatureInfo>? {
         val params = buildJsonArray {
             add(JsonPrimitive(address.base58()))
             add(
@@ -158,8 +162,7 @@ class Rpc(
         return runCatching {
             result.jsonArray
                 .map { it.jsonObject }
-                .filter { it["err"] == null || it["err"] is JsonNull }
-                .map { it.getValue("signature").jsonPrimitive.content }
+                .map { SignatureInfo(it.getValue("signature").jsonPrimitive.content, failed = it["err"] != null && it["err"] !is JsonNull) }
         }.getOrNull()
     }
 

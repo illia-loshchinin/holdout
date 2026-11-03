@@ -135,19 +135,31 @@ object History {
      * node stops answering part-way, so a half-read history is never kept as
      * the whole one (FR-035d).
      */
-    suspend fun rebuild(rpc: Rpc, programId: SolanaPublicKey, wallet: SolanaPublicKey, maxSignatures: Int = 2_000): List<RoundSummary>? {
+    suspend fun rebuild(rpc: Rpc, programId: SolanaPublicKey, wallet: SolanaPublicKey, maxSignatures: Int = 2_000): List<RoundSummary>? = rebuildFrom({ before, limit -> rpc.signaturesFor(wallet, before, limit) }, rpc::transactionLogs, programId, wallet, maxSignatures)
+
+    /**
+     * [rebuild]'s loop over [page] (`before`, `limit` → one page, newest first) and [logs]. The cursor
+     * and the count run over the whole page, failed transactions included, so a page of only failed
+     * ones does not end the history early; only a successful transaction's logs are read (Codex on #77).
+     */
+    suspend fun rebuildFrom(
+        page: suspend (before: String?, limit: Int) -> List<Rpc.SignatureInfo>?,
+        logs: suspend (signature: String) -> List<String>?,
+        programId: SolanaPublicKey,
+        wallet: SolanaPublicKey,
+        maxSignatures: Int,
+    ): List<RoundSummary>? {
         val found = mutableListOf<RoundSummary>()
         var before: String? = null
         var read = 0
         while (read < maxSignatures) {
-            val page = rpc.signaturesFor(wallet, before, limit = minOf(1_000, maxSignatures - read)) ?: return null
-            if (page.isEmpty()) break
-            for (signature in page) {
-                val logs = rpc.transactionLogs(signature) ?: return null
-                found += closedIn(logs, programId, wallet)
+            val entries = page(before, minOf(1_000, maxSignatures - read)) ?: return null
+            if (entries.isEmpty()) break
+            for (entry in entries.filterNot { it.failed }) {
+                found += closedIn(logs(entry.signature) ?: return null, programId, wallet)
             }
-            read += page.size
-            before = page.last()
+            read += entries.size
+            before = entries.last().signature
         }
         return found.distinctBy { it.cohort }
     }

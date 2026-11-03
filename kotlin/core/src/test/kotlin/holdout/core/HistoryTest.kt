@@ -58,4 +58,32 @@ class HistoryTest {
         assertEquals(7_000_000uL to 50_000_000uL, History.totals(listOf(won, lost)))
         assertEquals(listOf(lost, won), History.merge(listOf(won), listOf(lost, won.copy())))
     }
+
+    @Test
+    fun `a page of only failed transactions does not end the rebuild (Codex on #77)`() = kotlinx.coroutines.runBlocking {
+        val closeLogs = listOf(
+            "Program ${programId.base58()} invoke [1]",
+            "Program data: " + Base64.getEncoder().encodeToString(event(won, wallet)),
+            "Program ${programId.base58()} success",
+        )
+        // Newest first: a full page of failed transactions, then the one that closed the round.
+        val pages = mapOf<String?, List<Rpc.SignatureInfo>>(
+            null to List(3) { Rpc.SignatureInfo("failed$it", failed = true) },
+            "failed2" to listOf(Rpc.SignatureInfo("closed", failed = false)),
+            "closed" to emptyList(),
+        )
+        val read = mutableListOf<String>()
+        val found = History.rebuildFrom(
+            page = { before, _ -> pages[before] },
+            logs = { sig ->
+                read += sig
+                if (sig == "closed") closeLogs else emptyList()
+            },
+            programId = programId,
+            wallet = wallet,
+            maxSignatures = 100,
+        )
+        assertEquals(listOf(won), found)
+        assertEquals(listOf("closed"), read, "a failed transaction's logs are never read")
+    }
 }
