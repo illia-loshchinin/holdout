@@ -215,8 +215,8 @@ object Run {
     /**
      * The cohorts that may close at [now], the program's own test in
      * `close_cohort` (FR-035c): settled, nothing on its books, past the last
-     * comeback join that could use it, past its grace, and its league's next
-     * cohort settled. Oldest first, at most [MAX_CLOSES_PER_PASS].
+     * comeback join that could use it, past its grace, and a later cohort of
+     * its league settled ([witnessOf]). Oldest first, at most [MAX_CLOSES_PER_PASS].
      */
     fun closesDue(cohorts: Map<Pair<Int, Long>, CohortSnapshot>, leagues: Collection<LeagueSnapshot>, now: Long): List<CohortSnapshot> {
         val cadence = leagues.associate { it.params.leagueId to it.params.cadence }
@@ -232,11 +232,19 @@ object Run {
                     c.comebackFunded == c.comebackClaimed &&
                     now > end + 2 * leagueCadence + c.dayLength &&
                     now >= end + grace &&
-                    cohorts[c.leagueId to c.index + 1]?.settled == true
+                    witnessOf(cohorts, c) != null
             }
             .sortedWith(compareBy({ Derive.end(it) }, { it.leagueId }, { it.index }))
             .take(MAX_CLOSES_PER_PASS)
     }
+
+    /**
+     * The cohort the closing instructions are passed to show [c]'s league has
+     * settled past it: the earliest later cohort of the league that is settled.
+     * Cohorts settle in order, so any will do, which keeps a round that was
+     * still owed a claim closable after its successor has closed (FR-035c).
+     */
+    fun witnessOf(cohorts: Map<Pair<Int, Long>, CohortSnapshot>, c: CohortSnapshot): Long? = cohorts.values.filter { it.leagueId == c.leagueId && it.index > c.index && it.settled }.minOfOrNull { it.index }
 
     /** Whether the sponsor is below half its float, the only state `top_up_sponsor` accepts. */
     fun sponsorRefillDue(config: ConfigSnapshot, sponsorLamports: Long): Boolean = sponsorLamports.toULong() < config.sponsorFloat / 2uL
@@ -631,7 +639,7 @@ object Run {
             val leagueId = cohort.leagueId
             val index = cohort.index
             val address = Pdas.cohort(programId, leagueId, index)
-            val next = Pdas.cohort(programId, leagueId, index + 1)
+            val next = Pdas.cohort(programId, leagueId, witnessOf(cohorts, cohort) ?: continue)
             val detail: JsonObjectBuilder.() -> Unit = {
                 put("league", leagueId)
                 put("index", index)

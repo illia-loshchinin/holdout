@@ -430,7 +430,7 @@ object Instructions {
      * `close_membership()` — permissionless: a paid-out round's `Claimed` or
      * `Forfeited` membership closes, its rent to [wallet], and `MembershipClosed`
      * carries the round's summary (FR-035b, FR-035d). [nextCohort] is the
-     * league's cohort `index + 1`, settled. Refused with 6048 before the round
+     * league's next settled cohort — any later settled one will do. Refused with 6048 before the round
      * may close (FR-035c). No signer but the fee payer.
      */
     suspend fun closeMembership(

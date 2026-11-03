@@ -367,6 +367,16 @@ class RunTest {
     }
 
     @Test
+    fun `a round whose successor already closed still closes, with the next settled cohort as witness`() {
+        // Cohort 1 closed while 0 still owed a claim; 0's last claim is now in.
+        val cohorts = mapOf((0 to 0L) to cohort(0, settled = true), (0 to 2L) to cohort(2, settled = true), (0 to 3L) to cohort(3))
+        val at = first + 7 * day + 30 * day
+        assertEquals(listOf(0L), Run.closesDue(cohorts, listOf(league0), at).map { it.index })
+        assertEquals(2L, Run.witnessOf(cohorts, cohorts.getValue(0 to 0L)))
+        assertEquals(null, Run.witnessOf(cohorts, cohorts.getValue(0 to 2L)), "no later cohort is settled")
+    }
+
+    @Test
     fun `a pass releases a pledge whose round settled, after settlement, and leaves one whose round is still running`() = runBlocking {
         val chain = liveLeague(sponsorLamports = 30_000_000)
         val runningRound = SolanaPublicKey(ByteArray(32) { 22 })

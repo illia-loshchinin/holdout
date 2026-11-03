@@ -334,13 +334,34 @@ describe('close_membership and close_cohort (FR-035b, FR-035c)', () => {
     expectProgramError(await closeRound(), 'RoundNotClosable');
   });
 
-  it('refuses a cohort passed as the next one that is not index + 1', async () => {
+  it('closes an older round once its successor is already closed, any later settled cohort the witness (Codex on #77)', async () => {
+    // Round 0 held an unclaimed payout while round 1 closed against round 2; now 0's last claim is in.
+    const { cohort, finisher, forfeiter } = await paidOutRound();
+    await settledCohort(2);
+    h.setTime(endOf(1) + DAY); // past round 1's own grace too
+    const result = await h.send([await closeCohortIx(fees, operator.address, league, 1, 2)], crank);
+    expect(result.ok, result.logs.join('\n')).toBe(true);
+    expect(h.balance(await cohortPda(league, 1))).toBe(0n);
+
+    await h.sendOrThrow([await closeMembershipIx(league, 0, finisher, 2)], crank);
+    await h.sendOrThrow([await closeMembershipIx(league, 0, forfeiter, 2)], crank);
+    const closed = await h.send([await closeCohortIx(fees, operator.address, league, 0, 2)], crank);
+    expect(closed.ok, closed.logs.join('\n')).toBe(true);
+    expect(h.balance(cohort)).toBe(0n);
+  });
+
+  it('refuses a witness that is the round itself, an earlier cohort, or another league’s', async () => {
     await settledCohort(0);
     await settledCohort(1);
-    await settledCohort(2);
     h.setTime(CLOSABLE);
-    const result = await h.send([await closeCohortIx(fees, operator.address, league, 0, 2)], crank);
-    expectProgramError(result, 'AccountMismatch');
+    expectProgramError(await h.send([await closeCohortIx(fees, operator.address, league, 1, 1)], crank), 'AccountMismatch');
+    expectProgramError(await h.send([await closeCohortIx(fees, operator.address, league, 1, 0)], crank), 'AccountMismatch');
+    const other = h.freshTestLeague().leagueId;
+    await h.injectCohort(other, 5, { settled: true });
+    const ix = await closeCohortIx(fees, operator.address, league, 0);
+    const witness = await cohortPda(other, 5);
+    const foreign = { ...ix, accounts: ix.accounts!.map((a, i) => (i === 3 ? { ...a, address: witness } : a)) };
+    expectProgramError(await h.send([foreign], crank), 'AccountMismatch');
   });
 });
 

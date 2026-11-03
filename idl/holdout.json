@@ -495,8 +495,10 @@
         {
           "name": "next_cohort",
           "docs": [
-            "The league's cohort `index + 1`: settled, so nothing of the league's",
-            "settlement needs this one again (FR-035c)."
+            "A later cohort of the league, settled: cohorts settle in order, so",
+            "cohort `index + 1` is settled too and nothing of the league's",
+            "settlement needs this one again (FR-035c). Any later one will do, so a",
+            "round still owed a claim when its successor closed can close later."
           ]
         },
         {
@@ -569,8 +571,10 @@
         {
           "name": "next_cohort",
           "docs": [
-            "The league's cohort `index + 1`: settled, so nothing of the league's",
-            "settlement needs this one again (FR-035c)."
+            "A later cohort of the league, settled: cohorts settle in order, so",
+            "cohort `index + 1` is settled too and nothing of the league's",
+            "settlement needs this one again (FR-035c). Any later one will do, so a",
+            "round still owed a claim when its successor closed can close later."
           ]
         },
         {

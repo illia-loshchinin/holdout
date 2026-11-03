@@ -37,11 +37,13 @@ pub struct CloseMembership<'info> {
     #[account(mut)]
     pub cohort: Box<Account<'info, Cohort>>,
 
-    /// The league's cohort `index + 1`: settled, so nothing of the league's
-    /// settlement needs this one again (FR-035c).
+    /// A later cohort of the league, settled: cohorts settle in order, so
+    /// cohort `index + 1` is settled too and nothing of the league's
+    /// settlement needs this one again (FR-035c). Any later one will do, so a
+    /// round still owed a claim when its successor closed can close later.
     #[account(
         constraint = next_cohort.league_id == cohort.league_id
-            && next_cohort.index == cohort.index + 1 @ HoldoutError::AccountMismatch,
+            && next_cohort.index > cohort.index @ HoldoutError::AccountMismatch,
     )]
     pub next_cohort: Box<Account<'info, Cohort>>,
 
