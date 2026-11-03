@@ -43,11 +43,12 @@ import kotlinx.coroutines.delay
 internal fun Shared.HoldoutsRoot(modifier: Modifier = Modifier) {
     val n = now
     val v = view
-    val state = remember(v, n, rosters, refreshToken) {
+    val history = chain.history
+    val state = remember(v, n, rosters, history, refreshToken) {
         if (v == null || n == null) {
             null
         } else {
-            MyHoldoutsModel.build(v, n, rosters) { h, day -> store.bankedReps(wallet, cohortScope(h), day.toLong()) }
+            MyHoldoutsModel.build(v, n, rosters, history) { h, day -> store.bankedReps(wallet, cohortScope(h), day.toLong()) }
         }
     }
     // Rosters for the Past tab's "finished" counts; a finished roster moves slowly, and the Standing one is the app's loop's to read.

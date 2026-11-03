@@ -77,6 +77,11 @@ data class MeState(
     val lowOnFunds: Boolean = false,
     /** Devnet, or the local validator in a local test build. */
     val network: String = "devnet",
+    /**
+     * Lifetime SKR won beyond stakes and lost to forfeits, from the phone's round history (FR-035d);
+     * null with no finished round yet, when the card is not drawn.
+     */
+    val lifetime: Pair<ULong, ULong>? = null,
 )
 
 /**
@@ -121,6 +126,7 @@ fun MeScreen(
         ) {
             Identity(state)
             Streak(state)
+            state.lifetime?.let { Lifetime(it) }
             Holdings(state)
             if (state.lowOnFunds) Notice("Too little SKR or SOL to stake or submit. Get test tokens first.", warning = true)
             PrimaryButton("Get test tokens", onGetTokens)
@@ -206,6 +212,16 @@ private fun Streak(state: MeState) {
         }
         Text("The Daily 25 · a forfeit never breaks it", style = LabelStyle, color = HoldoutColors.TextTertiary)
         if (state.freezes > 0) Body(if (state.freezes == 1) "1 freeze held" else "${state.freezes} freezes held")
+    }
+}
+
+/** Every finished Holdout's outcome summed: won beyond the stakes, lost to forfeits (FR-035d). */
+@Composable
+private fun Lifetime(totals: Pair<ULong, ULong>) {
+    SectionLabel("Your Holdouts")
+    HoldoutCard {
+        KeyValueRow("Won", Format.skr(totals.first))
+        KeyValueRow("Lost", Format.skr(totals.second))
     }
 }
 

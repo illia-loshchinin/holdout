@@ -15,6 +15,7 @@ import holdout.app.nav.Screen
 import holdout.app.nav.Sheet
 import holdout.app.storage.Store
 import holdout.app.ui.StreakState
+import holdout.core.History
 
 /** The Me dot: SKR or SOL too low to stake or submit (DS BottomNav); false before the chain is read. */
 internal fun Shared.lowOnFunds(): Boolean {
@@ -47,6 +48,7 @@ internal fun Shared.MeRoot(modifier: Modifier = Modifier) {
             freezes = streak.freezes,
             lowOnFunds = lowOnFunds(),
             network = Deployment.networkName.lowercase(),
+            lifetime = chain.history.takeIf { it.isNotEmpty() }?.let(History::totals),
         ),
         onGetTokens = { dispatch(NavEvent.OpenFaucet) },
         onAbout = { dispatch(NavEvent.Open(Screen.About)) },

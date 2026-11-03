@@ -143,6 +143,14 @@ interface Store {
     fun unconfirmedSends(wallet: String): String?
     fun setUnconfirmedSends(wallet: String, encoded: String?)
 
+    /**
+     * The wallet's finished rounds as this phone last saw them (`history:`, FR-035d), one
+     * `RoundSummary.encode` line each, so a round whose accounts are closed still shows.
+     * Null when none was ever kept — the cue to rebuild it from the chain's transactions.
+     */
+    fun roundHistory(wallet: String): String?
+    fun setRoundHistory(wallet: String, encoded: String)
+
     /** Debug builds: whether sittings record the camera as video (constitution X, v1.5.0). Off until switched on. */
     fun recordsVideo(): Boolean
     fun setRecordsVideo(on: Boolean)
@@ -497,6 +505,12 @@ class MmkvStore private constructor(private val kv: MMKV) : Store {
     override fun setUnconfirmedSends(wallet: String, encoded: String?) {
         if (encoded == null) kv.removeValueForKey("unconfirmed:$wallet") else kv.encode("unconfirmed:$wallet", encoded)
     }
+
+    override fun roundHistory(wallet: String): String? = kv.decodeString("history:$wallet")
+
+    override fun setRoundHistory(wallet: String, encoded: String) {
+        kv.encode("history:$wallet", encoded)
+    }
 }
 
 /** In-memory, for unit tests and Compose previews. */
@@ -635,6 +649,12 @@ class InMemoryStore : Store {
 
     override fun setUnconfirmedSends(wallet: String, encoded: String?) {
         if (encoded == null) values.remove("unconfirmed:$wallet") else values["unconfirmed:$wallet"] = encoded
+    }
+
+    override fun roundHistory(wallet: String): String? = values["history:$wallet"] as? String
+
+    override fun setRoundHistory(wallet: String, encoded: String) {
+        values["history:$wallet"] = encoded
     }
 
     override fun seekerName(wallet: String): KeptName? = values["$SEEKER_NAME$wallet"] as? KeptName
