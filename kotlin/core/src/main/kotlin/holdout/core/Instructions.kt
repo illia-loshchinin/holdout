@@ -427,6 +427,59 @@ object Instructions {
     )
 
     /**
+     * `close_membership()` — permissionless: a paid-out round's `Claimed` or
+     * `Forfeited` membership closes, its rent to [wallet], and `MembershipClosed`
+     * carries the round's summary (FR-035b, FR-035d). [nextCohort] is the
+     * league's cohort `index + 1`, settled. Refused with 6048 before the round
+     * may close (FR-035c). No signer but the fee payer.
+     */
+    suspend fun closeMembership(
+        programId: SolanaPublicKey,
+        leagueId: Int,
+        cohort: SolanaPublicKey,
+        nextCohort: SolanaPublicKey,
+        wallet: SolanaPublicKey,
+    ): TransactionInstruction = TransactionInstruction(
+        programId,
+        listOf(
+            AccountMeta(Pdas.league(programId, leagueId), false, false),
+            AccountMeta(cohort, false, true),
+            AccountMeta(nextCohort, false, false),
+            AccountMeta(Pdas.membership(programId, cohort, wallet), false, true),
+            AccountMeta(wallet, false, true),
+        ),
+        discriminator("close_membership"),
+    )
+
+    /**
+     * `close_cohort()` — permissionless: once every membership is closed, the
+     * vault's stray SKR goes to [feeDestination] and the vault and the cohort
+     * close, both rents to [operator], `Config.operator` (FR-035b). Refused with
+     * 6048 before the round may close (FR-035c).
+     */
+    suspend fun closeCohort(
+        programId: SolanaPublicKey,
+        feeDestination: SolanaPublicKey,
+        operator: SolanaPublicKey,
+        leagueId: Int,
+        cohort: SolanaPublicKey,
+        nextCohort: SolanaPublicKey,
+    ): TransactionInstruction = TransactionInstruction(
+        programId,
+        listOf(
+            AccountMeta(Pdas.config(programId), false, false),
+            AccountMeta(Pdas.league(programId, leagueId), false, false),
+            AccountMeta(cohort, false, true),
+            AccountMeta(nextCohort, false, false),
+            AccountMeta(Pdas.vault(programId, cohort), false, true),
+            AccountMeta(feeDestination, false, true),
+            AccountMeta(operator, false, true),
+            AccountMeta(TOKEN_PROGRAM, false, false),
+        ),
+        discriminator("close_cohort"),
+    )
+
+    /**
      * `claim_faucet(recipient)` — **the recipient does not sign** (research
      * R13). [payer] is the bundled sponsor for a zero-SOL wallet, or the
      * recipient itself when it can pay (FR-042b).

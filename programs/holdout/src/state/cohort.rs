@@ -16,6 +16,13 @@ pub const COHORT_SEED: &[u8] = b"cohort";
 /// PDA seed prefix of a cohort's SKR vault, followed by the cohort address.
 pub const VAULT_SEED: &[u8] = b"vault";
 
+/// How long a paid-out round stays on chain after its end before it may be
+/// closed, so recent history is still there to read (FR-035c).
+pub const CLOSE_GRACE: i64 = 30 * 86_400;
+/// The same for a test league, whose 10-minute rounds would otherwise keep
+/// thousands of rounds' rent locked at once (FR-035c).
+pub const TEST_CLOSE_GRACE: i64 = 86_400;
+
 /// Where a cohort is in its life, derived from chain time and `settled` alone.
 /// Not stored: every device and every instruction computes it the same way, so a
 /// missed automation run can delay money but never a transition (constitution II).
@@ -149,6 +156,24 @@ impl Cohort {
             .ok_or(error!(HoldoutError::AccountMismatch))?;
         self.forfeits_recorded += 1;
         Ok(split)
+    }
+
+    /// Whether this round may be closed (FR-035c): settled, nothing left on
+    /// its books (every finisher has claimed), past the last instant a forfeit
+    /// of it can still be a comeback join's `comeback_membership` (FR-037e),
+    /// past its grace, and its league's next cohort settled, so settlement and
+    /// `release_comeback` never need it again. `close_cohort` also wants every
+    /// membership closed first (`member_count == 0`).
+    pub fn closable(&self, cadence: i64, grace: i64, next_settled: bool, now: i64) -> bool {
+        let end = self.end();
+        let comeback_over = end
+            .saturating_add(cadence.saturating_mul(2))
+            .saturating_add(self.day_length);
+        self.settled
+            && self.custody() == 0
+            && now > comeback_over
+            && now >= end.saturating_add(grace)
+            && next_settled
     }
 
     /// What the vault must hold after every instruction touching this cohort

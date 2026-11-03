@@ -62,7 +62,7 @@ pub enum HoldoutError {
     #[msg("This day is already completed")]
     DayAlreadyCompleted = 33,
 
-    // ---- 6040–6047 · settlement, the claim and the comeback -------------
+    // ---- 6040–6048 · settlement, the claim, the comeback and closing ----
     #[msg("This cohort is not settling")]
     NotSettling = 40,
     #[msg("This cohort is already settled")]
@@ -79,6 +79,8 @@ pub enum HoldoutError {
     NoComebackToRelease = 46,
     #[msg("This comeback's round can still be finished")]
     ComebackStillOpen = 47,
+    #[msg("This round cannot be closed yet")]
+    RoundNotClosable = 48,
 
     // ---- 6050–6054 · the faucet, and the exercise guard that shares it ---
     // No longer raised: `claim_faucet` has no per-wallet limit (owner, 12 Oct).
@@ -151,6 +153,7 @@ mod tests {
         assert_eq!(code(HoldoutError::PreviousCohortUnsettled), 6045);
         assert_eq!(code(HoldoutError::NoComebackToRelease), 6046);
         assert_eq!(code(HoldoutError::ComebackStillOpen), 6047);
+        assert_eq!(code(HoldoutError::RoundNotClosable), 6048);
 
         assert_eq!(code(HoldoutError::FaucetAlreadyClaimedToday), 6050);
         assert_eq!(code(HoldoutError::FaucetCapReached), 6051);

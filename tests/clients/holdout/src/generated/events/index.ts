@@ -7,6 +7,7 @@
  */
 
 export * from './chipSetPublished';
+export * from './cohortClosed';
 export * from './cohortOpened';
 export * from './cohortSettled';
 export * from './comebackReleased';
@@ -17,5 +18,6 @@ export * from './forfeitRecorded';
 export * from './memberCounted';
 export * from './memberJoined';
 export * from './memberLeft';
+export * from './membershipClosed';
 export * from './payoutClaimed';
 export * from './sponsorToppedUp';

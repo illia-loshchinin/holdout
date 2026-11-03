@@ -45,6 +45,8 @@ export const ERROR_CODES = {
   NoComebackToRelease: 6046,
   /** `release_comeback` while the pledge's last round can still make it good. */
   ComebackStillOpen: 6047,
+  /** `close_membership` / `close_cohort` before the round may close (FR-035c). */
+  RoundNotClosable: 6048,
   // 6050–6054 · the faucet, and the exercise guard that shares it
   FaucetAlreadyClaimedToday: 6050,
   FaucetCapReached: 6051,

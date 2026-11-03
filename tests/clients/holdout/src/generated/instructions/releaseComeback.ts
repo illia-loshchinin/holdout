@@ -41,7 +41,10 @@ profile: TAccountProfile;
 /**
  * The comeback's latest opened round — cohort
  * `min(comeback_last_round, league.next_index − 1)` of this league —
- * required once its first round has been opened.
+ * required once its first round has been opened. Any later cohort of
+ * the league will do: cohorts settle in order, so a later one settled
+ * means this one is too — which is what is passed once this one has been
+ * closed (FR-035b, FR-037h).
  */
 round?: TAccountRound;
 }
@@ -72,7 +75,10 @@ profile: TAccountMetas[2];
 /**
  * The comeback's latest opened round — cohort
  * `min(comeback_last_round, league.next_index − 1)` of this league —
- * required once its first round has been opened.
+ * required once its first round has been opened. Any later cohort of
+ * the league will do: cohorts settle in order, so a later one settled
+ * means this one is too — which is what is passed once this one has been
+ * closed (FR-035b, FR-037h).
  */
 round?: TAccountMetas[3] | undefined;
 };

@@ -606,6 +606,62 @@ export const claimPayoutIx = async (
   };
 };
 
+// ------------------------------------------------ close_membership, close_cohort
+
+/**
+ * `close_membership()`, permissionless and unsigned beyond the fee payer: closes
+ * `wallet`'s membership of cohort `index` once its round may close, its rent to
+ * `wallet` (FR-035b, FR-035c). `next` is the league's cohort `index + 1`.
+ */
+export const closeMembershipIx = async (
+  leagueId: number,
+  index: number,
+  wallet: Address,
+  next: number = index + 1,
+): Promise<Instruction> => {
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      ro(await leaguePda(leagueId)),
+      rw(cohort),
+      ro(await cohortPda(leagueId, next)),
+      rw(await membershipPda(cohort, wallet)),
+      rw(wallet),
+    ],
+    data: instructionDiscriminator('close_membership'),
+  };
+};
+
+/**
+ * `close_cohort()`, permissionless: closes cohort `index`'s vault and the cohort
+ * once every membership is closed, any stray SKR to operations and both rents
+ * to `operator` (`Config.operator`) (FR-035b, FR-035c).
+ */
+export const closeCohortIx = async (
+  fees: FeeDestinations,
+  operator: Address,
+  leagueId: number,
+  index: number,
+  next: number = index + 1,
+): Promise<Instruction> => {
+  const cohort = await cohortPda(leagueId, index);
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      ro(await configPda()),
+      ro(await leaguePda(leagueId)),
+      rw(cohort),
+      ro(await cohortPda(leagueId, next)),
+      rw(await vaultPda(cohort)),
+      rw(fees.operations),
+      rw(operator),
+      ro(TOKEN_PROGRAM),
+    ],
+    data: instructionDiscriminator('close_cohort'),
+  };
+};
+
 // ---------------------------------------------------------------- claim_faucet
 
 /**
