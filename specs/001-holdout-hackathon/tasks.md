@@ -874,3 +874,7 @@
 - [X] T392 [US9] **Superseded task wording.** T379's "also when its cohort is already closed", T381's "closing a membership after its cohort" and T385's "memberships without a cohort account" are superseded by Session 2026-11-03's membership-first rule (`member_count == 0`): no such membership can exist, and the tests cover the rule instead per FR-035b (partial)
 
 **Dependencies:** T386–T392 are documentation only and independent of each other.
+
+## Phase 38: Convergence
+
+- [ ] T393 [US9] **The closing witness in the contracts.** `contracts/program-instructions.md` (`close_membership`, `close_cohort`) and `contracts/crank-cli.md`: the witness is any later settled cohort of the league, not only `index + 1` per FR-035c (partial)
