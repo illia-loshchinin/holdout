@@ -226,7 +226,10 @@ object Run {
                 val end = Derive.end(c)
                 val grace = if (c.leagueId >= LeagueParams.TEST_LEAGUE_MIN) TEST_CLOSE_GRACE else CLOSE_GRACE
                 c.settled &&
-                    c.heldStake == 0uL && c.pool == 0uL && c.comebackDue == 0uL && c.comebackFunded == c.comebackClaimed &&
+                    c.heldStake == 0uL &&
+                    c.pool == 0uL &&
+                    c.comebackDue == 0uL &&
+                    c.comebackFunded == c.comebackClaimed &&
                     now > end + 2 * leagueCadence + c.dayLength &&
                     now >= end + grace &&
                     cohorts[c.leagueId to c.index + 1]?.settled == true
