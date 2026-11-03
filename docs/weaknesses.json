@@ -110,6 +110,16 @@
       "what": "One key, `operator.json`, is both the crank's fee payer and the only key that can publish the chip set, and it sits as a hot secret on the Fly machine that runs the crank (and in the GitHub Actions fallback)",
       "why": "Opening a round every 10 minutes in two test lobbies needs a funded payer. A separate payer key was considered and the product owner decided against it (2026-10-11, L14), so this is an accepted risk of the devnet build, not an oversight. Whoever takes the key can re-price the stakes of every Holdout not yet open and spend its float. Worse, it can publish one chip set with an enormous top tier: the program keeps the highest top tier ever published (`max_top_tier` only rises) and the faucet mints exactly that much per claim, and `Config.operator` has no rotation instruction. The faucet then mints absurd amounts or fails, new wallets lose their way to SKR, and only a program upgrade undoes it. The same machine and the GitHub Actions fallback also hold the keypairs of the 56 scripted members (`HOLDOUT_SCRIPTED_KEYS_TGZ_B64`), so a compromise can stop their submissions (forfeits that move real pools), join or leave, and claim their payouts. What it cannot do is touch a real member's stake or a settled payout, which only the program moves",
       "fix": "A payer key of its own holding only the float, an operator key kept off the machine (or a multisig), an operator rotation instruction and a cap on the top tier, and the scripted keys held apart, for the mainnet build"
+    },
+    {
+      "what": "A finisher who never claims keeps their round's rent locked",
+      "why": "A paid-out round's accounts are closed and their rent goes back to whoever paid it (the member for a membership, the operator for the round and its vault), but only once every finisher has claimed. A payout stays claimable for good, so one unclaimed payout keeps that round open, and its rent locked, indefinitely",
+      "fix": "None planned: taking an unclaimed payout from a member to free about 0.004 SOL of rent is the wrong trade. Rounds stay open only where a payout is still waiting"
+    },
+    {
+      "what": "A lost Holdout the app never saw before its round closed is missing from history",
+      "why": "Closed rounds are shown from a summary the phone keeps of every finished round it has read; a new phone rebuilds it once from the wallet's own transactions. A forfeit the app never read between its settlement and its round closing (30 days, 1 day for a Hackathon round) is in neither, so it is missing from Holdouts → Past and from Me's Lost. Streaks, cleared and forfeited counts and the leaderboards are unaffected: they live on the chain",
+      "fix": "Rebuild from the wallet's transactions whenever the phone's record is older than the grace, or an indexer of the program's events"
     }
   ]
 }
