@@ -137,6 +137,54 @@ class Rpc(
         return ChainTime(seconds, slot)
     }
 
+    /** One entry of a `getSignaturesForAddress` page: the signature, and whether its transaction failed. */
+    data class SignatureInfo(val signature: String, val failed: Boolean)
+
+    /**
+     * Up to [limit] signatures of transactions that touched [address], newest
+     * first, starting before [before] when given — one page of
+     * `getSignaturesForAddress`, failed transactions included and marked, so a
+     * page of only failed ones still moves the cursor on (Codex on #77). Null
+     * when the node does not answer. A closed account's transactions stay
+     * listed, which is what rebuilds a closed round's history (FR-035d).
+     */
+    suspend fun signaturesFor(address: SolanaPublicKey, before: String? = null, limit: Int = 1_000): List<SignatureInfo>? {
+        val params = buildJsonArray {
+            add(JsonPrimitive(address.base58()))
+            add(
+                buildJsonObject {
+                    put("limit", limit)
+                    before?.let { put("before", it) }
+                },
+            )
+        }
+        val result = call("getSignaturesForAddress", params) ?: return null
+        return runCatching {
+            result.jsonArray
+                .map { it.jsonObject }
+                .map { SignatureInfo(it.getValue("signature").jsonPrimitive.content, failed = it["err"] != null && it["err"] !is JsonNull) }
+        }.getOrNull()
+    }
+
+    /** The log lines of one confirmed transaction, or null when it is unknown or the node does not answer. */
+    suspend fun transactionLogs(signature: String): List<String>? {
+        val params = buildJsonArray {
+            add(JsonPrimitive(signature))
+            add(
+                buildJsonObject {
+                    put("encoding", "json")
+                    put("maxSupportedTransactionVersion", 0)
+                    put("commitment", "confirmed")
+                },
+            )
+        }
+        val result = call("getTransaction", params) ?: return null
+        if (result is JsonNull) return null
+        return runCatching {
+            result.jsonObject.getValue("meta").jsonObject["logMessages"]?.jsonArray?.map { it.jsonPrimitive.content }.orEmpty()
+        }.getOrNull()
+    }
+
     /** One program account: its address and its data, or the requested slice of it. */
     class ProgramAccount(val address: SolanaPublicKey, val data: ByteArray)
 

@@ -808,10 +808,11 @@ describe('given a member who never comes back (FR-037e, release_comeback)', () =
 
     // The round is cohort 1, opened and not yet settled: it can still be finished.
     expectProgramError(await release(w, stranger, member, 1), 'ComebackStillOpen');
-    // The league has opened the round, so it has to be named — and be the right one.
+    // The league has opened the round, so a cohort has to be named — the round or a later one.
     expectProgramError(await release(w, stranger, member), 'AccountMismatch');
     await cohortAt(w, 2);
-    expectProgramError(await release(w, stranger, member, 2), 'AccountMismatch');
+    // A later cohort stands in only once settled, since cohorts settle in order (FR-037h).
+    expectProgramError(await release(w, stranger, member, 2), 'ComebackStillOpen');
     expect(await reservesOf(w), 'the refusals moved nothing').toEqual({ boost: 70n * SKR, comeback: 10n * SKR, vault: 80n * SKR });
 
     // The round settles with nobody in it.

@@ -610,8 +610,8 @@ describe('release_comeback waits for every round the league has opened (FR-037e)
 
     // The round the member finished is open until it is settled, however the time reads.
     expectProgramError(await release(w, stranger, member.address, 1), 'ComebackStillOpen');
-    // The wrong cohort — the unopened last round — or none at all.
-    expectProgramError(await release(w, stranger, member.address, 2), 'AccountMismatch');
+    // A later cohort not yet settled says nothing; an earlier one, or none at all, is the wrong account.
+    expectProgramError(await release(w, stranger, member.address, 2), 'ComebackStillOpen');
     expectProgramError(await release(w, stranger, member.address), 'AccountMismatch');
     expectProgramError(await release(w, stranger, member.address, 0), 'AccountMismatch');
     const after = await h.readLeague(w.league);
@@ -703,7 +703,7 @@ describe('release_comeback waits for every round the league has opened (FR-037e)
       if (!tried && h.now() > deadlineOf4(start(4))) {
         tried = true;
         expectProgramError(await attempt(3), 'ComebackStillOpen');
-        expectProgramError(await attempt(4), 'AccountMismatch');
+        expectProgramError(await attempt(4), 'ComebackStillOpen');
         expectProgramError(await attempt(), 'AccountMismatch');
         const reserves = await h.readLeague(league);
         expect([reserves.boostReserve, reserves.comebackReserve]).toEqual([70n * SKR, 10n * SKR]);

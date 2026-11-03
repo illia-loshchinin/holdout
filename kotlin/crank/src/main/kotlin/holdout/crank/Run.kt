@@ -50,7 +50,14 @@ import java.time.Instant
  *    never opened and whose first day has passed — send `release_comeback`,
  *    which moves the pledge to the league's boost reserve (FR-037e). A refusal
  *    because it is not due after all (6047) or already released (6046) is an
- *    expected outcome.
+ *    expected outcome. A round already closed is stood in for by the league's
+ *    next settled cohort (FR-037h).
+ * 6. **Close** paid-out rounds (FR-035b, FR-035c): once a settled cohort's
+ *    books are at zero, no comeback join can use it, its grace (30 days, 1 day
+ *    for a test league) has passed and the league's next cohort is settled,
+ *    `close_membership` returns each membership's rent to its member and
+ *    `close_cohort` the vault's and the cohort's to the operator. At most
+ *    [MAX_CLOSES_PER_PASS] rounds a pass; a refusal (6048) is expected.
  *
  * Every step is idempotent on-chain, so two cranks, or a crank and a stranger,
  * running at once produce one outcome (FR-030a). A failed step is reported and
@@ -178,12 +185,66 @@ object Run {
                 val round = progress.comebackLastRound
                 val next = nextIndex[league.params.leagueId] ?: league.nextIndex
                 val latest = if (next > first) minOf(round, next - 1) else null
-                val settled = latest == null || cohorts[league.params.leagueId to latest]?.settled == true
+                val id = league.params.leagueId
+                // A round already closed was settled; the league's next settled
+                // cohort stands in for it (FR-035b, FR-037h).
+                val account = when {
+                    latest == null -> null
+                    cohorts.containsKey(id to latest) -> latest
+                    else -> cohorts.values.filter { it.leagueId == id && it.index > latest && it.settled }.minOfOrNull { it.index }
+                }
+                val settled = latest == null || (account != null && cohorts[id to account]?.settled == true)
                 val closed = next > round || now > Schedule.deadlineOf(scheduledStart(league, round), league.params.dayLength, 0)
-                if (settled && closed) ReleaseDue(profile.wallet, league.params.leagueId, round, latest) else null
+                if (settled && closed) ReleaseDue(profile.wallet, id, round, account) else null
             }
         }
     }
+
+    /** How long a paid-out round stays on chain after its end: the program's `CLOSE_GRACE` (FR-035c). */
+    const val CLOSE_GRACE = 30 * 86_400L
+
+    /** The same for a test league: `TEST_CLOSE_GRACE`. */
+    const val TEST_CLOSE_GRACE = 86_400L
+
+    /** Most rounds one pass closes — a backlog drains over passes, bounded all the same. */
+    const val MAX_CLOSES_PER_PASS = 20
+
+    /** Memberships one `close_membership` transaction carries. */
+    const val CLOSES_PER_TRANSACTION = 8
+
+    /**
+     * The cohorts that may close at [now], the program's own test in
+     * `close_cohort` (FR-035c): settled, nothing on its books, past the last
+     * comeback join that could use it, past its grace, and a later cohort of
+     * its league settled ([witnessOf]). Oldest first, at most [MAX_CLOSES_PER_PASS].
+     */
+    fun closesDue(cohorts: Map<Pair<Int, Long>, CohortSnapshot>, leagues: Collection<LeagueSnapshot>, now: Long): List<CohortSnapshot> {
+        val cadence = leagues.associate { it.params.leagueId to it.params.cadence }
+        return cohorts.values
+            .filter { c ->
+                val leagueCadence = cadence[c.leagueId] ?: return@filter false
+                val end = Derive.end(c)
+                val grace = if (c.leagueId >= LeagueParams.TEST_LEAGUE_MIN) TEST_CLOSE_GRACE else CLOSE_GRACE
+                c.settled &&
+                    c.heldStake == 0uL &&
+                    c.pool == 0uL &&
+                    c.comebackDue == 0uL &&
+                    c.comebackFunded == c.comebackClaimed &&
+                    now > end + 2 * leagueCadence + c.dayLength &&
+                    now >= end + grace &&
+                    witnessOf(cohorts, c) != null
+            }
+            .sortedWith(compareBy({ Derive.end(it) }, { it.leagueId }, { it.index }))
+            .take(MAX_CLOSES_PER_PASS)
+    }
+
+    /**
+     * The cohort the closing instructions are passed to show [c]'s league has
+     * settled past it: the earliest later cohort of the league that is settled.
+     * Cohorts settle in order, so any will do, which keeps a round that was
+     * still owed a claim closable after its successor has closed (FR-035c).
+     */
+    fun witnessOf(cohorts: Map<Pair<Int, Long>, CohortSnapshot>, c: CohortSnapshot): Long? = cohorts.values.filter { it.leagueId == c.leagueId && it.index > c.index && it.settled }.minOfOrNull { it.index }
 
     /** Whether the sponsor is below half its float, the only state `top_up_sponsor` accepts. */
     fun sponsorRefillDue(config: ConfigSnapshot, sponsorLamports: Long): Boolean = sponsorLamports.toULong() < config.sponsorFloat / 2uL
@@ -217,6 +278,9 @@ object Run {
 
     /** `release_comeback`: the comeback's last round can still be finished. */
     const val COMEBACK_STILL_OPEN = 6047
+
+    /** `close_membership` / `close_cohort`: the round may not close yet (FR-035c). */
+    const val ROUND_NOT_CLOSABLE = 6048
 
     /** What became of one transaction. */
     enum class Outcome { Landed, Refused, Failed }
@@ -564,6 +628,48 @@ object Run {
                 }, expected = setOf(NO_COMEBACK_TO_RELEASE, COMEBACK_STILL_OPEN)) {
                     send("release_comeback ${due.leagueId}/${due.round} ${due.wallet.base58()}", listOf(Instructions.releaseComeback(programId, payer.publicKey, due.leagueId, due.wallet, round)))
                 }
+            }
+        }
+
+        // ---- 6. close paid-out rounds, rent back to whoever paid it -----------
+        // Memberships first, their rent to each member, so each one's
+        // `MembershipClosed` still finds its cohort; then the vault and the
+        // cohort, their rent to the operator (FR-035b, FR-035c).
+        for (cohort in closesDue(cohorts, leagues, now)) {
+            val leagueId = cohort.leagueId
+            val index = cohort.index
+            val address = Pdas.cohort(programId, leagueId, index)
+            val next = Pdas.cohort(programId, leagueId, witnessOf(cohorts, cohort) ?: continue)
+            val detail: JsonObjectBuilder.() -> Unit = {
+                put("league", leagueId)
+                put("index", index)
+            }
+            val members = rpc.memberships(programId, address)
+            if (members == null) {
+                pass.failures++
+                pass.record("close_membership", "failed") {
+                    detail()
+                    put("error", "could not read the members")
+                }
+                continue
+            }
+            val closable = members.filter { it.state == MembershipSnapshot.State.Claimed || it.state == MembershipSnapshot.State.Forfeited }
+            if (closable.size != members.size) continue
+            var landed = true
+            closable.map { it.wallet }.chunked(CLOSES_PER_TRANSACTION).forEachIndexed { page, wallets ->
+                val outcome =
+                    pass.send("close_membership", {
+                        detail()
+                        put("page", page)
+                        put("members", wallets.size)
+                    }, expected = setOf(ROUND_NOT_CLOSABLE)) {
+                        send("close_membership $leagueId/$index#$page", wallets.map { Instructions.closeMembership(programId, leagueId, address, next, it) })
+                    }
+                if (outcome != Outcome.Landed) landed = false
+            }
+            if (!landed || args.dryRun && closable.isNotEmpty()) continue
+            pass.send("close_cohort", detail, expected = setOf(ROUND_NOT_CLOSABLE)) {
+                send("close_cohort $leagueId/$index", listOf(Instructions.closeCohort(programId, onChain.feeDestination, onChain.operator, leagueId, address, next)))
             }
         }
 

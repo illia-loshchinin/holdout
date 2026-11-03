@@ -143,6 +143,18 @@ pub mod holdout {
         instructions::claim_payout::handler(ctx)
     }
 
+    /// Permissionless: a paid-out round's membership closes, its rent back to
+    /// the member (FR-035b, FR-035c).
+    pub fn close_membership(ctx: Context<CloseMembership>) -> Result<()> {
+        instructions::close_membership::handler(ctx)
+    }
+
+    /// Permissionless: a paid-out round's vault and cohort close, their rent to
+    /// the operator, once every membership has closed (FR-035b, FR-035c).
+    pub fn close_cohort(ctx: Context<CloseCohort>) -> Result<()> {
+        instructions::close_cohort::handler(ctx)
+    }
+
     /// The zero-SOL wallet's first transaction: no member signature, the
     /// sponsor pays, and the vault reimburses it (research R13).
     pub fn claim_faucet(ctx: Context<ClaimFaucet>, recipient: Pubkey) -> Result<()> {

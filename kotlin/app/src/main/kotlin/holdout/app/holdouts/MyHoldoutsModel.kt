@@ -2,6 +2,7 @@ package holdout.app.holdouts
 
 import com.solana.publickey.SolanaPublicKey
 import holdout.app.chain.ChainView
+import holdout.app.chain.Deployment
 import holdout.app.chain.Holdout
 import holdout.app.cohort.SettlingWords
 import holdout.app.nav.NavEvent
@@ -11,7 +12,10 @@ import holdout.app.ui.Format
 import holdout.core.CohortStatus
 import holdout.core.Comeback.forScreenOf
 import holdout.core.Derive
+import holdout.core.LeagueParams
+import holdout.core.LeagueSnapshot
 import holdout.core.MembershipSnapshot
+import holdout.core.RoundSummary
 import holdout.core.Stage
 
 /**
@@ -95,7 +99,8 @@ data class PastHoldout(
     val line: String,
     /** "1,180 SKR": claimed on a won row, the stake on a lost one. */
     val amount: String,
-    val go: NavEvent,
+    /** Null for a round whose accounts are closed, shown from the phone's history (FR-035d): there is no screen left to open. */
+    val go: NavEvent?,
 )
 
 /** A running Holdout to watch, read-only: its day and how many still stand; it opens H4 (then H5). Standing's empty state lists them. */
@@ -107,17 +112,37 @@ object MyHoldoutsModel {
     /**
      * H0 from the chain [view] at chain time [now]. [rosters] give a running
      * Holdout's standing count once read; [bankedToday] the reps this phone has
-     * banked toward a running Holdout's day.
+     * banked toward a running Holdout's day. [history] is the phone's record of
+     * finished rounds (FR-035d): one the chain no longer shows the wallet in —
+     * its accounts closed — is a Past row from it, with nothing to open.
      */
     fun build(
         view: ChainView,
         now: Long,
         rosters: Map<SolanaPublicKey, List<MembershipSnapshot>> = emptyMap(),
+        history: List<RoundSummary> = emptyList(),
         bankedToday: (Holdout, Int) -> Int = { _, _ -> 0 },
     ): MyHoldoutsState {
         val sorted = sorted(view, now, rosters, bankedToday)
         val holdsLobbyPlace = view.holdsLobbyPlace(now)
-        return MyHoldoutsState(sorted.yours, if (holdsLobbyPlace) emptyList() else open(view, now), sorted.won, sorted.lost, holdsLobbyPlace)
+        val onChain = view.holdouts.filter { it.membership != null }.map { it.address }.toSet()
+        val leagues = view.holdouts.mapNotNull { it.league }.associateBy { it.params.leagueId }
+        val closed = history.filter { it.cohort !in onChain }
+        val won = (sorted.won + closed.filter { it.finished }.map { closedRow(it, leagues[it.leagueId]) to it.start }).sortedByDescending { it.second }.map { it.first }
+        val lost = (sorted.lost + closed.filterNot { it.finished }.map { closedRow(it, leagues[it.leagueId]) to it.start }).sortedByDescending { it.second }.map { it.first }
+        return MyHoldoutsState(sorted.yours, if (holdsLobbyPlace) emptyList() else open(view, now), won, lost, holdsLobbyPlace)
+    }
+
+    /** A closed round's Past row, in the words its row read while on chain; [league] names it. */
+    private fun closedRow(r: RoundSummary, league: LeagueSnapshot?): PastHoldout {
+        val days = league?.params?.durationDays ?: r.daysCompleted
+        val form = league?.params?.form ?: LeagueParams.FORM_TOES
+        val name = if (Deployment.isTestLeague(r.leagueId)) Format.testName(form, days) else "${Format.levelName(form)} · $days-day"
+        return if (r.finished) {
+            PastHoldout(r.cohort.base58(), name, "Held out ${r.daysCompleted.coerceAtMost(days)} of $days", Format.skr(r.paid), null)
+        } else {
+            PastHoldout(r.cohort.base58(), name, "Out on day ${(r.daysCompleted + 1).coerceAtMost(days)} of $days", Format.skr(r.stake), null)
+        }
     }
 
     /**
@@ -131,8 +156,8 @@ object MyHoldoutsModel {
         bankedToday: (Holdout, Int) -> Int = { _, _ -> 0 },
     ): List<YourHoldout> = sorted(view, now, rosters, bankedToday).yours
 
-    /** What [sorted] makes of the member's Holdouts. */
-    private class Sorted(val yours: List<YourHoldout>, val won: List<PastHoldout>, val lost: List<PastHoldout>)
+    /** What [sorted] makes of the member's Holdouts; each past row with its cohort's start, to sort by. */
+    private class Sorted(val yours: List<YourHoldout>, val won: List<Pair<PastHoldout, Long>>, val lost: List<Pair<PastHoldout, Long>>)
 
     /** The member's Holdouts split into those still going (by [NOW_ORDER]) and those past, won and lost, each newest first. */
     private fun sorted(
@@ -204,8 +229,8 @@ object MyHoldoutsModel {
         }
         return Sorted(
             yours.sortedBy { NOW_ORDER.indexOf(it.kind) },
-            won.sortedByDescending { it.first }.map { it.second },
-            lost.sortedByDescending { it.first }.map { it.second },
+            won.map { it.second to it.first },
+            lost.map { it.second to it.first },
         )
     }
 

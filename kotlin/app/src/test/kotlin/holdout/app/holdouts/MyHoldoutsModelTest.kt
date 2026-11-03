@@ -11,6 +11,7 @@ import holdout.core.LeagueParams
 import holdout.core.LeagueSnapshot
 import holdout.core.MembershipSnapshot
 import holdout.core.ProfileSnapshot
+import holdout.core.RoundSummary
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -21,6 +22,32 @@ class MyHoldoutsModelTest {
     private val start = 1_791_176_400L
     private val day = 86_400L
     private val me = SolanaPublicKey(ByteArray(32) { 0x11 })
+
+    @Test
+    fun `past - a round whose accounts are closed shows from the phone's history, with nothing to open (FR-035d)`() {
+        val league = LeagueSnapshot(LeagueParams.judged(LeagueParams.LEAGUE_7D, start), nextIndex = 9)
+        val claimed = holdout(1, start - 9 * day, member(7, MembershipSnapshot.State.Claimed), settled = true).copy(league = league)
+        fun summary(seed: Int, at: Long, finished: Boolean) = RoundSummary(
+            SolanaPublicKey(ByteArray(32) { seed.toByte() }), LeagueParams.LEAGUE_7D, seed.toLong(), at, at + 7 * day, 0,
+            10_000_000uL, if (finished) 7 else 4, finished, paid = if (finished) 15_000_000uL else 0uL, comeback = 0uL,
+        )
+        val closedWon = summary(40, start - 30 * day, finished = true)
+        val closedLost = summary(41, start - 20 * day, finished = false)
+        // The claimed round still on chain is in the history too: it is listed once, from the chain.
+        val onChain = summary(1, claimed.cohort.start, finished = true).copy(cohort = claimed.address)
+        val s = MyHoldoutsModel.build(view(claimed), start, history = listOf(onChain, closedWon, closedLost))
+
+        assertEquals(listOf(claimed.id, closedWon.cohort.base58()), s.won.map { it.cohort })
+        val won = s.won.last()
+        assertEquals("Spark · 7-day", won.name)
+        assertEquals("Held out 7 of 7", won.line)
+        assertEquals("15 SKR", won.amount)
+        assertEquals(null, won.go)
+        val lost = s.lost.single()
+        assertEquals("Out on day 5 of 7", lost.line)
+        assertEquals("10 SKR", lost.amount)
+        assertEquals(null, lost.go)
+    }
 
     @Test
     fun `yours - one card per Holdout by stage, each going where the screen map says`() {

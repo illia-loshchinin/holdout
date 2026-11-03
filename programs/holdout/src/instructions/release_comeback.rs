@@ -62,7 +62,10 @@ pub struct ReleaseComeback<'info> {
 
     /// The comeback's latest opened round — cohort
     /// `min(comeback_last_round, league.next_index − 1)` of this league —
-    /// required once its first round has been opened.
+    /// required once its first round has been opened. Any later cohort of
+    /// the league will do: cohorts settle in order, so a later one settled
+    /// means this one is too — which is what is passed once this one has been
+    /// closed (FR-035b, FR-037h).
     pub round: Option<Box<Account<'info, Cohort>>>,
 }
 
@@ -79,7 +82,8 @@ pub(crate) fn handler(ctx: Context<ReleaseComeback>) -> Result<()> {
     let league = &ctx.accounts.league;
     if league.next_index > first {
         // The latest of its rounds the league has opened, settled — and with
-        // it every earlier one, since cohorts settle in order.
+        // it every earlier one, since cohorts settle in order. A later cohort
+        // settled says the same, and stands in once that round is closed.
         let latest = round.min(league.next_index - 1);
         let cohort = ctx
             .accounts
@@ -87,7 +91,7 @@ pub(crate) fn handler(ctx: Context<ReleaseComeback>) -> Result<()> {
             .as_ref()
             .ok_or(error!(HoldoutError::AccountMismatch))?;
         require!(
-            cohort.league_id == league_id && cohort.index == latest,
+            cohort.league_id == league_id && cohort.index >= latest,
             HoldoutError::AccountMismatch
         );
         require!(cohort.settled, HoldoutError::ComebackStillOpen);

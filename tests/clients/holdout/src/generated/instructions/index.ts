@@ -8,6 +8,8 @@
 
 export * from './claimFaucet';
 export * from './claimPayout';
+export * from './closeCohort';
+export * from './closeMembership';
 export * from './createLeague';
 export * from './initialize';
 export * from './joinCohort';

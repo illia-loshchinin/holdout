@@ -850,3 +850,31 @@
 - [X] T376 [US9] **speckit-analyze re-check of #70 fixes.** `kotlin/crank/src/main/kotlin/holdout/crank/Scripted.kt`: `nextFillAt` checks an open Hackathon lobby every minute until 45 s before its cutoff, full or not, and `run` keeps that wake on every exit of a full or just-filled lobby (a full one costs only the cohort-list read), so a round whose real members all left is emptied within a minute (`5f666a3`; `ScriptedTest` "a full Hackathon lobby costs no roster read and is still checked a minute later, until the last check"). Spec FR-043a's timing (`5eadf3b`); R12, `contracts/crank-cli.md`, R12's dated testers' budget figure and `plan.md`'s timeline row (`4e02364`).
 
 **Dependencies:** T354–T376 are done; T361–T363, T369 and T374 ran on the owner's word on 13 October.
+
+## Phase 36: Convergence
+
+- [X] T379 [US9] **`close_membership` and `close_cohort`.** `programs/holdout/src/instructions/close_membership.rs`, `close_cohort.rs`, `lib.rs`, `errors.rs` (`RoundNotClosable`), `events.rs` (`MembershipClosed` with cohort, wallet, league, index, start, end, tier, stake, days completed, outcome, amount paid, comeback refund): permissionless; closeable when the cohort is settled, its books (`custody()`) are zero, `now > end + 2 × cadence`, `now ≥ end + 30 days` (1 day for `league_id ≥ 100`) and the league's next cohort is settled; membership counted and `Claimed` or `Forfeited`, rent to its wallet, also when its cohort is already closed; vault leftovers to `fee_destination`, then vault and cohort closed with rent to `Config.operator` per FR-035b, FR-035c (missing)
+- [X] T380 [US9] **`release_comeback` takes any later settled cohort.** `programs/holdout/src/instructions/release_comeback.rs`: the `round` account may be any settled cohort of the league with index ≥ `min(last, next_index − 1)` per FR-037h (partial)
+- [X] T381 [US9] **Tests for closing.** `tests/scenarios`: closing refused before each condition holds (unsettled, unclaimed finisher, comeback window, age, next cohort unsettled), rents go to member and operator, stray SKR swept, closing a membership after its cohort, `release_comeback` after its round closed; INV-1 still holds per FR-035b, FR-035c, INV-6 (missing)
+- [X] T382 [US9] **Contracts and clients.** `contracts/program-instructions.md`, `data-model.md` (through the spec-kit skills), regenerated IDL, Codama clients and `kotlin/core` (`Instructions.kt`, `ProgramErrorCode.kt`, event decoding of `MembershipClosed`) per FR-035b (missing)
+- [X] T383 [US9] **The crank closes paid-out rounds.** `kotlin/crank/src/main/kotlin/holdout/crank/Run.kt`: each pass closes the memberships and then the cohorts that may close, the operator paying fees; `contracts/crank-cli.md` per FR-035b (missing)
+- [X] T384 [US9] **Round history on the phone.** `kotlin/app/.../storage/Store.kt` and the holdouts/me screens: a summary of every round of the wallet's read is kept across process death; closed rounds show from it; with none kept, rebuilt once from the `MembershipClosed` events in the wallet's transaction history; lifetime SKR won and lost from that history per FR-035d, FR-071 (missing)
+- [X] T385 [US9] **A membership whose cohort is closed.** `kotlin/core/.../Rpc.kt`, `kotlin/app`: memberships without a cohort account are read from the history, never as an error or a blank row per FR-035b, FR-035d (missing)
+
+**Dependencies:** T379 → T380 → T381 → T382 → T383, T384, T385. The program change needs a devnet upgrade on the owner's word.
+
+## Phase 37: Convergence
+
+- [X] T386 [US9] **plan.md delta for closing paid-out rounds.** A 2026-11-03 delta in the format of the existing ones: `close_membership`, `close_cohort`, the `release_comeback` later-cohort rule, error 6048, `MembershipClosed` / `CohortClosed`, the crank's step 6, core `History.kt` with `getSignaturesForAddress` / `getTransaction`, the app's `history:` record and Me's "Your Holdouts" card per FR-035b, FR-035c, FR-035d (missing)
+- [X] T387 [US9] **quickstart row for closing and history.** On devnet's 1-day test grace: finish and claim a round, see the member's and the operator's rent come back after the crank's pass, the Past row still shown (no chevron), Won/Lost on Me, a reinstall rebuilding it from `MembershipClosed` per FR-035b, FR-035d (missing)
+- [X] T388 [US9] **App contract rows.** `contracts/android-app.md`: Me's "Your Holdouts" card (Won, Lost) and a closed round's Past row that opens nothing per FR-035d (missing)
+- [X] T389 [US9] **README weaknesses.** `docs/weaknesses.json` (and the rendered README table): a finisher who never claims keeps the round's rent locked; a forfeit the phone never read before its round closed is missing from history per FR-035c, FR-035d, Constitution XI (missing)
+- [X] T390 [US9] **data-model `history:` wording.** The record's `{outcome}` is `finished` 0/1 and `{tier}` a tier index, as `RoundSummary.encode` writes them per FR-035d (partial)
+- [X] T391 [US9] **Decisions log.** `docs/holdout_decisions.md`: L14 resolved by Session 2026-11-03 (rent to `Config.operator`, permissionless `close_membership`, history by phone cache + rebuild), and a 2026-11-03 entry naming that the closing instructions are new instructions on the devnet program, which H24 had ruled out while the upgrade authority is kept — a devnet upgrade is the owner's call per Session 2026-11-03 (contradicts)
+- [X] T392 [US9] **Superseded task wording.** T379's "also when its cohort is already closed", T381's "closing a membership after its cohort" and T385's "memberships without a cohort account" are superseded by Session 2026-11-03's membership-first rule (`member_count == 0`): no such membership can exist, and the tests cover the rule instead per FR-035b (partial)
+
+**Dependencies:** T386–T392 are documentation only and independent of each other.
+
+## Phase 38: Convergence
+
+- [X] T393 [US9] **The closing witness in the contracts.** `contracts/program-instructions.md` (`close_membership`, `close_cohort`) and `contracts/crank-cli.md`: the witness is any later settled cohort of the league, not only `index + 1` per FR-035c (partial)

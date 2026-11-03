@@ -7,6 +7,8 @@
 
 pub mod claim_faucet;
 pub mod claim_payout;
+pub mod close_cohort;
+pub mod close_membership;
 pub mod create_league;
 pub mod initialize;
 pub mod join_cohort;
@@ -27,6 +29,8 @@ pub mod top_up_sponsor;
 // here — lib.rs calls each by its full path.
 pub use claim_faucet::*;
 pub use claim_payout::*;
+pub use close_cohort::*;
+pub use close_membership::*;
 pub use create_league::*;
 pub use initialize::*;
 pub use join_cohort::*;

@@ -112,3 +112,36 @@ pub struct PayoutClaimed {
     /// The comeback refund within `amount` (FR-037e).
     pub comeback: u64,
 }
+
+/// A paid-out round's membership closed, its rent back to the member
+/// (FR-035b). It carries the round's whole summary for that member, so the
+/// app can rebuild its history once the accounts are gone (FR-035d).
+#[event]
+pub struct MembershipClosed {
+    pub cohort: Pubkey,
+    pub wallet: Pubkey,
+    pub league: u8,
+    pub index: u32,
+    pub start: i64,
+    pub end: i64,
+    pub tier: u8,
+    pub stake: u64,
+    pub days_completed: u8,
+    /// `true` for a finisher (claimed), `false` for a forfeit.
+    pub finished: bool,
+    /// Everything the claim paid — stake, share and comeback refund; 0 for a forfeit.
+    pub paid: u64,
+    /// The comeback refund within `paid` (FR-037e).
+    pub comeback: u64,
+}
+
+/// A paid-out round's vault and cohort closed, their rent to the operator
+/// (FR-035b). `swept` is SKR that reached the vault from outside its books,
+/// sent to the operations destination.
+#[event]
+pub struct CohortClosed {
+    pub cohort: Pubkey,
+    pub league: u8,
+    pub index: u32,
+    pub swept: u64,
+}

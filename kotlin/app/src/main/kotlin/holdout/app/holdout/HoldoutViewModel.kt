@@ -23,11 +23,14 @@ import holdout.app.wallet.SignAction
 import holdout.app.wallet.TxOutcome
 import holdout.app.wallet.TxPhase
 import holdout.app.wallet.WalletRepository
+import holdout.core.History
 import holdout.core.Instructions
 import holdout.core.Journey
 import holdout.core.Leaderboard
 import holdout.core.MembershipSnapshot
+import holdout.core.RoundSummary
 import holdout.core.Rpc
+import holdout.core.Stage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -84,6 +87,8 @@ class HoldoutViewModel(
         val pending: List<PendingTx> = emptyList(),
         /** The outcomes of signatures the member left before they came back, oldest first, a Notice card each on the screen they went to (at most [UnseenTx.MAX_CARDS]). */
         val unseen: List<UnseenTx> = emptyList(),
+        /** The wallet's finished rounds, kept on the phone so a round whose accounts are closed still shows (FR-035d); newest first. */
+        val history: List<RoundSummary> = emptyList(),
     ) {
         /** The transaction that keeps [action] on [cohort] shut, if one may still land. */
         fun pendingFor(action: SignAction, cohort: SolanaPublicKey, day: Int = 0): PendingTx? = pending.firstOrNull { it.isFor(action, cohort, day) }
@@ -372,6 +377,44 @@ class HoldoutViewModel(
         }
         if (view != null && back) keepAutoSubmit()
         if (readAt != null) keepPending()
+        if (view != null && wallet != null) keepHistory(wallet, view)
+    }
+
+    /** The one rebuild of a wallet's history from its transactions this process runs at a time (FR-035d). */
+    private val rebuildTried = mutableSetOf<SolanaPublicKey>()
+
+    /**
+     * Keeps every finished round [view] shows of [wallet]'s — a claim paid, a forfeit settled — in the
+     * store's `history:` record, so it still shows once `close_membership` and `close_cohort` have closed
+     * its accounts (FR-035d). With no record on this phone (a new phone, a reinstall) the closed rounds
+     * are first rebuilt from the `MembershipClosed` events in the wallet's transaction history — one try
+     * per wallet per app session, since a rebuild is many reads (FR-071); one that fails writes nothing,
+     * and the next session tries again. The member is told nothing either way (owner, 3 Nov).
+     */
+    private fun keepHistory(wallet: SolanaPublicKey, view: ChainView) {
+        val key = wallet.base58()
+        val seen = view.holdouts.mapNotNull { h ->
+            val m = h.membership ?: return@mapNotNull null
+            val claimed = Journey.stage(h.cohort, m, Long.MAX_VALUE) as? Stage.Claimed
+            History.fromChain(h.address, h.cohort, m, paid = claimed?.amount ?: 0uL, comeback = claimed?.comeback ?: 0uL)
+        }
+        val kept = store.roundHistory(key)
+        if (kept == null) {
+            _state.update { it.copy(history = History.merge(emptyList(), seen)) }
+            if (!rebuildTried.add(wallet)) return
+            viewModelScope.launch {
+                val closed = History.rebuild(rpc, Deployment.programId, wallet) ?: return@launch
+                if (address != wallet) return@launch
+                val merged = History.merge(History.merge(closed, seen), _state.value.history)
+                store.setRoundHistory(key, merged.joinToString("\n") { it.encode() })
+                _state.update { it.copy(history = merged) }
+            }
+            return
+        }
+        val before = kept.lines().mapNotNull(RoundSummary::decode)
+        val merged = History.merge(before, seen)
+        if (merged != before) store.setRoundHistory(key, merged.joinToString("\n") { it.encode() })
+        if (_state.value.history != merged) _state.update { it.copy(history = merged) }
     }
 
     /**

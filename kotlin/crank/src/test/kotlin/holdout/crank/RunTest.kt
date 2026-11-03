@@ -341,6 +341,42 @@ class RunTest {
     }
 
     @Test
+    fun `a comeback whose round is closed is released against the league's next settled cohort`() {
+        // Round 1 is closed (no account); cohort 2 is settled.
+        val cohorts = mapOf((0 to 0L) to cohort(0, settled = true), (0 to 2L) to cohort(2, settled = true))
+        val due = Run.releasesDue(listOf(profileOf(progressOf(0, 100uL, 1, 1))), listOf(league0), mapOf(0 to 3L), cohorts, first + 5 * week)
+        assertEquals(listOf(Run.ReleaseDue(comebackWallet, 0, 1L, account = 2L)), due)
+    }
+
+    // ---- closing paid-out rounds -------------------------------------------
+
+    @Test
+    fun `a round closes once paid out, past its grace and the comeback window, with the next cohort settled`() {
+        val end0 = first + 7 * day
+        val cohorts = mapOf((0 to 0L) to cohort(0, settled = true), (0 to 1L) to cohort(1, settled = true), (0 to 2L) to cohort(2))
+        fun due(at: Long, over: Map<Pair<Int, Long>, CohortSnapshot> = cohorts) = Run.closesDue(over, listOf(league0), at).map { it.index }
+
+        assertEquals(emptyList(), due(end0 + 30 * day - 1), "inside its 30-day grace")
+        assertEquals(listOf(0L), due(end0 + 30 * day))
+        // Cohort 1 waits for cohort 2, which has not settled: settlement still reads it as the previous cohort.
+        assertEquals(listOf(0L), due(first + week + 7 * day + 30 * day))
+        val unclaimed = cohorts + ((0 to 0L) to cohort(0, settled = true).copy(heldStake = 10uL))
+        assertEquals(emptyList(), due(end0 + 365 * day, unclaimed), "a finisher who has not claimed keeps it open for good")
+        val unsettledNext = cohorts + ((0 to 1L) to cohort(1))
+        assertEquals(emptyList(), due(end0 + 30 * day, unsettledNext))
+    }
+
+    @Test
+    fun `a round whose successor already closed still closes, with the next settled cohort as witness`() {
+        // Cohort 1 closed while 0 still owed a claim; 0's last claim is now in.
+        val cohorts = mapOf((0 to 0L) to cohort(0, settled = true), (0 to 2L) to cohort(2, settled = true), (0 to 3L) to cohort(3))
+        val at = first + 7 * day + 30 * day
+        assertEquals(listOf(0L), Run.closesDue(cohorts, listOf(league0), at).map { it.index })
+        assertEquals(2L, Run.witnessOf(cohorts, cohorts.getValue(0 to 0L)))
+        assertEquals(null, Run.witnessOf(cohorts, cohorts.getValue(0 to 2L)), "no later cohort is settled")
+    }
+
+    @Test
     fun `a pass releases a pledge whose round settled, after settlement, and leaves one whose round is still running`() = runBlocking {
         val chain = liveLeague(sponsorLamports = 30_000_000)
         val runningRound = SolanaPublicKey(ByteArray(32) { 22 })

@@ -451,6 +451,147 @@
       "args": []
     },
     {
+      "name": "close_cohort",
+      "docs": [
+        "Permissionless: a paid-out round's vault and cohort close, their rent to",
+        "the operator, once every membership has closed (FR-035b, FR-035c)."
+      ],
+      "discriminator": [
+        44,
+        111,
+        182,
+        52,
+        183,
+        0,
+        42,
+        72
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "league"
+        },
+        {
+          "name": "cohort",
+          "writable": true
+        },
+        {
+          "name": "next_cohort",
+          "docs": [
+            "A later cohort of the league, settled: cohorts settle in order, so",
+            "cohort `index + 1` is settled too and nothing of the league's",
+            "settlement needs this one again (FR-035c). Any later one will do, so a",
+            "round still owed a claim when its successor closed can close later."
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cohort"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_destination",
+          "docs": [
+            "Operations: SKR that reached the vault from outside its books."
+          ],
+          "writable": true
+        },
+        {
+          "name": "operator",
+          "docs": [
+            "Receives both rents."
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_membership",
+      "docs": [
+        "Permissionless: a paid-out round's membership closes, its rent back to",
+        "the member (FR-035b, FR-035c)."
+      ],
+      "discriminator": [
+        75,
+        163,
+        172,
+        3,
+        117,
+        168,
+        222,
+        86
+      ],
+      "accounts": [
+        {
+          "name": "league"
+        },
+        {
+          "name": "cohort",
+          "writable": true
+        },
+        {
+          "name": "next_cohort",
+          "docs": [
+            "A later cohort of the league, settled: cohorts settle in order, so",
+            "cohort `index + 1` is settled too and nothing of the league's",
+            "settlement needs this one again (FR-035c). Any later one will do, so a",
+            "round still owed a claim when its successor closed can close later."
+          ]
+        },
+        {
+          "name": "membership",
+          "writable": true
+        },
+        {
+          "name": "wallet",
+          "docs": [
+            "Receives the membership's rent: always its own wallet."
+          ],
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "create_league",
       "docs": [
         "Admin only. A real league keeps the devnet timing; a test league needs a",
@@ -1704,7 +1845,10 @@
           "docs": [
             "The comeback's latest opened round — cohort",
             "`min(comeback_last_round, league.next_index − 1)` of this league —",
-            "required once its first round has been opened."
+            "required once its first round has been opened. Any later cohort of",
+            "the league will do: cohorts settle in order, so a later one settled",
+            "means this one is too — which is what is passed once this one has been",
+            "closed (FR-035b, FR-037h)."
           ],
           "optional": true
         }
@@ -2228,6 +2372,19 @@
       ]
     },
     {
+      "name": "CohortClosed",
+      "discriminator": [
+        4,
+        179,
+        181,
+        251,
+        15,
+        99,
+        175,
+        101
+      ]
+    },
+    {
       "name": "CohortOpened",
       "discriminator": [
         141,
@@ -2355,6 +2512,19 @@
         227,
         133,
         142
+      ]
+    },
+    {
+      "name": "MembershipClosed",
+      "discriminator": [
+        163,
+        38,
+        35,
+        215,
+        93,
+        174,
+        246,
+        10
       ]
     },
     {
@@ -2519,6 +2689,11 @@
       "code": 6047,
       "name": "ComebackStillOpen",
       "msg": "This comeback's round can still be finished"
+    },
+    {
+      "code": 6048,
+      "name": "RoundNotClosable",
+      "msg": "This round cannot be closed yet"
     },
     {
       "code": 6050,
@@ -2798,6 +2973,35 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CohortClosed",
+      "docs": [
+        "A paid-out round's vault and cohort closed, their rent to the operator",
+        "(FR-035b). `swept` is SKR that reached the vault from outside its books,",
+        "sent to the operations destination."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cohort",
+            "type": "pubkey"
+          },
+          {
+            "name": "league",
+            "type": "u8"
+          },
+          {
+            "name": "index",
+            "type": "u32"
+          },
+          {
+            "name": "swept",
+            "type": "u64"
           }
         ]
       }
@@ -3433,6 +3637,76 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MembershipClosed",
+      "docs": [
+        "A paid-out round's membership closed, its rent back to the member",
+        "(FR-035b). It carries the round's whole summary for that member, so the",
+        "app can rebuild its history once the accounts are gone (FR-035d)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cohort",
+            "type": "pubkey"
+          },
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "league",
+            "type": "u8"
+          },
+          {
+            "name": "index",
+            "type": "u32"
+          },
+          {
+            "name": "start",
+            "type": "i64"
+          },
+          {
+            "name": "end",
+            "type": "i64"
+          },
+          {
+            "name": "tier",
+            "type": "u8"
+          },
+          {
+            "name": "stake",
+            "type": "u64"
+          },
+          {
+            "name": "days_completed",
+            "type": "u8"
+          },
+          {
+            "name": "finished",
+            "docs": [
+              "`true` for a finisher (claimed), `false` for a forfeit."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "paid",
+            "docs": [
+              "Everything the claim paid — stake, share and comeback refund; 0 for a forfeit."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "comeback",
+            "docs": [
+              "The comeback refund within `paid` (FR-037e)."
+            ],
+            "type": "u64"
           }
         ]
       }

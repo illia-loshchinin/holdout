@@ -157,20 +157,23 @@ private fun PastGroup(title: String, rows: List<PastHoldout>, caption: String, a
         ) {
             rows.forEachIndexed { i, row ->
                 if (i > 0) HorizontalDivider(thickness = Spacing.border, color = HoldoutColors.Hairline)
-                PastRow(row, caption, amountColor) { onEvent(row.go) }
+                PastRow(row, caption, amountColor, row.go?.let { go -> { onEvent(go) } })
             }
         }
     }
 }
 
-/** One past Holdout: name over its line, the amount in mono over a quiet caption, a chevron; the whole row opens it. */
+/**
+ * One past Holdout: name over its line, the amount in mono over a quiet caption, a chevron; the whole row opens it.
+ * A round whose accounts are closed ([onClick] null, FR-035d) has nothing to open: no chevron, no tap.
+ */
 @Composable
-private fun PastRow(row: PastHoldout, caption: String, amountColor: Color, onClick: () -> Unit) {
+private fun PastRow(row: PastHoldout, caption: String, amountColor: Color, onClick: (() -> Unit)?) {
     Row(
         Modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = PAST_ROW_HEIGHT)
-            .clickable(onClickLabel = "Open", onClick = onClick)
+            .then(if (onClick != null) Modifier.clickable(onClickLabel = "Open", onClick = onClick) else Modifier)
             .padding(vertical = Spacing.tight),
         horizontalArrangement = Arrangement.spacedBy(Spacing.betweenItems),
         verticalAlignment = Alignment.CenterVertically,
@@ -183,7 +186,7 @@ private fun PastRow(row: PastHoldout, caption: String, amountColor: Color, onCli
             Text(row.amount, style = AmountStyle.copy(fontSize = 15.sp, lineHeight = 20.sp), color = amountColor)
             Text(caption, style = LabelStyle, color = HoldoutColors.TextTertiary)
         }
-        Chevron()
+        if (onClick != null) Chevron()
     }
 }
 
