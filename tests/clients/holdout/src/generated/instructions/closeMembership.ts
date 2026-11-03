@@ -37,8 +37,10 @@ export type CloseMembershipInput<TAccountLeague extends InstructionAccountInput 
   league: TAccountLeague;
 cohort: TAccountCohort;
 /**
- * The league's cohort `index + 1`: settled, so nothing of the league's
- * settlement needs this one again (FR-035c).
+ * A later cohort of the league, settled: cohorts settle in order, so
+ * cohort `index + 1` is settled too and nothing of the league's
+ * settlement needs this one again (FR-035c). Any later one will do, so a
+ * round still owed a claim when its successor closed can close later.
  */
 nextCohort: TAccountNextCohort;
 membership: TAccountMembership;
@@ -68,8 +70,10 @@ accounts: {
 league: TAccountMetas[0];
 cohort: TAccountMetas[1];
 /**
- * The league's cohort `index + 1`: settled, so nothing of the league's
- * settlement needs this one again (FR-035c).
+ * A later cohort of the league, settled: cohorts settle in order, so
+ * cohort `index + 1` is settled too and nothing of the league's
+ * settlement needs this one again (FR-035c). Any later one will do, so a
+ * round still owed a claim when its successor closed can close later.
  */
 nextCohort: TAccountMetas[2];
 membership: TAccountMetas[3];

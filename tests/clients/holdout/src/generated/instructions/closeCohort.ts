@@ -39,8 +39,10 @@ export type CloseCohortAsyncInput<TAccountConfig extends InstructionAccountInput
 league: TAccountLeague;
 cohort: TAccountCohort;
 /**
- * The league's cohort `index + 1`: settled, so nothing of the league's
- * settlement needs this one again (FR-035c).
+ * A later cohort of the league, settled: cohorts settle in order, so
+ * cohort `index + 1` is settled too and nothing of the league's
+ * settlement needs this one again (FR-035c). Any later one will do, so a
+ * round still owed a claim when its successor closed can close later.
  */
 nextCohort: TAccountNextCohort;
 vault?: TAccountVault;
@@ -82,8 +84,10 @@ export type CloseCohortInput<TAccountConfig extends InstructionAccountInput = In
 league: TAccountLeague;
 cohort: TAccountCohort;
 /**
- * The league's cohort `index + 1`: settled, so nothing of the league's
- * settlement needs this one again (FR-035c).
+ * A later cohort of the league, settled: cohorts settle in order, so
+ * cohort `index + 1` is settled too and nothing of the league's
+ * settlement needs this one again (FR-035c). Any later one will do, so a
+ * round still owed a claim when its successor closed can close later.
  */
 nextCohort: TAccountNextCohort;
 vault: TAccountVault;
@@ -120,8 +124,10 @@ config: TAccountMetas[0];
 league: TAccountMetas[1];
 cohort: TAccountMetas[2];
 /**
- * The league's cohort `index + 1`: settled, so nothing of the league's
- * settlement needs this one again (FR-035c).
+ * A later cohort of the league, settled: cohorts settle in order, so
+ * cohort `index + 1` is settled too and nothing of the league's
+ * settlement needs this one again (FR-035c). Any later one will do, so a
+ * round still owed a claim when its successor closed can close later.
  */
 nextCohort: TAccountMetas[3];
 vault: TAccountMetas[4];
