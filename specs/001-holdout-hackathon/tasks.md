@@ -862,3 +862,15 @@
 - [X] T385 [US9] **A membership whose cohort is closed.** `kotlin/core/.../Rpc.kt`, `kotlin/app`: memberships without a cohort account are read from the history, never as an error or a blank row per FR-035b, FR-035d (missing)
 
 **Dependencies:** T379 → T380 → T381 → T382 → T383, T384, T385. The program change needs a devnet upgrade on the owner's word.
+
+## Phase 37: Convergence
+
+- [ ] T386 [US9] **plan.md delta for closing paid-out rounds.** A 2026-11-03 delta in the format of the existing ones: `close_membership`, `close_cohort`, the `release_comeback` later-cohort rule, error 6048, `MembershipClosed` / `CohortClosed`, the crank's step 6, core `History.kt` with `getSignaturesForAddress` / `getTransaction`, the app's `history:` record and Me's "Your Holdouts" card per FR-035b, FR-035c, FR-035d (missing)
+- [ ] T387 [US9] **quickstart row for closing and history.** On devnet's 1-day test grace: finish and claim a round, see the member's and the operator's rent come back after the crank's pass, the Past row still shown (no chevron), Won/Lost on Me, a reinstall rebuilding it from `MembershipClosed` per FR-035b, FR-035d (missing)
+- [ ] T388 [US9] **App contract rows.** `contracts/android-app.md`: Me's "Your Holdouts" card (Won, Lost) and a closed round's Past row that opens nothing per FR-035d (missing)
+- [ ] T389 [US9] **README weaknesses.** `docs/weaknesses.json` (and the rendered README table): a finisher who never claims keeps the round's rent locked; a forfeit the phone never read before its round closed is missing from history per FR-035c, FR-035d, Constitution XI (missing)
+- [ ] T390 [US9] **data-model `history:` wording.** The record's `{outcome}` is `finished` 0/1 and `{tier}` a tier index, as `RoundSummary.encode` writes them per FR-035d (partial)
+- [ ] T391 [US9] **Decisions log.** `docs/holdout_decisions.md`: L14 resolved by Session 2026-11-03 (rent to `Config.operator`, permissionless `close_membership`, history by phone cache + rebuild), and a 2026-11-03 entry naming that the closing instructions are new instructions on the devnet program, which H24 had ruled out while the upgrade authority is kept — a devnet upgrade is the owner's call per Session 2026-11-03 (contradicts)
+- [ ] T392 [US9] **Superseded task wording.** T379's "also when its cohort is already closed", T381's "closing a membership after its cohort" and T385's "memberships without a cohort account" are superseded by Session 2026-11-03's membership-first rule (`member_count == 0`): no such membership can exist, and the tests cover the rule instead per FR-035b (partial)
+
+**Dependencies:** T386–T392 are documentation only and independent of each other.
